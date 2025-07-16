@@ -304,7 +304,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {device, _firmware, deployment_group} = device_fixture(user, %{identifier: "123"})
     Devices.update_deployment_group(device, deployment_group)
 
-    {:ok, deployment_group} =
+    {:ok, _deployment_group} =
       ManagedDeployments.update_deployment_group(deployment_group, %{
         conditions: %{"version" => "< 0.0.1"}
       })
@@ -318,6 +318,25 @@ defmodule NervesHubWeb.DeviceChannelTest do
       subscribe_and_join(socket, DeviceChannel, "device")
 
     refute device_channel.assigns.device.deployment_id
+
+    close_cleanly(device_channel)
+  end
+
+  test "deployment group is not removed when matching conditions are met" do
+    user = Fixtures.user_fixture()
+    {device, _firmware, deployment_group} = device_fixture(user, %{identifier: "123"})
+    device = Devices.update_deployment_group(device, deployment_group)
+    assert device.deployment_id == deployment_group.id
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _join_reply, device_channel} =
+      subscribe_and_join(socket, DeviceChannel, "device")
+
+    assert device_channel.assigns.device.deployment_id == deployment_group.id
 
     close_cleanly(device_channel)
   end
