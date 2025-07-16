@@ -299,7 +299,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     close_cleanly(device_channel)
   end
 
-  test "deployment group is removed when device joins" do
+  test "deployment group is removed on join when conditions no longer match" do
     user = Fixtures.user_fixture()
     {device, _firmware, deployment_group} = device_fixture(user, %{identifier: "123"})
     Devices.update_deployment_group(device, deployment_group)
