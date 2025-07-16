@@ -278,7 +278,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     close_cleanly(device_channel)
   end
 
-  test "deployment group is set when device joins" do
+  test "matching deployment group is set on join when device has no deployment group" do
     user = Fixtures.user_fixture()
     {device, _firmware, deployment_group} = device_fixture(user, %{identifier: "123"})
     refute device.deployment_id
