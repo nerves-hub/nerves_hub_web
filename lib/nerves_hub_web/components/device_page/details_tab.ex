@@ -749,8 +749,15 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       {:error, changeset} ->
         Logger.info("Couldn't update device.priority_updates: #{inspect(changeset)}")
 
+        error =
+          if Keyword.has_key?(changeset.errors, :deleted_at) do
+            "Device cannot be updated because it has been deleted. Please restore the device to make changes."
+          else
+            "There was an issue updating the device, please check the logs."
+          end
+
         socket
-        |> put_flash(:error, "There was an issue updating the device, please check the logs.")
+        |> put_flash(:error, error)
         |> halt()
     end
   end

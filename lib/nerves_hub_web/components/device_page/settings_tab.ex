@@ -210,30 +210,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       </div>
 
       <div :if={@device.deleted_at && authorized?(:"device:update", @org_user)} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
-        <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
-          <div>
-            <button class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600" type="button" phx-click="restore-device" data-confirm="Are you sure you want to restore this device?">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M8.5 18.9999H5.39903C3.87406 18.9999 2.91012 17.3617 3.65071 16.0287L7 9.99994M7 9.99994L3 11.9999M7 9.99994L8 13.9999M18.9999 13.9999L20.1987 16.0122C20.9929 17.3454 20.0323 19.0358 18.4805 19.0358L12.768 19.0358M12.768 19.0358L16 21.9999M12.768 19.0358L16 15.9999M8.5 6.99994L10.5883 3.86749C11.4401 2.58975 13.3545 2.70894 14.0413 4.08246L17 9.99994M17 9.99994L18 5.99994M17 9.99994L13 8.99994"
-                  stroke="#A1A1AA"
-                  stroke-width="1.2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-
-              <span class="text-sm font-medium text-zinc-300">Restore device</span>
-            </button>
-          </div>
-          <div class="text-zinc-300">
-            The device has been disabled. Attempts to connect to NervesHub will be blocked.
-          </div>
+        <div class="text-zinc-300 p-6 pb-0">
+          The device has been disabled. Attempts to connect to NervesHub will be blocked.
         </div>
-      </div>
-
-      <div :if={@device.deleted_at && authorized?(:"device:update", @org_user)} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
-        <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
+        <div class="flex items-center p-6 gap-6 border-zinc-700">
           <div>
             <button
               class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-red-500"
@@ -251,6 +231,22 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               </svg>
 
               <span class="text-sm font-medium text-red-500">Permanently delete device</span>
+            </button>
+          </div>
+          <div class="text-zinc-300">or</div>
+          <div>
+            <button class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600" type="button" phx-click="restore-device" data-confirm="Are you sure you want to restore this device?">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M8.5 18.9999H5.39903C3.87406 18.9999 2.91012 17.3617 3.65071 16.0287L7 9.99994M7 9.99994L3 11.9999M7 9.99994L8 13.9999M18.9999 13.9999L20.1987 16.0122C20.9929 17.3454 20.0323 19.0358 18.4805 19.0358L12.768 19.0358M12.768 19.0358L16 21.9999M12.768 19.0358L16 15.9999M8.5 6.99994L10.5883 3.86749C11.4401 2.58975 13.3545 2.70894 14.0413 4.08246L17 9.99994M17 9.99994L18 5.99994M17 9.99994L13 8.99994"
+                  stroke="#A1A1AA"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+
+              <span class="text-sm font-medium text-zinc-300">Restore device</span>
             </button>
           </div>
         </div>
@@ -300,8 +296,15 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         |> halt()
 
       {:error, :update_with_audit, changeset, _} ->
+        error =
+          if Keyword.has_key?(changeset.errors, :deleted_at) do
+            "Device cannot be updated because it has been deleted. Please restore the device to make changes."
+          else
+            "We couldn't save your changes."
+          end
+
         socket
-        |> put_flash(:error, "We couldn't save your changes.")
+        |> put_flash(:error, error)
         |> assign(:settings_form, to_form(changeset))
         |> halt()
 
