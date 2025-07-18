@@ -233,7 +233,6 @@ defmodule NervesHub.Devices do
   def get_device_by_identifier!(org, identifier, preload_assoc \\ nil)
       when is_binary(identifier) do
     get_device_by_identifier_query(org, identifier, preload_assoc)
-    |> Repo.exclude_deleted()
     |> Repo.one!()
   end
 
