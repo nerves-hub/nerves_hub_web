@@ -286,6 +286,17 @@ defmodule NervesHub.Accounts do
     |> Repo.one()
   end
 
+  def find_org_user_with_device_identifier(user, device_identifier) do
+    OrgUser
+    |> join(:left, [ou], o in assoc(ou, :org))
+    |> join(:left, [ou, o], p in assoc(o, :products))
+    |> join(:left, [ou, o, p], d in assoc(p, :devices))
+    |> where([_, _, _, d], d.identifier == ^device_identifier)
+    |> where([ou], ou.user_id == ^user.id)
+    |> where([ou], is_nil(ou.deleted_at))
+    |> Repo.one()
+  end
+
   @doc """
   Authenticates a user by their email and password. Returns the user if the
   user is found and the password is correct, otherwise nil.

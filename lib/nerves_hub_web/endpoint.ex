@@ -20,6 +20,8 @@ defmodule NervesHubWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]]
   )
 
+  socket("/events-socket", NervesHubWeb.EventStreamSocket, websocket: true)
+
   socket(
     "/device-socket",
     NervesHubWeb.DeviceSocket,
