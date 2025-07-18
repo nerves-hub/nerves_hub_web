@@ -11,19 +11,17 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   require Logger
 
   alias NervesHub.Accounts
-  alias NervesHub.Devices
+  alias NervesHubWeb.Helpers.Authorization
 
   @impl Phoenix.Channel
   def join("device:" <> device_identifier, _params, socket) do
     # Socket already has authenticated user, just validate device access
-    case authorize_device_access(socket.assigns.user, device_identifier) do
-      {:ok, _device} ->
-        :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device_identifier}:internal")
+    if authorized?(socket.assigns.user, device_identifier) do
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device_identifier}:internal")
 
-        {:ok, socket}
-
-      {:error, reason} ->
-        {:error, %{reason: reason}}
+      {:ok, socket}
+    else
+      {:error, %{reason: "unauthorized"}}
     end
   end
 
@@ -44,12 +42,13 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     {:noreply, socket}
   end
 
-  defp authorize_device_access(user, device_identifier) do
-    with {:ok, device} <- Devices.get_by_identifier(device_identifier),
-         org_user when not is_nil(org_user) <- Accounts.find_org_user_with_device(user, device.id) do
-      {:ok, device}
-    else
-      _ -> {:error, :access_denied}
+  defp authorized?(user, device_identifier) do
+    case Accounts.find_org_user_with_device_identifier(user, device_identifier) do
+      nil ->
+        false
+
+      org_user ->
+        Authorization.authorized?(:"device:console", org_user)
     end
   end
 end

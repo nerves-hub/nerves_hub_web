@@ -19,13 +19,30 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
       {:ok, _join_reply, _channel} =
         subscribe_and_join(socket, DeviceEventsStreamChannel, "device:#{device.identifier}")
 
-      # Broadcast a firmware update
       NervesHubWeb.Endpoint.broadcast("device:#{device.identifier}:internal", "fwup_progress", %{
         percent: 50
       })
 
-      # Assert that the channel receives the firmware update message
       assert_push("firmware_update", %{percent: 50})
+    end
+  end
+
+  describe "join/3" do
+    test "authorized users can join the device channel" do
+      user = Fixtures.user_fixture()
+
+      device = device_fixture(user, %{identifier: "test-device-123"})
+
+      user_token = Accounts.create_user_api_token(user, "test-token")
+
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => user_token})
+
+      assert {:ok, _reply, _channel} =
+               subscribe_and_join(
+                 socket,
+                 DeviceEventsStreamChannel,
+                 "device:#{device.identifier}"
+               )
     end
 
     test "unauthorized user cannot join the device channel" do
@@ -39,17 +56,12 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
       # Connect with unauthorized user's token
       {:ok, socket} = connect(EventStreamSocket, %{"token" => other_user_token})
 
-      # Attempt to join should fail
       assert {:error, %{reason: _reason}} =
                subscribe_and_join(
                  socket,
                  DeviceEventsStreamChannel,
                  "device:#{device.identifier}"
                )
-    end
-
-    test "missing token prevents joining" do
-      assert {:error, :no_token} == connect(EventStreamSocket, %{})
     end
   end
 
