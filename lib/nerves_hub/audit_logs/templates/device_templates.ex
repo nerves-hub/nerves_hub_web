@@ -97,6 +97,23 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     )
   end
 
+  @spec audit_set_deployment(Device.t(), DeploymentGroup.t(), :one_found | :multiple_found) :: :ok
+  def audit_set_deployment(device, deployment_group, :one_found) do
+    AuditLogs.audit!(
+      device,
+      device,
+      "Updating #{device.identifier}'s deployment group to #{deployment_group.name}"
+    )
+  end
+
+  def audit_set_deployment(device, deployment_group, :multiple_found) do
+    AuditLogs.audit!(
+      device,
+      device,
+      "Multiple matching deployments found, updating #{device.identifier}'s deployment group to #{deployment_group.name}"
+    )
+  end
+
   @spec audit_device_archive_update_triggered(Device.t(), Archive.t(), UUIDv7.t()) :: :ok
   def audit_device_archive_update_triggered(
         device,

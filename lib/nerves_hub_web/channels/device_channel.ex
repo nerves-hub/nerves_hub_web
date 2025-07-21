@@ -47,7 +47,7 @@ defmodule NervesHubWeb.DeviceChannel do
     device =
       device
       |> ManagedDeployments.verify_deployment_group_membership()
-      |> ManagedDeployments.preload_with_firmware_and_archive()
+      |> ManagedDeployments.set_deployment_group()
       |> Map.put(:deployment_group, nil)
 
     maybe_send_public_keys(device, socket, params)
