@@ -51,6 +51,20 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                device.identifier == identifier
              end)
     end
+
+    test "does not return soft-deleted devices", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      {:ok, _device} =
+        Fixtures.device_fixture(org, product, firmware)
+        |> Devices.update_device(%{deleted_at: DateTime.utc_now()})
+
+      conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
+
+      assert json_response(conn, 200)["data"] == []
+    end
   end
 
   describe "show" do
@@ -110,6 +124,27 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         get(conn, Routes.api_device_path(conn, :show, "abcd"))
       end)
       |> assert_authorization_error(404)
+    end
+
+    test "soft-deleted device can be queried", %{
+      conn: conn,
+      user: user,
+      org: org
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      {:ok, device} =
+        Fixtures.device_fixture(org, product, firmware)
+        |> Devices.update_device(%{deleted_at: DateTime.utc_now()})
+
+      conn =
+        get(conn, Routes.api_device_path(conn, :show, device.identifier))
+
+      assert json_response(conn, 200)["data"]
+
+      assert json_response(conn, 200)["data"]["identifier"] == device.identifier
     end
   end
 
