@@ -12,13 +12,24 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
   @required_params [
     :source_id,
     :target_id,
-    :upload_metadata
+    :upload_metadata,
+    :tool,
+    :tool_metadata,
+    :size,
+    :source_size,
+    :target_size
   ]
 
   schema "firmware_deltas" do
     belongs_to(:source, Firmware)
     belongs_to(:target, Firmware)
 
+    field(:tool, :string)
+    # Metadata about the delta that the update tool needs to operate
+    field(:tool_metadata, :map)
+    field(:size, :integer, default: 0)
+    field(:source_size, :integer, default: 0)
+    field(:target_size, :integer, default: 0)
     field(:upload_metadata, :map)
 
     timestamps()

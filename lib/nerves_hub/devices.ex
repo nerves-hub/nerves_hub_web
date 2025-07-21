@@ -35,8 +35,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
-  @min_fwup_delta_updatable_version ">=1.10.0"
-
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
   end
@@ -739,12 +737,12 @@ defmodule NervesHub.Devices do
   Resolve an update for the device's deployment
   """
   @spec resolve_update(Device.t()) :: UpdatePayload.t()
-  def resolve_update(%{status: :registered}), do: %UpdatePayload{update_available: false}
+  def resolve_update(%Device{status: :registered}), do: %UpdatePayload{update_available: false}
 
-  def resolve_update(%{deployment_id: nil}), do: %UpdatePayload{update_available: false}
+  def resolve_update(%Device{deployment_id: nil}), do: %UpdatePayload{update_available: false}
 
-  def resolve_update(device) do
-    Logger.metadata(device_id: device.id)
+  def resolve_update(%Device{firmware_metadata: fw_meta} = device) do
+    Logger.metadata(device_id: device.id, source_firmware_uuid: Map.get(fw_meta, :uuid))
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group_for_update(device)
     do_resolve_update(device, deployment_group)
   end
@@ -752,7 +750,7 @@ defmodule NervesHub.Devices do
   def do_resolve_update(device, deployment_group) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
-        {:ok, url} = get_delta_or_firmware_url(device.firmware_metadata.uuid, deployment_group)
+        {:ok, url} = get_delta_or_firmware_url(device, deployment_group)
 
         {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
 
@@ -775,19 +773,33 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec delta_updatable?(
-          source :: Firmware.t(),
-          target :: Firmware.t(),
-          DeploymentGroup.t(),
-          fwup_version :: String.t()
-        ) :: boolean()
-  def delta_updatable?(nil, _target, _deployment_group, _fwup_version), do: false
+  @doc """
+  Returns true if the device is delta updatable.
 
-  def delta_updatable?(source, target, deployment_group, fwup_version) do
+  Checks update tool version information and similar metadata to determine if
+  the device is delta updatable.
+  """
+  @spec delta_updatable?(Device.t(), DeploymentGroup.t() | Firmware.t()) :: boolean()
+  def delta_updatable?(device, %DeploymentGroup{} = deployment_group) do
+    Logger.metadata(device_id: device.id, deployment_group_id: deployment_group.id)
+    # note that source delta does not need delta markers to be updatable
+    # Any advanced decision about whether to delta update or not are delegated
+    # to the specialized update tool implementation
+
     deployment_group.delta_updatable and
-      target.delta_updatable and
-      source.delta_updatable and
-      Version.match?(fwup_version, @min_fwup_delta_updatable_version)
+      not is_nil(deployment_group.firmware) and
+      delta_updatable?(device, deployment_group.firmware)
+  end
+
+  def delta_updatable?(%{firmware_metadata: fw_meta} = device, %Firmware{} = firmware) do
+    Logger.metadata(
+      device_id: device.id,
+      target_firmware_uuid: firmware.uuid,
+      source_firmware_uuid: Map.get(fw_meta, :uuid)
+    )
+
+    firmware.delta_updatable and
+      :delta == update_tool().device_update_type(device, firmware)
   end
 
   @doc """
@@ -1701,54 +1713,108 @@ defmodule NervesHub.Devices do
   @doc """
   Get firmware or delta update URL.
   """
-  @spec get_delta_or_firmware_url(String.t(), Firmware.t() | DeploymentGroup.t()) ::
+  @spec get_delta_or_firmware_url(Device.t(), Firmware.t() | DeploymentGroup.t()) ::
           {:ok, String.t()} | {:error, :failure}
-  def get_delta_or_firmware_url(device_firmware_uuid, %DeploymentGroup{
-        delta_updatable: true,
-        firmware: target_firmware
-      }) do
+  def get_delta_or_firmware_url(
+        %Device{} = device,
+        %DeploymentGroup{
+          delta_updatable: true,
+          firmware: target
+        }
+      ) do
+    get_delta_or_firmware_url(device, target)
+  end
+
+  def get_delta_or_firmware_url(
+        %{firmware_metadata: %{uuid: source_uuid}} = device,
+        %Firmware{
+          delta_updatable: true
+        } = target
+      ) do
     # Get firmware delta URL if available but otherwise deliver full firmware
-    with %Firmware{} = device_firmware <- Firmwares.get_firmware_by_uuid(device_firmware_uuid),
-         {:ok, firmware_delta} <-
-           Firmwares.get_firmware_delta_by_source_and_target(device_firmware, target_firmware) do
+    with %Firmware{} = source <- Firmwares.get_firmware_by_uuid(source_uuid),
+         true <- delta_updatable?(device, target),
+         {:ok, delta} <- Firmwares.get_firmware_delta_by_source_and_target(source, target) do
       Logger.info(
-        "Delivering firmware delta between #{device_firmware_uuid} and #{target_firmware.uuid}...",
-        from_firmware: device_firmware.uuid,
-        to_firmware: target_firmware.uuid,
-        delta: firmware_delta.id
+        "Delivering firmware delta...",
+        device_id: device.id,
+        source_firmware: source_uuid,
+        target_firmware: target.uuid,
+        delta: delta.id
       )
 
-      Firmwares.get_firmware_url(firmware_delta)
+      Firmwares.get_firmware_url(delta)
     else
-      _ ->
+      false ->
+        Logger.info(
+          "Delta not supported. Delivering full firmware...",
+          device_id: device.id,
+          source_firmware: source_uuid,
+          target_firmware: target.uuid
+        )
+
+        Firmwares.get_firmware_url(target)
+
+      {:error, :not_found} ->
+        Logger.info(
+          "No delta found. Delivering full firmware...",
+          device_id: device.id,
+          source_firmware: source_uuid,
+          target_firmware: target.uuid
+        )
+
+        Firmwares.get_firmware_url(target)
+
+      err ->
         # When a resolve has been triggered, even with delta support on
         # it is best to deliver a firmware even if we can't get a delta.
         # This could be typical for some manual deployments.
-        Logger.info(
-          "Delivering full firmware between #{device_firmware_uuid} and #{target_firmware.uuid}...",
-          source_firmware: device_firmware_uuid,
-          _firmware: target_firmware.uuid
+        Logger.warning(
+          "Delivering full firmware for unusual reason: #{inspect(err)}",
+          device_id: device.id,
+          source_firmware: source_uuid,
+          target_firmware: target.uuid
         )
 
-        Firmwares.get_firmware_url(target_firmware)
+        Firmwares.get_firmware_url(target)
     end
   end
 
-  def get_delta_or_firmware_url(device_firmware_uuid, %DeploymentGroup{firmware: target_firmware}) do
-    Logger.info("Delivering full firmware #{target_firmware.uuid}...",
-      source_firmware: device_firmware_uuid,
-      target_firmware: target_firmware.uuid
+  def get_delta_or_firmware_url(
+        %Device{firmware_metadata: fw_meta} = device,
+        %DeploymentGroup{firmware: target} = dg
+      ) do
+    Logger.warning(
+      "Delivering full firmware, deltas disabled for deployment group.",
+      device_id: device.id,
+      deployment_group_id: dg.id,
+      source_firmware: Map.get(fw_meta, :uuid),
+      target_firmware: target.uuid
     )
 
-    Firmwares.get_firmware_url(target_firmware)
+    Firmwares.get_firmware_url(target)
   end
 
-  def get_delta_or_firmware_url(device_firmware_uuid, %Firmware{} = target_firmware) do
-    Logger.info("Delivering full firmware #{target_firmware.uuid}...",
-      source_firmware: device_firmware_uuid,
-      target_firmware: target_firmware.uuid
+  def get_delta_or_firmware_url(
+        %Device{firmware_metadata: fw_meta} = device,
+        %Firmware{} = target
+      ) do
+    Logger.warning(
+      "Delivering full firmware, deltas disabled for deployment group.",
+      device_id: device.id,
+      source_firmware: Map.get(fw_meta, :uuid),
+      target_firmware: target.uuid
     )
 
-    Firmwares.get_firmware_url(target_firmware)
+    Firmwares.get_firmware_url(target)
+  end
+
+  defp update_tool() do
+    Application.get_env(
+      :nerves_hub,
+      :update_tool,
+      # Fall back to old config key
+      Application.get_env(:nerves_hub, :delta_updater, NervesHub.Firmwares.UpdateTool.Fwup)
+    )
   end
 end
