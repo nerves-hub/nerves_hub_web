@@ -753,7 +753,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           if Keyword.has_key?(changeset.errors, :deleted_at) do
             "Device cannot be updated because it has been deleted. Please restore the device to make changes."
           else
-            "There was an issue updating the device, please check the logs."
+            "There was an issue updating the device. Please contact support if this happens again."
           end
 
         socket
