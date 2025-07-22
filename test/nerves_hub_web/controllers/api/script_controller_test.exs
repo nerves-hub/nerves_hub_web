@@ -12,9 +12,17 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
   end
 
   describe "index" do
-    test "lists scripts", %{conn: conn, product: product, device: device, user: user} do
+    test "lists scripts with device", %{conn: conn, product: product, device: device, user: user} do
       script = Fixtures.support_script_fixture(product, user)
       conn = get(conn, Routes.api_script_path(conn, :index, device))
+      data = [script_response] = json_response(conn, 200)["data"]
+      assert Enum.count(data) == 1
+      assert script_response["id"] == script.id
+    end
+
+    test "lists scripts for product", %{conn: conn, org: org, product: product, user: user} do
+      script = Fixtures.support_script_fixture(product, user)
+      conn = get(conn, Routes.api_script_path(conn, :index, org.name, product.name))
       data = [script_response] = json_response(conn, 200)["data"]
       assert Enum.count(data) == 1
       assert script_response["id"] == script.id
