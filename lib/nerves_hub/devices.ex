@@ -130,7 +130,6 @@ defmodule NervesHub.Devices do
   def filter(product, user, opts) do
     base_query =
       Device
-      |> Repo.exclude_deleted()
       |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
       |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
       |> join(:left, [d, dc, dh], pd in PinnedDevice,
@@ -1806,6 +1805,15 @@ defmodule NervesHub.Devices do
     )
 
     Firmwares.get_firmware_url(target)
+  end
+
+  @spec soft_deleted_devices_exist_for_product?(non_neg_integer()) :: boolean()
+  def soft_deleted_devices_exist_for_product?(product_id) do
+    from(d in Device,
+      where: d.product_id == ^product_id,
+      where: not is_nil(d.deleted_at)
+    )
+    |> Repo.exists?()
   end
 
   defp update_tool() do

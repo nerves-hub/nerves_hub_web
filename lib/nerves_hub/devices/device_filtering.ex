@@ -115,13 +115,11 @@ defmodule NervesHub.Devices.DeviceFiltering do
     filter_on_metric(query, filters)
   end
 
-  def filter(query, _filters, :is_pinned, value) do
-    if value do
-      where(query, [pinned: pd], not is_nil(pd))
-    else
-      query
-    end
-  end
+  def filter(query, _filters, :display_soft_deleted, true),
+    do: order_by(query, [d], asc_nulls_last: d.deleted_at)
+
+  def filter(query, _filters, :display_soft_deleted, false),
+    do: where(query, [d], is_nil(d.deleted_at))
 
   def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
     search_term = "%#{value}%"
