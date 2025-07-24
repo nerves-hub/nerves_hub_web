@@ -73,7 +73,7 @@ defmodule NervesHub.MFA.UserTOTP do
     end
   end
 
-  defp generate_backup_codes do
+  defp generate_backup_codes() do
     for letter <- Enum.take_random(?A..?Z, 10) do
       suffix =
         :crypto.strong_rand_bytes(5)

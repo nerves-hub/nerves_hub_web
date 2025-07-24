@@ -1,4 +1,8 @@
 defmodule NervesHubWeb.Live.AccountMFA do
+  @moduledoc """
+  LiveView for managing Multi-Factor Authentication (MFA) settings in user accounts.
+  """
+
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Accounts
