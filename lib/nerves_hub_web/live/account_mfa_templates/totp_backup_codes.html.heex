@@ -1,0 +1,31 @@
+<div class="text-center">
+  <div>
+    <a id="backup-codes-visibility-button" class="btn btn-secondary" href="#" phx-click="toggle-backup-codes">
+      <%= if @backup_codes_visible do %>
+        <span>Hide Backup Codes</span><i class="icon icon-caret" style="transform: rotate(180deg);"></i>
+      <% else %>
+        <span>Show Backup Codes</span><i class="icon icon-caret"></i>
+      <% end %>
+    </a>
+  </div>
+</div>
+<%= if @backup_codes_visible do %>
+  <div>
+    <h4 class="color-white mt-4 mb-2">Backup Codes</h4>
+    <div class="backup-code">
+      <h5 :for={backup_code <- @current_totp.backup_codes} class="color-white text-monospace">
+        <%= if backup_code.used_at do %>
+          <del class="text-muted">{highlight_digits(backup_code.code)}</del>
+        <% else %>
+          {highlight_digits(backup_code.code)}
+        <% end %>
+      </h5>
+    </div>
+  </div>
+
+  <div class="mt-2">
+    <a href="#" class="btn btn-secondary" phx-click="regenerate-backup-codes" class="item-add" data-confirm="Are you sure you want to regenerate your backup codes?">
+      Generate New Backup Codes
+    </a>
+  </div>
+<% end %>
