@@ -1732,10 +1732,12 @@ defmodule NervesHub.Devices do
         } = target
       ) do
     # Get firmware delta URL if available but otherwise deliver full firmware
-    with {:ok, %Firmware{} = source} <-
-           Firmwares.get_firmware_by_product_and_uuid(product_id, source_uuid),
-         true <- delta_updatable?(device, target),
-         {:ok, delta} <- Firmwares.get_firmware_delta_by_source_and_target(source, target) do
+    with {:delta_updatable, true} <-
+           {:delta_updatable, delta_updatable?(device, target)},
+         {:firmware, {:ok, %Firmware{} = source}} <-
+           {:firmware, Firmwares.get_firmware_by_product_and_uuid(product_id, source_uuid)},
+         {:delta, {:ok, delta}} <-
+           {:delta, Firmwares.get_firmware_delta_by_source_and_target(source, target)} do
       Logger.info(
         "Delivering firmware delta...",
         device_id: device.id,
@@ -1746,9 +1748,9 @@ defmodule NervesHub.Devices do
 
       Firmwares.get_firmware_url(delta)
     else
-      false ->
+      {:delta_updatable, false} ->
         Logger.info(
-          "Delta not supported. Delivering full firmware...",
+          "Delivering full firmware as delta updates are not enabled",
           device_id: device.id,
           source_firmware: source_uuid,
           target_firmware: target.uuid
@@ -1756,22 +1758,19 @@ defmodule NervesHub.Devices do
 
         Firmwares.get_firmware_url(target)
 
-      {:error, :not_found} ->
-        Logger.info(
-          "No delta found. Delivering full firmware...",
-          device_id: device.id,
-          source_firmware: source_uuid,
-          target_firmware: target.uuid
-        )
-
-        Firmwares.get_firmware_url(target)
-
-      err ->
-        # When a resolve has been triggered, even with delta support on
-        # it is best to deliver a firmware even if we can't get a delta.
-        # This could be typical for some manual deployments.
+      {:firmware, _} ->
         Logger.warning(
-          "Delivering full firmware for unusual reason: #{inspect(err)}",
+          "Delivering full firmware as device firmware could not be resolved",
+          device_id: device.id,
+          source_firmware: source_uuid,
+          target_firmware: target.uuid
+        )
+
+        Firmwares.get_firmware_url(target)
+
+      {:delta, {:error, :not_found}} ->
+        Logger.info(
+          "Delivering full firmware as no delta can be found",
           device_id: device.id,
           source_firmware: source_uuid,
           target_firmware: target.uuid
