@@ -1,8 +1,8 @@
 defmodule NervesHub.MFATest do
   use NervesHub.DataCase, async: true
 
-  alias NervesHub.MFA
   alias NervesHub.Fixtures
+  alias NervesHub.MFA
 
   describe "user_totps" do
     alias NervesHub.MFA.UserTOTP

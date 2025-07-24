@@ -5,8 +5,8 @@ defmodule NervesHub.MFA do
 
   import Ecto.Query, warn: false
 
-  alias NervesHub.Repo
   alias NervesHub.MFA.UserTOTP
+  alias NervesHub.Repo
 
   @doc """
   Gets the %UserTOTP{} entry, if any.
@@ -79,11 +79,7 @@ defmodule NervesHub.MFA do
         :valid_totp
 
       changeset = UserTOTP.validate_backup_code(totp, code) ->
-        {:ok, totp} =
-          Repo.transaction(fn ->
-            Repo.update!(changeset)
-          end)
-
+        {:ok, totp} = Repo.update(changeset)
         {:valid_backup_code, Enum.count(totp.backup_codes, &is_nil(&1.used_at))}
 
       true ->

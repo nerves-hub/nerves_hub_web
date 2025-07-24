@@ -1,0 +1,30 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Sign in to your account
+  </:title>
+  <:subheader>
+    Don't have an account? <.link href="/register" class="font-semibold text-indigo-500 hover:text-indigo-400">Sign up for free</.link>
+  </:subheader>
+
+  <div :if={assigns[:error_message]} role="alert" class="mt-4 mr-2 w-full rounded-sm p-3 ring-1 bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900">
+    <p class="mt-1 text-sm leading-5">{@error_message}</p>
+  </div>
+
+  <.form :let={f} for={@form} as={:mfa} id="login_form_totp" action={~p"/mfa"} class="space-y-6">
+    <div>
+      <.input field={f[:code]} label="Authentication Code" maxlength="8" autocomplete="off" />
+    </div>
+    <div>
+      <button
+        type="submit"
+        class="flex w-full justify-center rounded-md bg-indigo-500 px-3 py-1.5 text-sm/6 font-semibold text-neutral-50 shadow-sm hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+      >
+        Verify
+      </button>
+    </div>
+  </.form>
+
+  <div class="text-center mt-3">
+    <a href={~p"/login"} class="text-muted">Back to Login</a>
+  </div>
+</Layouts.auth>
