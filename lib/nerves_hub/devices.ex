@@ -1726,13 +1726,14 @@ defmodule NervesHub.Devices do
   end
 
   def get_delta_or_firmware_url(
-        %{firmware_metadata: %{uuid: source_uuid}} = device,
+        %{firmware_metadata: %{uuid: source_uuid}, product_id: product_id} = device,
         %Firmware{
           delta_updatable: true
         } = target
       ) do
     # Get firmware delta URL if available but otherwise deliver full firmware
-    with %Firmware{} = source <- Firmwares.get_firmware_by_uuid(source_uuid),
+    with {:ok, %Firmware{} = source} <-
+           Firmwares.get_firmware_by_product_and_uuid(product_id, source_uuid),
          true <- delta_updatable?(device, target),
          {:ok, delta} <- Firmwares.get_firmware_delta_by_source_and_target(source, target) do
       Logger.info(
