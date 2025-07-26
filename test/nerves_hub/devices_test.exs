@@ -3,6 +3,7 @@ defmodule NervesHub.DevicesTest do
 
   alias Ecto.Changeset
 
+  alias NervesHub.Accounts
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate
@@ -783,6 +784,178 @@ defmodule NervesHub.DevicesTest do
 
       assert [%{id: ^device2_id}, %{id: ^device3_id}, %{id: ^device1_id}, %{id: ^device4_id}] =
                Devices.available_for_update(%{deployment_group | queue_management: :LIFO}, 10)
+    end
+  end
+
+  describe "resolve_update/1" do
+    test "returns a delta firmware url if it exists", %{
+      org: org,
+      user: user,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      new_org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      old_firmware =
+        Fixtures.firmware_fixture(new_org_key, product, %{
+          fwup_version: "1.13.0",
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      new_firmware =
+        Fixtures.firmware_fixture(new_org_key, product, %{
+          fwup_version: "1.13.0",
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(org, new_firmware, %{
+          name: "Delta deployment updates",
+          is_active: true,
+          delta_updatable: true
+        })
+        |> Repo.preload(:firmware)
+
+      device =
+        Fixtures.device_fixture(org, product, old_firmware, %{
+          status: :provisioned,
+          deployment_id: deployment_group.id,
+          fwup_version: "1.13.0"
+        })
+        |> Repo.preload(:deployment_group)
+
+      delta = Fixtures.firmware_delta_fixture(old_firmware, new_firmware)
+
+      {:ok, delta_url} = Firmwares.get_firmware_url(delta)
+
+      update_payload = Devices.resolve_update(device)
+
+      assert delta_url == update_payload.firmware_url
+    end
+
+    test "returns a delta firmware url if it exists for the product the device belongs to", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      # two orgs which the same user belongs to
+      {:ok, org_one} = Accounts.create_org(user, %{name: "One-Org"})
+      {:ok, org_two} = Accounts.create_org(user, %{name: "Two-Org"})
+
+      org_key_one = Fixtures.org_key_fixture(org_one, user, tmp_dir)
+      org_key_two = Fixtures.org_key_fixture(org_two, user, tmp_dir)
+
+      # two products with the same name
+      {:ok, product_one} =
+        Products.create_product(%{org_id: org_one.id, name: "Same Product Name"})
+
+      {:ok, _product_two} =
+        Products.create_product(%{org_id: org_two.id, name: "Same Product Name"})
+
+      # create some firmware which can be uploaded to each org
+      {:ok, _} =
+        NervesHub.Support.Fwup.create_firmware(tmp_dir, "old-firmware", %{
+          product: "Same Product Name",
+          fwup_version: "1.13.0"
+        })
+
+      # sign and upload for org one
+      {:ok, signed_firmware_one} =
+        NervesHub.Support.Fwup.sign_firmware(
+          tmp_dir,
+          org_key_one.name,
+          "old-firmware",
+          "old-firmware-signed-one"
+        )
+
+      {:ok, old_firmware_one} = Firmwares.create_firmware(org_one, signed_firmware_one)
+
+      old_firmware_one
+      |> Ecto.Changeset.change(delta_updatable: true)
+      |> Repo.update!()
+
+      # sign and upload for org two
+      {:ok, old_signed_firmware_two} =
+        NervesHub.Support.Fwup.sign_firmware(
+          tmp_dir,
+          org_key_two.name,
+          "old-firmware",
+          "old-firmware-signed-two"
+        )
+
+      {:ok, old_firmware_two} = Firmwares.create_firmware(org_two, old_signed_firmware_two)
+
+      old_firmware_two
+      |> Ecto.Changeset.change(delta_updatable: true)
+      |> Repo.update!()
+
+      # and now create some new firmware which can be uploaded to each org
+      {:ok, _} =
+        NervesHub.Support.Fwup.create_firmware(tmp_dir, "new-firmware", %{
+          product: "Same Product Name",
+          fwup_version: "1.13.0"
+        })
+
+      # sign and upload for org one
+      {:ok, new_signed_firmware_one} =
+        NervesHub.Support.Fwup.sign_firmware(
+          tmp_dir,
+          org_key_one.name,
+          "new-firmware",
+          "new-firmware-signed-one"
+        )
+
+      {:ok, new_firmware_one} = Firmwares.create_firmware(org_one, new_signed_firmware_one)
+
+      new_firmware_one
+      |> Ecto.Changeset.change(delta_updatable: true)
+      |> Repo.update!()
+
+      # sign and upload for org two
+      {:ok, new_signed_firmware_two} =
+        NervesHub.Support.Fwup.sign_firmware(
+          tmp_dir,
+          org_key_two.name,
+          "new-firmware",
+          "new-firmware-signed-two"
+        )
+
+      {:ok, new_firmware_two} = Firmwares.create_firmware(org_two, new_signed_firmware_two)
+
+      new_firmware_two
+      |> Ecto.Changeset.change(delta_updatable: true)
+      |> Repo.update!()
+
+      # create a deployment group for org one with the new firmware
+      deployment_group =
+        Fixtures.deployment_group_fixture(org_one, new_firmware_one, %{
+          name: "Delta deployment updates",
+          is_active: true,
+          delta_updatable: true
+        })
+        |> Repo.preload(:firmware)
+
+      # and a device using the old firmware, ready to receive an update
+      device =
+        Fixtures.device_fixture(org_one, product_one, old_firmware_one, %{
+          status: :provisioned,
+          deployment_id: deployment_group.id,
+          fwup_version: "1.13.0"
+        })
+        |> Repo.preload(:deployment_group)
+
+      # create a delta firmware for the device
+      delta = Fixtures.firmware_delta_fixture(old_firmware_one, new_firmware_one)
+
+      {:ok, delta_url} = Firmwares.get_firmware_url(delta)
+
+      update_payload = Devices.resolve_update(device)
+
+      # confirm that the firmware url is the delta firmware url
+      assert delta_url == update_payload.firmware_url
     end
   end
 end
