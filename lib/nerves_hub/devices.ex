@@ -747,7 +747,7 @@ defmodule NervesHub.Devices do
     do_resolve_update(device, deployment_group)
   end
 
-  def do_resolve_update(device, deployment_group) do
+  defp do_resolve_update(device, deployment_group) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
         {:ok, url} = get_delta_or_firmware_url(device, deployment_group)
