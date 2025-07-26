@@ -1739,7 +1739,7 @@ defmodule NervesHub.Devices do
          {:delta, {:ok, delta}} <-
            {:delta, Firmwares.get_firmware_delta_by_source_and_target(source, target)} do
       Logger.info(
-        "Delivering firmware delta...",
+        "Delivering firmware delta",
         device_id: device.id,
         source_firmware: source_uuid,
         target_firmware: target.uuid,
@@ -1785,7 +1785,7 @@ defmodule NervesHub.Devices do
         %DeploymentGroup{firmware: target} = dg
       ) do
     Logger.warning(
-      "Delivering full firmware, deltas disabled for deployment group.",
+      "Delivering full firmware: deltas disabled for deployment group.",
       device_id: device.id,
       deployment_group_id: dg.id,
       source_firmware: Map.get(fw_meta, :uuid),
@@ -1800,7 +1800,7 @@ defmodule NervesHub.Devices do
         %Firmware{} = target
       ) do
     Logger.warning(
-      "Delivering full firmware, deltas disabled for deployment group.",
+      "Delivering full firmware: deltas disabled for firmware.",
       device_id: device.id,
       source_firmware: Map.get(fw_meta, :uuid),
       target_firmware: target.uuid
