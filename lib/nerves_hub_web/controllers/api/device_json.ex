@@ -37,7 +37,8 @@ defmodule NervesHubWeb.API.DeviceJSON do
       product_name: device.product.name,
       # deprecated
       last_communication: connection_last_seen_at(device),
-      priority_updates: device.priority_updates
+      priority_updates: device.priority_updates,
+      deleted: deleted(device)
     }
   end
 
@@ -62,4 +63,7 @@ defmodule NervesHubWeb.API.DeviceJSON do
 
   defp connection_status(%{latest_connection: %{status: status}}), do: status
   defp connection_status(_), do: :not_seen
+
+  defp deleted(%{deleted_at: nil}), do: false
+  defp deleted(%{deleted_at: _}), do: true
 end

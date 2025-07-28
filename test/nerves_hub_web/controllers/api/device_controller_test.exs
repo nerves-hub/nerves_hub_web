@@ -146,6 +146,34 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert json_response(conn, 200)["data"]["identifier"] == device.identifier
     end
+
+    test "device indicates if it has been deleted", %{
+      conn: conn,
+      user: user,
+      org: org
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      {:ok, device} =
+        Fixtures.device_fixture(org, product, firmware)
+        |> Devices.update_device(%{deleted_at: DateTime.utc_now()})
+
+      conn =
+        get(conn, Routes.api_device_path(conn, :show, device.identifier))
+
+      assert json_response(conn, 200)["data"]
+
+      assert json_response(conn, 200)["data"]["deleted"] == true
+
+      {:ok, device} = Devices.update_device(device, %{deleted_at: nil})
+
+      conn =
+        get(conn, Routes.api_device_path(conn, :show, device.identifier))
+
+      assert json_response(conn, 200)["data"]["deleted"] == false
+    end
   end
 
   describe "delete devices" do
