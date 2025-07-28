@@ -301,9 +301,10 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
         |> Unzip.LocalFile.open()
         |> Unzip.new()
 
-      unzip
-      |> Unzip.file_stream!("meta.conf")
-      |> Enum.into(stream, &IO.iodata_to_binary/1)
+      _ =
+        unzip
+        |> Unzip.file_stream!("meta.conf")
+        |> Enum.into(stream, &IO.iodata_to_binary/1)
 
       {:ok, path}
     rescue
