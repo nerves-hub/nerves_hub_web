@@ -119,7 +119,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
           <div class="text-base text-neutral-50 font-medium">Certificates</div>
           <div>
-            <form phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
+            <form id="upload-certificate" phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
               <div class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600 hover:cursor-pointer">
                 <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
@@ -173,8 +173,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                   <span>Not after:</span>
                   <span>{Calendar.strftime(certificate.not_after, "%Y-%m-%d")}</span>
                 </div>
-                <div class="text-xs text-zinc-400 tracking-wide">
-                  <%!-- <%= Timex.from_now(entry.inserted_at) %> --%>
+                <%!-- <div class="text-xs text-zinc-400 tracking-wide">
+                  <%= Timex.from_now(entry.inserted_at) %>
                 </div>
                 <div class="flex items-center">
                   <svg class="h-0.5 w-0.5" viewBox="0 0 2 2" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -182,8 +182,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                   </svg>
                 </div>
                 <div class="text-xs text-zinc-400 tracking-wide">
-                  <%!-- <%= Calendar.strftime(entry.inserted_at, "%Y-%m-%d at %I:%M:%S %p UTC") %> --%>
-                </div>
+                  <%= Calendar.strftime(entry.inserted_at, "%Y-%m-%d at %I:%M:%S %p UTC") %>
+                </div> --%>
               </div>
             </div>
             <div class="flex gap-2">
@@ -372,7 +372,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         %{"serial" => serial},
         %{assigns: %{device: device}} = socket
       ) do
-    certs = device.device_certificates
+    device = %{device_certificates: certs} = Repo.preload(device, :device_certificates)
 
     with db_cert <- Enum.find(certs, &(&1.serial == serial)),
          {:ok, _db_cert} <- Devices.delete_device_certificate(db_cert),
@@ -429,9 +429,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
   def handle_progress(:certificate, %{done?: true} = entry, socket) do
-    socket
-    |> consume_uploaded_entry(entry, &import_cert(socket, &1.path))
-    |> halt()
+    socket = consume_uploaded_entry(socket, entry, &import_cert(socket, &1.path))
+
+    {:noreply, socket}
   end
 
   def handle_progress(:certificate, _entry, socket), do: {:noreply, socket}
@@ -459,7 +459,6 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       err ->
         put_flash(socket, :error, "Unknown file error - #{inspect(err)}")
     end
-    |> halt()
   end
 
   defp extensions() do
