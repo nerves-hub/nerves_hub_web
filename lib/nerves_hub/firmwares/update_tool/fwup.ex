@@ -101,8 +101,10 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     # Unknown version, assume oldest
     device_fwup_version = device.firmware_metadata.fwup_version || @oldest_version
 
-    with {:source, %Firmware{} = source} <-
-           {:source, Firmwares.get_firmware_by_uuid(device.firmware_metadata.uuid)},
+    %{product_id: product_id, firmware_metadata: %{uuid: firmware_uuid}} = device
+
+    with {:source, {:ok, source}} <-
+           {:source, Firmwares.get_firmware_by_product_id_and_uuid(product_id, firmware_uuid)},
          {:delta_result, {:ok, %{tool_metadata: tm}}} <-
            {:delta_result,
             Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)},

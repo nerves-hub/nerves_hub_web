@@ -182,6 +182,18 @@ defmodule NervesHub.Firmwares do
     Repo.get_by(Firmware, uuid: uuid)
   end
 
+  @spec get_firmware_by_product_id_and_uuid(integer(), String.t()) ::
+          {:ok, Firmware.t()}
+          | {:error, :not_found}
+  def get_firmware_by_product_id_and_uuid(product_id, uuid) do
+    get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      firmware -> {:ok, firmware}
+    end
+  end
+
   @spec get_firmware_by_product_and_uuid!(Product.t(), String.t()) :: Firmware.t()
   def get_firmware_by_product_and_uuid!(product, uuid) do
     get_firmware_by_product_and_uuid_query(product, uuid)
