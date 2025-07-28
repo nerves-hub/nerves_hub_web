@@ -747,7 +747,7 @@ defmodule NervesHub.Devices do
     do_resolve_update(device, deployment_group)
   end
 
-  def do_resolve_update(device, deployment_group) do
+  defp do_resolve_update(device, deployment_group) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
         {:ok, url} = get_delta_or_firmware_url(device, deployment_group)
@@ -1726,17 +1726,20 @@ defmodule NervesHub.Devices do
   end
 
   def get_delta_or_firmware_url(
-        %{firmware_metadata: %{uuid: source_uuid}} = device,
+        %{firmware_metadata: %{uuid: source_uuid}, product_id: product_id} = device,
         %Firmware{
           delta_updatable: true
         } = target
       ) do
     # Get firmware delta URL if available but otherwise deliver full firmware
-    with %Firmware{} = source <- Firmwares.get_firmware_by_uuid(source_uuid),
-         true <- delta_updatable?(device, target),
-         {:ok, delta} <- Firmwares.get_firmware_delta_by_source_and_target(source, target) do
+    with {:delta_updatable, true} <-
+           {:delta_updatable, delta_updatable?(device, target)},
+         {:firmware, {:ok, source}} <-
+           {:firmware, Firmwares.get_firmware_by_product_id_and_uuid(product_id, source_uuid)},
+         {:delta, {:ok, delta}} <-
+           {:delta, Firmwares.get_firmware_delta_by_source_and_target(source, target)} do
       Logger.info(
-        "Delivering firmware delta...",
+        "Delivering firmware delta",
         device_id: device.id,
         source_firmware: source_uuid,
         target_firmware: target.uuid,
@@ -1745,9 +1748,9 @@ defmodule NervesHub.Devices do
 
       Firmwares.get_firmware_url(delta)
     else
-      false ->
+      {:delta_updatable, false} ->
         Logger.info(
-          "Delta not supported. Delivering full firmware...",
+          "Delivering full firmware as delta updates are not enabled",
           device_id: device.id,
           source_firmware: source_uuid,
           target_firmware: target.uuid
@@ -1755,22 +1758,19 @@ defmodule NervesHub.Devices do
 
         Firmwares.get_firmware_url(target)
 
-      {:error, :not_found} ->
-        Logger.info(
-          "No delta found. Delivering full firmware...",
-          device_id: device.id,
-          source_firmware: source_uuid,
-          target_firmware: target.uuid
-        )
-
-        Firmwares.get_firmware_url(target)
-
-      err ->
-        # When a resolve has been triggered, even with delta support on
-        # it is best to deliver a firmware even if we can't get a delta.
-        # This could be typical for some manual deployments.
+      {:firmware, _} ->
         Logger.warning(
-          "Delivering full firmware for unusual reason: #{inspect(err)}",
+          "Delivering full firmware as device firmware could not be resolved",
+          device_id: device.id,
+          source_firmware: source_uuid,
+          target_firmware: target.uuid
+        )
+
+        Firmwares.get_firmware_url(target)
+
+      {:delta, {:error, :not_found}} ->
+        Logger.info(
+          "Delivering full firmware as no delta can be found",
           device_id: device.id,
           source_firmware: source_uuid,
           target_firmware: target.uuid
@@ -1785,7 +1785,7 @@ defmodule NervesHub.Devices do
         %DeploymentGroup{firmware: target} = dg
       ) do
     Logger.warning(
-      "Delivering full firmware, deltas disabled for deployment group.",
+      "Delivering full firmware: deltas disabled for deployment group.",
       device_id: device.id,
       deployment_group_id: dg.id,
       source_firmware: Map.get(fw_meta, :uuid),
@@ -1800,7 +1800,7 @@ defmodule NervesHub.Devices do
         %Firmware{} = target
       ) do
     Logger.warning(
-      "Delivering full firmware, deltas disabled for deployment group.",
+      "Delivering full firmware: deltas disabled for firmware.",
       device_id: device.id,
       source_firmware: Map.get(fw_meta, :uuid),
       target_firmware: target.uuid
