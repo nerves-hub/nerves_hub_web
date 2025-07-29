@@ -11,26 +11,17 @@ defmodule NervesHubWeb.API.ScriptController do
 
   operation(:index, summary: "List all Support Scripts for a Product")
 
-  def index(%{assigns: %{device: device}} = conn, params) do
-    filters =
-      for {key, val} <- Map.get(params, "filters", %{}),
-          into: %{},
-          do: {String.to_existing_atom(key), val}
+  # You can list scripts by a product or device scope:
+  # /api/orgs/:org_name/products/:product_name/scripts
+  # /api/orgs/:org_name/products/:product_name/devices/:device_identifier/scripts
+  #
+  # In the future, we'd like to just support listing by product,
+  # but for now we support both.
+  def index(%{assigns: %{device: device}} = conn, params),
+    do: get_and_render_scripts(conn, device.product, params)
 
-    opts = %{
-      pagination: Map.get(params, "pagination", %{}),
-      filters: filters
-    }
-
-    {scripts, page} = Scripts.filter(device.product, opts)
-
-    pagination = Map.take(page, [:page_number, :page_size, :total_entries, :total_pages])
-
-    conn
-    |> assign(:scripts, scripts)
-    |> assign(:pagination, pagination)
-    |> render(:index)
-  end
+  def index(%{assigns: %{product: product}} = conn, params),
+    do: get_and_render_scripts(conn, product, params)
 
   # This operation is defined in `NervesHubWeb.API.OpenAPI.DeviceControllerSpecs`
   operation(:send, false)
@@ -59,4 +50,25 @@ defmodule NervesHubWeb.API.ScriptController do
   end
 
   defp get_timeout_param(_params), do: {:ok, 30_000}
+
+  defp get_and_render_scripts(conn, product, params) do
+    filters =
+      for {key, val} <- Map.get(params, "filters", %{}),
+          into: %{},
+          do: {String.to_existing_atom(key), val}
+
+    opts = %{
+      pagination: Map.get(params, "pagination", %{}),
+      filters: filters
+    }
+
+    {scripts, page} = Scripts.filter(product, opts)
+
+    pagination = Map.take(page, [:page_number, :page_size, :total_entries, :total_pages])
+
+    conn
+    |> assign(:scripts, scripts)
+    |> assign(:pagination, pagination)
+    |> render(:index)
+  end
 end
