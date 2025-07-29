@@ -9,12 +9,19 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
   alias NervesHubWeb.Endpoint
 
+  setup context do
+    conn =
+      context.conn
+      |> put_session("new_ui", true)
+
+    [conn: conn]
+  end
+
   test "shows a loading message (async loading)", %{conn: conn, fixture: fixture} do
     %{device: device, org: org, product: product} = fixture
 
     {:ok, lv, html} =
       conn
-      |> put_session("new_ui", true)
       |> live("/org/#{org.name}/#{product.name}/devices")
 
     assert html =~ "Loading..."
@@ -36,7 +43,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       %{device: device, org: org, product: product} = fixture
 
       conn
-      |> init_test_session(%{"new_ui" => true})
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("circle[fill='#{offline_indicator_color}']", timeout: 1000)
       |> unwrap(fn view ->
@@ -60,7 +66,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       %{device: device, org: org, product: product} = fixture
 
       conn
-      |> init_test_session(%{"new_ui" => true})
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("circle[fill='#{offline_indicator_color}']", timeout: 1000)
       |> unwrap(fn view ->
@@ -95,7 +100,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       refute device2.deployment_id
 
       conn
-      |> put_session("new_ui", true)
       |> visit(
         "/org/#{org.name}/#{product.name}/devices?platform=#{deployment_group.firmware.platform}"
       )
@@ -134,7 +138,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       device2 = Fixtures.device_fixture(org, product, foo_firmware)
 
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> assert_has("a", text: device2.identifier)
@@ -165,7 +168,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
         })
 
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> assert_has("a", text: device2.identifier)
@@ -197,7 +199,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
         })
 
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> assert_has("a", text: device2.identifier)
@@ -207,6 +208,53 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> fill_in("Tags", with: "foo")
       |> assert_has("a", text: device2.identifier, timeout: 1000)
       |> refute_has("a", text: device.identifier)
+    end
+
+    test "excludes deleted device by default", %{
+      conn: conn,
+      fixture: %{device: device, org: org, product: product, firmware: firmware}
+    } do
+      refute device.deleted_at
+
+      deleted_device =
+        Fixtures.device_fixture(org, product, firmware, %{deleted_at: DateTime.utc_now()})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1000, exact: false)
+      |> refute_has("a", text: deleted_device.identifier, timeout: 1000, exact: false)
+    end
+
+    test "filter to include deleted devices", %{
+      conn: conn,
+      fixture: %{device: device, org: org, product: product, firmware: firmware}
+    } do
+      refute device.deleted_at
+
+      deleted_device =
+        Fixtures.device_fixture(org, product, firmware, %{deleted_at: DateTime.utc_now()})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> select("Include Deleted Devices?", option: "Yes")
+      |> assert_has("a", text: device.identifier, timeout: 1000, exact: false)
+      |> assert_has("a", text: deleted_device.identifier, exact: false)
+    end
+
+    test "filter only deleted devices", %{
+      conn: conn,
+      fixture: %{device: device, org: org, product: product, firmware: firmware}
+    } do
+      refute device.deleted_at
+
+      deleted_device =
+        Fixtures.device_fixture(org, product, firmware, %{deleted_at: DateTime.utc_now()})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> select("Include Deleted Devices?", option: "Only deleted devices")
+      |> assert_has("a", text: deleted_device.identifier, timeout: 1000, exact: false)
+      |> refute_has("a", text: device.identifier, exact: false)
     end
   end
 
@@ -218,7 +266,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       } = fixture
 
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> refute_has("button", text: "25", timeout: 1000)
     end
@@ -238,7 +285,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       [first_device | _] = devices |> Enum.sort_by(& &1.identifier)
 
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: first_device.identifier, timeout: 1000)
       |> assert_has("button", text: "25", timeout: 1000)
@@ -265,7 +311,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       [first_device | _] = devices |> Enum.sort_by(& &1.identifier)
 
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: first_device.identifier, timeout: 1000)
       |> assert_has("button", text: "25", timeout: 1000)

@@ -224,7 +224,7 @@
                   </span>
                   <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"} class="ff-m font-mono">
                     {device.identifier}
-                    <div :if={device.deleted_at} class="relative inline-block align-middle z-50" id={"health-tooltip-#{device.id}"} phx-hook="ToolTip" data-placement="right">
+                    <div :if={device.deleted_at} class="relative inline-block align-middle z-50" id={"health-tooltip-#{device.identifier}"} phx-hook="ToolTip" data-placement="right">
                       <.icon name="info" class="stroke-zinc-400" />
                       <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
                         This device has been deleted. <br /> You can destroy or restore it in the device's settings.
@@ -399,12 +399,13 @@
   <:filter attr="metrics_value" label="Metrics Value" type={:number} />
   <:filter attr="is_pinned" label="Pinned" type={:select} values={[{"All", "false"}, {"Only pinned devices", "true"}]} />
   <:filter
-    attr="display_soft_deleted"
-    label="Display Soft-Deleted Devices"
+    attr="display_deleted"
+    label="Include Deleted Devices?"
     type={:select}
     values={[
-      {"No", "false"},
-      {"Yes", "true"}
+      {"Yes", "include"},
+      {"No", "exclude"},
+      {"Only deleted devices", "only"}
     ]}
   />
 </FilterSidebar.render>

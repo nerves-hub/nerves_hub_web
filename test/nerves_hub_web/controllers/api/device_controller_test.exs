@@ -126,7 +126,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       |> assert_authorization_error(404)
     end
 
-    test "soft-deleted device can be queried", %{
+    test "deleted device can be queried", %{
       conn: conn,
       user: user,
       org: org

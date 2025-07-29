@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     deployment_id: "",
     is_pinned: false,
     search: "",
-    display_soft_deleted: false
+    display_deleted: "exclude"
   }
 
   @filter_types %{
@@ -69,7 +69,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     deployment_id: :string,
     is_pinned: :boolean,
     search: :string,
-    display_soft_deleted: :boolean
+    display_deleted: :string
   }
 
   @default_page 1

@@ -115,11 +115,14 @@ defmodule NervesHub.Devices.DeviceFiltering do
     filter_on_metric(query, filters)
   end
 
-  def filter(query, _filters, :display_soft_deleted, true),
+  def filter(query, _filters, :display_deleted, "include"),
     do: order_by(query, [d], asc_nulls_last: d.deleted_at)
 
-  def filter(query, _filters, :display_soft_deleted, false),
+  def filter(query, _filters, :display_deleted, "exclude"),
     do: where(query, [d], is_nil(d.deleted_at))
+
+  def filter(query, _filters, :display_deleted, "only"),
+    do: where(query, [d], not is_nil(d.deleted_at))
 
   def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
     search_term = "%#{value}%"
