@@ -56,7 +56,7 @@ defmodule NervesHubWeb.Components.FilterSidebar do
                     <input class="sidebar-text-input" type="text" name={filter.attr} id={"input_#{filter.attr}"} value={@current_filters[filter.attr]} phx-debounce="500" />
                   <% :select -> %>
                     <select class="sidebar-select" name={filter.attr} id={"input_#{filter.attr}"}>
-                      <option :for={{label, value} <- filter.values} value={value} selected={@current_filters[filter.attr] == value}>
+                      <option :for={{label, value} <- filter.values} value={value} selected={to_string(@current_filters[filter.attr]) == value}>
                         {label}
                       </option>
                     </select>

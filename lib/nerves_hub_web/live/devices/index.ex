@@ -46,7 +46,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_value: "",
     deployment_id: "",
     is_pinned: false,
-    search: ""
+    search: "",
+    display_deleted: "exclude"
   }
 
   @filter_types %{
@@ -67,7 +68,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_value: :string,
     deployment_id: :string,
     is_pinned: :boolean,
-    search: :string
+    search: :string,
+    display_deleted: :string
   }
 
   @default_page 1
@@ -110,6 +112,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:deployment_groups, ManagedDeployments.get_deployment_groups_by_product(product))
     |> assign(:available_deployment_groups_for_filtered_platform, [])
     |> assign(:target_deployment_group, nil)
+    |> assign(
+      :soft_deleted_devices_exist,
+      Devices.soft_deleted_devices_exist_for_product?(product.id)
+    )
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end

@@ -54,7 +54,7 @@
     <.button type="link" navigate={~p"/org/#{@org}/#{@product}/devices/new"} aria-label="Add new device">
       <.icon name="add" /> Add Device
     </.button>
-    <.button :if={has_results?(@devices, @currently_filtering)} type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
+    <.button :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist} type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
       <.icon name="filter" /> Filters
     </.button>
   </div>
@@ -224,6 +224,13 @@
                   </span>
                   <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"} class="ff-m font-mono">
                     {device.identifier}
+                    <div :if={device.deleted_at} class="relative inline-block align-middle z-50" id={"health-tooltip-#{device.identifier}"} phx-hook="ToolTip" data-placement="right">
+                      <.icon name="info" class="stroke-zinc-400" />
+                      <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+                        This device has been deleted. <br /> You can destroy or restore it in the device's settings.
+                        <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+                      </div>
+                    </div>
                     <span class="clickable-table-row-mask" />
                   </.link>
                   <span class={["flex items-center gap-1 ml-2 pl-2.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800", !@progress[device.id] && "invisible"]}>
@@ -391,6 +398,16 @@
   <:filter attr="metrics_operator" label="Metrics Operator" type={:select} values={[{"Greater Than", "gt"}, {"Less Than", "lt"}]} />
   <:filter attr="metrics_value" label="Metrics Value" type={:number} />
   <:filter attr="is_pinned" label="Pinned" type={:select} values={[{"All", "false"}, {"Only pinned devices", "true"}]} />
+  <:filter
+    attr="display_deleted"
+    label="Include Deleted Devices?"
+    type={:select}
+    values={[
+      {"Yes", "include"},
+      {"No", "exclude"},
+      {"Only deleted devices", "only"}
+    ]}
+  />
 </FilterSidebar.render>
 
 <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 mb-[119px] sm:pl-16 z-40">

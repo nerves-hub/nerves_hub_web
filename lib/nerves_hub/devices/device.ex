@@ -97,5 +97,12 @@ defmodule NervesHub.Devices.Device do
     |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
     |> unique_constraint(:identifier)
+    |> then(fn changeset ->
+      if device.deleted_at && !Map.has_key?(changeset.changes, :deleted_at) do
+        add_error(changeset, :deleted_at, "cannot update while marked as deleted")
+      else
+        changeset
+      end
+    end)
   end
 end

@@ -51,6 +51,20 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                device.identifier == identifier
              end)
     end
+
+    test "does not return soft-deleted devices", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      {:ok, _device} =
+        Fixtures.device_fixture(org, product, firmware)
+        |> Devices.update_device(%{deleted_at: DateTime.utc_now()})
+
+      conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
+
+      assert json_response(conn, 200)["data"] == []
+    end
   end
 
   describe "show" do
@@ -111,6 +125,55 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       end)
       |> assert_authorization_error(404)
     end
+
+    test "deleted device can be queried", %{
+      conn: conn,
+      user: user,
+      org: org
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      {:ok, device} =
+        Fixtures.device_fixture(org, product, firmware)
+        |> Devices.update_device(%{deleted_at: DateTime.utc_now()})
+
+      conn =
+        get(conn, Routes.api_device_path(conn, :show, device.identifier))
+
+      assert json_response(conn, 200)["data"]
+
+      assert json_response(conn, 200)["data"]["identifier"] == device.identifier
+    end
+
+    test "device indicates if it has been deleted", %{
+      conn: conn,
+      user: user,
+      org: org
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      {:ok, device} =
+        Fixtures.device_fixture(org, product, firmware)
+        |> Devices.update_device(%{deleted_at: DateTime.utc_now()})
+
+      conn =
+        get(conn, Routes.api_device_path(conn, :show, device.identifier))
+
+      assert json_response(conn, 200)["data"]
+
+      assert json_response(conn, 200)["data"]["deleted"] == true
+
+      {:ok, device} = Devices.update_device(device, %{deleted_at: nil})
+
+      conn =
+        get(conn, Routes.api_device_path(conn, :show, device.identifier))
+
+      assert json_response(conn, 200)["data"]["deleted"] == false
+    end
   end
 
   describe "delete devices" do
@@ -131,14 +194,6 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         )
 
       assert response(conn, 204)
-
-      assert_error_sent(404, fn ->
-        get(
-          conn,
-          Routes.api_device_path(conn, :show, org.name, product.name, to_delete.identifier)
-        )
-      end)
-      |> assert_authorization_error(404)
     end
 
     test "does not have required role to delete chosen device", %{
