@@ -63,6 +63,7 @@ config :nerves_hub, Oban,
     delete_firmware: 1,
     device: 1,
     firmware_delta_builder: 2,
+    firmware_delta_timeout: 1,
     truncate: 1,
     # temporary, will remove in November
     truncation: 1
@@ -74,6 +75,7 @@ config :nerves_hub, Oban,
      crontab: [
        {"0 * * * *", NervesHub.Workers.ScheduleOrgAuditLogTruncation},
        {"*/1 * * * *", NervesHub.Workers.CleanStaleDeviceConnections},
+       {"* * * * *", NervesHub.Workers.FirmwareDeltaTimeout},
        {"1,16,31,46 * * * *", NervesHub.Workers.DeleteOldDeviceConnections},
        {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates},
        {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation}

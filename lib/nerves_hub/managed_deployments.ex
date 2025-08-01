@@ -8,10 +8,10 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
+  alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Products.Product
-  alias NervesHub.Workers.FirmwareDeltaBuilder
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
 
   alias NervesHub.Repo
@@ -314,7 +314,7 @@ defmodule NervesHub.ManagedDeployments do
     )
     |> Enum.uniq()
     |> Enum.each(fn {source_id, target_id} ->
-      FirmwareDeltaBuilder.start(source_id, target_id)
+      Firmwares.attempt_firmware_delta(source_id, target_id)
     end)
   end
 
