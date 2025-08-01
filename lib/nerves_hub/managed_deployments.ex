@@ -506,7 +506,16 @@ defmodule NervesHub.ManagedDeployments do
     |> ignore_same_deployment_group(device)
     |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
     |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
-    |> where([d], fragment("?->'tags' <@ to_jsonb(?::text[])", d.conditions, ^device.tags))
+    |> where(
+      [d],
+      fragment(
+        "?->'tags' <@ to_jsonb(?::text[]) OR (jsonb_array_length(?->'tags') = 0 and ?::text[] is null)",
+        d.conditions,
+        ^device.tags,
+        d.conditions,
+        ^device.tags
+      )
+    )
     |> Repo.all()
     |> Enum.filter(&version_match?(device, &1))
     |> Enum.sort_by(
