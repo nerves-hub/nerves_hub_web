@@ -248,7 +248,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
   end
 
-  describe "device's matching deployments" do
+  describe "devices matching deployments" do
     test "finds all matching deployments", state do
       %{org: org, product: product, firmware: firmware} = state
 
@@ -274,6 +274,58 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert [
                %{id: ^beta_deployment_group_id},
                %{id: ^rpi_deployment_group_id}
+             ] = ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "finds matching deployment with no tag condition", state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: blank_deployment_group_id} =
+        Fixtures.deployment_group_fixture(org, firmware, %{
+          name: "beta",
+          conditions: %{"tags" => [], "version" => ""}
+        })
+
+      Fixtures.deployment_group_fixture(org, firmware, %{
+        name: "rpi",
+        conditions: %{"tags" => ["rpi"], "version" => ""}
+      })
+
+      Fixtures.deployment_group_fixture(org, firmware, %{
+        name: "rpi0",
+        conditions: %{"tags" => ["rpi0"], "version" => ""}
+      })
+
+      %{tags: []} = device = Fixtures.device_fixture(org, product, firmware, %{tags: []})
+
+      assert [
+               %{id: ^blank_deployment_group_id}
+             ] = ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "finds matching deployment when device tags is null", state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: blank_deployment_group_id} =
+        Fixtures.deployment_group_fixture(org, firmware, %{
+          name: "beta",
+          conditions: %{"tags" => [], "version" => ""}
+        })
+
+      Fixtures.deployment_group_fixture(org, firmware, %{
+        name: "rpi",
+        conditions: %{"tags" => ["rpi"], "version" => ""}
+      })
+
+      Fixtures.deployment_group_fixture(org, firmware, %{
+        name: "rpi0",
+        conditions: %{"tags" => ["rpi0"], "version" => ""}
+      })
+
+      %{tags: nil} = device = Fixtures.device_fixture(org, product, firmware, %{tags: nil})
+
+      assert [
+               %{id: ^blank_deployment_group_id}
              ] = ManagedDeployments.matching_deployment_groups(device)
     end
 
