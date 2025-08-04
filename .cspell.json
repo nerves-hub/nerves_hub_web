@@ -146,6 +146,7 @@
     "undigits",
     "unprovisioned",
     "validtoken",
-    "xdelta"
+    "xdelta",
+    "healthcheck"
   ]
 }
