@@ -318,6 +318,28 @@ defmodule NervesHub.FirmwaresTest do
       assert {:error, :not_found} =
                Firmwares.get_firmware_delta_by_source_and_target(source, target)
     end
+
+    test "update tool errors are handled", %{
+      firmware: source,
+      org_key: org_key,
+      product: product
+    } do
+      target = Fixtures.firmware_fixture(org_key, product)
+      source_url = "http://somefilestore.com/source.fw"
+      target_url = "http://somefilestore.com/target.fw"
+
+      expect(UploadFile, :download_file, fn ^source -> {:ok, source_url} end)
+      expect(UploadFile, :download_file, fn ^target -> {:ok, target_url} end)
+
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn ^source_url, ^target_url ->
+        {:error, :delta_not_created}
+      end)
+
+      Firmwares.create_firmware_delta(source, target)
+
+      assert {:error, :not_found} =
+               Firmwares.get_firmware_delta_by_source_and_target(source, target)
+    end
   end
 
   describe "filter/2" do
