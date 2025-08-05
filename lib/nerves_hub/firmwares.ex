@@ -481,6 +481,10 @@ defmodule NervesHub.Firmwares do
         )
 
         :ok
+
+      # We log the issue in the update tool, so no need to here
+      {:error, :delta_not_created} ->
+        :ok
     end
   end
 
