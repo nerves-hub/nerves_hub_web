@@ -139,7 +139,7 @@ defmodule NervesHub.MixProject do
        ref: "26575bc"},
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
-      {:sentry, "~> 10.0"},
+      {:sentry, "~> 11.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},
       {:sweet_xml, "~> 0.6"},
