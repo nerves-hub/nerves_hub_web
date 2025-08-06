@@ -5,9 +5,12 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
 
   alias NervesHubWeb.Components.Pager
 
-  def tab_params(_params, _uri, socket) do
+  def tab_params(params, _uri, socket) do
+    page_number = String.to_integer(Map.get(params, "page_number", "1"))
+    page_size = String.to_integer(Map.get(params, "page_size", "25"))
+
     socket
-    |> logs_and_pager_assigns()
+    |> logs_and_pager_assigns(page_number, page_size)
     |> cont()
   end
 
@@ -15,7 +18,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
     [:activity, :audit_pager]
   end
 
-  defp logs_and_pager_assigns(socket, page_number \\ 1, page_size \\ 25) do
+  defp logs_and_pager_assigns(socket, page_number, page_size) do
     {logs, audit_pager} =
       AuditLogs.logs_for_feed(socket.assigns.device, %{
         page: page_number,

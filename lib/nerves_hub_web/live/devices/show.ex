@@ -53,6 +53,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
       socket.endpoint.subscribe("firmware")
     end
 
+    default_page_size = if socket.assigns[:new_ui], do: 25, else: 5
+
     socket
     |> page_title("Device #{device.identifier} - #{product.name}")
     |> sidebar_tab(:devices)
@@ -64,7 +66,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
     |> assign(:page_number, 1)
-    |> assign(:page_size, 5)
+    |> assign(:page_size, default_page_size)
     |> assign(:pinned?, Devices.device_pinned?(user.id, device.id))
     |> audit_log_assigns()
     |> assign_deployment_groups()
@@ -73,8 +75,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> ok()
   end
 
-  def handle_params(_params, _uri, socket) do
+  def handle_params(params, _uri, socket) do
+    default_page_size = if socket.assigns[:new_ui], do: "25", else: "5"
+    page_number = String.to_integer(Map.get(params, "page_number", "1"))
+    page_size = String.to_integer(Map.get(params, "page_size", default_page_size))
+
     socket
+    |> assign(:page_number, page_number)
+    |> assign(:page_size, page_size)
+    # Reload audit logs with new pagination
+    |> audit_log_assigns()
     |> update_tab_component_hooks()
     |> noreply()
   end
@@ -283,15 +293,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  def handle_event("paginate", %{"page" => page_num}, socket) do
-    params = %{"page_size" => socket.assigns.page_size, "page_number" => page_num}
-
+  def handle_event("paginate", %{"page" => page_number}, socket) do
+    params = %{"page_size" => socket.assigns.page_size, "page_number" => page_number}
     %{org: org, product: product, device: device} = socket.assigns
 
-    url = ~p"/org/#{org}/#{product}/devices/#{device}/activity?#{params}"
-
     socket
-    |> push_patch(to: url)
+    |> push_patch(to: ~p"/org/#{org}/#{product}/devices/#{device}?#{params}")
     |> noreply()
   end
 
