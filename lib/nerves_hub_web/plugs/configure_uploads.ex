@@ -1,13 +1,15 @@
 defmodule NervesHubWeb.Plugs.ConfigureUploads do
   use NervesHubWeb, :plug
 
+  alias NervesHubWeb.Plugs
+
   def init(_opts), do: []
 
   def call(conn, _opts) do
     if local_uploads?() do
       conn
-      |> NervesHubWeb.Plugs.FileUpload.call([])
-      |> NervesHubWeb.Plugs.StaticUploads.call([])
+      |> Plugs.FileUpload.call([])
+      |> Plugs.StaticUploads.call([])
     else
       conn
     end

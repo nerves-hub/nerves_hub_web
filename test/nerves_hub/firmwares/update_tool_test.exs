@@ -707,7 +707,7 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       upgrade!(fw_b, img_b)
 
       boot_size = 77_260
-      root_size = 57_8088
+      root_size = 578_088
       app_size = 1_048_576
 
       [
