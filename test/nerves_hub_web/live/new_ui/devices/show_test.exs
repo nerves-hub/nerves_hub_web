@@ -112,12 +112,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
     end
 
     defp user_initials(user) do
-      String.split(user.name)
-      |> Enum.map(fn w ->
-        String.at(w, 0)
-        |> String.upcase()
-      end)
-      |> Enum.join("")
+      user.name
+      |> String.split()
+      |> Enum.map_join("", &String.upcase(String.at(&1, 0)))
     end
   end
 
@@ -325,5 +322,46 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
     end)
 
     assert Repo.reload(device) |> Map.get(:priority_updates)
+  end
+
+  describe "last seen information display" do
+    test "shows 'Not seen yet' when device has no connections", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      # Ensure device has no connections
+      Repo.delete_all(where(DeviceConnection, device_id: ^device.id))
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "Last seen:")
+      |> assert_has("span", text: "N/A")
+    end
+
+    test "shows 'Last seen' when device has connections", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      # Create a connection with a past time
+      connection =
+        Fixtures.device_connection_fixture(device, %{
+          last_seen_at: DateTime.utc_now() |> DateTime.add(-3600, :second),
+          status: :disconnected
+        })
+
+      # Update the device's latest_connection_id to point to our new connection
+      Device
+      |> where(id: ^device.id)
+      |> Repo.update_all(set: [latest_connection_id: connection.id])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "Last seen:")
+      |> assert_has("span", text: "1 hour ago")
+    end
   end
 end

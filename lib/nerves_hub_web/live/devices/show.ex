@@ -23,6 +23,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.FwupProgress
   alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
@@ -675,6 +676,17 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp fetch_location(nil), do: %{}
   defp fetch_location(connection), do: connection.metadata["location"]
+
+  defp last_seen_at_status(nil), do: "Not seen yet"
+
+  defp last_seen_at_status(latest_connection),
+    do: "Last seen #{last_seen_formatted(latest_connection)}"
+
+  defp last_seen_formatted(latest_connection) do
+    latest_connection
+    |> Map.get(:last_seen_at)
+    |> DateTimeFormat.from_now()
+  end
 
   def show_menu(id, js \\ %JS{}) do
     JS.show(js, transition: "fade-in", to: "##{id}")
