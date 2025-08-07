@@ -15,6 +15,9 @@ defmodule NervesHubWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
+  alias Ecto.Adapters.SQL.Sandbox
+  alias Phoenix.ConnTest
+
   using do
     quote do
       use NervesHubWeb, :verified_routes
@@ -31,13 +34,13 @@ defmodule NervesHubWeb.ConnCase do
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
+    :ok = Sandbox.checkout(NervesHub.Repo)
 
     if !tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
+      Sandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
+    {:ok, conn: ConnTest.build_conn()}
   end
 end
 
@@ -57,6 +60,8 @@ defmodule NervesHubWeb.APIConnCase do
   """
 
   use ExUnit.CaseTemplate
+
+  alias Ecto.Adapters.SQL.Sandbox
   alias NervesHub.Fixtures
 
   using do
@@ -85,10 +90,10 @@ defmodule NervesHubWeb.APIConnCase do
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
+    :ok = Sandbox.checkout(NervesHub.Repo)
 
     if !tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
+      Sandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 
     user = Fixtures.user_fixture()

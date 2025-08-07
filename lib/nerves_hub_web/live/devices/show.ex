@@ -23,6 +23,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.FwupProgress
   alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
@@ -53,6 +54,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
       socket.endpoint.subscribe("firmware")
     end
 
+    default_page_size = if socket.assigns[:new_ui], do: 25, else: 5
+
     socket
     |> page_title("Device #{device.identifier} - #{product.name}")
     |> sidebar_tab(:devices)
@@ -64,7 +67,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
     |> assign(:page_number, 1)
-    |> assign(:page_size, 5)
+    |> assign(:page_size, default_page_size)
     |> assign(:pinned?, Devices.device_pinned?(user.id, device.id))
     |> audit_log_assigns()
     |> assign_deployment_groups()
@@ -73,8 +76,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> ok()
   end
 
-  def handle_params(_params, _uri, socket) do
+  def handle_params(params, _uri, socket) do
+    default_page_size = if socket.assigns[:new_ui], do: "25", else: "5"
+    page_number = String.to_integer(Map.get(params, "page_number", "1"))
+    page_size = String.to_integer(Map.get(params, "page_size", default_page_size))
+
     socket
+    |> assign(:page_number, page_number)
+    |> assign(:page_size, page_size)
+    # Reload audit logs with new pagination
+    |> audit_log_assigns()
     |> update_tab_component_hooks()
     |> noreply()
   end
@@ -283,15 +294,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  def handle_event("paginate", %{"page" => page_num}, socket) do
-    params = %{"page_size" => socket.assigns.page_size, "page_number" => page_num}
-
+  def handle_event("paginate", %{"page" => page_number}, socket) do
+    params = %{"page_size" => socket.assigns.page_size, "page_number" => page_number}
     %{org: org, product: product, device: device} = socket.assigns
 
-    url = ~p"/org/#{org}/#{product}/devices/#{device}/activity?#{params}"
-
     socket
-    |> push_patch(to: url)
+    |> push_patch(to: ~p"/org/#{org}/#{product}/devices/#{device}?#{params}")
     |> noreply()
   end
 
@@ -484,15 +492,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    params = %{"page_size" => page_size, "page_number" => 1}
-
+    params = %{"page_size" => page_size, "page_number" => "1"}
     %{org: org, product: product, device: device} = socket.assigns
+    url = ~p"/org/#{org}/#{product}/devices/#{device}?#{params}"
 
-    url = ~p"/org/#{org}/#{product}/devices/#{device}/activity?#{params}"
-
-    socket
-    |> push_patch(to: url)
-    |> noreply()
+    socket |> push_patch(to: url) |> noreply()
   end
 
   def handle_event("select-firmware-version", _, socket) do
@@ -672,6 +676,17 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp fetch_location(nil), do: %{}
   defp fetch_location(connection), do: connection.metadata["location"]
+
+  defp last_seen_at_status(nil), do: "Not seen yet"
+
+  defp last_seen_at_status(latest_connection),
+    do: "Last seen #{last_seen_formatted(latest_connection)}"
+
+  defp last_seen_formatted(latest_connection) do
+    latest_connection
+    |> Map.get(:last_seen_at)
+    |> DateTimeFormat.from_now()
+  end
 
   def show_menu(id, js \\ %JS{}) do
     JS.show(js, transition: "fade-in", to: "##{id}")

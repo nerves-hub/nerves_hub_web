@@ -82,6 +82,14 @@
 
     <div class="flex items-center gap-2">
       <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+        <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Last seen:</span>
+        <span :if={@device.latest_connection} class="text-sm text-base-300 font-mono" title={last_seen_at_status(@device.latest_connection)}>
+          {last_seen_formatted(@device.latest_connection)}
+        </span>
+        <span :if={!@device.latest_connection} class="text-sm text-base-300 font-mono"> N/A </span>
+      </div>
+
+      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
         <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Version:</span>
 
         <span :if={is_nil(@device.firmware_metadata)} class="text-sm text-base-300 font-mono">Unknown</span>
