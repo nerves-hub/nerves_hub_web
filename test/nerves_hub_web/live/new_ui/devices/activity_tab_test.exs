@@ -88,7 +88,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
 
       # Test paginate event
       view
-      |> element("button[phx-click=\"paginate\"][phx-value-page=\"2\"]", "2")
+      |> element(~s{button[phx-click="paginate"][phx-value-page="2"]}, "2")
       |> render_click()
 
       # Should redirect to page 2 on activity page
@@ -115,7 +115,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
 
       # Test changing page size to 50
       view
-      |> element("button[phx-click=\"set-paginate-opts\"][phx-value-page-size=\"50\"]")
+      |> element(~s{button[phx-click="set-paginate-opts"][phx-value-page-size="50"]})
       |> render_click()
 
       # Should redirect to page 1 with page_size=50

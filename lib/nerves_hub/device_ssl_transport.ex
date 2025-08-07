@@ -13,18 +13,20 @@ defmodule NervesHub.DeviceSSLTransport do
 
   @behaviour ThousandIsland.Transport
 
-  @impl ThousandIsland.Transport
-  defdelegate listen(port, user_options), to: ThousandIsland.Transports.SSL
+  alias ThousandIsland.Transports.SSL
 
   @impl ThousandIsland.Transport
-  defdelegate accept(listener_socket), to: ThousandIsland.Transports.SSL
+  defdelegate listen(port, user_options), to: SSL
+
+  @impl ThousandIsland.Transport
+  defdelegate accept(listener_socket), to: SSL
 
   @impl ThousandIsland.Transport
   def handshake(socket) do
     if NervesHub.RateLimit.increment() do
       :telemetry.execute([:nerves_hub, :rate_limit, :accepted], %{count: 1})
 
-      ThousandIsland.Transports.SSL.handshake(socket)
+      SSL.handshake(socket)
     else
       :telemetry.execute([:nerves_hub, :rate_limit, :rejected], %{count: 1})
 
@@ -33,50 +35,50 @@ defmodule NervesHub.DeviceSSLTransport do
   end
 
   @impl ThousandIsland.Transport
-  defdelegate upgrade(socket, opts), to: ThousandIsland.Transports.SSL
+  defdelegate upgrade(socket, opts), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate controlling_process(socket, pid), to: ThousandIsland.Transports.SSL
+  defdelegate controlling_process(socket, pid), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate recv(socket, length, timeout), to: ThousandIsland.Transports.SSL
+  defdelegate recv(socket, length, timeout), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate send(socket, data), to: ThousandIsland.Transports.SSL
+  defdelegate send(socket, data), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate sendfile(socket, filename, offset, length), to: ThousandIsland.Transports.SSL
+  defdelegate sendfile(socket, filename, offset, length), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate getopts(socket, options), to: ThousandIsland.Transports.SSL
+  defdelegate getopts(socket, options), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate setopts(socket, options), to: ThousandIsland.Transports.SSL
+  defdelegate setopts(socket, options), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate shutdown(socket, way), to: ThousandIsland.Transports.SSL
+  defdelegate shutdown(socket, way), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate close(socket), to: ThousandIsland.Transports.SSL
+  defdelegate close(socket), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate sockname(socket), to: ThousandIsland.Transports.SSL
+  defdelegate sockname(socket), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate peername(socket), to: ThousandIsland.Transports.SSL
+  defdelegate peername(socket), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate peercert(socket), to: ThousandIsland.Transports.SSL
+  defdelegate peercert(socket), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate secure?(), to: ThousandIsland.Transports.SSL
+  defdelegate secure?(), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate getstat(socket), to: ThousandIsland.Transports.SSL
+  defdelegate getstat(socket), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate negotiated_protocol(socket), to: ThousandIsland.Transports.SSL
+  defdelegate negotiated_protocol(socket), to: SSL
 
   @impl ThousandIsland.Transport
-  defdelegate connection_information(socket), to: ThousandIsland.Transports.SSL
+  defdelegate connection_information(socket), to: SSL
 end

@@ -286,57 +286,54 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   end
 
   defp extract_meta_conf_locally(filepath) do
-    try do
-      dir =
-        System.tmp_dir!()
-        |> Path.join("nerves-hub-meta-#{System.unique_integer([:positive])}")
+    dir =
+      System.tmp_dir!()
+      |> Path.join("nerves-hub-meta-#{System.unique_integer([:positive])}")
 
-      _ = File.mkdir_p(dir)
+    _ = File.mkdir_p(dir)
 
-      path = Path.join(dir, "meta.conf")
-      stream = File.stream!(path)
+    path = Path.join(dir, "meta.conf")
+    stream = File.stream!(path)
 
-      {:ok, unzip} =
-        filepath
-        |> Unzip.LocalFile.open()
-        |> Unzip.new()
+    {:ok, unzip} =
+      filepath
+      |> Unzip.LocalFile.open()
+      |> Unzip.new()
 
+    _result =
       unzip
       |> Unzip.file_stream!("meta.conf")
       |> Enum.into(stream, &IO.iodata_to_binary/1)
 
-      {:ok, path}
-    rescue
-      e ->
-        Logging.log_message_to_sentry(
-          "[UpdateTool.Fwup] Extracting meta.conf failed due to: #{inspect(e)}",
-          %{filepath: filepath}
-        )
+    {:ok, path}
+  rescue
+    e ->
+      Logging.log_message_to_sentry(
+        "[UpdateTool.Fwup] Extracting meta.conf failed due to: #{inspect(e)}",
+        %{filepath: filepath}
+      )
 
-        Logger.error("Extracting meta.conf failed due to: #{inspect(e)}", filepath: filepath)
-        {:error, :extract_meta_conf_failed}
-    end
+      Logger.error("Extracting meta.conf failed due to: #{inspect(e)}", filepath: filepath)
+      {:error, :extract_meta_conf_failed}
   end
 
   defp download_archive(firmware) do
-    try do
-      {:ok, url} = firmware_upload_config().download_file(firmware)
-      archive_path = Path.join(System.tmp_dir(), "nh-#{firmware.uuid}.fw")
-      dl!(url, archive_path)
-      {:ok, archive_path}
-    rescue
-      e ->
-        Logging.log_message_to_sentry(
-          "[UpdateTool.Fwup] Downloading firmware failed due to: #{inspect(e)}",
-          %{firmware_uuid: firmware.uuid}
-        )
+    {:ok, url} = firmware_upload_config().download_file(firmware)
+    archive_path = Path.join(System.tmp_dir(), "nh-#{firmware.uuid}.fw")
+    dl!(url, archive_path)
+    {:ok, archive_path}
+  rescue
+    e ->
+      Logging.log_message_to_sentry(
+        "[UpdateTool.Fwup] Downloading firmware failed due to: #{inspect(e)}",
+        %{firmware_uuid: firmware.uuid}
+      )
 
-        Logger.error("Downloading firmware failed due to: #{inspect(e)}",
-          firmware_uuid: firmware.uuid
-        )
+      Logger.error("Downloading firmware failed due to: #{inspect(e)}",
+        firmware_uuid: firmware.uuid
+      )
 
-        {:error, :download_firmware_failed}
-    end
+      {:error, :download_firmware_failed}
   end
 
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)

@@ -18,6 +18,9 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Scripts
   alias NervesHub.Support
   alias NervesHub.Support.Fwup
+  alias X509.Certificate.Extension
+  alias X509.Certificate.Template
+  alias X509.Certificate.Validity
 
   @uploader Application.compile_env(:nerves_hub, :firmware_upload)
 
@@ -353,15 +356,14 @@ defmodule NervesHub.Fixtures do
     cert =
       X509.Certificate.new(public_key, subject_rdn, signer_cert, signer_key,
         template:
-          X509.Certificate.Template.new(%X509.Certificate.Template{
+          Template.new(%Template{
             serial: {:random, 20},
-            validity: X509.Certificate.Validity.new(not_before, not_after),
+            validity: Validity.new(not_before, not_after),
             hash: :sha256,
             extensions: [
-              basic_constraints: X509.Certificate.Extension.basic_constraints(false),
-              key_usage:
-                X509.Certificate.Extension.key_usage([:digitalSignature, :keyEncipherment]),
-              ext_key_usage: X509.Certificate.Extension.ext_key_usage([:clientAuth]),
+              basic_constraints: Extension.basic_constraints(false),
+              key_usage: Extension.key_usage([:digitalSignature, :keyEncipherment]),
+              ext_key_usage: Extension.ext_key_usage([:clientAuth]),
               subject_key_identifier: true,
               authority_key_identifier: true
             ]

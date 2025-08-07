@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Plugs.OrgUserTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Fixtures
+  alias NervesHubWeb.Plugs
 
   setup context do
     {:ok, org_user} = Accounts.get_org_user(context.org, context.user)
@@ -16,7 +17,7 @@ defmodule NervesHubWeb.Plugs.OrgUserTest do
       conn
       |> Map.put(:assigns, %{org: org})
       |> Map.put(:params, %{"user_id" => org_user.user_id})
-      |> NervesHubWeb.Plugs.OrgUser.call([])
+      |> Plugs.OrgUser.call([])
 
     assert conn.assigns.org_user == org_user
   end
@@ -26,7 +27,7 @@ defmodule NervesHubWeb.Plugs.OrgUserTest do
       conn
       |> Map.put(:assigns, %{org: org})
       |> Map.put(:params, %{"user_id" => 000})
-      |> NervesHubWeb.Plugs.OrgUser.call([])
+      |> Plugs.OrgUser.call([])
 
     assert html_response(conn, 404) =~ "Sorry, the page you are looking for does not exist."
   end
@@ -38,7 +39,7 @@ defmodule NervesHubWeb.Plugs.OrgUserTest do
       conn
       |> Map.put(:assigns, %{org: org})
       |> Map.put(:params, %{"user_id" => user2.id})
-      |> NervesHubWeb.Plugs.OrgUser.call([])
+      |> Plugs.OrgUser.call([])
 
     assert html_response(conn, 404) =~ "Sorry, the page you are looking for does not exist."
   end

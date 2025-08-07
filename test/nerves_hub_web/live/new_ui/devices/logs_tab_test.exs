@@ -1,9 +1,9 @@
 defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
-  alias NervesHub.Products.Product
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.LogLines
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
 
   setup %{conn: conn} do

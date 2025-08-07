@@ -1,8 +1,8 @@
 defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   import OpenApiSpex.Operation, only: [request_body: 4, response: 3]
 
-  alias NervesHubWeb.API.Schemas.DeviceSchemas
   alias NervesHubWeb.API.Schemas.DeviceCertificateSchemas
+  alias NervesHubWeb.API.Schemas.DeviceSchemas
 
   @organization_parameter %OpenApiSpex.Parameter{
     name: :org_name,

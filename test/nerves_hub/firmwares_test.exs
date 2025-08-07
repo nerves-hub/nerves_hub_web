@@ -5,8 +5,8 @@ defmodule NervesHub.FirmwaresTest do
   alias Ecto.Changeset
 
   alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.UpdateTool.Fwup, as: UpdateToolDefault
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.UpdateTool.Fwup, as: UpdateToolDefault
   alias NervesHub.Firmwares.Upload.File, as: UploadFile
   alias NervesHub.Fixtures
   alias NervesHub.Repo
