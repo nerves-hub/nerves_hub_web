@@ -56,36 +56,24 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
   end
 
   def friendly_blocked_until(blocked_until) do
-    cond do
-      DateTime.diff(blocked_until, DateTime.utc_now(), :second) < 60 ->
-        "for less than a minute"
+    now = DateTime.utc_now()
+    seconds_diff = DateTime.diff(blocked_until, now, :second)
+    minutes_diff = DateTime.diff(blocked_until, now, :minute)
+    hours_diff = DateTime.diff(blocked_until, now, :hour)
 
-      DateTime.diff(blocked_until, DateTime.utc_now(), :minute) < 2 ->
-        "for around a minute"
-
-      DateTime.diff(blocked_until, DateTime.utc_now(), :minute) < 55 ->
-        "for #{DateTime.diff(blocked_until, DateTime.utc_now(), :minute)} minutes"
-
-      DateTime.diff(blocked_until, DateTime.utc_now(), :minute) < 60 ->
-        "for less than an hour"
-
-      DateTime.diff(blocked_until, DateTime.utc_now(), :minute) < 63 ->
-        "for an hour"
-
-      DateTime.diff(blocked_until, DateTime.utc_now(), :minute) < 80 ->
-        "for just over an hour"
-
-      DateTime.diff(blocked_until, DateTime.utc_now(), :minute) < 100 ->
-        "for an hour and a half"
-
-      DateTime.diff(blocked_until, DateTime.utc_now(), :minute) < 110 ->
-        "for around 2 hours"
-
-      DateTime.diff(blocked_until, DateTime.utc_now(), :hour) < 24 ->
-        "for #{DateTime.diff(blocked_until, DateTime.utc_now(), :hour)} hours"
-
-      true ->
-        "until #{Calendar.strftime(blocked_until, "%B %-d, %Y %-I:%M %p %Z")}"
-    end
+    format_time_duration(seconds_diff, minutes_diff, hours_diff, blocked_until)
   end
+
+  defp format_time_duration(s, _m, _h, _b_u) when s < 60, do: "for less than a minute"
+  defp format_time_duration(_s, m, _h, _b_u) when m < 2, do: "for around a minute"
+  defp format_time_duration(_s, m, _h, _b_u) when m < 55, do: "for #{m} minutes"
+  defp format_time_duration(_s, m, _h, _b_u) when m < 60, do: "for less than an hour"
+  defp format_time_duration(_s, m, _h, _b_u) when m < 63, do: "for an hour"
+  defp format_time_duration(_s, m, _h, _b_u) when m < 80, do: "for just over an hour"
+  defp format_time_duration(_s, m, _h, _b_u) when m < 100, do: "for an hour and a half"
+  defp format_time_duration(_s, m, _h, _b_u) when m < 110, do: "for around 2 hours"
+  defp format_time_duration(_s, _m, h, _b_u) when h < 24, do: "for #{h} hours"
+
+  defp format_time_duration(_s, _m, _h, blocked_until),
+    do: "until #{Calendar.strftime(blocked_until, "%B %-d, %Y %-I:%M %p %Z")}"
 end
