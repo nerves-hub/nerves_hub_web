@@ -5,15 +5,11 @@ defmodule NervesHub.Tracker do
 
   alias NervesHub.Devices.Device
   alias NervesHub.Repo
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   def heartbeat(%Device{} = device) do
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "device:#{device.identifier}:internal",
-        "connection:heartbeat",
-        %{}
-      )
+    topic = "device:#{device.identifier}:internal"
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "connection:heartbeat", %{})
 
     :ok
   end
@@ -31,16 +27,9 @@ defmodule NervesHub.Tracker do
   end
 
   def confirm_online(%Device{identifier: identifier}) do
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "device:#{identifier}:internal",
-        "connection:status",
-        %{
-          device_id: identifier,
-          status: "online"
-        }
-      )
+    topic = "device:#{identifier}:internal"
+    params = %{device_id: identifier, status: "online"}
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "connection:status", params)
 
     :ok
   end
@@ -53,16 +42,9 @@ defmodule NervesHub.Tracker do
   end
 
   defp publish(identifier, status) do
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "device:#{identifier}:internal",
-        "connection:change",
-        %{
-          device_id: identifier,
-          status: status
-        }
-      )
+    topic = "device:#{identifier}:internal"
+    params = %{device_id: identifier, status: status}
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "connection:change", params)
 
     :ok
   end
@@ -101,12 +83,8 @@ defmodule NervesHub.Tracker do
   end
 
   def console_active?(device_id) do
-    _ =
-      Phoenix.PubSub.broadcast(
-        NervesHub.PubSub,
-        "device:console:#{device_id}",
-        {:active?, self()}
-      )
+    topic = "device:console:#{device_id}"
+    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic, {:active?, self()})
 
     receive do
       :active ->

@@ -15,6 +15,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
+  alias NervesHub.Support.Fwup
 
   alias NervesHub.Repo
 
@@ -872,19 +873,14 @@ defmodule NervesHub.DevicesTest do
 
       # create some firmware which can be uploaded to each org
       {:ok, _} =
-        NervesHub.Support.Fwup.create_firmware(tmp_dir, "old-firmware", %{
+        Fwup.create_firmware(tmp_dir, "old-firmware", %{
           product: "Same Product Name",
           fwup_version: "1.13.0"
         })
 
       # sign and upload for org one
       {:ok, signed_firmware_one} =
-        NervesHub.Support.Fwup.sign_firmware(
-          tmp_dir,
-          org_key_one.name,
-          "old-firmware",
-          "old-firmware-signed-one"
-        )
+        Fwup.sign_firmware(tmp_dir, org_key_one.name, "old-firmware", "old-firmware-signed-one")
 
       {:ok, old_firmware_one} = Firmwares.create_firmware(org_one, signed_firmware_one)
 
@@ -894,12 +890,7 @@ defmodule NervesHub.DevicesTest do
 
       # sign and upload for org two
       {:ok, old_signed_firmware_two} =
-        NervesHub.Support.Fwup.sign_firmware(
-          tmp_dir,
-          org_key_two.name,
-          "old-firmware",
-          "old-firmware-signed-two"
-        )
+        Fwup.sign_firmware(tmp_dir, org_key_two.name, "old-firmware", "old-firmware-signed-two")
 
       {:ok, old_firmware_two} = Firmwares.create_firmware(org_two, old_signed_firmware_two)
 
@@ -909,19 +900,14 @@ defmodule NervesHub.DevicesTest do
 
       # and now create some new firmware which can be uploaded to each org
       {:ok, _} =
-        NervesHub.Support.Fwup.create_firmware(tmp_dir, "new-firmware", %{
+        Fwup.create_firmware(tmp_dir, "new-firmware", %{
           product: "Same Product Name",
           fwup_version: "1.13.0"
         })
 
       # sign and upload for org one
       {:ok, new_signed_firmware_one} =
-        NervesHub.Support.Fwup.sign_firmware(
-          tmp_dir,
-          org_key_one.name,
-          "new-firmware",
-          "new-firmware-signed-one"
-        )
+        Fwup.sign_firmware(tmp_dir, org_key_one.name, "new-firmware", "new-firmware-signed-one")
 
       {:ok, new_firmware_one} = Firmwares.create_firmware(org_one, new_signed_firmware_one)
 
@@ -931,12 +917,7 @@ defmodule NervesHub.DevicesTest do
 
       # sign and upload for org two
       {:ok, new_signed_firmware_two} =
-        NervesHub.Support.Fwup.sign_firmware(
-          tmp_dir,
-          org_key_two.name,
-          "new-firmware",
-          "new-firmware-signed-two"
-        )
+        Fwup.sign_firmware(tmp_dir, org_key_two.name, "new-firmware", "new-firmware-signed-two")
 
       {:ok, new_firmware_two} = Firmwares.create_firmware(org_two, new_signed_firmware_two)
 

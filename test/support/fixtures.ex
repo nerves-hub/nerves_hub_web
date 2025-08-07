@@ -17,7 +17,10 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Repo
   alias NervesHub.Scripts
   alias NervesHub.Support
-  alias NervesHub.Support.Fwup
+  alias NervesHub.Support.Fwup, as: SupportFwup
+  alias X509.Certificate.Extension, as: X509Extension
+  alias X509.Certificate.Template, as: X509Template
+  alias X509.Certificate.Validity, as: X509Validity
 
   @uploader Application.compile_env(:nerves_hub, :firmware_upload)
 
@@ -25,10 +28,7 @@ defmodule NervesHub.Fixtures do
 
   @deployment_group_params %{
     name: "Test Deployment",
-    conditions: %{
-      "version" => "<= 1.0.0",
-      "tags" => ["beta", "beta-edge"]
-    },
+    conditions: %{"version" => "<= 1.0.0", "tags" => ["beta", "beta-edge"]},
     is_active: false,
     delta_updatable: false
   }
@@ -85,15 +85,9 @@ defmodule NervesHub.Fixtures do
   def org_key_fixture(%Accounts.Org{} = org, %Accounts.User{} = user, dir \\ System.tmp_dir()) do
     fwup_key_name = "org_key-#{counter()}"
 
-    Fwup.gen_key_pair(fwup_key_name, dir)
-    key = Fwup.get_public_key(fwup_key_name, dir)
-
-    params = %{
-      org_id: org.id,
-      key: key,
-      name: fwup_key_name,
-      created_by_id: user.id
-    }
+    SupportFwup.gen_key_pair(fwup_key_name, dir)
+    key = SupportFwup.get_public_key(fwup_key_name, dir)
+    params = %{org_id: org.id, key: key, name: fwup_key_name, created_by_id: user.id}
 
     {:ok, org_key} = Accounts.create_org_key(params)
 
@@ -149,11 +143,11 @@ defmodule NervesHub.Fixtures do
   @spec firmware_file_fixture(OrgKey.t(), Product.t()) :: String.t()
   def firmware_file_fixture(%Accounts.OrgKey{} = org_key, %Products.Product{} = product, params \\ %{}) do
     {:ok, filepath} =
-      Fwup.create_signed_firmware(
+      SupportFwup.create_signed_firmware(
         org_key.name,
         "unsigned-#{counter()}",
         "signed-#{counter()}",
-        %{product: product.name} |> Enum.into(params)
+        Enum.into(%{product: product.name}, params)
       )
 
     filepath
@@ -334,14 +328,14 @@ defmodule NervesHub.Fixtures do
     cert =
       X509.Certificate.new(public_key, subject_rdn, signer_cert, signer_key,
         template:
-          X509.Certificate.Template.new(%X509.Certificate.Template{
+          X509Template.new(%X509Template{
             serial: {:random, 20},
-            validity: X509.Certificate.Validity.new(not_before, not_after),
+            validity: X509Validity.new(not_before, not_after),
             hash: :sha256,
             extensions: [
-              basic_constraints: X509.Certificate.Extension.basic_constraints(false),
-              key_usage: X509.Certificate.Extension.key_usage([:digitalSignature, :keyEncipherment]),
-              ext_key_usage: X509.Certificate.Extension.ext_key_usage([:clientAuth]),
+              basic_constraints: X509Extension.basic_constraints(false),
+              key_usage: X509Extension.key_usage([:digitalSignature, :keyEncipherment]),
+              ext_key_usage: X509Extension.ext_key_usage([:clientAuth]),
               subject_key_identifier: true,
               authority_key_identifier: true
             ]

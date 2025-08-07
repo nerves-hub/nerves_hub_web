@@ -37,6 +37,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
@@ -668,13 +669,9 @@ defmodule NervesHub.Devices do
 
     {:ok, device} = update_device(device, %{firmware_validation_status: "validated"})
 
-    Phoenix.Channel.Server.broadcast_from!(
-      NervesHub.PubSub,
-      self(),
-      "device:#{device.identifier}:internal",
-      "firmware:validated",
-      %{}
-    )
+    event = "firmware:validated"
+    topic = "device:#{device.identifier}:internal"
+    ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, event, %{})
 
     {:ok, device}
   end
@@ -1021,13 +1018,8 @@ defmodule NervesHub.Devices do
       firmware_uuid: firmware_uuid
     }
 
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "orchestrator:deployment:#{device.deployment_id}",
-        "device-online",
-        payload
-      )
+    topic = "orchestrator:deployment:#{device.deployment_id}"
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "device-online", payload)
 
     :ok
   end
@@ -1037,13 +1029,8 @@ defmodule NervesHub.Devices do
   end
 
   def deployment_device_updated(device) do
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "orchestrator:deployment:#{device.deployment_id}",
-        "device-updated",
-        %{}
-      )
+    topic = "orchestrator:deployment:#{device.deployment_id}"
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "device-updated", %{})
 
     :ok
   end
@@ -1185,12 +1172,9 @@ defmodule NervesHub.Devices do
       {:ok, device} = result ->
         _ =
           if device.deployment_id do
-            Phoenix.Channel.Server.broadcast(
-              NervesHub.PubSub,
-              "orchestrator:deployment:#{device.deployment_id}",
-              "device-updated",
-              %{}
-            )
+            event = "device-updated"
+            topic = "orchestrator:deployment:#{device.deployment_id}"
+            ChannelServer.broadcast(NervesHub.PubSub, topic, event, %{})
           end
 
         result

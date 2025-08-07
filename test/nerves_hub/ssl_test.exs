@@ -4,6 +4,7 @@ defmodule NervesHub.SSLTest do
   alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Fixtures
+  alias X509.Certificate.Validity
 
   require X509.ASN1
 
@@ -388,7 +389,7 @@ defmodule NervesHub.SSLTest do
   defp do_corruption(cert, :expired) do
     {:ok, not_before, 0} = DateTime.from_iso8601("2018-01-01T00:00:00Z")
     {:ok, not_after, 0} = DateTime.from_iso8601("2018-12-31T23:59:59Z")
-    new_validity = X509.Certificate.Validity.new(not_before, not_after)
+    new_validity = Validity.new(not_before, not_after)
 
     tbs_cert = X509.ASN1.otp_certificate(cert, :tbsCertificate)
     new_tbs_cert = X509.ASN1.tbs_certificate(tbs_cert, validity: new_validity)
