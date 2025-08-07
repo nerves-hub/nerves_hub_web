@@ -43,11 +43,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
     } do
       # Create multiple audit log entries for pagination testing (30 entries)
       Enum.each(1..30, fn i ->
-        NervesHub.AuditLogs.audit!(
-          user,
-          device,
-          "New UI test audit log entry #{i}"
-        )
+        NervesHub.AuditLogs.audit!(user, device, "New UI test audit log entry #{i}")
       end)
 
       # Test page 1 with default page_size=25
@@ -84,11 +80,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
     } do
       # Create enough audit logs for pagination
       Enum.each(1..30, fn i ->
-        NervesHub.AuditLogs.audit!(
-          user,
-          device,
-          "New UI pagination test entry #{i}"
-        )
+        NervesHub.AuditLogs.audit!(user, device, "New UI pagination test entry #{i}")
       end)
 
       {:ok, view, _html} =
@@ -115,11 +107,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
     } do
       # Create 60 audit logs for testing page size changes
       Enum.each(1..60, fn i ->
-        NervesHub.AuditLogs.audit!(
-          user,
-          device,
-          "Page size test entry #{i}"
-        )
+        NervesHub.AuditLogs.audit!(user, device, "Page size test entry #{i}")
       end)
 
       {:ok, view, _html} =

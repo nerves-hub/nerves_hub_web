@@ -696,11 +696,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       # Create multiple audit log entries for pagination testing
       Enum.each(1..12, fn i ->
-        NervesHub.AuditLogs.audit!(
-          user,
-          device,
-          "Test audit log entry #{i}"
-        )
+        NervesHub.AuditLogs.audit!(user, device, "Test audit log entry #{i}")
       end)
 
       # Test page 1 with default page_size=5
@@ -735,11 +731,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       # Create enough audit logs for pagination
       Enum.each(1..8, fn i ->
-        NervesHub.AuditLogs.audit!(
-          user,
-          device,
-          "Pagination test entry #{i}"
-        )
+        NervesHub.AuditLogs.audit!(user, device, "Pagination test entry #{i}")
       end)
 
       {:ok, view, _html} =
