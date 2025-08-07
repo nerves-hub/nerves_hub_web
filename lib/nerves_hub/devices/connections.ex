@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Repo
+  alias Phoenix.Channel.Server
 
   @doc """
   Get all connections for a device.
@@ -90,20 +91,11 @@ defmodule NervesHub.Devices.Connections do
     {1, nil} =
       DeviceConnection
       |> where([dc], dc.id == ^id)
-      |> Repo.update_all(
-        set: [
-          status: "connected",
-          last_seen_at: DateTime.utc_now()
-        ]
-      )
+      |> Repo.update_all(set: [status: "connected", last_seen_at: DateTime.utc_now()])
 
-    Phoenix.Channel.Server.broadcast_from!(
-      NervesHub.PubSub,
-      self(),
-      "device:#{device.identifier}:internal",
-      "connection:heartbeat",
-      %{}
-    )
+    event = "connection:heartbeat"
+    topic = "device:#{device.identifier}:internal"
+    Server.broadcast_from!(NervesHub.PubSub, self(), topic, event, %{})
   end
 
   @doc """

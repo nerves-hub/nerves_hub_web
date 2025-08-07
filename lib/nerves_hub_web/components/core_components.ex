@@ -18,6 +18,8 @@ defmodule NervesHubWeb.CoreComponents do
 
   import NervesHubWeb.Components.Icons
 
+  alias Phoenix.HTML.Form
+
   alias Phoenix.LiveView.JS
 
   use Gettext, backend: NervesHubWeb.Gettext
@@ -360,9 +362,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def input(%{type: "checkbox"} = assigns) do
     assigns =
-      assign_new(assigns, :checked, fn ->
-        Phoenix.HTML.Form.normalize_value("checkbox", assigns[:value])
-      end)
+      assign_new(assigns, :checked, fn -> Form.normalize_value("checkbox", assigns[:value]) end)
 
     ~H"""
     <div phx-feedback-for={@name}>

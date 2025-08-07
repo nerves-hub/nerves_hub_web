@@ -130,7 +130,7 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
           "jitp" => %{
             "description" => "Production",
             "tags" => ["prod"],
-            "product_id" => 33438
+            "product_id" => 33_438
           }
         }
       }

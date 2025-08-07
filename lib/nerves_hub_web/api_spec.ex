@@ -18,7 +18,7 @@ defmodule NervesHubWeb.ApiSpec do
   @behaviour OpenApi
 
   @impl OpenApi
-  def spec do
+  def spec() do
     %OpenApi{
       servers: [
         # Populate the Server info from a phoenix endpoint
