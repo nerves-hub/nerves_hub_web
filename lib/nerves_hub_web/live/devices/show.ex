@@ -491,15 +491,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    params = %{"page_size" => page_size, "page_number" => 1}
-
+    params = %{"page_size" => page_size, "page_number" => "1"}
     %{org: org, product: product, device: device} = socket.assigns
+    url = ~p"/org/#{org}/#{product}/devices/#{device}?#{params}"
 
-    url = ~p"/org/#{org}/#{product}/devices/#{device}/activity?#{params}"
-
-    socket
-    |> push_patch(to: url)
-    |> noreply()
+    socket |> push_patch(to: url) |> noreply()
   end
 
   def handle_event("select-firmware-version", _, socket) do

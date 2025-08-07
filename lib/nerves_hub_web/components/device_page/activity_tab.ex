@@ -99,7 +99,7 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
   end
 
   def hooked_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    params = %{"page_size" => page_size, "page_number" => 1}
+    params = %{"page_size" => page_size, "page_number" => "1"}
 
     %{org: org, product: product, device: device} = socket.assigns
 
