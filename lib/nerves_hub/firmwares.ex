@@ -24,9 +24,13 @@ defmodule NervesHub.Firmwares do
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
 
   @spec get_deltas_by_target_firmware(firmware :: Firmware.t()) :: [FirmwareDelta.t()]
-  def get_deltas_by_target_firmware(firmware) do
+  def get_deltas_by_target_firmware(%Firmware{} = firmware) do
+    get_deltas_by_target_firmware(firmware.id)
+  end
+
+  def get_deltas_by_target_firmware(firmware_id) do
     FirmwareDelta
-    |> where([fd], fd.target_id == ^firmware.id)
+    |> where([fd], fd.target_id == ^firmware_id)
     |> preload(:source)
     |> preload(:target)
     |> Repo.all()
@@ -600,7 +604,7 @@ defmodule NervesHub.Firmwares do
     _ =
       NervesHubWeb.Endpoint.broadcast(
         "firmware_delta_target:#{firmware_delta.target_id}",
-        to_string(firmware_delta.status),
+        "firmware_delta_#{to_string(firmware_delta.status)}",
         %{
           delta_id: firmware_delta.id,
           source_firmware_id: firmware_delta.source_id,
