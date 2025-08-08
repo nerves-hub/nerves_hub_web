@@ -4,13 +4,13 @@ defmodule NervesHub.Support.Utils do
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Repo
   alias NervesHub.Utils.Base62
-  alias Plug.Crypto.KeyGenerator
+  alias Plug.Crypto.KeyGenerator, as: CryptoKeyGenerator
 
   def create_v1_user_token!(user) do
     secret =
       <<user.name::binary, user.email::binary, DateTime.to_unix(DateTime.utc_now())::32>>
 
-    <<initial::160>> = KeyGenerator.generate(secret, "user-#{user.id}", length: 20)
+    <<initial::160>> = CryptoKeyGenerator.generate(secret, "user-#{user.id}", length: 20)
     <<rand::30-bytes, _::binary>> = Base62.encode(initial) |> String.pad_leading(30, "0")
     crc = :erlang.crc32(rand) |> Base62.encode() |> String.pad_leading(6, "0")
     token = "nhu_#{rand}#{crc}"
