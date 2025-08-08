@@ -15,7 +15,7 @@ defmodule NervesHubWeb.ChannelCase do
 
   use ExUnit.CaseTemplate
 
-  alias Ecto.Adapters.SQL.Sandbox
+  alias Ecto.Adapters.SQL.Sandbox, as: SQLSandbox
 
   using do
     quote do
@@ -56,17 +56,17 @@ defmodule NervesHubWeb.ChannelCase do
 
   setup do
     # Explicitly get a connection before each test
-    :ok = Sandbox.checkout(NervesHub.Repo)
-    :ok = Sandbox.checkout(NervesHub.ObanRepo)
+    :ok = SQLSandbox.checkout(NervesHub.Repo)
+    :ok = SQLSandbox.checkout(NervesHub.ObanRepo)
   end
 
   setup tags do
-    pid = Sandbox.start_owner!(NervesHub.Repo, shared: not tags[:async])
-    pid2 = Sandbox.start_owner!(NervesHub.ObanRepo, shared: not tags[:async])
+    pid = SQLSandbox.start_owner!(NervesHub.Repo, shared: not tags[:async])
+    pid2 = SQLSandbox.start_owner!(NervesHub.ObanRepo, shared: not tags[:async])
 
     on_exit(fn ->
-      Sandbox.stop_owner(pid)
-      Sandbox.stop_owner(pid2)
+      SQLSandbox.stop_owner(pid)
+      SQLSandbox.stop_owner(pid2)
     end)
 
     :ok

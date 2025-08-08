@@ -3,6 +3,7 @@ defmodule NervesHub.Accounts do
 
   alias Ecto.Changeset
   alias Ecto.Multi
+
   alias NervesHub.Accounts.Invite
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
