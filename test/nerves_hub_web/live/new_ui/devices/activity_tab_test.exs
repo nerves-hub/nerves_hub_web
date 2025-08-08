@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
     device: device
   } do
     conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity")
+    |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
     |> assert_has("span", text: "No audit logs found for the device.")
   end
 
@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
     DeviceTemplates.audit_reboot(user, device)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity")
+    |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
     |> assert_has("div", text: "User #{user.name} rebooted device #{device.identifier}")
   end
 
@@ -48,24 +48,20 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
 
       # Test page 1 with default page_size=25
       conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity")
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
       |> assert_has("div.flex.items-center.gap-6", count: 25)
       |> assert_has("button[phx-value-page=\"2\"]")
 
       # Test page 2 with page_size=25
       conn
-      |> visit(
-        "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity?page_number=2&page_size=25"
-      )
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity?page_number=2&page_size=25")
       # Remaining 5 entries
       |> assert_has("div.flex.items-center.gap-6", count: 5)
       |> assert_has("button[phx-value-page=\"1\"]")
 
       # Test custom page_size=10
       conn
-      |> visit(
-        "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity?page_number=1&page_size=10"
-      )
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity?page_number=1&page_size=10")
       |> assert_has("div.flex.items-center.gap-6", count: 10)
       |> assert_has("button[phx-value-page=\"2\"]")
       |> assert_has("button[phx-value-page=\"3\"]")
@@ -83,8 +79,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
         NervesHub.AuditLogs.audit!(user, device, "New UI pagination test entry #{i}")
       end)
 
-      {:ok, view, _html} =
-        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity")
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices/#{device}/activity")
 
       # Test paginate event
       view
@@ -94,7 +89,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
       # Should redirect to page 2 on activity page
       assert_patch(
         view,
-        "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity?page_number=2&page_size=25"
+        ~p"/org/#{org}/#{product}/devices/#{device}/activity?page_number=2&page_size=25"
       )
     end
 
@@ -110,8 +105,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
         NervesHub.AuditLogs.audit!(user, device, "Page size test entry #{i}")
       end)
 
-      {:ok, view, _html} =
-        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity")
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices/#{device}/activity")
 
       # Test changing page size to 50
       view
@@ -121,7 +115,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
       # Should redirect to page 1 with page_size=50
       assert_patch(
         view,
-        "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/activity?page_number=1&page_size=50"
+        ~p"/org/#{org}/#{product}/devices/#{device}/activity?page_number=1&page_size=50"
       )
     end
   end
