@@ -532,6 +532,7 @@ defmodule NervesHub.Firmwares do
   def start_firmware_delta(source_id, target_id) do
     FirmwareDelta.start_changeset(source_id, target_id)
     |> Repo.insert()
+    |> notify_firmware_delta_target()
   end
 
   @spec complete_firmware_delta(
@@ -562,6 +563,7 @@ defmodule NervesHub.Firmwares do
       upload_metadata
     )
     |> Repo.update()
+    |> notify_firmware_delta_target()
   end
 
   @spec fail_firmware_delta(FirmwareDelta.t()) ::
@@ -570,6 +572,7 @@ defmodule NervesHub.Firmwares do
     firmware_delta
     |> FirmwareDelta.fail_changeset()
     |> Repo.update()
+    |> notify_firmware_delta_target()
   end
 
   @spec time_out_firmware_delta(FirmwareDelta.t()) ::
@@ -578,6 +581,34 @@ defmodule NervesHub.Firmwares do
     firmware_delta
     |> FirmwareDelta.time_out_changeset()
     |> Repo.update()
+    |> notify_firmware_delta_target()
+  end
+
+  @spec subscribe_firmware_delta_target(target_id :: integer()) :: :ok
+  def subscribe_firmware_delta_target(target_id) do
+    _ = NervesHubWeb.Endpoint.subscribe("firmware_delta_target:#{target_id}")
+    :ok
+  end
+
+  @spec unsubscribe_firmware_delta_target(target_id :: integer()) :: :ok
+  def unsubscribe_firmware_delta_target(target_id) do
+    _ = NervesHubWeb.Endpoint.unsubscribe("firmware_delta_target:#{target_id}")
+    :ok
+  end
+
+  defp notify_firmware_delta_target({:ok, %FirmwareDelta{} = firmware_delta}) do
+    _ =
+      NervesHubWeb.Endpoint.broadcast(
+        "firmware_delta_target:#{firmware_delta.target_id}",
+        to_string(firmware_delta.status),
+        %{
+          delta_id: firmware_delta.id,
+          source_firmware_id: firmware_delta.source_id,
+          target_firmware: firmware_delta.target_id
+        }
+      )
+
+    {:ok, firmware_delta}
   end
 
   def insert_firmware_delta(params) do
