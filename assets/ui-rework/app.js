@@ -15,6 +15,7 @@ import Flash from "./hooks/flash.js"
 import HighlightCode from "./hooks/highlightCode.js"
 import LocalTime from "./hooks/localTime.js"
 import LogLineLocalTime from "./hooks/logLineLocalTime.js"
+import PageVisible from "./hooks/pageVisible.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
 import SimpleDate from "./hooks/simpleDate.js"
 import SupportScriptOutput from "./hooks/supportScriptOutput.js"
@@ -40,6 +41,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     HighlightCode,
     LocalTime,
     LogLineLocalTime,
+    PageVisible,
     SharedSecretClipboardClick,
     SimpleDate,
     SupportScriptOutput,
