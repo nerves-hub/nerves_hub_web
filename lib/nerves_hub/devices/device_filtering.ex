@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Types.Tag
 
   @spec build_filters(Ecto.Query.t(), %{optional(atom) => String.t()}) :: Ecto.Query.t()
@@ -124,6 +125,12 @@ defmodule NervesHub.Devices.DeviceFiltering do
   def filter(query, _filters, :display_deleted, "only"),
     do: where(query, [d], not is_nil(d.deleted_at))
 
+  def filter(query, _filters, :only_updating, false),
+    do: query
+
+  def filter(query, _filters, :only_updating, true),
+    do: build_inflight_filter(query)
+
   def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
     search_term = "%#{value}%"
 
@@ -188,6 +195,11 @@ defmodule NervesHub.Devices.DeviceFiltering do
       {:error, _} ->
         query
     end
+  end
+
+  def build_inflight_filter(query) do
+    query
+    |> join(:inner, [d], iu in InflightUpdate, on: d.id == iu.device_id, as: :inflight_update)
   end
 
   defp filter_on_metric(
