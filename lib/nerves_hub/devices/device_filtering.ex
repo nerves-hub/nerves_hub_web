@@ -129,7 +129,11 @@ defmodule NervesHub.Devices.DeviceFiltering do
     do: query
 
   def filter(query, _filters, :only_updating, true),
-    do: build_inflight_filter(query)
+    do:
+      join(query, :inner, [d], iu in InflightUpdate,
+        on: d.id == iu.device_id,
+        as: :inflight_update
+      )
 
   def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
     search_term = "%#{value}%"
@@ -195,11 +199,6 @@ defmodule NervesHub.Devices.DeviceFiltering do
       {:error, _} ->
         query
     end
-  end
-
-  def build_inflight_filter(query) do
-    query
-    |> join(:inner, [d], iu in InflightUpdate, on: d.id == iu.device_id, as: :inflight_update)
   end
 
   defp filter_on_metric(
