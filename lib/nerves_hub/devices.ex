@@ -636,6 +636,7 @@ defmodule NervesHub.Devices do
     # Exclude the current firmware, we don't need to generate that one
     |> where([dep, dev, f], f.id != dep.firmware_id)
     |> select([dep, dev, f], {f.id, dep.firmware_id})
+    |> distinct(true)
     |> Repo.all()
   end
 

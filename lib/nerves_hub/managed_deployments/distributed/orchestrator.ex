@@ -14,6 +14,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
@@ -26,7 +27,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     defstruct deployment_group: nil,
               rate_limit?: true,
               timer_ref: nil,
-              should_run?: false
+              should_run?: false,
+              subscribed_to: nil
 
     @type t ::
             %__MODULE__{
@@ -105,26 +107,72 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   was successful, and the process is repeated.
   """
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop")
-  def trigger_update(%DeploymentGroup{is_active: false}) do
-    :ok
+  def trigger_update(%State{deployment_group: %DeploymentGroup{is_active: false}} = state) do
+    state
   end
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update")
-  def trigger_update(deployment_group) do
+  def trigger_update(%State{deployment_group: deployment_group} = state) do
     :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
 
-    slots = available_slots(deployment_group)
+    {ready?, state} = prepare(state)
 
-    if slots > 0 do
-      available = Devices.available_for_update(deployment_group, slots)
+    if ready? do
+      slots = available_slots(deployment_group)
 
-      updated_count = schedule_devices!(available, deployment_group)
+      if slots > 0 do
+        available = Devices.available_for_update(deployment_group, slots)
 
-      if length(available) != updated_count do
-        # rerun the deployment check since some devices were skipped
-        send(self(), :trigger)
+        updated_count = schedule_devices!(available, deployment_group)
+
+        if length(available) != updated_count do
+          # rerun the deployment check since some devices were skipped
+          send(self(), :trigger)
+        end
       end
     end
+
+    state
+  end
+
+  defp prepare(
+         %State{
+           deployment_group:
+             %DeploymentGroup{
+               delta_updatable: true
+             } = deployment_group
+         } =
+           state
+       ) do
+    # Clear and set up new subscription if firmware changed
+    if state.subscribed_to != deployment_group.firmware_id do
+      Firmwares.subscribe_firmware_delta_target(deployment_group.firmware_id)
+
+      _ =
+        if state.subscribed_to do
+          Firmwares.unsubscribe_firmware_delta_target(deployment_group.firmware_id)
+        end
+    end
+
+    # Check if deltas are ready
+    %{ready?: ready?, total: total, completed: completed} =
+      ManagedDeployments.get_delta_generation_status(deployment_group)
+
+    _ =
+      if not ready? do
+        Logger.info("Orchestrator is waiting for delta generation to complete.",
+          deployment_group_id: deployment_group.id,
+          firmware_id: deployment_group.firmware_id,
+          total: total,
+          completed: completed
+        )
+      end
+
+    {ready?, %{state | subscribed_to: deployment_group.firmware_id}}
+  end
+
+  defp prepare(%State{} = state) do
+    {true, %{state | subscribed_to: nil}}
   end
 
   @doc """
@@ -177,14 +225,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   # if rate limiting isn't enabled, run `trigger_update`
   defp maybe_trigger_update(%State{rate_limit?: false} = state) do
-    trigger_update(state.deployment_group)
+    state = trigger_update(state)
 
     {:noreply, state}
   end
 
   # if there is no "delay" timer set, run `trigger_update`
   defp maybe_trigger_update(%State{timer_ref: nil} = state) do
-    trigger_update(state.deployment_group)
+    state = trigger_update(state)
 
     timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
 
@@ -199,7 +247,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   # if we don't have a `timer_ref` we can run `trigger_update`
   def handle_info(:trigger_interval, %State{timer_ref: nil} = state) do
-    trigger_update(state.deployment_group)
+    state = trigger_update(state)
 
     {:noreply, state}
   end
@@ -212,13 +260,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   # if the 'run again' boolean in the state is `true`, which indicates that indicates
   # that previous call has been skipped, then run `trigger_update` now
   def handle_info(:maybe_trigger, %State{rate_limit?: false} = state) do
-    trigger_update(state.deployment_group)
+    state = trigger_update(state)
 
     {:noreply, state}
   end
 
   def handle_info(:maybe_trigger, %State{should_run?: true} = state) do
-    trigger_update(state.deployment_group)
+    state = trigger_update(state)
 
     timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
 
