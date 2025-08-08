@@ -113,7 +113,7 @@ jobs:
         run: mix spellweaver.check
 
       - name: Run Credo
-        run: mix credo --min-priority normal
+        run: mix credo --min-priority low
 
       - name: DB Setup
         run: mix ecto.migrate.reset
