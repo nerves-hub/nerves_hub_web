@@ -7,7 +7,7 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   @doc """
   Get all connections for a device.
@@ -95,7 +95,7 @@ defmodule NervesHub.Devices.Connections do
 
     event = "connection:heartbeat"
     topic = "device:#{device.identifier}:internal"
-    Server.broadcast_from!(NervesHub.PubSub, self(), topic, event, %{})
+    ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, event, %{})
   end
 
   @doc """
