@@ -291,8 +291,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
     params = %{"page_size" => socket.assigns.page_size, "page_number" => page_number}
     %{org: org, product: product, device: device} = socket.assigns
 
+    url = ~p"/org/#{org}/#{product}/devices/#{device}?#{params}"
+
     socket
-    |> push_patch(to: ~p"/org/#{org}/#{product}/devices/#{device}?#{params}")
+    |> push_patch(to: url)
     |> noreply()
   end
 
@@ -487,6 +489,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => "1"}
     %{org: org, product: product, device: device} = socket.assigns
+
     url = ~p"/org/#{org}/#{product}/devices/#{device}?#{params}"
 
     socket

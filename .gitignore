@@ -21,3 +21,4 @@ test/fixtures/ssl/device-root-ca.srl
 .elixir-tools
 
 .DS_Store
+/cover/
