@@ -4,6 +4,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
+  alias NervesHub.Devices.UpdateStats
+  alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
@@ -51,6 +53,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> assign(:audit_pager, audit_pager)
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:firmware, deployment_group.firmware)
+    |> assign_deltas_and_stats()
     |> assign_matched_devices_count()
     |> schedule_inflight_updates_updater()
     |> ok()
@@ -362,6 +365,25 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   defp firmware_display_name(%Firmware{} = f) do
     "#{f.version} #{f.platform} #{f.architecture} #{f.uuid}"
+  end
+
+  defp assign_deltas_and_stats(%{assigns: %{deployment_group: deployment_group}} = socket) do
+    socket =
+      if deployment_group.delta_updatable do
+        assign(
+          socket,
+          :deltas,
+          Firmwares.get_deltas_by_target_firmware(deployment_group.firmware)
+        )
+      else
+        assign(socket, :deltas, [])
+      end
+
+    if UpdateStats.enabled?() do
+      assign(socket, :update_stats, UpdateStats.stats_by_deployment(deployment_group))
+    else
+      socket
+    end
   end
 
   defp assign_matched_devices_count(%{assigns: %{deployment_group: deployment_group}} = socket) do
