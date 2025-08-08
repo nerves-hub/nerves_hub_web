@@ -1,10 +1,10 @@
 defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
   use NervesHubWeb.ChannelCase
 
-  alias NervesHub.Fixtures
   alias NervesHub.Accounts
-  alias NervesHubWeb.EventStreamSocket
+  alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceEventsStreamChannel
+  alias NervesHubWeb.EventStreamSocket
 
   describe "handle_info/2" do
     test "handles fwup_progress messages" do

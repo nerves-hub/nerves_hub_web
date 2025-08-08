@@ -77,6 +77,17 @@ defmodule NervesHubWeb do
 
   def updated_live_view() do
     quote do
+      unquote(live_view_setup())
+      unquote(verified_routes())
+      unquote(view_helpers())
+      unquote(live_view_hooks())
+      unquote(live_view_helper_functions())
+      unquote(tab_component_functions())
+    end
+  end
+
+  defp live_view_setup() do
+    quote do
       use NervesHubWeb.LiveView,
         layout: {NervesHubWeb.LayoutView, :live},
         container: {:div, class: "h-screen"}
@@ -95,14 +106,17 @@ defmodule NervesHubWeb do
       alias Phoenix.LiveView.JS
 
       alias NervesHubWeb.Components.Navigation
+    end
+  end
 
-      # Routes generation with the ~p sigil
-      unquote(verified_routes())
-
-      unquote(view_helpers())
-
+  defp live_view_hooks() do
+    quote do
       on_mount(Sentry.LiveViewHook)
+    end
+  end
 
+  defp live_view_helper_functions() do
+    quote do
       def ok(socket), do: {:ok, socket}
 
       def noreply(socket), do: {:noreply, socket}
@@ -128,40 +142,58 @@ defmodule NervesHubWeb do
       def analytics_enabled?() do
         Application.get_env(:nerves_hub, :analytics_enabled)
       end
+    end
+  end
 
+  defp tab_component_functions() do
+    quote do
+      unquote(tab_setup_functions())
+      unquote(tab_hook_management_functions())
+    end
+  end
+
+  defp tab_setup_functions() do
+    quote do
       defp setup_tab_components(socket, tabs \\ []) do
-        if socket.assigns[:new_ui] do
-          Enum.reduce(tabs, socket, fn component, socket ->
-            component.connect(socket)
-          end)
-          |> put_private(:tabs, tabs)
-        else
-          socket
+        case socket.assigns[:new_ui] do
+          true ->
+            socket
+            |> connect_tab_components(tabs)
+            |> put_private(:tabs, tabs)
+
+          _ ->
+            socket
         end
       end
 
+      defp connect_tab_components(socket, tabs) do
+        Enum.reduce(tabs, socket, fn component, socket -> component.connect(socket) end)
+      end
+    end
+  end
+
+  defp tab_hook_management_functions() do
+    quote do
       defp update_tab_component_hooks(socket) do
-        if socket.assigns[:new_ui] do
-          socket
-          |> detach_hooks()
-          |> attach_hooks()
-        else
-          socket
+        case socket.assigns[:new_ui] do
+          true ->
+            socket
+            |> detach_hooks()
+            |> attach_hooks()
+
+          _ ->
+            socket
         end
       end
 
       defp detach_hooks(socket) do
         socket.private[:tabs]
-        |> Enum.reduce(socket, fn component, socket ->
-          component.detach_hooks(socket)
-        end)
+        |> Enum.reduce(socket, fn component, socket -> component.detach_hooks(socket) end)
       end
 
       defp attach_hooks(socket) do
         socket.private[:tabs]
-        |> Enum.reduce(socket, fn component, socket ->
-          component.attach_hooks(socket)
-        end)
+        |> Enum.reduce(socket, fn component, socket -> component.attach_hooks(socket) end)
       end
     end
   end
@@ -279,8 +311,23 @@ defmodule NervesHubWeb do
 
   def hooked_component({:tab_id, tab_id}) do
     quote do
-      use Phoenix.Component
+      unquote(hooked_component_setup())
+      unquote(hooked_component_imports())
+      unquote(hooked_component_tab_setup(tab_id))
+      unquote(hooked_component_hook_functions())
+      unquote(hooked_component_helper_functions())
+      unquote(verified_routes())
+    end
+  end
 
+  defp hooked_component_setup() do
+    quote do
+      use Phoenix.Component
+    end
+  end
+
+  defp hooked_component_imports() do
+    quote do
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
 
@@ -306,11 +353,27 @@ defmodule NervesHubWeb do
         ]
 
       alias Phoenix.Socket.Broadcast
+    end
+  end
 
+  defp hooked_component_tab_setup(tab_id) do
+    quote do
       @tab_id unquote(tab_id)
 
       defp tab_hook_id(), do: "#{@tab_id}_tab"
+    end
+  end
 
+  defp hooked_component_hook_functions() do
+    quote do
+      unquote(hook_connection_functions())
+      unquote(hook_params_functions())
+      unquote(hook_overridable_functions())
+    end
+  end
+
+  defp hook_connection_functions() do
+    quote do
       def connect(socket) do
         attach_hook(socket, tab_hook_id(), :handle_params, &__MODULE__.hooked_params/3)
       end
@@ -330,22 +393,37 @@ defmodule NervesHubWeb do
         |> detach_hook(tab_hook_id(), :handle_event)
         |> detach_hook(tab_hook_id(), :handle_info)
       end
+    end
+  end
 
+  defp hook_params_functions() do
+    quote do
       def hooked_params(params, uri, socket) do
         socket = assign(socket, :tab, socket.assigns.live_action)
 
-        if socket.assigns.tab == @tab_id do
-          tab_params(params, uri, socket)
-        else
-          cleanup()
-          |> Enum.reduce(socket, fn key, acc ->
-            new_assigns = Map.delete(acc.assigns, key)
-            Map.put(acc, :assigns, new_assigns)
-          end)
-          |> cont()
+        case socket.assigns.tab == @tab_id do
+          true ->
+            tab_params(params, uri, socket)
+
+          false ->
+            socket
+            |> cleanup_tab_assigns()
+            |> cont()
         end
       end
 
+      defp cleanup_tab_assigns(socket) do
+        cleanup()
+        |> Enum.reduce(socket, fn key, acc ->
+          new_assigns = Map.delete(acc.assigns, key)
+          Map.put(acc, :assigns, new_assigns)
+        end)
+      end
+    end
+  end
+
+  defp hook_overridable_functions() do
+    quote do
       def tab_params(_params, _uri, socket) do
         cont(socket)
       end
@@ -355,7 +433,11 @@ defmodule NervesHubWeb do
       end
 
       defoverridable tab_params: 3, cleanup: 0
+    end
+  end
 
+  defp hooked_component_helper_functions() do
+    quote do
       def halt(socket), do: {:halt, socket}
 
       def cont(socket), do: {:cont, socket}
@@ -371,9 +453,6 @@ defmodule NervesHubWeb do
       def analytics_enabled?() do
         Application.get_env(:nerves_hub, :analytics_enabled)
       end
-
-      # Routes generation with the ~p sigil
-      unquote(verified_routes())
     end
   end
 

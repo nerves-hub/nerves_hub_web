@@ -5,6 +5,8 @@ defmodule NervesHub.Tracker do
 
   alias NervesHub.Devices.Device
   alias NervesHub.Repo
+  alias Phoenix.Channel.Server
+  alias Phoenix.PubSub
 
   def online(%{} = device) do
     online(device.identifier)
@@ -15,16 +17,9 @@ defmodule NervesHub.Tracker do
   end
 
   def confirm_online(%Device{identifier: identifier}) do
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "device:#{identifier}:internal",
-        "connection:status",
-        %{
-          device_id: identifier,
-          status: "online"
-        }
-      )
+    topic = "device:#{identifier}:internal"
+    params = %{device_id: identifier, status: "online"}
+    _ = Server.broadcast(NervesHub.PubSub, topic, "connection:status", params)
 
     :ok
   end
@@ -41,16 +36,9 @@ defmodule NervesHub.Tracker do
   end
 
   defp publish(identifier, status) do
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "device:#{identifier}:internal",
-        "connection:change",
-        %{
-          device_id: identifier,
-          status: status
-        }
-      )
+    topic = "device:#{identifier}:internal"
+    params = %{device_id: identifier, status: status}
+    _ = Server.broadcast(NervesHub.PubSub, topic, "connection:change", params)
 
     :ok
   end
@@ -84,7 +72,7 @@ defmodule NervesHub.Tracker do
   If the device is not online this function will wait for a timeout before returning false
   """
   def sync_online?(device) do
-    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", {:online?, self()})
+    _ = PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", {:online?, self()})
 
     receive do
       :online ->
@@ -106,12 +94,7 @@ defmodule NervesHub.Tracker do
   end
 
   def console_active?(device_id) do
-    _ =
-      Phoenix.PubSub.broadcast(
-        NervesHub.PubSub,
-        "device:console:#{device_id}",
-        {:active?, self()}
-      )
+    _ = PubSub.broadcast(NervesHub.PubSub, "device:console:#{device_id}", {:active?, self()})
 
     receive do
       :active ->
