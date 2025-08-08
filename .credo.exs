@@ -83,8 +83,8 @@
           #
           {Credo.Check.Design.AliasUsage,
            [priority: :low, if_nested_deeper_than: 2, if_called_more_often_than: 0]},
-          # TODO comments are acceptable in our codebase, but we want to see them
-          {Credo.Check.Design.TagTODO, [priority: :low]},
+          # TODO comments are acceptable in our codebase, but we want to see them locally
+          {Credo.Check.Design.TagTODO, [priority: :ignore]},
           {Credo.Check.Design.TagFIXME, []},
           #
           ## Readability Checks
@@ -96,8 +96,8 @@
           {Credo.Check.Readability.MaxLineLength, [priority: :low, max_length: 120]},
           {Credo.Check.Readability.ModuleAttributeNames, []},
           {Credo.Check.Readability.ModuleNames, []},
-          # ModuleDoc is not required in our codebase, but we want to see them
-          {Credo.Check.Readability.ModuleDoc, [priority: :low]},
+          # ModuleDoc is not required in our codebase, but we want to see them locally
+          {Credo.Check.Readability.ModuleDoc, [priority: :ignore]},
           {Credo.Check.Readability.MultiAlias, []},
           {Credo.Check.Readability.ParenthesesInCondition, []},
           {Credo.Check.Readability.ParenthesesOnZeroArityDefs, [parens: true]},
