@@ -53,8 +53,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
       socket.endpoint.subscribe("firmware")
     end
 
-    default_page_size = if socket.assigns[:new_ui], do: 25, else: 5
-
     socket
     |> page_title("Device #{device.identifier} - #{product.name}")
     |> sidebar_tab(:devices)
@@ -65,10 +63,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
-    |> assign(:page_number, 1)
-    |> assign(:page_size, default_page_size)
     |> assign(:pinned?, Devices.device_pinned?(user.id, device.id))
-    |> audit_log_assigns()
     |> assign_deployment_groups()
     |> setup_presence_tracking()
     |> setup_tab_components(@tab_components)
@@ -83,7 +78,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:page_number, page_number)
     |> assign(:page_size, page_size)
-    # Reload audit logs with new pagination
     |> audit_log_assigns()
     |> update_tab_component_hooks()
     |> noreply()
@@ -495,7 +489,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     %{org: org, product: product, device: device} = socket.assigns
     url = ~p"/org/#{org}/#{product}/devices/#{device}?#{params}"
 
-    socket |> push_patch(to: url) |> noreply()
+    socket
+    |> push_patch(to: url)
+    |> noreply()
   end
 
   def handle_event("select-firmware-version", _, socket) do

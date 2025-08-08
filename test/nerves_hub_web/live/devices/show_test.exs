@@ -701,24 +701,20 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       # Test page 1 with default page_size=5
       conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}")
       |> assert_has("div.audit-log-item", count: 5)
       |> assert_has("button[phx-value-page=\"2\"]")
 
       # Test page 2 with page_size=5
       conn
-      |> visit(
-        "/org/#{org.name}/#{product.name}/devices/#{device.identifier}?page_number=2&page_size=5"
-      )
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}?page_number=2&page_size=5")
       # Still showing 5 per page
       |> assert_has("div.audit-log-item", count: 5)
       |> assert_has("button[phx-value-page=\"1\"]")
 
       # Test custom page_size=10
       conn
-      |> visit(
-        "/org/#{org.name}/#{product.name}/devices/#{device.identifier}?page_number=1&page_size=10"
-      )
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}?page_number=1&page_size=10")
       |> assert_has("div.audit-log-item", count: 10)
     end
 
@@ -734,8 +730,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         NervesHub.AuditLogs.audit!(user, device, "Pagination test entry #{i}")
       end)
 
-      {:ok, view, _html} =
-        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices/#{device}")
 
       # Test paginate event
       view
@@ -743,10 +738,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> render_click()
 
       # Should redirect to page 2 on same device page
-      assert_patch(
-        view,
-        "/org/#{org.name}/#{product.name}/devices/#{device.identifier}?page_number=2&page_size=5"
-      )
+      assert_patch(view, ~p"/org/#{org}/#{product}/devices/#{device}?page_number=2&page_size=5")
     end
   end
 
