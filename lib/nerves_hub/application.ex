@@ -1,7 +1,9 @@
 defmodule NervesHub.Application do
   use Application
+
   require Logger
-  alias NervesHub.Telemetry.Customizations
+
+  alias NervesHub.Telemetry.Customizations, as: TelemetryCustomizations
 
   def start(_type, _args) do
     case System.cmd("fwup", ["--version"], env: []) do
@@ -57,7 +59,7 @@ defmodule NervesHub.Application do
       :ok = :httpc.set_option(:ipfamily, :inet6fb4)
     end
 
-    :ok = Customizations.setup()
+    :ok = TelemetryCustomizations.setup()
     :ok = OpentelemetryBandit.setup()
     :ok = OpentelemetryPhoenix.setup(adapter: :bandit)
     :ok = OpentelemetryOban.setup(trace: [:jobs])
