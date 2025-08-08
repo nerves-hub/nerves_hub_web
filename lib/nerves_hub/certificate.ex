@@ -1,5 +1,5 @@
 defmodule NervesHub.Certificate do
-  alias X509.Certificate.Extension
+  alias X509.Certificate.Extension, as: X509Extension
 
   import X509.ASN1,
     only: [
@@ -19,7 +19,7 @@ defmodule NervesHub.Certificate do
   def get_aki(otp_certificate) do
     otp_certificate
     |> X509.Certificate.extensions()
-    |> Extension.find(:authority_key_identifier)
+    |> X509Extension.find(:authority_key_identifier)
     |> extension()
     |> Keyword.get(:extnValue)
     |> authority_key_identifier()
@@ -29,7 +29,7 @@ defmodule NervesHub.Certificate do
   def get_ski(otp_certificate) do
     otp_certificate
     |> X509.Certificate.extensions()
-    |> Extension.find(:subject_key_identifier)
+    |> X509Extension.find(:subject_key_identifier)
     |> case do
       nil ->
         nil
