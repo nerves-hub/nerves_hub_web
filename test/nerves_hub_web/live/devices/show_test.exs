@@ -686,6 +686,62 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "audit logs pagination" do
+    test "pagination works with URL parameters", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      # Create multiple audit log entries for pagination testing
+      Enum.each(1..12, fn i ->
+        NervesHub.AuditLogs.audit!(user, device, "Test audit log entry #{i}")
+      end)
+
+      # Test page 1 with default page_size=5
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}")
+      |> assert_has("div.audit-log-item", count: 5)
+      |> assert_has("button[phx-value-page=\"2\"]")
+
+      # Test page 2 with page_size=5
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}?page_number=2&page_size=5")
+      # Still showing 5 per page
+      |> assert_has("div.audit-log-item", count: 5)
+      |> assert_has("button[phx-value-page=\"1\"]")
+
+      # Test custom page_size=10
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}?page_number=1&page_size=10")
+      |> assert_has("div.audit-log-item", count: 10)
+    end
+
+    test "pagination events work correctly", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      # Create enough audit logs for pagination
+      Enum.each(1..8, fn i ->
+        NervesHub.AuditLogs.audit!(user, device, "Pagination test entry #{i}")
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices/#{device}")
+
+      # Test paginate event
+      view
+      |> element("button[phx-click=\"paginate\"][phx-value-page=\"2\"]", "2")
+      |> render_click()
+
+      # Should redirect to page 2 on same device page
+      assert_patch(view, ~p"/org/#{org}/#{product}/devices/#{device}?page_number=2&page_size=5")
+    end
+  end
+
   def device_show_path(%{device: device, org: org, product: product}) do
     ~p"/org/#{org}/#{product}/devices/#{device}"
   end
