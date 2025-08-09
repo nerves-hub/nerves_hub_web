@@ -18,6 +18,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Scripts
   alias NervesHub.Support
   alias NervesHub.Support.Fwup
+  alias NervesHub.MFA
 
   @uploader Application.compile_env(:nerves_hub, :firmware_upload)
 
@@ -574,5 +575,28 @@ defmodule NervesHub.Fixtures do
     |> Enum.map(fn x -> <<x + 97::utf8>> end)
     |> to_string()
     |> String.capitalize()
+  end
+
+  @doc """
+  Generate a user_totp.
+  """
+  def user_totp_fixture(attrs \\ %{}) do
+    attrs =
+      Enum.into(attrs, %{
+        user_id: user_id_or_new(attrs),
+        secret: Base.decode32!("PTEPUGZ7DUWTBGMW4WLKB6U63MGKKMCA")
+      })
+
+    struct!(MFA.UserTOTP, attrs)
+    |> Ecto.Changeset.change()
+    |> MFA.UserTOTP.ensure_backup_codes()
+    |> Repo.insert!()
+  end
+
+  defp user_id_or_new(attrs) do
+    case Map.get(attrs, :user_id) do
+      nil -> user_fixture(Map.get(attrs, :user_attrs, %{})).id
+      user_id -> user_id
+    end
   end
 end

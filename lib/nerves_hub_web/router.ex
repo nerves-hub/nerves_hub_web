@@ -238,6 +238,9 @@ defmodule NervesHubWeb.Router do
     post("/login", SessionController, :create)
     get("/confirm/:token", SessionController, :confirm)
 
+    get("/mfa", MFAController, :new)
+    post("/mfa", MFAController, :create)
+
     get("/register", AccountController, :new)
     post("/register", AccountController, :create)
 
@@ -292,6 +295,7 @@ defmodule NervesHubWeb.Router do
       live("/account/delete", Live.Account, :delete)
       live("/account/tokens", Live.AccountTokens, :index)
       live("/account/tokens/new", Live.AccountTokens, :new)
+      live("/account/mfa", Live.AccountMFA, :index)
 
       live("/orgs", Live.Orgs.Index)
       live("/orgs/new", Live.Orgs.New)

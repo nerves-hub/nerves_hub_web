@@ -113,5 +113,39 @@ defmodule NervesHubWeb.SessionControllerTest do
       |> submit()
       |> assert_path(~p"/orgs/new")
     end
+
+    test "redirected to MFA verification when user has MFA enabled" do
+      user =
+        %{
+          name: "Sgt Pepper",
+          email: "sgtpepper@geocities.com",
+          password: "JohnRingoPaulGeorge"
+        }
+        |> Fixtures.user_fixture()
+
+      # Enable MFA for user
+      Fixtures.user_totp_fixture(%{user_id: user.id})
+
+      conn =
+        build_conn()
+        |> post(~p"/login",
+          user: %{
+            email: "sgtpepper@geocities.com",
+            password: "JohnRingoPaulGeorge",
+            remember_me: "true"
+          }
+        )
+
+      assert redirected_to(conn) == "/mfa"
+
+      # Check that user info is stored in session for MFA verification
+      assert get_session(conn, :mfa_user_id) == user.id
+
+      assert get_session(conn, :mfa_user_params) == %{
+               "email" => "sgtpepper@geocities.com",
+               "password" => "JohnRingoPaulGeorge",
+               "remember_me" => "true"
+             }
+    end
   end
 end
