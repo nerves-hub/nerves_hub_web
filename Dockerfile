@@ -47,8 +47,9 @@ RUN npm ci && npm cache clean --force && npm run deploy
 FROM ${BUILDER_IMAGE} AS build
 
 # install dependencies
-RUN apt-get update -y && apt-get install -y build-essential git ca-certificates curl gnupg \
-    && apt-get clean && rm -f /var/lib/apt/lists/*_*
+RUN apt-get update -y && apt-get install -y build-essential git ca-certificates curl gnupg && \
+    apt-get clean && \
+    rm -f /var/lib/apt/lists/*_*
 
 WORKDIR /build
 
@@ -102,10 +103,17 @@ RUN mix release
 FROM ${RUNNER_IMAGE} AS app
 
 RUN apt-get update -y \
-    && apt-get install -y libstdc++6 openssl libncurses6 locales bash openssl curl python3 python3-pip jq xdelta3 zip unzip wget \
-    && wget https://github.com/fwup-home/fwup/releases/download/v1.13.2/fwup_1.13.2_amd64.deb \
-    && dpkg -i fwup_1.13.2_amd64.deb && rm fwup_1.13.2_amd64.deb \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y openssl locales bash jq xdelta3 libconfuse-dev zip unzip curl wget
+
+COPY docker/ /tmp/install_scripts
+RUN /tmp/install_scripts/fwup.sh && \
+    /tmp/install_scripts/jemalloc.sh
+
+# Clean up build dependencies and temporary files
+RUN apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /tmp/install_scripts
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
@@ -114,6 +122,10 @@ ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
+# Use jemalloc for memory allocation
+ENV LD_PRELOAD=/usr/local/lib/libjemalloc.so
+
+# Copy over NervesHub
 WORKDIR /app
 
 COPY --from=build /build/_build/prod/rel/nerves_hub ./
