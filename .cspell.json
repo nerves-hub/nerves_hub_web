@@ -11,7 +11,7 @@
     }
   ],
   "dictionaries": [
-    "cpp", 
+    "cpp",
     "elixir",
     "en-gb",
     "fhunleth-cspell-dictionary",
@@ -20,6 +20,7 @@
   ],
   "ignorePaths": [
     "**/*.csv",
+    "docker/*",
     "config",
     "assets/{node_modules,static}",
     "mix.exs",
