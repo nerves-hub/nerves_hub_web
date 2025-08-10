@@ -8,6 +8,7 @@
     "**/*.eex",
     "**/*.yml",
     "docker/*",
+    "Dockerfile",
     "config",
     "assets",
     "mix.exs",
