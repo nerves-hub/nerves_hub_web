@@ -10,7 +10,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ###
 ### First Stage - Fetch deps for building web assets
 ###
-FROM ${BUILDER_IMAGE} as deps
+FROM ${BUILDER_IMAGE} AS deps
 
 ENV MIX_ENV=prod
 
@@ -26,7 +26,7 @@ RUN mix deps.get --only $MIX_ENV
 ###
 ### Second Stage - Build web assets
 ###
-FROM node:${NODE_VERSION} as assets
+FROM node:${NODE_VERSION} AS assets
 
 RUN mkdir -p /priv/static
 
@@ -44,7 +44,7 @@ RUN npm ci && npm cache clean --force && npm run deploy
 ###
 ### Third Stage - Building the Release
 ###
-FROM ${BUILDER_IMAGE} as build
+FROM ${BUILDER_IMAGE} AS build
 
 # install dependencies
 RUN apt-get update -y && apt-get install -y build-essential git ca-certificates curl gnupg \
@@ -110,9 +110,9 @@ RUN apt-get update -y \
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 
 WORKDIR /app
 
