@@ -8,7 +8,7 @@ ARG RUNNER_IMAGE="ubuntu:${DISTRO}"
 ARG DEBIAN_FRONTEND=noninteractive
 
 ###
-### First Stage - Fetch deps for building web assets
+### Fetch deps for building web assets
 ###
 FROM ${BUILDER_IMAGE} AS deps
 
@@ -24,7 +24,7 @@ RUN mix deps.get --only $MIX_ENV
 
 
 ###
-### Second Stage - Build web assets
+### Build web assets
 ###
 FROM node:${NODE_VERSION} AS assets
 
@@ -42,7 +42,7 @@ RUN npm ci && npm cache clean --force && npm run deploy
 
 
 ###
-### Third Stage - Building the Release
+### Build the NervesHub release
 ###
 FROM ${BUILDER_IMAGE} AS build
 
@@ -95,6 +95,57 @@ COPY rel rel
 
 RUN mix release
 
+###
+### Build a static FWUP
+###
+
+FROM ${RUNNER_IMAGE} AS fwup
+
+RUN apt-get update -y && \
+    apt-get upgrade -y && \
+    apt-get install -y git curl build-essential autoconf pkg-config libtool mtools unzip zip help2man libconfuse-dev libarchive-dev xdelta3 dosfstools
+
+RUN git clone https://github.com/fwup-home/fwup /tmp/fwup
+
+WORKDIR /tmp/fwup
+
+RUN git checkout v1.13.2 && \
+    ./scripts/download_deps.sh && \
+    ./scripts/build_deps.sh && \
+    ./autogen.sh && \
+    PKG_CONFIG_PATH=$PWD/build/host/deps/usr/lib/pkgconfig ./configure --enable-shared=no && \
+    make && \
+    make check && \
+    make install
+
+###
+### Build jemalloc
+###
+
+FROM ${RUNNER_IMAGE} AS jemalloc
+
+RUN apt-get update -y && \
+    apt-get upgrade -y && \
+    apt-get install -y git autoconf lsb-release wget software-properties-common gnupg make
+
+RUN bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+
+RUN ln -s /usr/bin/clang-20 /usr/bin/clang && \
+    ln -s /usr/bin/clang++-20 /usr/bin/clang++
+
+ENV CC=clang
+ENV CXX=clang++
+
+# Build the latest jemalloc
+
+RUN git clone https://github.com/facebook/jemalloc /tmp/jemalloc
+
+WORKDIR /tmp/jemalloc
+
+RUN autoconf && \
+    ./configure && \
+    make && \
+    make install
 
 ###
 ### Last Stage - Setup the Runtime Environment
@@ -105,15 +156,10 @@ FROM ${RUNNER_IMAGE} AS app
 RUN apt-get update -y \
     && apt-get install -y openssl locales bash jq xdelta3 libconfuse-dev zip unzip curl wget
 
-COPY docker/ /tmp/install_scripts
-RUN /tmp/install_scripts/fwup.sh && \
-    /tmp/install_scripts/jemalloc.sh
-
 # Clean up build dependencies and temporary files
 RUN apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /tmp/install_scripts
+    rm -rf /var/lib/apt/lists/*
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
@@ -123,7 +169,11 @@ ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
 # Use jemalloc for memory allocation
-ENV LD_PRELOAD=/usr/local/lib/libjemalloc.so
+COPY --from=jemalloc /usr/local/lib/libjemalloc.so.2 /usr/local/lib/libjemalloc.so.2
+ENV LD_PRELOAD=/usr/local/lib/libjemalloc.so.2
+
+# Copy over the statically built fwup
+COPY --from=fwup /usr/local/bin/fwup /usr/local/bin/fwup
 
 # Copy over NervesHub
 WORKDIR /app
@@ -136,4 +186,5 @@ ENV SECRET_KEY_BASE=nokey
 ENV PORT=4000
 
 ENTRYPOINT ["bin/nerves_hub"]
+
 CMD ["start"]
