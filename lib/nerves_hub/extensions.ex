@@ -28,39 +28,49 @@ defmodule NervesHub.Extensions do
   @callback attach(Phoenix.Socket.t()) :: {:noreply, Phoenix.Socket.t()}
   @callback detach(Phoenix.Socket.t()) :: {:noreply, Phoenix.Socket.t()}
   @callback description() :: String.t()
+  @callback enabled?() :: boolean()
 
   require Logger
 
-  @supported_extensions [:health, :geo]
-  @type extension() :: :health | :geo
+  @supported_extensions [:health, :geo, :logging]
+  @type extension() :: :health | :geo | :logging
 
   @doc """
   Get list of supported extensions as atoms with descriptive text.
   """
-  @spec list() :: [:geo | :health, ...]
+  @spec list() :: [:geo | :health | :logging, ...]
   def list(), do: @supported_extensions
 
-  @spec module(extension()) :: NervesHub.Extensions.Geo | NervesHub.Extensions.Health
-  def module(:health), do: NervesHub.Extensions.Health
+  @spec module(extension()) ::
+          NervesHub.Extensions.Geo | NervesHub.Extensions.Health | NervesHub.Extensions.Logging
   def module(:geo), do: NervesHub.Extensions.Geo
+  def module(:health), do: NervesHub.Extensions.Health
+  def module(:logging), do: NervesHub.Extensions.Logging
 
-  @spec module(extension(), Version.t()) :: module() | :unsupported
+  @spec module(extension(), Version.t()) :: module() | NervesHub.Extensions.Unsupported
   def module(:health, ver) do
     cond do
       Version.match?(ver, "~> 0.0.1") -> NervesHub.Extensions.Health
-      true -> :unsupported
+      true -> NervesHub.Extensions.Unsupported
     end
   end
 
   def module(:geo, ver) do
     cond do
       Version.match?(ver, "~> 0.0.1") -> NervesHub.Extensions.Geo
-      true -> :unsupported
+      true -> NervesHub.Extensions.Unsupported
+    end
+  end
+
+  def module(:logging, ver) do
+    cond do
+      Version.match?(ver, "~> 0.0.1") -> NervesHub.Extensions.Logging
+      true -> NervesHub.Extensions.Unsupported
     end
   end
 
   def module(_key, _ver) do
-    :unsupported
+    NervesHub.Extensions.Unsupported
   end
 
   def broadcast_extension_event(target, event, extension) do

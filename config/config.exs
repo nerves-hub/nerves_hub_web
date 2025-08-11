@@ -18,7 +18,7 @@ config :mime, :types, %{
 config :nerves_hub,
   env: Mix.env(),
   namespace: NervesHub,
-  ecto_repos: [NervesHub.Repo]
+  ecto_repos: [NervesHub.AnalyticsRepo, NervesHub.Repo]
 
 ##
 # NervesHub Device
@@ -31,6 +31,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 ##
 # NervesHub Web
 #
+# cspell:disable
 config :nerves_hub, NervesHubWeb.Endpoint,
   adapter: Bandit.PhoenixAdapter,
   secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
@@ -38,11 +39,12 @@ config :nerves_hub, NervesHubWeb.Endpoint,
     signing_salt: "Kct3W8U7uQ6KAczYjzNbiYS6A8Pbtk3f"
   ],
   render_errors: [
-    formats: [html: NervesHubWeb.ErrorView, json: NervesHubWeb.API.ErrorView],
+    formats: [html: NervesHubWeb.ErrorView, json: NervesHubWeb.API.ErrorJSON],
     accepts: ~w(html json)
   ],
   pubsub_server: NervesHub.PubSub
 
+# cspell:enable
 ##
 # Database and Oban
 #
@@ -56,10 +58,12 @@ config :nerves_hub, Oban,
   notifier: Oban.Notifiers.PG,
   log: false,
   queues: [
+    default: 1,
     delete_archive: 1,
     delete_firmware: 1,
     device: 1,
     firmware_delta_builder: 2,
+    firmware_delta_timeout: 1,
     truncate: 1,
     # temporary, will remove in November
     truncation: 1
@@ -71,6 +75,7 @@ config :nerves_hub, Oban,
      crontab: [
        {"0 * * * *", NervesHub.Workers.ScheduleOrgAuditLogTruncation},
        {"*/1 * * * *", NervesHub.Workers.CleanStaleDeviceConnections},
+       {"* * * * *", NervesHub.Workers.FirmwareDeltaTimeout},
        {"1,16,31,46 * * * *", NervesHub.Workers.DeleteOldDeviceConnections},
        {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates},
        {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation}
@@ -85,10 +90,10 @@ config :flop, repo: NervesHub.Repo
 
 # Configure esbuild (the version is required)
 config :esbuild,
-  version: "0.17.11",
+  version: "0.25.2",
   default: [
     args:
-      ~w(ui-rework/app.js --bundle --target=es2017 --outdir=../priv/static/assets/ui-rework --external:/fonts/* --external:/images/* --loader:.png=file),
+      ~w(ui-rework/app.js --bundle --target=es2021 --outdir=../priv/static/assets/ui-rework --external:/fonts/* --external:/images/* --loader:.png=file),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
@@ -103,6 +108,14 @@ config :tailwind,
     ),
     cd: Path.expand("../assets", __DIR__)
   ]
+
+config :ueberauth, Ueberauth,
+  providers: [
+    google: {Ueberauth.Strategy.Google, [default_scope: "email profile openid"]}
+  ]
+
+# Used by spellweaver
+config :bun, :version, "1.2.18"
 
 # Environment specific config
 import_config "#{Mix.env()}.exs"

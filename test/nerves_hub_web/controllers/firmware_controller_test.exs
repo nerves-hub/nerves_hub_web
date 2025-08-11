@@ -13,7 +13,7 @@ defmodule NervesHubWeb.FirmwareControllerTest do
       org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
-      conn = get(conn, ~p"/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}/download")
+      conn = get(conn, ~p"/org/#{org}/#{product}/firmware/#{firmware}/download")
 
       assert redirected_to(conn) == firmware.upload_metadata.public_path
     end

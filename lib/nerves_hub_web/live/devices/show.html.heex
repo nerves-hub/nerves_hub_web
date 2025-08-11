@@ -5,7 +5,7 @@
 </div>
 
 <div class="action-row mb-1">
-  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="back-link">
+  <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="back-link">
     All Devices
   </.link>
   <div class="btn-group" role="group" aria-label="Device Actions">
@@ -31,11 +31,17 @@
         <span class="button-icon identify"></span>
         <span class="action-text">Identify</span>
       </button>
-      <%= link(class: "btn btn-outline-light btn-action #{unless (@console_active?), do: "disabled"}", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
+
+      <%= link(class: "btn btn-outline-light btn-action #{unless (@console_online.ok? && @console_online.result), do: "disabled"}", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
         <span class="button-icon console-icon"></span>
         <span class="action-text">Console</span>
       <% end %>
-      <button class="btn btn-outline-light btn-action" aria-label={if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"} type="button" phx-click="toggle_health_state">
+      <button
+        class="btn btn-outline-light btn-action"
+        aria-label={if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}
+        type="button"
+        phx-click="toggle-deployment-firmware-updates"
+      >
         <span class="button-icon firmware-disabled"></span>
         <span class="action-text">{if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}</span>
       </button>
@@ -43,7 +49,7 @@
         <span class="button-icon delete"></span>
         <span class="action-text">Delete</span>
       </button>
-      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/settings"} class="btn btn-outline-light btn-action" aria-label="Edit">
+      <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"} class="btn btn-outline-light btn-action" aria-label="Edit">
         <span class="button-icon edit"></span>
         <span class="action-text">Settings</span>
       </.link>
@@ -61,7 +67,7 @@
   <div class="col-lg-6">
     <div>
       <h3 class="mb-2">Information</h3>
-      <!-- Show if device has overriden any product-level extensions by disabling them -->
+      <!-- Show if device has overridden any product-level extensions by disabling them -->
       <div :if={@extension_overrides != []} class="display-box">
         <div class="help-text mb-1">Extensions</div>
         Device has disabled extensions: {Enum.join(@extension_overrides, ", ")}
@@ -113,7 +119,7 @@
           </div>
         </div>
         <div class="text-right">
-          <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts"}>
+          <.link navigate={~p"/org/#{@org}/#{@product}/scripts"}>
             Add and edit scripts
           </.link>
         </div>
@@ -207,7 +213,7 @@
               </time>
             </div>
             <div>
-              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/health"}>
+              <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{@device}/health"}>
                 Full metrics
               </.link>
             </div>
@@ -225,7 +231,7 @@
           </div>
           <div :if={@deployment_group} class="d-flex flex-row">
             <div class="mr-1">
-              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}"} class="badge">
+              <.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}"} class="badge">
                 <div class={"deployment-group-state state-#{if @deployment_group.is_active, do: "on", else: "off"}"}>{@deployment_group.name}</div>
               </.link>
             </div>

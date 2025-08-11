@@ -461,10 +461,10 @@ defmodule NervesHubWeb.WebsocketTest do
       {device, _fw} = device_fixture(tmp_dir, user)
 
       bad_auths = [
-        %Devices.SharedSecretAuth{key: "nhd_12345unknown", secret: "shhhhh"},
-        %Devices.SharedSecretAuth{key: "badprefix_12345unknown", secret: "shhhhh"},
-        %Products.SharedSecretAuth{key: "nhp_12345unknown", secret: "shhhhh"},
-        %Products.SharedSecretAuth{key: "badproduct_12345unknown", secret: "shhhhh"}
+        %Devices.SharedSecretAuth{key: "nhd_12345unknown", secret: "not_telling"},
+        %Devices.SharedSecretAuth{key: "bad_prefix_12345unknown", secret: "not_telling"},
+        %Products.SharedSecretAuth{key: "nhp_12345unknown", secret: "not_telling"},
+        %Products.SharedSecretAuth{key: "bad_product_12345unknown", secret: "not_telling"}
       ]
 
       for auth <- bad_auths do

@@ -12,6 +12,11 @@ defmodule NervesHub.Extensions.Geo do
   end
 
   @impl NervesHub.Extensions
+  def enabled?() do
+    true
+  end
+
+  @impl NervesHub.Extensions
   def attach(socket) do
     extension_config = Application.get_env(:nerves_hub, :extension_config)
     geo_interval = get_in(extension_config, [:geo, :interval_minutes]) || 0

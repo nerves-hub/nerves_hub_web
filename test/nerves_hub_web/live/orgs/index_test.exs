@@ -5,8 +5,10 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
     test "no orgs listed" do
       user = NervesHub.Fixtures.user_fixture()
 
+      token = NervesHub.Accounts.create_user_session_token(user)
+
       build_conn()
-      |> init_test_session(%{"auth_user_id" => user.id})
+      |> init_test_session(%{"user_token" => token})
       |> visit("/orgs")
       |> assert_has("h3", text: "You aren't a member of any organizations.")
     end

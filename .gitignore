@@ -3,6 +3,7 @@
 /deps/
 /assets/node_modules/
 /priv/static/
+/priv/plts
 /tmp/
 
 # Generated on crash by the VM
@@ -18,3 +19,6 @@ test/fixtures/ssl/device-root-ca.srl
 .iex.exs
 .lexical
 .elixir-tools
+
+.DS_Store
+/cover/

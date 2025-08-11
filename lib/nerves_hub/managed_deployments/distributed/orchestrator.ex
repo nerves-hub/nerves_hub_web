@@ -78,6 +78,15 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     {:ok, state}
   end
 
+  def terminate(reason, state) do
+    Logger.info("Orchestrator terminated",
+      deployment_id: state.deployment_group.id,
+      reason: inspect(reason)
+    )
+
+    :ok
+  end
+
   @doc """
   Trigger an update for a deployments devices.
 
@@ -259,12 +268,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
       ) do
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(state.deployment_group)
 
-    # shutdown the orchestrator if the deployment is updated to use the old `:multi` strategy
-    if deployment_group.orchestrator_strategy == :distributed do
-      maybe_trigger_update(%{state | deployment_group: deployment_group})
-    else
-      {:stop, :normal, state}
-    end
+    maybe_trigger_update(%{state | deployment_group: deployment_group})
   end
 
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deleted"}, state) do
@@ -287,9 +291,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     maybe_trigger_update(state)
   end
 
-  def start_orchestrator(
-        %DeploymentGroup{is_active: true, orchestrator_strategy: :distributed} = deployment
-      ) do
+  def start_orchestrator(%DeploymentGroup{is_active: true} = deployment) do
     if Application.get_env(:nerves_hub, :deploy_env) != "test" do
       ProcessHub.start_child(:deployment_orchestrators, child_spec(deployment))
     end

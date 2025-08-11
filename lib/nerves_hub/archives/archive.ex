@@ -4,7 +4,7 @@ defmodule NervesHub.Archives.Archive do
   import Ecto.Changeset
 
   alias NervesHub.Accounts.OrgKey
-  alias NervesHub.Fwup.Metadata
+  alias NervesHub.Firmwares.UpdateTool.Metadata
   alias NervesHub.Products.Product
 
   @type t :: %__MODULE__{
@@ -21,6 +21,7 @@ defmodule NervesHub.Archives.Archive do
           version: Version.build()
         }
 
+  @derive {Phoenix.Param, key: :uuid}
   schema "archives" do
     belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:org_key, OrgKey)

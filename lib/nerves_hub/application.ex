@@ -21,27 +21,25 @@ defmodule NervesHub.Application do
 
     NervesHub.Logger.attach()
 
-    topologies = Application.get_env(:libcluster, :topologies, [])
-
     children =
-      [
-        {Ecto.Migrator,
-         repos: Application.fetch_env!(:nerves_hub, :ecto_repos),
-         skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
-        {Registry, keys: :unique, name: NervesHub.Devices.Registry},
-        {Finch, name: Swoosh.Finch}
-      ] ++
+      [{Finch, name: Swoosh.Finch}] ++
+        ecto_migrations() ++
         NervesHub.StatsdMetricsReporter.config() ++
         [
           NervesHub.MetricsPoller.child_spec(),
-          NervesHub.RateLimit,
-          NervesHub.Repo,
-          NervesHub.ObanRepo,
+          NervesHub.RateLimit
+        ] ++
+        ecto_repos() ++
+        [
           {Phoenix.PubSub, name: NervesHub.PubSub},
-          {Cluster.Supervisor, [topologies]},
+          {Cluster.Supervisor, [libcluster_topology()]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, Application.fetch_env!(:nerves_hub, Oban)},
-          NervesHubWeb.Presence
+          NervesHubWeb.Presence,
+          {NervesHub.RateLimit.LogLines,
+           [clean_period: :timer.minutes(5), key_older_than: :timer.hours(1)]},
+          {PartitionSupervisor,
+           child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
         ] ++
         deployments_orchestrator(deploy_env()) ++
         endpoints(deploy_env())
@@ -74,19 +72,57 @@ defmodule NervesHub.Application do
     :ok
   end
 
+  defp libcluster_topology() do
+    repo_config =
+      NervesHub.Repo.config()
+      |> Keyword.take([:hostname, :username, :password, :database, :port, :ssl])
+      |> Keyword.merge(parameters: [])
+      |> Keyword.merge(channel_name: "nerves_hub_clustering")
+
+    [
+      app: [
+        strategy: LibclusterPostgres.Strategy,
+        config: repo_config
+      ]
+    ]
+  end
+
+  defp ecto_migrations() do
+    [
+      Supervisor.child_spec(
+        {Ecto.Migrator,
+         repos: [NervesHub.Repo],
+         skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
+        id: :repo_migrator
+      ),
+      Supervisor.child_spec(
+        {Ecto.Migrator,
+         repos: [NervesHub.AnalyticsRepo],
+         skip: Application.get_env(:nerves_hub, :analytics_auto_migrator) != true},
+        id: :analytics_repo_migrator
+      )
+    ]
+  end
+
+  defp ecto_repos() do
+    [NervesHub.Repo, NervesHub.ObanRepo] ++
+      if Application.get_env(:nerves_hub, :analytics_enabled) do
+        [NervesHub.AnalyticsRepo]
+      else
+        []
+      end
+  end
+
   defp deployments_orchestrator("test"), do: []
 
-  # When running in the default `multi` mode, start a deployments orchestrator supervisor
-  # on every node. But when running in `clustered` mode, run the `ProcessHub` supervisor
-  # on the `web` or `all` nodes only.
+  # Only run the `ProcessHub` supervisor on the `web` or `all` nodes only.
   defp deployments_orchestrator(_) do
     case Application.get_env(:nerves_hub, :app) do
-      ["device"] ->
-        [NervesHub.ManagedDeployments.Supervisor]
+      "device" ->
+        []
 
       _ ->
         [
-          NervesHub.ManagedDeployments.Supervisor,
           ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
           NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
         ]

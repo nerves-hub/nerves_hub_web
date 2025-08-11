@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.Repo
 
   test "update the chosen resource, and adds an audit log", %{
     conn: conn,
@@ -29,7 +30,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
       |> click_button("Save Change")
 
     {:ok, reloaded_deployment_group} =
-      ManagedDeployments.get_deployment_group(product, deployment_group.id)
+      ManagedDeployments.get_deployment_group(deployment_group.id)
 
     conn
     |> assert_path(
@@ -64,12 +65,39 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/edit")
     |> assert_has("h1", text: "Edit Deployment Group")
     |> assert_has("a", text: product.name)
-    |> fill_in("Tag(s) distributed to", with: "")
-    |> fill_in("Version requirement", with: "")
+    |> fill_in("Version requirement", with: "1.2.3.4.5.6")
     |> click_button("Save Change")
     |> assert_path(
       "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/edit"
     )
-    |> assert_has("div", text: "should have at least 1 item(s)")
+    |> assert_has("div", text: "must be valid Elixir version requirement string")
+  end
+
+  test "can clear tags and version", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/edit")
+    |> assert_has("h1", text: "Edit Deployment Group")
+    |> assert_has("a", text: product.name)
+    |> fill_in("Tag(s) distributed to", with: "")
+    |> fill_in("Version requirement", with: "")
+    |> click_button("Save Change")
+    |> assert_path(
+      URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    )
+
+    assert Repo.reload(deployment_group) |> Map.get(:conditions) == %{
+             "version" => "",
+             "tags" => []
+           }
   end
 end

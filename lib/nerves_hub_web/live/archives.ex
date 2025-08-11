@@ -150,7 +150,6 @@ defmodule NervesHubWeb.Live.Archives do
     end
   end
 
-  # the delete handler for the show page
   def handle_event("delete-archive", _params, socket) do
     authorized!(:"archive:delete", socket.assigns.org_user)
 
@@ -162,8 +161,7 @@ defmodule NervesHubWeb.Live.Archives do
       {:ok, _} ->
         socket
         |> put_flash(:info, "Archive successfully deleted")
-        |> send_toast(:info, "Archive successfully deleted.")
-        |> push_patch(to: ~p"/org/#{org.name}/#{product.name}/archives")
+        |> push_patch(to: ~p"/org/#{org}/#{product}/archives")
         |> noreply()
 
       {:error, changeset} ->
@@ -171,8 +169,7 @@ defmodule NervesHubWeb.Live.Archives do
           changeset.errors
           |> Enum.map_join(", ", fn {_field, {message, _info}} -> message end)
 
-        error_feedback(socket, changeset)
-        |> send_toast(:error, "The archive couldn't be deleted: #{message}.")
+        error_feedback(socket, "The archive couldn't be deleted: #{message}.")
     end
   end
 
@@ -227,7 +224,7 @@ defmodule NervesHubWeb.Live.Archives do
       stringify_keys(new_params)
       |> Enum.into(current_params)
 
-    ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/archives?#{params}"
+    ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/archives?#{params}"
   end
 
   defp stringify_keys(params) do
@@ -244,11 +241,8 @@ defmodule NervesHubWeb.Live.Archives do
     case Archives.create(socket.assigns.product, filepath) do
       {:ok, _firmware} ->
         socket
-        |> put_flash(:info, "Archive uploaded")
-        |> send_toast(:info, "Archive uploaded successfully.")
-        |> push_patch(
-          to: ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/archives"
-        )
+        |> put_flash(:info, "Archive uploaded successfully.")
+        |> push_patch(to: ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/archives")
         |> noreply()
 
       {:error, :no_public_keys} ->
@@ -256,44 +250,33 @@ defmodule NervesHubWeb.Live.Archives do
           socket,
           "Please register public keys for verifying archive signatures first"
         )
-        |> send_toast(
-          :error,
-          "Archive verification failed. Please register the public key used for signing the archive."
-        )
 
       {:error, :invalid_signature} ->
-        error_feedback(socket, "Archive corrupt, signature invalid, or missing public key")
-        |> send_toast(
-          :error,
+        error_feedback(
+          socket,
           "Archive corrupt, signature invalid, or the key used for signing hasn't been uploaded."
         )
 
       {:error, %{errors: [uuid: _]}} ->
-        error_feedback(socket, "Archive UUID is not unique for the product")
-        |> send_toast(
-          :error,
+        error_feedback(
+          socket,
           "Archive UUID is not unique for the product, please check if this archive has been previously uploaded."
         )
 
       {:error, error} when is_binary(error) ->
         error_feedback(socket, error)
-        |> send_toast(:error, error)
 
       _ ->
         error_feedback(
           socket,
           "Unknown error uploading archive. Please contact support if this happens again"
         )
-        |> send_toast(
-          :error,
-          "An unknown error occurred while uploading the archive. Please contact support if this persists."
-        )
     end
   end
 
   defp error_feedback(socket, message) do
     socket
-    |> assign(:error_message, message)
+    |> put_flash(:error, message)
     |> noreply()
   end
 

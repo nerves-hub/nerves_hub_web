@@ -7,11 +7,12 @@ defmodule NervesHub.Extensions.DeviceExtensionsSetting do
   embedded_schema do
     field(:health, :boolean, default: true)
     field(:geo, :boolean, default: true)
+    field(:logging, :boolean, default: true)
   end
 
   def changeset(setting, params) do
     setting
-    |> cast(params, [:health, :geo])
+    |> cast(params, [:health, :geo, :logging])
   end
 
   @impl Access

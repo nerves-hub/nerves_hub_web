@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
       {:ok, _device} ->
         socket
         |> put_flash(:info, "Device updated")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/devices/#{device}")
         |> noreply()
 
       {:error, :update_with_audit, changeset, _} ->
@@ -57,7 +57,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
 
       {:error, _, _, _} ->
         socket
-        |> put_flash(:error, "An unknown error occured, please contact support.")
+        |> put_flash(:error, "An unknown error occurred, please contact support.")
         |> noreply()
     end
   end

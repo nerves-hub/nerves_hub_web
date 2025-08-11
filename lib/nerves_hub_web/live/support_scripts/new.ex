@@ -24,14 +24,13 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
     case Scripts.create(product, org_user.user, script_params) do
       {:ok, _script} ->
         socket
-        |> put_flash(:info, "Support Script created")
-        |> send_toast(:info, "Support Script created successfully.")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/scripts")
+        |> put_flash(:info, "Support Script created successfully.")
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/scripts")
         |> noreply()
 
       {:error, changeset} ->
         socket
-        |> send_toast(:error, "There was an error saving the Support Script.")
+        |> put_flash(:error, "There was an error saving the Support Script.")
         |> assign(:form, to_form(changeset))
         |> noreply()
     end

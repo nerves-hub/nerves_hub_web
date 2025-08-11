@@ -11,6 +11,10 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
 
+  setup do
+    Application.put_env(:nerves_hub, :analytics_enabled, true)
+  end
+
   test "joining device channel works without understanding extensions" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
@@ -79,7 +83,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert Repo.aggregate(Devices.DeviceHealth, :count) == 1
   end
 
-  test "joining extensions channel suggests attaching geo and health" do
+  test "joining extensions channel suggests attaching geo, health, and logging" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
@@ -99,12 +103,14 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
                "extensions",
                %{
                  "geo" => "0.0.1",
-                 "health" => "0.0.1"
+                 "health" => "0.0.1",
+                 "logging" => "0.0.1"
                }
              )
 
     assert "health" in attach_list
     assert "geo" in attach_list
+    assert "logging" in attach_list
   end
 
   test "joining extensions channel with unknown extensions is fine" do
@@ -231,6 +237,35 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
                %{
                  "geo" => "0.0.1",
                  "health" => "0.0.1"
+               }
+             )
+  end
+
+  test "if platform analytics is disabled, the logging extension isn't attached" do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+
+    Application.put_env(:nerves_hub, :analytics_enabled, false)
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+
+    assert_push("extensions:get", _extensions)
+
+    assert {:ok, ["geo", "health"], _} =
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{
+                 "geo" => "0.0.1",
+                 "health" => "0.0.1",
+                 "logging" => "0.0.1"
                }
              )
   end

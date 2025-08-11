@@ -1,10 +1,16 @@
 Mimic.copy(ProcessHub)
 Mimic.copy(NervesHub.Devices)
 Mimic.copy(NervesHub.ManagedDeployments.Distributed.Orchestrator)
-Mimic.copy(NervesHub.Firmwares.DeltaUpdater.Default)
+Mimic.copy(NervesHub.Firmwares.UpdateTool.Fwup)
 Mimic.copy(NervesHub.Firmwares.Upload.File)
 Mimic.copy(NervesHub.Firmwares.Upload)
+Mimic.copy(NervesHub.ManagedDeployments)
+Mimic.copy(NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration)
 Mimic.copy(NervesHub.Tracker)
+Mimic.copy(NervesHub.Scripts.Runner)
+Mimic.copy(NervesHub.Workers.FirmwareDeltaBuilder)
+Mimic.copy(Sentry)
+Mimic.copy(Ueberauth)
 
 ExUnit.start(capture_log: true, exclude: [:pending])
 

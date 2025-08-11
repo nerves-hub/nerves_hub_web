@@ -85,6 +85,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
     |> Firmwares.get_firmware(params[:firmware_id])
     |> case do
       {:ok, firmware} ->
+        params = Map.put(params, :product_id, firmware.product_id)
         {firmware, ManagedDeployments.create_deployment_group(params)}
 
       {:error, :not_found} ->
@@ -93,22 +94,20 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
     |> case do
       {:error, :not_found} ->
         socket
-        |> send_toast(:error, "Invalid firmware selected")
+        |> put_flash(:error, "Invalid firmware selected")
         |> noreply()
 
       {_, {:ok, deployment_group}} ->
         _ = DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)
 
         socket
-        |> LiveToast.put_toast(:info, "Deployment Group created")
-        |> push_navigate(
-          to: ~p"/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}"
-        )
+        |> put_flash(:info, "Deployment Group created")
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}")
         |> noreply()
 
       {_firmware, {:error, changeset}} ->
         socket
-        |> send_toast(:error, "There was an error creating the deployment")
+        |> put_flash(:error, "There was an error creating the deployment")
         |> assign(:form, to_form(changeset))
         |> noreply()
     end
@@ -149,15 +148,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
 
   defp inject_conditions_map(params), do: params
 
-  @doc """
-  Convert tags from a list to a comma-separated list (in a string)
-  """
-  def tags_to_string(%Phoenix.HTML.FormField{} = field) do
-    field.value ||
-      %{}
-      |> Map.get("tags", [])
-      |> Enum.join(", ")
-  end
+  def tags_to_string(nil), do: ""
+
+  def tags_to_string(tags), do: Enum.join(tags, ", ")
 
   defp tags_as_list(""), do: []
 

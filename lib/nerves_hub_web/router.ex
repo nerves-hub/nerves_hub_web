@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Router do
   use NervesHubWeb, :router
 
+  import NervesHubWeb.Auth
+
   import Phoenix.LiveDashboard.Router
   import Oban.Web.Router
 
@@ -12,11 +14,22 @@ defmodule NervesHubWeb.Router do
     plug(:put_root_layout, html: {NervesHubWeb.LayoutView, :root})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
+    plug(:fetch_current_user)
     plug(NervesHubWeb.Plugs.SetLocale)
   end
 
   pipeline :dynamic_layout do
     plug(:put_dynamic_root_layout)
+  end
+
+  pipeline :updated_layout do
+    plug(:use_updated_layout)
+  end
+
+  def use_updated_layout(conn, _) do
+    conn
+    |> put_layout(false)
+    |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
   end
 
   def put_dynamic_root_layout(conn, _) do
@@ -30,7 +43,6 @@ defmodule NervesHubWeb.Router do
   end
 
   pipeline :logged_in do
-    plug(NervesHubWeb.Plugs.FetchUser)
     plug(NervesHubWeb.Plugs.EnsureLoggedIn)
   end
 
@@ -48,10 +60,11 @@ defmodule NervesHubWeb.Router do
 
   pipeline :api do
     plug(:accepts, ["json"])
+    plug(OpenApiSpex.Plug.PutApiSpec, module: NervesHubWeb.ApiSpec)
   end
 
-  pipeline :api_user do
-    plug(NervesHubWeb.API.Plugs.User)
+  pipeline :api_require_authenticated_user do
+    plug(NervesHubWeb.API.Plugs.AuthenticateUser)
   end
 
   pipeline :api_org do
@@ -66,31 +79,40 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.API.Plugs.Device)
   end
 
+  scope "/" do
+    pipe_through(:api)
+    get("/healthcheck", NervesHubWeb.HealthcheckController, :index)
+  end
+
+  scope "/api" do
+    pipe_through(:api)
+    get("/openapi", OpenApiSpex.Plug.RenderSpec, [])
+  end
+
   scope("/api", NervesHubWeb.API, as: :api) do
     pipe_through(:api)
-
-    get("/health", HealthCheckController, :health_check)
 
     post("/users/auth", UserController, :auth)
     post("/users/login", UserController, :login)
 
-    scope "/devices" do
-      pipe_through([:api_user])
+    scope "/devices/:identifier" do
+      pipe_through([:api_require_authenticated_user, :api_device])
 
-      get("/:identifier", DeviceController, :show)
-      post("/:identifier/reboot", DeviceController, :reboot)
-      post("/:identifier/reconnect", DeviceController, :reconnect)
-      post("/:identifier/code", DeviceController, :code)
-      post("/:identifier/upgrade", DeviceController, :upgrade)
-      post("/:identifier/move", DeviceController, :move)
-      delete("/:identifier/penalty", DeviceController, :penalty)
+      get("/", DeviceController, :show)
 
-      get("/:identifier/scripts", ScriptController, :index)
-      post("/:identifier/scripts/:id", ScriptController, :send)
+      post("/code", DeviceController, :code)
+      post("/move", DeviceController, :move)
+      post("/reboot", DeviceController, :reboot)
+      post("/reconnect", DeviceController, :reconnect)
+      post("/upgrade", DeviceController, :upgrade)
+      delete("/penalty", DeviceController, :penalty)
+
+      get("/scripts", ScriptController, :index)
+      post("/scripts/:id", ScriptController, :send)
     end
 
     scope "/" do
-      pipe_through([:api_user])
+      pipe_through([:api_require_authenticated_user])
 
       get("/users/me", UserController, :me)
 
@@ -101,9 +123,10 @@ defmodule NervesHubWeb.Router do
           scope "/users" do
             get("/", OrgUserController, :index)
             post("/", OrgUserController, :add)
-            get("/:user_id", OrgUserController, :show)
-            put("/:user_id", OrgUserController, :update)
-            delete("/:user_id", OrgUserController, :remove)
+            post("/invite", OrgUserController, :invite)
+            get("/:user_email", OrgUserController, :show)
+            put("/:user_email", OrgUserController, :update)
+            delete("/:user_email", OrgUserController, :remove)
           end
 
           scope "/keys" do
@@ -140,13 +163,19 @@ defmodule NervesHubWeb.Router do
                   pipe_through([:api_device])
 
                   get("/", DeviceController, :show)
-                  delete("/", DeviceController, :delete)
                   put("/", DeviceController, :update)
+                  delete("/", DeviceController, :delete)
+
                   post("/reboot", DeviceController, :reboot)
                   post("/reconnect", DeviceController, :reconnect)
                   post("/code", DeviceController, :code)
                   post("/upgrade", DeviceController, :upgrade)
+                  post("/move", DeviceController, :move)
                   delete("/penalty", DeviceController, :penalty)
+
+                  scope "/scripts", as: :device do
+                    post("/:id", ScriptController, :send)
+                  end
 
                   scope "/certificates" do
                     get("/", DeviceCertificateController, :index)
@@ -164,13 +193,15 @@ defmodule NervesHubWeb.Router do
                 delete("/:uuid", FirmwareController, :delete)
               end
 
-              scope "/deployment_groups" do
+              scope "/deployments" do
                 get("/", DeploymentGroupController, :index)
                 post("/", DeploymentGroupController, :create)
                 get("/:name", DeploymentGroupController, :show)
                 put("/:name", DeploymentGroupController, :update)
                 delete("/:name", DeploymentGroupController, :delete)
               end
+
+              get("/scripts", ScriptController, :index)
             end
           end
         end
@@ -178,26 +209,50 @@ defmodule NervesHubWeb.Router do
     end
   end
 
+  scope "/api" do
+    # Use the default browser stack
+    pipe_through(:browser)
+
+    get("/swaggerui", OpenApiSpex.Plug.SwaggerUI, path: "/api/openapi")
+  end
+
   scope "/", NervesHubWeb do
     # Use the default browser stack
     pipe_through(:browser)
 
     get("/", HomeController, :index)
+  end
+
+  scope "/", NervesHubWeb do
+    # Only authenticated users can use these routes
+    pipe_through([:browser, :require_authenticated_user])
+
+    get("/logout", SessionController, :delete)
+  end
+
+  scope "/", NervesHubWeb do
+    # Only unauthenticated users can use these routes
+    pipe_through([:browser, :redirect_if_user_is_authenticated, :updated_layout])
 
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
-    get("/logout", SessionController, :delete)
+    get("/confirm/:token", SessionController, :confirm)
 
     get("/register", AccountController, :new)
     post("/register", AccountController, :create)
 
     get("/password-reset", PasswordResetController, :new)
     post("/password-reset", PasswordResetController, :create)
-    get("/password-reset/:token", PasswordResetController, :new_password_form)
-    put("/password-reset/:token", PasswordResetController, :reset)
+    get("/password-reset/:token", PasswordResetController, :edit)
+    put("/password-reset/:token", PasswordResetController, :update)
 
     get("/invite/:token", AccountController, :invite)
     post("/invite/:token", AccountController, :accept_invite)
+
+    scope "/auth" do
+      get("/:provider", OAuthController, :request)
+      get("/:provider/callback", OAuthController, :callback)
+    end
   end
 
   scope "/org/:org_name/:product_name", NervesHubWeb do
@@ -251,8 +306,8 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrgUser,
         {NervesHubWeb.Mounts.LayoutSelector, :no_sidebar}
       ] do
-      live("/org/:org_name", Live.Org.Products, :index)
-      live("/org/:org_name/new", Live.Org.Products, :new)
+      live("/org/:org_name", Live.Org.Show)
+      live("/org/:org_name/new", Live.Products.New)
       live("/org/:org_name/settings", Live.Org.Settings)
       live("/org/:org_name/settings/keys", Live.Org.SigningKeys, :index)
       live("/org/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
@@ -293,6 +348,12 @@ defmodule NervesHubWeb.Router do
       )
 
       live(
+        "/org/:org_name/:product_name/devices/:device_identifier/logs",
+        Live.Devices.Show,
+        :logs
+      )
+
+      live(
         "/org/:org_name/:product_name/devices/:device_identifier/activity",
         Live.Devices.Show,
         :activity
@@ -330,7 +391,8 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/:product_name/deployment_groups", Live.DeploymentGroups.Index)
       live("/org/:org_name/:product_name/deployments/new", Live.DeploymentGroups.New)
-      live("/org/:org_name/:product_name/deployments/newz", Live.DeploymentGroups.Newz)
+
+      live("/org/:org_name/:product_name/deployment_groups/newz", Live.DeploymentGroups.Newz)
 
       live(
         "/org/:org_name/:product_name/deployment_groups/:name",
