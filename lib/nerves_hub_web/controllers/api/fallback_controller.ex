@@ -9,30 +9,64 @@ defmodule NervesHubWeb.API.FallbackController do
   def call(conn, {:error, %Ecto.Changeset{} = changeset}) do
     conn
     |> put_status_from_changeset(changeset)
-    |> put_view(NervesHubWeb.API.ChangesetView)
-    |> render("error.json", changeset: changeset)
+    |> put_view(NervesHubWeb.API.ChangesetJSON)
+    |> render(:error, changeset: changeset)
+  end
+
+  def call(conn, {:error, {key, message}})
+      when key in [:no_firmware_uuid, :no_firmware_uploaded, :certificate_decoding_error] do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(NervesHubWeb.API.ChangesetJSON)
+    |> render(:error, message: message)
   end
 
   def call(conn, {:error, :not_found}) do
     conn
     |> put_status(:not_found)
-    |> put_view(NervesHubWeb.API.ErrorView)
+    |> put_view(NervesHubWeb.API.ErrorJSON)
     |> render(:"404")
+  end
+
+  def call(conn, {:error, :org_user_not_found}) do
+    conn
+    |> put_status(422)
+    |> put_view(NervesHubWeb.API.ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "A user with that email address could not be found, you may need to invite them instead."
+    })
+  end
+
+  def call(conn, {:error, :org_user_exists}) do
+    conn
+    |> put_status(422)
+    |> put_view(NervesHubWeb.API.ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "A user with that email address already exists, please use the add user api endpoint."
+    })
   end
 
   def call(conn, {:error, reason}) when is_binary(reason) or is_atom(reason) do
     conn
-    |> put_resp_content_type("application/json")
     |> put_status(500)
-    |> put_view(NervesHubWeb.API.ErrorView)
-    |> send_resp(500, Jason.encode!(%{errors: reason}))
+    |> put_view(NervesHubWeb.API.ErrorJSON)
+    |> render(:"500", %{reason: to_string(reason)})
   end
 
   def call(conn, {:error, reason}) do
     conn
     |> put_status(500)
-    |> put_view(NervesHubWeb.API.ErrorView)
+    |> put_view(NervesHubWeb.API.ErrorJSON)
     |> render(:"500", %{reason: reason})
+  end
+
+  def call(conn, :error) do
+    conn
+    |> put_status(400)
+    |> put_view(NervesHubWeb.API.ErrorJSON)
+    |> render(:"400", %{reason: "An unknown error occurred, please check the request."})
   end
 
   defp put_status_from_changeset(conn, changeset) do

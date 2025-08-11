@@ -1,27 +1,35 @@
 defmodule NervesHubWeb.API.DeviceCertificateController do
   use NervesHubWeb, :api_controller
+  use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
 
-  action_fallback(NervesHubWeb.API.FallbackController)
+  security([%{}, %{"bearer_auth" => []}])
+  tags(["Device Certificates"])
 
   plug(:validate_role, [org: :manage] when action in [:create, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
+  operation(:index, summary: "List all Certificates for a Device")
+
   def index(%{assigns: %{org: org}} = conn, %{"identifier" => identifier}) do
     with {:ok, device} <- Devices.get_device_by_identifier(org, identifier) do
       device_certificates = Devices.get_device_certificates(device)
-      render(conn, "index.json", device_certificates: device_certificates)
+      render(conn, :index, device_certificates: device_certificates)
     end
   end
+
+  operation(:show, summary: "Show a Certificate for a Device")
 
   def show(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
     with {:ok, device_certificate} <-
            Devices.get_device_certificate_by_device_and_serial(device, serial) do
-      render(conn, "show.json", device_certificate: device_certificate)
+      render(conn, :show, device_certificate: device_certificate)
     end
   end
+
+  operation(:create, summary: "Create a Certificate for a Device")
 
   def create(%{assigns: %{org: org, product: product, device: device}} = conn, %{"cert" => cert64}) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
@@ -52,12 +60,17 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
           device_certificate.serial
         )
       )
-      |> render("show.json", device_certificate: device_certificate)
+      |> render(:show, device_certificate: device_certificate)
     else
-      {:error, :not_found} -> {:error, "error decoding certificate"}
-      e -> e
+      {:error, :not_found} ->
+        {:error, {:certificate_decoding_error, "Error decoding certificate"}}
+
+      e ->
+        e
     end
   end
+
+  operation(:delete, summary: "Delete a Device's Certificate")
 
   def delete(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
     with {:ok, device_certificate} <-

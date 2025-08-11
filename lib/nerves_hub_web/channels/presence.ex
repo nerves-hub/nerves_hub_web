@@ -9,16 +9,23 @@ defmodule NervesHubWeb.Presence do
     otp_app: :nerves_hub,
     pubsub_server: NervesHub.PubSub
 
+  require Logger
+
+  alias NervesHub.Helpers.Logging
+
+  @impl Phoenix.Presence
   def init(_opts) do
     {:ok, %{}}
   end
 
+  @impl Phoenix.Presence
   def fetch(_topic, presences) do
     for {key, %{metas: [meta | metas]}} <- presences, into: %{} do
       {key, %{metas: [meta | metas], id: key, user: %{name: meta.name}}}
     end
   end
 
+  @impl Phoenix.Presence
   def handle_metas(topic, %{joins: joins, leaves: leaves}, presences, state) do
     for {user_id, presence} <- joins do
       user_data = %{id: user_id, user: presence.user, metas: Map.fetch!(presences, user_id)}
@@ -41,10 +48,55 @@ defmodule NervesHubWeb.Presence do
     {:ok, state}
   end
 
-  def list_online_users(topic),
+  @doc """
+  Returns a list of present users in a topic.
+  """
+  @spec list_present_users(String.t()) :: [map()]
+  def list_present_users(topic),
     do: list(topic) |> Enum.map(fn {_id, presence} -> presence end)
 
-  def track_user(topic, id, params), do: track(self(), topic, id, params)
+  @doc """
+  Tracks a user's presence in a topic.
 
-  def subscribe(topic), do: Phoenix.PubSub.subscribe(NervesHub.PubSub, "proxy:#{topic}")
+  Returns an :ok tuple with reference on success, {:error, reason} on failure.
+  """
+  @spec track_user(String.t(), String.t(), map()) ::
+          {:ok, binary()} | {:error, term()}
+  def track_user(topic, id, params) do
+    case track(self(), topic, id, params) do
+      {:ok, ref} ->
+        {:ok, ref}
+
+      {:error, reason} ->
+        Logger.error("Failed to track user #{id} in topic #{topic}: #{inspect(reason)}")
+
+        Logging.log_message_to_sentry("Failed to track user #{id} in topic #{topic}", %{
+          reason: reason
+        })
+
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Subscribes to presence events for a topic.
+
+  Returns :ok on success, :error on failure.
+  """
+  @spec subscribe(String.t()) :: :ok | :error
+  def subscribe(topic) do
+    case Phoenix.PubSub.subscribe(NervesHub.PubSub, "proxy:#{topic}") do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.error("Failed to subscribe to presence topic #{topic}: #{inspect(reason)}")
+
+        Logging.log_message_to_sentry("Failed to subscribe to presence topic #{topic}", %{
+          reason: reason
+        })
+
+        :error
+    end
+  end
 end

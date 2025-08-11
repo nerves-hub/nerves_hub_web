@@ -4,7 +4,7 @@ defmodule NervesHub.Scripts.Runner do
   use NervesHubLink on the device to evaluate the script directly.
 
   If the device has not been updated then the console channel will be
-  used as a back up for catpuring output.
+  used as a back up for capturing output.
 
   Runner - {:send, text} -> DeviceChannel
 
@@ -20,11 +20,11 @@ defmodule NervesHub.Scripts.Runner do
     defstruct [:buffer, :device_channel, :from, :receive_channel, :send_channel, :text]
   end
 
-  def send(device, command) do
+  def send(device, command, timeout \\ to_timeout(second: 30)) do
     {:ok, pid} = start_link(device)
-    {:ok, GenServer.call(pid, {:send, command.text}, 10_000)}
+    {:ok, GenServer.call(pid, {:send, command.text}, timeout)}
   catch
-    :exit, _ -> {:error, "device not responding"}
+    :exit, _ -> {:error, "device did not respond in #{timeout} milliseconds"}
   end
 
   def start_link(device) do

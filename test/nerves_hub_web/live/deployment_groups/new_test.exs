@@ -27,10 +27,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.NewTest do
       |> fill_in("Tag(s) distributed to", with: "josh, lars")
       |> select("Firmware version", option: firmware.uuid, exact_option: false)
       |> click_button("Create Deployment")
-      |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
-      |> assert_has("h1", text: "Deployment Groups")
+      |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/Moussaka"))
       |> assert_has("div", text: "Deployment Group created")
-      |> assert_has("a", text: "Moussaka")
+      |> assert_has("h1", text: "Moussaka")
 
       [%{resource_type: DeploymentGroup}] = AuditLogs.logs_by(user)
     end
@@ -64,10 +63,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.NewTest do
       org = Fixtures.org_fixture(user, %{name: "empty_org"})
       product = Fixtures.product_fixture(user, org)
 
+      token = NervesHub.Accounts.create_user_session_token(user)
+
       conn =
         build_conn()
         |> Map.put(:assigns, %{org: org})
-        |> init_test_session(%{"auth_user_id" => user.id})
+        |> init_test_session(%{"user_token" => token})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/deployments/new")

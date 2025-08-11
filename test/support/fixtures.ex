@@ -15,6 +15,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+  alias NervesHub.Scripts
   alias NervesHub.Support
   alias NervesHub.Support.Fwup
 
@@ -28,13 +29,13 @@ defmodule NervesHub.Fixtures do
       "version" => "<= 1.0.0",
       "tags" => ["beta", "beta-edge"]
     },
-    is_active: false
+    is_active: false,
+    delta_updatable: false
   }
   @device_params %{tags: ["beta", "beta-edge"], extensions: %{health: true, geo: true}}
   @product_params %{
     name: "valid product",
-    delta_updatable: true,
-    extensions: %{health: true, geo: true}
+    extensions: %{health: true, geo: true, logging: true}
   }
 
   defdelegate reload(record), to: Repo
@@ -44,7 +45,7 @@ defmodule NervesHub.Fixtures do
   def user_params() do
     %{
       org_name: "org-#{counter()}.com",
-      email: "email-#{counter()}@mctesterson.com",
+      email: "email-#{counter()}@smiths.com",
       name: "User #{counter_in_alpha()}",
       password: "test_password"
     }
@@ -123,7 +124,13 @@ defmodule NervesHub.Fixtures do
   end
 
   def user_fixture(params \\ %{}) do
-    {:ok, user} = params |> Enum.into(user_params()) |> Accounts.create_user()
+    {:ok, user} =
+      params
+      |> Enum.into(user_params())
+      |> Accounts.create_user()
+
+    {:ok, user} = Accounts.confirm_user(user)
+
     user
   end
 
@@ -161,6 +168,7 @@ defmodule NervesHub.Fixtures do
         %Products.Product{} = product,
         params \\ %{}
       ) do
+    params = Map.merge(%{dir: System.tmp_dir()}, params)
     org = Repo.get!(Org, org_id)
     filepath = firmware_file_fixture(org_key, product, params)
     {:ok, firmware} = Firmwares.create_firmware(org, filepath)
@@ -171,11 +179,24 @@ defmodule NervesHub.Fixtures do
         id: target_id,
         org_id: org_id
       }) do
+    delta_metadata = %{
+      "size" => 5,
+      "source_size" => 7,
+      "target_size" => 10
+    }
+
     {:ok, firmware_delta} =
       Firmwares.insert_firmware_delta(%{
         source_id: source_id,
         target_id: target_id,
-        upload_metadata: @uploader.metadata(org_id, "#{Ecto.UUID.generate()}.fw")
+        status: :completed,
+        tool_metadata: %{"delta_fwup_version" => "1.13.0"},
+        tool: "fwup",
+        size: 500,
+        source_size: 700,
+        target_size: 1000,
+        upload_metadata:
+          Map.merge(delta_metadata, @uploader.metadata(org_id, "#{Ecto.UUID.generate()}.fw"))
       })
 
     firmware_delta
@@ -219,7 +240,7 @@ defmodule NervesHub.Fixtures do
     {is_active, params} = Map.pop(params, :is_active, false)
 
     {:ok, deployment_group} =
-      %{org_id: org.id, firmware_id: firmware.id}
+      %{org_id: org.id, firmware_id: firmware.id, product_id: firmware.product_id}
       |> Enum.into(params)
       |> Enum.into(@deployment_group_params)
       |> ManagedDeployments.create_deployment_group()
@@ -237,12 +258,13 @@ defmodule NervesHub.Fixtures do
         params \\ %{}
       ) do
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+    {fwup_version, params} = Map.pop(params, :fwup_version, "1.0.0")
 
     {:ok, device} =
       %{
         org_id: org.id,
         product_id: product.id,
-        firmware_metadata: metadata,
+        firmware_metadata: Map.put(metadata, :fwup_version, fwup_version),
         identifier: "device-#{counter()}"
       }
       |> Enum.into(params)
@@ -458,6 +480,85 @@ defmodule NervesHub.Fixtures do
       )
     )
     |> Repo.insert!()
+  end
+
+  def support_script_fixture(
+        %Products.Product{} = product,
+        %Accounts.User{} = user,
+        params \\ %{}
+      ) do
+    Scripts.Script.create_changeset(
+      %Scripts.Script{},
+      product,
+      user,
+      Map.merge(
+        %{
+          name: "Script #{counter()}",
+          text: "echo 'Hello, World!'"
+        },
+        params
+      )
+    )
+    |> Repo.insert!()
+  end
+
+  def ueberauth_google_success_fixture() do
+    %Ueberauth.Auth{
+      uid: "735086597857067149793",
+      provider: :google,
+      strategy: Ueberauth.Strategy.Google,
+      info: %Ueberauth.Auth.Info{
+        name: "Jane Person",
+        first_name: "Jane",
+        last_name: "Person",
+        nickname: nil,
+        email: "jane@person.com",
+        location: nil,
+        description: nil,
+        image: "https://lh3.googleusercontent.com/a/thisdoesntexist=s96-c",
+        phone: nil,
+        birthday: nil
+      },
+      credentials: %Ueberauth.Auth.Credentials{
+        token: "dummytoken",
+        refresh_token: nil,
+        token_type: "Bearer",
+        secret: nil,
+        expires: true,
+        expires_at: 1_745_381_095,
+        scopes: [
+          "https://www.googleapis.com/auth/userinfo.email",
+          "https://www.googleapis.com/auth/userinfo.profile",
+          "openid"
+        ],
+        other: %{}
+      },
+      extra: %Ueberauth.Auth.Extra{
+        raw_info: %{
+          user: %{
+            "email" => "jane@person.com",
+            "email_verified" => true,
+            "family_name" => "Person",
+            "given_name" => "Jane",
+            "hd" => "person.com",
+            "name" => "Jane Person",
+            "picture" => "https://lh3.googleusercontent.com/a/thisdoesntexist=s96-c",
+            "sub" => "735086597857067149793"
+          },
+          token: %OAuth2.AccessToken{
+            access_token: "dummytoken",
+            refresh_token: nil,
+            expires_at: 1_745_381_095,
+            token_type: "Bearer",
+            other_params: %{
+              "id_token" => "anotherdummytoken",
+              "scope" =>
+                "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid"
+            }
+          }
+        }
+      }
+    }
   end
 
   defp counter() do

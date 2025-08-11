@@ -2,24 +2,25 @@ import "phoenix_html"
 import { Socket } from "phoenix"
 import { LiveSocket } from "phoenix_live_view"
 import topbar from "topbar"
-import { createLiveToastHook } from "live_toast"
 import "chartjs-adapter-date-fns"
 
 import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
-import Console from "./hooks/console.js"
-import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
 import Chart from "./hooks/chart.js"
-import HighlightCode from "./hooks/highlightCode.js"
-import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
-import LocalTime from "./hooks/localTime.js"
-import ToolTip from "./hooks/toolTip.js"
-import SimpleDate from "./hooks/simpleDate.js"
-import SupportScriptOutput from "./hooks/supportScriptOutput.js"
-import WorldMap from "./hooks/worldMap.js"
+import Console from "./hooks/console.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
+import Flash from "./hooks/flash.js"
+import HighlightCode from "./hooks/highlightCode.js"
+import LocalTime from "./hooks/localTime.js"
+import LogLineLocalTime from "./hooks/logLineLocalTime.js"
+import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
+import SimpleDate from "./hooks/simpleDate.js"
+import SupportScriptOutput from "./hooks/supportScriptOutput.js"
+import ToolTip from "./hooks/toolTip.js"
+import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
+import WorldMap from "./hooks/worldMap.js"
 
 import dates from "../js/dates"
 
@@ -31,19 +32,20 @@ let csrfToken = document
 let liveSocket = new LiveSocket("/live", Socket, {
   params: { _csrf_token: csrfToken },
   hooks: {
-    Console,
-    SharedSecretClipboardClick,
     Chart,
-    HighlightCode,
-    UpdatingTimeAgo,
-    LocalTime,
-    ToolTip,
-    SimpleDate,
-    SupportScriptOutput,
-    WorldMap,
+    Console,
     DeviceLocationMap,
     DeviceLocationMapWithGeocoder,
-    LiveToast: createLiveToastHook()
+    Flash,
+    HighlightCode,
+    LocalTime,
+    LogLineLocalTime,
+    SharedSecretClipboardClick,
+    SimpleDate,
+    SupportScriptOutput,
+    ToolTip,
+    UpdatingTimeAgo,
+    WorldMap
   }
 })
 

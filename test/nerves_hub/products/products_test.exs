@@ -92,13 +92,14 @@ defmodule NervesHub.ProductsTest do
       # Generate CSV
       csv_io = Products.devices_csv(product)
 
-      [[id, desc, tags, pname, oname, cert_io] | _] = NimbleCSV.RFC4180.parse_string(csv_io)
+      [[id, desc, tags, product_name, org_name, cert_io] | _] =
+        NimbleCSV.RFC4180.parse_string(csv_io)
 
       assert id == device.identifier
       assert desc == device.description || ""
       assert String.split(tags, ",") == device.tags
-      assert pname == product.name
-      assert oname == org.name
+      assert product_name == product.name
+      assert org_name == org.name
 
       String.split(cert_io, "\n\n")
       |> Enum.each(fn

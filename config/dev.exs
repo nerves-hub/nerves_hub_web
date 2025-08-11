@@ -7,6 +7,11 @@ ssl_dir =
 config :logger, :console, format: "[$level] $message\n"
 config :phoenix, :stacktrace_depth, 20
 
+config :phoenix_live_view,
+  debug_heex_annotations: true,
+  debug_attributes: true,
+  enable_expensive_runtime_checks: true
+
 ##
 # NervesHub Web
 #
@@ -65,7 +70,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
         versions: [:"tlsv1.2"],
         verify: :verify_peer,
         verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
-        fail_if_no_peer_cert: true,
+        fail_if_no_peer_cert: false,
         keyfile: Path.join(ssl_dir, "device.nerves-hub.org-key.pem"),
         certfile: Path.join(ssl_dir, "device.nerves-hub.org.pem"),
         cacertfile: Path.join(ssl_dir, "ca.pem")
@@ -87,6 +92,15 @@ config :nerves_hub, NervesHub.ObanRepo,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10,
   ssl: false
+
+if System.get_env("ANALYTICS_ENABLED", "true") == "true" do
+  config :nerves_hub, NervesHub.AnalyticsRepo,
+    url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default")
+
+  config :nerves_hub, analytics_enabled: true
+else
+  config :nerves_hub, analytics_enabled: false
+end
 
 ##
 # Firmware upload
@@ -119,3 +133,5 @@ config :nerves_hub, NervesHub.RateLimit, limit: 10
 
 config :nerves_hub,
   open_for_registrations: true
+
+config :open_api_spex, :cache_adapter, OpenApiSpex.Plug.NoneCache

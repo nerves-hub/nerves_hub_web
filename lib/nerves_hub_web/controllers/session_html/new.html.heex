@@ -1,0 +1,64 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Sign in to your account
+  </:title>
+  <:subheader>
+    Don't have an account? <.link href="/register" class="font-semibold text-indigo-500 hover:text-indigo-400">Sign up for free</.link>
+  </:subheader>
+
+  <div :if={assigns[:error_message]} role="alert" class="mt-4 mr-2 w-full rounded-sm p-3 ring-1 bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900">
+    <p class="mt-1 text-sm leading-5">{@error_message}</p>
+  </div>
+
+  <div class="mt-6">
+    <div>
+      <.form :let={f} for={@form} as={:user} id="login_form_password" action={~p"/login"} class="space-y-6">
+        <div>
+          <.input field={f[:email]} label="Email address" placeholder="eg. person@company.com" />
+        </div>
+
+        <div>
+          <.input field={f[:password]} label="Password" type="password" autocomplete="current-password" required />
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex gap-3">
+            <div class="flex h-6 shrink-0 items-center">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+                class="
+                      appearance-none
+                      rounded border border-zinc-600
+                      bg-zinc-800 text-indigo-400
+                      checked:border-zinc-600 checked:bg-indigo-500
+                      focus:ring-0 focus:ring-offset-0
+                      indeterminate:border-zinc-600 indeterminate:bg-indigo-500
+                      focus-visible:outline-none focus-visible:ring-0 focus-visible:outline-offset-2 focus-visible:outline-indigo-500
+                      disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100
+                      forced-colors-adjust-auto"
+              />
+            </div>
+            <label for="remember-me" class="block text-sm/6 text-zinc-300">Remember me</label>
+          </div>
+
+          <div class="text-sm/6">
+            <a href="/password-reset" class="font-semibold text-indigo-500 hover:text-indigo-400">Forgot password?</a>
+          </div>
+        </div>
+
+        <div>
+          <button
+            type="submit"
+            class="flex w-full justify-center rounded-md bg-indigo-500 px-3 py-1.5 text-sm/6 font-semibold text-neutral-50 shadow-sm hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+          >
+            Sign in
+          </button>
+        </div>
+      </.form>
+    </div>
+
+    <OAuthLinks.render />
+  </div>
+</Layouts.auth>

@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Live.AccountTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  import Swoosh.TestAssertions
+
   alias NervesHub.Accounts
 
   describe "update" do
@@ -22,9 +24,13 @@ defmodule NervesHubWeb.Live.AccountTest do
       conn
       |> visit("/account")
       |> assert_has("h1", text: "Personal Info")
-      |> fill_in("Old Password", with: user.password)
-      |> fill_in("New Password", with: "foobarbaz")
-      |> click_button("Save Changes")
+      |> within("#password-form", fn session ->
+        session
+        |> fill_in("Old Password", with: "test_password")
+        |> fill_in("New Password", with: "foobarbazhumbug")
+        |> fill_in("Confirm New Password", with: "foobarbazhumbug")
+        |> submit()
+      end)
       |> assert_path("/account")
       |> assert_has("div", text: "Account updated")
 
@@ -33,27 +39,54 @@ defmodule NervesHubWeb.Live.AccountTest do
       refute updated_user.password_hash == user.password_hash
     end
 
-    test "fails with missing password", %{conn: conn} do
+    test "requires current password to update email", %{conn: conn} do
       conn
       |> visit("/account")
       |> assert_has("h1", text: "Personal Info")
-      |> fill_in("New Password", with: "12345678")
-      |> click_button("Save Changes")
+      |> within("#details-form", fn session ->
+        session
+        |> fill_in("Email", with: "ringo@drums.com")
+        |> submit()
+      end)
       |> assert_path("/account")
       |> assert_has("div",
-        text: "You must provide a current password in order to change your email or password."
+        text: "You must confirm your current password in order to change your password."
       )
     end
 
-    test "fails with incorrect password", %{conn: conn} do
+    test "requires valid current password to update password", %{conn: conn} do
       conn
       |> visit("/account")
       |> assert_has("h1", text: "Personal Info")
-      |> fill_in("Old Password", with: "not the current password")
-      |> fill_in("New Password", with: "12345678")
-      |> click_button("Save Changes")
+      |> within("#password-form", fn session ->
+        session
+        |> fill_in("Old Password", with: "not the current password")
+        |> fill_in("New Password", with: "12345678")
+        |> fill_in("Confirm New Password", with: "12345678")
+        |> submit()
+      end)
       |> assert_path("/account")
-      |> assert_has("div", text: "Current password is incorrect.")
+      |> assert_has("div", text: "is not correct")
+      |> within("#password-form", fn session ->
+        session
+        |> fill_in("Old Password", with: "test_password")
+        |> fill_in("New Password", with: "1234567891011")
+        |> fill_in("Confirm New Password", with: "12345678")
+        |> submit()
+      end)
+      |> assert_path("/account")
+      |> assert_has("div", text: "does not match password")
+      |> within("#password-form", fn session ->
+        session
+        |> fill_in("Old Password", with: "test_password")
+        |> fill_in("New Password", with: "1234567891011")
+        |> fill_in("Confirm New Password", with: "1234567891011")
+        |> submit()
+      end)
+      |> assert_path("/account")
+      |> assert_has("div", text: "Account updated")
+
+      assert_email_sent(subject: "NervesHub: Your password has been updated")
     end
   end
 

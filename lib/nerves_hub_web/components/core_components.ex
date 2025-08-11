@@ -16,7 +16,10 @@ defmodule NervesHubWeb.CoreComponents do
   """
   use Phoenix.Component
 
+  import NervesHubWeb.Components.Icons
+
   alias Phoenix.LiveView.JS
+
   use Gettext, backend: NervesHubWeb.Gettext
 
   @doc """
@@ -57,7 +60,7 @@ defmodule NervesHubWeb.CoreComponents do
             >
               <div class="absolute top-6 right-5">
                 <button phx-click={JS.exec("data-cancel", to: "##{@id}")} type="button" class="-m-3 flex-none p-3 opacity-20 hover:opacity-40" aria-label={gettext("close")}>
-                  <.icon name="hero-x-mark-solid" class="h-5 w-5" />
+                  <.icon name="close" />
                 </button>
               </div>
               <div id={"#{@id}-content"}>
@@ -97,20 +100,25 @@ defmodule NervesHubWeb.CoreComponents do
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
       class={[
-        "fixed top-2 right-2 mr-2 w-80 sm:w-96 z-50 rounded-lg p-3 ring-1",
+        "fixed bottom-4 right-2 mr-2 w-80 sm:w-96 z-50 rounded-sm p-3 ring-1",
         @kind == :info && "bg-emerald-50 text-emerald-800 ring-emerald-500 fill-cyan-900",
         @kind == :error && "bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900"
       ]}
       {@rest}
     >
       <p :if={@title} class="flex items-center gap-1.5 text-sm font-semibold leading-6">
-        <.icon :if={@kind == :info} name="hero-information-circle-mini" class="h-4 w-4" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle-mini" class="h-4 w-4" />
         {@title}
       </p>
-      <p class="mt-2 text-sm leading-5">{msg}</p>
+      <p class="mt-1 text-sm leading-5">{msg}</p>
       <button type="button" class="group absolute top-1 right-1 p-2" aria-label={gettext("close")}>
-        <.icon name="hero-x-mark-solid" class="h-5 w-5 opacity-40 group-hover:opacity-70" />
+        <.icon
+          name="close"
+          class={[
+            @kind == :info && "stroke-emerald-500",
+            @kind == :error && "stroke-red-500",
+            "opacity-40 group-hover:opacity-70"
+          ]}
+        />
       </button>
     </div>
     """
@@ -129,14 +137,14 @@ defmodule NervesHubWeb.CoreComponents do
   def flash_group(assigns) do
     ~H"""
     <div id={@id}>
-      <.flash kind={:info} title="Success!" flash={@flash} />
-      <.flash kind={:error} title="Error!" flash={@flash} />
-      <.flash id="client-error" kind={:error} title="We can't find the internet" phx-disconnected={show(".phx-client-error #client-error")} phx-connected={hide("#client-error")} hidden>
-        Attempting to reconnect <.icon name="hero-arrow-path" class="ml-1 h-3 w-3 animate-spin" />
+      <.flash kind={:info} title={gettext("Success")} flash={@flash} phx-mounted={show("#flash-info")} phx-hook="Flash" hidden />
+      <.flash kind={:error} title={gettext("Error")} flash={@flash} phx-mounted={show("#flash-error")} hidden />
+      <.flash id="client-error" kind={:error} title={gettext("We can't find the internet")} phx-disconnected={show(".phx-client-error #client-error")} phx-connected={hide("#client-error")} hidden>
+        {gettext("Attempting to reconnect")}
       </.flash>
 
-      <.flash id="server-error" kind={:error} title="Something went wrong!" phx-disconnected={show(".phx-server-error #server-error")} phx-connected={hide("#server-error")} hidden>
-        Hang in there while we get back on track <.icon name="hero-arrow-path" class="ml-1 h-3 w-3 animate-spin" />
+      <.flash id="server-error" kind={:error} title={gettext("Something went wrong!")} phx-disconnected={show(".phx-server-error #server-error")} phx-connected={hide("#server-error")} hidden>
+        {gettext("Hang in there while we get back on track")}
       </.flash>
     </div>
     """
@@ -155,7 +163,7 @@ defmodule NervesHubWeb.CoreComponents do
         </:actions>
       </.simple_form>
   """
-  attr(:for, :any, required: true, doc: "the datastructure for the form")
+  attr(:for, :any, required: true, doc: "the data structure for the form")
   attr(:as, :any, default: nil, doc: "the server side parameter to collect all input under")
 
   attr(:rest, :global,
@@ -358,14 +366,14 @@ defmodule NervesHubWeb.CoreComponents do
 
     ~H"""
     <div phx-feedback-for={@name}>
-      <label class="flex items-center gap-4 text-sm font-medium leading-6 text-zinc-300">
+      <span class="flex items-center gap-4 text-sm font-medium leading-6 text-zinc-300">
         <input type="hidden" name={@name} value="false" />
-        <input type="checkbox" id={@id} name={@name} value="true" checked={@checked} class="rounded border-zinc-700 text-zinc-400 focus:ring-0 checked:bg-indigo-500" {@rest} />
-        {@label}
-      </label>
-      <span :if={assigns[:hint] || assigns[:rich_hint]} class="text-xs text-zinc-400">
-        {assigns[:hint] || render_slot(assigns[:rich_hint])}
+        <input type="checkbox" id={@name} name={@name} value="true" checked={@checked} class="rounded border-zinc-700 text-zinc-400 focus:ring-0 checked:bg-indigo-500" {@rest} />
+        <label for={@name}>{@label}</label>
       </span>
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-xs text-zinc-400">
+        {assigns[:hint] || render_slot(assigns[:rich_hint])}
+      </div>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
     """
@@ -641,33 +649,6 @@ defmodule NervesHubWeb.CoreComponents do
         {render_slot(@inner_block)}
       </.link>
     </div>
-    """
-  end
-
-  @doc """
-  Renders a [Heroicon](https://heroicons.com).
-
-  Heroicons come in three styles – outline, solid, and mini.
-  By default, the outline style is used, but solid and mini may
-  be applied by using the `-solid` and `-mini` suffix.
-
-  You can customize the size and colors of the icons by setting
-  width, height, and background color classes.
-
-  Icons are extracted from your `assets/vendor/heroicons` directory and bundled
-  within your compiled app.css by the plugin in your `assets/tailwind.config.js`.
-
-  ## Examples
-
-      <.icon name="hero-x-mark-solid" />
-      <.icon name="hero-arrow-path" class="ml-1 w-3 h-3 animate-spin" />
-  """
-  attr(:name, :string, required: true)
-  attr(:class, :string, default: nil)
-
-  def icon(%{name: "hero-" <> _} = assigns) do
-    ~H"""
-    <span class={[@name, @class]} />
     """
   end
 

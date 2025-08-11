@@ -253,6 +253,64 @@
     font-weight: 500;
     line-height: 20px;
   }
+
+  .clickable-table-row {
+    position: relative;
+    transform: translate(0);
+  }
+
+  .clickable-table-row-mask {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    max-height: 52px;
+  }
+
+  .scrollable-inner {
+    overflow-y: scroll;
+    scrollbar-width: none;
+  }
+
+  .pinned-device-tag-gradient-mask {
+    position: absolute;
+    top: 0;
+    right: 16px;
+    width: 50px;
+    height: 100%;
+    background-image: linear-gradient(
+      to right,
+      rgba(24, 24, 27, 0),
+      rgba(24, 24, 27, 1)
+    );
+  }
+
+  .device-show-tag-gradient-mask {
+    position: absolute;
+    top: 0;
+    right: 16px;
+    width: 50px;
+    height: 100%;
+    z-index: 1;
+    background-image: linear-gradient(
+      to right,
+      rgba(24, 24, 27, 0),
+      rgba(24, 24, 27, 1)
+    );
+  }
+
+  .device-logs-gradient-mask {
+    position: absolute;
+    top: 0;
+    right: 0px;
+    width: 50px;
+    height: 100%;
+    z-index: 1;
+    background-image: linear-gradient(
+      to right,
+      rgba(14, 16, 25, 0),
+      rgba(14, 16, 25, 1)
+    );
+  }
 }
 
 html {

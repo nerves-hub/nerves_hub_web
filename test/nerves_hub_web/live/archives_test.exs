@@ -138,7 +138,10 @@ defmodule NervesHubWeb.Live.ArchivesTest do
         render(view)
       end)
       |> assert_path("/org/#{org.name}/#{product.name}/archives/upload")
-      |> assert_has("div", text: "Archive corrupt, signature invalid, or missing public key")
+      |> assert_has("div",
+        text:
+          "Archive corrupt, signature invalid, or the key used for signing hasn't been uploaded."
+      )
     end
 
     @tag :tmp_dir
@@ -175,7 +178,10 @@ defmodule NervesHubWeb.Live.ArchivesTest do
         render(view)
       end)
       |> assert_path("/org/#{org.name}/#{product.name}/archives/upload")
-      |> assert_has("div", text: "Archive corrupt, signature invalid, or missing public key")
+      |> assert_has("div",
+        text:
+          "Archive corrupt, signature invalid, or the key used for signing hasn't been uploaded."
+      )
     end
   end
 end

@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
@@ -36,7 +37,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       |> Map.put(:anchor, "latest-activity")
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
-    current_device_count = ManagedDeployments.get_device_count(deployment_group)
     updating_count = Devices.updating_count(deployment_group)
 
     socket
@@ -51,7 +51,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> assign(:audit_pager, audit_pager)
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:firmware, deployment_group.firmware)
-    |> assign(:current_device_count, current_device_count)
+    |> assign_matched_devices_count()
     |> schedule_inflight_updates_updater()
     |> ok()
   end
@@ -87,9 +87,23 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     DeploymentGroupTemplates.audit_deployment_toggle_active(user, deployment_group, active_str)
 
     socket
-    |> put_flash(:info, "Deployment set #{active_str}")
-    |> send_toast(:info, "Deployment #{(value && "resumed") || "paused"}")
+    |> put_flash(:info, "Deployment #{(value && "resumed") || "paused"}")
     |> assign(:deployment_group, deployment_group)
+    |> noreply()
+  end
+
+  def handle_event("toggle-delta-updates", _params, socket) do
+    authorized!(:"deployment_group:toggle_delta_updates", socket.assigns.org_user)
+
+    {:ok, deployment_group} =
+      ManagedDeployments.toggle_delta_updates(socket.assigns.deployment_group)
+
+    socket
+    |> assign(:deployment_group, deployment_group)
+    |> put_flash(
+      :info,
+      "Delta updates #{(deployment_group.delta_updatable && "enabled") || "disabled"} successfully."
+    )
     |> noreply()
   end
 
@@ -104,7 +118,161 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     socket
     |> put_flash(:info, "Deployment Group successfully deleted")
-    |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployment_groups")
+    |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups")
+    |> noreply()
+  end
+
+  def handle_event("move-matched-devices-to-deployment-group", _params, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    move_devices = fn ->
+      deployment_group
+      |> ManagedDeployments.matched_device_ids(in_deployment: false)
+      |> Devices.move_many_to_deployment_group(deployment_group)
+      |> then(fn {:ok, %{updated: updated_count, ignored: ignored_count}} ->
+        if ignored_count > 0 do
+          {:error, updated_count, ignored_count}
+        else
+          updated_count
+        end
+      end)
+    end
+
+    socket
+    |> start_async(:move_devices_to_deployment, move_devices)
+    |> put_flash(:info, "Moving devices to deployment, this may take a moment")
+    |> noreply()
+  end
+
+  def handle_event("remove-unmatched-devices-from-deployment-group", _params, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    matched_device_ids =
+      ManagedDeployments.matched_device_ids(deployment_group, in_deployment: true)
+
+    remove_devices = fn ->
+      {:ok, %{updated: updated, ignored: ignored}} =
+        Devices.remove_unmatched_devices_from_deployment_group(
+          matched_device_ids,
+          deployment_group
+        )
+
+      if ignored > 0 do
+        {:error, updated, ignored}
+      else
+        updated
+      end
+    end
+
+    socket
+    |> start_async(:remove_devices_from_deployment, remove_devices)
+    |> put_flash(:info, "Removing devices from deployment, this may take a moment")
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_async(
+        :move_devices_to_deployment,
+        {:ok, {:error, updated_count, ignored_count}},
+        socket
+      ) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    :ok =
+      Logging.log_to_sentry(
+        deployment_group,
+        "There was an issue moving devices to a deployment group.",
+        %{
+          updated_count: updated_count,
+          ignored_count: ignored_count,
+          deployment_group_id: deployment_group.id
+        }
+      )
+
+    socket
+    |> put_flash(
+      :error,
+      "#{updated_count} devices moved to #{socket.assigns.deployment_group.name}. However, we couldn't move #{ignored_count} devices. We've been notified and are looking into it."
+    )
+    |> assign_matched_devices_count()
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_async(:move_devices_to_deployment, {:ok, devices_updated_count}, socket) do
+    socket
+    |> put_flash(
+      :info,
+      "#{devices_updated_count} devices moved to #{socket.assigns.deployment_group.name}"
+    )
+    |> assign_matched_devices_count()
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_async(:move_devices_to_deployment, {:exit, reason}, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+    :ok = Logging.log_to_sentry(deployment_group, reason)
+
+    socket
+    |> put_flash(
+      :error,
+      "There was an issue moving devices to #{deployment_group.name}. We've been notified and are looking into it."
+    )
+    |> assign_matched_devices_count()
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_async(
+        :remove_devices_from_deployment,
+        {:ok, {:error, updated_count, ignored_count}},
+        socket
+      ) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    :ok =
+      Logging.log_to_sentry(
+        deployment_group,
+        "There was an issue removing devices from a deployment group.",
+        %{
+          updated_count: updated_count,
+          ignored_count: ignored_count,
+          deployment_group_id: deployment_group.id
+        }
+      )
+
+    socket
+    |> put_flash(
+      :error,
+      "#{updated_count} devices removed from #{socket.assigns.deployment_group.name}. However, we couldn't remove #{ignored_count} devices. We've been notified and are looking into it."
+    )
+    |> assign_matched_devices_count()
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_async(:remove_devices_from_deployment, {:ok, devices_removed_count}, socket) do
+    socket
+    |> put_flash(
+      :info,
+      "#{devices_removed_count} devices removed from #{socket.assigns.deployment_group.name}"
+    )
+    |> assign_matched_devices_count()
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_async(:remove_devices_from_deployment, {:exit, reason}, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+    :ok = Logging.log_to_sentry(deployment_group, reason)
+
+    socket
+    |> put_flash(
+      :error,
+      "There was an issue removing devices from #{deployment_group.name}. We've been notified and are looking into it."
+    )
+    |> assign_matched_devices_count()
     |> noreply()
   end
 
@@ -155,20 +323,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   defp help_message_for(field) do
     case field do
-      :failure_threshold ->
-        "Maximum number of target devices from this deployment group that can be in an unhealthy state before marking the deployment group unhealthy"
-
-      :failure_rate ->
-        "Maximum number of device install failures from this deployment group within X seconds before being marked unhealthy"
-
       :device_failure_rate ->
-        "Maximum number of device failures within X seconds a device can have for this deployment group before being marked unhealthy"
+        "Maximum number of update attempts within X seconds a device can have for this deployment group before being placed in penalty box."
 
       :device_failure_threshold ->
-        "Maximum number of install attempts and/or failures a device can have for this deployment group before being marked unhealthy"
+        "Maximum number of update attempts a device can have for this deployment group before being placed in penalty box."
 
       :penalty_timeout_minutes ->
-        "Number of minutes a device is placed in the penalty box for reaching the failure rate and threshold"
+        "Number of minutes a device is placed in penalty box for reaching the failure rate or threshold."
     end
   end
 
@@ -200,5 +362,24 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   defp firmware_display_name(%Firmware{} = f) do
     "#{f.version} #{f.platform} #{f.architecture} #{f.uuid}"
+  end
+
+  defp assign_matched_devices_count(%{assigns: %{deployment_group: deployment_group}} = socket) do
+    current_device_count = ManagedDeployments.get_device_count(deployment_group)
+
+    matched_devices_count =
+      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true)
+
+    matched_devices_outside_deployment_group_count =
+      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false)
+
+    socket
+    |> assign(:matched_device_count, matched_devices_count)
+    |> assign(:unmatched_device_count, current_device_count - matched_devices_count)
+    |> assign(
+      :matched_devices_outside_deployment_group_count,
+      matched_devices_outside_deployment_group_count
+    )
+    |> assign(:deployment_group, %{deployment_group | device_count: current_device_count})
   end
 end

@@ -32,7 +32,7 @@
   Country Name (2 letter code) [AU]:
   State or Province Name (full name) [Some-State]:
   Locality Name (eg, city) []:
-  Organization Name (eg, company) [Internet Widgits Pty Ltd]:
+  Organization Name (eg, company) [Internet Widgets Pty Ltd]:
   Organizational Unit Name (eg, section) []:
   Common Name (e.g. server FQDN or YOUR name) []: <%= @registration_code %>
   Email Address []:
@@ -145,7 +145,7 @@
   </div>
 
   <div class="button-submit-wrapper">
-    <.link id="back-button" class="btn btn-outline-light" patch={~p"/org/#{@org.name}/settings/certificates"}>Cancel</.link>
+    <.link id="back-button" class="btn btn-outline-light" patch={~p"/org/#{@org}/settings/certificates"}>Cancel</.link>
     {submit("Create Certificate", class: "btn btn-primary")}
   </div>
 </.form>

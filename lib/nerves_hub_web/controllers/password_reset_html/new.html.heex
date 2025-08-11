@@ -1,0 +1,24 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Reset your password
+  </:title>
+  <:subheader>
+    You can recover access to your account by resetting your password.
+  </:subheader>
+
+  <div class="mt-6">
+    <div>
+      <.form :let={f} for={@conn.params["user"]} as={:user} action={~p"/password-reset"} class="space-y-6">
+        <div>
+          <.input field={f[:email]} label="Email" placeholder="eg. jane@company.com" />
+        </div>
+
+        <div>
+          <.button style="primary" type="submit" class="flex w-full justify-center">
+            Send password reset instructions
+          </.button>
+        </div>
+      </.form>
+    </div>
+  </div>
+</Layouts.auth>

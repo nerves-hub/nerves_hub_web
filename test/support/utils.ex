@@ -1,6 +1,27 @@
 defmodule NervesHub.Support.Utils do
   @moduledoc false
 
+  alias NervesHub.Accounts.UserToken
+  alias NervesHub.Repo
+  alias NervesHub.Utils.Base62
+
+  def create_v1_user_token!(user) do
+    secret =
+      <<user.name::binary, user.email::binary, DateTime.to_unix(DateTime.utc_now())::32>>
+
+    <<initial::160>> = Plug.Crypto.KeyGenerator.generate(secret, "user-#{user.id}", length: 20)
+    <<rand::30-bytes, _::binary>> = Base62.encode(initial) |> String.pad_leading(30, "0")
+    crc = :erlang.crc32(rand) |> Base62.encode() |> String.pad_leading(6, "0")
+    token = "nhu_#{rand}#{crc}"
+
+    Repo.insert!(%UserToken{
+      old_token: token,
+      context: "api",
+      note: "I love working with binary",
+      user_id: user.id
+    })
+  end
+
   def nh1_key_secret_headers(auth, identifier, opts \\ []) do
     opts =
       opts

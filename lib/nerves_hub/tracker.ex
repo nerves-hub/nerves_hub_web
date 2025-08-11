@@ -100,11 +100,16 @@ defmodule NervesHub.Tracker do
 
   Times out if console is unavailable.
   """
-  def console_active?(device) do
+  @spec console_active?(Device.t() | non_neg_integer()) :: boolean()
+  def console_active?(%Device{id: id}) do
+    console_active?(id)
+  end
+
+  def console_active?(device_id) do
     _ =
       Phoenix.PubSub.broadcast(
         NervesHub.PubSub,
-        "device:console:#{device.id}",
+        "device:console:#{device_id}",
         {:active?, self()}
       )
 
