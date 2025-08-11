@@ -13,11 +13,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
 
+  alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
 
   alias NervesHubWeb.Components.DeviceUpdateStatus
+  alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.HealthStatus
+  alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
@@ -32,8 +35,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     platform: "",
     healthy: "",
     health_status: "",
-    device_id: "",
-    tag: "",
+    identifier: "",
+    tags: "",
     updates: "",
     has_no_tags: false,
     alarm_status: "",
@@ -42,7 +45,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_operator: "gt",
     metrics_value: "",
     deployment_id: "",
-    is_pinned: false
+    is_pinned: false,
+    search: "",
+    display_deleted: "exclude"
   }
 
   @filter_types %{
@@ -52,8 +57,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     platform: :string,
     healthy: :string,
     health_status: :string,
-    device_id: :string,
-    tag: :string,
+    identifier: :string,
+    tags: :string,
     updates: :string,
     has_no_tags: :boolean,
     alarm_status: :string,
@@ -62,7 +67,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_operator: :string,
     metrics_value: :string,
     deployment_id: :string,
-    is_pinned: :boolean
+    is_pinned: :boolean,
+    search: :string,
+    display_deleted: :string
   }
 
   @default_page 1
@@ -105,6 +112,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:deployment_groups, ManagedDeployments.get_deployment_groups_by_product(product))
     |> assign(:available_deployment_groups_for_filtered_platform, [])
     |> assign(:target_deployment_group, nil)
+    |> assign(
+      :soft_deleted_devices_exist,
+      Devices.soft_deleted_devices_exist_for_product?(product.id)
+    )
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
@@ -239,17 +250,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     selected_devices = socket.assigns.selected_devices
 
     selected_devices =
-      if Enum.count(selected_devices) > 0 do
+      if !socket.assigns.devices.ok? || Enum.count(selected_devices) > 0 do
         []
       else
-        Enum.map(socket.assigns.devices, & &1.id)
+        Enum.map(socket.assigns.devices.result, & &1.id)
       end
 
-    socket =
-      socket
-      |> assign(:selected_devices, selected_devices)
-
-    {:noreply, socket}
+    socket
+    |> assign(:selected_devices, selected_devices)
+    |> noreply()
   end
 
   def handle_event("deselect-all", _, socket) do
@@ -272,7 +281,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
-    |> send_toast(
+    |> put_flash(
       :info,
       "Tagged #{Enum.count(socket.assigns.selected_devices)} selected device(s)."
     )
@@ -356,7 +365,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
-    |> send_toast(:info, "Disabled updates for #{Enum.count(successfuls)} selected device(s).")
+    |> put_flash(:info, "Disabled updates for #{Enum.count(successfuls)} selected device(s).")
     |> assign_display_devices()
     |> noreply()
   end
@@ -368,7 +377,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
-    |> send_toast(:info, "Enabled updates for #{Enum.count(successfuls)} selected device(s).")
+    |> put_flash(:info, "Enabled updates for #{Enum.count(successfuls)} selected device(s).")
     |> assign_display_devices()
     |> noreply()
   end
@@ -380,7 +389,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
-    |> send_toast(
+    |> put_flash(
       :info,
       "#{Enum.count(successfuls)} selected device(s) cleared from the penalty box."
     )
@@ -408,7 +417,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     authorized!(:"device:toggle-updates", org_user)
 
     {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
-    {:ok, device} = Devices.toggle_health(device, user)
+    {:ok, device} = Devices.toggle_automatic_updates(device, user)
 
     socket
     |> put_flash(:info, "Toggled device firmware updates")
@@ -474,31 +483,59 @@ defmodule NervesHubWeb.Live.Devices.Index do
       filters: transform_deployment_filter(socket.assigns.current_filters)
     }
 
-    page = Devices.filter(product, user, opts)
+    if socket.assigns[:devices] && socket.assigns.devices.ok? do
+      socket
+    else
+      socket
+      |> assign(:devices, AsyncResult.loading())
+      |> assign(:device_statuses, AsyncResult.loading())
+    end
+    |> start_async(:update_device_list, fn -> Devices.filter(product, user, opts) end)
+  end
 
-    statuses =
-      Enum.into(page.entries, %{}, fn device ->
+  def handle_async(:update_device_list, {:ok, {updated_devices, pager}}, socket) do
+    %{devices: old_devices, device_statuses: old_device_statuses, paginate_opts: paginate_opts} =
+      socket.assigns
+
+    updated_device_statuses =
+      Enum.into(updated_devices, %{}, fn device ->
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
 
         {device.identifier, Tracker.connection_status(device)}
       end)
 
     socket
-    |> assign(:device_statuses, statuses)
-    |> assign_display_devices(page)
+    |> assign(:devices, AsyncResult.ok(old_devices, updated_devices))
+    |> assign(:device_statuses, AsyncResult.ok(old_device_statuses, updated_device_statuses))
+    |> device_pagination_assigns(paginate_opts, pager)
+    |> noreply()
   end
 
-  defp assign_display_devices(%{assigns: %{paginate_opts: paginate_opts}} = socket, page) do
-    paginate_opts =
-      paginate_opts
-      |> Map.put(:page_number, page.current_page)
-      |> Map.put(:page_size, page.page_size)
-      |> Map.put(:total_pages, page.total_pages)
+  def handle_async(:update_device_list, {:exit, reason}, socket) do
+    %{devices: devices, device_statuses: device_statuses} = socket.assigns
+
+    message =
+      "Live.Devices.Index.handle_async:update_device_list failed due to exit: #{inspect(reason)}"
+
+    {:ok, _} = Sentry.capture_message(message, result: :none)
 
     socket
-    |> assign(:devices, page.entries)
-    |> assign(:total_entries, page.total_count)
+    |> assign(:devices, AsyncResult.failed(devices, {:exit, reason}))
+    |> assign(:device_statuses, AsyncResult.ok(device_statuses, {:exit, reason}))
+    |> noreply()
+  end
+
+  defp device_pagination_assigns(socket, paginate_opts, pager) do
+    paginate_opts =
+      paginate_opts
+      |> Map.put(:page_number, pager.current_page)
+      |> Map.put(:page_size, pager.page_size)
+      |> Map.put(:total_pages, pager.total_pages)
+
+    socket
+    |> assign(:total_entries, pager.total_count)
     |> assign(:paginate_opts, paginate_opts)
+    |> assign(:pager_meta, pager)
   end
 
   defp transform_deployment_filter(%{deployment_id: ""} = filters),
@@ -511,13 +548,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     do: %{filters | deployment_id: String.to_integer(filters.deployment_id)}
 
   defp update_device_statuses(socket, payload) do
-    # Only sync devices currently on display
-    if Map.has_key?(socket.assigns.device_statuses, payload.device_id) do
-      device_statuses = Map.put(socket.assigns.device_statuses, payload.device_id, payload.status)
-      {:noreply, assign(socket, :device_statuses, device_statuses)}
-    else
-      {:noreply, socket}
-    end
+    updated_device_statuses =
+      Map.replace(socket.assigns.device_statuses.result, payload.device_id, payload.status)
+
+    {:noreply,
+     assign(
+       socket,
+       :device_statuses,
+       AsyncResult.ok(updated_device_statuses)
+     )}
   end
 
   defp move_products_toast(socket, successfuls) do
@@ -532,7 +571,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> Enum.filter(fn m -> is_binary(m) end)
       |> Enum.join(" ")
 
-    send_toast(socket, :info, message)
+    put_flash(socket, :info, message)
   end
 
   defp firmware_versions(product_id) do
@@ -698,6 +737,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> JS.hide(transition: "fade-out", to: "##{id}")
   end
 
+  def fade_in(selector) do
+    JS.show(
+      to: selector,
+      transition: {"transition-all transform ease-out duration-300", "opacity-0", "opacity-100"}
+    )
+  end
+
   defp update_flash_for_moving_deployment_group(
          socket,
          updated_count,
@@ -723,9 +769,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
           "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_group_name}. #{not_updated_count} #{maybe_pluralize.(not_updated_count, "device")} could not be added to deployment because of mismatched firmware"
       end
 
-    socket
-    |> put_flash(:info, message)
-    |> send_toast(:info, message)
+    put_flash(socket, :info, message)
   end
 
   defp progress_style(nil) do
@@ -754,4 +798,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp maybe_assign_available_deployment_groups_for_filtered_platform(socket),
     do: assign(socket, :available_deployment_groups_for_filtered_platform, [])
+
+  defp has_results?(%AsyncResult{} = device_async, currently_filtering?) do
+    device_async.ok? && (Enum.any?(device_async.result) || currently_filtering?)
+  end
 end

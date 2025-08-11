@@ -9,12 +9,27 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHub.Repo
+
   alias NervesHubWeb.Endpoint
+  alias NervesHubWeb.Helpers.RoleValidateHelpers
 
-  action_fallback(NervesHubWeb.API.FallbackController)
+  plug(
+    :validate_role,
+    [org: :manage]
+    when action in [
+           :create,
+           :update,
+           :delete,
+           :reboot,
+           :reconnect,
+           :upgrade,
+           :penalty,
+           :move,
+           :code
+         ]
+  )
 
-  plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
-  plug(:validate_role, [org: :view] when action in [:index, :auth])
+  plug(:validate_role, [org: :view] when action in [:index, :show, :auth])
 
   def index(%{assigns: %{org: org, product: product}} = conn, params) do
     opts = %{
@@ -30,7 +45,7 @@ defmodule NervesHubWeb.API.DeviceController do
     conn
     |> assign(:devices, devices)
     |> assign(:pagination, pagination)
-    |> render("index.json")
+    |> render(:index)
   end
 
   def create(%{assigns: %{org: org, product: product}} = conn, params) do
@@ -40,7 +55,7 @@ defmodule NervesHubWeb.API.DeviceController do
       |> Map.put("product_id", product.id)
 
     with {:ok, device} <- Devices.create_device(params) do
-      device = Repo.preload(device, [:org, :product, deployment_group: [:firmware]])
+      device = preload_device(device)
 
       conn
       |> put_status(:created)
@@ -48,49 +63,27 @@ defmodule NervesHubWeb.API.DeviceController do
         "location",
         Routes.api_device_path(conn, :show, org.name, product.name, device.identifier)
       )
-      |> render("show.json", device: device)
+      |> render(:show, device: device)
     end
   end
 
-  def show(conn, %{"identifier" => identifier}) do
-    %{user: user} = conn.assigns
-
-    case Devices.get_by_identifier(identifier) do
-      {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :view) do
-          conn
-          |> assign(:device, device)
-          |> render("show.json")
-        else
-          conn
-          |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: read"}))
-        end
-
-      {:error, :not_found} ->
-        conn
-        |> put_status(404)
-        |> put_view(NervesHubWeb.API.ErrorView)
-        |> render(:"404")
-    end
+  def show(conn, _) do
+    render(conn, :show)
   end
 
-  def delete(%{assigns: %{org: org}} = conn, %{"identifier" => identifier}) do
-    {:ok, device} = Devices.get_device_by_identifier(org, identifier)
+  def delete(%{assigns: %{org: _org, device: device}} = conn, _params) do
     {:ok, _device} = Devices.delete_device(device)
 
     send_resp(conn, :no_content, "")
   end
 
-  def update(%{assigns: %{org: org}} = conn, %{"identifier" => identifier} = params) do
-    with {:ok, device} <- Devices.get_device_by_identifier(org, identifier),
-         {:ok, updated_device} <- Devices.update_device(device, params) do
-      updated_device =
-        Repo.preload(updated_device, [:org, :product, deployment_group: [:firmware]])
+  def update(%{assigns: %{device: device}} = conn, params) do
+    with {:ok, updated_device} <- Devices.update_device(device, params) do
+      updated_device = preload_device(updated_device)
 
       conn
       |> put_status(201)
-      |> render("show.json", device: updated_device)
+      |> render(:show, device: updated_device)
     end
   end
 
@@ -100,11 +93,11 @@ defmodule NervesHubWeb.API.DeviceController do
          {:ok, %DeviceCertificate{device_id: device_id}} <-
            Devices.get_device_certificate_by_x509(cert),
          {:ok, device} <- Devices.get_device_by_org(org, device_id) do
-      device = Repo.preload(device, [:org, :product, deployment_group: [:firmware]])
+      device = preload_device(device)
 
       conn
       |> put_status(200)
-      |> render("show.json", device: device)
+      |> render(:show, device: device)
     else
       _e ->
         conn
@@ -112,185 +105,99 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  def reboot(conn, %{"identifier" => identifier}) do
-    %{user: user} = conn.assigns
+  def reboot(%{assigns: %{user: user, device: device}} = conn, _params) do
+    DeviceTemplates.audit_reboot(user, device)
 
-    case Devices.get_by_identifier(identifier) do
-      {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :manage) do
-          DeviceTemplates.audit_reboot(user, device)
+    _ = Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
-          _ = Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
+    send_resp(conn, :no_content, "")
+  end
 
-          send_resp(conn, 200, "Success")
-        else
-          conn
-          |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
-        end
+  def reconnect(%{assigns: %{device: device}} = conn, _params) do
+    _ = Endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
 
-      {:error, :not_found} ->
-        conn
-        |> put_status(404)
-        |> put_view(NervesHubWeb.API.ErrorView)
-        |> render(:"404")
+    send_resp(conn, :no_content, "")
+  end
+
+  def code(%{assigns: %{device: device}} = conn, %{"body" => body}) do
+    body
+    |> String.graphemes()
+    |> Enum.each(fn character ->
+      Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{
+        "data" => character
+      })
+    end)
+
+    Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{"data" => "\r"})
+
+    send_resp(conn, :no_content, "")
+  end
+
+  def upgrade(%{assigns: %{device: device, user: user}} = conn, %{"uuid" => uuid}) do
+    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(device.product, uuid)
+
+    {:ok, url} = Firmwares.get_firmware_url(firmware)
+    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
+
+    {:ok, device} = Devices.disable_updates(device, user)
+    device = Repo.preload(device, [:device_certificates])
+
+    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
+
+    payload = %UpdatePayload{
+      update_available: true,
+      firmware_url: url,
+      firmware_meta: meta
+    }
+
+    _ =
+      NervesHubWeb.Endpoint.broadcast(
+        "device:#{device.id}",
+        "deployments/update",
+        payload
+      )
+
+    send_resp(conn, :no_content, "")
+  end
+
+  def penalty(%{assigns: %{device: device, user: user}} = conn, _params) do
+    case Devices.clear_penalty_box(device, user) do
+      {:ok, _device} ->
+        send_resp(conn, :no_content, "")
+
+      {:error, _, _, _} ->
+        {:error, "Failed to clear penalty box. Please contact support if this persists."}
     end
   end
 
-  def reconnect(conn, %{"identifier" => identifier}) do
-    %{user: user} = conn.assigns
-
-    case Devices.get_by_identifier(identifier) do
-      {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :manage) do
-          _ = Endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
-
-          send_resp(conn, 200, "Success")
-        else
-          conn
-          |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
-        end
-
-      {:error, :not_found} ->
-        conn
-        |> put_status(404)
-        |> put_view(NervesHubWeb.API.ErrorView)
-        |> render(:"404")
-    end
-  end
-
-  def code(conn, %{"identifier" => identifier, "body" => body}) do
-    %{user: user} = conn.assigns
-
-    case Devices.get_by_identifier(identifier) do
-      {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :manage) do
-          body
-          |> String.graphemes()
-          |> Enum.each(fn character ->
-            Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{
-              "data" => character
-            })
-          end)
-
-          Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{"data" => "\r"})
-
-          send_resp(conn, 200, "Success")
-        else
-          conn
-          |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
-        end
-
-      {:error, :not_found} ->
-        conn
-        |> put_status(404)
-        |> put_view(NervesHubWeb.API.ErrorView)
-        |> render(:"404")
-    end
-  end
-
-  def upgrade(conn, %{"identifier" => identifier, "uuid" => uuid}) do
-    %{user: user} = conn.assigns
-
-    case Devices.get_by_identifier(identifier) do
-      {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :manage) do
-          {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(device.product, uuid)
-
-          {:ok, url} = Firmwares.get_firmware_url(firmware)
-          {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
-
-          {:ok, device} = Devices.disable_updates(device, user)
-          device = Repo.preload(device, [:device_certificates])
-
-          DeviceTemplates.audit_firmware_pushed(user, device, firmware)
-
-          payload = %UpdatePayload{
-            update_available: true,
-            firmware_url: url,
-            firmware_meta: meta
-          }
-
-          _ =
-            NervesHubWeb.Endpoint.broadcast(
-              "device:#{device.id}",
-              "deployments/update",
-              payload
-            )
-
-          send_resp(conn, 204, "")
-        else
-          conn
-          |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
-        end
-
-      {:error, :not_found} ->
-        conn
-        |> put_status(404)
-        |> put_view(NervesHubWeb.API.ErrorView)
-        |> render(:"404")
-    end
-  end
-
-  def penalty(conn, %{"identifier" => identifier}) do
-    %{user: user} = conn.assigns
-
-    case Devices.get_by_identifier(identifier) do
-      {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :manage) do
-          case Devices.clear_penalty_box(device, user) do
-            {:ok, _device} ->
-              send_resp(conn, 204, "")
-
-            {:error, _, _, _} ->
-              send_resp(conn, 400, "")
-          end
-        else
-          conn
-          |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
-        end
-
-      {:error, :not_found} ->
-        conn
-        |> put_status(404)
-        |> put_view(NervesHubWeb.API.ErrorView)
-        |> render(:"404")
-    end
-  end
-
-  def move(conn, %{
-        "identifier" => identifier,
-        "org_name" => org_name,
-        "product_name" => product_name
+  def move(%{assigns: %{device: device, user: user}} = conn, %{
+        "new_org_name" => org_name,
+        "new_product_name" => product_name
       }) do
-    %{user: user} = conn.assigns
+    with {:ok, move_to_org} <- Accounts.get_org_by_name(org_name),
+         _ <- RoleValidateHelpers.validate_org_user_role(conn, move_to_org, user, :manage),
+         {:ok, product} <- Products.get_product_by_org_id_and_name(move_to_org.id, product_name) do
+      case Devices.move(device, product, user) do
+        {:ok, device} ->
+          device = preload_device(device)
 
-    with {:ok, device} <- Devices.get_by_identifier(identifier),
-         {:ok, org} <- Accounts.get_org_by_name(org_name),
-         {:ok, product} <- Products.get_product_by_org_id_and_name(org.id, product_name) do
-      if Accounts.has_org_role?(device.org, user, :manage) &&
-           Accounts.has_org_role?(org, user, :manage) do
-        case Devices.move(device, product, user) do
-          {:ok, device} ->
-            device = Repo.preload(device, [:org, :product])
+          conn
+          |> assign(:device, device)
+          |> render(:show)
 
-            conn
-            |> assign(:device, device)
-            |> render("show.json")
-
-          {:error, changeset} ->
-            # fallback controller will render this
-            {:error, changeset}
-        end
-      else
-        conn
-        |> put_resp_header("content-type", "application/json")
-        |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
+        {:error, changeset} ->
+          # fallback controller will render this
+          {:error, changeset}
       end
     end
+  end
+
+  defp preload_device(device) do
+    Repo.preload(device, [
+      :org,
+      :product,
+      :latest_connection,
+      deployment_group: [:firmware]
+    ])
   end
 end

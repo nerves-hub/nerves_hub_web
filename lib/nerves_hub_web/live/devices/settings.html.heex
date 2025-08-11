@@ -1,4 +1,4 @@
-<.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"} class="back-link">
+<.link navigate={~p"/org/#{@org}/#{@product}/devices/#{@device.identifier}"} class="back-link">
   Back to Device
 </.link>
 <h1>Device Settings</h1>
@@ -141,7 +141,7 @@
       <br />
       <center>If the intention is leave the Signer CA in the other organization, then this will continue to work</center>
       <center>so long as certificates are managed manually for this device and other metadata, such as the product</center>
-      <center>and firmware signing keys appropiately match the existing firmware as well</center>
+      <center>and firmware signing keys appropriately match the existing firmware as well</center>
     </div>
   </div>
 <% end %>
@@ -188,7 +188,7 @@
             </a>
             <div class="dropdown-menu dropdown-menu-right">
               <%= if mismatch? do %>
-                {link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: ~p"/org/#{Repo.preload(cert, :org).org.name}")}
+                {link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: ~p"/org/#{Repo.preload(cert, :org).org}")}
               <% end %>
               <%= if cert.der do %>
                 {link("Download",

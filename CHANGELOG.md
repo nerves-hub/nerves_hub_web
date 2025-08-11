@@ -122,7 +122,7 @@ Since then we have contributions from 19 people where Eric Oestrich dominates
 the stats. Followed by Josh Kalderimis. Then Jon Carstens.
 
 There are a lot of things planned. SmartRent, NervesCloud and other users of
-the project are in active collaboration on improving the featureset, the
+the project are in active collaboration on improving the feature set, the
 performance and the user experience. We want this to be not just a great tool
 for developers that choose Nerves but a surprising delight and joy to use.
 

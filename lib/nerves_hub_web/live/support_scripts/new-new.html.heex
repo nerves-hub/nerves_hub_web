@@ -1,6 +1,6 @@
-<div class="h-[56px] skrink-0 flex justify-between bg-base-900 border-b border-base-700 pl-6 items-center">
+<div class="h-[56px] shrink-0 flex justify-between bg-base-900 border-b border-base-700 pl-6 items-center">
   <div class="flex gap-2.5">
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts"} class="back-link flex gap-2.5 items-center">
+    <.link navigate={~p"/org/#{@org}/#{@product}/scripts"} class="back-link flex gap-2.5 items-center">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
@@ -37,7 +37,8 @@
         </div>
         <div class="flex p-6 gap-6">
           <div class="w-1/2 flex flex-col gap-6">
-            <.input field={@form[:name]} label="Name" placeholder="eg. System Debugging" />
+            <.input field={@form[:name]} label="Name" placeholder="System Debugging" />
+            <.input field={@form[:tags]} label="Tags" placeholder="info, action" />
           </div>
 
           <div class="w-1/2 flex flex-col gap-2">

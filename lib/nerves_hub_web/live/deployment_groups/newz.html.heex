@@ -1,6 +1,6 @@
-<div class="h-[56px] skrink-0 flex justify-between bg-base-900 border-b border-base-700 pl-6 items-center">
+<div class="h-[56px] shrink-0 flex justify-between bg-base-900 border-b border-base-700 pl-6 items-center">
   <div class="flex gap-2.5">
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups"} class="back-link flex gap-2.5 items-center">
+    <.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups"} class="back-link flex gap-2.5 items-center">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
@@ -31,7 +31,7 @@
 
   <div :if={@firmware_required} class="h-full pb-16 flex flex-col items-center justify-center gap-4 p-6">
     <span class="text-xl font-medium text-neutral-50">Please upload your first firmware before creating a deployment group.</span>
-    <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" navigate={~p"/org/#{@org.name}/#{@product.name}/firmware"} aria-label="Add a new deployment group">
+    <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" navigate={~p"/org/#{@org}/#{@product}/firmware"} aria-label="Add a new deployment group">
       Go to the firmware page
     </.link>
   </div>
@@ -98,7 +98,7 @@
             </div>
             <div class="flex gap-6">
               <div class="w-1/2">
-                <.input field={@form[:tags]} value={tags_to_string(@form[:conditions])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+                <.input field={@form[:tags]} value={tags_to_string(@form[:conditions].value["tags"])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
               </div>
 
               <div class="w-1/2">

@@ -5,6 +5,7 @@ defmodule NervesHub.Products do
 
   import Ecto.Query, warn: false
 
+  alias NervesHub.Devices.Device
   alias NervesHub.Repo
 
   alias NervesHub.Accounts.Org
@@ -13,7 +14,6 @@ defmodule NervesHub.Products do
   alias NervesHub.Extensions
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
-  alias NervesHub.Workers.FirmwareDeltaBuilder
 
   alias NimbleCSV.RFC4180, as: CSV
 
@@ -102,57 +102,6 @@ defmodule NervesHub.Products do
   def create_product(params) do
     Product.changeset(%Product{}, params)
     |> Repo.insert()
-  end
-
-  @doc """
-  Toggle the delta updates attribute for a product.
-
-  ## Examples
-
-      iex> toggle_delta_updates(product)
-      {:ok, %Product{}}
-
-  """
-  @spec toggle_delta_updates(Product.t()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
-  def toggle_delta_updates(%Product{} = product) do
-    update_product(product, %{delta_updatable: !product.delta_updatable})
-  end
-
-  @doc """
-  Updates a product.
-
-  ## Examples
-
-      iex> update_product(product, %{field: new_value})
-      {:ok, %Product{}}
-
-      iex> update_product(product, %{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  @spec update_product(Product.t(), map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
-  def update_product(%Product{} = product, attrs) do
-    result =
-      product
-      |> Product.update_changeset(attrs)
-      |> Repo.update()
-
-    case result do
-      {:ok, %{delta_updatable: true} = new_product} when product.delta_updatable == false ->
-        :ok = trigger_delta_generation_for_product(new_product)
-        result
-
-      _ ->
-        result
-    end
-  end
-
-  defp trigger_delta_generation_for_product(product) do
-    NervesHub.Devices.get_device_firmware_for_delta_generation_by_product(product.id)
-    |> Enum.uniq()
-    |> Enum.each(fn {source_id, target_id} ->
-      FirmwareDeltaBuilder.start(source_id, target_id)
-    end)
   end
 
   @doc """
@@ -247,10 +196,21 @@ defmodule NervesHub.Products do
 
   @spec devices_csv(Product.t()) :: binary()
   def devices_csv(%Product{} = product) do
-    product = Repo.preload(product, [:org, devices: :device_certificates])
-    data = Enum.map(product.devices, &device_csv_line(&1, product))
+    product = Repo.preload(product, [:org])
 
-    [@csv_header | data]
+    {:ok, devices} =
+      Repo.transaction(fn ->
+        Device
+        |> where([d], d.product_id == ^product.id)
+        |> Repo.exclude_deleted()
+        |> Repo.stream(max_rows: 100)
+        |> Stream.chunk_every(100)
+        |> Stream.flat_map(&Repo.preload(&1, :device_certificates))
+        |> Stream.map(&device_csv_line(&1, product))
+        |> Enum.to_list()
+      end)
+
+    [@csv_header | devices]
     |> CSV.dump_to_iodata()
     |> IO.iodata_to_binary()
   end

@@ -22,11 +22,11 @@
         <input
           type="text"
           class="col-start-1 row-start-1 block h-full w-full bg-base-900 text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
-          name="name"
+          name="search"
           id="deployment_group_search_top"
           placeholder="Search..."
           title="Search"
-          value={@current_filters[:name]}
+          value={@current_filters[:search]}
           phx-debounce="500"
         />
 
@@ -41,8 +41,11 @@
         </svg>
       </div>
     </form>
-    <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/newz"} aria-label="Add a new deployment group">
+    <.button type="link" navigate={~p"/org/#{@org}/#{@product}/deployment_groups/newz"} aria-label="Add a new deployment group">
       <.icon name="add" /> Create Deployment Group
+    </.button>
+    <.button type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
+      <.icon name="filter" /> Filters
     </.button>
   </div>
 
@@ -82,7 +85,7 @@
         <tbody>
           <tr :for={deployment_group <- @entries} class={["border-b border-zinc-800"]}>
             <td>
-              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{deployment_group.name}"}>
+              <.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{deployment_group}"}>
                 <div class="h-[40px] w-full flex gap-[8px] items-center">
                   <svg class={["size-1.5", (deployment_group.is_active && "fill-emerald-500") || "fill-zinc-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
                     <circle cx="3" cy="3" r="3" />
@@ -107,7 +110,7 @@
 
             <td class="min-w-fit">
               <span class="inline-block h-7 py-1 px-2 items-center rounded bg-zinc-800">
-                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{deployment_group.firmware.uuid}"} class="flex items-center">
+                <.link navigate={~p"/org/#{@org}/#{@product}/firmware/#{deployment_group.firmware}"} class="flex items-center">
                   <span class="text-sm text-base-300 mr-1">{deployment_group.firmware.version} ({String.slice(deployment_group.firmware.uuid, 0..7)})</span>
                   <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
@@ -146,4 +149,10 @@
   <% end %>
 </div>
 
-<Pager.render_with_page_sizes pager={@pager_meta} page_sizes={[25, 50, 100]} />
+<FilterSidebar.render show={@show_filters} current_filters={@current_filters}>
+  <:filter attr="name" label="Name" type={:text} />
+  <:filter attr="platform" label="Platform" type={:select} values={[{"All", ""} | Enum.map(@platforms, &{if(&1, do: &1, else: "Unknown"), &1})]} />
+  <:filter attr="architecture" label="Architecture" type={:select} values={[{"All", ""} | Enum.map(@architectures, &{if(&1, do: &1, else: "Unknown"), &1})]} />
+</FilterSidebar.render>
+
+<Pager.render_with_page_sizes pager={@pager_meta} page_sizes={@paginate_opts.page_sizes} />

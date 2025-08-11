@@ -7,13 +7,11 @@ defmodule NervesHubWeb.Live.Devices.New do
   def mount(_params, _session, socket) do
     changeset = Ecto.Changeset.change(%Device{})
 
-    socket =
-      socket
-      |> page_title("New Device - #{socket.assigns.product.name}")
-      |> assign(:tab_hint, :devices)
-      |> assign(:form, to_form(changeset))
-
-    {:ok, socket}
+    socket
+    |> page_title("New Device - #{socket.assigns.product.name}")
+    |> assign(:tab_hint, :devices)
+    |> assign(:form, to_form(changeset))
+    |> ok()
   end
 
   def handle_event("save-device", %{"device" => device_params}, socket) do
@@ -29,15 +27,13 @@ defmodule NervesHubWeb.Live.Devices.New do
       {:ok, _device} ->
         socket
         |> put_flash(:info, "Device created successfully.")
-        |> send_toast(:info, "Device created successfully.")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/devices")
         |> noreply()
 
       {:error, changeset} ->
         socket
         |> assign(:form, to_form(changeset))
-        |> put_flash(:error, "Failed to add device.")
-        |> send_toast(:error, "Failed to add new device.")
+        |> put_flash(:error, "Failed to add new device.")
         |> noreply()
     end
   end

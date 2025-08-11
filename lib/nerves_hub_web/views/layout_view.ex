@@ -217,32 +217,32 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Devices",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/devices"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/devices"
       },
       %{
         title: "Firmware",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/firmware"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/firmware"
       },
       %{
         title: "Archives",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/archives"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/archives"
       },
       %{
         title: "Deployments",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/deployment_groups"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/deployment_groups"
       },
       %{
         title: "Scripts",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/scripts"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/scripts"
       },
       %{
         title: "Settings",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/settings"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/settings"
       }
     ]
     |> sidebar_active(conn)

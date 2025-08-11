@@ -2,56 +2,94 @@ defmodule NervesHubWeb.SessionController do
   use NervesHubWeb, :controller
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.UserToken
+  alias NervesHub.Accounts.UserNotifier
 
-  @session_key "auth_user_id"
+  alias NervesHubWeb.Auth
 
   def new(conn, params) do
-    conn
-    |> get_session(@session_key)
-    |> case do
-      nil ->
-        render(conn, "new.html", message: params["message"])
+    form = Phoenix.Component.to_form(%{}, as: "User")
 
-      user_id ->
-        case Accounts.get_user(user_id) do
-          {:ok, _user} ->
-            redirect(conn, to: Routes.home_path(conn, :index))
+    render(conn, :new, form: form, message: params["message"])
+  end
 
-          _ ->
-            render(conn, "new.html", message: params["message"])
-        end
+  def create(conn, %{"user" => %{"email" => email, "password" => password} = user_params}) do
+    case Accounts.get_user_by_email_and_password(email, password) do
+      %User{confirmed_at: nil} = user ->
+        resend_confirmation_email(
+          conn,
+          user,
+          "Before you login you need to confirm your email address. A new link has been sent to your email."
+        )
+
+      %User{} = user ->
+        conn
+        |> put_flash(:info, "Welcome back!")
+        |> Auth.log_in_user(user, user_params)
+
+      _ ->
+        form = Phoenix.Component.to_form(user_params, as: "user")
+
+        # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
+        conn
+        |> assign(:error_message, "Invalid email or password")
+        |> render(:new, form: form)
     end
   end
 
-  def create(conn, %{
-        "login" => %{"email" => email, "password" => password}
-      }) do
-    email
-    |> Accounts.authenticate(password)
-    |> render_create_session(conn)
+  def confirm(conn, %{"token" => token}) do
+    with {:token_fetched, {:ok, user, user_token}} <-
+           {:token_fetched, Accounts.fetch_user_by_confirm_token(token)},
+         {:token_valid, true, _user} <-
+           {:token_valid, UserToken.token_still_valid?(:confirm, user_token), user},
+         {:user_confirmed, {:ok, user}, _} <-
+           {:user_confirmed, Accounts.confirm_user(user), user},
+         {:ok, _} <- UserNotifier.deliver_welcome_email(user) do
+      conn
+      |> put_flash(:info, "Welcome to NervesHub!")
+      |> Auth.log_in_user(user)
+    else
+      {:token_valid, false, user} ->
+        resend_confirmation_email(
+          conn,
+          user,
+          "It looks like your confirmation link has expired. A new link has been sent to your email."
+        )
+
+      {:user_confirmed, :error, user} ->
+        resend_confirmation_email(
+          conn,
+          user,
+          "An unexpected error occurred. A new link has been sent to your email."
+        )
+
+      {:token_fetched, :error} ->
+        conn
+        |> assign(:error_title, "The token was invalid or expired")
+        |> display_confirmation_error("We couldn't find the token for confirming your account.")
+    end
+  end
+
+  defp resend_confirmation_email(conn, user, message) do
+    {:ok, _} =
+      Accounts.deliver_user_confirmation_instructions(
+        user,
+        &url(~p"/confirm/#{&1}")
+      )
+
+    display_confirmation_error(conn, message)
+  end
+
+  defp display_confirmation_error(conn, error_message) do
+    conn
+    |> assign(:error_message, error_message)
+    |> render(:confirm_error)
   end
 
   def delete(conn, _params) do
     conn
-    |> delete_session(@session_key)
-    |> redirect(to: "/")
-  end
-
-  defp render_create_session(account, conn) do
-    case account do
-      {:ok, user} ->
-        conn
-        |> put_session(@session_key, user.id)
-        |> redirect(to: redirect_path_after_login(conn))
-
-      {:error, :authentication_failed} ->
-        conn
-        |> put_flash(:error, "Login Failed")
-        |> redirect(to: Routes.session_path(conn, :new))
-    end
-  end
-
-  defp redirect_path_after_login(conn) do
-    get_session(conn, :login_redirect_path) || Routes.home_path(conn, :index)
+    |> put_flash(:info, "Logged out successfully.")
+    |> NervesHubWeb.Auth.log_out_user()
   end
 end

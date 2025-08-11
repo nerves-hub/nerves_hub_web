@@ -1,0 +1,28 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Reset your password
+  </:title>
+  <div class="mt-6">
+    <div :if={@changeset.action} role="alert" class="mb-6 mr-2 w-full rounded-sm p-3 ring-1 bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900">
+      <p class="mt-1 text-sm leading-5">Oops, we couldn't save your account details.</p>
+    </div>
+
+    <div>
+      <.form :let={f} for={@changeset} action={~p"/password-reset/#{@token}"} class="space-y-6">
+        <div>
+          <.input field={f[:password]} label="New password" type="password" autocomplete="current-password" required />
+        </div>
+
+        <div>
+          <.input field={f[:password_confirmation]} label="Confirm your new password" type="password" autocomplete="current-password" required />
+        </div>
+
+        <div>
+          <.button style="primary" type="submit" class="flex w-full justify-center">
+            Save changes
+          </.button>
+        </div>
+      </.form>
+    </div>
+  </div>
+</Layouts.auth>

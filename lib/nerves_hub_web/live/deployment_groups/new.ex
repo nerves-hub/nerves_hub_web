@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
         :error,
         "You must upload a firmware version before creating a Deployment Group"
       )
-      |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/firmware/upload")
+      |> push_navigate(to: ~p"/org/#{org}/#{product}/firmware/upload")
       |> ok()
     else
       platforms =
@@ -72,6 +72,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
     |> Firmwares.get_firmware(params[:firmware_id])
     |> case do
       {:ok, firmware} ->
+        params = Map.put(params, :product_id, firmware.product_id)
         {firmware, ManagedDeployments.create_deployment_group(params)}
 
       {:error, :not_found} ->
@@ -88,12 +89,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
 
         socket
         |> put_flash(:info, "Deployment Group created")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployment_groups")
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}")
         |> noreply()
 
       {_firmware, {:error, changeset}} ->
         socket
-        |> assign(:form, to_form(changeset |> tags_to_string()))
+        |> put_flash(:error, "There was an error creating the deployment")
+        |> assign(:form, to_form(changeset))
         |> noreply()
     end
   end

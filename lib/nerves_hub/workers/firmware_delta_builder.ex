@@ -7,7 +7,9 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
       states: [:available, :scheduled, :executing]
     ]
 
+  require Logger
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments
 
   @impl Oban.Worker
@@ -15,7 +17,13 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
     source = Firmwares.get_firmware!(source_id)
     target = Firmwares.get_firmware!(target_id)
 
-    {:ok, _firmware_delta} = maybe_create_firmware_delta(source, target)
+    Logger.metadata(
+      product_id: source.product_id,
+      source_firmware: source.uuid,
+      target_firmware: target.uuid
+    )
+
+    :ok = maybe_create_firmware_delta(source, target)
 
     Enum.each(ManagedDeployments.get_deployment_groups_by_firmware(target_id), fn deployment ->
       ManagedDeployments.broadcast(deployment, "deployments/update")
@@ -35,11 +43,20 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
 
   defp maybe_create_firmware_delta(source, target) do
     case Firmwares.get_firmware_delta_by_source_and_target(source, target) do
-      {:ok, firmware_delta} ->
-        {:ok, firmware_delta}
+      {:ok, %FirmwareDelta{status: :processing} = delta} ->
+        Logger.info(
+          "Attempting firmware delta build for #{source.platform} #{source.version} to #{target.version}..."
+        )
+
+        :ok = Firmwares.generate_firmware_delta(delta, source, target)
+
+      # Currently we do not retry timed out or failed delta builds
+      # This could lead to generating too many times
+      {:ok, %FirmwareDelta{status: _}} ->
+        :ok
 
       {:error, :not_found} ->
-        {:ok, _firmware_delta} = Firmwares.create_firmware_delta(source, target)
+        :ok
     end
   end
 end

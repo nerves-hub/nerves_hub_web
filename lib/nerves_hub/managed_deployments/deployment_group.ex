@@ -2,7 +2,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   use Ecto.Schema
 
   import Ecto.Changeset
-  import Ecto.Query
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Archives.Archive
@@ -11,7 +10,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
-  alias NervesHub.Repo
 
   alias __MODULE__
 
@@ -34,16 +32,16 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :device_failure_rate_seconds,
     :device_failure_rate_amount,
     :failure_threshold,
-    :failure_rate_seconds,
-    :failure_rate_amount,
     :healthy,
     :penalty_timeout_minutes,
     :connecting_code,
     :total_updating_devices,
     :current_updated_devices,
-    :orchestrator_strategy
+    :queue_management,
+    :delta_updatable
   ]
 
+  @derive {Phoenix.Param, key: :name}
   schema "deployments" do
     belongs_to(:firmware, Firmware)
     belongs_to(:product, Product, where: [deleted_at: nil])
@@ -59,8 +57,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:device_failure_rate_seconds, :integer, default: 180)
     field(:device_failure_rate_amount, :integer, default: 5)
     field(:failure_threshold, :integer, default: 50)
-    field(:failure_rate_seconds, :integer, default: 300)
-    field(:failure_rate_amount, :integer, default: 5)
     field(:is_active, :boolean)
     field(:name, :string)
     field(:healthy, :boolean, default: true)
@@ -70,67 +66,28 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:total_updating_devices, :integer, default: 0)
     field(:current_updated_devices, :integer, default: 0)
     field(:inflight_update_expiration_minutes, :integer, default: 60)
-
-    # TODO: (nshoes) this column is unused, remove after 1st March
-    # field(:recalculation_type, Ecto.Enum, values: [:device, :calculator_queue], default: :device)
+    field(:queue_management, Ecto.Enum, values: [:FIFO, :LIFO], default: :FIFO)
+    field(:delta_updatable, :boolean, default: false)
 
     field(:device_count, :integer, virtual: true)
 
-    # temporary addition while we feature test a new deployment management strategy
-    field(:orchestrator_strategy, Ecto.Enum,
-      values: [:multi, :distributed],
-      default: :distributed
-    )
+    # TODO: (joshk) this column is unused, remove after 1st May
+    # field(:orchestrator_strategy, Ecto.Enum,
+    #   values: [:multi, :distributed],
+    #   default: :distributed
+    # )
 
     timestamps()
   end
 
-  def creation_changeset(%DeploymentGroup{} = deployment, params) do
-    # set product_id by getting it from firmware
-    with_product_id = handle_product_id(deployment, params)
-
-    deployment
-    |> cast(with_product_id, @required_fields ++ @optional_fields)
-    |> validate_required(@required_fields)
-    |> unique_constraint(:name, name: :deployments_product_id_name_index)
-    |> validate_change(:is_active, fn :is_active, is_active ->
-      creation_errors(:is_active, is_active)
-    end)
+  @spec create_changeset(DeploymentGroup.t(), map()) :: Ecto.Changeset.t()
+  def create_changeset(%DeploymentGroup{} = deployment, params) do
+    base_changeset(deployment, params)
   end
 
-  defp creation_errors(:is_active, is_active) do
-    if is_active do
-      [is_active: "cannot be true on creation"]
-    else
-      []
-    end
-  end
-
-  defp handle_product_id(%DeploymentGroup{}, %{firmware: %Firmware{product_id: p_id}} = params) do
-    params |> Map.put(:product_id, p_id)
-  end
-
-  defp handle_product_id(%DeploymentGroup{firmware: %Firmware{product_id: p_id}}, params) do
-    params |> Map.put(:product_id, p_id)
-  end
-
-  defp handle_product_id(%DeploymentGroup{} = d, %{firmware_id: f_id} = params) do
-    handle_product_id(d, params |> Map.put(:firmware, Firmware |> Repo.get!(f_id)))
-  end
-
-  defp handle_product_id(%DeploymentGroup{firmware_id: nil}, params) do
-    params
-  end
-
-  defp handle_product_id(%DeploymentGroup{} = d, params) do
-    handle_product_id(d |> with_firmware(), params)
-  end
-
-  def changeset(%DeploymentGroup{} = deployment, params) do
-    deployment
-    |> cast(params, @required_fields ++ @optional_fields)
-    |> validate_required(@required_fields)
-    |> unique_constraint(:name, name: :deployments_product_id_name_index)
+  @spec update_changeset(DeploymentGroup.t(), map()) :: Ecto.Changeset.t()
+  def update_changeset(%DeploymentGroup{} = deployment, params) do
+    base_changeset(deployment, params)
     |> prepare_changes(fn changeset ->
       if changeset.changes[:firmware_id] do
         put_change(changeset, :current_updated_devices, 0)
@@ -138,53 +95,54 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
         changeset
       end
     end)
+  end
+
+  defp base_changeset(%DeploymentGroup{} = deployment, params) do
+    deployment
+    |> cast(params, @required_fields ++ @optional_fields)
+    |> validate_required(@required_fields)
+    |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> validate_conditions()
   end
 
-  def with_firmware(%DeploymentGroup{firmware: %Firmware{}} = d), do: d
+  defp validate_conditions(changeset) do
+    validate_change(changeset, :conditions, fn
+      :conditions, conditions when conditions == %{} ->
+        [conditions: "can't be blank"]
 
-  def with_firmware(%DeploymentGroup{} = d) do
-    d
-    |> Repo.preload(:firmware)
-  end
+      :conditions, %{"version" => nil} ->
+        [version: "can't be blank"]
 
-  def with_firmware(query), do: preload(query, :firmware)
+      :conditions, conditions ->
+        types = %{tags: {:array, :string}, version: :string}
+        # merge the new conditions with the existing ones so that we can
+        # update tags and version independently
+        conditions = Map.merge(changeset.data.conditions || %{}, conditions)
 
-  def with_product(%DeploymentGroup{product: %Product{}} = d), do: d
+        changeset =
+          {%{}, types}
+          # allow "" as valid value for `version`
+          |> cast(conditions, Map.keys(types), empty_values: [nil])
+          |> validate_required([:tags])
+          |> validate_change(
+            :version,
+            fn
+              :version, "" ->
+                []
 
-  def with_product(%DeploymentGroup{} = d) do
-    d
-    |> Repo.preload(:product)
-  end
+              :version, nil ->
+                [version: "can't be nil"]
 
-  def with_product(query), do: preload(query, :product)
+              :version, version ->
+                if Version.parse_requirement(version) == :error do
+                  [version: "must be valid Elixir version requirement string"]
+                else
+                  []
+                end
+            end
+          )
 
-  defp validate_conditions(changeset, _options \\ []) do
-    validate_change(changeset, :conditions, fn :conditions, conditions ->
-      types = %{tags: {:array, :string}, version: :string}
-
-      version =
-        case Map.get(conditions, "version") do
-          "" -> nil
-          v -> v
-        end
-
-      conditions = Map.put(conditions, "version", version)
-
-      changeset =
-        {%{}, types}
-        |> cast(conditions, Map.keys(types))
-        |> validate_required([:tags])
-        |> validate_length(:tags, min: 1)
-        |> validate_change(:version, fn :version, version ->
-          if not is_nil(version) and Version.parse_requirement(version) == :error do
-            [version: "Must be valid Elixir version requirement string"]
-          else
-            []
-          end
-        end)
-
-      changeset.errors
+        changeset.errors
     end)
   end
 end

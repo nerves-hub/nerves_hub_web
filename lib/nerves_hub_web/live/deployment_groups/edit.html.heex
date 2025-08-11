@@ -1,4 +1,4 @@
-<.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}"} class="back-link">
+<.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}"} class="back-link">
   Back to Deployment Group
 </.link>
 <h1>Edit Deployment Group</h1>
@@ -125,40 +125,6 @@
   </button>
 
   <div class="x2-grid deployment-group-form collapse" id="advancedOptionsToggle">
-    <div class="form-group">
-      <label for="failure_rate_amount" class="tooltip-label">
-        <span>Failure rate</span>
-        <span class="tooltip-info"></span>
-        <span class="tooltip-text">{help_message_for(:failure_rate)}</span>
-      </label>
-      <div class="failure-rate-grid">
-        {number_input(f, :failure_rate_amount,
-          class: "form-control form-control-sm",
-          id: "failure_rate_amount"
-        )}
-        <span class="help-text">devices per</span>
-        {number_input(f, :failure_rate_seconds,
-          class: "form-control form-control-sm",
-          id: "failure_rate_input"
-        )}
-        <span class="help-text">sec</span>
-      </div>
-      <div class="has-error invalid-tooltip">{error_tag(f, :failure_rate_seconds)}</div>
-    </div>
-
-    <div class="form-group">
-      <label for="failure_threshold" class="tooltip-label">
-        <span>Failure threshold</span>
-        <span class="tooltip-info"></span>
-        <span class="tooltip-text">{help_message_for(:failure_threshold)}</span>
-      </label>
-      {number_input(f, :failure_threshold,
-        class: "form-control",
-        id: "failure_threshold"
-      )}
-      <div class="has-error">{error_tag(f, :failure_threshold)}</div>
-    </div>
-
     <div class="form-group">
       <label for="device_failure_rate_amount" class="tooltip-label">
         <span>Device failure rate</span>

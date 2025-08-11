@@ -50,11 +50,12 @@ config :nerves_hub,
         System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer(),
       ui_polling_seconds:
         System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer()
+    ],
+    logging: [
+      days_to_keep: String.to_integer(System.get_env("EXTENSIONS_LOGGING_DAYS_TO_KEEP", "3"))
     ]
   ],
-  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true",
-  display_deployment_orchestrator_strategy:
-    System.get_env("DISPLAY_DEPLOYMENT_ORCHESTRATOR_STRATEGY", "false") == "true"
+  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"
 
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
@@ -266,38 +267,22 @@ if config_env() == :prod do
     database_auto_migrator: System.get_env("DATABASE_AUTO_MIGRATOR", "true") == "true"
 end
 
-# Libcluster is using Postgres for Node discovery
-# The library only accepts keyword configs, so the DATABASE_URL has to be
-# parsed and put together with the ssl pieces from above.
-#
-# By using the dev database url as the default it allows us to reduce the
-# libcluster config and keep it all here.
-postgres_config =
-  Ecto.Repo.Supervisor.parse_url(
-    System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev")
-  )
+if config_env() == :prod do
+  if clickhouse_url = System.get_env("CLICKHOUSE_URL") do
+    # Required for Clickhouse Cloud (https://github.com/plausible/analytics/discussions/3497)
+    # (using a default order will cause issues for the migration table)
+    config :ecto_ch, default_table_engine: "MergeTree"
 
-libcluster_db_config =
-  [port: 5432]
-  |> Keyword.merge(postgres_config)
-  |> Keyword.take([:hostname, :username, :password, :database, :port])
-  |> then(fn keywords ->
-    if config_env() == :prod do
-      Keyword.merge(keywords, ssl: database_ssl_opts)
-    else
-      keywords
-    end
-  end)
-  |> Keyword.merge(parameters: [])
-  |> Keyword.merge(channel_name: "nerves_hub_clustering")
+    config :nerves_hub, NervesHub.AnalyticsRepo, url: clickhouse_url
 
-config :libcluster,
-  topologies: [
-    postgres: [
-      strategy: LibclusterPostgres.Strategy,
-      config: libcluster_db_config
-    ]
-  ]
+    config :nerves_hub, analytics_enabled: true
+
+    config :nerves_hub,
+      analytics_auto_migrator: System.get_env("ANALYTICS_AUTO_MIGRATOR", "true") == "true"
+  else
+    config :nerves_hub, analytics_enabled: false
+  end
+end
 
 ##
 # Firmware upload backend.
@@ -454,9 +439,18 @@ if host = System.get_env("STATSD_HOST") do
 end
 
 config :nerves_hub, :audit_logs,
-  enabled: System.get_env("TRUNATE_AUDIT_LOGS_ENABLED", "false") == "true",
+  enabled: System.get_env("TRUNCATE_AUDIT_LOGS_ENABLED", "false") == "true",
   default_days_kept:
     String.to_integer(System.get_env("TRUNCATE_AUDIT_LOGS_DEFAULT_DAYS_KEPT", "30"))
 
 config :nerves_hub, NervesHub.RateLimit,
   limit: System.get_env("DEVICE_CONNECT_RATE_LIMIT", "100") |> String.to_integer()
+
+config :nerves_hub,
+  enable_google_auth: !is_nil(System.get_env("GOOGLE_CLIENT_ID"))
+
+if System.get_env("GOOGLE_CLIENT_ID") do
+  config :ueberauth, Ueberauth.Strategy.Google.OAuth,
+    client_id: System.get_env("GOOGLE_CLIENT_ID"),
+    client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
+end

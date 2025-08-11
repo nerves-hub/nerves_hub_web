@@ -5,7 +5,7 @@ defmodule NervesHubWeb.ConnCase do
 
   Such tests rely on `Phoenix.ConnTest` and also
   import other functionality to make it easier
-  to build common datastructures and query the data layer.
+  to build common data structures and query the data layer.
 
   Finally, if the test case interacts with the database,
   it cannot be async. For this reason, every test runs
@@ -17,6 +17,8 @@ defmodule NervesHubWeb.ConnCase do
 
   using do
     quote do
+      use NervesHubWeb, :verified_routes
+
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest, except: [init_test_session: 2]
@@ -46,7 +48,7 @@ defmodule NervesHubWeb.APIConnCase do
 
   Such tests rely on `Phoenix.ConnTest` and also
   import other functionality to make it easier
-  to build common datastructures and query the data layer.
+  to build common data structures and query the data layer.
 
   Finally, if the test case interacts with the database,
   it cannot be async. For this reason, every test runs
@@ -69,6 +71,14 @@ defmodule NervesHubWeb.APIConnCase do
 
       alias NervesHubWeb.Router.Helpers, as: Routes
 
+      def assert_authorization_error(response, status \\ 401) do
+        {^status, _headers, json_response} = response
+
+        assert JSON.decode!(json_response) == %{
+                 "errors" => %{"detail" => "Resource Not Found or Authorization Insufficient"}
+               }
+      end
+
       # The default endpoint for testing
       @endpoint NervesHubWeb.Endpoint
     end
@@ -82,17 +92,17 @@ defmodule NervesHubWeb.APIConnCase do
     end
 
     user = Fixtures.user_fixture()
-    {:ok, token} = NervesHub.Accounts.create_user_token(user, "test-token")
+    token = NervesHub.Accounts.create_user_api_token(user, "test-token")
 
     user2 = Fixtures.user_fixture()
-    {:ok, token2} = NervesHub.Accounts.create_user_token(user2, "test-token")
+    token2 = NervesHub.Accounts.create_user_api_token(user2, "test-token")
 
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org, %{name: "starter"})
 
     {:ok,
-     conn: build_auth_conn(token.token),
-     conn2: build_auth_conn(token2.token),
+     conn: build_auth_conn(token),
+     conn2: build_auth_conn(token2),
      org: org,
      user: user,
      user_token: token,

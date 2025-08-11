@@ -9,7 +9,10 @@ defmodule NervesHub.AccountsTest do
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.UserToken
   alias NervesHub.Fixtures
+  alias NervesHub.Support.Utils
+  alias NervesHub.Utils.Base62
 
   @required_org_params %{name: "Org"}
 
@@ -58,9 +61,9 @@ defmodule NervesHub.AccountsTest do
 
   test "user cannot have two of the same org" do
     params = %{
-      name: "Testy McTesterson",
-      org_name: "mctesterson.com",
-      email: "testy@mctesterson.com",
+      name: "Testy Smith  ",
+      org_name: "smiths.com",
+      email: "testy@smiths.com",
       password: "test_password"
     }
 
@@ -74,8 +77,8 @@ defmodule NervesHub.AccountsTest do
 
   test "add user and remove user from an org" do
     user_params = %{
-      name: "Testy McTesterson",
-      email: "testy@mctesterson.com",
+      name: "Testy Smith",
+      email: "testy@smiths.com",
       password: "test_password"
     }
 
@@ -127,8 +130,8 @@ defmodule NervesHub.AccountsTest do
     setup do
       user_params = %{
         orgs: [%{name: "test org 1"}],
-        name: "Testy McTesterson",
-        email: "testy@mctesterson.com",
+        name: "Testy Smith",
+        email: "testy@smiths.com",
         password: "test_password"
       }
 
@@ -141,7 +144,7 @@ defmodule NervesHub.AccountsTest do
       target_email = user.email
 
       assert {:ok, %User{email: ^target_email}} =
-               Accounts.authenticate(user.email, user.password)
+               Accounts.authenticate(user.email, "test_password")
     end
 
     test "with invalid credentials", %{user: user} do
@@ -156,11 +159,11 @@ defmodule NervesHub.AccountsTest do
   end
 
   test "authenticate with an email address with a capital letter" do
-    expected_email = "ThatsTesty@mctesterson.com"
+    expected_email = "ThatsTesty@smiths.com"
 
     params = %{
-      name: "Testy McTesterson",
-      org_name: "mctesterson.com",
+      name: "Testy Smith",
+      org_name: "smiths.com",
       email: expected_email,
       password: "test_password"
     }
@@ -170,7 +173,7 @@ defmodule NervesHub.AccountsTest do
     assert user.email == expected_email
 
     assert {:ok, %User{email: ^expected_email}} =
-             Accounts.authenticate(user.email, user.password)
+             Accounts.authenticate(user.email, "test_password")
   end
 
   test "org_key name must be unique", %{user: user} do
@@ -241,7 +244,7 @@ defmodule NervesHub.AccountsTest do
 
     assert {:ok, %OrgUser{}} =
              Accounts.create_user_from_invite(invite, org, %{
-               "password" => "password123",
+               "password" => "password123456",
                "name" => "Invited"
              })
   end
@@ -278,11 +281,65 @@ defmodule NervesHub.AccountsTest do
     assert "is already member" in errors_on(changeset).org_users
   end
 
-  test "can create a user token", %{user: user} do
-    assert {:ok, %{token: <<"nhu_", token::binary>>}} =
-             Accounts.create_user_token(user, "Test token")
+  test "can create a valid base 62 encoded user token", %{user: user} do
+    assert <<"nhu_", token::binary>> =
+             Accounts.create_user_api_token(user, "Test token")
 
-    assert byte_size(token) == 36
+    assert {:ok, <<_token::32-bytes, _crc::32>>} = Base62.decode(token)
+  end
+
+  test "old tokens are allowed", %{user: %{id: id} = user} do
+    user_token = Utils.create_v1_user_token!(user)
+    {:ok, query} = UserToken.verify_api_token_query(user_token.old_token)
+    assert {%{id: ^id}, _user_token} = Repo.one!(query)
+  end
+
+  describe "create_user_session_token/1" do
+    test "it creates a session token for the user", %{user: user} do
+      token = Accounts.create_user_session_token(user)
+      user_by_token = Accounts.get_user_by_session_token(token)
+      assert user.id == user_by_token.id
+
+      {:ok, user_token} = Accounts.get_user_token(token)
+      assert user_token.context == "session"
+      assert user_token.token
+    end
+
+    test "it sets a note on the user_token", %{user: user} do
+      token = Accounts.create_user_session_token(user, "A nice note")
+      {:ok, user_token} = Accounts.get_user_token(token)
+      assert user_token.note == "A nice note"
+    end
+  end
+
+  describe "UserToken CRCs" do
+    test "if the crc doesn't match, return :crc_mismatch", %{user: user} do
+      token = Accounts.create_user_api_token(user, "Test token")
+
+      <<"nh", _u, "_", token_with_crc::binary>> = token
+
+      {:ok, <<token::32-bytes, crc::32>>} = Base62.decode(token_with_crc)
+
+      encoded_token = Base62.encode(<<token::32-bytes, crc + 1::32>>)
+
+      assert {:error, :crc_mismatch} = UserToken.verify_api_token_query("nhu_#{encoded_token}")
+    end
+
+    test "rejects unsupported token prefix", %{user: user} do
+      token = Accounts.create_user_api_token(user, "Test token")
+
+      <<"nhu_", only_token::binary>> = token
+
+      assert {:error, :invalid_token} = UserToken.verify_api_token_query(only_token)
+    end
+
+    test "rejects non-base62 characters", %{user: user} do
+      token = Accounts.create_user_api_token(user, "Test token")
+
+      partial = String.slice(token, 0, byte_size(token) - 1)
+
+      assert {:error, :invalid_token} = UserToken.verify_api_token_query("#{partial}.")
+    end
   end
 
   def setup_org_metric(%{user: user}) do

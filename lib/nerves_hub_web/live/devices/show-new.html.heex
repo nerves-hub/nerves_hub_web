@@ -1,21 +1,26 @@
-<div class="h-[56px] skrink-0 flex justify-end bg-base-900 border-b border-base-700 pl-6 items-center">
-  <div class="flex gap-2.5">
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="back-link flex gap-2.5 items-center">
+<div class="h-[56px] shrink-0 flex justify-end bg-base-900 border-b border-base-700 pl-6 items-center">
+  <div class="flex gap-2.5 items-center">
+    <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="back-link flex gap-2.5 items-center">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
-      <span class="text-base-400">All Devices</span>
+      <span class="text-base-400 whitespace-nowrap hidden md:block">All Devices</span>
     </.link>
-    <span class="text-base-400">/</span>
-    <span class="text-zinc-50 font-semibold">{@device.identifier}</span>
+    <span class="text-base-400 hidden lg:block">/</span>
+    <span class="text-zinc-50 font-semibold hidden lg:block">{@device.identifier}</span>
   </div>
 
   <div class="flex items-center gap-2 ml-auto mr-6">
     <div id="present-users" phx-update="stream" class="border-r border-base-700 px-5 mr-3 h-8 flex flex-row-reverse -space-x-1 space-x-reverse overflow-hidden">
-      <div :for={{id, %{user: user}} <- @streams.presences} class="inline-flex items-center justify-center z-10" id={id}>
-        <span class="inline-flex items-center justify-center px-1 size-7 ring-2 ring-zinc-600 rounded-full bg-zinc-800 font-medium text-zinc-400 text-sm">
+      <div :for={{id, %{user: user}} <- @streams.presences} class="inline-flex items-center justify-center z-10 cursor-default" id={id} phx-hook="ToolTip" data-placement="bottom">
+        <span :if={!@user.profile_picture_url} class="inline-flex items-center justify-center px-1 size-7 ring-2 ring-zinc-600 rounded-full bg-zinc-800 font-medium text-zinc-400 text-sm">
           {String.split(user.name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}
         </span>
+        <img :if={@user.profile_picture_url} src={@user.profile_picture_url} alt="User Profile Picture" class="w-full h-full object-cover rounded-full" />
+        <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+          {user.name}
+          <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+        </div>
       </div>
     </div>
     <.button :if={@pinned?} aria-label="Unpin device" style="primary" phx-click="unpin">
@@ -61,15 +66,15 @@
 
   <div class="h-[89px] shrink-0 flex justify-between p-6">
     <div class="flex gap-3 items-center">
-      <%= if Map.get(@device_connection || %{}, :status) == :connected do %>
-        <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6" fill="none">
-          <circle cx="3" cy="3" r="3" fill="#10B981" />
-        </svg>
-      <% else %>
-        <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6" fill="none">
-          <circle cx="3" cy="3" r="3" fill="#71717A" />
-        </svg>
-      <% end %>
+      <svg
+        data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
+        class="h-3 w-3 data-[connection-status=connecting]:fill-indigo-500 data-[connection-status=connecting]:animate-pulse data-[connection-status=connected]:fill-emerald-500 data-[connection-status=disconnected]:fill-zinc-500 data-[connection-status=unknown]:fill-zinc-500"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 6 6"
+        fill="currentColor"
+      >
+        <circle cx="3" cy="3" r="3" />
+      </svg>
       <h1 class="text-xl font-semibold leading-[30px] text-zinc-50 font-mono">
         {@device.identifier}
       </h1>
@@ -77,11 +82,11 @@
 
     <div class="flex items-center gap-2">
       <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
-        <span class="text-sm text-zinc-400 mr-1">Version:</span>
+        <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Version:</span>
 
         <span :if={is_nil(@device.firmware_metadata)} class="text-sm text-base-300 font-mono">Unknown</span>
 
-        <.link :if={@device.firmware_metadata} navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="flex items-center">
+        <.link :if={@device.firmware_metadata} navigate={~p"/org/#{@org}/#{@product}/firmware/#{@device.firmware_metadata.uuid}"} class="flex items-center">
           <span class="text-sm text-base-300 mr-1 font-mono">{@device.firmware_metadata.version} ({String.slice(@device.firmware_metadata.uuid, 0..7)})</span>
           <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
@@ -96,7 +101,7 @@
       </div>
 
       <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
-        <span class="text-sm text-zinc-400">Firmware updates:</span>
+        <span class="text-sm text-zinc-400 hidden lg:block">Firmware updates:</span>
         <%= cond do %>
           <% is_nil(@device.deployment_id) -> %>
             <span class="ml-2 mr-1 text-sm text-base-300">N/A</span>
@@ -110,7 +115,7 @@
                   stroke-linejoin="round"
                 />
               </svg>
-              <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+              <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900">
                 Updates blocked {DeviceUpdateStatus.friendly_blocked_until(@device.updates_blocked_until)}
                 <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
               </div>
@@ -148,7 +153,7 @@
 
             <button
               type="button"
-              phx-click="toggle_deployment_firmware_updates"
+              phx-click="toggle-deployment-firmware-updates"
               class={[
                 "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
                 "bg-red-500"
@@ -178,7 +183,7 @@
 
             <button
               type="button"
-              phx-click="toggle_deployment_firmware_updates"
+              phx-click="toggle-deployment-firmware-updates"
               class={[
                 "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
                 "bg-emerald-500"
@@ -203,40 +208,26 @@
 
   <div class="flex w-full justify-between px-6 border-b border-zinc-700">
     <div class="flex">
-      <.link class={tab_classes(@tab, :details)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"}>
+      <.link class={tab_classes(@tab, :details)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}"}>
         Details
       </.link>
-      <.link class={tab_classes(@tab, :health)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/healthz"}>
+      <.link class={tab_classes(@tab, :health)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/healthz"}>
         Health
       </.link>
-      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/activity"}>
-        Activity
-      </.link>
-      <.link class={tab_classes(@tab, :console)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/conzole"}>
+      <.link class={tab_classes(@tab, :console)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/conzole"}>
         Console
       </.link>
-      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/settingz"}>
+      <.link :if={analytics_enabled?()} class={tab_classes(@tab, :logs)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"}>
+        Logs
+      </.link>
+      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"}>
+        Activity
+      </.link>
+      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/settingz"}>
         Settings
       </.link>
     </div>
   </div>
 
-  <.live_component :if={@tab == :details} module={DetailsPage} id="device_details" device_id={@device.id} org_user={@org_user} user={@user} />
-
-  <.live_component
-    :if={@tab == :health}
-    module={HealthPage}
-    id="device_health"
-    device_id={@device.id}
-    device_identifier={@device.identifier}
-    org_name={@org.name}
-    product_name={@product.name}
-    health_enabled?={@product.extensions.health && @device.extensions.health}
-  />
-
-  <.live_component :if={@tab == :activity} module={ActivityPage} id="device_activity" device={@device} org={@org} product={@product} user={@user} />
-
-  <.live_component :if={@tab == :console} module={ConsolePage} id="device_console" device={@device} device_connection={@device_connection} user={@user} org_user={@org_user} />
-
-  <.live_component :if={@tab == :settings} module={SettingsPage} id="device_settings" device={@device} org={@org} product={@product} user={@user} org_user={@org_user} />
+  <.render_tab {assigns} />
 </div>

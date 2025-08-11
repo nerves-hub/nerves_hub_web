@@ -35,7 +35,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
             <div class="text-base text-neutral-50 font-medium">Latest activity</div>
 
             <div class="p-1.5 rounded bg-zinc-800 border border-zinc-600">
-              <.link href={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}/audit_logs/download"}>
+              <.link href={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/audit_logs/download"}>
                 <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M2.5 11.6666V14.1666C2.5 15.0871 3.24619 15.8333 4.16667 15.8333H15.8333C16.7538 15.8333 17.5 15.0871 17.5 14.1666V11.6666M10 4.16663V12.5M10 12.5L13.3333 9.16663M10 12.5L6.66667 9.16663"
@@ -82,16 +82,18 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
         </div>
       </div>
 
-      <Pager.render_with_page_sizes pager={@audit_pager} page_sizes={[25, 50, 100]} target={@myself} />
+      <Pager.render_with_page_sizes pager={@audit_pager} page_sizes={[25, 50, 100]} phx-target={@myself} />
     </div>
     """
   end
 
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
+    %{org: org, product: product, deployment_group: deployment_group} = socket.assigns
+
     params = %{"page_size" => page_size, "page_number" => 1}
 
     url =
-      ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices/#{socket.assigns.deployment_group.name}/activity?#{params}"
+      ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/activity?#{params}"
 
     socket
     |> logs_and_pager_assigns(1, String.to_integer(page_size))
@@ -101,9 +103,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
 
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_size" => socket.assigns.audit_pager.page_size, "page_number" => page_num}
+    %{org: org, product: product, deployment_group: deployment_group} = socket.assigns
 
     url =
-      ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices/#{socket.assigns.deployment_group.name}/activity?#{params}"
+      ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/activity?#{params}"
 
     socket
     |> logs_and_pager_assigns(

@@ -1,32 +1,39 @@
 defmodule NervesHubWeb.API.DeploymentGroupController do
   use NervesHubWeb, :api_controller
+  use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
-  action_fallback(NervesHubWeb.API.FallbackController)
+  security([%{}, %{"bearer_auth" => []}])
+  tags(["Deployment Groups"])
 
   plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
-  @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active]
+  @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active, :product_id]
+
+  operation(:index, summary: "List all Deployment Groups for a Product")
 
   def index(%{assigns: %{product: product}} = conn, _params) do
     deployment_groups = ManagedDeployments.get_deployment_groups_by_product(product)
-    render(conn, "index.json", deployment_groups: deployment_groups)
+    render(conn, :index, deployment_groups: deployment_groups)
   end
+
+  operation(:create, summary: "Create a new Deployment Group for a Product")
 
   def create(%{assigns: %{org: org, product: product, user: user}} = conn, params) do
     case Map.get(params, "firmware") do
       nil ->
-        {:error, :no_firmware_uuid}
+        {:error, {:no_firmware_uuid, "No firmware UUID provided"}}
 
       uuid ->
         with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
              params <- Map.put(params, "firmware_id", firmware.id),
              params <- Map.put(params, "org_id", org.id),
+             params <- Map.put(params, "product_id", product.id),
              params <- whitelist(params, @whitelist_fields),
              {:ok, deployment_group} <- ManagedDeployments.create_deployment_group(params) do
           DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)
@@ -43,16 +50,20 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
               deployment_group.name
             )
           )
-          |> render("show.json", deployment_group: %{deployment_group | firmware: firmware})
+          |> render(:show, deployment_group: %{deployment_group | firmware: firmware})
         end
     end
   end
 
+  operation(:show, summary: "Show a Deployment Group")
+
   def show(%{assigns: %{org: _org, product: product}} = conn, %{"name" => name}) do
     with {:ok, deployment_group} <- ManagedDeployments.get_deployment_group_by_name(product, name) do
-      render(conn, "show.json", deployment_group: deployment_group)
+      render(conn, :show, deployment_group: deployment_group)
     end
   end
+
+  operation(:update, summary: "Update a Deployment Group")
 
   def update(%{assigns: %{product: product, user: user}} = conn, %{
         "name" => name,
@@ -69,9 +80,11 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
            ) do
       DeploymentGroupTemplates.audit_deployment_updated(user, deployment_group)
 
-      render(conn, "show.json", deployment_group: updated_deployment_group)
+      render(conn, :show, deployment_group: updated_deployment_group)
     end
   end
+
+  operation(:delete, summary: "Delete a Product's Deployment Group")
 
   def delete(%{assigns: %{product: product}} = conn, %{"name" => name}) do
     with {:ok, deployment_group} <-
