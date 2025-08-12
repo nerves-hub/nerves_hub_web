@@ -318,7 +318,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   def handle_info(%Broadcast{topic: "firmware_delta" <> _}, state) do
     maybe_trigger_update(state)
-    {:noreply, state}
   end
 
   def handle_info(:trigger, state) do
