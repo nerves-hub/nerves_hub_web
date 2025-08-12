@@ -154,7 +154,7 @@ RUN autoconf && \
 FROM ${RUNNER_IMAGE} AS app
 
 RUN apt-get update -y \
-    && apt-get install -y openssl locales bash jq xdelta3 libconfuse-dev zip unzip curl wget
+    && apt-get install -y openssl locales bash jq xdelta3 zip unzip curl wget
 
 # Clean up build dependencies and temporary files
 RUN apt-get autoremove -y && \
