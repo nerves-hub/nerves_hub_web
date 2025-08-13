@@ -49,6 +49,7 @@
     "extralight",
     "extn",
     "filelib",
+    "filesize",
     "firmwares",
     "fkey",
     "fullsweep",
@@ -60,6 +61,7 @@
     "getopts",
     "getstat",
     "haspopup",
+    "healthcheck",
     "healthz",
     "heroicons",
     "hexpm",
@@ -146,7 +148,6 @@
     "undigits",
     "unprovisioned",
     "validtoken",
-    "xdelta",
-    "healthcheck"
+    "xdelta"
   ]
 }
