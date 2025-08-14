@@ -35,7 +35,8 @@ defmodule NervesHub.Logger do
       [:nerves_hub, :devices, :update, :successful],
       [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
       [:nerves_hub, :managed_deployments, :set_deployment_group, :one_found],
-      [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found]
+      [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found],
+      [:nerves_hub, :ssl, :fail]
     ]
 
     Enum.each(events, fn event ->
@@ -162,6 +163,13 @@ defmodule NervesHub.Logger do
       event: "nerves_hub.managed_deployments.set_deployment_group.multiple_found",
       identifier: metadata[:device].identifier,
       deployment_id: metadata[:deployment_group].id
+    )
+  end
+
+  def log_event([:nerves_hub, :ssl, :fail], _, metadata, _) do
+    Logger.info("SSL certificate verification failed",
+      event: "nerves_hub.ssl.fail",
+      reason: metadata[:reason]
     )
   end
 

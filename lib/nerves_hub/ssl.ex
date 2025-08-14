@@ -85,22 +85,26 @@ defmodule NervesHub.SSL do
         {:valid, state}
 
       {:error, {:bad_cert, reason}} ->
-        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
+        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1}, %{reason: reason})
 
         {:fail, reason}
 
       {:error, _} ->
-        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
+        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1}, %{
+          reason: :registration_failed
+        })
 
         {:fail, :registration_failed}
 
       reason when is_atom(reason) ->
-        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
+        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1}, %{reason: reason})
 
         {:fail, reason}
 
       _ ->
-        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
+        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1}, %{
+          reason: :unknown_server_error
+        })
 
         {:fail, :unknown_server_error}
     end
