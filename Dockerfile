@@ -95,6 +95,7 @@ COPY rel rel
 
 RUN mix release
 
+
 ###
 ### Build a static FWUP
 ###
@@ -118,23 +119,20 @@ RUN git checkout v1.13.2 && \
     make check && \
     make install
 
+
 ###
-### Build jemalloc
+### Build jemalloc - GCC 14
 ###
 
 FROM ${RUNNER_IMAGE} AS jemalloc
 
 RUN apt-get update -y && \
     apt-get upgrade -y && \
-    apt-get install -y git autoconf lsb-release wget software-properties-common gnupg make
-
-RUN bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-
-RUN ln -s /usr/bin/clang-20 /usr/bin/clang && \
-    ln -s /usr/bin/clang++-20 /usr/bin/clang++
-
-ENV CC=clang
-ENV CXX=clang++
+    apt-get install -y git autoconf cmake make software-properties-common && \
+    add-apt-repository ppa:ubuntu-toolchain-r/ppa -y && \
+    apt-get update -y && \
+    apt-get install -y gcc-14 g++-14 && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 --slave /usr/bin/g++ g++ /usr/bin/g++-14
 
 # Build the latest jemalloc
 
@@ -146,6 +144,7 @@ RUN autoconf && \
     ./configure && \
     make && \
     make install
+
 
 ###
 ### Last Stage - Setup the Runtime Environment
