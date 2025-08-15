@@ -481,6 +481,26 @@ defmodule NervesHubWeb.WebsocketTest do
         refute_online(device)
       end
     end
+
+    test "safely rejects if an ETF is passed in as a device identifier", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      assert {:ok, auth} = Products.create_shared_secret_auth(product)
+
+      identifier = &Ecto.UUID.generate/0
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, identifier)
+      ]
+
+      {:ok, socket} = SocketClient.start_link(opts)
+
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
+    end
   end
 
   describe "duplicate connections using the same device id" do

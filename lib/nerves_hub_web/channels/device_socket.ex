@@ -114,6 +114,17 @@ defmodule NervesHubWeb.DeviceSocket do
 
         {:error, :invalid_auth}
     end
+  rescue
+    e in ArgumentError ->
+      headers = Map.new(x_headers)
+
+      :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+        auth: :shared_secrets,
+        reason: e,
+        product_key: Map.get(headers, "x-nh-key", "*empty*")
+      })
+
+      {:error, :invalid_auth}
   end
 
   def connect(_params, _socket, _connect_info) do

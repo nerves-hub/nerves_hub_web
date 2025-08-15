@@ -35,7 +35,8 @@ defmodule NervesHub.Logger do
       [:nerves_hub, :devices, :update, :successful],
       [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
       [:nerves_hub, :managed_deployments, :set_deployment_group, :one_found],
-      [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found]
+      [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found],
+      [:nerves_hub, :ssl, :fail]
     ]
 
     Enum.each(events, fn event ->
@@ -163,6 +164,40 @@ defmodule NervesHub.Logger do
       identifier: metadata[:device].identifier,
       deployment_id: metadata[:deployment_group].id
     )
+  end
+
+  def log_event([:nerves_hub, :ssl, :fail], _, metadata, _) do
+    Logger.info("SSL certificate verification failed",
+      event: "nerves_hub.ssl.fail",
+      reason: metadata[:reason],
+      cert_serial: metadata[:cert_serial],
+      cert_subject: metadata[:cert_subject]
+    )
+  end
+
+  @doc """
+  The Erlang SSL application will log issues or failures related to verification of certificates.
+
+  This filter is designed to ignore SSL handshake errors that occur during the `:certify` state that are not helpful or hard to understand.
+
+  eg. TLS :server: In state :certify at ssl_handshake.erl:2201 generated SERVER ALERT: Fatal - Handshake Failure - :unknown_ca
+  """
+  def ssl_log_filter(log_event, _opts) do
+    case log_event do
+      %{
+        msg:
+          {:report,
+           %{
+             alert: {:alert, _, _, %{file: ~c"ssl_handshake.erl"}, _, _},
+             role: :server,
+             statename: :certify
+           }}
+      } ->
+        :stop
+
+      _ ->
+        :ignore
+    end
   end
 
   # Helper functions

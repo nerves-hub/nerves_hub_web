@@ -67,6 +67,11 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
 
   defp device_fixture(user, device_params) do
     org = Fixtures.org_fixture(user)
+    {:ok, org_user} = Accounts.get_org_user(org, user)
+
+    # Use the lowest permissioned org user possible for the channel.
+    {:ok, _updated_org_user} = Accounts.change_org_user_role(org_user, :view)
+
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org, user)
 
