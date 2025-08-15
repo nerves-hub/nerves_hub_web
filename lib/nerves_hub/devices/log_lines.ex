@@ -6,6 +6,7 @@ defmodule NervesHub.Devices.LogLines do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.LogLine
+  alias Phoenix.Channel.Server
 
   import Ecto.Query
 
@@ -53,13 +54,8 @@ defmodule NervesHub.Devices.LogLines do
       {:ok, log_line} ->
         _ = AnalyticsRepo.insert_all(LogLine, [changeset.changes], settings: [async_insert: 1])
 
-        _ =
-          Phoenix.Channel.Server.broadcast(
-            NervesHub.PubSub,
-            "device:#{device.identifier}:internal",
-            "logs:received",
-            log_line
-          )
+        topic = "device:#{device.identifier}:internal"
+        _ = Server.broadcast(NervesHub.PubSub, topic, "logs:received", log_line)
 
         {:ok, log_line}
 
