@@ -169,7 +169,9 @@ defmodule NervesHub.Logger do
   def log_event([:nerves_hub, :ssl, :fail], _, metadata, _) do
     Logger.info("SSL certificate verification failed",
       event: "nerves_hub.ssl.fail",
-      reason: metadata[:reason]
+      reason: metadata[:reason],
+      cert_serial: metadata[:cert_serial],
+      cert_subject: metadata[:cert_subject]
     )
   end
 
