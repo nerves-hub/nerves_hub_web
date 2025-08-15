@@ -1,8 +1,6 @@
 defmodule NervesHub.Application do
   use Application
 
-  alias NervesHub.Utils.SSLLoggingFilter
-
   require Logger
 
   def start(_type, _args) do
@@ -50,7 +48,8 @@ defmodule NervesHub.Application do
         config: %{metadata: [:file, :line]}
       })
 
-    :ok = :logger.add_primary_filter(:filter_ssl_handshake, {&SSLLoggingFilter.filter/2, []})
+    :ok =
+      :logger.add_primary_filter(:filter_ssl_handshake, {&NervesHub.Logger.ssl_log_filter/2, []})
 
     NervesHub.Logger.attach()
   end

@@ -173,6 +173,31 @@ defmodule NervesHub.Logger do
     )
   end
 
+  @doc """
+  The Erlang SSL application will log issues or failures related to verification of certificates.
+
+  This filter is designed to ignore SSL handshake errors that occur during the `:certify` state that are not helpful or hard to understand.
+
+  eg. TLS :server: In state :certify at ssl_handshake.erl:2201 generated SERVER ALERT: Fatal - Handshake Failure - :unknown_ca
+  """
+  def ssl_log_filter(log_event, _opts) do
+    case log_event do
+      %{
+        msg:
+          {:report,
+           %{
+             alert: {:alert, _, _, %{file: ~c"ssl_handshake.erl"}, _, _},
+             role: :server,
+             statename: :certify
+           }}
+      } ->
+        :stop
+
+      _ ->
+        :ignore
+    end
+  end
+
   # Helper functions
 
   defp ignore_list() do
