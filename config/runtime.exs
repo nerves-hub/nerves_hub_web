@@ -376,6 +376,7 @@ if config_env() == :prod do
       |> Enum.map(&String.to_atom/1)
 
     tls_opts = if Enum.any?(tls_versions), do: [versions: tls_versions], else: []
+
     config :nerves_hub, NervesHub.SwooshMailer,
       adapter: Swoosh.Adapters.SMTP,
       relay: System.fetch_env!("SMTP_SERVER"),
@@ -385,15 +386,16 @@ if config_env() == :prod do
       auth: :always,
       ssl: System.get_env("SMTP_SSL", "false") == "true",
       tls: :always,
-      tls_options: [
-        verify: :verify_peer,
-        cacerts: :public_key.cacerts_get(),
-        depth: 99,
-        server_name_indication: String.to_charlist(System.get_env("SMTP_SERVER")),
-        customize_hostname_check: [
-          match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
-        ]
-      ]++ tls_opts,
+      tls_options:
+        [
+          verify: :verify_peer,
+          cacerts: :public_key.cacerts_get(),
+          depth: 99,
+          server_name_indication: String.to_charlist(System.get_env("SMTP_SERVER")),
+          customize_hostname_check: [
+            match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+          ]
+        ] ++ tls_opts,
       retries: 1
   end
 end
