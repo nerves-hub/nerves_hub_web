@@ -48,7 +48,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
         false
 
       org_user ->
-        Authorization.authorized?(:"device:console", org_user)
+        Authorization.authorized?(:"device:view", org_user)
     end
   end
 end
