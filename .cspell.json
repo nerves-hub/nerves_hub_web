@@ -130,6 +130,7 @@
     "sockname",
     "spex",
     "ssljson",
+    "statename",
     "statsd",
     "strftime",
     "stylesheet",

@@ -85,24 +85,16 @@ defmodule NervesHub.SSL do
         {:valid, state}
 
       {:error, {:bad_cert, reason}} ->
-        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
-
-        {:fail, reason}
+        verify_failed(reason, otp_cert)
 
       {:error, _} ->
-        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
-
-        {:fail, :registration_failed}
+        verify_failed(:registration_failed, otp_cert)
 
       reason when is_atom(reason) ->
-        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
-
-        {:fail, reason}
+        verify_failed(reason, otp_cert)
 
       _ ->
-        :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
-
-        {:fail, :unknown_server_error}
+        verify_failed(:unknown_server_error, otp_cert)
     end
   end
 
@@ -282,5 +274,18 @@ defmodule NervesHub.SSL do
       serial: Certificate.get_serial_number(otp_cert),
       ski: Certificate.get_ski(otp_cert)
     }
+  end
+
+  defp verify_failed(reason, otp_cert) do
+    cert_serial = Certificate.get_serial_number(otp_cert)
+    cert_subject = Certificate.get_common_name(otp_cert)
+
+    :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1}, %{
+      reason: reason,
+      cert_serial: cert_serial,
+      cert_subject: cert_subject
+    })
+
+    {:fail, reason}
   end
 end

@@ -13,13 +13,7 @@ defmodule NervesHub.Application do
     end
 
     setup_open_telemetry()
-
-    _ =
-      :logger.add_handler(:my_sentry_handler, Sentry.LoggerHandler, %{
-        config: %{metadata: [:file, :line]}
-      })
-
-    NervesHub.Logger.attach()
+    setup_logging()
 
     children =
       [{Finch, name: Swoosh.Finch}] ++
@@ -46,6 +40,18 @@ defmodule NervesHub.Application do
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  defp setup_logging() do
+    :ok =
+      :logger.add_handler(:sentry_handler, Sentry.LoggerHandler, %{
+        config: %{metadata: [:file, :line]}
+      })
+
+    :ok =
+      :logger.add_primary_filter(:filter_ssl_handshake, {&NervesHub.Logger.ssl_log_filter/2, []})
+
+    NervesHub.Logger.attach()
   end
 
   defp setup_open_telemetry() do
