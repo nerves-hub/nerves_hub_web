@@ -110,10 +110,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
             <div class="flex flex-col gap-3">
               <div :if={@inflight_updates == []} class="flex gap-4 items-center">
-                <span class="text-sm text-nerves-gray-500">No devices are currently updating</span>
+                <span class="text-sm text-nerves-gray-500">No devices are currently updating.</span>
               </div>
               <div :if={@inflight_updates != []} class="flex gap-4 items-center">
-                <span class="text-sm text-nerves-gray-500"><span class="font-semibold">{Enum.count(@inflight_updates)}</span> device(s) are currently updating</span>
+                <span class="text-sm text-nerves-gray-500">
+                  <span class="font-semibold">{Enum.count(@inflight_updates)}</span>
+                  device(s) are currently updating.
+                  <.link class="text-base-300 underline" navigate={~p"/org/#{@org}/#{@product}/devices?#{[only_updating: true, sort: "connection_established_at", sort_direction: "desc"]}"}>
+                    View details
+                  </.link>
+                </span>
               </div>
               <div :for={inflight_update <- @inflight_updates} :if={@inflight_updates != []} class="flex gap-4 items-center">
                 <span class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800 text-base-300">
