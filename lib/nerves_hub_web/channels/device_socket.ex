@@ -105,6 +105,23 @@ defmodule NervesHubWeb.DeviceSocket do
          {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
       socket_and_assigns(socket, device)
     else
+      {:error,
+       %Ecto.Changeset{
+         changes: %{identifier: identifier, org_id: org_id, product_id: product_id},
+         errors: [
+           identifier: {_msg, [constraint: :unique, constraint_name: "devices_identifier_index"]}
+         ]
+       }} ->
+        :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+          auth: :shared_secrets,
+          reason: :duplicate_device_identifier,
+          org_id: org_id,
+          product_id: product_id,
+          device_identifier: identifier
+        })
+
+        {:error, :invalid_auth}
+
       error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
           auth: :shared_secrets,
