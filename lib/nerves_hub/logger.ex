@@ -72,7 +72,10 @@ defmodule NervesHub.Logger do
         event: "nerves_hub.devices.invalid_auth",
         auth: to_string(metadata[:auth]),
         reason: inspect(metadata[:reason]),
-        product_key: metadata[:product_key]
+        org_id: metadata[:org_id],
+        product_id: metadata[:product_id],
+        shared_key: metadata[:shared_key],
+        identifier: metadata[:device_identifier]
       }
       |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
