@@ -122,6 +122,15 @@ defmodule NervesHubWeb.DeviceSocket do
 
         {:error, :invalid_auth}
 
+      {:error, :expired} ->
+        :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+          auth: :shared_secrets,
+          reason: :signature_expired,
+          product_key: Map.get(headers, "x-nh-key", "*empty*")
+        })
+
+        {:error, :invalid_auth}
+
       error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
           auth: :shared_secrets,
