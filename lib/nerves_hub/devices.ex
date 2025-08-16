@@ -325,7 +325,7 @@ defmodule NervesHub.Devices do
   end
 
   @spec get_or_create_device(Products.SharedSecretAuth.t(), String.t()) ::
-          {:ok, Device.t()} | {:error, :not_found}
+          {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def get_or_create_device(%Products.SharedSecretAuth{} = auth, identifier) do
     with {:error, :not_found} <-
            get_active_device(product_id: auth.product_id, identifier: identifier),
