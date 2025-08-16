@@ -117,7 +117,7 @@ defmodule NervesHubWeb.DeviceSocket do
           reason: :duplicate_device_identifier,
           org_id: org_id,
           product_id: product_id,
-          device_identifier: identifier
+          identifier: identifier
         })
 
         {:error, :invalid_auth}
@@ -126,7 +126,7 @@ defmodule NervesHubWeb.DeviceSocket do
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
           auth: :shared_secrets,
           reason: :signature_expired,
-          product_key: Map.get(headers, "x-nh-key", "*empty*")
+          shared_key: Map.get(headers, "x-nh-key", "*empty*")
         })
 
         {:error, :invalid_auth}
@@ -135,7 +135,7 @@ defmodule NervesHubWeb.DeviceSocket do
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
           auth: :shared_secrets,
           reason: error,
-          product_key: Map.get(headers, "x-nh-key", "*empty*")
+          shared_key: Map.get(headers, "x-nh-key", "*empty*")
         })
 
         {:error, :invalid_auth}
@@ -147,7 +147,7 @@ defmodule NervesHubWeb.DeviceSocket do
       :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
         auth: :shared_secrets,
         reason: e,
-        product_key: Map.get(headers, "x-nh-key", "*empty*")
+        shared_key: Map.get(headers, "x-nh-key", "*empty*")
       })
 
       {:error, :invalid_auth}

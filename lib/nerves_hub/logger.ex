@@ -74,8 +74,8 @@ defmodule NervesHub.Logger do
         reason: inspect(metadata[:reason]),
         org_id: metadata[:org_id],
         product_id: metadata[:product_id],
-        product_key: metadata[:product_key],
-        device_identifier: metadata[:device_identifier]
+        shared_key: metadata[:shared_key],
+        identifier: metadata[:device_identifier]
       }
       |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
