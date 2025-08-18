@@ -325,7 +325,7 @@ defmodule NervesHub.Devices do
   end
 
   @spec get_or_create_device(Products.SharedSecretAuth.t(), String.t()) ::
-          {:ok, Device.t()} | {:error, :not_found}
+          {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def get_or_create_device(%Products.SharedSecretAuth{} = auth, identifier) do
     with {:error, :not_found} <-
            get_active_device(product_id: auth.product_id, identifier: identifier),
@@ -1734,7 +1734,7 @@ defmodule NervesHub.Devices do
            {:delta_updatable, delta_updatable?(device, target)},
          {:firmware, {:ok, source}} <-
            {:firmware, Firmwares.get_firmware_by_product_id_and_uuid(product_id, source_uuid)},
-         {:delta, {:ok, delta}} <-
+         {:delta, {:ok, %{status: :completed} = delta}} <-
            {:delta, Firmwares.get_firmware_delta_by_source_and_target(source, target)} do
       Logger.info(
         "Delivering firmware delta",
@@ -1762,6 +1762,17 @@ defmodule NervesHub.Devices do
           device_id: device.id,
           source_firmware: source_uuid,
           target_firmware: target.uuid
+        )
+
+        Firmwares.get_firmware_url(target)
+
+      {:delta, {:ok, %{status: status} = delta}} ->
+        Logger.info(
+          "Delivering full firmware as delta had status #{status}",
+          device_id: device.id,
+          source_firmware: source_uuid,
+          target_firmware: target.uuid,
+          delta: delta.id
         )
 
         Firmwares.get_firmware_url(target)

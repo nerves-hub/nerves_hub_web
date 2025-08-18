@@ -30,6 +30,7 @@ defmodule NervesHubWeb.Helpers.Authorization do
 
   def authorized?(:"device:create", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"device:update", %OrgUser{role: role}), do: role_check(:manage, role)
+  def authorized?(:"device:view", %OrgUser{role: role}), do: role_check(:view, role)
 
   def authorized?(:"device:set-deployment-group", %OrgUser{role: role}),
     do: role_check(:manage, role)

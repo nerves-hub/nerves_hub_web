@@ -189,6 +189,7 @@ defmodule NervesHub.Fixtures do
       Firmwares.insert_firmware_delta(%{
         source_id: source_id,
         target_id: target_id,
+        status: :completed,
         tool_metadata: %{"delta_fwup_version" => "1.13.0"},
         tool: "fwup",
         size: 500,

@@ -63,18 +63,22 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
-    |> assign(:page_number, 1)
-    |> assign(:page_size, 5)
     |> assign(:pinned?, Devices.device_pinned?(user.id, device.id))
-    |> audit_log_assigns()
     |> assign_deployment_groups()
     |> setup_presence_tracking()
     |> setup_tab_components(@tab_components)
     |> ok()
   end
 
-  def handle_params(_params, _uri, socket) do
+  def handle_params(params, _uri, socket) do
+    default_page_size = if socket.assigns[:new_ui], do: "25", else: "5"
+    page_number = String.to_integer(Map.get(params, "page_number", "1"))
+    page_size = String.to_integer(Map.get(params, "page_size", default_page_size))
+
     socket
+    |> assign(:page_number, page_number)
+    |> assign(:page_size, page_size)
+    |> audit_log_assigns()
     |> update_tab_component_hooks()
     |> noreply()
   end
@@ -283,12 +287,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  def handle_event("paginate", %{"page" => page_num}, socket) do
-    params = %{"page_size" => socket.assigns.page_size, "page_number" => page_num}
-
+  def handle_event("paginate", %{"page" => page_number}, socket) do
+    params = %{"page_size" => socket.assigns.page_size, "page_number" => page_number}
     %{org: org, product: product, device: device} = socket.assigns
 
-    url = ~p"/org/#{org}/#{product}/devices/#{device}/activity?#{params}"
+    url = ~p"/org/#{org}/#{product}/devices/#{device}?#{params}"
 
     socket
     |> push_patch(to: url)
@@ -484,11 +487,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    params = %{"page_size" => page_size, "page_number" => 1}
-
+    params = %{"page_size" => page_size, "page_number" => "1"}
     %{org: org, product: product, device: device} = socket.assigns
 
-    url = ~p"/org/#{org}/#{product}/devices/#{device}/activity?#{params}"
+    url = ~p"/org/#{org}/#{product}/devices/#{device}?#{params}"
 
     socket
     |> push_patch(to: url)

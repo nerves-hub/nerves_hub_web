@@ -95,7 +95,6 @@ defmodule NervesHub.MixProject do
       {:ex_aws_s3, "~> 2.0"},
       {:excoveralls, "~> 0.18", only: :test},
       {:finch, "~> 0.20.0"},
-      {:floki, ">= 0.27.0", only: :test},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
       {:hackney, "~> 1.16"},
@@ -103,6 +102,7 @@ defmodule NervesHub.MixProject do
       {:hlclock, "~> 1.0"},
       {:process_hub, "~> 0.3.1-alpha"},
       {:jason, "~> 1.2", override: true},
+      {:lazy_html, ">= 0.0.0", only: :test},
       {:libcluster_postgres, "~> 0.2.0"},
       {:logfmt_ex, "~> 0.4"},
       {:mimic, "~> 2.0", only: [:test, :dev]},
@@ -122,20 +122,26 @@ defmodule NervesHub.MixProject do
        git: "https://github.com/joshk/opentelemetry-erlang-contrib",
        branch: "update-obans-semantic-conventions",
        subdir: "instrumentation/opentelemetry_oban"},
-      {:opentelemetry_bandit, "~> 0.2.0-rc.1"},
+      {:opentelemetry_bandit, "~> 0.2.0",
+       git: "https://github.com/open-telemetry/opentelemetry-erlang-contrib",
+       subdir: "instrumentation/opentelemetry_bandit"},
       {:open_telemetry_decorator, "~> 1.5"},
       {:phoenix, "~> 1.7.0"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 3.3.1", override: true},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 1.0"},
+      {:phoenix_live_view, "~> 1.1"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_view, "~> 2.0"},
-      {:phoenix_test, "~> 0.5", only: :test, runtime: false},
+      {:phoenix_test, "~> 0.5",
+       only: :test,
+       runtime: false,
+       git: "https://github.com/germsvel/phoenix_test",
+       ref: "26575bc"},
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
-      {:sentry, "~> 10.0"},
+      {:sentry, "~> 11.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},
       {:sweet_xml, "~> 0.6"},
@@ -190,6 +196,6 @@ defmodule NervesHub.MixProject do
   defp elixirc_paths(_),
     do: ["lib"]
 
-  defp compilers(mix_unused) when not is_nil(mix_unused), do: [:unused]
-  defp compilers(_), do: []
+  defp compilers(mix_unused) when not is_nil(mix_unused), do: [:phoenix_live_view, :unused]
+  defp compilers(_), do: [:phoenix_live_view]
 end

@@ -356,6 +356,8 @@ defmodule NervesHubWeb do
 
       defoverridable tab_params: 3, cleanup: 0
 
+      def ok(socket), do: {:ok, socket}
+
       def halt(socket), do: {:halt, socket}
 
       def cont(socket), do: {:cont, socket}

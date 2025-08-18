@@ -256,6 +256,39 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> assert_has("a", text: deleted_device.identifier, timeout: 1000, exact: false)
       |> refute_has("a", text: device.identifier, exact: false)
     end
+
+    test "filter only updating devices", %{
+      conn: conn,
+      fixture: %{
+        device: device,
+        org: org,
+        product: product,
+        deployment_group: deployment_group
+      }
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> select("Update status", option: "Updating")
+      |> refute_has("a", text: device.identifier, timeout: 1000)
+
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> select("Update status", option: "Updating")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+
+      {:ok, _device} = Devices.firmware_update_successful(device)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> select("Update status", option: "Updating")
+      |> refute_has("a", text: device.identifier, timeout: 1000)
+    end
   end
 
   describe "pagination" do
