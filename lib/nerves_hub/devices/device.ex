@@ -95,7 +95,6 @@ defmodule NervesHub.Devices.Device do
     |> cast_embed(:firmware_metadata)
     |> cast_embed(:extensions)
     |> validate_required(@required_params)
-    |> validate_length(:tags, min: 1)
     |> unique_constraint(:identifier)
     |> then(fn changeset ->
       if device.deleted_at && !Map.has_key?(changeset.changes, :deleted_at) do
