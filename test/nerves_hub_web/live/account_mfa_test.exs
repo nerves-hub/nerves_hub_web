@@ -2,7 +2,7 @@ defmodule NervesHubWeb.Live.AccountMFATest do
   alias NervesHub.Fixtures
   use NervesHubWeb.ConnCase.Browser, async: true
 
-  alias NervesHub.MFA
+  alias NervesHub.Accounts.MFA
 
   test "enables MFA", %{conn: conn, user: user} do
     conn =

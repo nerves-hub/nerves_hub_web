@@ -1,11 +1,9 @@
-defmodule NervesHub.MFA do
+defmodule NervesHub.Accounts.MFA do
   @moduledoc """
   The MFA context.
   """
 
-  import Ecto.Query, warn: false
-
-  alias NervesHub.MFA.UserTOTP
+  alias NervesHub.Accounts.MFA.UserTOTP
   alias NervesHub.Repo
 
   @doc """
@@ -25,20 +23,17 @@ defmodule NervesHub.MFA do
       {:ok, %Ecto.Changeset{data: %UserTOTP{}}}
   """
   def upsert_user_totp(totp, attrs) do
-    totp_changeset =
+    Repo.transact(fn ->
       totp
-      |> UserTOTP.changeset(attrs)
-      |> UserTOTP.ensure_backup_codes()
-      # If we are updating, let's make sure the secret
-      # in the struct propagates to the changeset.
-      |> Ecto.Changeset.force_change(:secret, totp.secret)
-
-    Ecto.Multi.new()
-    |> Ecto.Multi.insert_or_update(:totp, totp_changeset)
-    |> Repo.transaction()
+      |> UserTOTP.upsert_changeset(attrs)
+      |> Repo.insert(
+        on_conflict: {:replace_all_except, [:id, :inserted_at]},
+        conflict_target: [:user_id]
+      )
+    end)
     |> case do
-      {:ok, %{totp: totp}} -> {:ok, totp}
-      {:error, :totp, changeset, _} -> {:error, changeset}
+      {:ok, totp} -> {:ok, totp}
+      {:error, changeset} -> {:error, changeset}
     end
   end
 
@@ -46,27 +41,19 @@ defmodule NervesHub.MFA do
   Regenerates the user backup codes for totp.
   ## Examples
       iex> regenerate_user_totp_backup_codes(%UserTOTP{})
-      %UserTOTP{backup_codes: [...]}
+      {:ok, %UserTOTP{backup_codes: [...]}}
   """
   def regenerate_user_totp_backup_codes(totp) do
-    {:ok, updated_totp} =
-      Repo.transaction(fn ->
-        totp
-        |> Ecto.Changeset.change()
-        |> UserTOTP.regenerate_backup_codes()
-        |> Repo.update!()
-      end)
-
-    updated_totp
+    totp
+    |> Ecto.Changeset.change()
+    |> UserTOTP.regenerate_backup_codes()
+    |> Repo.update()
   end
 
   @doc """
   Disables the TOTP configuration for the given user.
   """
-  def delete_user_totp(user_totp) do
-    Repo.delete!(user_totp)
-    :ok
-  end
+  def delete_user_totp(user_totp), do: Repo.delete(user_totp)
 
   @doc """
   Validates if the given TOTP code is valid.
@@ -91,6 +78,6 @@ defmodule NervesHub.MFA do
   Creates a changeset for the given TOTP struct.
   """
   def change_totp(totp) do
-    UserTOTP.changeset(totp, %{})
+    UserTOTP.creation_changeset(totp, %{})
   end
 end

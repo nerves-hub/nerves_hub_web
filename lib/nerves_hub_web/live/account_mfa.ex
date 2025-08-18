@@ -6,7 +6,7 @@ defmodule NervesHubWeb.Live.AccountMFA do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Accounts
-  alias NervesHub.MFA
+  alias NervesHub.Accounts.MFA
 
   embed_templates("account_mfa_templates/*")
 
@@ -33,13 +33,8 @@ defmodule NervesHubWeb.Live.AccountMFA do
   def handle_event("toggle-mfa", _params, socket) do
     user = Accounts.get_user!(socket.assigns.user.id)
     user_totp = MFA.get_user_totp(user)
-
-    if user_totp do
-      MFA.delete_user_totp(user_totp)
-      {:noreply, assign_current_totp(socket)}
-    else
-      {:noreply, assign_totp_qr(socket)}
-    end
+    socket = if user_totp, do: delete_user_totp(socket, user_totp), else: assign_totp_qr(socket)
+    {:noreply, socket}
   end
 
   def handle_event("confirm-mfa-totp", %{"user_totp" => %{"code" => code}}, socket) do
@@ -68,12 +63,35 @@ defmodule NervesHubWeb.Live.AccountMFA do
   def handle_event("regenerate-backup-codes", _params, socket) do
     user = Accounts.get_user!(socket.assigns.user.id)
     user_totp = MFA.get_user_totp(user)
-    totp = MFA.regenerate_user_totp_backup_codes(user_totp)
 
-    {:noreply,
-     socket
-     |> assign_current_totp(totp)
-     |> assign(:backup_codes_visible, true)}
+    socket =
+      case MFA.regenerate_user_totp_backup_codes(user_totp) do
+        {:ok, totp} ->
+          socket
+          |> put_flash(:info, "Backup codes regenerated successfully.")
+          |> assign_current_totp(totp)
+          |> assign(:backup_codes_visible, true)
+
+        {:error, changeset} ->
+          socket
+          |> put_flash(:error, "Failed to regenerate backup codes.")
+          |> assign(:totp_form, to_form(changeset))
+      end
+
+    {:noreply, socket}
+  end
+
+  defp delete_user_totp(socket, user_totp) do
+    case MFA.delete_user_totp(user_totp) do
+      {:ok, _} ->
+        socket
+        |> put_flash(:info, "Multi-Factor Authentication disabled successfully.")
+        |> assign_current_totp(nil)
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(:error, "Failed to disable Multi-Factor Authentication.")
+    end
   end
 
   defp assign_current_totp(socket, totp \\ nil) do

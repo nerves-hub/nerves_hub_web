@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.MFAController do
   use NervesHubWeb, :controller
 
-  alias NervesHub.MFA
+  alias NervesHub.Accounts.MFA
   alias NervesHubWeb.Auth
 
   def new(conn, _params) do

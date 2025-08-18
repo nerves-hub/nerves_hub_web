@@ -92,7 +92,7 @@ defmodule NervesHubWeb.SessionController do
   end
 
   defp login_or_redirect_to_mfa(conn, user, user_params) do
-    if NervesHub.MFA.get_user_totp(user) do
+    if Accounts.MFA.get_user_totp(user) do
       conn
       |> put_session(:mfa_user_id, user.id)
       |> put_session(:mfa_user_params, user_params)

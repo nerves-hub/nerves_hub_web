@@ -1,8 +1,8 @@
 defmodule NervesHubWeb.MFAControllerTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.Accounts.MFA
   alias NervesHub.Fixtures
-  alias NervesHub.MFA
 
   describe "new/2" do
     test "renders MFA verification form when user_id is in session", %{user: user} do

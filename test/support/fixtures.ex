@@ -18,7 +18,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Scripts
   alias NervesHub.Support
   alias NervesHub.Support.Fwup
-  alias NervesHub.MFA
+  alias NervesHub.Accounts.MFA
 
   @uploader Application.compile_env(:nerves_hub, :firmware_upload)
 

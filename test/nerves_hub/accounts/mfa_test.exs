@@ -1,11 +1,11 @@
-defmodule NervesHub.MFATest do
+defmodule NervesHub.Accounts.MFATest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Accounts.MFA
   alias NervesHub.Fixtures
-  alias NervesHub.MFA
 
   describe "user_totps" do
-    alias NervesHub.MFA.UserTOTP
+    alias MFA.UserTOTP
 
     setup do
       user = Fixtures.user_fixture()
@@ -55,19 +55,21 @@ defmodule NervesHub.MFATest do
 
     test "removes otp secret", %{user: user} do
       totp = Fixtures.user_totp_fixture(%{user_id: user.id})
-      :ok = MFA.delete_user_totp(totp)
+      {:ok, _totp} = MFA.delete_user_totp(totp)
       refute Repo.get(UserTOTP, totp.id)
     end
 
     test "replaces backup codes", %{user: user} do
       totp = Fixtures.user_totp_fixture(%{user_id: user.id})
-      assert MFA.regenerate_user_totp_backup_codes(totp).backup_codes != totp.backup_codes
+      assert {:ok, updated_totp} = MFA.regenerate_user_totp_backup_codes(totp)
+      assert updated_totp.backup_codes != totp.backup_codes
     end
 
     test "does not persist changes made to the struct", %{user: user} do
       totp = Fixtures.user_totp_fixture(%{user_id: user.id})
       changed = %{totp | secret: "SECRET"}
-      assert MFA.regenerate_user_totp_backup_codes(changed).secret == "SECRET"
+      assert {:ok, updated_totp} = MFA.regenerate_user_totp_backup_codes(changed)
+      assert updated_totp.secret == "SECRET"
       assert Repo.get(UserTOTP, changed.id).secret == totp.secret
     end
 
