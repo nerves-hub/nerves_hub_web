@@ -22,7 +22,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   end
 
   def render(assigns) do
-    device = Repo.preload(assigns.device, :device_certificates)
+    device = Repo.preload(assigns.device, :device_certificates, force: true)
 
     changeset = Ecto.Changeset.change(assigns.device)
 
@@ -431,14 +431,15 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   defp import_cert(%{assigns: %{device: device}} = socket, path) do
     with {:ok, pem_or_der} <- File.read(path),
          {:ok, otp_cert} <- Certificate.from_pem_or_der(pem_or_der),
-         {:ok, db_cert} <- Devices.create_device_certificate(device, otp_cert) do
-      updated = update_in(device.device_certificates, &[db_cert | &1])
+         {:ok, _db_cert} <- Devices.create_device_certificate(device, otp_cert) do
+      updated = Repo.preload(device, :device_certificates)
 
       assign(socket, :device, updated)
       |> put_flash(:info, "Certificate Upload Successful")
+      |> ok()
     else
       {:error, :malformed} ->
-        put_flash(socket, :error, "Incorrect filetype or malformed certificate")
+        {:ok, put_flash(socket, :error, "Incorrect filetype or malformed certificate")}
 
       {:error, %Ecto.Changeset{errors: errors}} ->
         formatted =
@@ -446,10 +447,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             ["* ", to_string(field), " ", msg]
           end)
 
-        put_flash(socket, :error, IO.iodata_to_binary(["Failed to save:\n", formatted]))
+        socket
+        |> put_flash(:error, IO.iodata_to_binary(["Failed to save:\n", formatted]))
+        |> ok()
 
       err ->
-        put_flash(socket, :error, "Unknown file error - #{inspect(err)}")
+        socket
+        |> put_flash(:error, "Unknown file error - #{inspect(err)}")
+        |> ok()
     end
   end
 
