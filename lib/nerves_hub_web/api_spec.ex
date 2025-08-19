@@ -13,6 +13,7 @@ defmodule NervesHubWeb.ApiSpec do
   alias NervesHubWeb.API.OpenAPI.DeviceControllerSpecs
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Router
+  alias NervesHubWeb.Plugs.ImAlive
 
   @behaviour OpenApi
 
@@ -28,7 +29,7 @@ defmodule NervesHubWeb.ApiSpec do
         version: "2.0.0"
       },
       # Populate the paths from a phoenix router
-      paths: Paths.from_router(Router),
+      paths: set_paths(),
       components: %Components{
         securitySchemes: %{
           "bearer_auth" => %SecurityScheme{
@@ -92,6 +93,10 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Organization Signing Key management"
         },
         %Tag{
+          name: "Status",
+          description: "Application healthcheck"
+        },
+        %Tag{
           name: "Support Scripts",
           description: "Organization Support Script management"
         }
@@ -100,5 +105,11 @@ defmodule NervesHubWeb.ApiSpec do
     |> DeviceControllerSpecs.add_operations()
     # Discover request/response schemas from path specs
     |> OpenApiSpex.resolve_schema_modules()
+  end
+
+  defp set_paths() do
+    Router
+    |> Paths.from_router()
+    |> Map.merge(ImAlive.status_path_spec())
   end
 end
