@@ -22,15 +22,11 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
   describe "shared secrets" do
     setup do
-      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
-        shared_secrets: [enabled: false]
-      )
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])
     end
 
     test "shared secrets not enabled", %{conn: conn, org: org, user: user} do
-      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
-        shared_secrets: [enabled: false]
-      )
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])
 
       product = Fixtures.product_fixture(user, org, %{})
 

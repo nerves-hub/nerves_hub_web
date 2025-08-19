@@ -52,8 +52,7 @@ defmodule NervesHubWeb.Presence do
   Returns a list of present users in a topic.
   """
   @spec list_present_users(String.t()) :: [map()]
-  def list_present_users(topic),
-    do: list(topic) |> Enum.map(fn {_id, presence} -> presence end)
+  def list_present_users(topic), do: list(topic) |> Enum.map(fn {_id, presence} -> presence end)
 
   @doc """
   Tracks a user's presence in a topic.

@@ -17,11 +17,9 @@ defmodule NervesHubWeb.API.ScriptController do
   #
   # In the future, we'd like to just support listing by product,
   # but for now we support both.
-  def index(%{assigns: %{device: device}} = conn, params),
-    do: get_and_render_scripts(conn, device.product, params)
+  def index(%{assigns: %{device: device}} = conn, params), do: get_and_render_scripts(conn, device.product, params)
 
-  def index(%{assigns: %{product: product}} = conn, params),
-    do: get_and_render_scripts(conn, product, params)
+  def index(%{assigns: %{product: product}} = conn, params), do: get_and_render_scripts(conn, product, params)
 
   # This operation is defined in `NervesHubWeb.API.OpenAPI.DeviceControllerSpecs`
   operation(:send, false)

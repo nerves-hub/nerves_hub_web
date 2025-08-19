@@ -623,8 +623,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         render_change(view, "set-deployment-group", %{"deployment_id" => deployment_group.id})
       end)
       |> assert_has("div",
-        text:
-          "Device will be removed from the deployment group upon connection if the arch and platform doesn't match."
+        text: "Device will be removed from the deployment group upon connection if the arch and platform doesn't match."
       )
     end
 

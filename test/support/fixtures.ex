@@ -147,11 +147,7 @@ defmodule NervesHub.Fixtures do
   end
 
   @spec firmware_file_fixture(OrgKey.t(), Product.t()) :: String.t()
-  def firmware_file_fixture(
-        %Accounts.OrgKey{} = org_key,
-        %Products.Product{} = product,
-        params \\ %{}
-      ) do
+  def firmware_file_fixture(%Accounts.OrgKey{} = org_key, %Products.Product{} = product, params \\ %{}) do
     {:ok, filepath} =
       Fwup.create_signed_firmware(
         org_key.name,
@@ -163,11 +159,7 @@ defmodule NervesHub.Fixtures do
     filepath
   end
 
-  def firmware_fixture(
-        %Accounts.OrgKey{org_id: org_id} = org_key,
-        %Products.Product{} = product,
-        params \\ %{}
-      ) do
+  def firmware_fixture(%Accounts.OrgKey{org_id: org_id} = org_key, %Products.Product{} = product, params \\ %{}) do
     params = Map.merge(%{dir: System.tmp_dir()}, params)
     org = Repo.get!(Org, org_id)
     filepath = firmware_file_fixture(org_key, product, params)
@@ -175,10 +167,7 @@ defmodule NervesHub.Fixtures do
     firmware
   end
 
-  def firmware_delta_fixture(%Firmwares.Firmware{id: source_id}, %Firmwares.Firmware{
-        id: target_id,
-        org_id: org_id
-      }) do
+  def firmware_delta_fixture(%Firmwares.Firmware{id: source_id}, %Firmwares.Firmware{id: target_id, org_id: org_id}) do
     delta_metadata = %{
       "size" => 5,
       "source_size" => 7,
@@ -195,8 +184,7 @@ defmodule NervesHub.Fixtures do
         size: 500,
         source_size: 700,
         target_size: 1000,
-        upload_metadata:
-          Map.merge(delta_metadata, @uploader.metadata(org_id, "#{Ecto.UUID.generate()}.fw"))
+        upload_metadata: Map.merge(delta_metadata, @uploader.metadata(org_id, "#{Ecto.UUID.generate()}.fw"))
       })
 
     firmware_delta
@@ -210,11 +198,7 @@ defmodule NervesHub.Fixtures do
     Firmwares.create_firmware_transfer(params)
   end
 
-  def archive_file_fixture(
-        %Accounts.OrgKey{} = org_key,
-        %Products.Product{} = product,
-        params \\ %{}
-      ) do
+  def archive_file_fixture(%Accounts.OrgKey{} = org_key, %Products.Product{} = product, params \\ %{}) do
     {:ok, filepath} =
       Support.Archives.create_signed_archive(
         org_key.name,
@@ -226,11 +210,7 @@ defmodule NervesHub.Fixtures do
     filepath
   end
 
-  def archive_fixture(
-        %Accounts.OrgKey{} = org_key,
-        %Products.Product{} = product,
-        params \\ %{}
-      ) do
+  def archive_fixture(%Accounts.OrgKey{} = org_key, %Products.Product{} = product, params \\ %{}) do
     filepath = archive_file_fixture(org_key, product, params)
     {:ok, archive} = Archives.create(product, filepath)
     archive
@@ -360,8 +340,7 @@ defmodule NervesHub.Fixtures do
             hash: :sha256,
             extensions: [
               basic_constraints: X509.Certificate.Extension.basic_constraints(false),
-              key_usage:
-                X509.Certificate.Extension.key_usage([:digitalSignature, :keyEncipherment]),
+              key_usage: X509.Certificate.Extension.key_usage([:digitalSignature, :keyEncipherment]),
               ext_key_usage: X509.Certificate.Extension.ext_key_usage([:clientAuth]),
               subject_key_identifier: true,
               authority_key_identifier: true
@@ -482,11 +461,7 @@ defmodule NervesHub.Fixtures do
     |> Repo.insert!()
   end
 
-  def support_script_fixture(
-        %Products.Product{} = product,
-        %Accounts.User{} = user,
-        params \\ %{}
-      ) do
+  def support_script_fixture(%Products.Product{} = product, %Accounts.User{} = user, params \\ %{}) do
     Scripts.Script.create_changeset(
       %Scripts.Script{},
       product,

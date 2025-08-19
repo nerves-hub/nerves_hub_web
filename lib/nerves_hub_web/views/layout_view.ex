@@ -200,14 +200,11 @@ defmodule NervesHubWeb.LayoutView do
     """
   end
 
-  def sidebar_links(%{path_info: ["account" | _tail]} = conn),
-    do: sidebar_account(conn)
+  def sidebar_links(%{path_info: ["account" | _tail]} = conn), do: sidebar_account(conn)
 
-  def sidebar_links(%{path_info: ["org", "new"]}),
-    do: []
+  def sidebar_links(%{path_info: ["org", "new"]}), do: []
 
-  def sidebar_links(%{path_info: ["org", _org_name | _tail]} = conn),
-    do: sidebar_org(conn)
+  def sidebar_links(%{path_info: ["org", _org_name | _tail]} = conn), do: sidebar_org(conn)
 
   def sidebar_links(_conn), do: []
 

@@ -94,9 +94,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
     mod.handle_in(event, payload, socket)
   rescue
     error ->
-      Logger.warning(
-        "#{inspect(mod)} failed to handle extension message [#{event}] - #{inspect(error)}"
-      )
+      Logger.warning("#{inspect(mod)} failed to handle extension message [#{event}] - #{inspect(error)}")
 
       Logging.log_to_sentry(socket.assigns.device, error)
       {:noreply, socket}

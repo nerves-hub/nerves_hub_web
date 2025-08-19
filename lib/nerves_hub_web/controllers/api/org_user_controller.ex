@@ -23,9 +23,7 @@ defmodule NervesHubWeb.API.OrgUserController do
       ]
     ],
     responses: [
-      ok:
-        {"Organization users list response", "application/json",
-         OrgUserSchemas.OrgUserListResponse}
+      ok: {"Organization users list response", "application/json", OrgUserSchemas.OrgUserListResponse}
     ]
   )
 

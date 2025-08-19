@@ -118,8 +118,7 @@ defmodule NervesHubWeb.AccountControllerTest do
       |> visit(~p"/confirm/#{encoded_token}")
       |> assert_path(~p"/confirm/#{encoded_token}")
       |> assert_has("p",
-        with:
-          "It looks like your confirmation link has expired. A new link has been sent to your email."
+        with: "It looks like your confirmation link has expired. A new link has been sent to your email."
       )
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)

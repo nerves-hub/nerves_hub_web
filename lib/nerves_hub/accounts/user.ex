@@ -92,8 +92,7 @@ defmodule NervesHub.Accounts.User do
     |> maybe_add_confirmed_at()
   end
 
-  defp maybe_add_confirmed_at(%{data: %{confirmed_at: confirmed_at}} = changeset)
-       when is_nil(confirmed_at) do
+  defp maybe_add_confirmed_at(%{data: %{confirmed_at: confirmed_at}} = changeset) when is_nil(confirmed_at) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
     put_change(changeset, :confirmed_at, now)
