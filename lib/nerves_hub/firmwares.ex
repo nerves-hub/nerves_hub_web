@@ -620,7 +620,7 @@ defmodule NervesHub.Firmwares do
     org = NervesHub.Repo.preload(org, :org_keys)
 
     with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
-         {:ok, %{firmware_metadata: fm, tool_metadata: tm} = m} <-
+         {:ok, %{path: conf_path, firmware_metadata: fm, tool_metadata: tm} = m} <-
            update_tool().get_firmware_metadata_from_file(filepath) do
       filename = fm.uuid <> ".fw"
 
@@ -634,7 +634,7 @@ defmodule NervesHub.Firmwares do
           misc: fm.misc,
           org_id: org_id,
           org_key_id: org_key_id,
-          delta_updatable: update_tool().delta_updatable?(filepath),
+          delta_updatable: update_tool().delta_updatable?(conf_path),
           platform: fm.platform,
           product_name: fm.product,
           upload_metadata: firmware_upload_config().metadata(org_id, filename),
