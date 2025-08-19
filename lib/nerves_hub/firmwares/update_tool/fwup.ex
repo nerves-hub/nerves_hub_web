@@ -211,7 +211,11 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
         end
 
       {:ok, delta_zip_path} = Plug.Upload.random_file("generated_delta_zip_file")
-      {:ok, _} = :zip.create(to_charlist(delta_zip_path), generate_file_list(output_work_dir))
+
+      {:ok, _} =
+        :zip.create(to_charlist(delta_zip_path), generate_file_list(output_work_dir),
+          cwd: to_charlist(output_work_dir)
+        )
 
       {:ok, %{size: size}} = File.stat(delta_zip_path)
 
@@ -251,7 +255,11 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     ]
     |> Enum.map(fn glob -> workdir |> Path.join(glob) |> Path.wildcard() end)
     |> List.flatten()
-    |> Enum.map(&to_charlist(&1))
+    |> Enum.map(fn file ->
+      file
+      |> String.replace_prefix("#{workdir}/", "")
+      |> to_charlist()
+    end)
   end
 
   defp get_tool_metadata(meta_conf_path) do
