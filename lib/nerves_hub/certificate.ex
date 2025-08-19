@@ -112,8 +112,7 @@ defmodule NervesHub.Certificate do
 
   defp convert_timestamp({:utcTime, timestamp}) do
     <<year::binary-unit(8)-size(2), month::binary-unit(8)-size(2), day::binary-unit(8)-size(2),
-      hour::binary-unit(8)-size(2), minute::binary-unit(8)-size(2),
-      second::binary-unit(8)-size(2), "Z">> = timestamp
+      hour::binary-unit(8)-size(2), minute::binary-unit(8)-size(2), second::binary-unit(8)-size(2), "Z">> = timestamp
 
     NaiveDateTime.new(
       String.to_integer(year) + @era,
@@ -134,8 +133,7 @@ defmodule NervesHub.Certificate do
 
   defp convert_timestamp({:generalTime, timestamp}) do
     <<year::binary-unit(8)-size(4), month::binary-unit(8)-size(2), day::binary-unit(8)-size(2),
-      hour::binary-unit(8)-size(2), minute::binary-unit(8)-size(2),
-      second::binary-unit(8)-size(2), "Z">> = timestamp
+      hour::binary-unit(8)-size(2), minute::binary-unit(8)-size(2), second::binary-unit(8)-size(2), "Z">> = timestamp
 
     NaiveDateTime.new(
       String.to_integer(year),

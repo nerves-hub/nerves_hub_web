@@ -28,11 +28,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     |> ok()
   end
 
-  def handle_event(
-        "toggle-expand-devices",
-        _,
-        %{assigns: %{show_all_pinned?: show_all?}} = socket
-      ) do
+  def handle_event("toggle-expand-devices", _, %{assigns: %{show_all_pinned?: show_all?}} = socket) do
     socket
     |> assign(:show_all_pinned?, !show_all?)
     |> noreply()

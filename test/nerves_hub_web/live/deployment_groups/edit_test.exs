@@ -33,11 +33,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
       ManagedDeployments.get_deployment_group(deployment_group.id)
 
     conn
-    |> assert_path(
-      URI.encode(
-        "/org/#{org.name}/#{product.name}/deployment_groups/#{reloaded_deployment_group.name}"
-      )
-    )
+    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{reloaded_deployment_group.name}"))
     |> assert_has("div", text: "Deployment Group updated")
 
     assert reloaded_deployment_group.name == "Moussaka"
@@ -67,9 +63,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
     |> assert_has("a", text: product.name)
     |> fill_in("Version requirement", with: "1.2.3.4.5.6")
     |> click_button("Save Change")
-    |> assert_path(
-      "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/edit"
-    )
+    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/edit")
     |> assert_has("div", text: "must be valid Elixir version requirement string")
   end
 
@@ -91,9 +85,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
     |> fill_in("Tag(s) distributed to", with: "")
     |> fill_in("Version requirement", with: "")
     |> click_button("Save Change")
-    |> assert_path(
-      URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
-    )
+    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}"))
 
     assert Repo.reload(deployment_group) |> Map.get(:conditions) == %{
              "version" => "",

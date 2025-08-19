@@ -116,24 +116,16 @@ defmodule NervesHub.Devices.DeviceFiltering do
     filter_on_metric(query, filters)
   end
 
-  def filter(query, _filters, :display_deleted, "include"),
-    do: order_by(query, [d], asc_nulls_last: d.deleted_at)
+  def filter(query, _filters, :display_deleted, "include"), do: order_by(query, [d], asc_nulls_last: d.deleted_at)
 
-  def filter(query, _filters, :display_deleted, "exclude"),
-    do: where(query, [d], is_nil(d.deleted_at))
+  def filter(query, _filters, :display_deleted, "exclude"), do: where(query, [d], is_nil(d.deleted_at))
 
-  def filter(query, _filters, :display_deleted, "only"),
-    do: where(query, [d], not is_nil(d.deleted_at))
+  def filter(query, _filters, :display_deleted, "only"), do: where(query, [d], not is_nil(d.deleted_at))
 
-  def filter(query, _filters, :only_updating, false),
-    do: query
+  def filter(query, _filters, :only_updating, false), do: query
 
   def filter(query, _filters, :only_updating, true),
-    do:
-      join(query, :inner, [d], iu in InflightUpdate,
-        on: d.id == iu.device_id,
-        as: :inflight_update
-      )
+    do: join(query, :inner, [d], iu in InflightUpdate, on: d.id == iu.device_id, as: :inflight_update)
 
   def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
     search_term = "%#{value}%"
@@ -160,27 +152,19 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   @spec sort(Ecto.Query.t(), {atom(), atom()}) :: Ecto.Query.t()
   def sort(query, {:asc, :connection_established_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      desc_nulls_last: latest_connection.established_at
-    )
+    order_by(query, [latest_connection: latest_connection], desc_nulls_last: latest_connection.established_at)
   end
 
   def sort(query, {:desc, :connection_established_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      asc_nulls_first: latest_connection.established_at
-    )
+    order_by(query, [latest_connection: latest_connection], asc_nulls_first: latest_connection.established_at)
   end
 
   def sort(query, {:asc, :connection_last_seen_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      desc_nulls_last: latest_connection.last_seen_at
-    )
+    order_by(query, [latest_connection: latest_connection], desc_nulls_last: latest_connection.last_seen_at)
   end
 
   def sort(query, {:desc, :connection_last_seen_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      asc_nulls_first: latest_connection.last_seen_at
-    )
+    order_by(query, [latest_connection: latest_connection], asc_nulls_first: latest_connection.last_seen_at)
   end
 
   def sort(query, sort), do: order_by(query, [], ^sort)
@@ -201,10 +185,7 @@ defmodule NervesHub.Devices.DeviceFiltering do
     end
   end
 
-  defp filter_on_metric(
-         query,
-         %{metrics_key: key, metrics_operator: operator, metrics_value: value}
-       )
+  defp filter_on_metric(query, %{metrics_key: key, metrics_operator: operator, metrics_value: value})
        when key != "" and value != "" do
     {value_as_float, _} = Float.parse(value)
 

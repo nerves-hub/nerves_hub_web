@@ -14,13 +14,13 @@ defmodule NervesHub.CertificatesTest do
   end
 
   test "authority key id", %{cert: cert} do
-    assert <<99, 249, 44, 251, 191, 143, 83, 203, 11, 228, 56, 74, 158, 97, 218, 5, 252, 14, 122,
-             149>> == Certificate.get_aki(cert)
+    assert <<99, 249, 44, 251, 191, 143, 83, 203, 11, 228, 56, 74, 158, 97, 218, 5, 252, 14, 122, 149>> ==
+             Certificate.get_aki(cert)
   end
 
   test "subject key id", %{cert: cert} do
-    assert <<203, 128, 98, 85, 212, 151, 213, 148, 10, 243, 186, 110, 20, 35, 75, 216, 144, 15,
-             181, 20>> == Certificate.get_ski(cert)
+    assert <<203, 128, 98, 85, 212, 151, 213, 148, 10, 243, 186, 110, 20, 35, 75, 216, 144, 15, 181, 20>> ==
+             Certificate.get_ski(cert)
   end
 
   test "common name", %{cert: cert} do
