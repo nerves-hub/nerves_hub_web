@@ -45,7 +45,7 @@ defmodule NervesHubWeb.MFAController do
           form = Phoenix.Component.to_form(mfa_params, as: "mfa")
 
           conn
-          |> assign(:error_message, "Invalid authentication code")
+          |> assign(:error_message, "Invalid code")
           |> render(:new, form: form)
       end
     else

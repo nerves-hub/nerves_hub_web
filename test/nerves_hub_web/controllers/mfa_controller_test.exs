@@ -66,7 +66,7 @@ defmodule NervesHubWeb.MFAControllerTest do
         |> fill_in("Authentication Code", with: "123456")
         |> submit()
 
-      assert_has(session, "p", with: "Invalid authentication code")
+      assert_has(session, "p", with: "Invalid code")
 
       assert get_session(session.conn, :mfa_user_id) == user.id
     end
