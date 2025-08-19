@@ -23,6 +23,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          {:ok, tool_metadata} <- get_tool_metadata(meta_conf_path) do
       {:ok,
        %{
+         path: meta_conf_path,
          firmware_metadata: firmware_metadata,
          tool_metadata: tool_metadata,
          tool: "fwup",
@@ -49,26 +50,27 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     work_dir = Path.join(System.tmp_dir(), uuid) |> Path.expand()
     _ = File.mkdir_p(work_dir)
 
-    source_path = Path.join(work_dir, "source.fw") |> Path.expand()
-    target_path = Path.join(work_dir, "target.fw") |> Path.expand()
+    try do
+      source_path = Path.join(work_dir, "source.fw") |> Path.expand()
+      target_path = Path.join(work_dir, "target.fw") |> Path.expand()
 
-    dl!(source_url, source_path)
-    dl!(target_url, target_path)
+      dl!(source_url, source_path)
+      dl!(target_url, target_path)
 
-    output_filename = uuid <> ".fw"
-    output_path = Path.join(work_dir, output_filename) |> Path.expand()
+      case do_delta_file(source_path, target_path, work_dir) do
+        {:ok, output} ->
+          {:ok, output}
 
-    case do_delta_file(source_path, target_path, output_path, work_dir) do
-      {:ok, output} ->
-        {:ok, output}
+        {:error, reason} ->
+          Logger.warning("Could not create a firmware delta: #{inspect(reason)}",
+            source_url: source_url,
+            target_url: target_url
+          )
 
-      {:error, reason} ->
-        Logger.warning("Could not create a firmware delta: #{inspect(reason)}",
-          source_url: source_url,
-          target_url: target_url
-        )
-
-        {:error, :delta_not_created}
+          {:error, :delta_not_created}
+      end
+    after
+      File.rmdir(work_dir)
     end
   end
 
@@ -84,14 +86,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
 
   @impl NervesHub.Firmwares.UpdateTool
   def delta_updatable?(file_path) do
-    {meta, 0} = System.cmd("unzip", ["-qqp", file_path, "meta.conf"], env: [])
-
-    path =
-      System.tmp_dir!()
-      |> Path.join("meta.conf")
-
-    File.write!(path, meta)
-    {:ok, feature_usage} = Confuse.Fwup.get_feature_usage(path)
+    {:ok, feature_usage} = Confuse.Fwup.get_feature_usage(file_path)
 
     feature_usage.raw_deltas? or feature_usage.fat_deltas?
   end
@@ -144,7 +139,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     end)
   end
 
-  def do_delta_file(source_path, target_path, output_path, work_dir) do
+  def do_delta_file(source_path, target_path, work_dir) do
     source_work_dir = Path.join(work_dir, "source")
     target_work_dir = Path.join(work_dir, "target")
     output_work_dir = Path.join(work_dir, "output")
@@ -155,8 +150,8 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          :ok <- File.mkdir_p(output_work_dir),
          {:ok, %{size: source_size}} <- File.stat(source_path),
          {:ok, %{size: target_size}} <- File.stat(target_path),
-         {_, 0} <- System.cmd("unzip", ["-qq", source_path, "-d", source_work_dir], env: []),
-         {_, 0} <- System.cmd("unzip", ["-qq", target_path, "-d", target_work_dir], env: []),
+         {:ok, _} <- :zip.extract(to_charlist(source_path), cwd: to_charlist(source_work_dir)),
+         {:ok, _} <- :zip.extract(to_charlist(target_path), cwd: to_charlist(target_work_dir)),
          {:ok, source_meta_conf} <- File.read(Path.join(source_work_dir, "meta.conf")),
          {:ok, target_meta_conf} <- File.read(Path.join(target_work_dir, "meta.conf")),
          {:ok, tool_metadata} <- get_tool_metadata(Path.join(target_work_dir, "meta.conf")),
@@ -215,22 +210,18 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
             end
         end
 
-      # firmware archive files order matters:
-      # 1. meta.conf.ed25519 (optional)
-      # 2. meta.conf
-      # 3. other...
-      [
-        "meta.conf.*",
-        "meta.conf",
-        "data"
-      ]
-      |> Enum.each(&add_to_zip(&1, output_work_dir, output_path))
+      {:ok, delta_zip_path} = Plug.Upload.random_file("generated_delta_zip_file")
 
-      {:ok, %{size: size}} = File.stat(output_path)
+      {:ok, _} =
+        :zip.create(to_charlist(delta_zip_path), generate_file_list(output_work_dir),
+          cwd: to_charlist(output_work_dir)
+        )
+
+      {:ok, %{size: size}} = File.stat(delta_zip_path)
 
       {:ok,
        %{
-         filepath: output_path,
+         filepath: delta_zip_path,
          size: size,
          source_size: source_size,
          target_size: target_size,
@@ -252,6 +243,25 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     end
   end
 
+  defp generate_file_list(workdir) do
+    # firmware archive files order matters:
+    # 1. meta.conf.ed25519 (optional)
+    # 2. meta.conf
+    # 3. other...
+    [
+      "meta.conf.*",
+      "meta.conf",
+      "data"
+    ]
+    |> Enum.map(fn glob -> workdir |> Path.join(glob) |> Path.wildcard() end)
+    |> List.flatten()
+    |> Enum.map(fn file ->
+      file
+      |> String.replace_prefix("#{workdir}/", "")
+      |> to_charlist()
+    end)
+  end
+
   defp get_tool_metadata(meta_conf_path) do
     with {:ok, feature_usage} <- Confuse.Fwup.get_feature_usage(meta_conf_path) do
       tool_metadata =
@@ -269,75 +279,50 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     end
   end
 
-  defp add_to_zip(glob, workdir, output) do
-    workdir
-    |> Path.join(glob)
-    |> Path.wildcard()
-    |> case do
-      [] ->
-        :ok
-
-      paths ->
-        args = ["-r", "-qq", output | Enum.map(paths, &Path.relative_to(&1, workdir))]
-        {_, 0} = System.cmd("zip", args, cd: workdir, env: [])
-
-        :ok
-    end
-  end
-
   defp extract_meta_conf_locally(filepath) do
-    try do
-      dir =
-        System.tmp_dir!()
-        |> Path.join("nerves-hub-meta-#{System.unique_integer([:positive])}")
+    {:ok, path} = Plug.Upload.random_file("nerves_hub_meta_conf")
 
-      _ = File.mkdir_p(dir)
+    stream = File.stream!(path)
 
-      path = Path.join(dir, "meta.conf")
-      stream = File.stream!(path)
+    {:ok, unzip} =
+      filepath
+      |> Unzip.LocalFile.open()
+      |> Unzip.new()
 
-      {:ok, unzip} =
-        filepath
-        |> Unzip.LocalFile.open()
-        |> Unzip.new()
+    _ =
+      unzip
+      |> Unzip.file_stream!("meta.conf")
+      |> Enum.into(stream, &IO.iodata_to_binary/1)
 
-      _ =
-        unzip
-        |> Unzip.file_stream!("meta.conf")
-        |> Enum.into(stream, &IO.iodata_to_binary/1)
+    {:ok, path}
+  rescue
+    e ->
+      Logging.log_message_to_sentry(
+        "[UpdateTool.Fwup] Extracting meta.conf failed due to: #{inspect(e)}",
+        %{filepath: filepath}
+      )
 
-      {:ok, path}
-    rescue
-      e ->
-        Logging.log_message_to_sentry(
-          "[UpdateTool.Fwup] Extracting meta.conf failed due to: #{inspect(e)}",
-          %{filepath: filepath}
-        )
-
-        Logger.error("Extracting meta.conf failed due to: #{inspect(e)}", filepath: filepath)
-        {:error, :extract_meta_conf_failed}
-    end
+      Logger.error("Extracting meta.conf failed due to: #{inspect(e)}", filepath: filepath)
+      {:error, :extract_meta_conf_failed}
   end
 
   defp download_archive(firmware) do
-    try do
-      {:ok, url} = firmware_upload_config().download_file(firmware)
-      archive_path = Path.join(System.tmp_dir(), "nh-#{firmware.uuid}.fw")
-      dl!(url, archive_path)
-      {:ok, archive_path}
-    rescue
-      e ->
-        Logging.log_message_to_sentry(
-          "[UpdateTool.Fwup] Downloading firmware failed due to: #{inspect(e)}",
-          %{firmware_uuid: firmware.uuid}
-        )
+    {:ok, url} = firmware_upload_config().download_file(firmware)
+    {:ok, archive_path} = Plug.Upload.random_file("downloaded_firmware_#{firmware.id}")
+    dl!(url, archive_path)
+    {:ok, archive_path}
+  rescue
+    e ->
+      Logging.log_message_to_sentry(
+        "[UpdateTool.Fwup] Downloading firmware failed due to: #{inspect(e)}",
+        %{firmware_uuid: firmware.uuid}
+      )
 
-        Logger.error("Downloading firmware failed due to: #{inspect(e)}",
-          firmware_uuid: firmware.uuid
-        )
+      Logger.error("Downloading firmware failed due to: #{inspect(e)}",
+        firmware_uuid: firmware.uuid
+      )
 
-        {:error, :download_firmware_failed}
-    end
+      {:error, :download_firmware_failed}
   end
 
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
