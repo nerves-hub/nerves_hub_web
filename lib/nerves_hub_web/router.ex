@@ -79,11 +79,6 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.API.Plugs.Device)
   end
 
-  scope "/" do
-    pipe_through(:api)
-    get("/healthcheck", NervesHubWeb.HealthcheckController, :index)
-  end
-
   scope "/api" do
     pipe_through(:api)
     get("/openapi", OpenApiSpex.Plug.RenderSpec, [])
@@ -152,7 +147,6 @@ defmodule NervesHubWeb.Router do
 
               get("/", ProductController, :show)
               delete("/", ProductController, :delete)
-              put("/", ProductController, :update)
 
               scope "/devices" do
                 get("/", DeviceController, :index)

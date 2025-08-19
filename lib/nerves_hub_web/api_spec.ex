@@ -3,6 +3,8 @@ defmodule NervesHubWeb.ApiSpec do
   alias OpenApiSpex.Info
   alias OpenApiSpex.MediaType
   alias OpenApiSpex.OpenApi
+  alias OpenApiSpex.Operation
+  alias OpenApiSpex.PathItem
   alias OpenApiSpex.Paths
   alias OpenApiSpex.Response
   alias OpenApiSpex.Schema
@@ -28,7 +30,7 @@ defmodule NervesHubWeb.ApiSpec do
         version: "2.0.0"
       },
       # Populate the paths from a phoenix router
-      paths: Paths.from_router(Router),
+      paths: Router |> Paths.from_router() |> add_status_paths(),
       components: %Components{
         securitySchemes: %{
           "bearer_auth" => %SecurityScheme{
@@ -92,6 +94,10 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Organization Signing Key management"
         },
         %Tag{
+          name: "Status",
+          description: "Application healthcheck"
+        },
+        %Tag{
           name: "Support Scripts",
           description: "Organization Support Script management"
         }
@@ -100,5 +106,44 @@ defmodule NervesHubWeb.ApiSpec do
     |> DeviceControllerSpecs.add_operations()
     # Discover request/response schemas from path specs
     |> OpenApiSpex.resolve_schema_modules()
+  end
+
+  # The `/status/alive` path is handled by the `NervesHubWeb.Plugs.ImAlive` plug
+  defp add_status_paths(main_paths) do
+    status_path = "/status/alive"
+
+    status_spec = %{
+      status_path => %PathItem{
+        get: %Operation{
+          summary: "Check application status",
+          description:
+            "Provides a simple health check to verify that the application is running, responsive, and can connect to the database.",
+          tags: ["Status"],
+          operationId: "Status.alive",
+          responses: %{
+            "200" => %Response{
+              description: "The application is running and the database is reachable.",
+              content: %{
+                "text/plain" => %MediaType{
+                  schema: %Schema{type: :string, example: "Hello, Friend!"}
+                }
+              }
+            },
+            "500" => %Response{
+              description: "The application is running but the database is unreachable.",
+              content: %{
+                "text/plain" => %MediaType{
+                  schema: %Schema{type: :string, example: "Sorry, Friend :("}
+                }
+              }
+            }
+          },
+          # This endpoint does not require authentication, so we override the global security
+          security: []
+        }
+      }
+    }
+
+    Map.merge(main_paths, status_spec)
   end
 end
