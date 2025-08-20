@@ -18,7 +18,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   import NervesHubWeb.Components.Icons
 
-  alias Phoenix.HTML.Form, as: HTMLForm
+  alias Phoenix.HTML
 
   alias Phoenix.LiveView.JS
 
@@ -332,7 +332,7 @@ defmodule NervesHubWeb.CoreComponents do
                range radio search select tel text textarea time url week)
   )
 
-  attr(:field, Phoenix.HTML.FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]")
+  attr(:field, HTML.FormField,    doc: "a form field struct retrieved from the form, for example: @form[:email]"  )
 
   attr(:errors, :list, default: [])
   attr(:checked, :boolean, doc: "the checked flag for checkbox inputs")
@@ -348,7 +348,7 @@ defmodule NervesHubWeb.CoreComponents do
   slot(:inner_block)
   slot(:rich_hint)
 
-  def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+  def input(%{field: %HTML.FormField{} = field} = assigns) do
     assigns
     |> assign(field: nil, id: assigns.id || field.id)
     |> assign(:errors, Enum.map(field.errors, &translate_error/1))
@@ -360,7 +360,7 @@ defmodule NervesHubWeb.CoreComponents do
   def input(%{type: "checkbox"} = assigns) do
     assigns =
       assign_new(assigns, :checked, fn ->
-        HTMLForm.normalize_value("checkbox", assigns[:value])
+        HTML.Form.normalize_value("checkbox", assigns[:value])
       end)
 
     ~H"""
@@ -390,7 +390,7 @@ defmodule NervesHubWeb.CoreComponents do
         {@rest}
       >
         <option :if={@prompt} value="">{@prompt}</option>
-        {HTMLForm.options_for_select(@options, @value)}
+        {HTML.Form.options_for_select(@options, @value)}
       </select>
       <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-xs text-zinc-400">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
@@ -414,7 +414,7 @@ defmodule NervesHubWeb.CoreComponents do
           @errors != [] && "border-red-500 focus:border-red-500"
         ]}
         {@rest}
-      ><%= HTMLForm.normalize_value("textarea", @value) %></textarea>
+      ><%= HTML.Form.normalize_value("textarea", @value) %></textarea>
       <div :if={assigns[:hint] || assigns[:rich_hint]} class="flex flex-col gap-1 text-xs text-zinc-400 pt-1">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
       </div>
@@ -433,7 +433,7 @@ defmodule NervesHubWeb.CoreComponents do
         type={@type}
         name={@name}
         id={@id}
-        value={HTMLForm.normalize_value(@type, @value)}
+        value={HTML.Form.normalize_value(@type, @value)}
         class={[
           "mt-2 py-1.5 px-2 block w-full rounded text-zinc-400 bg-zinc-900 focus:ring-0 sm:text-sm",
           "phx-no-feedback:border-zinc-600 phx-no-feedback:focus:border-zinc-700",
@@ -462,7 +462,7 @@ defmodule NervesHubWeb.CoreComponents do
         type={@type}
         name={@name}
         id={@id}
-        value={HTMLForm.normalize_value(@type, @value)}
+        value={HTML.Form.normalize_value(@type, @value)}
         class={[
           "mt-2 py-1.5 px-2 block w-full rounded text-zinc-400 bg-zinc-900 focus:ring-0 sm:text-sm",
           "phx-no-feedback:border-zinc-600 phx-no-feedback:focus:border-zinc-700",
