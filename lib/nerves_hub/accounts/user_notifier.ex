@@ -17,7 +17,7 @@ defmodule NervesHub.Accounts.UserNotifier do
   alias NervesHub.Emails.WelcomeTemplate
 
   alias NervesHub.SwooshMailer, as: Mailer
-  alias Phoenix.HTML.Safe, as: HTMLSafe
+  alias Phoenix.HTML
 
   def deliver_confirmation_instructions(user, confirmation_url) do
     assigns = %{
@@ -208,7 +208,7 @@ defmodule NervesHub.Accounts.UserNotifier do
 
     text =
       module.text_render(assigns)
-      |> HTMLSafe.to_iodata()
+      |> HTML.Safe.to_iodata()
       |> IO.iodata_to_binary()
 
     {html, text}
