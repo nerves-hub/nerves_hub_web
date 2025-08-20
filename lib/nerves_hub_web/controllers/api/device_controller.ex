@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.UpdatePayload
@@ -106,9 +107,7 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   def reboot(%{assigns: %{user: user, device: device}} = conn, _params) do
-    DeviceTemplates.audit_reboot(user, device)
-
-    _ = Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
+    DeviceEvents.reboot(device, user)
 
     send_resp(conn, :no_content, "")
   end

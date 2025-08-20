@@ -11,7 +11,7 @@
     }
   ],
   "dictionaries": [
-    "cpp", 
+    "cpp",
     "elixir",
     "en-gb",
     "fhunleth-cspell-dictionary",
@@ -35,6 +35,7 @@
     "comeonin",
     "conzole",
     "extralight",
+    "Fastlaned",
     "fontawesome",
     "fullsweep",
     "healthcheck",

@@ -4,11 +4,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   require Logger
 
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
-  alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Scripts
@@ -644,22 +644,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
     Logger.info(
-      "Manually sending full firmware for updating from to #{firmware.uuid} to #{device.identifier}..."
+      "Manually sending full firmware for updating from to #{firmware.uuid} to #{device.identifier}"
     )
 
-    {:ok, url} = Firmwares.get_firmware_url(firmware)
-    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
-    {:ok, device} = Devices.disable_updates(device, user)
-
-    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
-
-    payload = %UpdatePayload{
-      update_available: true,
-      firmware_url: url,
-      firmware_meta: meta
-    }
-
-    _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "devices/update-manual", payload)
+    DeviceEvents.manual_update(device, firmware, user)
 
     socket
     |> assign(:device, device)
@@ -681,22 +669,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
     Logger.info(
-      "Manually sending firmware delta for updating from #{device.firmware_metadata.uuid} to #{firmware.uuid} to #{device.identifier}..."
+      "Manually sending firmware delta for updating from #{device.firmware_metadata.uuid} to #{firmware.uuid} to #{device.identifier}"
     )
 
-    {:ok, url} = Devices.get_delta_or_firmware_url(device, firmware)
-    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
-    {:ok, device} = Devices.disable_updates(device, user)
-
-    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
-
-    payload = %UpdatePayload{
-      update_available: true,
-      firmware_url: url,
-      firmware_meta: meta
-    }
-
-    _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "devices/update-manual", payload)
+    DeviceEvents.manual_update(device, firmware, user)
 
     socket
     |> assign(:device, device)

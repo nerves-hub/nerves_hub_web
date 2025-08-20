@@ -62,6 +62,11 @@ defmodule NervesHubWeb.ConsoleChannel do
   def handle_info({:after_join, payload}, socket) do
     socket = assign(socket, :version, payload["console_version"])
 
+    # all devices are lumped into a `console` topic (the name used in join/3)
+    # this can be a security issue as pubsub messages can be sent to all connected devices
+    # additionally, this topic isn't needed or used, so we can unsubscribe from it
+    socket.endpoint.unsubscribe("console")
+
     socket.endpoint.subscribe("device:console:#{socket.assigns.device.id}")
 
     socket.endpoint.broadcast!(
