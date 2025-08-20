@@ -114,6 +114,19 @@ defmodule NervesHub.Logger do
     )
   end
 
+  def log_event([:nerves_hub, :devices, :join_failure], _, metadata, _) do
+    extra =
+      %{
+        event: "nerves_hub.devices.join_failure",
+        error: inspect(metadata[:error]),
+        channel: metadata[:channel],
+        identifier: metadata[:device_identifier]
+      }
+      |> Map.reject(fn {_key, val} -> is_nil(val) end)
+
+    Logger.warning("Join failure", extra)
+  end
+
   def log_event([:nerves_hub, :devices, :update, :automatic], _, metadata, _) do
     Logger.info("Device received update",
       event: "nerves_hub.devices.update.automatic",
@@ -131,16 +144,29 @@ defmodule NervesHub.Logger do
     )
   end
 
-  def log_event([:nerves_hub, :devices, :unhandled_message], _, metadata, _) do
+  def log_event([:nerves_hub, :devices, :unhandled_info], _, metadata, _) do
     extra =
       %{
-        event: "nerves_hub.devices.unhandled_message",
+        event: "nerves_hub.devices.unhandled_info",
         msg: inspect(metadata[:msg]),
+        params: inspect(metadata[:params]),
         identifier: metadata[:device_identifier]
       }
       |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
     Logger.warning("Unhandled handle_info message", extra)
+  end
+
+  def log_event([:nerves_hub, :devices, :unhandled_in], _, metadata, _) do
+    extra =
+      %{
+        event: "nerves_hub.devices.unhandled_in",
+        msg: inspect(metadata[:msg]),
+        identifier: metadata[:device_identifier]
+      }
+      |> Map.reject(fn {_key, val} -> is_nil(val) end)
+
+    Logger.warning("Unhandled handle_in message", extra)
   end
 
   def log_event(
