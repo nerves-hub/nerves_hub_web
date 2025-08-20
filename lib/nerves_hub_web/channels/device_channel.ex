@@ -19,8 +19,6 @@ defmodule NervesHubWeb.DeviceChannel do
   use Phoenix.Channel
   use OpenTelemetryDecorator
 
-  require Logger
-
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
@@ -50,7 +48,12 @@ defmodule NervesHubWeb.DeviceChannel do
         {:ok, socket}
 
       err ->
-        Logger.warning("[DeviceChannel] failure to connect - #{inspect(err)}")
+        :telemetry.execute([:nerves_hub, :devices, :join_failure], %{count: 1}, %{
+          identifier: device.identifier,
+          channel: "device",
+          error: err
+        })
+
         {:error, %{error: "could not connect"}}
     end
   end
@@ -139,8 +142,6 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:clear_script_ref, ref}, socket) do
-    Logger.info("[DeviceChannel] clearing ref #{ref}")
-
     script_refs =
       socket.assigns
       |> Map.get(:script_refs, %{})
@@ -153,7 +154,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   # Ignore unhandled messages, and send some telemetry
   def handle_info(msg, socket) do
-    :telemetry.execute([:nerves_hub, :devices, :unhandled_message], %{count: 1}, %{
+    :telemetry.execute([:nerves_hub, :devices, :unhandled_info], %{count: 1}, %{
       identifier: socket.assigns.device.identifier,
       msg: msg
     })
@@ -247,16 +248,14 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_in(msg, params, socket) do
+  def handle_in(msg, params, %{assigns: %{device: device}} = socket) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.
-    device = socket.assigns.device
-
-    Logger.warning(
-      "[DeviceChannel] Unhandled handle_in message - #{inspect(msg)} - #{inspect(params)}",
-      device_id: device.id,
-      device_identifier: device.identifier
-    )
+    :telemetry.execute([:nerves_hub, :devices, :unhandled_in], %{count: 1}, %{
+      identifier: device.identifier,
+      msg: msg,
+      params: params
+    })
 
     {:noreply, socket}
   end
