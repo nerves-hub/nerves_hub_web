@@ -15,7 +15,7 @@ defmodule NervesHubWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
-  alias Ecto.Adapters.SQL.Sandbox
+  alias Ecto.Adapters.SQL.Sandbox, as: SQLSandbox
   alias Phoenix.ConnTest
 
   using do
@@ -34,10 +34,10 @@ defmodule NervesHubWeb.ConnCase do
   end
 
   setup tags do
-    :ok = Sandbox.checkout(NervesHub.Repo)
+    :ok = SQLSandbox.checkout(NervesHub.Repo)
 
     if !tags[:async] do
-      Sandbox.mode(NervesHub.Repo, {:shared, self()})
+      SQLSandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 
     {:ok, conn: ConnTest.build_conn()}
@@ -61,7 +61,7 @@ defmodule NervesHubWeb.APIConnCase do
 
   use ExUnit.CaseTemplate
 
-  alias Ecto.Adapters.SQL.Sandbox
+  alias Ecto.Adapters.SQL.Sandbox, as: SQLSandbox
   alias NervesHub.Fixtures
 
   using do
@@ -90,10 +90,10 @@ defmodule NervesHubWeb.APIConnCase do
   end
 
   setup tags do
-    :ok = Sandbox.checkout(NervesHub.Repo)
+    :ok = SQLSandbox.checkout(NervesHub.Repo)
 
     if !tags[:async] do
-      Sandbox.mode(NervesHub.Repo, {:shared, self()})
+      SQLSandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 
     user = Fixtures.user_fixture()

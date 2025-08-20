@@ -15,7 +15,7 @@ defmodule NervesHub.Extensions do
     critical firmware update.
   """
 
-  alias Phoenix.Channel.Server
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   @callback handle_in(event :: String.t(), Phoenix.Channel.payload(), Phoenix.Socket.t()) ::
               {:noreply, Phoenix.Socket.t()}
@@ -80,7 +80,7 @@ defmodule NervesHub.Extensions do
 
   def broadcast_extension_event(target, event, extension) do
     params = %{"extensions" => [extension]}
-    Server.broadcast_from!(NervesHub.PubSub, self(), topic(target), event, params)
+    ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic(target), event, params)
   end
 
   defp topic(%NervesHub.Devices.Device{} = device), do: "device:#{device.id}:extensions"

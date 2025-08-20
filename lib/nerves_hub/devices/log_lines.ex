@@ -6,7 +6,7 @@ defmodule NervesHub.Devices.LogLines do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.LogLine
-  alias Phoenix.Channel.Server
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   import Ecto.Query
 
@@ -55,7 +55,7 @@ defmodule NervesHub.Devices.LogLines do
         _ = AnalyticsRepo.insert_all(LogLine, [changeset.changes], settings: [async_insert: 1])
 
         topic = "device:#{device.identifier}:internal"
-        _ = Server.broadcast(NervesHub.PubSub, topic, "logs:received", log_line)
+        _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "logs:received", log_line)
 
         {:ok, log_line}
 
