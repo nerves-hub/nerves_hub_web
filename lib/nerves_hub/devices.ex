@@ -13,6 +13,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Certificate
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -666,7 +667,7 @@ defmodule NervesHub.Devices do
 
     case Repo.update(changeset) do
       {:ok, device} ->
-        _ = maybe_broadcast(device, "devices/updated", opts)
+        _ = maybe_broadcast_updated(device, opts)
 
         {:ok, device}
 
@@ -824,8 +825,7 @@ defmodule NervesHub.Devices do
       |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
       |> Repo.update!()
 
-    _ =
-      broadcast(device, "devices/deployment-updated", %{deployment_id: deployment_group.id})
+    DeviceEvents.deployment_assigned(device)
 
     Map.put(device, :deployment_group, deployment_group)
   end
@@ -838,7 +838,7 @@ defmodule NervesHub.Devices do
       |> Ecto.Changeset.put_change(:deployment_id, nil)
       |> Repo.update!()
 
-    _ = broadcast(device, "devices/deployment-cleared")
+    DeviceEvents.deployment_cleared(device)
 
     Map.put(device, :deployment_group, nil)
   end
@@ -1099,9 +1099,9 @@ defmodule NervesHub.Devices do
     end)
     |> Repo.transaction()
     |> case do
-      {:ok, %{move: updated}} ->
-        _ = broadcast(updated, "moved")
-        {:ok, updated}
+      {:ok, %{move: device}} ->
+        DeviceEvents.moved_product(device)
+        {:ok, device}
 
       err ->
         err
@@ -1141,7 +1141,7 @@ defmodule NervesHub.Devices do
     |> Repo.transaction()
     |> case do
       {:ok, %{update_with_audit: updated}} ->
-        _ = broadcast(device, "devices/updated")
+        DeviceEvents.updated(device)
         {:ok, updated}
 
       err ->
@@ -1244,7 +1244,7 @@ defmodule NervesHub.Devices do
       |> where([d], d.firmware_metadata["architecture"] == ^firmware.architecture)
       |> Repo.update_all([set: [deployment_id: id]], timeout: to_timeout(minute: 2))
 
-    :ok = Enum.each(device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
+    :ok = Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
 
     {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
   end
@@ -1273,7 +1273,7 @@ defmodule NervesHub.Devices do
       |> where([d], d.id not in ^matched_device_ids)
       |> Repo.update_all([set: [deployment_id: nil]], timeout: to_timeout(minute: 2))
 
-    :ok = Enum.each(matched_device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
+    :ok = Enum.each(matched_device_ids, &DeviceEvents.updated(%Device{id: &1}))
 
     {:ok,
      %{
@@ -1351,22 +1351,12 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  defp maybe_broadcast(device, event, opts) do
+  defp maybe_broadcast_updated(device, opts) do
     if Keyword.get(opts, :broadcast, true) do
-      broadcast(device, event)
+      DeviceEvents.updated(device)
     else
       :ok
     end
-  end
-
-  defp broadcast(device, event), do: broadcast(device, event, %{})
-
-  defp broadcast(%Device{id: id}, event, payload) do
-    Phoenix.PubSub.broadcast(
-      NervesHub.PubSub,
-      "device:#{id}",
-      %Phoenix.Socket.Broadcast{topic: "device:#{id}", event: event, payload: payload}
-    )
   end
 
   @spec save_device_health(health_report :: map()) ::
@@ -1571,12 +1561,11 @@ defmodule NervesHub.Devices do
     |> Repo.delete_all()
   end
 
-  def update_started!(inflight_update, device, deployment, reference_id) do
+  def update_started!(inflight_update, device, deployment) do
     Repo.transaction(fn ->
       DeviceTemplates.audit_device_deployment_group_update_triggered(
         device,
-        deployment,
-        reference_id
+        deployment
       )
 
       inflight_update
@@ -1634,21 +1623,12 @@ defmodule NervesHub.Devices do
 
   defp broadcast_update_request(device_id, inflight_update, deployment_group) do
     Logger.metadata(device_id: device_id)
+
     deployment_group = Repo.preload(deployment_group, :product)
     device = get_device(device_id)
     update_payload = do_resolve_update(device, deployment_group)
 
-    payload = %{inflight_update: inflight_update, update_payload: update_payload}
-
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "device:#{device_id}",
-        "update-scheduled",
-        payload
-      )
-
-    :ok
+    DeviceEvents.schedule_update(device, inflight_update, update_payload)
   end
 
   @spec get_pinned_devices(non_neg_integer()) :: [Device.t()]

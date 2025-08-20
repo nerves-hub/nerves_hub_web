@@ -2,7 +2,18 @@ defmodule NervesHubWeb.DeviceChannel do
   @moduledoc """
   Primary websocket channel for device communication
 
-  Handles device logic for updating and tracking devices
+  Handles device logic for updating and tracking devices.
+
+  # Fastlaned Messages
+
+  - identify
+  - reboot
+  - update (scheduled and manual)
+
+  # Intercepted Messages
+
+  - updated
+  - deployment_updated
   """
 
   use Phoenix.Channel
@@ -19,6 +30,8 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
+
+  intercept(["updated", "deployment_updated"])
 
   @decorate with_span("Channels.DeviceChannel.join")
   def join("device", params, %{assigns: %{device: device}} = socket) do
@@ -52,20 +65,11 @@ defmodule NervesHubWeb.DeviceChannel do
 
     maybe_send_public_keys(device, socket, params)
 
-    deployment_channel = deployment_channel(device)
-
-    # all devices are lumped into a `device` topic (the name used in join/3)
-    # this can be a security issue as pubsub messages can be sent to all connected devices
-    # additionally, this topic isn't needed or used, so we can unsubscribe from it
-    unsubscribe("device")
-
-    subscribe("device:#{device.id}")
-    subscribe(deployment_channel)
+    update_device_pubsub_subscription(device)
 
     socket =
       socket
-      |> assign(:device, device)
-      |> assign(:deployment_channel, deployment_channel)
+      |> update_device(device)
       |> assign_api_version(params)
       |> maybe_send_archive()
 
@@ -92,96 +96,14 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  # manually pushed
-  def handle_info(%Broadcast{event: "devices/update-manual", payload: payload}, socket) do
-    :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
-    push(socket, "update", payload)
-    {:noreply, socket}
-  end
-
+  # we can ignore this message
   def handle_info(%Broadcast{event: "deployments/update"}, socket) do
     {:noreply, socket}
   end
 
-  def handle_info(
-        %Broadcast{
-          event: "update-scheduled",
-          payload: %{inflight_update: inflight_update, update_payload: update_payload}
-        },
-        %{assigns: %{device: device}} = socket
-      ) do
-    :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1}, %{
-      identifier: device.identifier,
-      firmware_uuid: inflight_update.firmware_uuid
-    })
-
-    {:ok, _} =
-      Devices.update_started!(
-        inflight_update,
-        device,
-        update_payload.deployment_group,
-        socket.assigns.reference_id
-      )
-
-    push(socket, "update", update_payload)
-
-    {:noreply, socket}
-  end
-
+  # listen for notifications about archive updates for deployments
   def handle_info(%Broadcast{event: "archives/updated"}, socket) do
     {:noreply, maybe_send_archive(socket, audit_log: true)}
-  end
-
-  def handle_info(%Broadcast{event: "moved"}, %{assigns: %{device: device}} = socket) do
-    _ = socket.endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
-
-    {:noreply, socket}
-  end
-
-  @decorate with_span("Channels.DeviceChannel.handle_info:deployment-cleared")
-  def handle_info(
-        %Broadcast{event: "devices/deployment-cleared"},
-        %{assigns: %{device: device}} = socket
-      ) do
-    device = %{device | deployment_id: nil}
-
-    {:noreply, update_device(socket, device)}
-  end
-
-  @decorate with_span("Channels.DeviceChannel.handle_info:deployment-group-updated")
-  def handle_info(
-        %Broadcast{
-          event: "devices/deployment-updated",
-          payload: %{deployment_id: deployment_id}
-        },
-        %{assigns: %{device: device}} = socket
-      ) do
-    device = %{device | deployment_id: deployment_id}
-
-    {:noreply, update_device(socket, device)}
-  end
-
-  # Update local state and tell the various servers of the new information
-  @decorate with_span("Channels.DeviceChannel.handle_info:devices-updated")
-  def handle_info(%Broadcast{event: "devices/updated"}, %{assigns: %{device: device}} = socket) do
-    device = Repo.reload(device)
-
-    socket =
-      socket
-      |> update_device(device)
-      |> maybe_send_archive(audit_log: true)
-
-    {:noreply, socket}
-  end
-
-  def handle_info(%Broadcast{event: "identify"}, socket) do
-    push(socket, "identify", %{})
-    {:noreply, socket}
-  end
-
-  def handle_info(%Broadcast{event: "reboot"}, socket) do
-    push(socket, "reboot", %{})
-    {:noreply, socket}
   end
 
   def handle_info(:online?, socket) do
@@ -230,9 +152,36 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  # Ignore unhandled messages, and send some telemetry
   def handle_info(msg, socket) do
-    # Ignore unhandled messages, but log it for debugging
-    Logger.warning("[DeviceChannel] Unhandled handle_info message! - #{inspect(msg)}")
+    :telemetry.execute([:nerves_hub, :devices, :unhandled_message], %{count: 1}, %{
+      identifier: socket.assigns.device.identifier,
+      msg: msg
+    })
+
+    {:noreply, socket}
+  end
+
+  # Update local state and tell the various servers of the new information
+  def handle_out("updated", _, %{assigns: %{device: device}} = socket) do
+    device = Repo.reload(device)
+
+    socket =
+      socket
+      |> update_device(device)
+      |> maybe_send_archive(audit_log: true)
+
+    {:noreply, socket}
+  end
+
+  def handle_out("deployment_updated", %{deployment_id: deployment_id}, socket) do
+    device = %{socket.assigns.device | deployment_id: deployment_id}
+
+    socket =
+      socket
+      |> update_device(device)
+      |> maybe_send_archive(audit_log: true)
+
     {:noreply, socket}
   end
 
@@ -265,12 +214,8 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  def handle_in(
-        "connection_types",
-        %{"values" => types},
-        %{assigns: %{reference_id: ref_id}} = socket
-      ) do
-    :ok = Connections.merge_update_metadata(ref_id, %{"connection_types" => types})
+  def handle_in("connection_types", %{"values" => types}, socket) do
+    :ok = Connections.merge_update_metadata(socket.assigns.ref_id, %{"connection_types" => types})
     {:noreply, socket}
   end
 
@@ -318,6 +263,19 @@ defmodule NervesHubWeb.DeviceChannel do
     :ok = Connections.merge_update_metadata(ref_id, %{"device_api_version" => version})
 
     assign(socket, :device_api_version, version)
+  end
+
+  defp update_device_pubsub_subscription(%{assigns: %{device: device}} = socket) do
+    # all devices are lumped into a `device` topic (the name used in join/3)
+    # this can be a security issue pubsub messages can be sent to all connected devices
+    # additionally, this topic isn't needed or used, so we can unsubscribe from it
+    unsubscribe("device")
+
+    # instead, we subscribe to `device:device.id` and setup fastlaning and intercepts so that
+    # we have the option of not acting as a middleman to all messages going to a device
+    %{transport_pid: transport_pid, serializer: serializer, pubsub_server: pubsub_server} = socket
+    fastlane = {:fastlane, transport_pid, serializer, __MODULE__.__intercepts__()}
+    Phoenix.PubSub.subscribe(pubsub_server, "device:#{device.id}", metadata: fastlane)
   end
 
   defp subscribe(topic) when not is_nil(topic) do
@@ -404,7 +362,11 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  defp maybe_send_archive(%{assigns: %{device: device}} = socket, opts \\ []) do
+  defp maybe_send_archive(socket, opts \\ [])
+
+  defp maybe_send_archive(%{assigns: %{deployment_id: nil}} = socket, _opts), do: socket
+
+  defp maybe_send_archive(%{assigns: %{device: device}} = socket, opts) do
     opts = Keyword.validate!(opts, audit_log: false)
     updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
     version_match = Version.match?(socket.assigns.device_api_version, ">= 2.0.0")
