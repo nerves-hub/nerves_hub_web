@@ -1628,6 +1628,8 @@ defmodule NervesHub.Devices do
     device = get_device(device_id)
     update_payload = do_resolve_update(device, deployment_group)
 
+    device = %{device | deployment_group: deployment_group}
+
     DeviceEvents.schedule_update(device, inflight_update, update_payload)
   end
 

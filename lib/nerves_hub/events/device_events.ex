@@ -18,11 +18,11 @@ defmodule NervesHub.DeviceEvents do
   end
 
   def deployment_cleared(device) do
-    broadcast(device, "deployment_updated", %{deployment_updated: nil})
+    broadcast(device, "deployment_updated", %{deployment_id: nil})
   end
 
   def deployment_assigned(device) do
-    broadcast(device, "deployment_updated", %{deployment_updated: device.deployment_id})
+    broadcast(device, "deployment_updated", %{deployment_id: device.deployment_id})
   end
 
   def moved_product(device) do
@@ -59,12 +59,10 @@ defmodule NervesHub.DeviceEvents do
 
       DeviceTemplates.audit_device_deployment_group_update_triggered(
         device,
-        device.deployment
+        device.deployment_group
       )
 
-      payload = %{inflight_update: inflight_update, update_payload: update_payload}
-
-      broadcast(device, "update", payload)
+      broadcast(device, "update", update_payload)
 
       :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1}, %{
         identifier: device.identifier,
