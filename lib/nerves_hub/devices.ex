@@ -34,7 +34,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
-  alias Phoenix.Channel.Server
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
@@ -997,7 +997,7 @@ defmodule NervesHub.Devices do
     }
 
     topic = "orchestrator:deployment:#{device.deployment_id}"
-    _ = Server.broadcast(NervesHub.PubSub, topic, "device-online", payload)
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "device-online", payload)
 
     :ok
   end
@@ -1008,7 +1008,7 @@ defmodule NervesHub.Devices do
 
   def deployment_device_updated(device) do
     topic = "orchestrator:deployment:#{device.deployment_id}"
-    _ = Server.broadcast(NervesHub.PubSub, topic, "device-updated", %{})
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "device-updated", %{})
 
     :ok
   end
@@ -1151,7 +1151,7 @@ defmodule NervesHub.Devices do
         _ =
           if device.deployment_id do
             topic = "orchestrator:deployment:#{device.deployment_id}"
-            Server.broadcast(NervesHub.PubSub, topic, "device-updated", %{})
+            ChannelServer.broadcast(NervesHub.PubSub, topic, "device-updated", %{})
           end
 
         result
@@ -1628,7 +1628,7 @@ defmodule NervesHub.Devices do
     payload = %{inflight_update: inflight_update, update_payload: update_payload}
 
     topic = "device:#{device_id}"
-    _ = Server.broadcast(NervesHub.PubSub, topic, "update-scheduled", payload)
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "update-scheduled", payload)
 
     :ok
   end
