@@ -131,6 +131,18 @@ defmodule NervesHub.Logger do
     )
   end
 
+  def log_event([:nerves_hub, :devices, :unhandled_message], _, metadata, _) do
+    extra =
+      %{
+        event: "nerves_hub.devices.unhandled_message",
+        msg: inspect(metadata[:msg]),
+        identifier: metadata[:device_identifier]
+      }
+      |> Map.reject(fn {_key, val} -> is_nil(val) end)
+
+    Logger.warning("Unhandled handle_info message", extra)
+  end
+
   def log_event(
         [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
         _,

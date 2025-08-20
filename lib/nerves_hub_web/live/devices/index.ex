@@ -4,7 +4,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   require Logger
   require OpenTelemetry.Tracer, as: Tracer
 
-  alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Metrics
@@ -406,9 +406,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
 
-    DeviceTemplates.audit_reboot(user, device)
-
-    socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
+    DeviceEvents.reboot(device, user)
 
     {:noreply, put_flash(socket, :info, "Device Reboot Requested")}
   end
