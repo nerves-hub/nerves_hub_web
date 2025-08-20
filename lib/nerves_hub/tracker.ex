@@ -5,7 +5,7 @@ defmodule NervesHub.Tracker do
 
   alias NervesHub.Devices.Device
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server
+  alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.PubSub
 
   def online(%{} = device) do
@@ -19,7 +19,7 @@ defmodule NervesHub.Tracker do
   def confirm_online(%Device{identifier: identifier}) do
     topic = "device:#{identifier}:internal"
     params = %{device_id: identifier, status: "online"}
-    _ = Server.broadcast(NervesHub.PubSub, topic, "connection:status", params)
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "connection:status", params)
 
     :ok
   end
@@ -38,7 +38,7 @@ defmodule NervesHub.Tracker do
   defp publish(identifier, status) do
     topic = "device:#{identifier}:internal"
     params = %{device_id: identifier, status: status}
-    _ = Server.broadcast(NervesHub.PubSub, topic, "connection:change", params)
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "connection:change", params)
 
     :ok
   end
