@@ -11,11 +11,11 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
-  alias NervesHub.Accounts.UserNotifier
 
   alias NervesHub.Repo
 

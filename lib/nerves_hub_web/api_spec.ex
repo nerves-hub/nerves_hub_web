@@ -12,13 +12,13 @@ defmodule NervesHubWeb.ApiSpec do
 
   alias NervesHubWeb.API.OpenAPI.DeviceControllerSpecs
   alias NervesHubWeb.Endpoint
-  alias NervesHubWeb.Router
   alias NervesHubWeb.Plugs.ImAlive
+  alias NervesHubWeb.Router
 
   @behaviour OpenApi
 
   @impl OpenApi
-  def spec do
+  def spec() do
     %OpenApi{
       servers: [
         # Populate the Server info from a phoenix endpoint
