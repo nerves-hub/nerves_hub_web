@@ -34,6 +34,7 @@ defmodule NervesHub.Devices.InflightUpdate do
 
   def update_status(inflight_update, status) do
     inflight_update
+    |> change()
     |> put_change(:status, status)
     |> validate_required(@required_params)
   end

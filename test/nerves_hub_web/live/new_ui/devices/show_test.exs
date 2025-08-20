@@ -302,7 +302,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
             platform: ^platform
           }
         },
-        event: "devices/update-manual"
+        event: "update"
       }
 
       refute Repo.reload(device) |> Map.get(:updates_enabled)

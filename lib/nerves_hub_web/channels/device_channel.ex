@@ -65,11 +65,10 @@ defmodule NervesHubWeb.DeviceChannel do
 
     maybe_send_public_keys(device, socket, params)
 
-    update_device_pubsub_subscription(device)
-
     socket =
       socket
       |> update_device(device)
+      |> setup_pubsub_subscription()
       |> assign_api_version(params)
       |> maybe_send_archive()
 
@@ -174,8 +173,9 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_out("deployment_updated", %{deployment_id: deployment_id}, socket) do
-    device = %{socket.assigns.device | deployment_id: deployment_id}
+  # def handle_out("deployment_updated", %{deployment_id: deployment_id}, socket) do
+  def handle_out("deployment_updated", payload, socket) do
+    device = %{socket.assigns.device | deployment_id: payload.deployment_id}
 
     socket =
       socket
@@ -215,7 +215,11 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("connection_types", %{"values" => types}, socket) do
-    :ok = Connections.merge_update_metadata(socket.assigns.ref_id, %{"connection_types" => types})
+    :ok =
+      Connections.merge_update_metadata(socket.assigns.reference_id, %{
+        "connection_types" => types
+      })
+
     {:noreply, socket}
   end
 
@@ -265,17 +269,22 @@ defmodule NervesHubWeb.DeviceChannel do
     assign(socket, :device_api_version, version)
   end
 
-  defp update_device_pubsub_subscription(%{assigns: %{device: device}} = socket) do
+  defp setup_pubsub_subscription(%{assigns: %{device: device}} = socket) do
     # all devices are lumped into a `device` topic (the name used in join/3)
     # this can be a security issue pubsub messages can be sent to all connected devices
     # additionally, this topic isn't needed or used, so we can unsubscribe from it
     unsubscribe("device")
 
+    topic = "device:#{device.id}"
+
     # instead, we subscribe to `device:device.id` and setup fastlaning and intercepts so that
     # we have the option of not acting as a middleman to all messages going to a device
     %{transport_pid: transport_pid, serializer: serializer, pubsub_server: pubsub_server} = socket
     fastlane = {:fastlane, transport_pid, serializer, __MODULE__.__intercepts__()}
-    Phoenix.PubSub.subscribe(pubsub_server, "device:#{device.id}", metadata: fastlane)
+
+    :ok = Phoenix.PubSub.subscribe(pubsub_server, topic, metadata: fastlane)
+
+    %{socket | topic: topic}
   end
 
   defp subscribe(topic) when not is_nil(topic) do
@@ -346,8 +355,8 @@ defmodule NervesHubWeb.DeviceChannel do
   defp update_deployment_group_subscription(socket, device) do
     deployment_channel = deployment_channel(device)
 
-    if deployment_channel != socket.assigns.deployment_channel do
-      unsubscribe(socket.assigns.deployment_channel)
+    if deployment_channel != socket.assigns[:deployment_channel] do
+      unsubscribe(socket.assigns[:deployment_channel])
       subscribe(deployment_channel)
 
       assign(socket, :deployment_channel, deployment_channel)
@@ -359,6 +368,8 @@ defmodule NervesHubWeb.DeviceChannel do
   defp deployment_channel(device) do
     if device.deployment_id do
       "deployment:#{device.deployment_id}"
+    else
+      nil
     end
   end
 
