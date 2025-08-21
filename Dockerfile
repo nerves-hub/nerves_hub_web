@@ -153,7 +153,7 @@ RUN autoconf && \
 FROM ${RUNNER_IMAGE} AS app
 
 RUN apt-get update -y \
-    && apt-get install -y openssl locales bash xdelta3
+    && apt-get install -y openssl ca-certificates locales bash xdelta3
 
 # Clean up build dependencies and temporary files
 RUN apt-get autoremove -y && \
