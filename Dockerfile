@@ -8,9 +8,9 @@ ARG RUNNER_IMAGE="ubuntu:${DISTRO}"
 ARG DEBIAN_FRONTEND=noninteractive
 
 ###
-### First Stage - Fetch deps for building web assets
+### Fetch deps for building web assets
 ###
-FROM ${BUILDER_IMAGE} as deps
+FROM ${BUILDER_IMAGE} AS deps
 
 ENV MIX_ENV=prod
 
@@ -24,9 +24,9 @@ RUN mix deps.get --only $MIX_ENV
 
 
 ###
-### Second Stage - Build web assets
+### Build web assets
 ###
-FROM node:${NODE_VERSION} as assets
+FROM node:${NODE_VERSION} AS assets
 
 RUN mkdir -p /priv/static
 
@@ -42,13 +42,14 @@ RUN npm ci && npm cache clean --force && npm run deploy
 
 
 ###
-### Third Stage - Building the Release
+### Build the NervesHub release
 ###
-FROM ${BUILDER_IMAGE} as build
+FROM ${BUILDER_IMAGE} AS build
 
 # install dependencies
-RUN apt-get update -y && apt-get install -y build-essential git ca-certificates curl gnupg \
-    && apt-get clean && rm -f /var/lib/apt/lists/*_*
+RUN apt-get update -y && apt-get install -y build-essential git ca-certificates curl gnupg && \
+    apt-get clean && \
+    rm -f /var/lib/apt/lists/*_*
 
 WORKDIR /build
 
@@ -96,24 +97,84 @@ RUN mix release
 
 
 ###
+### Build a static FWUP
+###
+
+FROM ${RUNNER_IMAGE} AS fwup
+
+RUN apt-get update -y && \
+    apt-get upgrade -y && \
+    apt-get install -y git curl build-essential autoconf pkg-config libtool mtools unzip zip help2man libconfuse-dev libarchive-dev xdelta3 dosfstools
+
+RUN git clone https://github.com/fwup-home/fwup /tmp/fwup
+
+WORKDIR /tmp/fwup
+
+RUN git checkout v1.13.2 && \
+    ./scripts/download_deps.sh && \
+    ./scripts/build_deps.sh && \
+    ./autogen.sh && \
+    PKG_CONFIG_PATH=$PWD/build/host/deps/usr/lib/pkgconfig ./configure --enable-shared=no && \
+    make && \
+    make check && \
+    make install
+
+
+###
+### Build jemalloc - GCC 14
+###
+
+FROM ${RUNNER_IMAGE} AS jemalloc
+
+RUN apt-get update -y && \
+    apt-get upgrade -y && \
+    apt-get install -y git autoconf cmake make software-properties-common && \
+    add-apt-repository ppa:ubuntu-toolchain-r/ppa -y && \
+    apt-get update -y && \
+    apt-get install -y gcc-14 g++-14 && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 --slave /usr/bin/g++ g++ /usr/bin/g++-14
+
+# Build the latest jemalloc
+
+RUN git clone https://github.com/facebook/jemalloc /tmp/jemalloc
+
+WORKDIR /tmp/jemalloc
+
+RUN autoconf && \
+    ./configure && \
+    make && \
+    make install
+
+
+###
 ### Last Stage - Setup the Runtime Environment
 ###
 
 FROM ${RUNNER_IMAGE} AS app
 
 RUN apt-get update -y \
-    && apt-get install -y libstdc++6 openssl libncurses6 locales bash openssl curl python3 python3-pip jq xdelta3 zip unzip wget \
-    && wget https://github.com/fwup-home/fwup/releases/download/v1.13.2/fwup_1.13.2_amd64.deb \
-    && dpkg -i fwup_1.13.2_amd64.deb && rm fwup_1.13.2_amd64.deb \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y openssl ca-certificates locales bash xdelta3
+
+# Clean up build dependencies and temporary files
+RUN apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 
+# Use jemalloc for memory allocation
+COPY --from=jemalloc /usr/local/lib/libjemalloc.so.2 /usr/local/lib/libjemalloc.so.2
+ENV LD_PRELOAD=/usr/local/lib/libjemalloc.so.2
+
+# Copy over the statically built fwup
+COPY --from=fwup /usr/local/bin/fwup /usr/local/bin/fwup
+
+# Copy over NervesHub
 WORKDIR /app
 
 COPY --from=build /build/_build/prod/rel/nerves_hub ./
@@ -124,4 +185,5 @@ ENV SECRET_KEY_BASE=nokey
 ENV PORT=4000
 
 ENTRYPOINT ["bin/nerves_hub"]
+
 CMD ["start"]
