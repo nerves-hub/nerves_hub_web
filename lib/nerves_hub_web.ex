@@ -102,7 +102,6 @@ defmodule NervesHubWeb do
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
 
-      # Shortcut for generating JS commands
       alias NervesHubWeb.Components.Navigation
       alias Phoenix.LiveView.JS
 
