@@ -26,6 +26,7 @@
     "assets/{node_modules,static}",
     "mix.exs",
     "priv",
+    "rel",
     "test"
   ],
   "words": [
