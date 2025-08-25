@@ -421,55 +421,58 @@ defmodule NervesHub.Firmwares do
     {:ok, source_url} = firmware_upload_config().download_file(source_firmware)
     {:ok, target_url} = firmware_upload_config().download_file(target_firmware)
 
-    case update_tool().create_firmware_delta_file(source_url, target_url) do
+    case update_tool().create_firmware_delta_file(
+           {source_firmware.uuid, source_url},
+           {target_firmware.uuid, target_url}
+         ) do
       {:ok, created} ->
-        firmware_delta_filename = Path.basename(created.filepath)
+        Repo.transact(
+          fn ->
+            with upload_metadata <-
+                   firmware_upload_config().delta_metadata(
+                     org.id,
+                     source_firmware.uuid,
+                     target_firmware.uuid
+                   ),
+                 {:ok, firmware_delta} <-
+                   complete_firmware_delta(
+                     firmware_delta,
+                     created.tool,
+                     created.size,
+                     created.source_size,
+                     created.target_size,
+                     created.tool_metadata,
+                     upload_metadata
+                   ),
+                 {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
+                 :ok <-
+                   firmware_upload_config().upload_file(created.filepath, upload_metadata),
+                 :ok <- update_tool().cleanup_firmware_delta_files(created.filepath) do
+              Logger.info(
+                "Created firmware delta successfully.",
+                product_id: source_firmware.product_id,
+                source_firmware: source_firmware.uuid,
+                target_firmware: target_firmware.uuid
+              )
 
-        result =
-          Repo.transaction(
-            fn ->
-              with upload_metadata <-
-                     firmware_upload_config().metadata(org.id, firmware_delta_filename),
-                   {:ok, firmware_delta} <-
-                     complete_firmware_delta(
-                       firmware_delta,
-                       created.tool,
-                       created.size,
-                       created.source_size,
-                       created.target_size,
-                       created.tool_metadata,
-                       upload_metadata
-                     ),
-                   {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
-                   :ok <-
-                     firmware_upload_config().upload_file(created.filepath, upload_metadata),
-                   :ok <- update_tool().cleanup_firmware_delta_files(created.filepath) do
-                Logger.info(
-                  "Created firmware delta successfully.",
+              {:ok, firmware_delta}
+            else
+              {:error, error} ->
+                update_tool().cleanup_firmware_delta_files(created.filepath)
+
+                Logger.error(
+                  "Failed to create firmware delta: #{inspect(error)}",
                   product_id: source_firmware.product_id,
                   source_firmware: source_firmware.uuid,
                   target_firmware: target_firmware.uuid
                 )
 
-                firmware_delta
-              else
-                {:error, error} ->
-                  update_tool().cleanup_firmware_delta_files(created.filepath)
-
-                  Logger.error(
-                    "Failed to create firmware delta: #{inspect(error)}",
-                    product_id: source_firmware.product_id,
-                    source_firmware: source_firmware.uuid,
-                    target_firmware: target_firmware.uuid
-                  )
-
-                  Repo.rollback(error)
-              end
-            end,
-            timeout: 30_000
-          )
-
-        case result do
+                {:error, error}
+            end
+          end,
+          timeout: 30_000
+        )
+        |> case do
           {:ok, _delta} ->
             :ok
 

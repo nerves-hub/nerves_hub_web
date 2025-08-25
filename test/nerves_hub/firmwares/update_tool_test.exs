@@ -197,7 +197,7 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
          source_size: ^source_size,
          target_size: ^target_size
        }} =
-        Fwup.do_delta_file(fw_a, fw_b, Path.join(dir, "work"))
+        Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
       assert %{size: ^delta_size} = File.stat!(delta_path)
 
@@ -243,7 +243,7 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
          source_size: ^source_size,
          target_size: ^target_size
        }} =
-        Fwup.do_delta_file(fw_a, fw_b, Path.join(dir, "work"))
+        Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
       assert %{size: ^delta_size} = File.stat!(delta_path)
 
@@ -289,7 +289,7 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
          source_size: ^source_size,
          target_size: ^target_size
        }} =
-        Fwup.do_delta_file(fw_a, fw_b, Path.join(dir, "work"))
+        Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
       assert %{size: ^delta_size} = File.stat!(delta_path)
 
@@ -335,7 +335,7 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
          source_size: ^source_size,
          target_size: ^target_size
        }} =
-        Fwup.do_delta_file(fw_a, fw_b, Path.join(dir, "work"))
+        Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
       assert %{size: ^delta_size} = File.stat!(delta_path)
 
@@ -403,7 +403,7 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
          source_size: ^source_size,
          target_size: ^target_size
        }} =
-        Fwup.do_delta_file(fw_a, fw_b, Path.join(dir, "work"))
+        Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
       assert %{size: ^delta_size} = File.stat!(delta_path)
 
@@ -443,7 +443,7 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       fw_b = build_fw!(Path.join(dir, "b.fw"), raw_conf_path, data_path_2)
 
       {:error, [err]} =
-        Fwup.do_delta_file(fw_a, fw_b, Path.join(dir, "work"))
+        Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
       assert err =~
                "Target uses raw deltas and source firmware uses encryption for the same resource but target firmware has no cipher or"
@@ -467,7 +467,7 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       fw_b = build_fw!(Path.join(dir, "b.fw"), fwup_conf_path, data_path_2)
 
       {:error, :no_delta_support_in_firmware} =
-        Fwup.do_delta_file(fw_a, fw_b, Path.join(dir, "work"))
+        Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
     end
 
     @tag :tmp_dir
@@ -497,7 +497,7 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
          source_size: ^source_size,
          target_size: ^target_size
        }} =
-        Fwup.do_delta_file(fw_a, fw_b, Path.join(dir, "work"))
+        Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
       %{size: ^delta_size} = File.stat!(delta_path)
 
@@ -561,7 +561,7 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
          source_size: ^source_size,
          target_size: ^target_size
        }} =
-        Fwup.do_delta_file(fw_a, fw_b, Path.join(dir, "work"))
+        Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
       assert %{size: ^delta_size} = File.stat!(delta_path)
 
