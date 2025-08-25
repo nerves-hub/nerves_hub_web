@@ -33,4 +33,13 @@ defmodule NervesHub.Firmwares.Upload do
   Called to generate the upload_metadata that will be persisted for later lookup.
   """
   @callback metadata(Org.id(), String.t()) :: upload_metadata()
+
+  @doc """
+  Called to generate the upload_metadata specific to delta firmwares that will be persisted for later lookup.
+  """
+  @callback delta_metadata(
+              Org.id(),
+              source_firmware_uuid :: String.t(),
+              target_firmware_uuid :: String.t()
+            ) :: upload_metadata()
 end
