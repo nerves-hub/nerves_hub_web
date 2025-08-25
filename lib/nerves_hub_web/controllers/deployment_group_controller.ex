@@ -6,10 +6,7 @@ defmodule NervesHubWeb.DeploymentGroupController do
 
   plug(:validate_role, org: :view)
 
-  def export_audit_logs(
-        %{assigns: %{org: org, product: product}} = conn,
-        %{"name" => deployment_name}
-      ) do
+  def export_audit_logs(%{assigns: %{org: org, product: product}} = conn, %{"name" => deployment_name}) do
     {:ok, deployment_group} =
       ManagedDeployments.get_deployment_group_by_name(product, deployment_name)
 
@@ -22,9 +19,7 @@ defmodule NervesHubWeb.DeploymentGroupController do
       audit_logs ->
         audit_logs = AuditLogs.format_for_csv(audit_logs)
 
-        send_download(conn, {:binary, audit_logs},
-          filename: "#{deployment_group.name}-audit-logs.csv"
-        )
+        send_download(conn, {:binary, audit_logs}, filename: "#{deployment_group.name}-audit-logs.csv")
     end
   end
 end

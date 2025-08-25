@@ -139,8 +139,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       end)
       |> assert_path("/org/#{org.name}/#{product.name}/archives/upload")
       |> assert_has("div",
-        text:
-          "Archive corrupt, signature invalid, or the key used for signing hasn't been uploaded."
+        text: "Archive corrupt, signature invalid, or the key used for signing hasn't been uploaded."
       )
     end
 
@@ -179,8 +178,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       end)
       |> assert_path("/org/#{org.name}/#{product.name}/archives/upload")
       |> assert_has("div",
-        text:
-          "Archive corrupt, signature invalid, or the key used for signing hasn't been uploaded."
+        text: "Archive corrupt, signature invalid, or the key used for signing hasn't been uploaded."
       )
     end
   end

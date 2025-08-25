@@ -60,13 +60,11 @@ defmodule NervesHubWeb.ApiSpec do
         },
         %Tag{
           name: "Devices",
-          description:
-            "Device management, including action requests eg. upgrade, reboot, reconnect"
+          description: "Device management, including action requests eg. upgrade, reboot, reconnect"
         },
         %Tag{
           name: "Devices (short URL)",
-          description:
-            "Device management, including action requests eg. upgrade, reboot, reconnect"
+          description: "Device management, including action requests eg. upgrade, reboot, reconnect"
         },
         %Tag{
           name: "Device Certificates",

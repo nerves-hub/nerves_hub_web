@@ -31,9 +31,7 @@ defmodule NervesHubWeb.DeviceControllerTest do
 
       conn =
         conn
-        |> get(
-          "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/certificate/#{cert.serial}/download"
-        )
+        |> get("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/certificate/#{cert.serial}/download")
 
       [str] =
         Plug.Conn.get_resp_header(conn, "content-disposition")

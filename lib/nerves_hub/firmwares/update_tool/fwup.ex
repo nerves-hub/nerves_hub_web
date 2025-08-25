@@ -100,8 +100,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     with {:source, {:ok, source}} <-
            {:source, Firmwares.get_firmware_by_product_id_and_uuid(product_id, firmware_uuid)},
          {:delta_result, {:ok, %{tool_metadata: tm}}} <-
-           {:delta_result,
-            Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)},
+           {:delta_result, Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)},
          {:delta_min, delta_min} <-
            {:delta_min, Map.get(tm, "delta_fwup_version", @very_safe_version)},
          {:parse_version, {:ok, delta_version}} <- {:parse_version, Version.parse(delta_min)},
@@ -212,9 +211,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
       {:ok, delta_zip_path} = Plug.Upload.random_file("#{source_uuid}_#{target_uuid}_delta")
 
       {:ok, _} =
-        :zip.create(to_charlist(delta_zip_path), generate_file_list(output_work_dir),
-          cwd: to_charlist(output_work_dir)
-        )
+        :zip.create(to_charlist(delta_zip_path), generate_file_list(output_work_dir), cwd: to_charlist(output_work_dir))
 
       {:ok, %{size: size}} = File.stat(delta_zip_path)
 

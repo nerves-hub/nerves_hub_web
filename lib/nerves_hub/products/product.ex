@@ -25,9 +25,7 @@ defmodule NervesHub.Products.Product do
     has_many(:scripts, Script)
     has_many(:deployment_groups, DeploymentGroup)
 
-    has_many(:shared_secret_auths, SharedSecretAuth,
-      preload_order: [desc: :deactivated_at, asc: :id]
-    )
+    has_many(:shared_secret_auths, SharedSecretAuth, preload_order: [desc: :deactivated_at, asc: :id])
 
     belongs_to(:org, Org, where: [deleted_at: nil])
 

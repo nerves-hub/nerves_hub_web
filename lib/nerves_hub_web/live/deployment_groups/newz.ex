@@ -30,11 +30,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
   end
 
   @impl Phoenix.LiveView
-  def handle_event(
-        "platform-selected",
-        %{"deployment_group" => %{"platform" => platform}},
-        socket
-      ) do
+  def handle_event("platform-selected", %{"deployment_group" => %{"platform" => platform}}, socket) do
     authorized!(:"deployment_group:create", socket.assigns.org_user)
 
     %{product: product} = socket.assigns
@@ -50,11 +46,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
   end
 
   @impl Phoenix.LiveView
-  def handle_event(
-        "architecture-selected",
-        %{"deployment_group" => %{"architecture" => architecture}},
-        socket
-      ) do
+  def handle_event("architecture-selected", %{"deployment_group" => %{"architecture" => architecture}}, socket) do
     authorized!(:"deployment_group:create", socket.assigns.org_user)
 
     %{product: product} = socket.assigns

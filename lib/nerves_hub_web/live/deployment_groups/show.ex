@@ -171,11 +171,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
-  def handle_async(
-        :move_devices_to_deployment,
-        {:ok, {:error, updated_count, ignored_count}},
-        socket
-      ) do
+  def handle_async(:move_devices_to_deployment, {:ok, {:error, updated_count, ignored_count}}, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
     :ok =
@@ -224,11 +220,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
-  def handle_async(
-        :remove_devices_from_deployment,
-        {:ok, {:error, updated_count, ignored_count}},
-        socket
-      ) do
+  def handle_async(:remove_devices_from_deployment, {:ok, {:error, updated_count, ignored_count}}, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
     :ok =
@@ -316,9 +308,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   defp deployment_group_percentage(%{total_updating_devices: 0}), do: 100
 
   defp deployment_group_percentage(deployment_group) do
-    floor(
-      deployment_group.current_updated_devices / deployment_group.total_updating_devices * 100
-    )
+    floor(deployment_group.current_updated_devices / deployment_group.total_updating_devices * 100)
   end
 
   defp help_message_for(field) do
@@ -349,9 +339,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     firmware_summary(f)
   end
 
-  defp firmware_summary(
-         %DeploymentGroup{firmware: %Ecto.Association.NotLoaded{}} = deployment_group
-       ) do
+  defp firmware_summary(%DeploymentGroup{firmware: %Ecto.Association.NotLoaded{}} = deployment_group) do
     ManagedDeployments.preload_firmware_and_archive(deployment_group)
   end
 

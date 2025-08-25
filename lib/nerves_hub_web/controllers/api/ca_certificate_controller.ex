@@ -24,9 +24,7 @@ defmodule NervesHubWeb.API.CACertificateController do
       ]
     ],
     responses: [
-      ok:
-        {"CA Certificate list response", "application/json",
-         CACertificateSchemas.CACertificateListResponse}
+      ok: {"CA Certificate list response", "application/json", CACertificateSchemas.CACertificateListResponse}
     ]
   )
 

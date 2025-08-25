@@ -47,9 +47,7 @@ defmodule NervesHubWeb.Live.Archives do
     end)
   end
 
-  defp apply_action(%{assigns: %{product: product}} = socket, :show, %{
-         "archive_uuid" => archive_uuid
-       }) do
+  defp apply_action(%{assigns: %{product: product}} = socket, :show, %{"archive_uuid" => archive_uuid}) do
     archive = Archives.get_by_product_and_uuid!(product, archive_uuid)
 
     socket

@@ -39,9 +39,7 @@ defmodule NervesHubWeb.DeviceController do
       audit_logs ->
         audit_logs = AuditLogs.format_for_csv(audit_logs)
 
-        send_download(conn, {:binary, audit_logs},
-          filename: "#{device.identifier}-audit-logs.csv"
-        )
+        send_download(conn, {:binary, audit_logs}, filename: "#{device.identifier}-audit-logs.csv")
     end
   end
 end
