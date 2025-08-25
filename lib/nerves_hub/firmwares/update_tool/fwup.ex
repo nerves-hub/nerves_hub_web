@@ -45,9 +45,8 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   end
 
   @impl NervesHub.Firmwares.UpdateTool
-  def create_firmware_delta_file(source_url, target_url) do
-    uuid = Ecto.UUID.generate()
-    work_dir = Path.join(System.tmp_dir(), uuid) |> Path.expand()
+  def create_firmware_delta_file({source_uuid, source_url}, {target_uuid, target_url}) do
+    work_dir = Path.join(System.tmp_dir(), "#{source_uuid}_#{target_uuid}")
     _ = File.mkdir_p(work_dir)
 
     try do
@@ -57,7 +56,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
       dl!(source_url, source_path)
       dl!(target_url, target_path)
 
-      case do_delta_file(source_path, target_path, work_dir) do
+      case do_delta_file({source_uuid, source_path}, {target_uuid, target_path}, work_dir) do
         {:ok, output} ->
           {:ok, output}
 
@@ -139,7 +138,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     end)
   end
 
-  def do_delta_file(source_path, target_path, work_dir) do
+  def do_delta_file({source_uuid, source_path}, {target_uuid, target_path}, work_dir) do
     source_work_dir = Path.join(work_dir, "source")
     target_work_dir = Path.join(work_dir, "target")
     output_work_dir = Path.join(work_dir, "output")
@@ -210,7 +209,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
             end
         end
 
-      {:ok, delta_zip_path} = Plug.Upload.random_file("generated_delta_zip_file")
+      {:ok, delta_zip_path} = Plug.Upload.random_file("#{source_uuid}_#{target_uuid}_delta")
 
       {:ok, _} =
         :zip.create(to_charlist(delta_zip_path), generate_file_list(output_work_dir),
