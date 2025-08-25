@@ -32,7 +32,7 @@ defmodule NervesHub.Devices.InflightUpdate do
     )
   end
 
-  def update_status(inflight_update, status) do
+  def update_status_changeset(inflight_update, status) do
     inflight_update
     |> change()
     |> put_change(:status, status)

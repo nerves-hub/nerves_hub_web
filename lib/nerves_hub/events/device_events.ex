@@ -54,7 +54,7 @@ defmodule NervesHub.DeviceEvents do
     Repo.transact(fn ->
       inflight_update =
         inflight_update
-        |> InflightUpdate.update_status("updating")
+        |> InflightUpdate.update_status_changeset("updating")
         |> Repo.update!()
 
       DeviceTemplates.audit_device_deployment_group_update_triggered(
