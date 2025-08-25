@@ -80,7 +80,7 @@ defmodule NervesHub.MixProject do
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 1.0.0"},
       {:comeonin, "~> 5.3"},
-      {:confuse, "~> 0.1.5"},
+      {:confuse, "~> 0.2.0"},
       {:contex, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:crontab, "~> 1.1"},
