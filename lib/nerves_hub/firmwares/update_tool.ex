@@ -89,7 +89,10 @@ defmodule NervesHub.Firmwares.UpdateTool do
   @doc """
   Called to create a firmware delta file on the local filesystem
   """
-  @callback create_firmware_delta_file(String.t(), String.t()) ::
+  @callback create_firmware_delta_file(
+              {source_id :: String.t(), source_url :: String.t()},
+              {target_id :: String.t(), target_url :: String.t()}
+            ) ::
               {:ok, delta_created()} | {:error, term()}
 
   @doc """
