@@ -231,15 +231,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     {:noreply, %{state | timer_ref: nil}}
   end
 
-  @decorate with_span(
-              "ManagedDeployments.Distributed.Orchestrator.handle_info:deployment/device-online"
-            )
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployment/device-online")
   def handle_info(
-        %Broadcast{
-          topic: "orchestrator:deployment:" <> _rest,
-          event: "device-online",
-          payload: payload
-        },
+        %Broadcast{topic: "orchestrator:deployment:" <> _rest, event: "device-online", payload: payload},
         state
       ) do
     if should_trigger?(payload, state.deployment_group) do
@@ -249,23 +243,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     end
   end
 
-  @decorate with_span(
-              "ManagedDeployments.Distributed.Orchestrator.handle_info:deployment/device-update"
-            )
-  def handle_info(
-        %Broadcast{topic: "orchestrator:deployment:" <> _, event: "device-updated"},
-        state
-      ) do
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployment/device-update")
+  def handle_info(%Broadcast{topic: "orchestrator:deployment:" <> _, event: "device-updated"}, state) do
     maybe_trigger_update(state)
   end
 
-  @decorate with_span(
-              "ManagedDeployments.Distributed.Orchestrator.handle_info:deployments/update"
-            )
-  def handle_info(
-        %Broadcast{topic: "deployment:" <> _, event: "deployments/update"},
-        state
-      ) do
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployments/update")
+  def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deployments/update"}, state) do
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(state.deployment_group)
 
     maybe_trigger_update(%{state | deployment_group: deployment_group})
@@ -275,10 +259,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     {:stop, :normal, state}
   end
 
-  def handle_info(
-        %Broadcast{topic: "orchestrator:deployment:" <> _, event: "deactivated"},
-        state
-      ) do
+  def handle_info(%Broadcast{topic: "orchestrator:deployment:" <> _, event: "deactivated"}, state) do
     {:stop, :normal, state}
   end
 

@@ -45,9 +45,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
   defp maybe_create_firmware_delta(source, target) do
     case Firmwares.get_firmware_delta_by_source_and_target(source, target) do
       {:ok, %FirmwareDelta{status: :processing} = delta} ->
-        Logger.info(
-          "Attempting firmware delta build for #{source.platform} #{source.version} to #{target.version}..."
-        )
+        Logger.info("Attempting firmware delta build for #{source.platform} #{source.version} to #{target.version}...")
 
         :ok = Firmwares.generate_firmware_delta(delta, source, target)
 

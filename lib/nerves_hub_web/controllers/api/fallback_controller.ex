@@ -33,8 +33,7 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_status(422)
     |> put_view(NervesHubWeb.API.ErrorJSON)
     |> render(:"422", %{
-      reason:
-        "A user with that email address could not be found, you may need to invite them instead."
+      reason: "A user with that email address could not be found, you may need to invite them instead."
     })
   end
 
@@ -43,8 +42,7 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_status(422)
     |> put_view(NervesHubWeb.API.ErrorJSON)
     |> render(:"422", %{
-      reason:
-        "A user with that email address already exists, please use the add user api endpoint."
+      reason: "A user with that email address already exists, please use the add user api endpoint."
     })
   end
 

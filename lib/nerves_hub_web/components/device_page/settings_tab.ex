@@ -359,11 +359,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   # A phx-change handler is required when using live uploads.
   def hooked_event("validate-cert", _, socket), do: {:halt, socket}
 
-  def hooked_event(
-        "delete-certificate",
-        %{"serial" => serial},
-        %{assigns: %{device: device}} = socket
-      ) do
+  def hooked_event("delete-certificate", %{"serial" => serial}, %{assigns: %{device: device}} = socket) do
     device = %{device_certificates: certs} = Repo.preload(device, :device_certificates)
 
     with db_cert <- Enum.find(certs, &(&1.serial == serial)),

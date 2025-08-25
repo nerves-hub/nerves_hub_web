@@ -94,10 +94,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> noreply()
   end
 
-  def handle_info(
-        %Broadcast{event: "health_check_report"},
-        %{assigns: %{device: device}} = socket
-      ) do
+  def handle_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
     socket
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> update_charts()
@@ -107,16 +104,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   # Ignore other events for now
   def handle_info(_event, socket), do: {:noreply, socket}
 
-  def assign_charts(
-        %{
-          assigns: %{
-            device: device,
-            time_frame: time_frame,
-            latest_metrics: latest_metrics
-          }
-        } =
-          socket
-      ) do
+  def assign_charts(%{assigns: %{device: device, time_frame: time_frame, latest_metrics: latest_metrics}} = socket) do
     charts =
       create_chart_data(device.id, time_frame, latest_metrics["mem_size_mb"])
 
@@ -130,8 +118,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     - Do a push_patch to render more or less charts if custom types varies for time frames.
     - Update existing hooks with new data via push_event (should happen most frequent).
   """
-  def update_charts(%{assigns: %{charts: charts}} = socket) when charts == [],
-    do: assign_charts(socket)
+  def update_charts(%{assigns: %{charts: charts}} = socket) when charts == [], do: assign_charts(socket)
 
   def update_charts(
         %{
@@ -143,8 +130,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
             latest_metrics: latest_metrics,
             charts: charts
           }
-        } =
-          socket
+        } = socket
       ) do
     data = create_chart_data(device.id, time_frame, latest_metrics["size_mb"])
 

@@ -72,10 +72,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
-  def hooked_info(
-        %Broadcast{event: "health_check_report"},
-        %{assigns: %{device: device}} = socket
-      ) do
+  def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
     latest_metrics = Metrics.get_latest_metric_set(device.id)
 
     socket
@@ -223,10 +220,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   defp standard_keys(%{firmware_metadata: nil}), do: []
 
   defp standard_keys(%{firmware_metadata: firmware_metadata}),
-    do:
-      firmware_metadata
-      |> Map.keys()
-      |> Enum.map(&to_string/1)
+    do: firmware_metadata |> Map.keys() |> Enum.map(&to_string/1)
 
   # @doc """
   # There are four cases for chart updates:
@@ -235,8 +229,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   #   - Do a push_patch to render more or less charts if custom types varies for time frames.
   #   - Update existing hooks with new data via push_event (should happen most frequent).
   # """
-  defp update_charts(%{charts: charts} = assigns) when charts == [],
-    do: assign_charts(assigns)
+  defp update_charts(%{charts: charts} = assigns) when charts == [], do: assign_charts(assigns)
 
   defp update_charts(
          %{
@@ -248,8 +241,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
              latest_metrics: latest_metrics,
              charts: charts
            }
-         } =
-           socket
+         } = socket
        ) do
     data = create_chart_data(device.id, time_frame, latest_metrics["size_mb"])
 

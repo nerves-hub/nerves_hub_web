@@ -26,10 +26,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   end
 
   @impl Phoenix.Channel
-  def handle_info(
-        %Phoenix.Socket.Broadcast{event: "fwup_progress", payload: %{percent: percent}},
-        socket
-      ) do
+  def handle_info(%Phoenix.Socket.Broadcast{event: "fwup_progress", payload: %{percent: percent}}, socket) do
     # Forward the firmware update progress to the connected client
     push(socket, "firmware_update", %{percent: percent})
 

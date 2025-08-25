@@ -52,6 +52,5 @@ defmodule NervesHub.Helpers.Logging do
   defp send_to_sentry(exception, extra) when is_exception(exception),
     do: Sentry.capture_exception(exception, extra: extra, result: :none)
 
-  defp send_to_sentry(message, extra),
-    do: Sentry.capture_message(message, extra: extra, result: :none)
+  defp send_to_sentry(message, extra), do: Sentry.capture_message(message, extra: extra, result: :none)
 end

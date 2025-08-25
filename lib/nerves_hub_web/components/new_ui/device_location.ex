@@ -104,8 +104,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   end
 
   # location information is nil or empty, geo location might not be enabled
-  def render(%{location: location} = assigns)
-      when is_nil(location) or map_size(location) == 0 do
+  def render(%{location: location} = assigns) when is_nil(location) or map_size(location) == 0 do
     ~H"""
     <div class="flex flex-col w-full h-[450px] p-4 gap-4">
       <div class="flex items-end justify-between">
