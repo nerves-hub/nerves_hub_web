@@ -174,7 +174,6 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  # def handle_out("deployment_updated", %{deployment_id: deployment_id}, socket) do
   def handle_out("deployment_updated", payload, socket) do
     device = %{socket.assigns.device | deployment_id: payload.deployment_id}
 
