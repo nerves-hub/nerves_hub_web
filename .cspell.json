@@ -20,10 +20,13 @@
   ],
   "ignorePaths": [
     "**/*.csv",
+    "docker/*",
+    "Dockerfile",
     "config",
     "assets/{node_modules,static}",
     "mix.exs",
     "priv",
+    "rel",
     "test"
   ],
   "words": [
