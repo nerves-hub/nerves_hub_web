@@ -6,6 +6,7 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
 
   @raw File.read!("test/fixtures/fwup/raw.conf")
   @raw_add_file File.read!("test/fixtures/fwup/raw-add-file.conf")
+  @raw_two_files File.read!("test/fixtures/fwup/raw-two-files.conf")
   @fat File.read!("test/fixtures/fwup/fat.conf")
   @raw_encrypted File.read!("test/fixtures/fwup/raw-encrypted.conf")
   @mixed File.read!("test/fixtures/fwup/mixed.conf")
@@ -43,6 +44,22 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
              stderr_to_stdout: true,
              env: [
                {"TEST_1", data_path}
+             ]
+           ) do
+        {_, 0} ->
+          path
+
+        {output, status} ->
+          flunk("Error in fwup with status #{status}:\n#{output}")
+      end
+    end
+
+    defp build_fw!(path, fwup_path, data_path_1, data_path_2) do
+      case System.cmd("fwup", ["-c", "-f", fwup_path, "-o", path],
+             stderr_to_stdout: true,
+             env: [
+               {"TEST_1", data_path_1},
+               {"TEST_2", data_path_2}
              ]
            ) do
         {_, 0} ->
@@ -265,6 +282,63 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       tmp_dir: dir
     } do
       fwup_conf_path = Path.join(dir, "fwup.conf")
+      File.write!(fwup_conf_path, @raw_two_files)
+
+      File.mkdir(Path.join(dir, "source"))
+
+      data_path_source_1 = Path.join([dir, "source", "data-1"])
+      data_source_1 = :crypto.strong_rand_bytes(10)
+      File.write!(data_path_source_1, data_source_1)
+
+      data_path_source_2 = Path.join([dir, "source", "data-2"])
+      data_source_2 = :crypto.strong_rand_bytes(100)
+      File.write!(data_path_source_2, data_source_2)
+
+      File.mkdir(Path.join(dir, "target"))
+
+      data_path_target_1 = Path.join([dir, "target", "data-1"])
+      data_target_1 = data_source_1
+      File.write!(data_path_target_1, data_target_1)
+
+      data_path_target_2 = Path.join([dir, "target", "data-2"])
+      data_target_2 = data_source_2 <> :crypto.strong_rand_bytes(20)
+      File.write!(data_path_target_2, data_target_2)
+
+      fw_a =
+        build_fw!(Path.join(dir, "a.fw"), fwup_conf_path, data_path_source_1, data_path_source_2)
+
+      fw_b =
+        build_fw!(Path.join(dir, "b.fw"), fwup_conf_path, data_path_target_1, data_path_target_2)
+
+      %{size: source_size} = File.stat!(fw_a)
+      %{size: target_size} = File.stat!(fw_b)
+
+      {:ok,
+       %{
+         filepath: delta_path,
+         tool: "fwup",
+         tool_metadata: %{},
+         size: delta_size,
+         source_size: ^source_size,
+         target_size: ^target_size
+       }} = Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
+
+      assert %{size: ^delta_size} = File.stat!(delta_path)
+      assert delta_size < target_size
+
+      img_a = complete!(fw_a, Path.join(dir, "a.img"))
+      img_b = complete!(fw_b, Path.join(dir, "b.img"))
+
+      upgrade!(delta_path, img_a)
+
+      assert compare_images?({img_b, 1024, 1024}, {img_a, 2048, 1024})
+    end
+
+    @tag :tmp_dir
+    test "do not generate deltas if all generated files are larger than the target file", %{
+      tmp_dir: dir
+    } do
+      fwup_conf_path = Path.join(dir, "fwup.conf")
       File.write!(fwup_conf_path, @raw)
 
       data_path_1 = Path.join(dir, "data-1")
@@ -280,31 +354,10 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       %{size: source_size} = File.stat!(fw_a)
       %{size: target_size} = File.stat!(fw_b)
 
-      {:ok,
-       %{
-         filepath: delta_path,
-         tool: "fwup",
-         tool_metadata: %{},
-         size: delta_size,
-         source_size: ^source_size,
-         target_size: ^target_size
-       }} =
+      assert source_size == target_size
+
+      {:error, :no_changes_in_delta} =
         Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
-
-      assert %{size: ^delta_size} = File.stat!(delta_path)
-      assert delta_size < target_size
-
-      img_a = complete!(fw_a, Path.join(dir, "a.img"))
-      hash_a = sha256sum(img_a)
-      img_b = complete!(fw_b, Path.join(dir, "b.img"))
-      hash_b = sha256sum(img_b)
-
-      # fs images are identical
-      assert hash_a == hash_b
-
-      upgrade!(delta_path, img_a)
-
-      assert compare_images?({img_b, 1024, 1024}, {img_a, 2048, 1024})
     end
 
     @tag :tmp_dir

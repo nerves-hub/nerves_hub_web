@@ -163,46 +163,40 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          {:ok, all_delta_files} <- delta_files(deltas) do
       Logger.info("Generating delta for files: #{Enum.join(all_delta_files, ", ")}")
 
-      _ =
+      file_list =
         for absolute <- Path.wildcard(target_work_dir <> "/**"), not File.dir?(absolute) do
           path = Path.relative_to(absolute, target_work_dir)
 
           output_path = Path.join(output_work_dir, path)
-          target_filepath = Path.join(target_work_dir, path)
 
           output_path
           |> Path.dirname()
           |> File.mkdir_p!()
 
-          _ =
-            case maybe_generate_delta(
-                   path,
-                   source_work_dir,
-                   target_work_dir,
-                   output_work_dir,
-                   all_delta_files
-                 ) do
-              nil ->
-                File.cp!(target_filepath, output_path)
-
-              path when is_binary(path) ->
-                :ok
-            end
+          maybe_generate_delta(
+            path,
+            source_work_dir,
+            target_work_dir,
+            output_work_dir,
+            all_delta_files
+          )
         end
+        |> Enum.reject(&is_nil(&1))
 
       {:ok, delta_zip_path} = Plug.Upload.random_file("#{source_uuid}_#{target_uuid}_delta.zip")
       _ = File.rm(delta_zip_path)
+      _ = File.cp(target_path, delta_zip_path)
 
-      {_output, 0} =
-        System.cmd(
-          "zip",
-          ["-9", "-D", "-r", delta_zip_path] ++ generate_file_list(output_work_dir),
-          cd: output_work_dir
-        )
+      if !Enum.any?(file_list) do
+        {:error, :no_changes_in_delta}
+      else
+        for file <- file_list do
+          args = ["-9", delta_zip_path, String.replace_prefix(file, "#{output_work_dir}/", "")]
+          {_output, 0} = System.cmd("zip", args, cd: output_work_dir)
+        end
 
-      {:ok, %{size: size}} = File.stat(delta_zip_path)
+        {:ok, %{size: size}} = File.stat(delta_zip_path)
 
-      if size < target_size do
         {:ok,
          %{
            filepath: delta_zip_path,
@@ -212,8 +206,6 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
            tool: "fwup",
            tool_metadata: tool_metadata
          }}
-      else
-        {:error, :delta_larger_than_target}
       end
     end
   end
@@ -289,26 +281,6 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
       [] -> {:error, :no_delta_support_in_firmware}
       delta_files -> {:ok, delta_files}
     end
-  end
-
-  defp generate_file_list(workdir) do
-    # firmware archive files order matters:
-    # 1. meta.conf.ed25519 (optional)
-    # 2. meta.conf
-    # 3. other...
-    [
-      "meta.conf.*",
-      "meta.conf",
-      "data"
-    ]
-    |> Enum.map(fn glob -> workdir |> Path.join(glob) |> Path.wildcard() end)
-    |> List.flatten()
-    |> Enum.map(fn file ->
-      file
-      |> String.replace_prefix("#{workdir}/", "")
-
-      # |> to_charlist()
-    end)
   end
 
   defp get_tool_metadata(meta_conf_path) do
