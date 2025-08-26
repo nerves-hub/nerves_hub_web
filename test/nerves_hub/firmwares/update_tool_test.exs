@@ -261,6 +261,53 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
     end
 
     @tag :tmp_dir
+    test "do not generate individual delta patches that would be larger than the target", %{
+      tmp_dir: dir
+    } do
+      fwup_conf_path = Path.join(dir, "fwup.conf")
+      File.write!(fwup_conf_path, @raw)
+
+      data_path_1 = Path.join(dir, "data-1")
+      data_1 = :crypto.strong_rand_bytes(10)
+      File.write!(data_path_1, data_1)
+
+      data_path_2 = Path.join(dir, "data-2")
+      data_2 = data_1
+      File.write!(data_path_2, data_2)
+
+      fw_a = build_fw!(Path.join(dir, "a.fw"), fwup_conf_path, data_path_1)
+      fw_b = build_fw!(Path.join(dir, "b.fw"), fwup_conf_path, data_path_2)
+      %{size: source_size} = File.stat!(fw_a)
+      %{size: target_size} = File.stat!(fw_b)
+
+      {:ok,
+       %{
+         filepath: delta_path,
+         tool: "fwup",
+         tool_metadata: %{},
+         size: delta_size,
+         source_size: ^source_size,
+         target_size: ^target_size
+       }} =
+        Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
+
+      assert %{size: ^delta_size} = File.stat!(delta_path)
+      assert delta_size < target_size
+
+      img_a = complete!(fw_a, Path.join(dir, "a.img"))
+      hash_a = sha256sum(img_a)
+      img_b = complete!(fw_b, Path.join(dir, "b.img"))
+      hash_b = sha256sum(img_b)
+
+      # fs images are identical
+      assert hash_a == hash_b
+
+      upgrade!(delta_path, img_a)
+
+      assert compare_images?({img_b, 1024, 1024}, {img_a, 2048, 1024})
+    end
+
+    @tag :tmp_dir
     test "generate valid delta for raw with non-existant new file fwup config", %{tmp_dir: dir} do
       source_conf_path = Path.join(dir, "fwup.conf")
       File.write!(source_conf_path, @raw)
