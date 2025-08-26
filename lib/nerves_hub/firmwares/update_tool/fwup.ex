@@ -187,27 +187,33 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
       _ = File.rm(delta_zip_path)
       _ = File.cp(target_path, delta_zip_path)
 
-      if !Enum.any?(file_list) do
-        {:error, :no_changes_in_delta}
-      else
-        for file <- file_list do
-          args = ["-9", delta_zip_path, String.replace_prefix(file, "#{output_work_dir}/", "")]
-          {_output, 0} = System.cmd("zip", args, cd: output_work_dir)
-        end
-
-        {:ok, %{size: size}} = File.stat(delta_zip_path)
-
+      with {true, :changes_in_delta} <- {Enum.any?(file_list), :changes_in_delta},
+           :ok <- update_changed_files(file_list, delta_zip_path, output_work_dir),
+           {:ok, %{size: delta_size}} <- File.stat(delta_zip_path),
+           {true, :delta_smaller} <- {delta_size < target_size, :delta_smaller} do
         {:ok,
          %{
            filepath: delta_zip_path,
-           size: size,
+           size: delta_size,
            source_size: source_size,
            target_size: target_size,
            tool: "fwup",
            tool_metadata: tool_metadata
          }}
+      else
+        {false, :changes_in_delta} -> {:error, :no_changes_in_delta}
+        {false, :delta_smaller} -> {:error, :delta_larger_than_target}
       end
     end
+  end
+
+  defp update_changed_files(file_list, delta_zip_path, output_work_dir) do
+    for file <- file_list do
+      args = ["-9", delta_zip_path, String.replace_prefix(file, "#{output_work_dir}/", "")]
+      {_output, 0} = System.cmd("zip", args, cd: output_work_dir)
+    end
+
+    :ok
   end
 
   defp maybe_generate_delta("meta." <> _, _, _, _, _) do

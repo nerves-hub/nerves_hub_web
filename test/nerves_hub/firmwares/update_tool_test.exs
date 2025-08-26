@@ -361,6 +361,28 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
     end
 
     @tag :tmp_dir
+    test "fail to generate delta that is larger than the target", %{
+      tmp_dir: dir
+    } do
+      fwup_conf_path = Path.join(dir, "fwup.conf")
+      File.write!(fwup_conf_path, @raw)
+
+      data_path_1 = Path.join(dir, "data-1")
+      data_1 = <<0::size(32 * 8)>>
+      File.write!(data_path_1, data_1)
+
+      data_path_2 = Path.join(dir, "data-2")
+      data_2 = data_1
+      File.write!(data_path_2, data_2)
+
+      fw_a = build_fw!(Path.join(dir, "a.fw"), fwup_conf_path, data_path_1)
+      fw_b = build_fw!(Path.join(dir, "b.fw"), fwup_conf_path, data_path_2)
+
+      assert {:error, :delta_larger_than_target} =
+               Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
+    end
+
+    @tag :tmp_dir
     test "generate valid delta for raw with non-existant new file fwup config", %{tmp_dir: dir} do
       source_conf_path = Path.join(dir, "fwup.conf")
       File.write!(source_conf_path, @raw)
