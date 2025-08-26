@@ -35,8 +35,9 @@ defmodule NervesHub.Firmwares.Upload.File do
 
     config = Application.get_env(:nerves_hub, __MODULE__)
 
-    common_path = "#{org_id}"
-    local_path = Path.join([config[:local_path], common_path, filename])
+    common_path = Path.join([key_prefix(), Integer.to_string(org_id), filename])
+
+    local_path = Path.join([config[:local_path], common_path])
 
     port =
       if Enum.member?([443, 80], web_config[:url][:port]),
@@ -52,5 +53,43 @@ defmodule NervesHub.Firmwares.Upload.File do
       public_path: public_path,
       local_path: local_path
     }
+  end
+
+  @impl NervesHub.Firmwares.Upload
+  def delta_metadata(org_id, source_firmware_uuid, target_firmware_uuid) do
+    web_config = Application.get_env(:nerves_hub, NervesHubWeb.Endpoint)
+
+    config = Application.get_env(:nerves_hub, __MODULE__)
+
+    common_path =
+      Path.join([
+        key_prefix(),
+        Integer.to_string(org_id),
+        source_firmware_uuid,
+        "#{target_firmware_uuid}.delta.fw"
+      ])
+
+    local_path = Path.join([config[:local_path], common_path])
+
+    port =
+      if Enum.member?([443, 80], web_config[:url][:port]),
+        do: "",
+        else: ":#{web_config[:url][:port]}"
+
+    public_path =
+      Path.join([
+        "#{web_config[:url][:scheme]}://#{web_config[:url][:host]}#{port}/",
+        config[:public_path],
+        common_path
+      ])
+
+    %{
+      public_path: public_path,
+      local_path: local_path
+    }
+  end
+
+  def key_prefix() do
+    "firmware"
   end
 end

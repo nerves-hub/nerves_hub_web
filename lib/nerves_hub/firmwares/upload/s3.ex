@@ -55,6 +55,19 @@ defmodule NervesHub.Firmwares.Upload.S3 do
     %{"s3_key" => Path.join([key_prefix(), Integer.to_string(org_id), filename])}
   end
 
+  @impl NervesHub.Firmwares.Upload
+  def delta_metadata(org_id, source_firmware_uuid, target_firmware_uuid) do
+    %{
+      "s3_key" =>
+        Path.join([
+          key_prefix(),
+          Integer.to_string(org_id),
+          source_firmware_uuid,
+          "#{target_firmware_uuid}.delta.fw"
+        ])
+    }
+  end
+
   def bucket() do
     Application.get_env(:nerves_hub, __MODULE__)[:bucket]
   end

@@ -272,7 +272,8 @@ defmodule NervesHub.FirmwaresTest do
       expect(UploadFile, :download_file, fn ^source -> {:ok, source_url} end)
       expect(UploadFile, :download_file, fn ^target -> {:ok, target_url} end)
 
-      expect(UpdateToolDefault, :create_firmware_delta_file, fn ^source_url, ^target_url ->
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn {_, ^source_url},
+                                                                {_, ^target_url} ->
         {:ok,
          %{
            filepath: firmware_delta_path,
@@ -340,7 +341,8 @@ defmodule NervesHub.FirmwaresTest do
       expect(UploadFile, :download_file, fn ^target -> {:ok, target_url} end)
 
       # Force error
-      expect(UpdateToolDefault, :create_firmware_delta_file, fn ^source_url, ^target_url ->
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn {_, ^source_url},
+                                                                {_, ^target_url} ->
         {:error, :delta_not_created}
       end)
 

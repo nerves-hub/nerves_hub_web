@@ -77,36 +77,44 @@ defmodule NervesHubWeb do
 
   def updated_live_view() do
     quote do
+      unquote(live_view_setup())
+      unquote(live_view_imports())
+      unquote(live_view_helper_functions())
+    end
+  end
+
+  defp live_view_setup() do
+    quote do
       use NervesHubWeb.LiveView,
         layout: {NervesHubWeb.LayoutView, :live},
         container: {:div, class: "h-screen"}
 
       use Gettext, backend: NervesHubWeb.Gettext
+      on_mount(Sentry.LiveViewHook)
+    end
+  end
 
+  defp live_view_imports() do
+    quote do
       # HTML escaping functionality
       import Phoenix.HTML
-
       import NervesHubWeb.Helpers.Authorization
-
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
 
-      # Shortcut for generating JS commands
-      alias Phoenix.LiveView.JS
-
       alias NervesHubWeb.Components.Navigation
+      alias Phoenix.LiveView.JS
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
-
       unquote(view_helpers())
+    end
+  end
 
-      on_mount(Sentry.LiveViewHook)
-
+  defp live_view_helper_functions() do
+    quote do
       def ok(socket), do: {:ok, socket}
-
       def noreply(socket), do: {:noreply, socket}
-
       def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
 
       @spec sidebar_tab(
@@ -125,15 +133,18 @@ defmodule NervesHubWeb do
         |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
       end
 
-      def analytics_enabled?() do
-        Application.get_env(:nerves_hub, :analytics_enabled)
-      end
+      def analytics_enabled?(), do: Application.get_env(:nerves_hub, :analytics_enabled)
 
+      unquote(tab_component_functions())
+    end
+  end
+
+  defp tab_component_functions() do
+    quote do
       defp setup_tab_components(socket, tabs \\ []) do
         if socket.assigns[:new_ui] do
-          Enum.reduce(tabs, socket, fn component, socket ->
-            component.connect(socket)
-          end)
+          tabs
+          |> Enum.reduce(socket, fn component, socket -> component.connect(socket) end)
           |> put_private(:tabs, tabs)
         else
           socket
@@ -152,16 +163,12 @@ defmodule NervesHubWeb do
 
       defp detach_hooks(socket) do
         socket.private[:tabs]
-        |> Enum.reduce(socket, fn component, socket ->
-          component.detach_hooks(socket)
-        end)
+        |> Enum.reduce(socket, fn component, socket -> component.detach_hooks(socket) end)
       end
 
       defp attach_hooks(socket) do
         socket.private[:tabs]
-        |> Enum.reduce(socket, fn component, socket ->
-          component.attach_hooks(socket)
-        end)
+        |> Enum.reduce(socket, fn component, socket -> component.attach_hooks(socket) end)
       end
     end
   end
@@ -279,11 +286,25 @@ defmodule NervesHubWeb do
 
   def hooked_component({:tab_id, tab_id}) do
     quote do
-      use Phoenix.Component
+      unquote(hooked_component_setup())
+      unquote(hooked_component_imports())
+      unquote(hooked_component_tab_setup(tab_id))
+      unquote(hook_connection_functions())
+      unquote(hooked_component_helper_functions())
+    end
+  end
 
+  defp hooked_component_setup() do
+    quote do
+      use Phoenix.Component
+      alias Phoenix.Socket.Broadcast
+    end
+  end
+
+  defp hooked_component_imports() do
+    quote do
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
-
       import NervesHubWeb.Helpers.Authorization
 
       import Phoenix.LiveView,
@@ -304,13 +325,18 @@ defmodule NervesHubWeb do
           consume_uploaded_entry: 3,
           put_flash: 3
         ]
+    end
+  end
 
-      alias Phoenix.Socket.Broadcast
-
+  defp hooked_component_tab_setup(tab_id) do
+    quote do
       @tab_id unquote(tab_id)
-
       defp tab_hook_id(), do: "#{@tab_id}_tab"
+    end
+  end
 
+  defp hook_connection_functions() do
+    quote do
       def connect(socket) do
         attach_hook(socket, tab_hook_id(), :handle_params, &__MODULE__.hooked_params/3)
       end
@@ -346,22 +372,18 @@ defmodule NervesHubWeb do
         end
       end
 
-      def tab_params(_params, _uri, socket) do
-        cont(socket)
-      end
-
-      def cleanup() do
-        []
-      end
+      def tab_params(_params, _uri, socket), do: cont(socket)
+      def cleanup(), do: []
 
       defoverridable tab_params: 3, cleanup: 0
+    end
+  end
 
+  defp hooked_component_helper_functions() do
+    quote do
       def ok(socket), do: {:ok, socket}
-
       def halt(socket), do: {:halt, socket}
-
       def cont(socket), do: {:cont, socket}
-
       def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
 
       def sidebar_tab(socket, tab) do

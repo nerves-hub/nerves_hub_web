@@ -25,8 +25,13 @@ defmodule NervesHubWeb.ExtensionsChannel do
       send(self(), :init_extensions)
     end
 
+    # all devices are lumped into a `extensions` topic (the name used in join/3)
+    # this can be a security issue as pubsub messages can be sent to all connected devices
+    # additionally, this topic isn't needed or used, so we can unsubscribe from it
+    :ok = socket.endpoint.unsubscribe("extensions")
+
     topic = "device:#{socket.assigns.device.id}:extensions"
-    :ok = PubSub.subscribe(NervesHub.PubSub, topic)
+    :ok = socket.endpoint.subscribe(topic)
 
     {:ok, attach_list, socket}
   end

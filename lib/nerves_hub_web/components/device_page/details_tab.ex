@@ -199,12 +199,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <div class="text-neutral-50 font-medium leading-6">Alarms</div>
           </div>
 
-          <div class="flex pt-2 px-4 pb-4 gap-2 items-center">
-            <div :for={{alarm, description} <- @alarms}>
-              <div class="flex gap-3 items-center">
-                <code class="text-sm text-red-500 px-2 py-1 border border-red-500 bg-zinc-800 rounded">{alarm}</code>
-                <code :if={has_description?(description)}>{description}</code>
-              </div>
+          <div class="flex flex-col pt-2 px-4 pb-4 gap-2">
+            <div :for={{alarm, description} <- @alarms} class="flex gap-3 items-center">
+              <code class="text-sm text-red-500 px-2 py-1 border border-red-500 bg-zinc-800 rounded">{alarm}</code>
+              <code :if={has_description?(description)}>{description}</code>
+              <span :if={!has_description?(description)} class="text-nerves-gray-500">No description</span>
             </div>
           </div>
 
@@ -877,6 +876,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       |> Enum.map(&to_string/1)
 
   defp has_description?(description) do
-    is_binary(description) and byte_size(description) > 0
+    is_binary(description) and byte_size(description) > 0 and description != "[]"
   end
 end

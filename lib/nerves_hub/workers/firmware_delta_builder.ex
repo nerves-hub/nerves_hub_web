@@ -13,14 +13,15 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
   alias NervesHub.ManagedDeployments
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"source_id" => source_id, "target_id" => target_id}}) do
+  def perform(%Oban.Job{id: id, args: %{"source_id" => source_id, "target_id" => target_id}}) do
     source = Firmwares.get_firmware!(source_id)
     target = Firmwares.get_firmware!(target_id)
 
     Logger.metadata(
       product_id: source.product_id,
       source_firmware: source.uuid,
-      target_firmware: target.uuid
+      target_firmware: target.uuid,
+      job_id: id
     )
 
     :ok = maybe_create_firmware_delta(source, target)

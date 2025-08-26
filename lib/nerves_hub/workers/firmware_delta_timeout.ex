@@ -5,7 +5,8 @@ defmodule NervesHub.Workers.FirmwareDeltaTimeout do
 
   alias NervesHub.Firmwares
 
-  @delta_generation_timeout 120_000
+  # 15min timeout
+  @delta_generation_timeout 960
 
   @impl Oban.Worker
   def perform(_) do

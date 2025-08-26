@@ -54,6 +54,11 @@ defmodule NervesHubWeb.DeviceChannel do
 
     deployment_channel = deployment_channel(device)
 
+    # all devices are lumped into a `device` topic (the name used in join/3)
+    # this can be a security issue as pubsub messages can be sent to all connected devices
+    # additionally, this topic isn't needed or used, so we can unsubscribe from it
+    unsubscribe("device")
+
     subscribe("device:#{device.id}")
     subscribe(deployment_channel)
 
