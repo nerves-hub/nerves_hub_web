@@ -93,8 +93,21 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # manually pushed
-  def handle_info(%Broadcast{event: "devices/update-manual", payload: payload}, socket) do
+  def handle_info(
+        %Broadcast{event: "devices/update-manual", payload: payload},
+        socket
+      ) do
     :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
+
+    # firmware = Firmwares.get_firmware_by_uuid(payload.firmware_meta.uuid)
+
+    # _ =
+    #   UpdateStats.log_update(
+    #     socket.assigns.device,
+    #     firmware,
+    #     exclude_deployment_group: true
+    #   )
+
     push(socket, "update", payload)
     {:noreply, socket}
   end
@@ -358,10 +371,10 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # A new UUID is being reported from an update
-  defp update_metadata(device, params) do
+  defp update_metadata(%{firmware_metadata: previous_metadata} = device, params) do
     with {:ok, metadata} <- Firmwares.metadata_from_device(params),
          {:ok, device} <- Devices.update_firmware_metadata(device, metadata) do
-      Devices.firmware_update_successful(device)
+      Devices.firmware_update_successful(device, previous_metadata)
     end
   end
 
