@@ -17,6 +17,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Support.Utils
   alias NervesHubWeb.DeviceEndpoint
   alias NervesHubWeb.Endpoint
+  alias X509.Certificate.Template, as: X509Template
   alias X509.Certificate.Validity, as: X509Validity
 
   import Ecto.Query
@@ -941,10 +942,7 @@ defmodule NervesHubWeb.WebsocketTest do
       not_before = Timex.now() |> Timex.shift(days: -1)
       not_after = Timex.now() |> Timex.shift(seconds: 1)
 
-      template =
-        Certificate.Template.new(:root_ca,
-          validity: Certificate.Validity.new(not_before, not_after)
-        )
+      template = X509Template.new(:root_ca, validity: X509Validity.new(not_before, not_after))
 
       %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org, template: template)
 
