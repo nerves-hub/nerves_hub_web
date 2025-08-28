@@ -6,7 +6,6 @@ defmodule NervesHub.MixProject do
       app: :nerves_hub,
       version: "2.0.0+#{build()}",
       start_permanent: Mix.env() == :prod,
-      consolidate_protocols: Mix.env() != :dev,
       deps: deps(),
       aliases: aliases(),
       preferred_cli_env: [
