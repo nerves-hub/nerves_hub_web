@@ -31,4 +31,11 @@ defmodule NervesHub.Devices.InflightUpdate do
       name: :inflight_updates_device_id_deployment_id_index
     )
   end
+
+  def update_status_changeset(inflight_update, status) do
+    inflight_update
+    |> change()
+    |> put_change(:status, status)
+    |> validate_required(@required_params)
+  end
 end

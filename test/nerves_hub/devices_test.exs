@@ -650,7 +650,7 @@ defmodule NervesHub.DevicesTest do
       device = Devices.update_deployment_group(device, deployment_group)
 
       assert device.deployment_id == deployment_group.id
-      assert_receive %{event: "devices/deployment-updated"}
+      assert_receive %{event: "deployment_updated"}
     end
   end
 
@@ -665,7 +665,7 @@ defmodule NervesHub.DevicesTest do
       device = Devices.clear_deployment_group(device)
 
       refute device.deployment_id
-      assert_receive %{event: "devices/deployment-cleared"}
+      assert_receive %{event: "deployment_updated"}
     end
   end
 

@@ -5,6 +5,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   import TrackerHelper
 
   alias NervesHub.AuditLogs
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -155,11 +156,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
 
-    Phoenix.PubSub.broadcast(
-      NervesHub.PubSub,
-      "device:#{device.id}",
-      %Phoenix.Socket.Broadcast{event: "devices/updated"}
-    )
+    DeviceEvents.updated(device)
 
     _ = :sys.get_state(device_channel.channel_pid)
 
