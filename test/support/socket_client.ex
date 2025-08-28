@@ -158,11 +158,11 @@ defmodule SocketClient do
   end
 
   @impl Slipstream
-  def handle_message("device:" <> _id, "extensions:get", _message, socket) do
+  def handle_message("device", "extensions:get", _message, socket) do
     {:ok, socket}
   end
 
-  def handle_message("device:" <> _id, "update", message, socket) do
+  def handle_message("device", "update", message, socket) do
     socket =
       socket
       |> assign(:received_update?, true)
@@ -171,7 +171,7 @@ defmodule SocketClient do
     {:ok, socket}
   end
 
-  def handle_message("device:" <> _id, "archive", message, socket) do
+  def handle_message("device", "archive", message, socket) do
     socket =
       socket
       |> assign(:received_archive?, true)
