@@ -22,22 +22,20 @@ defmodule NervesHub.Devices.UpdateStats do
           %{
             total_update_bytes: non_neg_integer(),
             total_saved_bytes: integer(),
-            num_updates: non_neg_integer()
+            total_updates: non_neg_integer()
           }
   def stats_by_device(%Device{} = device) do
-    Repo.one(
-      from(s in UpdateStat,
-        where: s.device_id == ^device.id,
-        select: %{
-          total_update_bytes: sum(s.update_bytes),
-          total_saved_bytes: sum(s.saved_bytes),
-          num_updates: fragment("count(*)")
-        }
-      )
-    )
+    UpdateStat
+    |> where(device_id: ^device.id)
+    |> select([s], %{
+      total_update_bytes: sum(s.update_bytes),
+      total_saved_bytes: sum(s.saved_bytes),
+      total_updates: fragment("count(*)")
+    })
+    |> Repo.one()
     |> case do
       %{total_update_bytes: nil, total_saved_bytes: nil} ->
-        %{total_update_bytes: 0, total_saved_bytes: 0, num_updates: 0}
+        %{total_update_bytes: 0, total_saved_bytes: 0, total_updates: 0}
 
       stats ->
         stats
@@ -49,24 +47,21 @@ defmodule NervesHub.Devices.UpdateStats do
             String.t() => %{
               total_update_bytes: non_neg_integer(),
               total_saved_bytes: integer(),
-              num_updates: non_neg_integer(),
+              total_updates: non_neg_integer(),
               source_firmware_uuid: String.t()
             }
           }
   def stats_by_deployment(deployment_group) do
-    Repo.all(
-      from(s in UpdateStat,
-        where: s.deployment_id == ^deployment_group.id,
-        # where: s.target_firmware_uuid == ^deployment_group.firmware.uuid,
-        group_by: [s.target_firmware_uuid],
-        select: %{
-          total_update_bytes: sum(s.update_bytes),
-          total_saved_bytes: sum(s.saved_bytes),
-          num_updates: fragment("count(*)"),
-          target_firmware_uuid: s.target_firmware_uuid
-        }
-      )
-    )
+    UpdateStat
+    |> where(deployment_id: ^deployment_group.id)
+    |> group_by([s], s.target_firmware_uuid)
+    |> select([s], %{
+      total_update_bytes: sum(s.update_bytes),
+      total_saved_bytes: sum(s.saved_bytes),
+      total_updates: fragment("count(*)"),
+      target_firmware_uuid: s.target_firmware_uuid
+    })
+    |> Repo.all()
     |> Enum.map(fn stat ->
       Map.pop(stat, :target_firmware_uuid)
     end)
@@ -77,22 +72,20 @@ defmodule NervesHub.Devices.UpdateStats do
           %{
             total_update_bytes: non_neg_integer(),
             total_saved_bytes: integer(),
-            num_updates: non_neg_integer()
+            total_updates: non_neg_integer()
           }
   def total_stats_by_product(product) do
-    Repo.one(
-      from(s in UpdateStat,
-        where: s.product_id == ^product.id,
-        select: %{
-          total_update_bytes: sum(s.update_bytes),
-          total_saved_bytes: sum(s.saved_bytes),
-          num_updates: fragment("count(*)")
-        }
-      )
-    )
+    UpdateStat
+    |> where(product_id: ^product.id)
+    |> select([s], %{
+      total_update_bytes: sum(s.update_bytes),
+      total_saved_bytes: sum(s.saved_bytes),
+      total_updates: fragment("count(*)")
+    })
+    |> Repo.one()
     |> case do
       %{total_update_bytes: nil, total_saved_bytes: nil} ->
-        %{total_update_bytes: 0, total_saved_bytes: 0, num_updates: 0}
+        %{total_update_bytes: 0, total_saved_bytes: 0, total_updates: 0}
 
       stats ->
         stats

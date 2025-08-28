@@ -46,9 +46,6 @@ defmodule NervesHub.Devices.UpdateStat do
 
     %__MODULE__{}
     |> cast(params, @required ++ @optional)
-    |> cast_assoc(:device)
-    |> cast_assoc(:product)
-    |> cast_assoc(:deployment)
     |> validate_required(@required)
   end
 end

@@ -151,13 +151,13 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       expected_bytes = deployment_group.firmware.size + delta.size
 
       assert result.total_update_bytes == expected_bytes
-      assert result.num_updates == 2
+      assert result.total_updates == 2
       assert is_integer(result.total_saved_bytes)
     end
 
     test "returns empty result for device with no stats", %{device: device} do
       result = UpdateStats.stats_by_device(device)
-      assert result == %{total_update_bytes: 0, num_updates: 0, total_saved_bytes: 0}
+      assert result == %{total_update_bytes: 0, total_updates: 0, total_saved_bytes: 0}
     end
 
     test "handles device with only one stat record", %{
@@ -171,7 +171,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
 
       assert result.total_update_bytes == deployment_group.firmware.size
       assert result.total_saved_bytes == 0
-      assert result.num_updates == 1
+      assert result.total_updates == 1
     end
   end
 
@@ -212,8 +212,8 @@ defmodule NervesHub.Devices.UpdateStatsTest do
 
       stats = UpdateStats.stats_by_deployment(deployment_group)
 
-      assert stats[target_firmware.uuid].num_updates == 2
-      assert stats[other_firmware.uuid].num_updates == 1
+      assert stats[target_firmware.uuid].total_updates == 2
+      assert stats[other_firmware.uuid].total_updates == 1
     end
 
     test "returns empty result for deployment with no stats", %{
@@ -253,13 +253,13 @@ defmodule NervesHub.Devices.UpdateStatsTest do
         deployment_group.firmware.size + delta.size
 
       assert result.total_update_bytes == expected_bytes
-      assert result.num_updates == 2
+      assert result.total_updates == 2
       assert is_integer(result.total_saved_bytes)
     end
 
     test "returns empty result for product with no stats", %{product: product} do
       result = UpdateStats.total_stats_by_product(product)
-      assert result == %{total_update_bytes: 0, num_updates: 0, total_saved_bytes: 0}
+      assert result == %{total_update_bytes: 0, total_updates: 0, total_saved_bytes: 0}
     end
   end
 end

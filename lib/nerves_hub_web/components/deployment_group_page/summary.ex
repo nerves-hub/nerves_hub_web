@@ -265,7 +265,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
                 <div class="flex gap-4 items-center">
                   <span class="text-sm text-nerves-gray-500">Update count:</span>
-                  <span class="text-sm text-zinc-300">{stat.num_updates}</span>
+                  <span class="text-sm text-zinc-300">{stat.total_updates}</span>
                 </div>
                 <div class="flex gap-4 items-center">
                   <span class="text-sm text-nerves-gray-500">Total updates size:</span>
@@ -277,11 +277,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
                 <div class="flex gap-4 items-center">
                   <span class="text-sm text-nerves-gray-500">Average size per device:</span>
-                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stat.total_update_bytes / stat.num_updates)}</span>
+                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stat.total_update_bytes / stat.total_updates)}</span>
                 </div>
                 <div class="flex gap-4 items-center">
                   <span class="text-sm text-nerves-gray-500">Average saved per device:</span>
-                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stat.total_saved_bytes / stat.num_updates)}</span>
+                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stat.total_saved_bytes / stat.total_updates)}</span>
                 </div>
               <% end %>
             </div>
