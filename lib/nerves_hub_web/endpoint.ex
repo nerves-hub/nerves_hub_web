@@ -16,9 +16,7 @@ defmodule NervesHubWeb.Endpoint do
 
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
-  socket("/socket", NervesHubWeb.UserSocket,
-    websocket: [connect_info: [session: @session_options]]
-  )
+  socket("/socket", NervesHubWeb.UserSocket, websocket: [connect_info: [session: @session_options]])
 
   socket("/events-socket", NervesHubWeb.EventStreamSocket, websocket: true)
 

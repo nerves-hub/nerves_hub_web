@@ -73,8 +73,7 @@ defmodule NervesHubWeb.DeviceSocket do
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
   @decorate with_span("Channels.DeviceSocket.connect")
-  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}})
-      when not is_nil(ssl_cert) do
+  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
     |> Devices.get_device_by_x509()
     |> case do
@@ -93,8 +92,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   # Used by Devices connecting with HMAC Shared Secrets
   @decorate with_span("Channels.DeviceSocket.connect")
-  def connect(_params, socket, %{x_headers: x_headers})
-      when is_list(x_headers) and length(x_headers) > 0 do
+  def connect(_params, socket, %{x_headers: x_headers}) when is_list(x_headers) and length(x_headers) > 0 do
     headers = Map.new(x_headers)
 
     with :ok <- check_shared_secret_enabled(),
@@ -208,8 +206,7 @@ defmodule NervesHubWeb.DeviceSocket do
     Devices.get_or_create_device(auth, identifier)
   end
 
-  defp get_or_maybe_create_device(%{device: %{identifier: identifier} = device}, identifier),
-    do: {:ok, device}
+  defp get_or_maybe_create_device(%{device: %{identifier: identifier} = device}, identifier), do: {:ok, device}
 
   defp get_or_maybe_create_device(_auth, _identifier), do: {:error, :bad_identifier}
 
@@ -253,8 +250,7 @@ defmodule NervesHubWeb.DeviceSocket do
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: connection_id,
       identifier: socket.assigns.device.identifier,
-      firmware_uuid:
-        get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)])
+      firmware_uuid: get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)])
     })
 
     Tracker.online(device)

@@ -33,8 +33,7 @@ defmodule NervesHub.Devices.LogLine do
 
   defp maybe_set_timestamp(%{"timestamp" => _} = params), do: params
 
-  defp maybe_set_timestamp(%{"meta" => %{"time" => timestamp}} = params)
-       when is_binary(timestamp) do
+  defp maybe_set_timestamp(%{"meta" => %{"time" => timestamp}} = params) when is_binary(timestamp) do
     {:ok, timestamp} =
       timestamp
       |> String.to_integer()

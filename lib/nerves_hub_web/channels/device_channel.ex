@@ -139,10 +139,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_info:deployment-cleared")
-  def handle_info(
-        %Broadcast{event: "devices/deployment-cleared"},
-        %{assigns: %{device: device}} = socket
-      ) do
+  def handle_info(%Broadcast{event: "devices/deployment-cleared"}, %{assigns: %{device: device}} = socket) do
     device = %{device | deployment_id: nil}
 
     {:noreply, update_device(socket, device)}
@@ -150,10 +147,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_info:deployment-group-updated")
   def handle_info(
-        %Broadcast{
-          event: "devices/deployment-updated",
-          payload: %{deployment_id: deployment_id}
-        },
+        %Broadcast{event: "devices/deployment-updated", payload: %{deployment_id: deployment_id}},
         %{assigns: %{device: device}} = socket
       ) do
     device = %{device | deployment_id: deployment_id}
@@ -265,11 +259,7 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  def handle_in(
-        "connection_types",
-        %{"values" => types},
-        %{assigns: %{reference_id: ref_id}} = socket
-      ) do
+  def handle_in("connection_types", %{"values" => types}, %{assigns: %{reference_id: ref_id}} = socket) do
     :ok = Connections.merge_update_metadata(ref_id, %{"connection_types" => types})
     {:noreply, socket}
   end
@@ -351,9 +341,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # The reported firmware is the same as what we already know about
-  defp update_metadata(%Device{firmware_metadata: %{uuid: uuid}} = device, %{
-         "nerves_fw_uuid" => uuid
-       }) do
+  defp update_metadata(%Device{firmware_metadata: %{uuid: uuid}} = device, %{"nerves_fw_uuid" => uuid}) do
     {:ok, device}
   end
 
