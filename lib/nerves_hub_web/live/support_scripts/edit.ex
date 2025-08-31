@@ -6,11 +6,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveView
-  def mount(
-        %{"script_id" => script_id},
-        _session,
-        %{assigns: %{org: org, product: product}} = socket
-      ) do
+  def mount(%{"script_id" => script_id}, _session, %{assigns: %{org: org, product: product}} = socket) do
     script = Scripts.get_by_product_and_id!(product, script_id)
 
     socket

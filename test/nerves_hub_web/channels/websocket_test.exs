@@ -313,9 +313,7 @@ defmodule NervesHubWeb.WebsocketTest do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
 
       on_exit(fn ->
-        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
-          shared_secrets: [enabled: false]
-        )
+        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])
       end)
     end
 
@@ -510,9 +508,7 @@ defmodule NervesHubWeb.WebsocketTest do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
 
       on_exit(fn ->
-        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
-          shared_secrets: [enabled: false]
-        )
+        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])
       end)
     end
 
@@ -569,9 +565,7 @@ defmodule NervesHubWeb.WebsocketTest do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
 
       on_exit(fn ->
-        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
-          shared_secrets: [enabled: false]
-        )
+        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])
       end)
 
       org = Fixtures.org_fixture(user)

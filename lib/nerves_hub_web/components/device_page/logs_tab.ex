@@ -80,10 +80,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
     |> halt()
   end
 
-  def hooked_info(
-        %Broadcast{event: "logs:received"},
-        %{assigns: %{streaming_enabled: false}} = socket
-      ) do
+  def hooked_info(%Broadcast{event: "logs:received"}, %{assigns: %{streaming_enabled: false}} = socket) do
     halt(socket)
   end
 
