@@ -110,8 +110,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> click_button("Create Certificate")
       |> assert_path("/org/#{org.name}/settings/certificates/new")
       |> assert_has("div",
-        text:
-          "Error validating certificate signing request. Please check if the right registration code was used."
+        text: "Error validating certificate signing request. Please check if the right registration code was used."
       )
 
       assert [] = Devices.get_ca_certificates(org)

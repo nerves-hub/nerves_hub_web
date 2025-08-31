@@ -413,9 +413,7 @@ defmodule NervesHub.Firmwares do
           | {:error, Changeset.t()}
 
   def generate_firmware_delta(firmware_delta, source_firmware, target_firmware) do
-    Logger.info(
-      "Creating firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}."
-    )
+    Logger.info("Creating firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}.")
 
     %Firmware{org: org} = source_firmware |> Repo.preload(:org)
     {:ok, source_url} = firmware_upload_config().download_file(source_firmware)

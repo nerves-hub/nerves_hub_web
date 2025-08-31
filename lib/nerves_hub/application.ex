@@ -30,10 +30,8 @@ defmodule NervesHub.Application do
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
-          {NervesHub.RateLimit.LogLines,
-           [clean_period: :timer.minutes(5), key_older_than: :timer.hours(1)]},
-          {PartitionSupervisor,
-           child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
+          {NervesHub.RateLimit.LogLines, [clean_period: :timer.minutes(5), key_older_than: :timer.hours(1)]},
+          {PartitionSupervisor, child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
         ] ++
         deployments_orchestrator(deploy_env()) ++
         endpoints(deploy_env())
@@ -109,14 +107,12 @@ defmodule NervesHub.Application do
     [
       Supervisor.child_spec(
         {Ecto.Migrator,
-         repos: [NervesHub.Repo],
-         skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
+         repos: [NervesHub.Repo], skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
         id: :repo_migrator
       ),
       Supervisor.child_spec(
         {Ecto.Migrator,
-         repos: [NervesHub.AnalyticsRepo],
-         skip: Application.get_env(:nerves_hub, :analytics_auto_migrator) != true},
+         repos: [NervesHub.AnalyticsRepo], skip: Application.get_env(:nerves_hub, :analytics_auto_migrator) != true},
         id: :analytics_repo_migrator
       )
     ]

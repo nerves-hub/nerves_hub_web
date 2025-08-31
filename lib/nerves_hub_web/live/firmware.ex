@@ -46,9 +46,7 @@ defmodule NervesHubWeb.Live.Firmware do
     end)
   end
 
-  defp apply_action(%{assigns: %{product: product}} = socket, :show, %{
-         "firmware_uuid" => firmware_uuid
-       }) do
+  defp apply_action(%{assigns: %{product: product}} = socket, :show, %{"firmware_uuid" => firmware_uuid}) do
     firmware = Firmwares.get_firmware_by_product_and_uuid!(product, firmware_uuid)
 
     socket
@@ -263,9 +261,7 @@ defmodule NervesHubWeb.Live.Firmware do
       {:error,
        %Ecto.Changeset{
          errors: [
-           uuid:
-             {"has already been taken",
-              [constraint: :unique, constraint_name: "firmwares_product_id_uuid_index"]}
+           uuid: {"has already been taken", [constraint: :unique, constraint_name: "firmwares_product_id_uuid_index"]}
          ]
        } = _changeset} ->
         error_feedback(
