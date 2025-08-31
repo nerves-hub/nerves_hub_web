@@ -290,10 +290,7 @@ defmodule SocketClient do
   end
 
   @impl Slipstream
-  def handle_disconnect(
-        {:error, %Mint.TransportError{reason: {:tls_alert, {:unknown_ca, _}}}},
-        socket
-      ) do
+  def handle_disconnect({:error, %Mint.TransportError{reason: {:tls_alert, {:unknown_ca, _}}}}, socket) do
     socket =
       socket
       |> assign(:connecting?, false)
@@ -302,10 +299,7 @@ defmodule SocketClient do
     {:ok, socket}
   end
 
-  def handle_disconnect(
-        {:error, {:upgrade_failure, %{reason: %{status_code: 401} = reason}}},
-        socket
-      ) do
+  def handle_disconnect({:error, {:upgrade_failure, %{reason: %{status_code: 401} = reason}}}, socket) do
     socket =
       socket
       |> assign(:connecting?, false)

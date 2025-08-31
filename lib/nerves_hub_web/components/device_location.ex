@@ -34,8 +34,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
   end
 
   # location information is empty, geo location might not be enabled
-  def render(%{location: location} = assigns)
-      when map_size(location) == 0 do
+  def render(%{location: location} = assigns) when map_size(location) == 0 do
     ~H"""
     <div class="display-box">
       <.location_header tooltip="The devices location is announced by the device after it connects." />

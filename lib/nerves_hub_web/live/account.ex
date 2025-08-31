@@ -52,11 +52,7 @@ defmodule NervesHubWeb.Live.Account do
   end
 
   @impl Phoenix.LiveView
-  def handle_event(
-        "update-password",
-        %{"user" => %{"current_password" => password} = user_params},
-        socket
-      ) do
+  def handle_event("update-password", %{"user" => %{"current_password" => password} = user_params}, socket) do
     user_params = Map.delete(user_params, "current_password")
 
     reset_url = &url(~p"/password-reset/#{&1}")

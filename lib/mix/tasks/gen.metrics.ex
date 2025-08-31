@@ -30,9 +30,8 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
   @doc """
   Runs recursively until current timestamp is less than or equal to ending timestamp
   """
-  def add_metrics(device_id, current_timestamp, ending_timestamp)
-      when current_timestamp <= ending_timestamp,
-      do: save_metrics(device_id, current_timestamp)
+  def add_metrics(device_id, current_timestamp, ending_timestamp) when current_timestamp <= ending_timestamp,
+    do: save_metrics(device_id, current_timestamp)
 
   def add_metrics(device_id, current_timestamp, ending_timestamp) do
     save_metrics(device_id, current_timestamp)

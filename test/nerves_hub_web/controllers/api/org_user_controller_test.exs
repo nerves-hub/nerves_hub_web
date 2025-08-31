@@ -78,8 +78,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       conn = post(conn, Routes.api_org_user_path(conn, :invite, org.name), org_user)
 
       assert %{
-               "detail" =>
-                 "A user with that email address already exists, please use the add user api endpoint."
+               "detail" => "A user with that email address already exists, please use the add user api endpoint."
              } = json_response(conn, 422)["errors"]
     end
   end
