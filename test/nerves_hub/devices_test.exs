@@ -622,7 +622,7 @@ defmodule NervesHub.DevicesTest do
       uuid: uuid
     }
 
-    Devices.update_firmware_metadata(device, firmware_metadata)
+    Devices.update_firmware_metadata(device, firmware_metadata, :unknown, false)
   end
 
   describe "device health reports" do
@@ -711,7 +711,9 @@ defmodule NervesHub.DevicesTest do
             Map.from_struct(%{
               device.firmware_metadata
               | uuid: UUIDv7.autogenerate()
-            })
+            }),
+            :unknown,
+            false
           )
 
         {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
@@ -776,7 +778,9 @@ defmodule NervesHub.DevicesTest do
             Map.from_struct(%{
               device.firmware_metadata
               | uuid: UUIDv7.autogenerate()
-            })
+            }),
+            :unknown,
+            false
           )
 
         {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})

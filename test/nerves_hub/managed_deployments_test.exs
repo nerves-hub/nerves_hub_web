@@ -511,7 +511,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       {:ok, device} =
         device
         |> Devices.update_deployment_group(deployment_group)
-        |> Devices.update_firmware_metadata(%{"platform" => "foobar"})
+        |> Devices.update_firmware_metadata(%{"platform" => "foobar"}, :unknown, false)
 
       device = ManagedDeployments.verify_deployment_group_membership(device)
       refute device.deployment_id
@@ -528,7 +528,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       {:ok, device} =
         device
         |> Devices.update_deployment_group(deployment_group)
-        |> Devices.update_firmware_metadata(%{"architecture" => "foobar"})
+        |> Devices.update_firmware_metadata(%{"architecture" => "foobar"}, :unknown, false)
 
       device = ManagedDeployments.verify_deployment_group_membership(device)
       refute device.deployment_id
@@ -545,7 +545,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       {:ok, device} =
         device
         |> Devices.update_deployment_group(deployment_group)
-        |> Devices.update_firmware_metadata(%{"version" => "1.0.1"})
+        |> Devices.update_firmware_metadata(%{"version" => "1.0.1"}, :unknown, false)
 
       device = ManagedDeployments.verify_deployment_group_membership(device)
       refute device.deployment_id

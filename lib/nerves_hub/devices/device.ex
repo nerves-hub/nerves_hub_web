@@ -18,6 +18,9 @@ defmodule NervesHub.Devices.Device do
   @derive {Flop.Schema, filterable: [], sortable: []}
 
   @type t :: %__MODULE__{}
+
+  @type firmware_validation_statuses :: :validated | :not_validated | :unknown | :not_supported
+
   @optional_params [
     :description,
     :updates_enabled,
@@ -28,6 +31,8 @@ defmodule NervesHub.Devices.Device do
     :connecting_code,
     :deployment_id,
     :status,
+    :firmware_validation_status,
+    :firmware_auto_revert_detected,
     :first_seen_at,
     :custom_location_coordinates,
     :priority_updates
@@ -66,6 +71,13 @@ defmodule NervesHub.Devices.Device do
     )
 
     embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
+
+    field(:firmware_validation_status, Ecto.Enum,
+      values: [:validated, :not_validated, :unknown, :not_supported],
+      default: :not_supported
+    )
+
+    field(:firmware_auto_revert_detected, :boolean, default: false)
 
     field(:updates_enabled, :boolean, default: true)
     field(:update_attempts, {:array, :utc_datetime}, default: [])

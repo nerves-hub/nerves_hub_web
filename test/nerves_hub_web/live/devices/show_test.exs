@@ -125,7 +125,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         |> Map.from_struct()
         |> Map.put(:platform, "foobar")
 
-      {:ok, device} = Devices.update_firmware_metadata(device, updated_firmware_metadata)
+      {:ok, device} = Devices.update_firmware_metadata(device, updated_firmware_metadata, :unknown, false)
 
       conn
       |> visit(device_show_path(fixture))
@@ -145,7 +145,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
           |> Map.put(:platform, original_firmware_platform)
           |> Map.put(:uuid, "foobar123")
 
-        {:ok, device} = Devices.update_firmware_metadata(device, restored_firmware_metadata)
+        {:ok, device} = Devices.update_firmware_metadata(device, restored_firmware_metadata, :unknown, false)
 
         _device = Devices.update_deployment_group(device, deployment_group)
 

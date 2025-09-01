@@ -639,15 +639,33 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  @spec update_firmware_metadata(Device.t(), FirmwareMetadata.t() | nil) ::
+  @spec update_firmware_metadata(
+          Device.t(),
+          FirmwareMetadata.t() | nil,
+          Device.firmware_validation_statuses(),
+          boolean()
+        ) ::
           {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
-  def update_firmware_metadata(device, nil) do
-    {:ok, device}
+  def update_firmware_metadata(device, nil, validation_status, auto_revert_detected?) do
+    update_device(device, %{
+      firmware_validation_status: validation_status,
+      firmware_auto_revert_detected: auto_revert_detected?
+    })
   end
 
-  def update_firmware_metadata(device, metadata) do
+  def update_firmware_metadata(device, metadata, validation_status, auto_revert_detected?) do
     DeviceTemplates.audit_firmware_metadata_updated(device)
-    update_device(device, %{firmware_metadata: metadata})
+
+    update_device(device, %{
+      firmware_metadata: metadata,
+      firmware_validation_status: validation_status,
+      firmware_auto_revert_detected: auto_revert_detected?
+    })
+  end
+
+  def firmware_validated(device) do
+    DeviceTemplates.audit_firmware_validated(device)
+    update_device(device, %{firmware_validation_status: "validated"})
   end
 
   @spec update_device(Device.t(), map(), broadcast: boolean()) ::

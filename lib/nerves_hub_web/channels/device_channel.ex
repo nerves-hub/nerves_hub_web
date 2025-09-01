@@ -22,6 +22,10 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.join")
   def join("device", params, %{assigns: %{device: device}} = socket) do
+    Logger.metadata(device_id: device.id, device_identifier: device.identifier)
+
+    params = maybe_sanitize_device_api_version(params)
+
     case update_metadata(device, params) do
       {:ok, device} ->
         send(self(), {:after_join, params})
@@ -40,6 +44,22 @@ defmodule NervesHubWeb.DeviceChannel do
         Logger.warning("[DeviceChannel] failure to connect - #{inspect(err)}")
         {:error, %{error: "could not connect"}}
     end
+  end
+
+  defp maybe_sanitize_device_api_version(%{"device_api_version" => version} = params) do
+    case Version.parse(version) do
+      {:ok, _} ->
+        params
+
+      :error ->
+        Logger.warning("[DeviceChannel] invalid device_api_version value - #{inspect(params["device_api_version"])}")
+        Map.put(params, "device_api_version", "0.0.0")
+    end
+  end
+
+  defp maybe_sanitize_device_api_version(params) do
+    Logger.warning("[DeviceChannel] device_api_version is missing from the connection params")
+    Map.put(params, "device_api_version", "0.0.0")
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_info:after_join")
@@ -230,6 +250,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_in("firmware_validated", _, %{assigns: %{device: device}} = socket) do
+    {:ok, device} = Devices.firmware_validated(device)
+
+    {:noreply, assign(socket, :device, device)}
+  end
+
   def handle_in("fwup_progress", %{"value" => percent}, %{assigns: %{device: device}} = socket) do
     device_internal_broadcast!(socket, device, "fwup_progress", %{
       device_id: device.id,
@@ -341,16 +367,46 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # The reported firmware is the same as what we already know about
-  defp update_metadata(%Device{firmware_metadata: %{uuid: uuid}} = device, %{"nerves_fw_uuid" => uuid}) do
-    {:ok, device}
+  defp update_metadata(%Device{firmware_metadata: %{uuid: uuid}} = device, %{"nerves_fw_uuid" => uuid} = params) do
+    validation_status = fetch_validation_status(params)
+    auto_revert_detected? = firmware_auto_revert_detected?(params)
+
+    Devices.update_firmware_metadata(device, nil, validation_status, auto_revert_detected?)
   end
 
   # A new UUID is being reported from an update
   defp update_metadata(device, params) do
     with {:ok, metadata} <- Firmwares.metadata_from_device(params),
-         {:ok, device} <- Devices.update_firmware_metadata(device, metadata) do
+         validation_status <- fetch_validation_status(params),
+         auto_revert_detected? <- firmware_auto_revert_detected?(params),
+         {:ok, device} <-
+           Devices.update_firmware_metadata(device, metadata, validation_status, auto_revert_detected?) do
       Devices.firmware_update_successful(device)
     end
+  end
+
+  defp fetch_validation_status(params) do
+    with {:version_match, true} <-
+           {:version_match, Version.match?(params["device_api_version"], ">= 2.3.0")},
+         {:has_key, true} <- {:has_key, Map.has_key?(params, "nerves_fw_validated")},
+         {:validated, true} <- {:validated, Map.get(params, "nerves_fw_validated") == "1"} do
+      :validated
+    else
+      {:version_match, false} ->
+        :not_supported
+
+      {:has_key, false} ->
+        :unknown
+
+      {:validated, false} ->
+        :not_validated
+    end
+  end
+
+  defp firmware_auto_revert_detected?(params) do
+    params
+    |> Map.get("meta", %{})
+    |> Map.get("firmware_auto_revert_detected", false)
   end
 
   @spec maybe_clear_inflight_update(device :: Device.t(), currently_updating? :: boolean()) :: :ok

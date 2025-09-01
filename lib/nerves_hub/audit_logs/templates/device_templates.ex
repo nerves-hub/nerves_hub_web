@@ -56,6 +56,12 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(device, device, description)
   end
 
+  @spec audit_firmware_validated(Device.t()) :: :ok
+  def audit_firmware_validated(device) do
+    description = "Device #{device.identifier} has validated its firmware"
+    AuditLogs.audit!(device, device, description)
+  end
+
   @spec audit_firmware_upgrade_blocked(DeploymentGroup.t(), Device.t()) :: :ok
   def audit_firmware_upgrade_blocked(deployment_group, device) do
     description = """
