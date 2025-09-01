@@ -99,7 +99,7 @@ defmodule NervesHub.Devices.UpdateStats do
           FirmwareMetadata.t() | nil
         ) :: :ok | {:error, Ecto.Changeset.t()}
   def log_update(device, nil) do
-    log_stat(device, nil, nil)
+    log_stat(device)
   end
 
   def log_update(device, source_firmware_metadata) do
@@ -111,7 +111,7 @@ defmodule NervesHub.Devices.UpdateStats do
         log_stat(device, source_firmware_metadata, delta)
 
       _ ->
-        log_stat(device, source_firmware_metadata, nil)
+        log_stat(device, source_firmware_metadata)
     end
   end
 
@@ -120,7 +120,7 @@ defmodule NervesHub.Devices.UpdateStats do
           FirmwareMetadata.t() | nil,
           FirmwareDelta.t() | nil
         ) :: :ok | {:error, Ecto.Changeset.t()}
-  defp log_stat(device, source_firmware_metadata, delta) do
+  defp log_stat(device, source_firmware_metadata \\ nil, delta \\ nil) do
     %{update_bytes: update_bytes, saved_bytes: saved_bytes} =
       get_byte_stats(delta, device.firmware_metadata.uuid)
 

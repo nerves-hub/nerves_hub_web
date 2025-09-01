@@ -52,7 +52,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     has_many(:inflight_updates, InflightUpdate, foreign_key: :deployment_id)
     has_many(:devices, Device, foreign_key: :deployment_id, on_delete: :nilify_all)
     has_many(:deployment_releases, DeploymentRelease)
-    has_many(:update_stats, UpdateStat, on_delete: :nilify_all)
+    has_many(:update_stats, UpdateStat, on_delete: :nilify_all, foreign_key: :deployment_id)
 
     field(:conditions, :map)
     field(:device_failure_threshold, :integer, default: 3)
