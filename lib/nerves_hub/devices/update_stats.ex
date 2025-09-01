@@ -54,8 +54,10 @@ defmodule NervesHub.Devices.UpdateStats do
   def stats_by_deployment(deployment_group) do
     UpdateStat
     |> where(deployment_id: ^deployment_group.id)
-    |> group_by([s], s.target_firmware_uuid)
-    |> select([s], %{
+    |> join(:inner, [s], f in Firmware, on: fragment("?::uuid", f.uuid) == s.target_firmware_uuid)
+    |> group_by([s, f], [s.target_firmware_uuid, f.version])
+    |> select([s, f], %{
+      version: f.version,
       total_update_bytes: sum(s.update_bytes),
       total_saved_bytes: sum(s.saved_bytes),
       total_updates: fragment("count(*)"),
@@ -118,11 +120,7 @@ defmodule NervesHub.Devices.UpdateStats do
           FirmwareMetadata.t() | nil,
           FirmwareDelta.t() | nil
         ) :: :ok | {:error, Ecto.Changeset.t()}
-  defp log_stat(
-         device,
-         source_firmware_metadata,
-         delta
-       ) do
+  defp log_stat(device, source_firmware_metadata, delta) do
     %{update_bytes: update_bytes, saved_bytes: saved_bytes} =
       get_byte_stats(delta, device.firmware_metadata.uuid)
 
@@ -145,12 +143,11 @@ defmodule NervesHub.Devices.UpdateStats do
       {:ok, _stat} ->
         _ =
           if device.deployment_id do
-            # IMPLEMENT ME IN THE UI HUMAN
             ChannelServer.broadcast(
               NervesHub.PubSub,
               "deployment:#{device.deployment_id}:internal",
               "stat:logged",
-              {:update_stat, update_bytes, saved_bytes}
+              %{}
             )
           end
 

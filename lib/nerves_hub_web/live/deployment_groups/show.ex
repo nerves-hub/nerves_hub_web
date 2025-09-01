@@ -13,6 +13,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   alias NervesHubWeb.Components.AuditLogFeed
 
+  alias Phoenix.Socket.Broadcast
+
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
   alias NervesHubWeb.Components.DeploymentGroupPage.ReleaseHistory, as: ReleaseHistoryTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Settings, as: SettingsTab
@@ -40,6 +42,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
     updating_count = Devices.updating_count(deployment_group)
+
+    :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}:internal")
 
     socket
     |> page_title("Deployment Group - #{deployment_group.name} - #{product.name}")
@@ -280,7 +284,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
 
-    send_update(self(), SummaryTab, id: "deployment_group_summary", update_inflight_info: true)
+    send_update(SummaryTab, id: "deployment_group_summary", update_inflight_info: true)
 
     socket
     |> assign(:inflight_updates, inflight_updates)
@@ -294,6 +298,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   def handle_info(:update_inflight_updates, socket) do
     Process.send_after(self(), :update_inflight_updates, 5000)
     noreply(socket)
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info(%Broadcast{event: "stat:logged"}, socket) do
+    send_update(SummaryTab, id: "deployment_group_summary", stat_logged: true)
+
+    {:noreply, socket}
   end
 
   defp selected_tab(socket) do

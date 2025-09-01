@@ -481,7 +481,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def label(assigns) do
     ~H"""
-    <label for={@for} class="block text-sm font-medium text-zinc-300">
+    <label for={@for} class="block text-sm font-medium text-zinc-300 hidden">
       {render_slot(@inner_block)}
     </label>
     """
