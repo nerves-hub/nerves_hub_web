@@ -321,6 +321,7 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:id, :any, default: nil)
   attr(:name, :any)
   attr(:label, :string, default: nil)
+  attr(:hide_label, :boolean, default: false)
   attr(:value, :any)
 
   attr(:type, :string,
@@ -378,7 +379,7 @@ defmodule NervesHubWeb.CoreComponents do
   def input(%{type: "select"} = assigns) do
     ~H"""
     <div phx-feedback-for={@name} class="flex flex-col gap-2">
-      <.label for={@id}>{@label}</.label>
+      <.label for={@id} hide={@hide_label}>{@label}</.label>
       <select
         id={@id}
         name={@name}
@@ -477,11 +478,12 @@ defmodule NervesHubWeb.CoreComponents do
   Renders a label.
   """
   attr(:for, :string, default: nil)
+  attr(:hide, :boolean, default: false)
   slot(:inner_block, required: true)
 
   def label(assigns) do
     ~H"""
-    <label for={@for} class="block text-sm font-medium text-zinc-300 hidden">
+    <label for={@for} class={["block text-sm font-medium text-zinc-300", @hide && "hidden"]}>
       {render_slot(@inner_block)}
     </label>
     """

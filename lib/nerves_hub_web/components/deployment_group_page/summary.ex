@@ -281,6 +281,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   <form phx-change="select_version_for_stat" phx-target={@myself}>
                     <.input
                       label="Version"
+                      hide_label={true}
                       id="version"
                       name="version"
                       type="select"
