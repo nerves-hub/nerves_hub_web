@@ -231,51 +231,46 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
 
       case File.stat(source_filepath) do
         {:ok, %{size: f_source_size}} ->
-          args = [
-            "-A",
-            "-S",
-            "-f",
-            "-s",
-            source_filepath,
-            target_filepath,
-            output_path
-          ]
-
+          args = ["-A", "-S", "-f", "-s", source_filepath, target_filepath, output_path]
           %{size: f_target_size} = File.stat!(target_filepath)
 
           if f_target_size < @delta_overhead_limit do
             Logger.info("Skipping generating delta for #{path} it is under 22 bytes.")
             nil
           else
-            {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true, env: [])
-            %{size: f_delta_size} = File.stat!(output_path)
-
-            if f_delta_size < f_target_size do
-              Logger.info(
-                "Generated delta for #{path}, from #{Float.round(f_source_size / 1024 / 1024, 1)} MB to #{Float.round(f_target_size / 1024 / 1024, 1)} MB via delta of #{Float.round(f_delta_size / 1024 / 1024, 1)} MB"
-              )
-
-              output_path
-            else
-              Logger.info(
-                "Skipping generated delta for #{path}, delta is larger: #{Float.round(f_source_size / 1024 / 1024, 1)} MB to #{Float.round(f_target_size / 1024 / 1024, 1)} MB via delta of #{Float.round(f_delta_size / 1024 / 1024, 1)} MB"
-              )
-
-              nil
-            end
+            generate_and_validate_delta(path, args, output_path, f_source_size, f_target_size)
           end
 
         {:error, :enoent} ->
           nil
       end
+    else
+      nil
+    end
+  end
+
+  defp generate_and_validate_delta(path, args, output_path, f_source_size, f_target_size) do
+    {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true, env: %{})
+    %{size: f_delta_size} = File.stat!(output_path)
+
+    if f_delta_size < f_target_size do
+      Logger.info(
+        "Generated delta for #{path}, from #{Float.round(f_source_size / 1024 / 1024, 1)} MB to #{Float.round(f_target_size / 1024 / 1024, 1)} MB via delta of #{Float.round(f_delta_size / 1024 / 1024, 1)} MB"
+      )
+
+      output_path
+    else
+      Logger.info(
+        "Skipping generated delta for #{path}, delta is larger: #{Float.round(f_source_size / 1024 / 1024, 1)} MB to #{Float.round(f_target_size / 1024 / 1024, 1)} MB via delta of #{Float.round(f_delta_size / 1024 / 1024, 1)} MB"
+      )
+
+      nil
     end
   end
 
   defp delta_files(deltas) do
     deltas
-    |> Enum.flat_map(fn {_k, files} ->
-      files
-    end)
+    |> Enum.flat_map(fn {_k, files} -> files end)
     |> Enum.uniq()
     |> case do
       [] -> {:error, :no_delta_support_in_firmware}

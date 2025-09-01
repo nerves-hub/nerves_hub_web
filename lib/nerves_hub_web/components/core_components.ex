@@ -332,7 +332,7 @@ defmodule NervesHubWeb.CoreComponents do
                range radio search select tel text textarea time url week)
   )
 
-  attr(:field, HTML.FormField,    doc: "a form field struct retrieved from the form, for example: @form[:email]"  )
+  attr(:field, HTML.FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]")
 
   attr(:errors, :list, default: [])
   attr(:checked, :boolean, doc: "the checked flag for checkbox inputs")
