@@ -326,4 +326,95 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
     assert Repo.reload(device) |> Map.get(:priority_updates)
   end
+
+  test "does not show the firmware box in the header if the firmware isn't reverted, or validated, or not validated", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+    |> refute_has("span", text: "Firmware:")
+  end
+
+  test "shows if a firmware revert is detected", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    Device
+    |> where(id: ^device.id)
+    |> Repo.update_all(set: [firmware_auto_revert_detected: true])
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+    |> assert_has("span", text: "Revert detected")
+  end
+
+  test "shows if the firmware has been validated", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    Device
+    |> where(id: ^device.id)
+    |> Repo.update_all(set: [firmware_validation_status: :validated])
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+    |> assert_has("span", text: "Validated")
+  end
+
+  test "shows if the firmware has not been validated", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    Device
+    |> where(id: ^device.id)
+    |> Repo.update_all(set: [firmware_validation_status: :not_validated])
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+    |> assert_has("span", text: "Not validated")
+  end
+
+  test "does not show if the firmware validation is unknown", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    Device
+    |> where(id: ^device.id)
+    |> Repo.update_all(set: [firmware_validation_status: :unknown])
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+    |> refute_has("span", text: "Firmware:")
+  end
+
+  test "updates the firmware validation box when a firmware validation message is received", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    Device
+    |> where(id: ^device.id)
+    |> Repo.update_all(set: [firmware_validation_status: :not_validated])
+
+    conn =
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "Not validated")
+
+    Devices.firmware_validated(device)
+
+    assert_has(conn, "span", text: "Validated")
+  end
 end

@@ -665,7 +665,18 @@ defmodule NervesHub.Devices do
 
   def firmware_validated(device) do
     DeviceTemplates.audit_firmware_validated(device)
-    update_device(device, %{firmware_validation_status: "validated"})
+
+    {:ok, device} = update_device(device, %{firmware_validation_status: "validated"})
+
+    Phoenix.Channel.Server.broadcast_from!(
+      NervesHub.PubSub,
+      self(),
+      "device:#{device.identifier}:internal",
+      "firmware:validated",
+      %{}
+    )
+
+    {:ok, device}
   end
 
   @spec update_device(Device.t(), map(), broadcast: boolean()) ::
