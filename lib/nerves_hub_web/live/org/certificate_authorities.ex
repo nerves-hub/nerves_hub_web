@@ -49,16 +49,18 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   defp apply_action(socket, :edit, %{"serial" => serial}) do
     products = Products.get_products_by_user_and_org(socket.assigns.user, socket.assigns.org)
 
-    with {:ok, cert} <- Devices.get_ca_certificate_by_serial(serial),
-         changeset <- Devices.CACertificate.changeset(cert, %{}) do
-      socket
-      |> page_title("Edit Certificate Authorities - #{socket.assigns.org.name}")
-      |> assign(:products, products)
-      |> assign(:serial, cert.serial)
-      |> assign(:form, to_form(changeset))
-      |> assign(:show_jitp_form, show_jitp_form(changeset))
-      |> render_with(&edit_ca_template/1)
-    else
+    case Devices.get_ca_certificate_by_serial(serial) do
+      {:ok, cert} ->
+        changeset = Devices.CACertificate.changeset(cert, %{})
+
+        socket
+        |> page_title("Edit Certificate Authorities - #{socket.assigns.org.name}")
+        |> assign(:products, products)
+        |> assign(:serial, cert.serial)
+        |> assign(:form, to_form(changeset))
+        |> assign(:show_jitp_form, show_jitp_form(changeset))
+        |> render_with(&edit_ca_template/1)
+
       {:error, :not_found} ->
         socket
         |> put_flash(:error, "Certificate Authority not found")
@@ -125,15 +127,15 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     with {:ok, cert} <- uploaded_cert(socket),
          {:ok, csr} <- uploaded_csr(socket),
          :ok <- CSR.validate_csr(socket.assigns.registration_code, cert, csr),
-         serial <- Certificate.get_serial_number(cert),
-         aki <- Certificate.get_aki(cert),
-         ski <- Certificate.get_ski(cert),
+         serial = Certificate.get_serial_number(cert),
+         aki = Certificate.get_aki(cert),
+         ski = Certificate.get_ski(cert),
          {cert_not_before, cert_not_after} = cert_validity <- Certificate.get_validity(cert),
          {_csr_not_before, _csr_not_after} = csr_validity <- Certificate.get_validity(csr),
          :ok <- check_validity(cert_validity),
          :ok <- check_validity(csr_validity),
          {:ok, params} <- maybe_delete_jitp(params),
-         params <- %{
+         params = %{
            serial: serial,
            aki: aki,
            ski: ski,

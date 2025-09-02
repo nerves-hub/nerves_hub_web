@@ -38,7 +38,7 @@ defmodule NervesHubWeb.DynamicConfigMultipart do
 
   defp max_file_size(conn) do
     with ["api", "orgs", _org_name, "products", _product_name, "firmwares"] <- conn.path_info,
-         size <- Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload)[:max_size],
+         size = Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload)[:max_size],
          true <- is_integer(size) do
       size
     else

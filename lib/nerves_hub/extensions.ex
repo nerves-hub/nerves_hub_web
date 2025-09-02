@@ -49,23 +49,26 @@ defmodule NervesHub.Extensions do
 
   @spec module(extension(), Version.t()) :: module() | NervesHub.Extensions.Unsupported
   def module(:health, ver) do
-    cond do
-      Version.match?(ver, "~> 0.0.1") -> NervesHub.Extensions.Health
-      true -> NervesHub.Extensions.Unsupported
+    if Version.match?(ver, "~> 0.0.1") do
+      NervesHub.Extensions.Health
+    else
+      NervesHub.Extensions.Unsupported
     end
   end
 
   def module(:geo, ver) do
-    cond do
-      Version.match?(ver, "~> 0.0.1") -> NervesHub.Extensions.Geo
-      true -> NervesHub.Extensions.Unsupported
+    if Version.match?(ver, "~> 0.0.1") do
+      NervesHub.Extensions.Geo
+    else
+      NervesHub.Extensions.Unsupported
     end
   end
 
   def module(:logging, ver) do
-    cond do
-      Version.match?(ver, "~> 0.0.1") -> NervesHub.Extensions.Logging
-      true -> NervesHub.Extensions.Unsupported
+    if Version.match?(ver, "~> 0.0.1") do
+      NervesHub.Extensions.Logging
+    else
+      NervesHub.Extensions.Unsupported
     end
   end
 

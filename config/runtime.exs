@@ -420,8 +420,6 @@ if otlp_endpoint = System.get_env("OTLP_ENDPOINT") do
   otlp_sampler_ratio =
     if ratio = System.get_env("OTLP_SAMPLER_RATIO") do
       String.to_float(ratio)
-    else
-      nil
     end
 
   config :opentelemetry,

@@ -171,7 +171,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defp decode_from_headers(%{"x-nh-alg" => "NH1-HMAC-" <> alg} = headers) do
     with [digest_str, iter_str, key_len_str] <- String.split(alg, "-"),
-         digest <- String.to_existing_atom(String.downcase(digest_str)),
+         digest = String.to_existing_atom(String.downcase(digest_str)),
          {iterations, ""} <- Integer.parse(iter_str),
          {key_length, ""} <- Integer.parse(key_len_str),
          {signed_at, ""} <- Integer.parse(headers["x-nh-time"]),

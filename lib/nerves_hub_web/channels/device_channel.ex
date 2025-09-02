@@ -376,13 +376,13 @@ defmodule NervesHubWeb.DeviceChannel do
   defp update_deployment_group_subscription(socket, device) do
     deployment_channel = deployment_channel(device)
 
-    if deployment_channel != socket.assigns.deployment_channel do
+    if deployment_channel == socket.assigns.deployment_channel do
+      socket
+    else
       unsubscribe(socket.assigns.deployment_channel)
       subscribe(deployment_channel)
 
       assign(socket, :deployment_channel, deployment_channel)
-    else
-      socket
     end
   end
 

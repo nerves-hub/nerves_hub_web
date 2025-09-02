@@ -34,11 +34,11 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
   def create(%{assigns: %{org: org, product: product, device: device}} = conn, %{"cert" => cert64}) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
          {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
-         serial <- Certificate.get_serial_number(cert),
-         aki <- Certificate.get_aki(cert),
-         ski <- Certificate.get_ski(cert),
+         serial = Certificate.get_serial_number(cert),
+         aki = Certificate.get_aki(cert),
+         ski = Certificate.get_ski(cert),
          {not_before, not_after} <- Certificate.get_validity(cert),
-         params <- %{
+         params = %{
            serial: serial,
            aki: aki,
            ski: ski,
