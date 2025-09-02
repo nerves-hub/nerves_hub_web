@@ -15,7 +15,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
     test "renders key when data is valid", %{conn: conn, org: org} do
       ca_key = X509.PrivateKey.new_ec(:secp256r1)
       ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
-      serial = X509.Certificate.serial(ca_cert) |> to_string
+      serial = X509.Certificate.serial(ca_cert) |> to_string()
       ca_cert_pem = X509.Certificate.to_pem(ca_cert)
       description = "My ca"
 
@@ -30,7 +30,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
     test "supports valid JITP", %{conn: conn, org: org, product: %{id: pid, name: product_name}} do
       ca_key = X509.PrivateKey.new_ec(:secp256r1)
       ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
-      serial = X509.Certificate.serial(ca_cert) |> to_string
+      serial = X509.Certificate.serial(ca_cert) |> to_string()
       ca_cert_pem = X509.Certificate.to_pem(ca_cert)
       description = "My ca"
 

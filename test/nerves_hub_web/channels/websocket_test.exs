@@ -36,9 +36,9 @@ defmodule NervesHubWeb.WebsocketTest do
       transport_opts: [
         verify: :verify_peer,
         versions: [:"tlsv1.2"],
-        certfile: Path.expand("test/fixtures/ssl/device-fake.pem") |> to_charlist,
-        keyfile: Path.expand("test/fixtures/ssl/device-fake-key.pem") |> to_charlist,
-        cacertfile: Path.expand("test/fixtures/ssl/ca-fake.pem") |> to_charlist,
+        certfile: Path.expand("test/fixtures/ssl/device-fake.pem") |> to_charlist(),
+        keyfile: Path.expand("test/fixtures/ssl/device-fake-key.pem") |> to_charlist(),
+        cacertfile: Path.expand("test/fixtures/ssl/ca-fake.pem") |> to_charlist(),
         server_name_indication: ~c"device.nerves-hub.org"
       ]
     ]
@@ -54,9 +54,9 @@ defmodule NervesHubWeb.WebsocketTest do
       transport_opts: [
         verify: :verify_peer,
         versions: [:"tlsv1.2"],
-        certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
-        keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
-        cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist,
+        certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist(),
+        keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist(),
+        cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist(),
         server_name_indication: ~c"device.nerves-hub.org"
       ]
     ]
@@ -134,9 +134,9 @@ defmodule NervesHubWeb.WebsocketTest do
           transport_opts: [
             verify: :verify_peer,
             versions: [:"tlsv1.3"],
-            certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
-            keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
-            cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist,
+            certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist(),
+            keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist(),
+            cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist(),
             server_name_indication: ~c"device.nerves-hub.org"
           ]
         ]

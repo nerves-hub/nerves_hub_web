@@ -10,7 +10,9 @@
       :comment_directives,
       :configs,
       :defs,
-      :deprecations
-    ]
+      :deprecations,
+      :pipes
+    ],
+    exclude: [piped_functions: [:subquery]]
   ]
 ]

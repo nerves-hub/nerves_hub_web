@@ -176,7 +176,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:latest_metrics, latest_metrics)
     |> assign_metadata()
-    |> noreply
+    |> noreply()
   end
 
   def handle_info(:check_health_interval, socket) do

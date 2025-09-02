@@ -352,9 +352,9 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     {:ok, :saved_to_file} =
       :httpc.request(
         :get,
-        {url |> to_charlist, []},
+        {url |> to_charlist(), []},
         [],
-        stream: filepath |> to_charlist
+        stream: filepath |> to_charlist()
       )
 
     :ok

@@ -14,7 +14,7 @@ defmodule NervesHub.Scripts do
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
     Script
-    |> from
+    |> from()
     |> CommonFiltering.filter(
       product,
       opts

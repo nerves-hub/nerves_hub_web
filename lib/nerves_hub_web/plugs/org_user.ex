@@ -19,7 +19,7 @@ defmodule NervesHubWeb.Plugs.OrgUser do
         |> put_layout(false)
         |> put_view(NervesHubWeb.ErrorView)
         |> render("404.html")
-        |> halt
+        |> halt()
     end
   end
 end

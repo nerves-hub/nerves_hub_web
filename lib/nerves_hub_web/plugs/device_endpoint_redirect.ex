@@ -13,6 +13,6 @@ defmodule NervesHubWeb.Plugs.DeviceEndpointRedirect do
     conn
     |> put_resp_header("location", location)
     |> send_resp(301, "")
-    |> halt
+    |> halt()
   end
 end
