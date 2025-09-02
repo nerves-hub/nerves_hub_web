@@ -31,10 +31,10 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
       uuid ->
         with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
-             params <- Map.put(params, "firmware_id", firmware.id),
-             params <- Map.put(params, "org_id", org.id),
-             params <- Map.put(params, "product_id", product.id),
-             params <- whitelist(params, @whitelist_fields),
+             params = Map.put(params, "firmware_id", firmware.id),
+             params = Map.put(params, "org_id", org.id),
+             params = Map.put(params, "product_id", product.id),
+             params = whitelist(params, @whitelist_fields),
              {:ok, deployment_group} <- ManagedDeployments.create_deployment_group(params) do
           DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)
 
@@ -72,7 +72,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
     with {:ok, deployment_group} <-
            ManagedDeployments.get_deployment_group_by_name(product, name),
          {:ok, deployment_group_params} <- update_params(product, deployment_group_params),
-         deployment_group_params <- whitelist(deployment_group_params, @whitelist_fields),
+         deployment_group_params = whitelist(deployment_group_params, @whitelist_fields),
          {:ok, %DeploymentGroup{} = updated_deployment_group} <-
            ManagedDeployments.update_deployment_group(
              deployment_group,

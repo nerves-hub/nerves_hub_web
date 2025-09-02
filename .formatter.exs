@@ -6,6 +6,8 @@
   plugins: [Phoenix.LiveView.HTMLFormatter, Quokka],
   quokka: [
     only: [
+      :blocks,
+      :comment_directives,
       :defs
     ]
   ]

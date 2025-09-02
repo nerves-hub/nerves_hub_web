@@ -421,15 +421,15 @@ defmodule NervesHub.ManagedDeployments do
       |> Repo.one()
 
     bad_version =
-      if deployment_group.conditions["version"] != "" do
+      if deployment_group.conditions["version"] == "" do
+        false
+      else
         try do
           !Version.match?(device_version, deployment_group.conditions["version"])
         rescue
           _ ->
             true
         end
-      else
-        false
       end
 
     bad_platform = device.firmware_metadata.platform != deployment_group.firmware.platform
