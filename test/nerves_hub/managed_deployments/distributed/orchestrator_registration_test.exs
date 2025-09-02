@@ -14,7 +14,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistrationTest 
       [%ManagedDeployments.DeploymentGroup{}]
     end)
 
-    expect(Sentry, :capture_message, fn _message, extra: extra, result: :none ->
+    expect(Sentry, :capture_message, fn _message, [extra: extra, result: :none] ->
       assert extra.process_count == 0
       assert extra.deployment_count == 1
     end)

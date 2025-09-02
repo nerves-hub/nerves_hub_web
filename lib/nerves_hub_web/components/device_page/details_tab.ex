@@ -642,9 +642,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
-    Logger.info(
-      "Manually sending full firmware for updating from to #{firmware.uuid} to #{device.identifier}"
-    )
+    Logger.info("Manually sending full firmware for updating from to #{firmware.uuid} to #{device.identifier}")
 
     DeviceEvents.manual_update(device, firmware, user)
 
@@ -739,10 +737,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
-  def hooked_info(
-        %Broadcast{event: "health_check_report"},
-        %{assigns: %{device: device}} = socket
-      ) do
+  def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
     latest_metrics = Metrics.get_latest_metric_set(device.id)
 
     socket
@@ -827,8 +822,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> Enum.map(&elem(&1, 0))
   end
 
-  defp extract_location_data(%{custom_location_coordinates: coordinates})
-       when not is_nil(coordinates) do
+  defp extract_location_data(%{custom_location_coordinates: coordinates}) when not is_nil(coordinates) do
     %{
       "latitude" => List.first(coordinates),
       "longitude" => List.last(coordinates),
@@ -836,8 +830,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     }
   end
 
-  defp extract_location_data(%Device{latest_connection: connection})
-       when not is_nil(connection) do
+  defp extract_location_data(%Device{latest_connection: connection}) when not is_nil(connection) do
     connection.metadata["location"]
   end
 
@@ -846,10 +839,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp standard_keys(%{firmware_metadata: nil}), do: []
 
   defp standard_keys(%{firmware_metadata: firmware_metadata}),
-    do:
-      firmware_metadata
-      |> Map.keys()
-      |> Enum.map(&to_string/1)
+    do: firmware_metadata |> Map.keys() |> Enum.map(&to_string/1)
 
   defp has_description?(description) do
     is_binary(description) and byte_size(description) > 0 and description != "[]"

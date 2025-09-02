@@ -208,11 +208,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, :show_filters, toggle != "true")}
   end
 
-  def handle_event(
-        "update-filters",
-        params,
-        %{assigns: %{paginate_opts: paginate_opts}} = socket
-      ) do
+  def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
     socket
@@ -264,8 +260,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_event("deselect-all", _, socket) do
-    {:noreply,
-     assign(socket, %{selected_devices: [], available_deployment_groups_for_filtered_platform: []})}
+    {:noreply, assign(socket, %{selected_devices: [], available_deployment_groups_for_filtered_platform: []})}
   end
 
   def handle_event("validate-tags", %{"tags" => tags}, socket) do
@@ -343,12 +338,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def handle_event(
         "move-devices-deployment-group",
         _,
-        %{
-          assigns: %{
-            selected_devices: selected_devices,
-            target_deployment_group: target_deployment_group
-          }
-        } = socket
+        %{assigns: %{selected_devices: selected_devices, target_deployment_group: target_deployment_group}} = socket
       ) do
     {:ok, %{updated: updated, ignored: ignored}} =
       Devices.move_many_to_deployment_group(selected_devices, target_deployment_group.id)
@@ -433,23 +423,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
     update_device_statuses(socket, payload)
   end
 
-  def handle_info(
-        %Broadcast{
-          event: "fwup_progress",
-          payload: %{device_id: device_id, percent: percent}
-        },
-        socket
-      )
+  def handle_info(%Broadcast{event: "fwup_progress", payload: %{device_id: device_id, percent: percent}}, socket)
       when percent > 99 do
     socket
     |> assign(:progress, Map.delete(socket.assigns.progress, device_id))
     |> noreply()
   end
 
-  def handle_info(
-        %Broadcast{event: "fwup_progress", payload: %{device_id: device_id, percent: percent}},
-        socket
-      ) do
+  def handle_info(%Broadcast{event: "fwup_progress", payload: %{device_id: device_id, percent: percent}}, socket) do
     socket
     |> assign(:progress, Map.put(socket.assigns.progress, device_id, percent))
     |> noreply()
@@ -472,14 +453,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  defp assign_display_devices(
-         %{assigns: %{product: product, paginate_opts: paginate_opts, user: user}} = socket
-       ) do
+  defp assign_display_devices(%{assigns: %{product: product, paginate_opts: paginate_opts, user: user}} = socket) do
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
-      sort:
-        {String.to_existing_atom(socket.assigns.sort_direction),
-         String.to_atom(socket.assigns.current_sort)},
+      sort: {String.to_existing_atom(socket.assigns.sort_direction), String.to_atom(socket.assigns.current_sort)},
       filters: transform_deployment_filter(socket.assigns.current_filters)
     }
 
@@ -538,14 +515,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:pager_meta, pager)
   end
 
-  defp transform_deployment_filter(%{deployment_id: ""} = filters),
-    do: Map.delete(filters, :deployment_id)
+  defp transform_deployment_filter(%{deployment_id: ""} = filters), do: Map.delete(filters, :deployment_id)
 
-  defp transform_deployment_filter(%{deployment_id: "-1"} = filters),
-    do: %{filters | deployment_id: nil}
+  defp transform_deployment_filter(%{deployment_id: "-1"} = filters), do: %{filters | deployment_id: nil}
 
-  defp transform_deployment_filter(filters),
-    do: %{filters | deployment_id: String.to_integer(filters.deployment_id)}
+  defp transform_deployment_filter(filters), do: %{filters | deployment_id: String.to_integer(filters.deployment_id)}
 
   defp update_device_statuses(socket, payload) do
     updated_device_statuses =
@@ -593,8 +567,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp target_selected?(%{name: name}, value) when name == value, do: [selected: true]
   defp target_selected?(_, _), do: []
 
-  defp devices_table_header(title, value, current_sort, sort_direction)
-       when value == current_sort do
+  defp devices_table_header(title, value, current_sort, sort_direction) when value == current_sort do
     caret_class = if sort_direction == "asc", do: "up", else: "down"
 
     assigns = %{value: value, title: title, caret_class: caret_class}
@@ -623,8 +596,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp connection_established_at(nil), do: ""
 
-  defp connection_established_at(latest_connection),
-    do: connection_established_at_formatted(latest_connection)
+  defp connection_established_at(latest_connection), do: connection_established_at_formatted(latest_connection)
 
   defp connection_established_at_formatted(latest_connection) do
     latest_connection
@@ -634,8 +606,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp last_seen_at_status(nil), do: "Not seen yet"
 
-  defp last_seen_at_status(latest_connection),
-    do: "Last seen #{last_seen_formatted(latest_connection)}"
+  defp last_seen_at_status(latest_connection), do: "Last seen #{last_seen_formatted(latest_connection)}"
 
   defp last_seen_at(nil), do: ""
   defp last_seen_at(latest_connection), do: last_seen_formatted(latest_connection)
@@ -706,9 +677,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
         params
       end
 
-    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
-      empty_values: []
-    ).changes
+    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters), empty_values: []).changes
   end
 
   @sort_default %{sort_direction: "asc", sort: "identifier"}
@@ -744,12 +713,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     )
   end
 
-  defp update_flash_for_moving_deployment_group(
-         socket,
-         updated_count,
-         ignored_count,
-         deployment_group_name
-       ) do
+  defp update_flash_for_moving_deployment_group(socket, updated_count, ignored_count, deployment_group_name) do
     maybe_pluralize =
       &if &1 == 1 do
         &2

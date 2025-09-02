@@ -16,6 +16,10 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   @very_safe_version "1.13.0"
   @oldest_version Version.parse!("0.2.0")
 
+  # If a payload is smaller than this there is no point to do a delta, the overhead takes more space
+  # in the best case
+  @delta_overhead_limit 22
+
   @impl NervesHub.Firmwares.UpdateTool
   def get_firmware_metadata_from_file(filepath) do
     with {:ok, firmware_metadata} <- FwupUtil.metadata(filepath),
@@ -30,9 +34,6 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          tool_delta_required_version: tool_metadata.delta_fwup_version,
          tool_full_required_version: tool_metadata.complete_fwup_version
        }}
-    else
-      err ->
-        err
     end
   end
 
@@ -61,7 +62,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
           {:ok, output}
 
         {:error, reason} ->
-          Logger.warning("Could not create a firmware delta: #{inspect(reason)}",
+          Logger.warning("Firmware delta creation failed: #{inspect(reason)}",
             source_url: source_url,
             target_url: target_url
           )
@@ -100,8 +101,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     with {:source, {:ok, source}} <-
            {:source, Firmwares.get_firmware_by_product_id_and_uuid(product_id, firmware_uuid)},
          {:delta_result, {:ok, %{tool_metadata: tm}}} <-
-           {:delta_result,
-            Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)},
+           {:delta_result, Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)},
          {:delta_min, delta_min} <-
            {:delta_min, Map.get(tm, "delta_fwup_version", @very_safe_version)},
          {:parse_version, {:ok, delta_version}} <- {:parse_version, Version.parse(delta_min)},
@@ -159,7 +159,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          {:ok, all_delta_files} <- delta_files(deltas) do
       Logger.info("Generating delta for files: #{Enum.join(all_delta_files, ", ")}")
 
-      _ =
+      file_list =
         for absolute <- Path.wildcard(target_work_dir <> "/**"), not File.dir?(absolute) do
           path = Path.relative_to(absolute, target_work_dir)
 
@@ -169,64 +169,105 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
           |> Path.dirname()
           |> File.mkdir_p!()
 
-          _ =
-            case path do
-              "meta." <> _ ->
-                File.cp!(Path.join(target_work_dir, path), Path.join(output_work_dir, path))
-
-              "data/" <> subpath ->
-                if subpath in all_delta_files do
-                  source_filepath = Path.join(source_work_dir, path)
-                  target_filepath = Path.join(target_work_dir, path)
-
-                  case File.stat(source_filepath) do
-                    {:ok, %{size: f_source_size}} ->
-                      args = [
-                        "-A",
-                        "-S",
-                        "-f",
-                        "-s",
-                        source_filepath,
-                        target_filepath,
-                        output_path
-                      ]
-
-                      %{size: f_target_size} = File.stat!(target_filepath)
-
-                      {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true, env: [])
-                      %{size: f_delta_size} = File.stat!(output_path)
-
-                      Logger.info(
-                        "Generated delta for #{path}, from #{Float.round(f_source_size / 1024 / 1024, 1)} MB to #{Float.round(f_target_size / 1024 / 1024, 1)} MB via delta of #{Float.round(f_delta_size / 1024 / 1024, 1)} MB"
-                      )
-
-                    {:error, :enoent} ->
-                      File.cp!(target_filepath, output_path)
-                  end
-                else
-                  File.cp!(Path.join(target_work_dir, path), Path.join(output_work_dir, path))
-                end
-            end
+          maybe_generate_delta(
+            path,
+            source_work_dir,
+            target_work_dir,
+            output_work_dir,
+            all_delta_files
+          )
         end
+        |> Enum.reject(&is_nil(&1))
 
-      {:ok, delta_zip_path} = Plug.Upload.random_file("#{source_uuid}_#{target_uuid}_delta")
+      {:ok, delta_zip_path} = Plug.Upload.random_file("#{source_uuid}_#{target_uuid}_delta.zip")
+      _ = File.rm(delta_zip_path)
+      _ = File.cp(target_path, delta_zip_path)
 
-      {:ok, _} =
-        :zip.create(to_charlist(delta_zip_path), generate_file_list(output_work_dir),
-          cwd: to_charlist(output_work_dir)
-        )
+      with {true, :changes_in_delta} <- {Enum.any?(file_list), :changes_in_delta},
+           :ok <- update_changed_files(file_list, delta_zip_path, output_work_dir),
+           {:ok, %{size: delta_size}} <- File.stat(delta_zip_path),
+           {true, :delta_smaller} <- {delta_size < target_size, :delta_smaller} do
+        {:ok,
+         %{
+           filepath: delta_zip_path,
+           size: delta_size,
+           source_size: source_size,
+           target_size: target_size,
+           tool: "fwup",
+           tool_metadata: tool_metadata
+         }}
+      else
+        {false, :changes_in_delta} -> {:error, :no_changes_in_delta}
+        {false, :delta_smaller} -> {:error, :delta_larger_than_target}
+      end
+    end
+  end
 
-      {:ok, %{size: size}} = File.stat(delta_zip_path)
+  defp update_changed_files(file_list, delta_zip_path, output_work_dir) do
+    for file <- file_list do
+      args = ["-9", delta_zip_path, String.replace_prefix(file, "#{output_work_dir}/", "")]
+      {_output, 0} = System.cmd("zip", args, cd: output_work_dir)
+    end
 
-      {:ok,
-       %{
-         filepath: delta_zip_path,
-         size: size,
-         source_size: source_size,
-         target_size: target_size,
-         tool: "fwup",
-         tool_metadata: tool_metadata
-       }}
+    :ok
+  end
+
+  defp maybe_generate_delta("meta." <> _, _, _, _, _) do
+    nil
+  end
+
+  defp maybe_generate_delta(
+         "data/" <> subpath = path,
+         source_work_dir,
+         target_work_dir,
+         output_work_dir,
+         all_delta_files
+       ) do
+    output_path = Path.join(output_work_dir, path)
+    target_filepath = Path.join(target_work_dir, path)
+
+    if subpath in all_delta_files do
+      source_filepath = Path.join(source_work_dir, path)
+
+      case File.stat(source_filepath) do
+        {:ok, %{size: f_source_size}} ->
+          args = [
+            "-A",
+            "-S",
+            "-f",
+            "-s",
+            source_filepath,
+            target_filepath,
+            output_path
+          ]
+
+          %{size: f_target_size} = File.stat!(target_filepath)
+
+          if f_target_size < @delta_overhead_limit do
+            Logger.info("Skipping generating delta for #{path} it is under 22 bytes.")
+            nil
+          else
+            {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true, env: [])
+            %{size: f_delta_size} = File.stat!(output_path)
+
+            if f_delta_size < f_target_size do
+              Logger.info(
+                "Generated delta for #{path}, from #{Float.round(f_source_size / 1024 / 1024, 1)} MB to #{Float.round(f_target_size / 1024 / 1024, 1)} MB via delta of #{Float.round(f_delta_size / 1024 / 1024, 1)} MB"
+              )
+
+              output_path
+            else
+              Logger.info(
+                "Skipping generated delta for #{path}, delta is larger: #{Float.round(f_source_size / 1024 / 1024, 1)} MB to #{Float.round(f_target_size / 1024 / 1024, 1)} MB via delta of #{Float.round(f_delta_size / 1024 / 1024, 1)} MB"
+              )
+
+              nil
+            end
+          end
+
+        {:error, :enoent} ->
+          nil
+      end
     end
   end
 
@@ -240,25 +281,6 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
       [] -> {:error, :no_delta_support_in_firmware}
       delta_files -> {:ok, delta_files}
     end
-  end
-
-  defp generate_file_list(workdir) do
-    # firmware archive files order matters:
-    # 1. meta.conf.ed25519 (optional)
-    # 2. meta.conf
-    # 3. other...
-    [
-      "meta.conf.*",
-      "meta.conf",
-      "data"
-    ]
-    |> Enum.map(fn glob -> workdir |> Path.join(glob) |> Path.wildcard() end)
-    |> List.flatten()
-    |> Enum.map(fn file ->
-      file
-      |> String.replace_prefix("#{workdir}/", "")
-      |> to_charlist()
-    end)
   end
 
   defp get_tool_metadata(meta_conf_path) do

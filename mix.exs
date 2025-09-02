@@ -1,7 +1,7 @@
 defmodule NervesHub.MixProject do
   use Mix.Project
 
-  def project do
+  def project() do
     [
       app: :nerves_hub,
       version: "2.0.0+#{build()}",
@@ -40,7 +40,7 @@ defmodule NervesHub.MixProject do
   # Configuration for the OTP application.
   #
   # Type `mix help compile.app` for more information.
-  def application do
+  def application() do
     [
       mod: {NervesHub.Application, []},
       extra_applications: [
@@ -70,7 +70,7 @@ defmodule NervesHub.MixProject do
   # the apps folder.
   #
   # Run "mix help deps" for examples and options.
-  defp deps do
+  defp deps() do
     [
       {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
       {:recon, "~> 2.5"},
@@ -118,12 +118,9 @@ defmodule NervesHub.MixProject do
       {:opentelemetry_api, "~> 1.4"},
       {:opentelemetry_ecto, "~> 1.2"},
       {:opentelemetry_phoenix, "~> 2.0.0-rc.1 "},
-      {:opentelemetry_oban, "~> 1.0",
-       git: "https://github.com/joshk/opentelemetry-erlang-contrib",
-       branch: "update-obans-semantic-conventions",
-       subdir: "instrumentation/opentelemetry_oban"},
-      {:opentelemetry_bandit, "~> 0.2.0",
-       git: "https://github.com/open-telemetry/opentelemetry-erlang-contrib",
+      {:opentelemetry_oban, "~> 1.0", git: "https://github.com/joshk/opentelemetry-erlang-contrib",
+       branch: "update-obans-semantic-conventions", subdir: "instrumentation/opentelemetry_oban"},
+      {:opentelemetry_bandit, "~> 0.2.0", git: "https://github.com/open-telemetry/opentelemetry-erlang-contrib",
        subdir: "instrumentation/opentelemetry_bandit"},
       {:open_telemetry_decorator, "~> 1.5"},
       {:phoenix, "~> 1.7.0"},
@@ -134,13 +131,11 @@ defmodule NervesHub.MixProject do
       {:phoenix_live_view, "~> 1.1"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_view, "~> 2.0"},
-      {:phoenix_test, "~> 0.5",
-       only: :test,
-       runtime: false,
-       git: "https://github.com/germsvel/phoenix_test",
+      {:phoenix_test, "~> 0.5", only: :test, runtime: false, git: "https://github.com/germsvel/phoenix_test",
        ref: "26575bc"},
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
+      {:quokka, "~> 2.11.2", only: [:dev, :test]},
       {:sentry, "~> 11.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},
@@ -165,7 +160,7 @@ defmodule NervesHub.MixProject do
   #     $ mix ecto.setup
   #
   # See the documentation for `Mix` for more info on aliases.
-  defp aliases do
+  defp aliases() do
     [
       "assets.deploy": ["esbuild default --minify", "tailwind default --minify", "phx.digest"],
       "assets.setup": ["assets.install", "assets.build"],
@@ -190,11 +185,9 @@ defmodule NervesHub.MixProject do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(env) when env in [:dev, :test],
-    do: ["lib", "test/support"]
+  defp elixirc_paths(env) when env in [:dev, :test], do: ["lib", "test/support"]
 
-  defp elixirc_paths(_),
-    do: ["lib"]
+  defp elixirc_paths(_), do: ["lib"]
 
   defp compilers(mix_unused) when not is_nil(mix_unused), do: [:phoenix_live_view, :unused]
   defp compilers(_), do: [:phoenix_live_view]

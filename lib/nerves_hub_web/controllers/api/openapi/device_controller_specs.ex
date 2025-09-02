@@ -130,15 +130,11 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   end
 
   def show_device_action(opts) do
-    device_operation("Show a Device", :show, opts.parameters, opts.tags,
-      response: @device_response
-    )
+    device_operation("Show a Device", :show, opts.parameters, opts.tags, response: @device_response)
   end
 
   def delete_device_action(opts) do
-    device_operation("Delete a Device", :delete, opts.parameters, opts.tags,
-      response: @empty_response
-    )
+    device_operation("Delete a Device", :delete, opts.parameters, opts.tags, response: @empty_response)
   end
 
   def create_device_action(opts) do

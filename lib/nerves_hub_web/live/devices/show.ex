@@ -171,10 +171,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  def handle_info(
-        %Broadcast{event: "health_check_report"},
-        %{assigns: %{device: device}} = socket
-      ) do
+  def handle_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
     latest_metrics = Metrics.get_latest_metric_set(device.id)
 
     socket
@@ -365,8 +362,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event(
         "set-deployment-group",
         %{"deployment_id" => deployment_id},
-        %{assigns: %{user: user, device: device, deployment_groups: deployment_groups}} =
-          socket
+        %{assigns: %{user: user, device: device, deployment_groups: deployment_groups}} = socket
       ) do
     deployment_group = Enum.find(deployment_groups, &(&1.id == String.to_integer(deployment_id)))
     device = Devices.update_deployment_group(device, deployment_group)
@@ -455,21 +451,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_event(
-        "clear-script-output",
-        %{"idx" => index},
-        %{assigns: %{scripts: scripts}} = socket
-      ) do
+  def handle_event("clear-script-output", %{"idx" => index}, %{assigns: %{scripts: scripts}} = socket) do
     socket
     |> assign(:scripts, update_script_output(scripts, String.to_integer(index), nil))
     |> noreply()
   end
 
-  def handle_event(
-        "remove-from-deployment-group",
-        _,
-        %{assigns: %{device: device}} = socket
-      ) do
+  def handle_event("remove-from-deployment-group", _, %{assigns: %{device: device}} = socket) do
     device =
       device
       |> Devices.clear_deployment_group()
@@ -566,10 +554,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   defp standard_keys(%{firmware_metadata: nil}), do: []
 
   defp standard_keys(%{firmware_metadata: firmware_metadata}),
-    do:
-      firmware_metadata
-      |> Map.keys()
-      |> Enum.map(&to_string/1)
+    do: firmware_metadata |> Map.keys() |> Enum.map(&to_string/1)
 
   defp schedule_health_check_timer(socket) do
     %{device: device, product: product} = socket.assigns
@@ -586,9 +571,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     product.extensions.health and device.extensions.health
   end
 
-  defp audit_log_assigns(
-         %{assigns: %{device: device, page_number: page_number, page_size: page_size}} = socket
-       ) do
+  defp audit_log_assigns(%{assigns: %{device: device, page_number: page_number, page_size: page_size}} = socket) do
     {logs, audit_pager} =
       AuditLogs.logs_for_feed(device, %{page: page_number, page_size: page_size})
 
@@ -603,10 +586,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     do: assign(socket, deployment_groups: ManagedDeployments.eligible_deployment_groups(device))
 
   defp assign_deployment_groups(%{assigns: %{product: product}} = socket),
-    do:
-      assign(socket,
-        deployment_groups: ManagedDeployments.get_deployment_groups_by_product(product)
-      )
+    do: assign(socket, deployment_groups: ManagedDeployments.get_deployment_groups_by_product(product))
 
   defp connecting_code(device) do
     if device.deployment_group && device.deployment_group.connecting_code do
@@ -640,8 +620,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp running_script_placeholder(), do: @running_script_placeholder
 
-  defp script_button_text(output) when output == @running_script_placeholder or is_nil(output),
-    do: "Run"
+  defp script_button_text(output) when output == @running_script_placeholder or is_nil(output), do: "Run"
 
   defp script_button_text(_), do: "Close"
 

@@ -28,12 +28,10 @@ defmodule NervesHub.Application do
           {Phoenix.PubSub, name: NervesHub.PubSub},
           {Cluster.Supervisor, [libcluster_topology()]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
-          {Oban, Application.fetch_env!(:nerves_hub, Oban)},
+          {Oban, oban_opts()},
           NervesHubWeb.Presence,
-          {NervesHub.RateLimit.LogLines,
-           [clean_period: :timer.minutes(5), key_older_than: :timer.hours(1)]},
-          {PartitionSupervisor,
-           child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
+          {NervesHub.RateLimit.LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
+          {PartitionSupervisor, child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
         ] ++
         deployments_orchestrator(deploy_env()) ++
         endpoints(deploy_env())
@@ -93,18 +91,28 @@ defmodule NervesHub.Application do
     ]
   end
 
+  defp oban_opts() do
+    config = Application.fetch_env!(:nerves_hub, Oban)
+
+    case Application.get_env(:nerves_hub, :app) do
+      "device" ->
+        Keyword.put(config, :queues, [])
+
+      _ ->
+        config
+    end
+  end
+
   defp ecto_migrations() do
     [
       Supervisor.child_spec(
         {Ecto.Migrator,
-         repos: [NervesHub.Repo],
-         skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
+         repos: [NervesHub.Repo], skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
         id: :repo_migrator
       ),
       Supervisor.child_spec(
         {Ecto.Migrator,
-         repos: [NervesHub.AnalyticsRepo],
-         skip: Application.get_env(:nerves_hub, :analytics_auto_migrator) != true},
+         repos: [NervesHub.AnalyticsRepo], skip: Application.get_env(:nerves_hub, :analytics_auto_migrator) != true},
         id: :analytics_repo_migrator
       )
     ]

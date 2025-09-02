@@ -24,8 +24,7 @@ defmodule NervesHubWeb.API.UserController do
 
   operation(:auth,
     summary: "Authenticate a user",
-    request_body:
-      {"Authentication attributes", "application/json", UserAuthRequest, required: true},
+    request_body: {"Authentication attributes", "application/json", UserAuthRequest, required: true},
     responses: [
       ok: {"User response", "application/json", UserResponse}
     ],
@@ -40,8 +39,7 @@ defmodule NervesHubWeb.API.UserController do
 
   operation(:login,
     summary: "Authenticate a user (deprecated)",
-    request_body:
-      {"Authentication attributes", "application/json", UserAuthWithNoteRequest, required: true},
+    request_body: {"Authentication attributes", "application/json", UserAuthWithNoteRequest, required: true},
     responses: [
       ok: {"User response", "application/json", UserResponse}
     ],
@@ -49,8 +47,8 @@ defmodule NervesHubWeb.API.UserController do
   )
 
   def login(conn, %{"email" => email, "password" => password, "note" => note}) do
-    with {:ok, user} <- Accounts.authenticate(email, password),
-         token <- Accounts.create_user_api_token(user, note) do
+    with {:ok, user} <- Accounts.authenticate(email, password) do
+      token = Accounts.create_user_api_token(user, note)
       render(conn, :show, user: user, token: token)
     end
   end

@@ -208,8 +208,7 @@ defmodule NervesHub.Devices do
         {:error, :not_found}
 
       device ->
-        {:ok,
-         Repo.preload(device, [:org, :product, :latest_connection, deployment_group: [:firmware]])}
+        {:ok, Repo.preload(device, [:org, :product, :latest_connection, deployment_group: [:firmware]])}
     end
   end
 
@@ -219,8 +218,7 @@ defmodule NervesHub.Devices do
   end
 
   @spec get_device_by_identifier(Org.t(), String.t()) :: {:ok, Device.t()} | {:error, :not_found}
-  def get_device_by_identifier(org, identifier, preload_assoc \\ nil)
-      when is_binary(identifier) do
+  def get_device_by_identifier(org, identifier, preload_assoc \\ nil) when is_binary(identifier) do
     get_device_by_identifier_query(org, identifier, preload_assoc)
     |> Repo.one()
     |> case do
@@ -230,8 +228,7 @@ defmodule NervesHub.Devices do
   end
 
   @spec get_device_by_identifier!(Org.t(), String.t()) :: Device.t()
-  def get_device_by_identifier!(org, identifier, preload_assoc \\ nil)
-      when is_binary(identifier) do
+  def get_device_by_identifier!(org, identifier, preload_assoc \\ nil) when is_binary(identifier) do
     get_device_by_identifier_query(org, identifier, preload_assoc)
     |> Repo.one!()
   end
@@ -337,9 +334,6 @@ defmodule NervesHub.Devices do
         product_id: product.id,
         identifier: identifier
       })
-    else
-      result ->
-        result
     end
   end
 
@@ -443,8 +437,7 @@ defmodule NervesHub.Devices do
     |> get_device_by_certificate()
   end
 
-  def get_device_by_certificate(%DeviceCertificate{device: %Device{} = device}),
-    do: {:ok, Repo.preload(device, :org)}
+  def get_device_by_certificate(%DeviceCertificate{device: %Device{} = device}), do: {:ok, Repo.preload(device, :org)}
 
   def get_device_by_certificate(_), do: {:error, :not_found}
 
@@ -523,8 +516,7 @@ defmodule NervesHub.Devices do
 
   @spec create_ca_certificate_from_x509(Org.t(), X509.Certificate.t(), binary() | nil) ::
           {:ok, CACertificate.t()} | {:error, Ecto.Changeset.t()}
-  def create_ca_certificate_from_x509(%Org{} = org, otp_cert, description \\ nil)
-      when is_tuple(otp_cert) do
+  def create_ca_certificate_from_x509(%Org{} = org, otp_cert, description \\ nil) when is_tuple(otp_cert) do
     {not_before, not_after} = Certificate.get_validity(otp_cert)
 
     params = %{
@@ -625,9 +617,7 @@ defmodule NervesHub.Devices do
     DeploymentGroup
     |> where([dep], dep.product_id == ^product_id)
     |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
-    |> join(:inner, [dep, dev], f in Firmware,
-      on: f.uuid == fragment("d1.firmware_metadata->>'uuid'")
-    )
+    |> join(:inner, [dep, dev], f in Firmware, on: f.uuid == fragment("d1.firmware_metadata->>'uuid'"))
     # Exclude the current firmware, we don't need to generate that one
     |> where([dep, dev, f], f.id != dep.firmware_id)
     |> select([dep, dev, f], {f.id, dep.firmware_id})
@@ -640,9 +630,7 @@ defmodule NervesHub.Devices do
     DeploymentGroup
     |> where([dep], dep.id == ^deployment_id)
     |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
-    |> join(:inner, [dep, dev], f in Firmware,
-      on: f.uuid == fragment("d1.firmware_metadata->>'uuid'")
-    )
+    |> join(:inner, [dep, dev], f in Firmware, on: f.uuid == fragment("d1.firmware_metadata->>'uuid'"))
     # Exclude the current firmware, we don't need to generate that one
     |> where([dep, dev, f], f.id != dep.firmware_id)
     |> select([dep, dev, f], {f.id, dep.firmware_id})
@@ -987,7 +975,7 @@ defmodule NervesHub.Devices do
   end
 
   def deployment_device_online(device) do
-    firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid, else: nil)
+    firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid)
 
     payload = %{
       updates_enabled: device.updates_enabled,
@@ -1225,8 +1213,7 @@ defmodule NervesHub.Devices do
           DeploymentGroup.t() | non_neg_integer()
         ) ::
           {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
-  def move_many_to_deployment_group(device_ids, deployment_id)
-      when is_number(deployment_id) do
+  def move_many_to_deployment_group(device_ids, deployment_id) when is_number(deployment_id) do
     deployment_group =
       DeploymentGroup |> where(id: ^deployment_id) |> preload(:firmware) |> Repo.one()
 
@@ -1450,9 +1437,7 @@ defmodule NervesHub.Devices do
     Enum.all?(deployment_group_tags, fn tag -> tag in device_tags end)
   end
 
-  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{
-        id: target
-      }) do
+  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}) do
     existing_target_keys = from(k in OrgKey, where: [org_id: ^target], select: k.key)
 
     from(
@@ -1531,9 +1516,7 @@ defmodule NervesHub.Devices do
         # Device already has an inflight update, fetch it
         case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment_group.id) do
           nil ->
-            Logger.error(
-              "An inflight update could not be created or found for the device (#{device_id})"
-            )
+            Logger.error("An inflight update could not be created or found for the device (#{device_id})")
 
             :error
 
@@ -1695,21 +1678,13 @@ defmodule NervesHub.Devices do
   """
   @spec get_delta_or_firmware_url(Device.t(), Firmware.t() | DeploymentGroup.t()) ::
           {:ok, String.t()} | {:error, :failure}
-  def get_delta_or_firmware_url(
-        %Device{} = device,
-        %DeploymentGroup{
-          delta_updatable: true,
-          firmware: target
-        }
-      ) do
+  def get_delta_or_firmware_url(%Device{} = device, %DeploymentGroup{delta_updatable: true, firmware: target}) do
     get_delta_or_firmware_url(device, target)
   end
 
   def get_delta_or_firmware_url(
         %{firmware_metadata: %{uuid: source_uuid}, product_id: product_id} = device,
-        %Firmware{
-          delta_updatable: true
-        } = target
+        %Firmware{delta_updatable: true} = target
       ) do
     # Get firmware delta URL if available but otherwise deliver full firmware
     with {:delta_updatable, true} <-
@@ -1771,10 +1746,7 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def get_delta_or_firmware_url(
-        %Device{firmware_metadata: fw_meta} = device,
-        %DeploymentGroup{firmware: target} = dg
-      ) do
+  def get_delta_or_firmware_url(%Device{firmware_metadata: fw_meta} = device, %DeploymentGroup{firmware: target} = dg) do
     Logger.warning(
       "Delivering full firmware: deltas disabled for deployment group.",
       device_id: device.id,
@@ -1786,10 +1758,7 @@ defmodule NervesHub.Devices do
     Firmwares.get_firmware_url(target)
   end
 
-  def get_delta_or_firmware_url(
-        %Device{firmware_metadata: fw_meta} = device,
-        %Firmware{} = target
-      ) do
+  def get_delta_or_firmware_url(%Device{firmware_metadata: fw_meta} = device, %Firmware{} = target) do
     Logger.warning(
       "Delivering full firmware: deltas disabled for firmware.",
       device_id: device.id,

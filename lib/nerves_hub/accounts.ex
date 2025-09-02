@@ -50,9 +50,7 @@ defmodule NervesHub.Accounts do
     deleted_at = DateTime.truncate(DateTime.utc_now(), :second)
 
     Multi.new()
-    |> Multi.update_all(:soft_delete_products, Ecto.assoc(org, :products),
-      set: [deleted_at: deleted_at]
-    )
+    |> Multi.update_all(:soft_delete_products, Ecto.assoc(org, :products), set: [deleted_at: deleted_at])
     |> Multi.update(:soft_delete_org, Org.delete_changeset(org))
     |> Repo.transaction()
     |> case do
@@ -135,8 +133,7 @@ defmodule NervesHub.Accounts do
       {:ok, %{to: ..., body: ...}}
 
   """
-  def deliver_user_password_updated(%User{} = user, reset_url_fun)
-      when is_function(reset_url_fun, 1) do
+  def deliver_user_password_updated(%User{} = user, reset_url_fun) when is_function(reset_url_fun, 1) do
     {encoded_token, user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
     Repo.insert!(user_token)
     UserNotifier.deliver_password_updated(user, reset_url_fun.(encoded_token))
@@ -187,8 +184,6 @@ defmodule NervesHub.Accounts do
            Repo.soft_delete(org_user),
          {_, nil} <- Devices.unpin_org_devices(user_id, org_id) do
       :ok
-    else
-      err -> err
     end
   end
 
@@ -328,8 +323,7 @@ defmodule NervesHub.Accounts do
       nil
 
   """
-  def get_user_by_email_and_password(email, password)
-      when is_binary(email) and is_binary(password) do
+  def get_user_by_email_and_password(email, password) when is_binary(email) and is_binary(password) do
     user = Repo.get_by(User, email: email)
     if User.valid_password?(user, password), do: user
   end
@@ -929,11 +923,7 @@ defmodule NervesHub.Accounts do
       {:ok, %{to: ..., body: ...}}
 
   """
-  def deliver_user_reset_password_instructions(
-        %User{google_id: google_id} = user,
-        _reset_password_url_fun,
-        login_url
-      )
+  def deliver_user_reset_password_instructions(%User{google_id: google_id} = user, _reset_password_url_fun, login_url)
       when not is_nil(google_id) do
     UserNotifier.deliver_login_with_google_reminder(user, login_url)
   end

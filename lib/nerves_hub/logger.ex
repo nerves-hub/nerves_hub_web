@@ -169,24 +169,14 @@ defmodule NervesHub.Logger do
     Logger.warning("Unhandled handle_in message", extra)
   end
 
-  def log_event(
-        [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
-        _,
-        metadata,
-        _
-      ) do
+  def log_event([:nerves_hub, :managed_deployments, :set_deployment_group, :none_found], _, metadata, _) do
     Logger.info("No matching deployment groups",
       event: "nerves_hub.managed_deployments.set_deployment_group.none_found",
       identifier: metadata[:device].identifier
     )
   end
 
-  def log_event(
-        [:nerves_hub, :managed_deployments, :set_deployment_group, :one_found],
-        _,
-        metadata,
-        _
-      ) do
+  def log_event([:nerves_hub, :managed_deployments, :set_deployment_group, :one_found], _, metadata, _) do
     Logger.info("Deployment match found",
       event: "nerves_hub.managed_deployments.set_deployment_group.one_found",
       identifier: metadata[:device].identifier,
@@ -194,12 +184,7 @@ defmodule NervesHub.Logger do
     )
   end
 
-  def log_event(
-        [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found],
-        _,
-        metadata,
-        _
-      ) do
+  def log_event([:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found], _, metadata, _) do
     Logger.info("More than one deployment match found, setting to the first",
       event: "nerves_hub.managed_deployments.set_deployment_group.multiple_found",
       identifier: metadata[:device].identifier,
@@ -262,9 +247,8 @@ defmodule NervesHub.Logger do
     |> Enum.join()
   end
 
-  defp request_path(%{request_path: request_path, query_string: query_string})
-       when query_string not in ["", nil],
-       do: request_path <> "?" <> query_string
+  defp request_path(%{request_path: request_path, query_string: query_string}) when query_string not in ["", nil],
+    do: request_path <> "?" <> query_string
 
   defp request_path(%{request_path: request_path}), do: request_path
   defp request_path(_), do: nil

@@ -174,7 +174,7 @@ defmodule NervesHubWeb.API.DeviceController do
         "new_product_name" => product_name
       }) do
     with {:ok, move_to_org} <- Accounts.get_org_by_name(org_name),
-         _ <- RoleValidateHelpers.validate_org_user_role(conn, move_to_org, user, :manage),
+         RoleValidateHelpers.validate_org_user_role(conn, move_to_org, user, :manage),
          {:ok, product} <- Products.get_product_by_org_id_and_name(move_to_org.id, product_name) do
       case Devices.move(device, product, user) do
         {:ok, device} ->

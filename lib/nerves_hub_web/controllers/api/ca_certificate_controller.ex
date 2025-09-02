@@ -24,9 +24,7 @@ defmodule NervesHubWeb.API.CACertificateController do
       ]
     ],
     responses: [
-      ok:
-        {"CA Certificate list response", "application/json",
-         CACertificateSchemas.CACertificateListResponse}
+      ok: {"CA Certificate list response", "application/json", CACertificateSchemas.CACertificateListResponse}
     ]
   )
 
@@ -86,11 +84,11 @@ defmodule NervesHubWeb.API.CACertificateController do
   def create(%{assigns: %{org: org}} = conn, %{"cert" => cert64} = params) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
          {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
-         serial <- Certificate.get_serial_number(cert),
-         aki <- Certificate.get_aki(cert),
-         ski <- Certificate.get_ski(cert),
+         serial = Certificate.get_serial_number(cert),
+         aki = Certificate.get_aki(cert),
+         ski = Certificate.get_ski(cert),
          {not_before, not_after} <- Certificate.get_validity(cert),
-         params <- %{
+         params = %{
            serial: serial,
            aki: aki,
            ski: ski,

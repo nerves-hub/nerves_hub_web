@@ -142,9 +142,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
 
     on_exit(fn ->
-      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
-        shared_secrets: [enabled: false]
-      )
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])
     end)
 
     user = Fixtures.user_fixture()
@@ -154,9 +152,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert {:ok, auth} = Products.create_shared_secret_auth(product)
 
     {:ok, socket} =
-      connect(DeviceSocket, %{},
-        connect_info: %{x_headers: Utils.nh1_key_secret_headers(auth, Ecto.UUID.generate())}
-      )
+      connect(DeviceSocket, %{}, connect_info: %{x_headers: Utils.nh1_key_secret_headers(auth, Ecto.UUID.generate())})
 
     params = %{
       "nerves_fw_uuid" => Ecto.UUID.generate(),
@@ -437,11 +433,5 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     do: subscribe_and_join(socket, channel, topic, %{"device_api_version" => "2.2.0"})
 
   defp subscribe_and_join_with_default_device_api_version(socket, channel, topic, payload),
-    do:
-      subscribe_and_join(
-        socket,
-        channel,
-        topic,
-        Map.merge(%{"device_api_version" => "2.2.0"}, payload)
-      )
+    do: subscribe_and_join(socket, channel, topic, Map.merge(%{"device_api_version" => "2.2.0"}, payload))
 end

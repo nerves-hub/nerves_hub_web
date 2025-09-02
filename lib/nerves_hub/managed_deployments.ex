@@ -201,10 +201,7 @@ defmodule NervesHub.ManagedDeployments do
   @spec toggle_delta_updates(DeploymentGroup.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
   def toggle_delta_updates(deployment_group),
-    do:
-      update_deployment_group(deployment_group, %{
-        delta_updatable: !deployment_group.delta_updatable
-      })
+    do: update_deployment_group(deployment_group, %{delta_updatable: !deployment_group.delta_updatable})
 
   @doc """
   Update a deployment
@@ -299,19 +296,13 @@ defmodule NervesHub.ManagedDeployments do
        ),
        do: trigger_delta_generation_for_deployment_group(deployment_group)
 
-  defp maybe_trigger_delta_generation(
-         deployment_group,
-         %{changes: %{delta_updatable: true}} = _changeset
-       ),
-       do: trigger_delta_generation_for_deployment_group(deployment_group)
+  defp maybe_trigger_delta_generation(deployment_group, %{changes: %{delta_updatable: true}} = _changeset),
+    do: trigger_delta_generation_for_deployment_group(deployment_group)
 
-  defp maybe_trigger_delta_generation(_deployment_group, _changeset),
-    do: :ok
+  defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: :ok
 
   defp trigger_delta_generation_for_deployment_group(deployment_group) do
-    NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment_group(
-      deployment_group.id
-    )
+    NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
     |> Enum.uniq()
     |> Enum.each(fn {source_id, target_id} ->
       Firmwares.attempt_firmware_delta(source_id, target_id)
@@ -419,8 +410,7 @@ defmodule NervesHub.ManagedDeployments do
 
   @spec verify_deployment_group_membership(Device.t()) :: Device.t()
   def verify_deployment_group_membership(
-        %Device{deployment_id: deployment_id, firmware_metadata: %{version: device_version}} =
-          device
+        %Device{deployment_id: deployment_id, firmware_metadata: %{version: device_version}} = device
       )
       when not is_nil(deployment_id) do
     deployment_group =
@@ -431,15 +421,15 @@ defmodule NervesHub.ManagedDeployments do
       |> Repo.one()
 
     bad_version =
-      if deployment_group.conditions["version"] != "" do
+      if deployment_group.conditions["version"] == "" do
+        false
+      else
         try do
           !Version.match?(device_version, deployment_group.conditions["version"])
         rescue
           _ ->
             true
         end
-      else
-        false
       end
 
     bad_platform = device.firmware_metadata.platform != deployment_group.firmware.platform
@@ -636,11 +626,7 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   # no tags, but version
-  defp do_matched_devices(
-         %DeploymentGroup{conditions: %{"tags" => [], "version" => version}},
-         query,
-         work_type
-       )
+  defp do_matched_devices(%DeploymentGroup{conditions: %{"tags" => [], "version" => version}}, query, work_type)
        when version != "" do
     case work_type do
       :count ->
@@ -659,11 +645,7 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   # tags but no version
-  defp do_matched_devices(
-         %DeploymentGroup{conditions: %{"tags" => tags, "version" => ""}},
-         query,
-         work_type
-       ) do
+  defp do_matched_devices(%DeploymentGroup{conditions: %{"tags" => tags, "version" => ""}}, query, work_type) do
     query = where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
 
     case work_type do
@@ -678,11 +660,7 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   # version and tags
-  defp do_matched_devices(
-         %DeploymentGroup{conditions: %{"tags" => tags, "version" => version}},
-         query,
-         work_type
-       ) do
+  defp do_matched_devices(%DeploymentGroup{conditions: %{"tags" => tags, "version" => version}}, query, work_type) do
     query = where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
 
     case work_type do
