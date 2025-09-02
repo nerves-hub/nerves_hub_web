@@ -156,8 +156,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
         {:noreply, put_flash(socket, :error, "Certificate Authority files required")}
 
       {:error, :not_found} ->
-        {:noreply,
-         put_flash(socket, :error, "Certificate Authority pem file is empty or invalid")}
+        {:noreply, put_flash(socket, :error, "Certificate Authority pem file is empty or invalid")}
 
       {:error, :cert_expired} ->
         {:noreply, put_flash(socket, :error, "Certificate is expired")}
@@ -258,6 +257,5 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   defp upload_error_to_string(:too_large), do: "The file is too large"
   defp upload_error_to_string(:not_accepted), do: "You have selected an unrecognized file type"
 
-  defp upload_error_to_string(:external_client_failure),
-    do: "Something went wrong, please contact support"
+  defp upload_error_to_string(:external_client_failure), do: "Something went wrong, please contact support"
 end

@@ -24,8 +24,7 @@ defmodule NervesHubWeb.API.UserController do
 
   operation(:auth,
     summary: "Authenticate a user",
-    request_body:
-      {"Authentication attributes", "application/json", UserAuthRequest, required: true},
+    request_body: {"Authentication attributes", "application/json", UserAuthRequest, required: true},
     responses: [
       ok: {"User response", "application/json", UserResponse}
     ],
@@ -40,8 +39,7 @@ defmodule NervesHubWeb.API.UserController do
 
   operation(:login,
     summary: "Authenticate a user (deprecated)",
-    request_body:
-      {"Authentication attributes", "application/json", UserAuthWithNoteRequest, required: true},
+    request_body: {"Authentication attributes", "application/json", UserAuthWithNoteRequest, required: true},
     responses: [
       ok: {"User response", "application/json", UserResponse}
     ],

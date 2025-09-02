@@ -16,9 +16,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
     assert deployment_group.queue_management == :FIFO
 
     conn
-    |> visit(
-      "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings"
-    )
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
     |> select("Queue management", option: "LIFO")
     |> submit()
 
