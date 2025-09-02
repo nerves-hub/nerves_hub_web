@@ -4,48 +4,22 @@ ssl_dir =
   (System.get_env("NERVES_HUB_CA_DIR") || Path.join([__DIR__, "../test/fixtures/ssl/"]))
   |> Path.expand()
 
-config :logger, :console, format: "[$level] $message\n"
-config :phoenix, :stacktrace_depth, 20
-
-config :phoenix_live_view,
-  debug_heex_annotations: true,
-  debug_attributes: true,
-  enable_expensive_runtime_checks: true
-
-##
-# NervesHub Web
-#
 web_port = String.to_integer(System.get_env("WEB_PORT", "4000"))
 
-config :nerves_hub, NervesHubWeb.Endpoint,
-  url: [
-    host: System.get_env("WEB_HOST", "localhost"),
-    scheme: System.get_env("WEB_SCHEME", "http"),
-    port: web_port
-  ],
-  http: [ip: {0, 0, 0, 0}, port: web_port],
-  debug_errors: true,
-  code_reloader: true,
-  check_origin: false,
-  watchers: [
-    npm: ["run", "watch", cd: Path.expand("../assets", __DIR__)],
-    tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]},
-    esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]}
-  ],
-  live_reload: [
-    patterns: [
-      ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
-      ~r{priv/gettext/.*(po)$},
-      ~r{lib/nerves_hub_web/views/.*(ex)$},
-      ~r{lib/nerves_hub_web/templates/.*(eex|md)$},
-      ~r{lib/nerves_hub_web/components/.*(eex|md)$},
-      ~r{lib/nerves_hub_web/live/.*(ex)$}
-    ]
-  ]
+config :logger, :console, format: "[$level] $message\n"
 
-##
-# NervesHub Device
-#
+config :nerves_hub, NervesHub.ObanRepo,
+  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev"),
+  show_sensitive_data_on_connection_error: true,
+  pool_size: 10,
+  ssl: false
+
+config :nerves_hub, NervesHub.Repo,
+  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev"),
+  show_sensitive_data_on_connection_error: true,
+  pool_size: 10,
+  ssl: false
+
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   debug_errors: true,
   code_reloader: false,
@@ -78,20 +52,38 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
     ]
   ]
 
-##
-# Database and Oban
-#
-config :nerves_hub, NervesHub.Repo,
-  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev"),
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10,
-  ssl: false
+config :nerves_hub, NervesHubWeb.Endpoint,
+  url: [
+    host: System.get_env("WEB_HOST", "localhost"),
+    scheme: System.get_env("WEB_SCHEME", "http"),
+    port: web_port
+  ],
+  http: [ip: {0, 0, 0, 0}, port: web_port],
+  debug_errors: true,
+  code_reloader: true,
+  check_origin: false,
+  watchers: [
+    npm: ["run", "watch", cd: Path.expand("../assets", __DIR__)],
+    tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]},
+    esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]}
+  ],
+  live_reload: [
+    patterns: [
+      ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
+      ~r{priv/gettext/.*(po)$},
+      ~r{lib/nerves_hub_web/views/.*(ex)$},
+      ~r{lib/nerves_hub_web/templates/.*(eex|md)$},
+      ~r{lib/nerves_hub_web/components/.*(eex|md)$},
+      ~r{lib/nerves_hub_web/live/.*(ex)$}
+    ]
+  ]
 
-config :nerves_hub, NervesHub.ObanRepo,
-  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev"),
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10,
-  ssl: false
+config :phoenix, :stacktrace_depth, 20
+
+config :phoenix_live_view,
+  debug_heex_annotations: true,
+  debug_attributes: true,
+  enable_expensive_runtime_checks: true
 
 if System.get_env("ANALYTICS_ENABLED", "true") == "true" do
   config :nerves_hub, NervesHub.AnalyticsRepo,
@@ -102,16 +94,13 @@ else
   config :nerves_hub, analytics_enabled: false
 end
 
-##
-# Firmware upload
-#
-config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
-
 config :nerves_hub, NervesHub.Firmwares.Upload.File,
   enabled: true,
   local_path: Path.expand("tmp/firmware"),
   public_path: "/firmware"
 
+config :nerves_hub, NervesHub.RateLimit, limit: 10
+config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Local
 config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
 
 config :nerves_hub, NervesHub.Uploads.File,
@@ -119,17 +108,12 @@ config :nerves_hub, NervesHub.Uploads.File,
   local_path: Path.expand("tmp/uploads"),
   public_path: "/uploads"
 
-##
-# Other
-#
 config :nerves_hub, NervesHubWeb.DeviceSocket,
   shared_secrets: [
     enabled: true
   ]
 
-config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Local
-
-config :nerves_hub, NervesHub.RateLimit, limit: 10
+config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
 
 config :nerves_hub,
   open_for_registrations: true

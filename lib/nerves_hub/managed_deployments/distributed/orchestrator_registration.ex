@@ -26,7 +26,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
 
   @impl GenServer
   def init(_) do
-    Process.send_after(self(), :start_orchestrators, :timer.seconds(3))
+    Process.send_after(self(), :start_orchestrators, to_timeout(second: 3))
     {:ok, nil}
   end
 
