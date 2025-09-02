@@ -47,8 +47,8 @@ defmodule NervesHubWeb.API.UserController do
   )
 
   def login(conn, %{"email" => email, "password" => password, "note" => note}) do
-    with {:ok, user} <- Accounts.authenticate(email, password),
-         token <- Accounts.create_user_api_token(user, note) do
+    with {:ok, user} <- Accounts.authenticate(email, password) do
+      token = Accounts.create_user_api_token(user, note)
       render(conn, :show, user: user, token: token)
     end
   end

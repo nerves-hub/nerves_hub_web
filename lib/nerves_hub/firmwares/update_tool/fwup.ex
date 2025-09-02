@@ -34,9 +34,6 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          tool_delta_required_version: tool_metadata.delta_fwup_version,
          tool_full_required_version: tool_metadata.complete_fwup_version
        }}
-    else
-      err ->
-        err
     end
   end
 
@@ -271,8 +268,6 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
         {:error, :enoent} ->
           nil
       end
-    else
-      nil
     end
   end
 

@@ -333,9 +333,6 @@ defmodule NervesHub.Devices do
         product_id: product.id,
         identifier: identifier
       })
-    else
-      result ->
-        result
     end
   end
 
@@ -978,7 +975,7 @@ defmodule NervesHub.Devices do
   end
 
   def deployment_device_online(device) do
-    firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid, else: nil)
+    firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid)
 
     payload = %{
       updates_enabled: device.updates_enabled,

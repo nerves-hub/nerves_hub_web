@@ -150,24 +150,24 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
            valid?
          ) do
       valid? =
-        if chunk_1 != chunk_2 do
+        if chunk_1 == chunk_2 do
+          valid?
+        else
           IO.puts("Difference at offset: #{offset} (#{trunc(offset / 512)})")
           find_diff(chunk_1, chunk_2)
           false
-        else
-          valid?
         end
 
       compare_data?(d1, d2, offset + 512, valid?)
     end
 
     defp compare_data?(<<chunk_1::binary>>, <<chunk_2::binary>>, offset, valid?) do
-      if chunk_1 != chunk_2 do
+      if chunk_1 == chunk_2 do
+        valid?
+      else
         IO.puts("Difference at final offset: #{offset} (#{trunc(offset / 512)})")
         find_diff(chunk_1, chunk_2)
         false
-      else
-        valid?
       end
     end
 
