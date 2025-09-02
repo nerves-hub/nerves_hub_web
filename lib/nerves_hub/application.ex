@@ -30,7 +30,7 @@ defmodule NervesHub.Application do
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
-          {NervesHub.RateLimit.LogLines, [clean_period: :timer.minutes(5), key_older_than: :timer.hours(1)]},
+          {NervesHub.RateLimit.LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
           {PartitionSupervisor, child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
         ] ++
         deployments_orchestrator(deploy_env()) ++

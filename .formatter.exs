@@ -8,7 +8,9 @@
     only: [
       :blocks,
       :comment_directives,
-      :defs
+      :configs,
+      :defs,
+      :deprecations
     ]
   ]
 ]

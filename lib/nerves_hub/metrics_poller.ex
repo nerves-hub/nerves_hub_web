@@ -4,7 +4,7 @@ defmodule NervesHub.MetricsPoller do
      measurements: [
        {NervesHub.MetricsPoller, :report_device_count, []}
      ],
-     period: :timer.seconds(60),
+     period: to_timeout(second: 60),
      name: :nerves_hub_poller}
   end
 
