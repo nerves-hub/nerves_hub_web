@@ -209,7 +209,7 @@ defmodule NervesHub.Accounts.UserToken do
   def token_still_valid?(validity_in_days, token) do
     valid_until = NaiveDateTime.add(token.inserted_at, validity_in_days, :day)
 
-    NaiveDateTime.compare(NaiveDateTime.utc_now(), valid_until) == :lt
+    NaiveDateTime.before?(NaiveDateTime.utc_now(), valid_until)
   end
 
   defp assert_crc(token, crc) do

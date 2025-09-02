@@ -11,7 +11,8 @@
       :configs,
       :defs,
       :deprecations,
-      :pipes
+      :pipes,
+      :single_node
     ],
     exclude: [piped_functions: [:subquery]]
   ]

@@ -843,7 +843,7 @@ defmodule NervesHub.Devices do
 
     attempts =
       Enum.filter(device.update_attempts, fn attempt ->
-        DateTime.compare(seconds_ago, attempt) == :lt
+        DateTime.before?(seconds_ago, attempt)
       end)
 
     Enum.count(attempts) >= deployment_group.device_failure_rate_amount
@@ -858,7 +858,7 @@ defmodule NervesHub.Devices do
   def device_in_penalty_box?(%{updates_blocked_until: nil}, _now), do: false
 
   def device_in_penalty_box?(device, now) do
-    DateTime.compare(device.updates_blocked_until, now) == :gt
+    DateTime.after?(device.updates_blocked_until, now)
   end
 
   defp updates_blocked?(device, now) do
@@ -1075,7 +1075,7 @@ defmodule NervesHub.Devices do
 
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
-    |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query(&1))
+    |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query/1)
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, description)
     end)

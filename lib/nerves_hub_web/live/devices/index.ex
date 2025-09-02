@@ -248,7 +248,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     selected_devices = socket.assigns.selected_devices
 
     selected_devices =
-      if !socket.assigns.devices.ok? || Enum.count(selected_devices) > 0 do
+      if !socket.assigns.devices.ok? || not Enum.empty?(selected_devices) do
         []
       else
         Enum.map(socket.assigns.devices.result, & &1.id)
@@ -475,7 +475,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       socket.assigns
 
     updated_device_statuses =
-      Enum.into(updated_devices, %{}, fn device ->
+      Map.new(updated_devices, fn device ->
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
 
         {device.identifier, Tracker.connection_status(device)}

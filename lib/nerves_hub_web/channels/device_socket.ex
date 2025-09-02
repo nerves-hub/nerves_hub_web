@@ -92,7 +92,8 @@ defmodule NervesHubWeb.DeviceSocket do
 
   # Used by Devices connecting with HMAC Shared Secrets
   @decorate with_span("Channels.DeviceSocket.connect")
-  def connect(_params, socket, %{x_headers: x_headers}) when is_list(x_headers) and length(x_headers) > 0 do
+  def connect(_params, socket, %{x_headers: x_headers})
+      when is_list(x_headers) and (is_list(x_headers) and x_headers != []) do
     headers = Map.new(x_headers)
 
     with :ok <- check_shared_secret_enabled(),

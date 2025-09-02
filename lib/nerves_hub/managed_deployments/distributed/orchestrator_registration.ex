@@ -67,8 +67,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
   @spec start_orchestrators() :: :ok
   def start_orchestrators() do
     ManagedDeployments.should_run_orchestrator()
-    |> Enum.map(&Orchestrator.child_spec(&1))
-    |> Enum.map(&await_start(&1))
+    |> Enum.map(&Orchestrator.child_spec/1)
+    |> Enum.map(&await_start/1)
     |> report_errors()
   end
 

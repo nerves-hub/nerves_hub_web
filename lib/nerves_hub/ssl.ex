@@ -161,7 +161,7 @@ defmodule NervesHub.SSL do
     end
   end
 
-  defp path_verify(ca, {:bad_cert, :cert_expired}, {ca, _check_expiration? = false} = state) do
+  defp path_verify(ca, {:bad_cert, :cert_expired}, {ca, false = _check_expiration?} = state) do
     # The Signer CA is technically expired, but expiration checks are disabled
     # so we should let this through the rest of the verification
     {:valid, state}
