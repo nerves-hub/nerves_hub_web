@@ -135,7 +135,7 @@ defmodule NervesHub.MixProject do
        ref: "26575bc"},
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
-      {:quokka, "~> 2.10.0", only: [:dev, :test]},
+      {:quokka, "~> 2.11.2", only: [:dev, :test]},
       {:sentry, "~> 11.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},
