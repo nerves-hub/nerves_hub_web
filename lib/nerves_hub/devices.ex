@@ -34,6 +34,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
@@ -983,13 +984,8 @@ defmodule NervesHub.Devices do
       firmware_uuid: firmware_uuid
     }
 
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "orchestrator:deployment:#{device.deployment_id}",
-        "device-online",
-        payload
-      )
+    topic = "orchestrator:deployment:#{device.deployment_id}"
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "device-online", payload)
 
     :ok
   end
@@ -999,13 +995,8 @@ defmodule NervesHub.Devices do
   end
 
   def deployment_device_updated(device) do
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "orchestrator:deployment:#{device.deployment_id}",
-        "device-updated",
-        %{}
-      )
+    topic = "orchestrator:deployment:#{device.deployment_id}"
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "device-updated", %{})
 
     :ok
   end
@@ -1147,12 +1138,8 @@ defmodule NervesHub.Devices do
       {:ok, device} = result ->
         _ =
           if device.deployment_id do
-            Phoenix.Channel.Server.broadcast(
-              NervesHub.PubSub,
-              "orchestrator:deployment:#{device.deployment_id}",
-              "device-updated",
-              %{}
-            )
+            topic = "orchestrator:deployment:#{device.deployment_id}"
+            ChannelServer.broadcast(NervesHub.PubSub, topic, "device-updated", %{})
           end
 
         result
@@ -1623,13 +1610,8 @@ defmodule NervesHub.Devices do
 
     payload = %{inflight_update: inflight_update, update_payload: update_payload}
 
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "device:#{device_id}",
-        "update-scheduled",
-        payload
-      )
+    topic = "device:#{device_id}"
+    _ = ChannelServer.broadcast(NervesHub.PubSub, topic, "update-scheduled", payload)
 
     :ok
   end
