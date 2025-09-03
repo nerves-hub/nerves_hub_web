@@ -813,7 +813,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn
       |> post(path)
       |> response(200)
-      |> assert
+      |> assert()
     end
 
     test "handles timeout param as a string or integer", %{conn: conn, user: user, org: org} do
@@ -840,7 +840,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn
       |> post(path)
       |> response(200)
-      |> assert
+      |> assert()
 
       path =
         Routes.api_device_script_path(
@@ -859,7 +859,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn
       |> post(path)
       |> response(200)
-      |> assert
+      |> assert()
     end
 
     test "returns 503 for timeouts", %{conn: conn, user: user, org: org} do
@@ -936,7 +936,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn
       |> post(path)
       |> response(200)
-      |> assert
+      |> assert()
     end
 
     test "auth failure, with short url", %{conn2: conn, user: user, org: org} do

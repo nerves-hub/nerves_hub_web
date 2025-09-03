@@ -56,12 +56,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       %{device: device} = fixture
       {:ok, view, _html} = live(conn, device_show_path(fixture))
 
-      before_audit_count = AuditLogs.logs_for(device) |> length
+      before_audit_count = AuditLogs.logs_for(device) |> length()
 
       _view = render_change(view, :reboot, %{})
       assert_broadcast("reboot", %{})
 
-      after_audit_count = AuditLogs.logs_for(device) |> length
+      after_audit_count = AuditLogs.logs_for(device) |> length()
 
       assert after_audit_count == before_audit_count + 1
     end

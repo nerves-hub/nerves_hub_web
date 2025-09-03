@@ -74,7 +74,7 @@ defmodule NervesHub.Devices.LogLinesTest do
       LogLines.async_create(device, %{
         "level" => level,
         "message" => message,
-        "meta" => %{"time" => logged_at |> DateTime.to_unix(:microsecond) |> to_string}
+        "meta" => %{"time" => logged_at |> DateTime.to_unix(:microsecond) |> to_string()}
       })
 
     %LogLine{
