@@ -352,4 +352,20 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     assert_receive {:DOWN, _reference, :process, ^pid, :normal}, 3_000
   end
+
+  describe "trigger_update/1" do
+    test "ignores updates when deployment_group is inactive", %{deployment_group: deployment_group} do
+      reject(&Devices.available_for_update/2)
+      reject(&Orchestrator.schedule_devices!/2)
+
+      Orchestrator.trigger_update(%Orchestrator.State{deployment_group: %{deployment_group | is_active: false}})
+    end
+
+    test "ignores updates when deployment_group is paused", %{deployment_group: deployment_group} do
+      reject(&Devices.available_for_update/2)
+      reject(&Orchestrator.schedule_devices!/2)
+
+      Orchestrator.trigger_update(%Orchestrator.State{deployment_group: %{deployment_group | status: :paused}})
+    end
+  end
 end
