@@ -29,6 +29,8 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
+  require Logger
+
   intercept(["updated", "deployment_updated"])
 
   @decorate with_span("Channels.DeviceChannel.join")
@@ -352,8 +354,8 @@ defmodule NervesHubWeb.DeviceChannel do
   # A new UUID is being reported from an update
   defp update_metadata(%{firmware_metadata: previous_metadata} = device, params) do
     with {:ok, metadata} <- Firmwares.metadata_from_device(params),
-         validation_status <- fetch_validation_status(params),
-         auto_revert_detected? <- firmware_auto_revert_detected?(params),
+         validation_status = fetch_validation_status(params),
+         auto_revert_detected? = firmware_auto_revert_detected?(params),
          {:ok, device} <-
            Devices.update_firmware_metadata(device, metadata, validation_status, auto_revert_detected?) do
       Devices.firmware_update_successful(device, previous_metadata)
