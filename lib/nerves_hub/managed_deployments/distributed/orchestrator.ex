@@ -14,7 +14,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
-  alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
@@ -106,73 +105,32 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   As devices update and reconnect, the new orchestrator is told that the update
   was successful, and the process is repeated.
   """
-  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop")
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop-inactive")
   def trigger_update(%State{deployment_group: %DeploymentGroup{is_active: false}} = state) do
+    state
+  end
+
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop-status-paused")
+  def trigger_update(%State{deployment_group: %DeploymentGroup{status: :paused}} = state) do
     state
   end
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update")
   def trigger_update(%State{deployment_group: deployment_group} = state) do
     :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
+    slots = available_slots(deployment_group)
 
-    {ready?, state} = prepare(state)
+    if slots > 0 do
+      available = Devices.available_for_update(deployment_group, slots)
+      updated_count = schedule_devices!(available, deployment_group)
 
-    if ready? do
-      slots = available_slots(deployment_group)
-
-      if slots > 0 do
-        available = Devices.available_for_update(deployment_group, slots)
-
-        updated_count = schedule_devices!(available, deployment_group)
-
-        if length(available) != updated_count do
-          # rerun the deployment check since some devices were skipped
-          send(self(), :trigger)
-        end
+      if length(available) != updated_count do
+        # rerun the deployment check since some devices were skipped
+        send(self(), :trigger)
       end
     end
 
     state
-  end
-
-  defp prepare(
-         %State{
-           deployment_group:
-             %DeploymentGroup{
-               delta_updatable: true
-             } = deployment_group
-         } =
-           state
-       ) do
-    # Clear and set up new subscription if firmware changed
-    if state.subscribed_to != deployment_group.firmware_id do
-      Firmwares.subscribe_firmware_delta_target(deployment_group.firmware_id)
-
-      _ =
-        if state.subscribed_to do
-          Firmwares.unsubscribe_firmware_delta_target(deployment_group.firmware_id)
-        end
-    end
-
-    # Check if deltas are ready
-    %{ready?: ready?, total: total, completed: completed} =
-      ManagedDeployments.get_delta_generation_status(deployment_group)
-
-    _ =
-      if not ready? do
-        Logger.info("Orchestrator is waiting for delta generation to complete.",
-          deployment_group_id: deployment_group.id,
-          firmware_id: deployment_group.firmware_id,
-          total: total,
-          completed: completed
-        )
-      end
-
-    {ready?, %{state | subscribed_to: deployment_group.firmware_id}}
-  end
-
-  defp prepare(%State{} = state) do
-    {true, %{state | subscribed_to: nil}}
   end
 
   @doc """

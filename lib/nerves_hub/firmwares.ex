@@ -430,51 +430,10 @@ defmodule NervesHub.Firmwares do
            {source_firmware.uuid, source_url},
            {target_firmware.uuid, target_url}
          ) do
-      {:ok, created} ->
+      {:ok, delta_file_metadata} ->
         Repo.transact(
           fn ->
-            upload_metadata =
-              firmware_upload_config().delta_metadata(
-                org.id,
-                source_firmware.uuid,
-                target_firmware.uuid
-              )
-
-            with {:ok, firmware_delta} <-
-                   complete_firmware_delta(
-                     firmware_delta,
-                     created.tool,
-                     created.size,
-                     created.source_size,
-                     created.target_size,
-                     created.tool_metadata,
-                     upload_metadata
-                   ),
-                 {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
-                 :ok <-
-                   firmware_upload_config().upload_file(created.filepath, upload_metadata),
-                 :ok <- update_tool().cleanup_firmware_delta_files(created.filepath) do
-              Logger.info(
-                "Created firmware delta successfully.",
-                product_id: source_firmware.product_id,
-                source_firmware: source_firmware.uuid,
-                target_firmware: target_firmware.uuid
-              )
-
-              {:ok, firmware_delta}
-            else
-              {:error, error} ->
-                update_tool().cleanup_firmware_delta_files(created.filepath)
-
-                Logger.error(
-                  "Failed to create firmware delta: #{inspect(error)}",
-                  product_id: source_firmware.product_id,
-                  source_firmware: source_firmware.uuid,
-                  target_firmware: target_firmware.uuid
-                )
-
-                {:error, error}
-            end
+            foo(firmware_delta, org, source_firmware, target_firmware, delta_file_metadata)
           end,
           timeout: 30_000
         )
@@ -487,23 +446,57 @@ defmodule NervesHub.Firmwares do
             {:error, err}
         end
 
-      {:error, :no_delta_support_in_firmware} ->
-        Logger.info(
-          "Delta generation failed gracefully. There were no markers for delta generation.",
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  defp foo(firmware_delta, org, source_firmware, target_firmware, delta_file_metadata) do
+    upload_metadata =
+      firmware_upload_config().delta_metadata(
+        org.id,
+        source_firmware.uuid,
+        target_firmware.uuid
+      )
+
+    changeset =
+      FirmwareDelta.complete_changeset(
+        firmware_delta,
+        delta_file_metadata.tool,
+        delta_file_metadata.size,
+        delta_file_metadata.source_size,
+        delta_file_metadata.target_size,
+        delta_file_metadata.tool_metadata,
+        upload_metadata
+      )
+
+    with {:ok, firmware_delta} <- Repo.update(changeset),
+         {:ok, _firmware_delta} <- notify_firmware_delta_target({:ok, firmware_delta}),
+         :ok <-
+           firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
+         :ok <- update_tool().cleanup_firmware_delta_files(delta_file_metadata.filepath) do
+      Logger.info(
+        "Created firmware delta successfully.",
+        product_id: source_firmware.product_id,
+        source_firmware: source_firmware.uuid,
+        target_firmware: target_firmware.uuid
+      )
+
+      {:ok, firmware_delta}
+    else
+      {:error, error} ->
+        update_tool().cleanup_firmware_delta_files(delta_file_metadata.filepath)
+
+        Logger.error(
+          "Failed to create firmware delta: #{inspect(error)}",
           product_id: source_firmware.product_id,
           source_firmware: source_firmware.uuid,
           target_firmware: target_firmware.uuid
         )
 
-        :ok
-
-      # We log the issue in the update tool, so no need to here
-      {:error, :delta_not_created} ->
-        :ok
+        {:error, error}
     end
   end
-
-  # Private functions
 
   defp with_product(query) do
     query
@@ -536,37 +529,6 @@ defmodule NervesHub.Firmwares do
   def start_firmware_delta(source_id, target_id) do
     FirmwareDelta.start_changeset(source_id, target_id)
     |> Repo.insert()
-    |> notify_firmware_delta_target()
-  end
-
-  @spec complete_firmware_delta(
-          firmware_delta :: FirmwareDelta.t(),
-          tool :: String.t(),
-          size :: non_neg_integer(),
-          source_size :: non_neg_integer(),
-          target_size :: non_neg_integer(),
-          tool_metadata :: map(),
-          upload_metadata :: map()
-        ) :: {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t()}
-  def complete_firmware_delta(
-        %FirmwareDelta{} = firmware_delta,
-        tool,
-        size,
-        source_size,
-        target_size,
-        tool_metadata,
-        upload_metadata
-      ) do
-    firmware_delta
-    |> FirmwareDelta.complete_changeset(
-      tool,
-      size,
-      source_size,
-      target_size,
-      tool_metadata,
-      upload_metadata
-    )
-    |> Repo.update()
     |> notify_firmware_delta_target()
   end
 
