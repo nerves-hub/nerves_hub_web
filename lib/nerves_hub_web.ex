@@ -43,7 +43,7 @@ defmodule NervesHubWeb do
       def whitelist(params, keys) do
         keys
         |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-        |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
+        |> Map.new(fn x -> {x, params[to_string(x)]} end)
       end
     end
   end
@@ -70,7 +70,7 @@ defmodule NervesHubWeb do
       def whitelist(params, keys) do
         keys
         |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-        |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
+        |> Map.new(fn x -> {x, params[to_string(x)]} end)
       end
     end
   end
@@ -130,7 +130,7 @@ defmodule NervesHubWeb do
       def whitelist(params, keys) do
         keys
         |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-        |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
+        |> Map.new(fn x -> {x, params[to_string(x)]} end)
       end
 
       def analytics_enabled?(), do: Application.get_env(:nerves_hub, :analytics_enabled)

@@ -293,6 +293,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   defp updates_blocked?(payload) do
     !payload.updates_enabled and
       !is_nil(payload.updates_blocked_until) and
-      DateTime.compare(payload.updates_blocked_until, DateTime.utc_now()) == :gt
+      DateTime.after?(payload.updates_blocked_until, DateTime.utc_now())
   end
 end

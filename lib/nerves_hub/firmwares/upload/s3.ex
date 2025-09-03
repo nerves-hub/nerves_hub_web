@@ -24,7 +24,7 @@ defmodule NervesHub.Firmwares.Upload.S3 do
   def download_file(firmware) do
     s3_key = firmware.upload_metadata["s3_key"]
 
-    opts = Keyword.merge(presigned_url_opts(), expires_in: @firmware_url_validity_time)
+    opts = Keyword.put(presigned_url_opts(), :expires_in, @firmware_url_validity_time)
 
     ExAws.Config.new(:s3)
     |> S3.presigned_url(:get, bucket(), s3_key, opts)

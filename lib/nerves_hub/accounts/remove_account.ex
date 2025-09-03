@@ -42,9 +42,9 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.update_all(:soft_delete_products, &soft_delete_by_org_id(Product, &1), [])
     |> Multi.update_all(:soft_delete_devices, &soft_delete_by_org_id(Device, &1), [])
     |> Multi.update_all(:soft_delete_org_users, &soft_delete_by_org_id(OrgUser, &1), [])
-    |> Multi.update_all(:soft_delete_orgs, &soft_delete_orgs(&1), [])
-    |> Multi.update_all(:nilify_script_creations, &nilify_script_creations(&1), [])
-    |> Multi.update_all(:nilify_script_edits, &nilify_script_edits(&1), [])
+    |> Multi.update_all(:soft_delete_orgs, &soft_delete_orgs/1, [])
+    |> Multi.update_all(:nilify_script_creations, &nilify_script_creations/1, [])
+    |> Multi.update_all(:nilify_script_edits, &nilify_script_edits/1, [])
     |> Multi.update(:soft_delete_user, &soft_delete_user/1)
     |> Repo.transaction()
   end

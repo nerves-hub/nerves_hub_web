@@ -80,8 +80,8 @@ defmodule NervesHub.Application do
     repo_config =
       NervesHub.Repo.config()
       |> Keyword.take([:hostname, :username, :password, :database, :port, :ssl])
-      |> Keyword.merge(parameters: [])
-      |> Keyword.merge(channel_name: "nerves_hub_clustering")
+      |> Keyword.put(:parameters, [])
+      |> Keyword.put(:channel_name, "nerves_hub_clustering")
 
     [
       app: [

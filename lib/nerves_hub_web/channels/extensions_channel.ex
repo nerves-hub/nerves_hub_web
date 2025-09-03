@@ -21,7 +21,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
     attach_list = for {key, %{attach?: true}} <- extensions, do: key
 
-    if length(attach_list) > 0 do
+    if not Enum.empty?(attach_list) do
       send(self(), :init_extensions)
     end
 

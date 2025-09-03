@@ -140,7 +140,7 @@ defmodule NervesHub.Fixtures do
     params =
       params
       |> Enum.into(@product_params)
-      |> Map.merge(%{org_id: org.id})
+      |> Map.put(:org_id, org.id)
 
     {:ok, product} = Products.create_product(params)
     product

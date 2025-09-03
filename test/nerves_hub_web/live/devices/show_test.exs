@@ -733,7 +733,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       # Test paginate event
       view
-      |> element("button[phx-click=\"paginate\"][phx-value-page=\"2\"]", "2")
+      |> element(~s(button[phx-click="paginate"][phx-value-page="2"]), "2")
       |> render_click()
 
       # Should redirect to page 2 on same device page
