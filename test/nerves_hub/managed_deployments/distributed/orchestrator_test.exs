@@ -164,7 +164,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     {:ok, device} =
       Devices.update_device(device, %{firmware_metadata: %{"uuid" => firmware.uuid}})
 
-    Devices.firmware_update_successful(device)
+    Devices.firmware_update_successful(device, device.firmware_metadata)
 
     # sent by the device after its updated
     assert_receive %Broadcast{topic: ^topic1, event: "updated"}, 500

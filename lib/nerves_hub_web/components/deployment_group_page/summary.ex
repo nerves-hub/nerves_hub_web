@@ -2,41 +2,52 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   use NervesHubWeb, :live_component
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
 
   import NervesHubWeb.LayoutView,
     only: [humanize_size: 1]
 
+  @impl Phoenix.LiveComponent
   def update(%{update_inflight_info: true}, socket) do
     %{deployment_group: deployment_group} = socket.assigns
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
-
-    socket =
-      if deployment_group.delta_updatable do
-        assign(
-          socket,
-          :deltas,
-          Firmwares.get_deltas_by_target_firmware(deployment_group.firmware)
-        )
-      else
-        assign(socket, :deltas, nil)
-      end
 
     socket
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
     |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
     |> assign(:updating_count, Devices.updating_count(deployment_group))
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
+    |> ok()
+  end
+
+  def update(%{stat_logged: true}, socket) do
+    socket
+    |> assign_update_stats(socket.assigns.deployment_group)
     |> ok()
   end
 
   def update(assigns, socket) do
+    %{deployment_group: deployment_group} = assigns
+
     socket
     |> assign(assigns)
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(assigns.deployment_group.firmware))
+    |> assign_update_stats(deployment_group)
     |> ok()
   end
 
+  @impl Phoenix.LiveComponent
+  def handle_event("select_version_for_stat", %{"version" => version}, socket) do
+    update_stat_for_current_firmware =
+      Enum.find(socket.assigns.update_stats, fn {_uuid, stats} -> stats.version == version end)
+
+    {:noreply, assign(socket, :update_stat_for_current_firmware, update_stat_for_current_firmware)}
+  end
+
+  @impl Phoenix.LiveComponent
   def render(assigns) do
     ~H"""
     <div class="h-full flex flex-col items-start gap-4 p-6">
@@ -256,6 +267,52 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               </div>
             </div>
           </div>
+
+          <div class="flex flex-col gap-2 p-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+            <div class="flex items-start justify-between">
+              <div class="text-neutral-50 font-medium leading-6">Transfer Stats</div>
+            </div>
+            <div :if={is_nil(@update_stat_for_current_firmware)} class="flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">No stats recorded for firmware {@deployment_group.firmware.version}</span>
+            </div>
+            <div :if={@update_stat_for_current_firmware} class="flex flex-col gap-2">
+              <%= with {_uuid, stats} <- @update_stat_for_current_firmware do %>
+                <div class="flex flex-col w-1/4 gap-6">
+                  <form phx-change="select_version_for_stat" phx-target={@myself}>
+                    <.input
+                      label="Version"
+                      hide_label={true}
+                      id="version"
+                      name="version"
+                      type="select"
+                      options={Enum.map(@update_stats, fn {_uuid, stats} -> {stats.version, stats.version} end)}
+                      value={stats.version}
+                    />
+                  </form>
+                </div>
+                <div class="flex gap-4 items-center">
+                  <span class="text-sm text-nerves-gray-500">Update count:</span>
+                  <span class="text-sm text-zinc-300">{stats.total_updates}</span>
+                </div>
+                <div class="flex gap-4 items-center">
+                  <span class="text-sm text-nerves-gray-500">Total updates size:</span>
+                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stats.total_update_bytes)}</span>
+                </div>
+                <div class="flex gap-4 items-center">
+                  <span class="text-sm text-nerves-gray-500">Delta update savings:</span>
+                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stats.total_saved_bytes)}</span>
+                </div>
+                <div class="flex gap-4 items-center">
+                  <span class="text-sm text-nerves-gray-500">Average size per device:</span>
+                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stats.total_update_bytes / stats.total_updates)}</span>
+                </div>
+                <div class="flex gap-4 items-center">
+                  <span class="text-sm text-nerves-gray-500">Average saved per device:</span>
+                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stats.total_saved_bytes / stats.total_updates)}</span>
+                </div>
+              <% end %>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -266,5 +323,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
   defp deployment_group_percentage(up_to_date_count, deployment_group) do
     floor(up_to_date_count / deployment_group.device_count * 100)
+  end
+
+  defp assign_update_stats(socket, deployment_group) do
+    update_stats = UpdateStats.stats_by_deployment(deployment_group)
+
+    update_stat_for_current_firmware =
+      Enum.find(update_stats, fn {uuid, _stats} -> uuid == deployment_group.firmware.uuid end)
+
+    socket
+    |> assign(:update_stats, update_stats)
+    |> assign(:update_stat_for_current_firmware, update_stat_for_current_firmware)
   end
 end

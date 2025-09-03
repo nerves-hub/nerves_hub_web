@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Components.Utils do
   def disk_usage(%{"disk_available_kb" => available, "disk_total_kb" => total, "disk_used_percentage" => percentage}) do
     usage = (total - available) / 1000
 
-    "#{round(usage)} of #{round(available / 1000)} MB (#{round(percentage)}%)"
+    "#{Sizeable.filesize(usage * 1024)} of #{Sizeable.filesize(available * 1024)} (#{round(percentage)}%)"
   end
 
   def tags_to_string(%Phoenix.HTML.FormField{} = field) do

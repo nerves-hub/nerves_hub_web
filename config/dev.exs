@@ -87,7 +87,7 @@ config :phoenix_live_view,
 
 if System.get_env("ANALYTICS_ENABLED", "true") == "true" do
   config :nerves_hub, NervesHub.AnalyticsRepo,
-    url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default")
+    url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default_dev")
 
   config :nerves_hub, analytics_enabled: true
 else

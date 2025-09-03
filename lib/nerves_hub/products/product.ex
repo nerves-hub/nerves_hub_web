@@ -6,6 +6,7 @@ defmodule NervesHub.Products.Product do
   alias NervesHub.Archives.Archive
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.UpdateStat
   alias NervesHub.Extensions.ProductExtensionsSetting
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -24,6 +25,7 @@ defmodule NervesHub.Products.Product do
     has_many(:archives, Archive)
     has_many(:scripts, Script)
     has_many(:deployment_groups, DeploymentGroup)
+    has_many(:update_stats, UpdateStat, on_delete: :nilify_all)
 
     has_many(:shared_secret_auths, SharedSecretAuth, preload_order: [desc: :deactivated_at, asc: :id])
 

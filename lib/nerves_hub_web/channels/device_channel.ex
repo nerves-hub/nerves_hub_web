@@ -321,10 +321,10 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # A new UUID is being reported from an update
-  defp update_metadata(device, params) do
+  defp update_metadata(%{firmware_metadata: previous_metadata} = device, params) do
     with {:ok, metadata} <- Firmwares.metadata_from_device(params),
          {:ok, device} <- Devices.update_firmware_metadata(device, metadata) do
-      Devices.firmware_update_successful(device)
+      Devices.firmware_update_successful(device, previous_metadata)
     end
   end
 

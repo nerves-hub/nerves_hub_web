@@ -6,7 +6,7 @@ config :bcrypt_elixir, log_rounds: 4
 config :logger, level: :warning
 
 config :nerves_hub, NervesHub.AnalyticsRepo,
-  url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default")
+  url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default_test")
 
 config :nerves_hub, NervesHub.Firmwares.Upload.File,
   local_path: System.tmp_dir(),
