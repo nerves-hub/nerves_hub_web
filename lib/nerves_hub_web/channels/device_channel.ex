@@ -364,8 +364,6 @@ defmodule NervesHubWeb.DeviceChannel do
   defp deployment_channel(device) do
     if device.deployment_id do
       "deployment:#{device.deployment_id}"
-    else
-      nil
     end
   end
 
