@@ -162,7 +162,7 @@ defmodule NervesHub.Fixtures do
   def firmware_fixture(%Accounts.OrgKey{org_id: org_id} = org_key, %Products.Product{} = product, params \\ %{}) do
     dir = Map.get(params, :dir, System.tmp_dir())
     org = Repo.get!(Org, org_id)
-    filepath = firmware_file_fixture(org_key, product, Map.merge(params, %{dir: dir}))
+    filepath = firmware_file_fixture(org_key, product, Map.put(params, :dir, dir))
     {:ok, firmware} = Firmwares.create_firmware(org, filepath)
     firmware
   end
