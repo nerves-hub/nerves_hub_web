@@ -13,6 +13,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Certificate
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -23,10 +24,12 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.UpdatePayload
+  alias NervesHub.Devices.UpdateStats
   alias NervesHub.Extensions
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -333,9 +336,6 @@ defmodule NervesHub.Devices do
         product_id: product.id,
         identifier: identifier
       })
-    else
-      result ->
-        result
     end
   end
 
@@ -686,7 +686,7 @@ defmodule NervesHub.Devices do
 
     case Repo.update(changeset) do
       {:ok, device} ->
-        _ = maybe_broadcast(device, "devices/updated", opts)
+        _ = maybe_broadcast_updated(device, opts)
 
         {:ok, device}
 
@@ -844,8 +844,7 @@ defmodule NervesHub.Devices do
       |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
       |> Repo.update!()
 
-    _ =
-      broadcast(device, "devices/deployment-updated", %{deployment_id: deployment_group.id})
+    DeviceEvents.deployment_assigned(device)
 
     Map.put(device, :deployment_group, deployment_group)
   end
@@ -858,7 +857,7 @@ defmodule NervesHub.Devices do
       |> Ecto.Changeset.put_change(:deployment_id, nil)
       |> Repo.update!()
 
-    _ = broadcast(device, "devices/deployment-cleared")
+    DeviceEvents.deployment_cleared(device)
 
     Map.put(device, :deployment_group, nil)
   end
@@ -875,7 +874,7 @@ defmodule NervesHub.Devices do
 
     attempts =
       Enum.filter(device.update_attempts, fn attempt ->
-        DateTime.compare(seconds_ago, attempt) == :lt
+        DateTime.before?(seconds_ago, attempt)
       end)
 
     Enum.count(attempts) >= deployment_group.device_failure_rate_amount
@@ -890,7 +889,7 @@ defmodule NervesHub.Devices do
   def device_in_penalty_box?(%{updates_blocked_until: nil}, _now), do: false
 
   def device_in_penalty_box?(device, now) do
-    DateTime.compare(device.updates_blocked_until, now) == :gt
+    DateTime.after?(device.updates_blocked_until, now)
   end
 
   defp updates_blocked?(device, now) do
@@ -966,8 +965,9 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec firmware_update_successful(Device.t()) :: {:ok, Device.t()} | {:error, Changeset.t()}
-  def firmware_update_successful(device) do
+  @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
+          {:ok, Device.t()} | {:error, Changeset.t()}
+  def firmware_update_successful(device, previous_metadata) do
     :telemetry.execute([:nerves_hub, :devices, :update, :successful], %{count: 1}, %{
       identifier: device.identifier,
       firmware_uuid: device.firmware_metadata.uuid
@@ -994,6 +994,8 @@ defmodule NervesHub.Devices do
         deployment_device_updated(device)
       end
 
+    _ = UpdateStats.log_update(device, previous_metadata)
+
     device
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_change(:update_attempts, [])
@@ -1007,7 +1009,7 @@ defmodule NervesHub.Devices do
   end
 
   def deployment_device_online(device) do
-    firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid, else: nil)
+    firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid)
 
     payload = %{
       updates_enabled: device.updates_enabled,
@@ -1107,7 +1109,7 @@ defmodule NervesHub.Devices do
 
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
-    |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query(&1))
+    |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query/1)
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, description)
     end)
@@ -1119,9 +1121,9 @@ defmodule NervesHub.Devices do
     end)
     |> Repo.transaction()
     |> case do
-      {:ok, %{move: updated}} ->
-        _ = broadcast(updated, "moved")
-        {:ok, updated}
+      {:ok, %{move: device}} ->
+        DeviceEvents.moved_product(device)
+        {:ok, device}
 
       err ->
         err
@@ -1161,7 +1163,7 @@ defmodule NervesHub.Devices do
     |> Repo.transaction()
     |> case do
       {:ok, %{update_with_audit: updated}} ->
-        _ = broadcast(device, "devices/updated")
+        DeviceEvents.updated(device)
         {:ok, updated}
 
       err ->
@@ -1263,7 +1265,7 @@ defmodule NervesHub.Devices do
       |> where([d], d.firmware_metadata["architecture"] == ^firmware.architecture)
       |> Repo.update_all([set: [deployment_id: id]], timeout: to_timeout(minute: 2))
 
-    :ok = Enum.each(device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
+    :ok = Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
 
     {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
   end
@@ -1292,7 +1294,7 @@ defmodule NervesHub.Devices do
       |> where([d], d.id not in ^matched_device_ids)
       |> Repo.update_all([set: [deployment_id: nil]], timeout: to_timeout(minute: 2))
 
-    :ok = Enum.each(matched_device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
+    :ok = Enum.each(matched_device_ids, &DeviceEvents.updated(%Device{id: &1}))
 
     {:ok,
      %{
@@ -1370,22 +1372,12 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  defp maybe_broadcast(device, event, opts) do
+  defp maybe_broadcast_updated(device, opts) do
     if Keyword.get(opts, :broadcast, true) do
-      broadcast(device, event)
+      DeviceEvents.updated(device)
     else
       :ok
     end
-  end
-
-  defp broadcast(device, event), do: broadcast(device, event, %{})
-
-  defp broadcast(%Device{id: id}, event, payload) do
-    Phoenix.PubSub.broadcast(
-      NervesHub.PubSub,
-      "device:#{id}",
-      %Phoenix.Socket.Broadcast{topic: "device:#{id}", event: event, payload: payload}
-    )
   end
 
   @spec save_device_health(health_report :: map()) ::
@@ -1586,12 +1578,11 @@ defmodule NervesHub.Devices do
     |> Repo.delete_all()
   end
 
-  def update_started!(inflight_update, device, deployment, reference_id) do
+  def update_started!(inflight_update, device, deployment) do
     Repo.transaction(fn ->
       DeviceTemplates.audit_device_deployment_group_update_triggered(
         device,
-        deployment,
-        reference_id
+        deployment
       )
 
       inflight_update
@@ -1649,21 +1640,14 @@ defmodule NervesHub.Devices do
 
   defp broadcast_update_request(device_id, inflight_update, deployment_group) do
     Logger.metadata(device_id: device_id)
+
     deployment_group = Repo.preload(deployment_group, :product)
     device = get_device(device_id)
     update_payload = do_resolve_update(device, deployment_group)
 
-    payload = %{inflight_update: inflight_update, update_payload: update_payload}
+    device = %{device | deployment_group: deployment_group}
 
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "device:#{device_id}",
-        "update-scheduled",
-        payload
-      )
-
-    :ok
+    DeviceEvents.schedule_update(device, inflight_update, update_payload)
   end
 
   @spec get_pinned_devices(non_neg_integer()) :: [Device.t()]
@@ -1733,26 +1717,21 @@ defmodule NervesHub.Devices do
   end
 
   def get_delta_or_firmware_url(
-        %{firmware_metadata: %{uuid: source_uuid}, product_id: product_id} = device,
+        %{firmware_metadata: %{uuid: source_uuid}} = device,
         %Firmware{delta_updatable: true} = target
       ) do
-    # Get firmware delta URL if available but otherwise deliver full firmware
-    with {:delta_updatable, true} <-
-           {:delta_updatable, delta_updatable?(device, target)},
-         {:firmware, {:ok, source}} <-
-           {:firmware, Firmwares.get_firmware_by_product_id_and_uuid(product_id, source_uuid)},
-         {:delta, {:ok, %{status: :completed} = delta}} <-
-           {:delta, Firmwares.get_firmware_delta_by_source_and_target(source, target)} do
-      Logger.info(
-        "Delivering firmware delta",
-        device_id: device.id,
-        source_firmware: source_uuid,
-        target_firmware: target.uuid,
-        delta: delta.id
-      )
+    case get_delta_if_ready(device, target) do
+      {:ok, delta} ->
+        Logger.info(
+          "Delivering firmware delta",
+          device_id: device.id,
+          source_firmware: source_uuid,
+          target_firmware: target.uuid,
+          delta: delta.id
+        )
 
-      Firmwares.get_firmware_url(delta)
-    else
+        Firmwares.get_firmware_url(delta)
+
       {:delta_updatable, false} ->
         Logger.info(
           "Delivering full firmware as delta updates are not enabled",
@@ -1818,6 +1797,29 @@ defmodule NervesHub.Devices do
 
     Firmwares.get_firmware_url(target)
   end
+
+  @spec get_delta_if_ready(Device.t(), Firmware.t()) ::
+          {:ok, FirmwareDelta.t()}
+          | {:delta_updatable, false}
+          | {:firmware, {:error, :not_found}}
+          | {:firmware, :no_device_firmware_metadata}
+          | {:delta, {:ok, FirmwareDelta.t()}}
+          | {:delta, {:error, :not_found}}
+  def get_delta_if_ready(
+        %Device{firmware_metadata: %{uuid: source_firmware_uuid}, product_id: product_id} = device,
+        target_firmware
+      ) do
+    with {:delta_updatable, true} <-
+           {:delta_updatable, delta_updatable?(device, target_firmware)},
+         {:firmware, {:ok, source_firmware}} <-
+           {:firmware, Firmwares.get_firmware_by_product_id_and_uuid(product_id, source_firmware_uuid)},
+         {:delta, {:ok, %{status: :completed} = delta}} <-
+           {:delta, Firmwares.get_firmware_delta_by_source_and_target(source_firmware, target_firmware)} do
+      {:ok, delta}
+    end
+  end
+
+  def get_delta_if_ready(_device, _target_firmware), do: {:firmware, :no_device_firmware_metadata}
 
   @spec soft_deleted_devices_exist_for_product?(non_neg_integer()) :: boolean()
   def soft_deleted_devices_exist_for_product?(product_id) do

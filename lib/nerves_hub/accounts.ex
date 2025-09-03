@@ -184,8 +184,6 @@ defmodule NervesHub.Accounts do
            Repo.soft_delete(org_user),
          {_, nil} <- Devices.unpin_org_devices(user_id, org_id) do
       :ok
-    else
-      err -> err
     end
   end
 

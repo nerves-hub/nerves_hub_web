@@ -12,8 +12,8 @@ defmodule NervesHub.Fwup do
           {:ok, Metadata.t()}
           | {:error, :invalid_fwup_file | :invalid_metadata}
   def metadata(file_path) do
-    with {:ok, metadata} <- get_metadata(file_path),
-         parsed_metadata <- parse_metadata(metadata) do
+    with {:ok, metadata} <- get_metadata(file_path) do
+      parsed_metadata = parse_metadata(metadata)
       transform_to_struct(parsed_metadata)
     end
   end

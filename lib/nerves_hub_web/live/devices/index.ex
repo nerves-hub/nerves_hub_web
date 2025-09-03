@@ -4,7 +4,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   require Logger
   require OpenTelemetry.Tracer, as: Tracer
 
-  alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Metrics
@@ -248,7 +248,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     selected_devices = socket.assigns.selected_devices
 
     selected_devices =
-      if !socket.assigns.devices.ok? || Enum.count(selected_devices) > 0 do
+      if !socket.assigns.devices.ok? || not Enum.empty?(selected_devices) do
         []
       else
         Enum.map(socket.assigns.devices.result, & &1.id)
@@ -396,9 +396,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
 
-    DeviceTemplates.audit_reboot(user, device)
-
-    socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
+    DeviceEvents.reboot(device, user)
 
     {:noreply, put_flash(socket, :info, "Device Reboot Requested")}
   end
@@ -477,7 +475,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       socket.assigns
 
     updated_device_statuses =
-      Enum.into(updated_devices, %{}, fn device ->
+      Map.new(updated_devices, fn device ->
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
 
         {device.identifier, Tracker.connection_status(device)}

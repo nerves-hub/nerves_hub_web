@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.UpdatePayload
@@ -106,9 +107,7 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   def reboot(%{assigns: %{user: user, device: device}} = conn, _params) do
-    DeviceTemplates.audit_reboot(user, device)
-
-    _ = Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
+    DeviceEvents.reboot(device, user)
 
     send_resp(conn, :no_content, "")
   end
@@ -175,7 +174,7 @@ defmodule NervesHubWeb.API.DeviceController do
         "new_product_name" => product_name
       }) do
     with {:ok, move_to_org} <- Accounts.get_org_by_name(org_name),
-         _ <- RoleValidateHelpers.validate_org_user_role(conn, move_to_org, user, :manage),
+         RoleValidateHelpers.validate_org_user_role(conn, move_to_org, user, :manage),
          {:ok, product} <- Products.get_product_by_org_id_and_name(move_to_org.id, product_name) do
       case Devices.move(device, product, user) do
         {:ok, device} ->

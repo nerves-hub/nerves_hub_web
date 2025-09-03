@@ -370,7 +370,6 @@ defmodule NervesHub.Firmwares do
   @spec get_firmware_delta(integer()) ::
           {:ok, FirmwareDelta.t()}
           | {:error, :not_found}
-
   def get_firmware_delta(firmware_delta_id) do
     case Repo.get(FirmwareDelta, firmware_delta_id) do
       nil -> {:error, :not_found}
@@ -426,13 +425,14 @@ defmodule NervesHub.Firmwares do
       {:ok, created} ->
         Repo.transact(
           fn ->
-            with upload_metadata <-
-                   firmware_upload_config().delta_metadata(
-                     org.id,
-                     source_firmware.uuid,
-                     target_firmware.uuid
-                   ),
-                 {:ok, firmware_delta} <-
+            upload_metadata =
+              firmware_upload_config().delta_metadata(
+                org.id,
+                source_firmware.uuid,
+                target_firmware.uuid
+              )
+
+            with {:ok, firmware_delta} <-
                    complete_firmware_delta(
                      firmware_delta,
                      created.tool,

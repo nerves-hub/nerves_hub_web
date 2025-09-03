@@ -1,10 +1,19 @@
 import Config
 
-config :phoenix,
-  json_library: Jason,
-  template_engines: [
-    leex: Phoenix.LiveView.Engine
+# Used by spellweaver
+config :bun, :version, "1.2.18"
+
+# Configure esbuild (the version is required)
+config :esbuild,
+  version: "0.25.2",
+  default: [
+    args:
+      ~w(ui-rework/app.js --bundle --target=es2021 --outdir=../priv/static/assets/ui-rework --external:/fonts/* --external:/images/* --loader:.png=file),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
+
+config :flop, repo: NervesHub.Repo
 
 config :mime, :types, %{
   "application/pem" => ["pem"],
@@ -12,26 +21,16 @@ config :mime, :types, %{
   "application/fwup" => ["fw"]
 }
 
-##
-# NervesHub
-#
-config :nerves_hub,
-  env: Mix.env(),
-  namespace: NervesHub,
-  ecto_repos: [NervesHub.AnalyticsRepo, NervesHub.Repo]
+config :nerves_hub, NervesHub.Repo,
+  queue_target: 500,
+  queue_interval: 5_000,
+  migration_lock: :pg_advisory_lock
 
-##
-# NervesHub Device
-#
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   adapter: Bandit.PhoenixAdapter,
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub
 
-##
-# NervesHub Web
-#
-# cspell:disable
 config :nerves_hub, NervesHubWeb.Endpoint,
   adapter: Bandit.PhoenixAdapter,
   secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
@@ -44,14 +43,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   ],
   pubsub_server: NervesHub.PubSub
 
-# cspell:enable
-##
-# Database and Oban
-#
-config :nerves_hub, NervesHub.Repo,
-  queue_target: 500,
-  queue_interval: 5_000,
-  migration_lock: :pg_advisory_lock
+config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
 
 config :nerves_hub, Oban,
   repo: NervesHub.ObanRepo,
@@ -82,21 +74,18 @@ config :nerves_hub, Oban,
      ]}
   ]
 
-config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
+config :nerves_hub,
+  env: Mix.env(),
+  namespace: NervesHub,
+  ecto_repos: [NervesHub.AnalyticsRepo, NervesHub.Repo]
+
+config :phoenix,
+  json_library: Jason,
+  template_engines: [
+    leex: Phoenix.LiveView.Engine
+  ]
 
 config :swoosh, :api_client, Swoosh.ApiClient.Finch
-
-config :flop, repo: NervesHub.Repo
-
-# Configure esbuild (the version is required)
-config :esbuild,
-  version: "0.25.2",
-  default: [
-    args:
-      ~w(ui-rework/app.js --bundle --target=es2021 --outdir=../priv/static/assets/ui-rework --external:/fonts/* --external:/images/* --loader:.png=file),
-    cd: Path.expand("../assets", __DIR__),
-    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
-  ]
 
 config :tailwind,
   version: "3.4.3",
@@ -113,9 +102,6 @@ config :ueberauth, Ueberauth,
   providers: [
     google: {Ueberauth.Strategy.Google, [default_scope: "email profile openid"]}
   ]
-
-# Used by spellweaver
-config :bun, :version, "1.2.18"
 
 # Environment specific config
 import_config "#{Mix.env()}.exs"

@@ -427,7 +427,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} = Devices.update_attempted(device)
       assert Enum.count(device.update_attempts) == 1
 
-      {:ok, device} = Devices.firmware_update_successful(device)
+      {:ok, device} = Devices.firmware_update_successful(device, device.firmware_metadata)
       assert Enum.empty?(device.update_attempts)
     end
 
@@ -437,7 +437,7 @@ defmodule NervesHub.DevicesTest do
     } do
       {:ok, inflight_update} = Devices.told_to_update(device, deployment_group)
 
-      {:ok, _device} = Devices.firmware_update_successful(device)
+      {:ok, _device} = Devices.firmware_update_successful(device, device.firmware_metadata)
 
       inflight_update = Repo.reload(inflight_update)
       assert is_nil(inflight_update)
@@ -451,7 +451,7 @@ defmodule NervesHub.DevicesTest do
 
       {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
 
-      {:ok, _device} = Devices.firmware_update_successful(device)
+      {:ok, _device} = Devices.firmware_update_successful(device, device.firmware_metadata)
 
       deployment_group = Repo.reload(deployment_group)
       assert deployment_group.current_updated_devices == 1
@@ -461,7 +461,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} = Devices.update_device(device, %{priority_updates: true})
       assert device.priority_updates
 
-      {:ok, device} = Devices.firmware_update_successful(device)
+      {:ok, device} = Devices.firmware_update_successful(device, device.firmware_metadata)
       refute device.priority_updates
     end
 
@@ -650,7 +650,7 @@ defmodule NervesHub.DevicesTest do
       device = Devices.update_deployment_group(device, deployment_group)
 
       assert device.deployment_id == deployment_group.id
-      assert_receive %{event: "devices/deployment-updated"}
+      assert_receive %{event: "deployment_updated"}
     end
   end
 
@@ -665,7 +665,7 @@ defmodule NervesHub.DevicesTest do
       device = Devices.clear_deployment_group(device)
 
       refute device.deployment_id
-      assert_receive %{event: "devices/deployment-cleared"}
+      assert_receive %{event: "deployment_updated"}
     end
   end
 

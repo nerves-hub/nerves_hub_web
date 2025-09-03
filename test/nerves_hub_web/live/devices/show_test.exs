@@ -56,12 +56,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       %{device: device} = fixture
       {:ok, view, _html} = live(conn, device_show_path(fixture))
 
-      before_audit_count = AuditLogs.logs_for(device) |> length
+      before_audit_count = AuditLogs.logs_for(device) |> length()
 
       _view = render_change(view, :reboot, %{})
       assert_broadcast("reboot", %{})
 
-      after_audit_count = AuditLogs.logs_for(device) |> length
+      after_audit_count = AuditLogs.logs_for(device) |> length()
 
       assert after_audit_count == before_audit_count + 1
     end
@@ -506,7 +506,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert_receive %Phoenix.Socket.Broadcast{
         topic: ^topic,
-        event: "update-scheduled"
+        event: "update"
       }
     end
 
@@ -591,7 +591,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       end)
       |> assert_has("div", text: "Eligible Deployment Groups")
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "devices/deployment-cleared"}
+      assert_receive %Phoenix.Socket.Broadcast{event: "deployment_updated"}
 
       refute Repo.reload(device) |> Map.get(:deployment_id)
     end
@@ -681,7 +681,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         render_change(view, "set-deployment-group", %{"deployment_id" => deployment_group.id})
       end)
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "devices/deployment-updated"}
+      assert_receive %Phoenix.Socket.Broadcast{event: "deployment_updated"}
     end
   end
 
@@ -733,7 +733,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       # Test paginate event
       view
-      |> element("button[phx-click=\"paginate\"][phx-value-page=\"2\"]", "2")
+      |> element(~s(button[phx-click="paginate"][phx-value-page="2"]), "2")
       |> render_click()
 
       # Should redirect to page 2 on same device page

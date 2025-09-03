@@ -9,6 +9,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.UpdateStat
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
@@ -36,9 +37,9 @@ defmodule NervesHubWeb.WebsocketTest do
       transport_opts: [
         verify: :verify_peer,
         versions: [:"tlsv1.2"],
-        certfile: Path.expand("test/fixtures/ssl/device-fake.pem") |> to_charlist,
-        keyfile: Path.expand("test/fixtures/ssl/device-fake-key.pem") |> to_charlist,
-        cacertfile: Path.expand("test/fixtures/ssl/ca-fake.pem") |> to_charlist,
+        certfile: Path.expand("test/fixtures/ssl/device-fake.pem") |> to_charlist(),
+        keyfile: Path.expand("test/fixtures/ssl/device-fake-key.pem") |> to_charlist(),
+        cacertfile: Path.expand("test/fixtures/ssl/ca-fake.pem") |> to_charlist(),
         server_name_indication: ~c"device.nerves-hub.org"
       ]
     ]
@@ -54,9 +55,9 @@ defmodule NervesHubWeb.WebsocketTest do
       transport_opts: [
         verify: :verify_peer,
         versions: [:"tlsv1.2"],
-        certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
-        keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
-        cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist,
+        certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist(),
+        keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist(),
+        cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist(),
         server_name_indication: ~c"device.nerves-hub.org"
       ]
     ]
@@ -134,9 +135,9 @@ defmodule NervesHubWeb.WebsocketTest do
           transport_opts: [
             verify: :verify_peer,
             versions: [:"tlsv1.3"],
-            certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
-            keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
-            cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist,
+            certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist(),
+            keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist(),
+            cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist(),
             server_name_indication: ~c"device.nerves-hub.org"
           ]
         ]
@@ -176,8 +177,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       key = X509.PrivateKey.new_ec(:secp256r1)
 
-      not_before = Timex.now() |> Timex.shift(days: -2)
-      not_after = Timex.now() |> Timex.shift(days: -1)
+      not_before = DateTime.utc_now() |> Timex.shift(days: -2)
+      not_after = DateTime.utc_now() |> Timex.shift(days: -1)
 
       cert =
         key
@@ -237,8 +238,8 @@ defmodule NervesHubWeb.WebsocketTest do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
-      not_before = Timex.now() |> Timex.shift(days: -3)
-      not_after = Timex.now() |> Timex.shift(days: -1)
+      not_before = DateTime.utc_now() |> Timex.shift(days: -3)
+      not_after = DateTime.utc_now() |> Timex.shift(days: -1)
       validity = X509.Certificate.Validity.new(not_before, not_after)
 
       ca_key = X509.PrivateKey.new_ec(:secp256r1)
@@ -876,6 +877,75 @@ defmodule NervesHubWeb.WebsocketTest do
 
       close_socket_cleanly(socket)
     end
+
+    test "creates update_stat after successful firmware update",
+         %{
+           user: user,
+           tmp_dir: tmp_dir
+         } do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      target_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{
+          version: "0.0.1",
+          dir: tmp_dir
+        })
+
+      source_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{
+          version: "0.0.2",
+          dir: tmp_dir
+        })
+
+      {:ok, deployment_group} =
+        Fixtures.deployment_group_fixture(org, target_firmware, %{
+          name: "Every Device",
+          conditions: %{
+            "version" => "<= 1.0.0",
+            "tags" => ["beta", "beta-edge"]
+          }
+        })
+        |> ManagedDeployments.update_deployment_group(%{is_active: true})
+
+      device =
+        Fixtures.device_fixture(
+          org,
+          product,
+          target_firmware,
+          %{
+            deployment_id: deployment_group.id,
+            tags: ["beta", "beta-edge"],
+            identifier: @valid_serial,
+            product: @valid_product
+          }
+        )
+
+      assert device.deployment_id
+      refute Repo.exists?(UpdateStat)
+
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+
+      SocketClient.join_and_wait(socket, %{
+        "device_api_version" => "2.2.0",
+        "nerves_fw_uuid" => source_firmware.uuid,
+        "nerves_fw_product" => "test",
+        "nerves_fw_architecture" => device.firmware_metadata.architecture,
+        "nerves_fw_platform" => "test_host",
+        "nerves_fw_version" => "0.1.0"
+      })
+
+      assert_online_and_available(device)
+
+      assert Repo.exists?(UpdateStat)
+
+      close_socket_cleanly(socket)
+    end
   end
 
   describe "Custom CA Signers" do
@@ -932,8 +1002,8 @@ defmodule NervesHubWeb.WebsocketTest do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
-      not_before = Timex.now() |> Timex.shift(days: -1)
-      not_after = Timex.now() |> Timex.shift(seconds: 1)
+      not_before = DateTime.utc_now() |> Timex.shift(days: -1)
+      not_after = DateTime.utc_now() |> Timex.shift(seconds: 1)
 
       template =
         X509.Certificate.Template.new(:root_ca,

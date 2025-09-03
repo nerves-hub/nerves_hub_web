@@ -28,9 +28,9 @@ defmodule NervesHub.Application do
           {Phoenix.PubSub, name: NervesHub.PubSub},
           {Cluster.Supervisor, [libcluster_topology()]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
-          {Oban, Application.fetch_env!(:nerves_hub, Oban)},
+          {Oban, oban_opts()},
           NervesHubWeb.Presence,
-          {NervesHub.RateLimit.LogLines, [clean_period: :timer.minutes(5), key_older_than: :timer.hours(1)]},
+          {NervesHub.RateLimit.LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
           {PartitionSupervisor, child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
         ] ++
         deployments_orchestrator(deploy_env()) ++
@@ -80,8 +80,8 @@ defmodule NervesHub.Application do
     repo_config =
       NervesHub.Repo.config()
       |> Keyword.take([:hostname, :username, :password, :database, :port, :ssl])
-      |> Keyword.merge(parameters: [])
-      |> Keyword.merge(channel_name: "nerves_hub_clustering")
+      |> Keyword.put(:parameters, [])
+      |> Keyword.put(:channel_name, "nerves_hub_clustering")
 
     [
       app: [
@@ -89,6 +89,18 @@ defmodule NervesHub.Application do
         config: repo_config
       ]
     ]
+  end
+
+  defp oban_opts() do
+    config = Application.fetch_env!(:nerves_hub, Oban)
+
+    case Application.get_env(:nerves_hub, :app) do
+      "device" ->
+        Keyword.put(config, :queues, [])
+
+      _ ->
+        config
+    end
   end
 
   defp ecto_migrations() do

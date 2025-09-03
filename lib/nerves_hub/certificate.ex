@@ -55,13 +55,13 @@ defmodule NervesHub.Certificate do
       common_name ->
         Keyword.get(common_name, :value)
         |> elem(1)
-        |> to_string
+        |> to_string()
     end
   end
 
   def get_serial_number(otp_certificate) do
     X509.Certificate.serial(otp_certificate)
-    |> to_string
+    |> to_string()
   end
 
   def get_validity(otp_certificate) do

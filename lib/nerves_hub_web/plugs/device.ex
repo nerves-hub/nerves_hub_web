@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Plugs.Device do
         |> put_status(:not_found)
         |> put_view(NervesHubWeb.ErrorView)
         |> render("404.html")
-        |> halt
+        |> halt()
     end
   end
 end

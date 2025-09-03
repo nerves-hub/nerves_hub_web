@@ -481,9 +481,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
   describe "verify_deployment_group_membership/1" do
     setup %{org: org, product: product, firmware: firmware} = context do
-      Map.merge(context, %{
-        device: Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
-      })
+      Map.put(context, :device, Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]}))
     end
 
     test "does nothing when device has no deployment", %{device: device} do
@@ -608,7 +606,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
         deployment_id: deployment_group.id
       })
 
-      Map.merge(context, %{deployment_group: deployment_group})
+      Map.put(context, :deployment_group, deployment_group)
     end
 
     test "count for deployment group with version but no tags", %{

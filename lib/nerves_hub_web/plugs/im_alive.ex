@@ -56,6 +56,6 @@ defmodule NervesHubWeb.Plugs.ImAlive do
     conn
     |> put_resp_content_type("text/plain")
     |> send_resp(code, message)
-    |> halt
+    |> halt()
   end
 end

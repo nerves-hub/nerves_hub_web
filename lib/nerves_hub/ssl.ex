@@ -138,8 +138,8 @@ defmodule NervesHub.SSL do
          {:ok, _} <-
            :public_key.pkix_path_validation(db_ca.der, [der], verify_fun: {&path_verify/3, verify_state}),
          {:ok, device} <- maybe_jitp_device(cn, db_ca),
-         :ok <- check_new_public_key_allowed(device),
-         params <- params_from_otp_cert(otp_cert) do
+         :ok <- check_new_public_key_allowed(device) do
+      params = params_from_otp_cert(otp_cert)
       Devices.create_device_certificate(device, params)
     end
   end
@@ -155,13 +155,13 @@ defmodule NervesHub.SSL do
          der = Certificate.to_der(otp_cert),
          verify_state = {X509.Certificate.from_der!(db_ca.der), !!db_ca.check_expiration},
          {:ok, _} <-
-           :public_key.pkix_path_validation(db_ca.der, [der], verify_fun: {&path_verify/3, verify_state}),
-         params <- params_from_otp_cert(otp_cert) do
+           :public_key.pkix_path_validation(db_ca.der, [der], verify_fun: {&path_verify/3, verify_state}) do
+      params = params_from_otp_cert(otp_cert)
       Devices.create_device_certificate(device, params)
     end
   end
 
-  defp path_verify(ca, {:bad_cert, :cert_expired}, {ca, _check_expiration? = false} = state) do
+  defp path_verify(ca, {:bad_cert, :cert_expired}, {ca, false = _check_expiration?} = state) do
     # The Signer CA is technically expired, but expiration checks are disabled
     # so we should let this through the rest of the verification
     {:valid, state}

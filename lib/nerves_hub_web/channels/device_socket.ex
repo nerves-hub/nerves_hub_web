@@ -92,7 +92,8 @@ defmodule NervesHubWeb.DeviceSocket do
 
   # Used by Devices connecting with HMAC Shared Secrets
   @decorate with_span("Channels.DeviceSocket.connect")
-  def connect(_params, socket, %{x_headers: x_headers}) when is_list(x_headers) and length(x_headers) > 0 do
+  def connect(_params, socket, %{x_headers: x_headers})
+      when is_list(x_headers) and (is_list(x_headers) and x_headers != []) do
     headers = Map.new(x_headers)
 
     with :ok <- check_shared_secret_enabled(),
@@ -171,7 +172,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defp decode_from_headers(%{"x-nh-alg" => "NH1-HMAC-" <> alg} = headers) do
     with [digest_str, iter_str, key_len_str] <- String.split(alg, "-"),
-         digest <- String.to_existing_atom(String.downcase(digest_str)),
+         digest = String.to_existing_atom(String.downcase(digest_str)),
          {iterations, ""} <- Integer.parse(iter_str),
          {key_length, ""} <- Integer.parse(key_len_str),
          {signed_at, ""} <- Integer.parse(headers["x-nh-time"]),

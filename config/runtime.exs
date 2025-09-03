@@ -9,6 +9,11 @@ if !Enum.member?(["all", "web", "device"], nerves_hub_app) do
   """
 end
 
+config :nerves_hub, :device_socket_drainer,
+  batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
+  batch_interval: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_INTERVAL", "4000")),
+  shutdown: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_SHUTDOWN", "30000"))
+
 config :nerves_hub,
   app: nerves_hub_app,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
@@ -49,25 +54,20 @@ config :nerves_hub,
   ],
   new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"
 
-config :nerves_hub, :device_socket_drainer,
-  batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
-  batch_interval: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_INTERVAL", "4000")),
-  shutdown: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_SHUTDOWN", "30000"))
-
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do
-  config :nerves_hub,
-    open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true"
+  config :logfmt_ex, :opts,
+    message_key: "msg",
+    timestamp_key: "ts",
+    timestamp_format: :iso8601
 
   # Configures Elixir's Logger
   config :logger, :default_formatter,
     format: {NervesHub.Logger, :format},
     metadata: :all
 
-  config :logfmt_ex, :opts,
-    message_key: "msg",
-    timestamp_key: "ts",
-    timestamp_format: :iso8601
+  config :nerves_hub,
+    open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true"
 end
 
 if level = System.get_env("LOG_LEVEL") do
@@ -236,14 +236,6 @@ database_ssl_opts =
 if config_env() == :prod do
   database_socket_options = if System.get_env("DATABASE_INET6") == "true", do: [:inet6], else: []
 
-  config :nerves_hub, NervesHub.Repo,
-    url: System.fetch_env!("DATABASE_URL"),
-    ssl: database_ssl_opts,
-    pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
-    pool_count: String.to_integer(System.get_env("DATABASE_POOL_COUNT", "1")),
-    socket_options: database_socket_options,
-    queue_target: 5000
-
   oban_pool_size =
     System.get_env("OBAN_DATABASE_POOL_SIZE") || System.get_env("DATABASE_POOL_SIZE", "20")
 
@@ -251,6 +243,14 @@ if config_env() == :prod do
     url: System.fetch_env!("DATABASE_URL"),
     ssl: database_ssl_opts,
     pool_size: String.to_integer(oban_pool_size),
+    socket_options: database_socket_options,
+    queue_target: 5000
+
+  config :nerves_hub, NervesHub.Repo,
+    url: System.fetch_env!("DATABASE_URL"),
+    ssl: database_ssl_opts,
+    pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
+    pool_count: String.to_integer(System.get_env("DATABASE_POOL_COUNT", "1")),
     socket_options: database_socket_options,
     queue_target: 5000
 
@@ -266,10 +266,10 @@ if config_env() == :prod do
 
     config :nerves_hub, NervesHub.AnalyticsRepo, url: clickhouse_url
 
-    config :nerves_hub, analytics_enabled: true
-
     config :nerves_hub,
       analytics_auto_migrator: System.get_env("ANALYTICS_AUTO_MIGRATOR", "true") == "true"
+
+    config :nerves_hub, analytics_enabled: true
   else
     config :nerves_hub, analytics_enabled: false
   end
@@ -283,13 +283,10 @@ if config_env() == :prod do
 
   case firmware_upload do
     "S3" ->
-      config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.S3
-
-      config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.S3
-
-      config :nerves_hub, NervesHub.Uploads.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
-
       config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
+      config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.S3
+      config :nerves_hub, NervesHub.Uploads.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
+      config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.S3
 
       if System.get_env("S3_ACCESS_KEY_ID") do
         config :ex_aws, :s3,
@@ -323,19 +320,19 @@ if config_env() == :prod do
     "local" ->
       local_path = System.get_env("FIRMWARE_UPLOAD_PATH")
 
-      config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
-
-      config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
-
       config :nerves_hub, NervesHub.Firmwares.Upload.File,
         enabled: true,
         public_path: "/firmware",
         local_path: local_path
 
+      config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
+
       config :nerves_hub, NervesHub.Uploads.File,
         enabled: true,
         local_path: local_path,
         public_path: "/uploads"
+
+      config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
 
     other ->
       raise """
@@ -390,6 +387,8 @@ if config_env() == :prod do
   end
 end
 
+config :opentelemetry, :resource, service: %{name: nerves_hub_app}
+
 config :sentry,
   dsn: System.get_env("SENTRY_DSN_URL"),
   environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
@@ -409,23 +408,19 @@ config :sentry,
     ]
   ]
 
-config :opentelemetry, :resource, service: %{name: nerves_hub_app}
-
 if otlp_endpoint = System.get_env("OTLP_ENDPOINT") do
-  config :opentelemetry_exporter,
-    otlp_protocol: :http_protobuf,
-    otlp_endpoint: otlp_endpoint,
-    otlp_headers: [{System.get_env("OTLP_AUTH_HEADER"), System.get_env("OTLP_AUTH_HEADER_VALUE")}]
-
   otlp_sampler_ratio =
     if ratio = System.get_env("OTLP_SAMPLER_RATIO") do
       String.to_float(ratio)
-    else
-      nil
     end
 
   config :opentelemetry,
     sampler: {:parent_based, %{root: {NervesHub.Telemetry.FilteredSampler, otlp_sampler_ratio}}}
+
+  config :opentelemetry_exporter,
+    otlp_protocol: :http_protobuf,
+    otlp_endpoint: otlp_endpoint,
+    otlp_headers: [{System.get_env("OTLP_AUTH_HEADER"), System.get_env("OTLP_AUTH_HEADER_VALUE")}]
 else
   config :opentelemetry, traces_exporter: :none
 end
@@ -436,12 +431,12 @@ if host = System.get_env("STATSD_HOST") do
     port: String.to_integer(System.get_env("STATSD_PORT", "8125"))
 end
 
+config :nerves_hub, NervesHub.RateLimit,
+  limit: System.get_env("DEVICE_CONNECT_RATE_LIMIT", "100") |> String.to_integer()
+
 config :nerves_hub, :audit_logs,
   enabled: System.get_env("TRUNCATE_AUDIT_LOGS_ENABLED", "false") == "true",
   default_days_kept: String.to_integer(System.get_env("TRUNCATE_AUDIT_LOGS_DEFAULT_DAYS_KEPT", "30"))
-
-config :nerves_hub, NervesHub.RateLimit,
-  limit: System.get_env("DEVICE_CONNECT_RATE_LIMIT", "100") |> String.to_integer()
 
 config :nerves_hub,
   enable_google_auth: !is_nil(System.get_env("GOOGLE_CLIENT_ID"))

@@ -5,18 +5,34 @@ config :bcrypt_elixir, log_rounds: 4
 # Print only warnings and errors during test
 config :logger, level: :warning
 
-##
-# NervesHub Web
-#
-config :nerves_hub, NervesHubWeb.Endpoint,
-  http: [port: 4100],
-  server: true,
-  secret_key_base: "x7Vj9rmmRke//ctlapsPNGHXCRTnArTPbfsv6qX4PChFT9ARiNR5Ua8zoRilNCmX",
-  live_view: [signing_salt: "FnV9rP_c2BL11dvh"]
+config :nerves_hub, NervesHub.AnalyticsRepo,
+  url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default_test")
 
-##
-# NervesHub Device
-#
+config :nerves_hub, NervesHub.Firmwares.Upload.File,
+  local_path: System.tmp_dir(),
+  public_path: "/firmware"
+
+config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: "mybucket"
+
+config :nerves_hub, NervesHub.ObanRepo,
+  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
+  ssl: false,
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 10
+
+config :nerves_hub, NervesHub.RateLimit, limit: 100
+
+config :nerves_hub, NervesHub.Repo,
+  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
+  ssl: false,
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 10,
+  queue_target: 2000
+
+config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test
+config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
+config :nerves_hub, NervesHub.Uploads.File, local_path: System.tmp_dir(), public_path: "/uploads"
+
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   code_reloader: false,
   check_origin: false,
@@ -38,61 +54,24 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
     ]
   ]
 
-##
-# Firmware uploader
-#
-config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
-
-config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: "mybucket"
-
-config :nerves_hub, NervesHub.Firmwares.Upload.File,
-  local_path: System.tmp_dir(),
-  public_path: "/firmware"
-
-config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
-
-config :nerves_hub, NervesHub.Uploads.File,
-  local_path: System.tmp_dir(),
-  public_path: "/uploads"
-
-##
-# Database and Oban
-#
-config :nerves_hub, NervesHub.Repo,
-  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
-  ssl: false,
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10,
-  queue_target: 2000
-
-config :nerves_hub, NervesHub.ObanRepo,
-  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
-  ssl: false,
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10
-
-config :nerves_hub, NervesHub.AnalyticsRepo,
-  url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default")
-
-config :nerves_hub, analytics_enabled: true
-
-config :nerves_hub, Oban, testing: :manual
-
-##
-# Other
-#
 config :nerves_hub, NervesHubWeb.DeviceSocket,
   shared_secrets: [
     enabled: true
   ]
 
-config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test
+config :nerves_hub, NervesHubWeb.Endpoint,
+  http: [port: 4100],
+  server: true,
+  secret_key_base: "x7Vj9rmmRke//ctlapsPNGHXCRTnArTPbfsv6qX4PChFT9ARiNR5Ua8zoRilNCmX",
+  live_view: [signing_salt: "FnV9rP_c2BL11dvh"]
 
-config :nerves_hub, NervesHub.RateLimit, limit: 100
-
-config :sentry, environment_name: :test
-
-config :phoenix_test, :endpoint, NervesHubWeb.Endpoint
+config :nerves_hub, Oban, testing: :manual
+config :nerves_hub, analytics_enabled: true
+config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
+
+config :phoenix_test, :endpoint, NervesHubWeb.Endpoint
+
+config :sentry, environment_name: :test
