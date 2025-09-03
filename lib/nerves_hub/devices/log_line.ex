@@ -10,12 +10,12 @@ defmodule NervesHub.Devices.LogLine do
 
   @primary_key false
   schema "device_log_lines" do
-    field(:timestamp, Ch, type: "DateTime64(6, 'UTC')")
-    field(:product_id, Ch, type: "UInt64")
     field(:device_id, Ch, type: "UInt64")
     field(:level, Ch, type: "LowCardinality(String)")
     field(:message, Ch, type: "String")
     field(:meta, Ch, type: "Map(LowCardinality(String), String)", default: %{})
+    field(:product_id, Ch, type: "UInt64")
+    field(:timestamp, Ch, type: "DateTime64(6, 'UTC')")
   end
 
   def create_changeset(device, params \\ %{}) do

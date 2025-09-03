@@ -12,13 +12,13 @@ defmodule NervesHub.Devices.InflightUpdate do
   @required_params [:device_id, :deployment_id, :firmware_id, :firmware_uuid, :expires_at]
 
   schema "inflight_updates" do
-    belongs_to(:device, Device)
-    belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
-    belongs_to(:firmware, Firmware)
-
+    field(:expires_at, :utc_datetime)
     field(:firmware_uuid, Ecto.UUID)
     field(:status, :string, default: "pending")
-    field(:expires_at, :utc_datetime)
+
+    belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
+    belongs_to(:device, Device)
+    belongs_to(:firmware, Firmware)
 
     timestamps(updated_at: false)
   end

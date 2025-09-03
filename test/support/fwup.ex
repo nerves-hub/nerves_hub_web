@@ -15,22 +15,22 @@ defmodule NervesHub.Support.Fwup do
   defmodule MetaParams do
     @moduledoc false
 
-    defstruct product: "nerves-hub",
+    defstruct architecture: "x86_64",
+              author: "me",
               description: "D",
-              version: "1.0.0",
               platform: "platform",
-              architecture: "x86_64",
-              author: "me"
+              product: "nerves-hub",
+              version: "1.0.0"
   end
 
   defmodule InvalidMetaParams do
     @moduledoc false
 
-    defstruct description: "D",
-              version: "1.0.0",
+    defstruct architecture: "x86_64",
+              author: "me",
+              description: "D",
               platform: "platform",
-              architecture: "x86_64",
-              author: "me"
+              version: "1.0.0"
   end
 
   @doc """

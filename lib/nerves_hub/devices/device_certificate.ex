@@ -37,18 +37,18 @@ defmodule NervesHub.Devices.DeviceCertificate do
 
   @derive {Phoenix.Param, key: :serial}
   schema "device_certificates" do
-    belongs_to(:device, Device)
-    belongs_to(:org, Org, where: [deleted_at: nil])
-
-    field(:serial, :string)
     field(:aki, :binary)
-    field(:ski, :binary)
-    field(:not_before, :utc_datetime)
-    field(:not_after, :utc_datetime)
-    field(:last_used, :utc_datetime)
     field(:der, :binary)
     field(:fingerprint, :string)
+    field(:last_used, :utc_datetime)
+    field(:not_after, :utc_datetime)
+    field(:not_before, :utc_datetime)
     field(:public_key_fingerprint, :string)
+    field(:serial, :string)
+    field(:ski, :binary)
+
+    belongs_to(:device, Device)
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     timestamps()
   end

@@ -20,15 +20,15 @@ defmodule NervesHub.AuditLogs.AuditLog do
   @optional_params [:reference_id]
 
   schema "audit_logs" do
-    belongs_to(:org, Org, where: [deleted_at: nil])
-
     field(:actor_id, :id)
     field(:actor_type, Resource)
     field(:description, :string)
     field(:params, :map)
+    field(:reference_id, :string)
     field(:resource_id, :id)
     field(:resource_type, Resource)
-    field(:reference_id, :string)
+
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     timestamps(type: :naive_datetime_usec, updated_at: false)
   end

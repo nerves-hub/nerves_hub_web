@@ -5,8 +5,8 @@ defmodule NervesHub.Extensions.ProductExtensionsSetting do
 
   @primary_key false
   embedded_schema do
-    field(:health, :boolean, default: false)
     field(:geo, :boolean, default: false)
+    field(:health, :boolean, default: false)
     field(:logging, :boolean, default: false)
   end
 

@@ -10,12 +10,11 @@ defmodule NervesHub.Products.SharedSecretAuth do
   @key_prefix "nhp"
 
   schema "product_shared_secret_auth" do
-    belongs_to(:product, Product)
-
+    field(:deactivated_at, :utc_datetime)
     field(:key, :string)
     field(:secret, :string)
 
-    field(:deactivated_at, :utc_datetime)
+    belongs_to(:product, Product)
 
     timestamps()
   end
