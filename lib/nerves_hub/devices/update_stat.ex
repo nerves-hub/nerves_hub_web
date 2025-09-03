@@ -24,15 +24,15 @@ defmodule NervesHub.Devices.UpdateStat do
 
   @primary_key false
   schema "update_stats" do
-    belongs_to(:product, Product)
-    belongs_to(:device, Device)
-    belongs_to(:deployment, DeploymentGroup)
-
-    field(:type, :string)
+    field(:saved_bytes, :integer, default: 0)
     field(:source_firmware_uuid, Ecto.UUID)
     field(:target_firmware_uuid, Ecto.UUID)
+    field(:type, :string)
     field(:update_bytes, :integer, default: 0)
-    field(:saved_bytes, :integer, default: 0)
+
+    belongs_to(:deployment, DeploymentGroup)
+    belongs_to(:device, Device)
+    belongs_to(:product, Product)
 
     timestamps()
   end

@@ -92,7 +92,7 @@ defmodule NervesHubWeb.Live.Archives do
 
   @impl Phoenix.LiveView
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    params = %{"page_size" => page_size, "page_number" => 1}
+    params = %{"page_number" => 1, "page_size" => page_size}
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -108,7 +108,7 @@ defmodule NervesHubWeb.Live.Archives do
 
     # switch sort direction for column because
     sort_direction = if sort_direction == "desc", do: "asc", else: "desc"
-    params = %{sort_direction: sort_direction, sort: value}
+    params = %{sort: value, sort_direction: sort_direction}
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -151,7 +151,7 @@ defmodule NervesHubWeb.Live.Archives do
   def handle_event("delete-archive", _params, socket) do
     authorized!(:"archive:delete", socket.assigns.org_user)
 
-    %{org: org, product: product, archive: archive} = socket.assigns
+    %{archive: archive, org: org, product: product} = socket.assigns
 
     {:ok, archive} = Archives.get(socket.assigns.product, archive.uuid)
 
@@ -193,7 +193,7 @@ defmodule NervesHubWeb.Live.Archives do
   end
 
   defp assign_archives_with_pagination(socket) do
-    %{assigns: %{product: product, params: params}} = socket
+    %{assigns: %{params: params, product: product}} = socket
 
     pagination_opts = Map.take(params, @pagination_opts)
 

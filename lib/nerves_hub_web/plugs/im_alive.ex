@@ -29,20 +29,20 @@ defmodule NervesHubWeb.Plugs.ImAlive do
           operationId: "Status.alive",
           responses: %{
             "200" => %OpenApiSpex.Response{
-              description: "The application is running and the database is reachable.",
               content: %{
                 "text/plain" => %OpenApiSpex.MediaType{
-                  schema: %OpenApiSpex.Schema{type: :string, example: "Hello, Friend!"}
+                  schema: %OpenApiSpex.Schema{example: "Hello, Friend!", type: :string}
                 }
-              }
+              },
+              description: "The application is running and the database is reachable."
             },
             "500" => %OpenApiSpex.Response{
-              description: "The application is running but the database is unreachable.",
               content: %{
                 "text/plain" => %OpenApiSpex.MediaType{
-                  schema: %OpenApiSpex.Schema{type: :string, example: "Sorry, Friend :("}
+                  schema: %OpenApiSpex.Schema{example: "Sorry, Friend :(", type: :string}
                 }
-              }
+              },
+              description: "The application is running but the database is unreachable."
             }
           },
           # This endpoint does not require authentication, so we override the global security

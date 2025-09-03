@@ -47,9 +47,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> assert_has("circle[fill='#{offline_indicator_color}']", timeout: 1000)
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
           event: "connection:change",
-          payload: %{device_id: device.identifier, status: "online"}
+          payload: %{device_id: device.identifier, status: "online"},
+          topic: "device:#{device.identifier}:internal"
         })
 
         render(view)
@@ -70,9 +70,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> assert_has("circle[fill='#{offline_indicator_color}']", timeout: 1000)
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
           event: "connection:status",
-          payload: %{device_id: device.identifier, status: "online"}
+          payload: %{device_id: device.identifier, status: "online"},
+          topic: "device:#{device.identifier}:internal"
         })
 
         render(view)
@@ -85,11 +85,11 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
     test "add multiple devices to deployment in new UI",
          %{conn: conn, fixture: fixture} do
       %{
+        deployment_group: deployment_group,
         device: device,
-        org: org,
-        product: product,
         firmware: firmware,
-        deployment_group: deployment_group
+        org: org,
+        product: product
       } = fixture
 
       device2 = Fixtures.device_fixture(org, product, firmware)
@@ -150,17 +150,17 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
     test "by health status", %{conn: conn, fixture: fixture} do
       %{
         device: device,
+        firmware: firmware,
         org: org,
-        product: product,
-        firmware: firmware
+        product: product
       } = fixture
 
       device2 = Fixtures.device_fixture(org, product, firmware)
 
       {:ok, _} =
         Devices.save_device_health(%{
-          "device_id" => device2.id,
           "data" => %{},
+          "device_id" => device2.id,
           "status" => :healthy,
           "status_reasons" => %{}
         })
@@ -181,17 +181,17 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
     test "by tags", %{conn: conn, fixture: fixture} do
       %{
         device: device,
+        firmware: firmware,
         org: org,
-        product: product,
-        firmware: firmware
+        product: product
       } = fixture
 
       device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["foo", "bar"]})
 
       {:ok, _} =
         Devices.save_device_health(%{
-          "device_id" => device2.id,
           "data" => %{},
+          "device_id" => device2.id,
           "status" => :healthy,
           "status_reasons" => %{}
         })
@@ -210,7 +210,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
     test "excludes deleted device by default", %{
       conn: conn,
-      fixture: %{device: device, org: org, product: product, firmware: firmware}
+      fixture: %{device: device, firmware: firmware, org: org, product: product}
     } do
       refute device.deleted_at
 
@@ -225,7 +225,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
     test "filter to include deleted devices", %{
       conn: conn,
-      fixture: %{device: device, org: org, product: product, firmware: firmware}
+      fixture: %{device: device, firmware: firmware, org: org, product: product}
     } do
       refute device.deleted_at
 
@@ -241,7 +241,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
     test "filter only deleted devices", %{
       conn: conn,
-      fixture: %{device: device, org: org, product: product, firmware: firmware}
+      fixture: %{device: device, firmware: firmware, org: org, product: product}
     } do
       refute device.deleted_at
 
@@ -258,10 +258,10 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
     test "filter only updating devices", %{
       conn: conn,
       fixture: %{
+        deployment_group: deployment_group,
         device: device,
         org: org,
-        product: product,
-        deployment_group: deployment_group
+        product: product
       }
     } do
       conn
@@ -303,9 +303,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
     test "pagination with more than 25 devices", %{conn: conn, fixture: fixture} do
       %{
+        firmware: firmware,
         org: org,
-        product: product,
-        firmware: firmware
+        product: product
       } = fixture
 
       for _i <- 1..26 do
@@ -329,9 +329,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
     test "pagination with more than 50 devices", %{conn: conn, fixture: fixture} do
       %{
+        firmware: firmware,
         org: org,
-        product: product,
-        firmware: firmware
+        product: product
       } = fixture
 
       for _i <- 1..51 do

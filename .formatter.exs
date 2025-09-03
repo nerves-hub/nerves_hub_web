@@ -5,6 +5,7 @@
   inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{heex,ex,exs}"],
   plugins: [Phoenix.LiveView.HTMLFormatter, Quokka],
   quokka: [
+    autosort: [:map, :defstruct, :schema],
     only: [
       :blocks,
       :comment_directives,

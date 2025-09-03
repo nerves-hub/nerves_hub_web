@@ -34,8 +34,8 @@ defmodule NervesHub.Scripts.Runner do
   def init(device_id) do
     state = %State{
       buffer: <<>>,
-      from: nil,
       device_channel: "device:#{device_id}",
+      from: nil,
       receive_channel: "user:console:#{device_id}",
       send_channel: "device:console:#{device_id}"
     }

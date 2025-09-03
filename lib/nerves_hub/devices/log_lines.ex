@@ -10,10 +10,10 @@ defmodule NervesHub.Devices.LogLines do
   import Ecto.Query
 
   @type log_line_payload :: %{
-          timestamp: DateTime.t(),
           level: String.t(),
           message: String.t(),
-          meta: map()
+          meta: map(),
+          timestamp: DateTime.t()
         }
 
   @doc """

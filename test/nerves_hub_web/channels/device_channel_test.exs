@@ -17,7 +17,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   test "extensions are requested from device if version is above 2.2.0" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -40,7 +40,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   test "presence connection information" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     subscribe_for_updates(device)
 
@@ -56,7 +56,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   test "fwup_public_keys requested on connect" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     params =
       for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
@@ -82,7 +82,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   test "archive_public_keys requested on connect" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     params =
       for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
@@ -106,7 +106,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   end
 
   test "if archive is sent on connect an audit log is not created" do
-    %{device: device, certificate: certificate, params: params, archive_uuid: archive_uuid} =
+    %{archive_uuid: archive_uuid, certificate: certificate, device: device, params: params} =
       archive_setup()
 
     {:ok, socket} =
@@ -127,7 +127,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   end
 
   test "if archive is sent when an archive updates an audit log is created" do
-    %{device: device, certificate: certificate, params: params} = archive_setup()
+    %{certificate: certificate, device: device, params: params} = archive_setup()
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -149,7 +149,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   end
 
   test "if archive is sent when a device updates an audit log is created" do
-    %{device: device, certificate: certificate, params: params} = archive_setup()
+    %{certificate: certificate, device: device, params: params} = archive_setup()
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -169,7 +169,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   test "the first fwup_progress marks an update as happening" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -192,7 +192,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   test "set connection types for the device" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -217,7 +217,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {device, _firmware, deployment_group} = device_fixture(user, %{identifier: "123"})
     Devices.update_deployment_group(device, deployment_group)
 
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -247,7 +247,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {device, firmware, deployment_group} = device_fixture(user, %{identifier: "123"})
     Devices.update_deployment_group(device, deployment_group)
 
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -283,7 +283,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
 
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -306,7 +306,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
         conditions: %{"version" => "< 0.0.1"}
       })
 
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -325,7 +325,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     device = Devices.update_deployment_group(device, deployment_group)
     assert device.deployment_id == deployment_group.id
 
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -342,7 +342,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     test "handle_info" do
       user = Fixtures.user_fixture()
       {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+      %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
       subscribe_for_updates(device)
 
@@ -362,7 +362,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     test "handle_in" do
       user = Fixtures.user_fixture()
       {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+      %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -412,7 +412,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     deployment_group = Fixtures.deployment_group_fixture(org, firmware, %{archive_id: archive.id})
 
     {device, _firmware, _deployment_group} =
-      device_fixture(user, %{identifier: "123", deployment_id: deployment_group.id})
+      device_fixture(user, %{deployment_id: deployment_group.id, identifier: "123"})
 
     %{db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
@@ -425,6 +425,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
         end
       end
 
-    %{device: device, certificate: certificate, params: params, archive_uuid: archive_uuid}
+    %{archive_uuid: archive_uuid, certificate: certificate, device: device, params: params}
   end
 end

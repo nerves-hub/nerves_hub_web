@@ -482,7 +482,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("toggle-deployment-firmware-updates", _params, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{device: device, org_user: org_user, user: user} = socket.assigns
 
     authorized!(:"device:toggle-updates", org_user)
 
@@ -568,7 +568,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("set-deployment-group", %{"deployment_id" => deployment_id}, socket) do
-    %{user: user, device: device, deployment_groups: deployment_groups} = socket.assigns
+    %{deployment_groups: deployment_groups, device: device, user: user} = socket.assigns
 
     authorized!(:"device:set-deployment-group", socket.assigns.org_user)
 
@@ -619,7 +619,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("select-firmware-version", %{"uuid" => uuid}, socket) do
-    %{product: product, device: device} = socket.assigns
+    %{device: device, product: product} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
@@ -638,7 +638,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   def hooked_event("push-update", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{product: product, device: device, user: user} = socket.assigns
+    %{device: device, product: product, user: user} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
@@ -661,7 +661,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   def hooked_event("push-delta", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{product: product, device: %Device{} = device, user: user} = socket.assigns
+    %{device: %Device{} = device, product: product, user: user} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
@@ -689,7 +689,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("run-script", %{"id" => id}, socket) do
-    %{assigns: %{device: device, support_scripts: scripts, org_user: org_user}} = socket
+    %{assigns: %{device: device, org_user: org_user, support_scripts: scripts}} = socket
 
     authorized!(:"support_script:run", org_user)
 
@@ -746,7 +746,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
-  def hooked_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
+  def hooked_info(%Broadcast{event: "created", topic: "firmware"}, socket) do
     firmware = Firmwares.get_firmware_for_device(socket.assigns.device)
 
     socket

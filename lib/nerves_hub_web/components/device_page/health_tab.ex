@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
-  def hooked_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do
+  def hooked_event("set-time-frame", %{"amount" => amount, "unit" => unit}, socket) do
     payload = %{unit: get_time_unit({unit, String.to_integer(amount)})}
 
     socket
@@ -201,7 +201,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   end
 
   defp assign_charts(socket) do
-    %{device: device, time_frame: time_frame, latest_metrics: latest_metrics} = socket.assigns
+    %{device: device, latest_metrics: latest_metrics, time_frame: time_frame} = socket.assigns
 
     charts = create_chart_data(device.id, time_frame, latest_metrics["mem_size_mb"])
 
@@ -234,12 +234,12 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   defp update_charts(
          %{
            assigns: %{
+             charts: charts,
              device: device,
-             product: product,
-             org: org,
-             time_frame: time_frame,
              latest_metrics: latest_metrics,
-             charts: charts
+             org: org,
+             product: product,
+             time_frame: time_frame
            }
          } = socket
        ) do
@@ -255,9 +255,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         )
 
       true ->
-        Enum.reduce(data, socket, fn %{type: type, data: data}, socket ->
+        Enum.reduce(data, socket, fn %{data: data, type: type}, socket ->
           type = if is_binary(type), do: type, else: Atom.to_string(type)
-          push_event(socket, "update-charts", %{type: type, data: data})
+          push_event(socket, "update-charts", %{data: data, type: type})
         end)
     end
   end
@@ -276,11 +276,11 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
       # Build structure for rendering charts
       %{
-        type: type,
-        title: title(type),
         data: data,
         max: get_max_value(type, data, memory_size),
         min: get_min_value(data),
+        title: title(type),
+        type: type,
         unit: get_time_unit(time_frame)
       }
     end)

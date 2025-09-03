@@ -25,8 +25,8 @@ defmodule NervesHub.Workers.ScheduleOrgAuditLogTruncation do
 
   defp truncation_args(org) do
     %{
-      org_id: org.id,
-      days_to_keep: days_to_keep(org)
+      days_to_keep: days_to_keep(org),
+      org_id: org.id
     }
   end
 

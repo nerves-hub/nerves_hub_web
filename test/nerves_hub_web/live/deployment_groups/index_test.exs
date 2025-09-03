@@ -5,7 +5,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
 
-  test "no deployment groups", %{conn: conn, user: user, org: org} do
+  test "no deployment groups", %{conn: conn, org: org, user: user} do
     product = Fixtures.product_fixture(user, org, %{name: "Spaghetti"})
 
     conn
@@ -15,9 +15,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
 
   test "has deployment groups", %{
     conn: conn,
+    deployment_group: deployment_group,
     org: org,
-    product: product,
-    deployment_group: deployment_group
+    product: product
   } do
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
@@ -28,10 +28,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
 
   test "device counts don't include deleted devices", %{
     conn: conn,
-    org: org,
-    product: product,
     deployment_group: deployment_group,
-    device: device
+    device: device,
+    org: org,
+    product: product
   } do
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
@@ -57,9 +57,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
   describe "filtering" do
     test "filter deployment groups on name", %{
       conn: conn,
+      deployment_group: deployment_group,
       org: org,
-      product: product,
-      deployment_group: deployment_group
+      product: product
     } do
       conn
       |> put_session("new_ui", true)
@@ -78,9 +78,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
 
     test "filter deployment groups on platform", %{
       conn: conn,
+      deployment_group: deployment_group,
       org: org,
-      product: product,
-      deployment_group: deployment_group
+      product: product
     } do
       platform = deployment_group.firmware.platform
 
@@ -100,9 +100,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
 
     test "filter deployment groups on architecture", %{
       conn: conn,
+      deployment_group: deployment_group,
       org: org,
-      product: product,
-      deployment_group: deployment_group
+      product: product
     } do
       architecture = deployment_group.firmware.architecture
 
@@ -122,9 +122,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
 
     test "reset filters", %{
       conn: conn,
+      deployment_group: deployment_group,
       org: org,
-      product: product,
-      deployment_group: deployment_group
+      product: product
     } do
       conn
       |> put_session("new_ui", true)
@@ -155,9 +155,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
 
     test "pagination with more than 25 deployment groups", %{
       conn: conn,
+      deployment_group: deployment_group,
       org: org,
-      product: product,
-      deployment_group: deployment_group
+      product: product
     } do
       for i <- 1..26 do
         Fixtures.deployment_group_fixture(org, deployment_group.firmware, %{

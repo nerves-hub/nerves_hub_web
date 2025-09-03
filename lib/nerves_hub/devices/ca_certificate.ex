@@ -26,18 +26,18 @@ defmodule NervesHub.Devices.CACertificate do
 
   @derive {Phoenix.Param, key: :serial}
   schema "ca_certificates" do
-    belongs_to(:org, Org, where: [deleted_at: nil])
-    belongs_to(:jitp, JITP)
-
-    field(:description, :string)
-    field(:serial, :string)
     field(:aki, :binary)
-    field(:ski, :binary)
-    field(:not_before, :utc_datetime)
-    field(:not_after, :utc_datetime)
-    field(:last_used, :utc_datetime)
-    field(:der, :binary)
     field(:check_expiration, :boolean)
+    field(:der, :binary)
+    field(:description, :string)
+    field(:last_used, :utc_datetime)
+    field(:not_after, :utc_datetime)
+    field(:not_before, :utc_datetime)
+    field(:serial, :string)
+    field(:ski, :binary)
+
+    belongs_to(:jitp, JITP)
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     timestamps()
   end

@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.API.UserJSON do
   @moduledoc false
 
-  def show(%{user: user, token: token}) do
+  def show(%{token: token, user: user}) do
     data =
       user(user)
       |> Map.put(:token, token)
@@ -14,6 +14,6 @@ defmodule NervesHubWeb.API.UserJSON do
   end
 
   defp user(user) do
-    %{name: user.name, email: user.email}
+    %{email: user.email, name: user.name}
   end
 end

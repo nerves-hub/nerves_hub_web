@@ -9,11 +9,11 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
     identifier = "device-1234"
 
     device = %{
-      identifier: identifier,
       description: "test device",
-      tags: ["test"],
+      identifier: identifier,
       org_id: org.id,
-      product_id: product.id
+      product_id: product.id,
+      tags: ["test"]
     }
 
     {:ok, device} = Devices.create_device(device)
@@ -21,7 +21,7 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
   end
 
   describe "index" do
-    test "lists all certificates", %{conn: conn, org: org, product: product, device: device} do
+    test "lists all certificates", %{conn: conn, device: device, org: org, product: product} do
       conn =
         get(
           conn,
@@ -41,8 +41,8 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
   describe "create device certificate" do
     test "renders cert when data is valid", %{
       conn: conn,
-      org: org,
       device: device,
+      org: org,
       product: product
     } do
       pem = Fixtures.device_certificate_pem()
@@ -89,8 +89,8 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
 
     test "renders errors when data is invalid", %{
       conn: conn,
-      org: org,
       device: device,
+      org: org,
       product: product
     } do
       conn =
@@ -113,9 +113,9 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
   describe "delete device_certificate" do
     test "deletes chosen ca_certificate", %{
       conn: conn,
+      device: device,
       org: org,
-      product: product,
-      device: device
+      product: product
     } do
       %{db_cert: cert} = Fixtures.device_certificate_fixture(device)
 

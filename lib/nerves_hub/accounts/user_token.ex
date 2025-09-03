@@ -49,7 +49,7 @@ defmodule NervesHub.Accounts.UserToken do
   """
   def build_session_token(user, note) do
     token = :crypto.strong_rand_bytes(@rand_size)
-    {token, %__MODULE__{token: token, context: "session", user_id: user.id, note: trim(note)}}
+    {token, %__MODULE__{context: "session", note: trim(note), token: token, user_id: user.id}}
   end
 
   @doc """
@@ -71,9 +71,9 @@ defmodule NervesHub.Accounts.UserToken do
 
     {friendly_token,
      %__MODULE__{
-       token: hashed_token,
        context: context,
        note: trim(note),
+       token: hashed_token,
        user_id: user.id
      }}
   end

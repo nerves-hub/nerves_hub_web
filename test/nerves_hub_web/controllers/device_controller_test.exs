@@ -3,12 +3,12 @@ defmodule NervesHubWeb.DeviceControllerTest do
 
   alias NervesHub.Fixtures
 
-  setup %{user: user, org: org} do
+  setup %{org: org, user: user} do
     [product: Fixtures.product_fixture(user, org)]
   end
 
   describe "console" do
-    test "shows information about device", %{conn: conn, user: user, org: org, product: product} do
+    test "shows information about device", %{conn: conn, org: org, product: product, user: user} do
       org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
       device = Fixtures.device_fixture(org, product, firmware)
@@ -23,9 +23,9 @@ defmodule NervesHubWeb.DeviceControllerTest do
   describe "certificates" do
     test "download certificate for device", %{
       conn: conn,
+      device: device,
       org: org,
-      product: product,
-      device: device
+      product: product
     } do
       [cert | _] = NervesHub.Devices.get_device_certificates(device)
 

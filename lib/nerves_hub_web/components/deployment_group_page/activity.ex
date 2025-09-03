@@ -88,9 +88,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
   end
 
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    %{org: org, product: product, deployment_group: deployment_group} = socket.assigns
+    %{deployment_group: deployment_group, org: org, product: product} = socket.assigns
 
-    params = %{"page_size" => page_size, "page_number" => 1}
+    params = %{"page_number" => 1, "page_size" => page_size}
 
     url =
       ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/activity?#{params}"
@@ -102,8 +102,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
   end
 
   def handle_event("paginate", %{"page" => page_num}, socket) do
-    params = %{"page_size" => socket.assigns.audit_pager.page_size, "page_number" => page_num}
-    %{org: org, product: product, deployment_group: deployment_group} = socket.assigns
+    params = %{"page_number" => page_num, "page_size" => socket.assigns.audit_pager.page_size}
+    %{deployment_group: deployment_group, org: org, product: product} = socket.assigns
 
     url =
       ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/activity?#{params}"

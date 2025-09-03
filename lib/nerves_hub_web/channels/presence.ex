@@ -21,14 +21,14 @@ defmodule NervesHubWeb.Presence do
   @impl Phoenix.Presence
   def fetch(_topic, presences) do
     for {key, %{metas: [meta | metas]}} <- presences, into: %{} do
-      {key, %{metas: [meta | metas], id: key, user: %{name: meta.name}}}
+      {key, %{id: key, metas: [meta | metas], user: %{name: meta.name}}}
     end
   end
 
   @impl Phoenix.Presence
   def handle_metas(topic, %{joins: joins, leaves: leaves}, presences, state) do
     for {user_id, presence} <- joins do
-      user_data = %{id: user_id, user: presence.user, metas: Map.fetch!(presences, user_id)}
+      user_data = %{id: user_id, metas: Map.fetch!(presences, user_id), user: presence.user}
       msg = {__MODULE__, {:join, user_data}}
       Phoenix.PubSub.local_broadcast(NervesHub.PubSub, "proxy:#{topic}", msg)
     end
@@ -40,7 +40,7 @@ defmodule NervesHubWeb.Presence do
           :error -> []
         end
 
-      user_data = %{id: user_id, user: presence.user, metas: metas}
+      user_data = %{id: user_id, metas: metas, user: presence.user}
       msg = {__MODULE__, {:leave, user_data}}
       Phoenix.PubSub.local_broadcast(NervesHub.PubSub, "proxy:#{topic}", msg)
     end

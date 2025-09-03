@@ -70,8 +70,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
     firmware =
       Fixtures.firmware_fixture(org_key, product, %{
-        version: "0.0.1",
-        dir: dir
+        dir: dir,
+        version: "0.0.1"
       })
 
     params = Enum.into(device_params, %{tags: ["beta", "beta-edge"]})
@@ -84,7 +84,7 @@ defmodule NervesHubWeb.WebsocketTest do
         params
       )
 
-    {%{device | product: product, org: org}, firmware}
+    {%{device | org: org, product: product}, firmware}
   end
 
   setup do
@@ -100,8 +100,8 @@ defmodule NervesHubWeb.WebsocketTest do
     @describetag :tmp_dir
 
     test "Can connect and authenticate to channel using client ssl certificate", %{
-      user: user,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
 
@@ -118,8 +118,8 @@ defmodule NervesHubWeb.WebsocketTest do
     end
 
     test "Can connect and authenticate to channel using client ssl certificate with TLS 1.3", %{
-      user: user,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
 
@@ -162,8 +162,8 @@ defmodule NervesHubWeb.WebsocketTest do
     end
 
     test "already registered expired certificate without signer CA can connect", %{
-      user: user,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
@@ -232,8 +232,8 @@ defmodule NervesHubWeb.WebsocketTest do
     end
 
     test "already registered expired certificate with expired signer CA can connect", %{
-      user: user,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
@@ -333,11 +333,11 @@ defmodule NervesHubWeb.WebsocketTest do
       ]
 
       params = %{
-        "nerves_fw_uuid" => Ecto.UUID.generate(),
-        "nerves_fw_product" => product.name,
         "nerves_fw_architecture" => "arm64",
-        "nerves_fw_version" => "0.0.0",
-        "nerves_fw_platform" => "test_host"
+        "nerves_fw_platform" => "test_host",
+        "nerves_fw_product" => product.name,
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_version" => "0.0.0"
       }
 
       subscribe_for_updates(%Device{identifier: identifier})
@@ -368,11 +368,11 @@ defmodule NervesHubWeb.WebsocketTest do
       ]
 
       params = %{
-        "nerves_fw_uuid" => Ecto.UUID.generate(),
-        "nerves_fw_product" => product.name,
         "nerves_fw_architecture" => "arm64",
-        "nerves_fw_version" => "0.0.0",
-        "nerves_fw_platform" => "test_host"
+        "nerves_fw_platform" => "test_host",
+        "nerves_fw_product" => product.name,
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_version" => "0.0.0"
       }
 
       subscribe_for_updates(%Device{identifier: identifier})
@@ -410,7 +410,7 @@ defmodule NervesHubWeb.WebsocketTest do
       refute SocketClient.connected?(socket)
     end
 
-    test "can connect with device key/secret", %{user: user, tmp_dir: tmp_dir} do
+    test "can connect with device key/secret", %{tmp_dir: tmp_dir, user: user} do
       {device, _firmware} = device_fixture(tmp_dir, user)
       assert {:ok, auth} = Devices.create_shared_secret_auth(device)
 
@@ -421,11 +421,11 @@ defmodule NervesHubWeb.WebsocketTest do
       ]
 
       params = %{
-        "nerves_fw_uuid" => Ecto.UUID.generate(),
-        "nerves_fw_product" => device.product.name,
         "nerves_fw_architecture" => "arm64",
-        "nerves_fw_version" => "0.0.0",
-        "nerves_fw_platform" => "test_host"
+        "nerves_fw_platform" => "test_host",
+        "nerves_fw_product" => device.product.name,
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_version" => "0.0.0"
       }
 
       subscribe_for_updates(device)
@@ -439,7 +439,7 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
-    test "rejects device key/secret with mismatched identifier", %{user: user, tmp_dir: tmp_dir} do
+    test "rejects device key/secret with mismatched identifier", %{tmp_dir: tmp_dir, user: user} do
       {device, _firmware} = device_fixture(tmp_dir, user)
       assert {:ok, auth} = Devices.create_shared_secret_auth(device)
 
@@ -456,7 +456,7 @@ defmodule NervesHubWeb.WebsocketTest do
       refute_online(device)
     end
 
-    test "rejects unknown secret keys", %{user: user, tmp_dir: tmp_dir} do
+    test "rejects unknown secret keys", %{tmp_dir: tmp_dir, user: user} do
       {device, _fw} = device_fixture(tmp_dir, user)
 
       bad_auths = [
@@ -528,11 +528,11 @@ defmodule NervesHubWeb.WebsocketTest do
       ]
 
       params = %{
-        "nerves_fw_uuid" => Ecto.UUID.generate(),
-        "nerves_fw_product" => product.name,
         "nerves_fw_architecture" => "arm64",
-        "nerves_fw_version" => "0.0.0",
-        "nerves_fw_platform" => "test_host"
+        "nerves_fw_platform" => "test_host",
+        "nerves_fw_product" => product.name,
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_version" => "0.0.0"
       }
 
       subscribe_for_updates(%Device{identifier: identifier})
@@ -583,11 +583,11 @@ defmodule NervesHubWeb.WebsocketTest do
       ]
 
       params = %{
-        "nerves_fw_uuid" => Ecto.UUID.generate(),
-        "nerves_fw_product" => product.name,
         "nerves_fw_architecture" => "arm64",
-        "nerves_fw_version" => "0.0.0",
-        "nerves_fw_platform" => "test_host"
+        "nerves_fw_platform" => "test_host",
+        "nerves_fw_product" => product.name,
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_version" => "0.0.0"
       }
 
       subscribe_for_updates(%Device{identifier: identifier})
@@ -651,8 +651,8 @@ defmodule NervesHubWeb.WebsocketTest do
     @describetag :tmp_dir
 
     test "receives update message when a deployment gets a new version", %{
-      user: user,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       org = Fixtures.org_fixture(user)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
@@ -660,18 +660,18 @@ defmodule NervesHubWeb.WebsocketTest do
 
       firmware =
         Fixtures.firmware_fixture(org_key, product, %{
-          version: "0.0.1",
-          dir: tmp_dir
+          dir: tmp_dir,
+          version: "0.0.1"
         })
         |> Repo.preload([:product])
 
       {:ok, deployment_group} =
         Fixtures.deployment_group_fixture(org, firmware, %{
-          name: "a different name",
           conditions: %{
-            "version" => "<= 1.0.0",
-            "tags" => ["beta"]
-          }
+            "tags" => ["beta"],
+            "version" => "<= 1.0.0"
+          },
+          name: "a different name"
         })
         |> ManagedDeployments.update_deployment_group(%{is_active: true})
 
@@ -681,9 +681,9 @@ defmodule NervesHubWeb.WebsocketTest do
           product,
           firmware,
           %{
-            tags: ["beta", "beta-edge"],
+            deployment_id: deployment_group.id,
             identifier: @valid_serial,
-            deployment_id: deployment_group.id
+            tags: ["beta", "beta-edge"]
           }
         )
 
@@ -697,7 +697,7 @@ defmodule NervesHubWeb.WebsocketTest do
       assert_online_and_available(device)
 
       new_firmware =
-        Fixtures.firmware_fixture(org_key, firmware.product, %{version: "0.0.2", dir: tmp_dir})
+        Fixtures.firmware_fixture(org_key, firmware.product, %{dir: tmp_dir, version: "0.0.2"})
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{
@@ -715,8 +715,8 @@ defmodule NervesHubWeb.WebsocketTest do
     end
 
     test "does not receive update message when current_version matches target_version", %{
-      user: user,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       {device, firmware} =
         device_fixture(tmp_dir, user, %{identifier: @valid_serial, product: @valid_product})
@@ -753,8 +753,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
     test "removes device from deployment and sets reason if firmware doesn't match",
          %{
-           user: user,
-           tmp_dir: tmp_dir
+           tmp_dir: tmp_dir,
+           user: user
          } do
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
@@ -762,17 +762,17 @@ defmodule NervesHubWeb.WebsocketTest do
 
       firmware =
         Fixtures.firmware_fixture(org_key, product, %{
-          version: "0.0.1",
-          dir: tmp_dir
+          dir: tmp_dir,
+          version: "0.0.1"
         })
 
       {:ok, deployment_group} =
         Fixtures.deployment_group_fixture(org, firmware, %{
-          name: "Every Device",
           conditions: %{
-            "version" => "<= 1.0.0",
-            "tags" => ["beta", "beta-edge"]
-          }
+            "tags" => ["beta", "beta-edge"],
+            "version" => "<= 1.0.0"
+          },
+          name: "Every Device"
         })
         |> ManagedDeployments.update_deployment_group(%{is_active: true})
 
@@ -783,9 +783,9 @@ defmodule NervesHubWeb.WebsocketTest do
           firmware,
           %{
             deployment_id: deployment_group.id,
-            tags: ["beta", "beta-edge"],
             identifier: @valid_serial,
-            product: @valid_product
+            product: @valid_product,
+            tags: ["beta", "beta-edge"]
           }
         )
 
@@ -802,10 +802,10 @@ defmodule NervesHubWeb.WebsocketTest do
 
       SocketClient.join_and_wait(socket, %{
         "device_api_version" => "2.2.0",
-        "nerves_fw_uuid" => Ecto.UUID.generate(),
-        "nerves_fw_product" => "test",
         "nerves_fw_architecture" => device.firmware_metadata.architecture,
         "nerves_fw_platform" => different_platform,
+        "nerves_fw_product" => "test",
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
         "nerves_fw_version" => "0.1.0"
       })
 
@@ -820,8 +820,8 @@ defmodule NervesHubWeb.WebsocketTest do
     end
 
     test "does nothing when device matches deployment conditions", %{
-      user: user,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
@@ -829,17 +829,17 @@ defmodule NervesHubWeb.WebsocketTest do
 
       firmware =
         Fixtures.firmware_fixture(org_key, product, %{
-          version: "0.0.1",
-          dir: tmp_dir
+          dir: tmp_dir,
+          version: "0.0.1"
         })
 
       {:ok, deployment_group} =
         Fixtures.deployment_group_fixture(org, firmware, %{
-          name: "a different name",
           conditions: %{
-            "version" => "<= 1.0.0",
-            "tags" => ["beta", "beta-edge"]
-          }
+            "tags" => ["beta", "beta-edge"],
+            "version" => "<= 1.0.0"
+          },
+          name: "a different name"
         })
         |> ManagedDeployments.update_deployment_group(%{is_active: true})
 
@@ -850,9 +850,9 @@ defmodule NervesHubWeb.WebsocketTest do
           firmware,
           %{
             deployment_id: deployment_group.id,
-            tags: ["beta", "beta-edge"],
             identifier: @valid_serial,
-            product: @valid_product
+            product: @valid_product,
+            tags: ["beta", "beta-edge"]
           }
         )
 
@@ -880,8 +880,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
     test "creates update_stat after successful firmware update",
          %{
-           user: user,
-           tmp_dir: tmp_dir
+           tmp_dir: tmp_dir,
+           user: user
          } do
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
@@ -889,23 +889,23 @@ defmodule NervesHubWeb.WebsocketTest do
 
       target_firmware =
         Fixtures.firmware_fixture(org_key, product, %{
-          version: "0.0.1",
-          dir: tmp_dir
+          dir: tmp_dir,
+          version: "0.0.1"
         })
 
       source_firmware =
         Fixtures.firmware_fixture(org_key, product, %{
-          version: "0.0.2",
-          dir: tmp_dir
+          dir: tmp_dir,
+          version: "0.0.2"
         })
 
       {:ok, deployment_group} =
         Fixtures.deployment_group_fixture(org, target_firmware, %{
-          name: "Every Device",
           conditions: %{
-            "version" => "<= 1.0.0",
-            "tags" => ["beta", "beta-edge"]
-          }
+            "tags" => ["beta", "beta-edge"],
+            "version" => "<= 1.0.0"
+          },
+          name: "Every Device"
         })
         |> ManagedDeployments.update_deployment_group(%{is_active: true})
 
@@ -916,9 +916,9 @@ defmodule NervesHubWeb.WebsocketTest do
           target_firmware,
           %{
             deployment_id: deployment_group.id,
-            tags: ["beta", "beta-edge"],
             identifier: @valid_serial,
-            product: @valid_product
+            product: @valid_product,
+            tags: ["beta", "beta-edge"]
           }
         )
 
@@ -933,10 +933,10 @@ defmodule NervesHubWeb.WebsocketTest do
 
       SocketClient.join_and_wait(socket, %{
         "device_api_version" => "2.2.0",
-        "nerves_fw_uuid" => source_firmware.uuid,
-        "nerves_fw_product" => "test",
         "nerves_fw_architecture" => device.firmware_metadata.architecture,
         "nerves_fw_platform" => "test_host",
+        "nerves_fw_product" => "test",
+        "nerves_fw_uuid" => source_firmware.uuid,
         "nerves_fw_version" => "0.1.0"
       })
 
@@ -951,7 +951,7 @@ defmodule NervesHubWeb.WebsocketTest do
   describe "Custom CA Signers" do
     @describetag :tmp_dir
 
-    test "valid certificate can connect", %{user: user, tmp_dir: tmp_dir} do
+    test "valid certificate can connect", %{tmp_dir: tmp_dir, user: user} do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
@@ -998,7 +998,7 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
-    test "valid certificate expired signer can connect", %{user: user, tmp_dir: tmp_dir} do
+    test "valid certificate expired signer can connect", %{tmp_dir: tmp_dir, user: user} do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
@@ -1057,12 +1057,12 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
-    test "ca signer last used is updated", %{user: user, tmp_dir: tmp_dir} do
+    test "ca signer last used is updated", %{tmp_dir: tmp_dir, user: user} do
       org = Fixtures.org_fixture(user, %{name: "ca_cert_is_updated"})
 
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
-      %{cert: ca, key: ca_key, db_cert: %{last_used: last_used}} =
+      %{cert: ca, db_cert: %{last_used: last_used}, key: ca_key} =
         Fixtures.ca_certificate_fixture(org)
 
       key = X509.PrivateKey.new_ec(:secp256r1)
@@ -1117,15 +1117,15 @@ defmodule NervesHubWeb.WebsocketTest do
 
   describe "archives" do
     @tag :tmp_dir
-    test "on connect receive an archive", %{user: user, tmp_dir: tmp_dir} do
+    test "on connect receive an archive", %{tmp_dir: tmp_dir, user: user} do
       org = Fixtures.org_fixture(user)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       product = Fixtures.product_fixture(user, org)
 
       firmware =
         Fixtures.firmware_fixture(org_key, product, %{
-          version: "0.0.1",
-          dir: tmp_dir
+          dir: tmp_dir,
+          version: "0.0.1"
         })
         |> Repo.preload([:product])
 
@@ -1133,12 +1133,12 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, deployment_group} =
         Fixtures.deployment_group_fixture(org, firmware, %{
-          name: "beta",
+          archive_id: archive.id,
           conditions: %{
-            "version" => "<= 1.0.0",
-            "tags" => ["beta"]
+            "tags" => ["beta"],
+            "version" => "<= 1.0.0"
           },
-          archive_id: archive.id
+          name: "beta"
         })
         |> ManagedDeployments.update_deployment_group(%{is_active: true})
 
@@ -1148,9 +1148,9 @@ defmodule NervesHubWeb.WebsocketTest do
           product,
           firmware,
           %{
-            tags: ["beta", "beta-edge"],
+            deployment_id: deployment_group.id,
             identifier: @valid_serial,
-            deployment_id: deployment_group.id
+            tags: ["beta", "beta-edge"]
           }
         )
 
@@ -1171,15 +1171,15 @@ defmodule NervesHubWeb.WebsocketTest do
     end
 
     @tag :tmp_dir
-    test "on updates enabled receive an archive", %{user: user, tmp_dir: tmp_dir} do
+    test "on updates enabled receive an archive", %{tmp_dir: tmp_dir, user: user} do
       org = Fixtures.org_fixture(user)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       product = Fixtures.product_fixture(user, org)
 
       firmware =
         Fixtures.firmware_fixture(org_key, product, %{
-          version: "0.0.1",
-          dir: tmp_dir
+          dir: tmp_dir,
+          version: "0.0.1"
         })
         |> Repo.preload([:product])
 
@@ -1187,12 +1187,12 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, deployment_group} =
         Fixtures.deployment_group_fixture(org, firmware, %{
-          name: "beta",
+          archive_id: archive.id,
           conditions: %{
-            "version" => "<= 1.0.0",
-            "tags" => ["beta"]
+            "tags" => ["beta"],
+            "version" => "<= 1.0.0"
           },
-          archive_id: archive.id
+          name: "beta"
         })
         |> ManagedDeployments.update_deployment_group(%{is_active: true})
 
@@ -1202,9 +1202,9 @@ defmodule NervesHubWeb.WebsocketTest do
           product,
           firmware,
           %{
-            tags: ["beta", "beta-edge"],
+            deployment_id: deployment_group.id,
             identifier: @valid_serial,
-            deployment_id: deployment_group.id
+            tags: ["beta", "beta-edge"]
           }
         )
 
@@ -1231,25 +1231,25 @@ defmodule NervesHubWeb.WebsocketTest do
     end
 
     @tag :tmp_dir
-    test "deployment archive updated", %{user: user, tmp_dir: tmp_dir} do
+    test "deployment archive updated", %{tmp_dir: tmp_dir, user: user} do
       org = Fixtures.org_fixture(user)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       product = Fixtures.product_fixture(user, org)
 
       firmware =
         Fixtures.firmware_fixture(org_key, product, %{
-          version: "0.0.1",
-          dir: tmp_dir
+          dir: tmp_dir,
+          version: "0.0.1"
         })
         |> Repo.preload([:product])
 
       {:ok, deployment_group} =
         Fixtures.deployment_group_fixture(org, firmware, %{
-          name: "beta",
           conditions: %{
-            "version" => "<= 1.0.0",
-            "tags" => ["beta"]
-          }
+            "tags" => ["beta"],
+            "version" => "<= 1.0.0"
+          },
+          name: "beta"
         })
         |> ManagedDeployments.update_deployment_group(%{is_active: true})
 
@@ -1259,9 +1259,9 @@ defmodule NervesHubWeb.WebsocketTest do
           product,
           firmware,
           %{
-            tags: ["beta", "beta-edge"],
+            deployment_id: deployment_group.id,
             identifier: @valid_serial,
-            deployment_id: deployment_group.id
+            tags: ["beta", "beta-edge"]
           }
         )
 

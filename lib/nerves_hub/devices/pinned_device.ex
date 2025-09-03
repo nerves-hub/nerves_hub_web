@@ -11,8 +11,8 @@ defmodule NervesHub.Devices.PinnedDevice do
 
   @required [:user_id, :device_id]
   schema "pinned_devices" do
-    belongs_to(:user, User)
     belongs_to(:device, Device)
+    belongs_to(:user, User)
 
     timestamps(updated_at: false)
   end

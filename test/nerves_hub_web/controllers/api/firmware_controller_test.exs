@@ -15,9 +15,9 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
   describe "create firmware" do
     test "renders firmware when data is valid", %{
       conn: conn,
-      user: user,
       org: org,
-      product: product
+      product: product,
+      user: user
     } do
       org_key = Fixtures.org_key_fixture(org, user)
 
@@ -68,7 +68,7 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
   describe "delete firmware" do
     setup [:create_firmware]
 
-    test "deletes chosen firmware", %{conn: conn, org: org, product: product, firmware: firmware} do
+    test "deletes chosen firmware", %{conn: conn, firmware: firmware, org: org, product: product} do
       conn =
         delete(
           conn,
@@ -85,9 +85,9 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
 
     test "firmware delete with associated deployment", %{
       conn: conn,
+      firmware: firmware,
       org: org,
-      product: product,
-      firmware: firmware
+      product: product
     } do
       Fixtures.deployment_group_fixture(org, firmware)
 
@@ -101,7 +101,7 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
     end
   end
 
-  defp create_firmware(%{user: user, org: org, product: product}) do
+  defp create_firmware(%{org: org, product: product, user: user}) do
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     {:ok, %{firmware: firmware}}

@@ -6,7 +6,7 @@ defmodule NervesHubWeb.DynamicTemplateRenderer do
 
   require Logger
 
-  defmacro __before_compile__(%{module: module, file: file} = env) do
+  defmacro __before_compile__(%{file: file, module: module} = env) do
     render? = Module.defines?(module, {:render, 1})
     root = Path.dirname(file)
     filename = template_filename(module)

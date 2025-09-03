@@ -49,9 +49,9 @@ defmodule NervesHubWeb.DeviceChannel do
 
       err ->
         :telemetry.execute([:nerves_hub, :devices, :join_failure], %{count: 1}, %{
-          identifier: device.identifier,
           channel: "device",
-          error: err
+          error: err,
+          identifier: device.identifier
         })
 
         {:error, %{error: "could not connect"}}
@@ -122,7 +122,7 @@ defmodule NervesHubWeb.DeviceChannel do
     if Version.match?(socket.assigns.device_api_version, ">= 2.1.0") do
       ref = Base.encode64(:crypto.strong_rand_bytes(4), padding: false)
 
-      push(socket, "scripts/run", %{"text" => text, "ref" => ref})
+      push(socket, "scripts/run", %{"ref" => ref, "text" => text})
 
       script_refs =
         socket.assigns
@@ -277,7 +277,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     # instead, we subscribe to `device:device.id` and setup fastlaning and intercepts so that
     # we have the option of not acting as a middleman to all messages going to a device
-    %{transport_pid: transport_pid, serializer: serializer, pubsub_server: pubsub_server} = socket
+    %{pubsub_server: pubsub_server, serializer: serializer, transport_pid: transport_pid} = socket
     fastlane = {:fastlane, transport_pid, serializer, __MODULE__.__intercepts__()}
 
     :ok = Phoenix.PubSub.subscribe(pubsub_server, topic, metadata: fastlane)
@@ -387,14 +387,14 @@ defmodule NervesHubWeb.DeviceChannel do
             )
 
         push(socket, "archive", %{
-          size: archive.size,
-          uuid: archive.uuid,
-          version: archive.version,
+          architecture: archive.architecture,
           description: archive.description,
           platform: archive.platform,
-          architecture: archive.architecture,
+          size: archive.size,
           uploaded_at: archive.inserted_at,
-          url: Archives.url(archive)
+          url: Archives.url(archive),
+          uuid: archive.uuid,
+          version: archive.version
         })
       end
     end

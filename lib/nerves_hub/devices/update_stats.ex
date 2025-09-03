@@ -21,22 +21,22 @@ defmodule NervesHub.Devices.UpdateStats do
 
   @spec stats_by_device(Device.t()) ::
           %{
-            total_update_bytes: non_neg_integer(),
             total_saved_bytes: integer(),
+            total_update_bytes: non_neg_integer(),
             total_updates: non_neg_integer()
           }
   def stats_by_device(%Device{} = device) do
     UpdateStat
     |> where(device_id: ^device.id)
     |> select([s], %{
-      total_update_bytes: sum(s.update_bytes),
       total_saved_bytes: sum(s.saved_bytes),
+      total_update_bytes: sum(s.update_bytes),
       total_updates: fragment("count(*)")
     })
     |> Repo.one()
     |> case do
-      %{total_update_bytes: nil, total_saved_bytes: nil} ->
-        %{total_update_bytes: 0, total_saved_bytes: 0, total_updates: 0}
+      %{total_saved_bytes: nil, total_update_bytes: nil} ->
+        %{total_saved_bytes: 0, total_update_bytes: 0, total_updates: 0}
 
       stats ->
         stats
@@ -46,10 +46,10 @@ defmodule NervesHub.Devices.UpdateStats do
   @spec stats_by_deployment(DeploymentGroup.t()) ::
           %{
             String.t() => %{
-              total_update_bytes: non_neg_integer(),
+              target_firmware_uuid: String.t(),
               total_saved_bytes: integer(),
-              total_updates: non_neg_integer(),
-              target_firmware_uuid: String.t()
+              total_update_bytes: non_neg_integer(),
+              total_updates: non_neg_integer()
             }
           }
   def stats_by_deployment(deployment_group) do
@@ -58,11 +58,11 @@ defmodule NervesHub.Devices.UpdateStats do
     |> join(:inner, [s], f in Firmware, on: fragment("?::uuid", f.uuid) == s.target_firmware_uuid)
     |> group_by([s, f], [s.target_firmware_uuid, f.version])
     |> select([s, f], %{
-      version: f.version,
-      total_update_bytes: sum(s.update_bytes),
+      target_firmware_uuid: s.target_firmware_uuid,
       total_saved_bytes: sum(s.saved_bytes),
+      total_update_bytes: sum(s.update_bytes),
       total_updates: fragment("count(*)"),
-      target_firmware_uuid: s.target_firmware_uuid
+      version: f.version
     })
     |> Repo.all()
     |> Map.new(fn stat ->
@@ -72,22 +72,22 @@ defmodule NervesHub.Devices.UpdateStats do
 
   @spec total_stats_by_product(Product.t()) ::
           %{
-            total_update_bytes: non_neg_integer(),
             total_saved_bytes: integer(),
+            total_update_bytes: non_neg_integer(),
             total_updates: non_neg_integer()
           }
   def total_stats_by_product(product) do
     UpdateStat
     |> where(product_id: ^product.id)
     |> select([s], %{
-      total_update_bytes: sum(s.update_bytes),
       total_saved_bytes: sum(s.saved_bytes),
+      total_update_bytes: sum(s.update_bytes),
       total_updates: fragment("count(*)")
     })
     |> Repo.one()
     |> case do
-      %{total_update_bytes: nil, total_saved_bytes: nil} ->
-        %{total_update_bytes: 0, total_saved_bytes: 0, total_updates: 0}
+      %{total_saved_bytes: nil, total_update_bytes: nil} ->
+        %{total_saved_bytes: 0, total_update_bytes: 0, total_updates: 0}
 
       stats ->
         stats
@@ -121,7 +121,7 @@ defmodule NervesHub.Devices.UpdateStats do
           FirmwareDelta.t() | nil
         ) :: :ok | {:error, Ecto.Changeset.t()}
   defp log_stat(device, source_firmware_metadata \\ nil, delta \\ nil) do
-    %{update_bytes: update_bytes, saved_bytes: saved_bytes} =
+    %{saved_bytes: saved_bytes, update_bytes: update_bytes} =
       get_byte_stats(delta, device.firmware_metadata.uuid)
 
     source_firmware_uuid = get_in(source_firmware_metadata, [Access.key(:uuid)])
@@ -131,11 +131,11 @@ defmodule NervesHub.Devices.UpdateStats do
       device,
       %{
         deployment_id: deployment_id,
-        type: if(delta, do: "fwup_delta", else: "fwup_full"),
+        saved_bytes: saved_bytes,
         source_firmware_uuid: source_firmware_uuid,
         target_firmware_uuid: device.firmware_metadata.uuid,
-        update_bytes: update_bytes,
-        saved_bytes: saved_bytes
+        type: if(delta, do: "fwup_delta", else: "fwup_full"),
+        update_bytes: update_bytes
       }
     )
     |> Repo.insert()
@@ -155,8 +155,8 @@ defmodule NervesHub.Devices.UpdateStats do
 
       {:error, %Ecto.Changeset{} = changeset} = error ->
         Logging.log_message_to_sentry("Failed to create update stat for device", %{
-          errors: changeset.errors,
-          device_identifier: device.identifier
+          device_identifier: device.identifier,
+          errors: changeset.errors
         })
 
         Logger.warning(
@@ -171,22 +171,22 @@ defmodule NervesHub.Devices.UpdateStats do
   end
 
   @spec get_byte_stats(FirmwareDelta.t() | nil, Ecto.UUID.t()) :: %{
-          update_bytes: integer(),
-          saved_bytes: integer()
+          saved_bytes: integer(),
+          update_bytes: integer()
         }
   defp get_byte_stats(%FirmwareDelta{size: delta_size}, target_firmware_uuid) do
     target_firmware = Firmwares.get_firmware_by_uuid(target_firmware_uuid)
 
-    %{update_bytes: delta_size, saved_bytes: target_firmware.size - delta_size}
+    %{saved_bytes: target_firmware.size - delta_size, update_bytes: delta_size}
   end
 
   defp get_byte_stats(nil, target_firmware_uuid) do
     case Firmwares.get_firmware_by_uuid(target_firmware_uuid) do
       %Firmware{} = target_firmware ->
-        %{update_bytes: target_firmware.size, saved_bytes: 0}
+        %{saved_bytes: 0, update_bytes: target_firmware.size}
 
       nil ->
-        %{update_bytes: 0, saved_bytes: 0}
+        %{saved_bytes: 0, update_bytes: 0}
     end
   end
 

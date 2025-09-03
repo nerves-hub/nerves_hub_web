@@ -8,10 +8,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.NewTest do
   describe "new deployment group" do
     test "the happy path, with an audit log", %{
       conn: conn,
-      user: user,
       org: org,
       org_key: org_key,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       product = Fixtures.product_fixture(user, org)
 
@@ -36,10 +36,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.NewTest do
 
     test "error message displayed if invalid firmware is selected", %{
       conn: conn,
-      user: user,
       org: org,
       org_key: org_key,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       product = Fixtures.product_fixture(user, org)
 

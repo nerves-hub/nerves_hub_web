@@ -23,9 +23,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   @optional_fields [:archive_id]
 
   schema "deployment_releases" do
+    belongs_to(:archive, Archive)
     belongs_to(:deployment_group, DeploymentGroup)
     belongs_to(:firmware, Firmware)
-    belongs_to(:archive, Archive)
     belongs_to(:user, User, foreign_key: :created_by_id)
 
     timestamps()

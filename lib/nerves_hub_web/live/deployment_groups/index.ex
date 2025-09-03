@@ -11,16 +11,16 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   alias NervesHubWeb.Components.FilterSidebar
 
   @default_filters %{
+    architecture: "",
     name: "",
     platform: "",
-    architecture: "",
     search: ""
   }
 
   @filter_types %{
+    architecture: :string,
     name: :string,
     platform: :string,
-    architecture: :string,
     search: :string
   }
 
@@ -41,8 +41,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     total_pages: :integer
   }
 
-  @default_sorting %{sort_direction: "asc", sort: "name"}
-  @sort_types %{sort_direction: :string, sort: :string}
+  @default_sorting %{sort: "name", sort_direction: "asc"}
+  @sort_types %{sort: :string, sort_direction: :string}
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
@@ -103,7 +103,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
 
   @impl Phoenix.LiveView
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    params = %{"page_size" => page_size, "page_number" => 1}
+    params = %{"page_number" => 1, "page_size" => page_size}
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -138,7 +138,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
 
     # switch sort direction for column because
     sort_direction = if sort_direction == "desc", do: "asc", else: "desc"
-    params = %{sort_direction: sort_direction, sort: value}
+    params = %{sort: value, sort_direction: sort_direction}
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -148,7 +148,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   # User has clicked a new column to sort
   @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, socket) do
-    new_params = %{sort_direction: "asc", sort: value}
+    new_params = %{sort: value, sort_direction: "asc"}
 
     socket
     |> push_patch(to: self_path(socket, new_params))
@@ -158,16 +158,16 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   defp assign_deployment_groups_with_pagination(socket) do
     %{
       assigns: %{
-        product: product,
         current_filters: filters,
-        paginate_opts: paginate_opts
+        paginate_opts: paginate_opts,
+        product: product
       }
     } = socket
 
     opts = %{
+      filters: filters,
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
-      sort: {String.to_existing_atom(socket.assigns.sort_direction), String.to_atom(socket.assigns.current_sort)},
-      filters: filters
+      sort: {String.to_existing_atom(socket.assigns.sort_direction), String.to_atom(socket.assigns.current_sort)}
     }
 
     {entries, pager_meta} = ManagedDeployments.filter(product, opts)

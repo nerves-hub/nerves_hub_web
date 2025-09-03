@@ -16,7 +16,7 @@ defmodule NervesHubWeb.Live.NewUI.DelploymentGroups.NewTest do
     %{context | conn: conn}
   end
 
-  test "can update only version", %{conn: conn, org: org, product: product, fixture: fixture} do
+  test "can update only version", %{conn: conn, fixture: fixture, org: org, product: product} do
     conn
     |> fill_in("Name", with: "Canaries")
     |> select("Platform", option: "platform")
@@ -43,7 +43,7 @@ defmodule NervesHubWeb.Live.NewUI.DelploymentGroups.NewTest do
 
     deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
     assert deployment_group.firmware_id == fixture.firmware.id
-    assert deployment_group.conditions == %{"version" => "1.2.3", "tags" => ["a", "b"]}
+    assert deployment_group.conditions == %{"tags" => ["a", "b"], "version" => "1.2.3"}
   end
 
   test "errors display for invalid version", %{conn: conn, org: org, product: product} do

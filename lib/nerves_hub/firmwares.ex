@@ -328,16 +328,16 @@ defmodule NervesHub.Firmwares do
   @spec metadata_from_device(map()) :: {:ok, FirmwareMetadata.t() | nil}
   def metadata_from_device(metadata) do
     metadata = %{
-      uuid: Map.get(metadata, "nerves_fw_uuid"),
       architecture: Map.get(metadata, "nerves_fw_architecture"),
-      platform: Map.get(metadata, "nerves_fw_platform"),
-      product: Map.get(metadata, "nerves_fw_product"),
-      version: Map.get(metadata, "nerves_fw_version"),
       author: Map.get(metadata, "nerves_fw_author"),
       description: Map.get(metadata, "nerves_fw_description"),
       fwup_version: Map.get(metadata, "fwup_version"),
+      misc: Map.get(metadata, "nerves_fw_misc"),
+      platform: Map.get(metadata, "nerves_fw_platform"),
+      product: Map.get(metadata, "nerves_fw_product"),
+      uuid: Map.get(metadata, "nerves_fw_uuid"),
       vcs_identifier: Map.get(metadata, "nerves_fw_vcs_identifier"),
-      misc: Map.get(metadata, "nerves_fw_misc")
+      version: Map.get(metadata, "nerves_fw_version")
     }
 
     case FirmwareMetadata.changeset(%FirmwareMetadata{}, metadata).valid? do
@@ -621,7 +621,7 @@ defmodule NervesHub.Firmwares do
     org = NervesHub.Repo.preload(org, :org_keys)
 
     with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
-         {:ok, %{path: conf_path, firmware_metadata: fm, tool_metadata: tm} = m} <-
+         {:ok, %{firmware_metadata: fm, path: conf_path, tool_metadata: tm} = m} <-
            update_tool().get_firmware_metadata_from_file(filepath) do
       filename = fm.uuid <> ".fw"
 
@@ -629,24 +629,24 @@ defmodule NervesHub.Firmwares do
         resolve_product(%{
           architecture: fm.architecture,
           author: fm.author,
+          delta_updatable: update_tool().delta_updatable?(conf_path),
           description: fm.description,
           filename: filename,
           filepath: filepath,
           misc: fm.misc,
           org_id: org_id,
           org_key_id: org_key_id,
-          delta_updatable: update_tool().delta_updatable?(conf_path),
           platform: fm.platform,
           product_name: fm.product,
-          upload_metadata: firmware_upload_config().metadata(org_id, filename),
           size: :filelib.file_size(filepath),
           tool: m.tool,
           tool_delta_required_version: m.tool_delta_required_version,
           tool_full_required_version: m.tool_full_required_version,
+          tool_metadata: tm,
+          upload_metadata: firmware_upload_config().metadata(org_id, filename),
           uuid: fm.uuid,
           vcs_identifier: fm.vcs_identifier,
-          version: fm.version,
-          tool_metadata: tm
+          version: fm.version
         })
 
       {:ok, params}

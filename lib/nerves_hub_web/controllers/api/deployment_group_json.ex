@@ -11,12 +11,12 @@ defmodule NervesHubWeb.API.DeploymentGroupJSON do
 
   def deployment_group(deployment_group) do
     %{
-      name: deployment_group.name,
-      is_active: deployment_group.is_active,
-      state: if(deployment_group.is_active, do: "on", else: "off"),
-      firmware_uuid: deployment_group.firmware.uuid,
       conditions: deployment_group.conditions,
-      delta_updatable: deployment_group.delta_updatable
+      delta_updatable: deployment_group.delta_updatable,
+      firmware_uuid: deployment_group.firmware.uuid,
+      is_active: deployment_group.is_active,
+      name: deployment_group.name,
+      state: if(deployment_group.is_active, do: "on", else: "off")
     }
   end
 end

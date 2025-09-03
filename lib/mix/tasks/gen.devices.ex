@@ -40,9 +40,9 @@ defmodule Mix.Tasks.NervesHub.Gen.Devices do
 
       {:ok, device} =
         Devices.create_device(%{
+          identifier: "generated-#{i}",
           org_id: org.id,
-          product_id: product.id,
-          identifier: "generated-#{i}"
+          product_id: product.id
         })
 
       %DeviceConnection{
@@ -51,8 +51,8 @@ defmodule Mix.Tasks.NervesHub.Gen.Devices do
         last_seen_at: DateTime.utc_now(:millisecond),
         metadata: %{
           "location" => %{
-            "longitude" => lng,
             "latitude" => lat,
+            "longitude" => lng,
             "source" => "generated"
           }
         }

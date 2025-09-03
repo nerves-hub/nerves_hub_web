@@ -37,60 +37,57 @@ defmodule NervesHub.Devices.Device do
 
   @derive {Phoenix.Param, key: :identifier}
   schema "devices" do
-    belongs_to(:org, Org)
-    belongs_to(:product, Product)
-    belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
-    belongs_to(:latest_connection, DeviceConnection, type: :binary_id)
-    belongs_to(:latest_health, DeviceHealth)
-
-    has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
-    has_many(:device_connections, DeviceConnection, on_delete: :delete_all)
-    has_many(:device_metrics, DeviceMetric, on_delete: :delete_all)
-    has_many(:device_health, DeviceHealth, on_delete: :delete_all)
-    has_many(:update_stats, UpdateStat, on_delete: :delete_all)
-
-    field(:identifier, :string)
-    field(:description, :string)
-    field(:tags, NervesHub.Types.Tag)
     field(:connecting_code, :string)
     field(:custom_location_coordinates, {:array, :float})
-
-    embeds_one(:extensions, DeviceExtensionsSetting,
-      defaults_to_struct: true,
-      on_replace: :update
-    )
-
+    field(:deleted_at, :utc_datetime)
+    field(:description, :string)
     field(:first_seen_at, :utc_datetime)
+    field(:identifier, :string)
+    field(:priority_updates, :boolean, default: false)
 
     field(:status, Ecto.Enum,
       values: [:registered, :provisioned],
       default: :registered
     )
 
-    embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
-
-    field(:updates_enabled, :boolean, default: true)
+    field(:tags, NervesHub.Types.Tag)
     field(:update_attempts, {:array, :utc_datetime}, default: [])
     field(:updates_blocked_until, :utc_datetime)
-    field(:priority_updates, :boolean, default: false)
+    field(:updates_enabled, :boolean, default: true)
 
-    field(:deleted_at, :utc_datetime)
+    belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
+    belongs_to(:latest_connection, DeviceConnection, type: :binary_id)
+    belongs_to(:latest_health, DeviceHealth)
+    belongs_to(:org, Org)
+    belongs_to(:product, Product)
+
+    has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
+    has_many(:device_connections, DeviceConnection, on_delete: :delete_all)
+    has_many(:device_health, DeviceHealth, on_delete: :delete_all)
+    has_many(:device_metrics, DeviceMetric, on_delete: :delete_all)
+    has_many(:update_stats, UpdateStat, on_delete: :delete_all)
+
+    embeds_one(:extensions, DeviceExtensionsSetting,
+      defaults_to_struct: true,
+      on_replace: :update
+    )
+
+    embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
 
     timestamps()
-
-    # Deprecated fields, remove these on or after the 5th of Jan 2025.
-    # Also remove index from NervesHub.Repo.Migrations.AddConnectionStatusIndexToDevices.
-    # field(:connection_status, Ecto.Enum,
-    #   values: [:connected, :disconnected, :not_seen],
-    #   default: :not_seen
-    # )
-    # field(:connection_established_at, :utc_datetime)
-    # field(:connection_disconnected_at, :utc_datetime)
-    # field(:connection_last_seen_at, :utc_datetime)
-    # field(:connection_metadata, :map, default: %{})
-    # field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
   end
 
+  # Deprecated fields, remove these on or after the 5th of Jan 2025.
+  # Also remove index from NervesHub.Repo.Migrations.AddConnectionStatusIndexToDevices.
+  # field(:connection_status, Ecto.Enum,
+  #   values: [:connected, :disconnected, :not_seen],
+  #   default: :not_seen
+  # )
+  # field(:connection_established_at, :utc_datetime)
+  # field(:connection_disconnected_at, :utc_datetime)
+  # field(:connection_last_seen_at, :utc_datetime)
+  # field(:connection_metadata, :map, default: %{})
+  # field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
   def changeset(%Device{} = device, params) do
     device
     |> cast(params, @required_params ++ @optional_params)

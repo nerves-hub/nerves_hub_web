@@ -5,11 +5,11 @@ defmodule NervesHub.Devices.HealthStatus do
           | {:warning, %{}}
           | {:unhealthy, %{}}
 
-  @empty_report %{warning: %{}, unhealthy: %{}}
+  @empty_report %{unhealthy: %{}, warning: %{}}
   @default_thresholds %{
     "cpu_usage_percent" => %{unhealthy: 90, warning: 80},
-    "mem_used_percent" => %{unhealthy: 80, warning: 70},
-    "disk_used_percentage" => %{unhealthy: 90, warning: 80}
+    "disk_used_percentage" => %{unhealthy: 90, warning: 80},
+    "mem_used_percent" => %{unhealthy: 80, warning: 70}
   }
 
   def default_thresholds(), do: @default_thresholds
@@ -29,13 +29,13 @@ defmodule NervesHub.Devices.HealthStatus do
 
       case metrics_status(metric, thresholds) do
         :unhealthy ->
-          reason = %{value: value, threshold: thresholds[key].unhealthy}
+          reason = %{threshold: thresholds[key].unhealthy, value: value}
           unhealthy_reasons = Map.put(reasons.unhealthy, key, reason)
 
           {:unhealthy, %{reasons | unhealthy: unhealthy_reasons}}
 
         :warning ->
-          reason = %{value: value, threshold: thresholds[key].warning}
+          reason = %{threshold: thresholds[key].warning, value: value}
           warning_reasons = Map.put(reasons.warning, key, reason)
 
           {status(current_status, :warning), %{reasons | warning: warning_reasons}}

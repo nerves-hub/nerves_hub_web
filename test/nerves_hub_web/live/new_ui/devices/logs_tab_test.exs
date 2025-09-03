@@ -14,9 +14,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
   test "clickhouse (analytics) isn't enabled", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     Application.put_env(:nerves_hub, :analytics_enabled, false)
 
@@ -28,9 +28,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
   test "device logs aren't enabled for the product", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     Product.changeset(product, %{"extensions" => %{"logging" => false}})
     |> Repo.update()
@@ -43,9 +43,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
   test "device logs aren't enabled for the device", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     Product.changeset(product, %{"extensions" => %{"logging" => true}})
     |> Repo.update()
@@ -61,9 +61,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
   test "no device logs have been created for the device", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     Product.changeset(product, %{"extensions" => %{"logging" => true}})
     |> Repo.update()
@@ -75,9 +75,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
   test "recent device logs are shown", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     Product.changeset(product, %{"extensions" => %{"logging" => true}})
     |> Repo.update()
@@ -85,8 +85,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
     for n <- 1..5 do
       attrs = %{
         "level" => "info",
-        "timestamp" => DateTime.utc_now(),
-        "message" => "something wicked this way comes : #{n}"
+        "message" => "something wicked this way comes : #{n}",
+        "timestamp" => DateTime.utc_now()
       }
 
       {:ok, _} = LogLines.async_create(device, attrs)
@@ -104,17 +104,17 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
   test "new log lines are prepended to the recent device logs list", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     Product.changeset(product, %{"extensions" => %{"logging" => true}})
     |> Repo.update()
 
     attrs = %{
       "level" => "info",
-      "timestamp" => DateTime.utc_now(),
-      "message" => "something wicked this way comes"
+      "message" => "something wicked this way comes",
+      "timestamp" => DateTime.utc_now()
     }
 
     {:ok, _} = LogLines.async_create(device, attrs)
@@ -127,8 +127,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
     attrs = %{
       "level" => "info",
-      "timestamp" => DateTime.utc_now(),
-      "message" => "something wicked this way comes, again"
+      "message" => "something wicked this way comes, again",
+      "timestamp" => DateTime.utc_now()
     }
 
     {:ok, _} = LogLines.async_create(device, attrs)
@@ -139,17 +139,17 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
   test "new log lines are not prepended to the recent device logs list if streaming is turned off",
        %{
          conn: conn,
+         device: device,
          org: org,
-         product: product,
-         device: device
+         product: product
        } do
     Product.changeset(product, %{"extensions" => %{"logging" => true}})
     |> Repo.update()
 
     attrs = %{
       "level" => "info",
-      "timestamp" => DateTime.utc_now(),
-      "message" => "something wicked this way comes"
+      "message" => "something wicked this way comes",
+      "timestamp" => DateTime.utc_now()
     }
 
     {:ok, _} = LogLines.async_create(device, attrs)
@@ -163,8 +163,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
     attrs = %{
       "level" => "info",
-      "timestamp" => DateTime.utc_now(),
-      "message" => "something wicked this way comes, again"
+      "message" => "something wicked this way comes, again",
+      "timestamp" => DateTime.utc_now()
     }
 
     {:ok, _} = LogLines.async_create(device, attrs)
@@ -174,9 +174,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
   test "only 25 log lines are shown", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     Product.changeset(product, %{"extensions" => %{"logging" => true}})
     |> Repo.update()
@@ -184,8 +184,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
     for n <- 1..26 do
       attrs = %{
         "level" => "info",
-        "timestamp" => DateTime.utc_now(),
-        "message" => "something wicked this way comes : #{n}"
+        "message" => "something wicked this way comes : #{n}",
+        "timestamp" => DateTime.utc_now()
       }
 
       {:ok, _} = LogLines.async_create(device, attrs)
@@ -203,8 +203,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
     attrs = %{
       "level" => "info",
-      "timestamp" => DateTime.utc_now(),
-      "message" => "something wicked this way comes, again"
+      "message" => "something wicked this way comes, again",
+      "timestamp" => DateTime.utc_now()
     }
 
     {:ok, _} = LogLines.async_create(device, attrs)

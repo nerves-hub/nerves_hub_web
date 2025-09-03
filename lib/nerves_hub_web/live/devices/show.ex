@@ -85,7 +85,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(:reload_device, socket) do
-    %{org: org, device: device} = socket.assigns
+    %{device: device, org: org} = socket.assigns
 
     device = load_device(org, device.identifier)
 
@@ -107,7 +107,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   # can be removed when the old UI is removed
-  def handle_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
+  def handle_info(%Broadcast{event: "created", topic: "firmware"}, socket) do
     firmware = Firmwares.get_firmware_for_device(socket.assigns.device)
 
     {:noreply, assign(socket, :firmwares, firmware)}
@@ -201,7 +201,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   # Ignore unknown messages
   def handle_info(_unknown, socket), do: {:noreply, socket}
 
-  def handle_event("pin", _value, %{assigns: %{user: user, device: device}} = socket) do
+  def handle_event("pin", _value, %{assigns: %{device: device, user: user}} = socket) do
     case Devices.pin_device(user.id, device.id) do
       {:ok, _} ->
         socket
@@ -220,7 +220,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  def handle_event("unpin", _value, %{assigns: %{user: user, device: device}} = socket) do
+  def handle_event("unpin", _value, %{assigns: %{device: device, user: user}} = socket) do
     case Devices.unpin_device(user.id, device.id) do
       {:ok, _} ->
         socket
@@ -240,7 +240,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("reboot", _value, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{device: device, org_user: org_user, user: user} = socket.assigns
 
     authorized!(:"device:reboot", org_user)
 
@@ -250,7 +250,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("reconnect", _value, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{device: device, org_user: org_user, user: user} = socket.assigns
 
     authorized!(:"device:reconnect", org_user)
 
@@ -262,7 +262,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("identify", _value, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{device: device, org_user: org_user, user: user} = socket.assigns
 
     authorized!(:"device:identify", org_user)
 
@@ -282,8 +282,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("paginate", %{"page" => page_number}, socket) do
-    params = %{"page_size" => socket.assigns.page_size, "page_number" => page_number}
-    %{org: org, product: product, device: device} = socket.assigns
+    params = %{"page_number" => page_number, "page_size" => socket.assigns.page_size}
+    %{device: device, org: org, product: product} = socket.assigns
 
     url = ~p"/org/#{org}/#{product}/devices/#{device}?#{params}"
 
@@ -293,7 +293,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("clear-penalty-box", _params, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{device: device, org_user: org_user, user: user} = socket.assigns
 
     authorized!(:"device:clear-penalty-box", org_user)
 
@@ -306,7 +306,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("toggle-deployment-firmware-updates", _params, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{device: device, org_user: org_user, user: user} = socket.assigns
 
     authorized!(:"device:toggle-updates", org_user)
 
@@ -333,7 +333,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("destroy", _, socket) do
-    %{org: org, org_user: org_user, product: product, device: device} = socket.assigns
+    %{device: device, org: org, org_user: org_user, product: product} = socket.assigns
 
     authorized!(:"device:destroy", org_user)
 
@@ -362,7 +362,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event(
         "set-deployment-group",
         %{"deployment_id" => deployment_id},
-        %{assigns: %{user: user, device: device, deployment_groups: deployment_groups}} = socket
+        %{assigns: %{deployment_groups: deployment_groups, device: device, user: user}} = socket
       ) do
     deployment_group = Enum.find(deployment_groups, &(&1.id == String.to_integer(deployment_id)))
     device = Devices.update_deployment_group(device, deployment_group)
@@ -384,7 +384,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event("push-update", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{product: product, device: device, user: user} = socket.assigns
+    %{device: device, product: product, user: user} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
     {:ok, url} = Firmwares.get_firmware_url(firmware)
@@ -394,9 +394,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
     payload = %UpdatePayload{
-      update_available: true,
+      firmware_meta: meta,
       firmware_url: url,
-      firmware_meta: meta
+      update_available: true
     }
 
     _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "devices/update-manual", payload)
@@ -410,7 +410,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event("push-available-update", _, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{device: device, deployment_group: deployment_group, user: user} = socket.assigns
+    %{deployment_group: deployment_group, device: device, user: user} = socket.assigns
 
     deployment_group = NervesHub.Repo.preload(deployment_group, :firmware)
 
@@ -439,7 +439,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event(
         "run-script",
         %{"idx" => index},
-        %{assigns: %{device: device, scripts: scripts, org_user: org_user}} = socket
+        %{assigns: %{device: device, org_user: org_user, scripts: scripts}} = socket
       ) do
     authorized!(:"support_script:run", org_user)
 
@@ -472,8 +472,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    params = %{"page_size" => page_size, "page_number" => "1"}
-    %{org: org, product: product, device: device} = socket.assigns
+    params = %{"page_number" => "1", "page_size" => page_size}
+    %{device: device, org: org, product: product} = socket.assigns
 
     url = ~p"/org/#{org}/#{product}/devices/#{device}?#{params}"
 

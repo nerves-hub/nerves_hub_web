@@ -11,9 +11,9 @@ defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
 
   test "download certificate", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     [certificate] = Devices.get_device_certificates(device)
 
@@ -33,9 +33,9 @@ defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
 
   test "delete certificate", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     [certificate] = Devices.get_device_certificates(device)
 
@@ -48,9 +48,9 @@ defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
 
   test "deleting device", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settingz")
@@ -62,9 +62,9 @@ defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
 
   test "destroying device", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settingz")

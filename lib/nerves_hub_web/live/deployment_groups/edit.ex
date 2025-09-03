@@ -36,11 +36,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Edit do
   @impl Phoenix.LiveView
   def handle_event("update-deployment-group", %{"deployment_group" => params}, socket) do
     %{
-      org_user: org_user,
+      deployment_group: deployment_group,
       org: org,
+      org_user: org_user,
       product: product,
-      user: user,
-      deployment_group: deployment_group
+      user: user
     } =
       socket.assigns
 
@@ -64,15 +64,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Edit do
     end
   end
 
-  defp inject_conditions_map(%{"version" => version, "tags" => tags} = params) do
+  defp inject_conditions_map(%{"tags" => tags, "version" => version} = params) do
     params
     |> Map.put("conditions", %{
-      "version" => version,
       "tags" =>
         tags
         |> tags_as_list()
         |> MapSet.new()
-        |> MapSet.to_list()
+        |> MapSet.to_list(),
+      "version" => version
     })
   end
 

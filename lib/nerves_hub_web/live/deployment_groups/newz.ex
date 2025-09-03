@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
   def handle_event("create-deployment-group", %{"deployment_group" => params}, socket) do
     authorized!(:"deployment_group:create", socket.assigns.org_user)
 
-    %{user: user, org: org, product: product} = socket.assigns
+    %{org: org, product: product, user: user} = socket.assigns
 
     params =
       params
@@ -126,15 +126,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
     "#{f.version} - #{f.uuid}"
   end
 
-  defp inject_conditions_map(%{"version" => version, "tags" => tags} = params) do
+  defp inject_conditions_map(%{"tags" => tags, "version" => version} = params) do
     params
     |> Map.put("conditions", %{
-      "version" => version,
       "tags" =>
         tags
         |> tags_as_list()
         |> MapSet.new()
-        |> MapSet.to_list()
+        |> MapSet.to_list(),
+      "version" => version
     })
   end
 

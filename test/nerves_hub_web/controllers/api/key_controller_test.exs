@@ -25,7 +25,7 @@ defmodule NervesHubWeb.API.KeyControllerTest do
       name = "test"
       Fwup.gen_key_pair(name)
       pub_key = Fwup.get_public_key(name)
-      key = %{name: name, key: pub_key, org_id: org.id}
+      key = %{key: pub_key, name: name, org_id: org.id}
 
       conn = post(conn, Routes.api_key_path(conn, :create, org.name), key)
       assert json_response(conn, 201)["data"]
@@ -47,7 +47,7 @@ defmodule NervesHubWeb.API.KeyControllerTest do
       name = "test"
       Fwup.gen_key_pair(name)
       pub_key = Fwup.get_public_key(name)
-      key = %{name: name, key: pub_key, org_id: org.id}
+      key = %{key: pub_key, name: name, org_id: org.id}
 
       conn = post(conn, Routes.api_key_path(conn, :create, org.name), key)
       assert json_response(conn, 201)["data"]
@@ -61,7 +61,7 @@ defmodule NervesHubWeb.API.KeyControllerTest do
       name = "test"
       Fwup.gen_key_pair(name)
       pub_key = Fwup.get_public_key(name)
-      key = %{name: name, key: pub_key, org_id: org.id}
+      key = %{key: pub_key, name: name, org_id: org.id}
 
       assert_error_sent(401, fn ->
         post(conn, Routes.api_key_path(conn, :create, org.name), key)
@@ -73,7 +73,7 @@ defmodule NervesHubWeb.API.KeyControllerTest do
   describe "delete key" do
     setup([:create_key])
 
-    test "deletes chosen key", %{conn: conn, org: org, key: key} do
+    test "deletes chosen key", %{conn: conn, key: key, org: org} do
       conn = delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))
       assert response(conn, 204)
 
@@ -86,13 +86,13 @@ defmodule NervesHubWeb.API.KeyControllerTest do
   describe "delete key roles" do
     setup [:create_key]
 
-    test "ok: org manage", %{user2: user, conn2: conn, org: org, key: key} do
+    test "ok: org manage", %{conn2: conn, key: key, org: org, user2: user} do
       Accounts.add_org_user(org, user, %{role: :manage})
       conn = delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))
       assert response(conn, 204)
     end
 
-    test "error: org view", %{user2: user, conn2: conn, org: org, key: key} do
+    test "error: org view", %{conn2: conn, key: key, org: org, user2: user} do
       Accounts.add_org_user(org, user, %{role: :view})
 
       assert_error_sent(401, fn ->
@@ -102,7 +102,7 @@ defmodule NervesHubWeb.API.KeyControllerTest do
     end
   end
 
-  defp create_key(%{user: user, org: org}) do
+  defp create_key(%{org: org, user: user}) do
     key = Fixtures.org_key_fixture(org, user)
     {:ok, %{key: key}}
   end

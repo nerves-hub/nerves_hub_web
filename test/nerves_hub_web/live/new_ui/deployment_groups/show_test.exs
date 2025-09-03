@@ -10,15 +10,15 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
   setup context do
     %{
       conn: conn,
+      fixture: %{firmware: source_firmware},
       org: org,
       org_key: org_key,
       product: product,
-      fixture: %{firmware: source_firmware},
       tmp_dir: tmp_dir
     } = context
 
     target_firmware =
-      Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+      Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
 
     deployment_group =
       Fixtures.deployment_group_fixture(org, target_firmware, %{
@@ -88,8 +88,8 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
   test "delta updates show savings", %{
     conn: conn,
     device: device,
-    source_firmware_metadata: source_firmware_metadata,
     source_firmware: source_firmware,
+    source_firmware_metadata: source_firmware_metadata,
     target_firmware: target_firmware
   } do
     :ok = UpdateStats.log_update(device, source_firmware_metadata)
@@ -106,18 +106,18 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
 
   test "view stats of deployment's firmware versions", %{
     conn: conn,
+    deployment_group: deployment_group,
     device: device,
-    source_firmware_metadata: source_firmware_metadata,
-    target_firmware: target_firmware,
     org_key: org_key,
     product: product,
-    deployment_group: deployment_group,
+    source_firmware_metadata: source_firmware_metadata,
+    target_firmware: target_firmware,
     tmp_dir: tmp_dir
   } do
     :ok = UpdateStats.log_update(device, source_firmware_metadata)
 
     other_firmware =
-      Fixtures.firmware_fixture(org_key, product, %{version: "2.0.1", dir: tmp_dir})
+      Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.1"})
 
     {:ok, other_firmware_metadata} = Firmwares.metadata_from_firmware(other_firmware)
 
@@ -136,8 +136,8 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
           UpdateStats.log_update(
             %{
               device
-              | firmware_metadata: other_firmware_metadata,
-                deployment_group: deployment_group
+              | deployment_group: deployment_group,
+                firmware_metadata: other_firmware_metadata
             },
             source_firmware_metadata
           )

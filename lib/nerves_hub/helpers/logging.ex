@@ -35,18 +35,18 @@ defmodule NervesHub.Helpers.Logging do
   defp set_sentry_tags(%Device{} = device),
     do:
       Sentry.Context.set_tags_context(%{
-        device_identifier: device.identifier,
         device_id: device.id,
-        product_id: device.product_id,
-        org_id: device.org_id
+        device_identifier: device.identifier,
+        org_id: device.org_id,
+        product_id: device.product_id
       })
 
   defp set_sentry_tags(%DeploymentGroup{} = deployment_group),
     do:
       Sentry.Context.set_tags_context(%{
         deployment: deployment_group.name,
-        product_id: deployment_group.product_id,
-        org_id: deployment_group.org_id
+        org_id: deployment_group.org_id,
+        product_id: deployment_group.product_id
       })
 
   defp send_to_sentry(exception, extra) when is_exception(exception),

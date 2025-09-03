@@ -154,12 +154,12 @@ defmodule NervesHub.Devices do
     |> join(:inner, [d], dc in DeviceConnection, on: d.latest_connection_id == dc.id)
     |> where(product_id: ^product.id)
     |> select([d, dc], %{
+      connection_status: dc.status,
+      firmware_uuid: fragment("?->'uuid'", d.firmware_metadata),
       id: d.id,
       identifier: d.identifier,
-      connection_status: dc.status,
       latitude: fragment("?->'location'->'latitude'", dc.metadata),
-      longitude: fragment("?->'location'->'longitude'", dc.metadata),
-      firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)
+      longitude: fragment("?->'location'->'longitude'", dc.metadata)
     })
     |> Repo.exclude_deleted()
     |> Repo.all()
@@ -332,9 +332,9 @@ defmodule NervesHub.Devices do
          {:ok, product} <-
            Products.get_product(auth.product_id) do
       create_device(%{
+        identifier: identifier,
         org_id: product.org_id,
-        product_id: product.id,
-        identifier: identifier
+        product_id: product.id
       })
     end
   end
@@ -357,7 +357,7 @@ defmodule NervesHub.Devices do
 
   def set_as_provisioned!(device) do
     device
-    |> Device.changeset(%{status: :provisioned, first_seen_at: DateTime.utc_now()})
+    |> Device.changeset(%{first_seen_at: DateTime.utc_now(), status: :provisioned})
     |> Repo.update!()
   end
 
@@ -522,13 +522,13 @@ defmodule NervesHub.Devices do
     {not_before, not_after} = Certificate.get_validity(otp_cert)
 
     params = %{
-      serial: Certificate.get_serial_number(otp_cert),
       aki: Certificate.get_aki(otp_cert),
-      ski: Certificate.get_ski(otp_cert),
-      not_before: not_before,
-      not_after: not_after,
       der: X509.Certificate.to_der(otp_cert),
-      description: description
+      description: description,
+      not_after: not_after,
+      not_before: not_before,
+      serial: Certificate.get_serial_number(otp_cert),
+      ski: Certificate.get_ski(otp_cert)
     }
 
     create_ca_certificate(org, params)
@@ -744,11 +744,11 @@ defmodule NervesHub.Devices do
         {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
 
         %UpdatePayload{
-          update_available: true,
-          firmware_url: url,
-          firmware_meta: meta,
           deployment_group: deployment_group,
-          deployment_id: deployment_group.id
+          deployment_id: deployment_group.id,
+          firmware_meta: meta,
+          firmware_url: url,
+          update_available: true
         }
 
       {:error, :deployment_group_not_active, _device} ->
@@ -795,8 +795,8 @@ defmodule NervesHub.Devices do
   Returns true if Version.match? and all deployment tags are in device tags.
   """
   def matches_deployment_group?(
-        %Device{tags: tags, firmware_metadata: %FirmwareMetadata{version: version}},
-        %DeploymentGroup{conditions: %{"version" => requirement, "tags" => dep_tags}}
+        %Device{firmware_metadata: %FirmwareMetadata{version: version}, tags: tags},
+        %DeploymentGroup{conditions: %{"tags" => dep_tags, "version" => requirement}}
       ) do
     if version_match?(version, requirement) and tags_match?(tags, dep_tags) do
       true
@@ -910,7 +910,7 @@ defmodule NervesHub.Devices do
 
     Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}")
 
-    update_device(device, %{updates_blocked_until: blocked_until, update_attempts: []})
+    update_device(device, %{update_attempts: [], updates_blocked_until: blocked_until})
   end
 
   def update_attempted(device, now \\ DateTime.utc_now()) do
@@ -940,8 +940,8 @@ defmodule NervesHub.Devices do
           {:ok, Device.t()} | {:error, Changeset.t()}
   def firmware_update_successful(device, previous_metadata) do
     :telemetry.execute([:nerves_hub, :devices, :update, :successful], %{count: 1}, %{
-      identifier: device.identifier,
-      firmware_uuid: device.firmware_metadata.uuid
+      firmware_uuid: device.firmware_metadata.uuid,
+      identifier: device.identifier
     })
 
     DeviceTemplates.audit_firmware_updated(device)
@@ -983,9 +983,9 @@ defmodule NervesHub.Devices do
     firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid)
 
     payload = %{
-      updates_enabled: device.updates_enabled,
+      firmware_uuid: firmware_uuid,
       updates_blocked_until: device.updates_blocked_until,
-      firmware_uuid: firmware_uuid
+      updates_enabled: device.updates_enabled
     }
 
     _ =
@@ -1063,9 +1063,9 @@ defmodule NervesHub.Devices do
     product = Repo.preload(product, :org)
 
     attrs = %{
+      deployment_id: nil,
       org_id: product.org_id,
-      product_id: product.id,
-      deployment_id: nil
+      product_id: product.id
     }
 
     _ = maybe_copy_firmware_keys(device, product.org)
@@ -1146,7 +1146,7 @@ defmodule NervesHub.Devices do
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def enable_updates(%Device{} = device, user) do
     description = "User #{user.name} enabled updates for device #{device.identifier}"
-    params = %{updates_enabled: true, update_attempts: []}
+    params = %{update_attempts: [], updates_enabled: true}
 
     case update_device_with_audit(device, params, user, description) do
       {:ok, device} = result ->
@@ -1187,7 +1187,7 @@ defmodule NervesHub.Devices do
 
   def clear_penalty_box(%Device{} = device, user) do
     description = "User #{user.name} removed device #{device.identifier} from the penalty box"
-    params = %{updates_blocked_until: nil, update_attempts: [], updates_enabled: true}
+    params = %{update_attempts: [], updates_blocked_until: nil, updates_enabled: true}
     update_device_with_audit(device, params, user, description)
   end
 
@@ -1217,7 +1217,7 @@ defmodule NervesHub.Devices do
           [non_neg_integer()],
           DeploymentGroup.t() | non_neg_integer()
         ) ::
-          {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
+          {:ok, %{ignored: non_neg_integer(), updated: non_neg_integer()}}
   def move_many_to_deployment_group(device_ids, deployment_id) when is_number(deployment_id) do
     deployment_group =
       DeploymentGroup |> where(id: ^deployment_id) |> preload(:firmware) |> Repo.one()
@@ -1238,7 +1238,7 @@ defmodule NervesHub.Devices do
 
     :ok = Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
 
-    {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
+    {:ok, %{ignored: length(device_ids) - devices_updated_count, updated: devices_updated_count}}
   end
 
   @doc """
@@ -1255,7 +1255,7 @@ defmodule NervesHub.Devices do
   > {:ok, %{updated: 3, ignored: 0}}
   """
   @spec remove_unmatched_devices_from_deployment_group([non_neg_integer()], DeploymentGroup.t()) ::
-          {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
+          {:ok, %{ignored: non_neg_integer(), updated: non_neg_integer()}}
   def remove_unmatched_devices_from_deployment_group(matched_device_ids, deployment_group) do
     {devices_updated_count, _} =
       Device
@@ -1269,60 +1269,60 @@ defmodule NervesHub.Devices do
 
     {:ok,
      %{
-       updated: devices_updated_count,
-       ignored: length(matched_device_ids) - devices_updated_count
+       ignored: length(matched_device_ids) - devices_updated_count,
+       updated: devices_updated_count
      }}
   end
 
   @spec move_many([Device.t()], Product.t(), User.t()) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
+          error: [{Ecto.Multi.name(), any()}],
+          ok: [Device.t()]
         }
   def move_many(devices, product, user) do
     product = Repo.preload(product, :org)
 
     Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :move, [&1, product, user]))
     |> Task.await_many(20_000)
-    |> Enum.reduce(%{ok: [], error: []}, fn
+    |> Enum.reduce(%{error: [], ok: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
       {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
     end)
   end
 
   @spec disable_updates([Device.t()], User.t()) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
+          error: [{Ecto.Multi.name(), any()}],
+          ok: [Device.t()]
         }
   def disable_updates_for_devices(devices, user) do
     Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :disable_updates, [&1, user]))
     |> Task.await_many(20_000)
-    |> Enum.reduce(%{ok: [], error: []}, fn
+    |> Enum.reduce(%{error: [], ok: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
       {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
     end)
   end
 
   @spec tag_devices([Device.t()], User.t(), list(String.t())) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
+          error: [{Ecto.Multi.name(), any()}],
+          ok: [Device.t()]
         }
   def tag_devices(devices, user, tags) do
     Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :tag_device, [&1, user, tags]))
     |> Task.await_many(20_000)
-    |> Enum.reduce(%{ok: [], error: []}, fn
+    |> Enum.reduce(%{error: [], ok: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
       {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
     end)
   end
 
   @spec enable_updates_for_devices([Device.t()], User.t()) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
+          error: [{Ecto.Multi.name(), any()}],
+          ok: [Device.t()]
         }
   def enable_updates_for_devices(devices, user) do
     Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :enable_updates, [&1, user]))
     |> Task.await_many(20_000)
-    |> Enum.reduce(%{ok: [], error: []}, fn
+    |> Enum.reduce(%{error: [], ok: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
       {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
     end)
@@ -1331,7 +1331,7 @@ defmodule NervesHub.Devices do
   def clear_penalty_box_for_devices(devices, user) do
     Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :clear_penalty_box, [&1, user]))
     |> Task.await_many(20_000)
-    |> Enum.reduce(%{ok: [], error: []}, fn
+    |> Enum.reduce(%{error: [], ok: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
       {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
     end)
@@ -1451,7 +1451,7 @@ defmodule NervesHub.Devices do
       on: [org_key_id: k.id],
       where: f.uuid == ^uuid and k.org_id == ^source,
       where: k.key not in subquery(existing_target_keys),
-      select: %{name: k.name, key: k.key, org_id: type(^target, :integer)}
+      select: %{key: k.key, name: k.name, org_id: type(^target, :integer)}
     )
     |> Repo.one()
     |> case do
@@ -1498,11 +1498,11 @@ defmodule NervesHub.Devices do
       |> DateTime.truncate(:second)
 
     %{
-      device_id: device_id,
       deployment_id: deployment_group.id,
+      device_id: device_id,
+      expires_at: expires_at,
       firmware_id: deployment_group.firmware_id,
-      firmware_uuid: deployment_group.firmware.uuid,
-      expires_at: expires_at
+      firmware_uuid: deployment_group.firmware.uuid
     }
     |> InflightUpdate.create_changeset()
     |> Repo.insert()
@@ -1641,7 +1641,7 @@ defmodule NervesHub.Devices do
   @spec pin_device(non_neg_integer(), non_neg_integer()) ::
           {:ok, PinnedDevice.t()} | {:error, Ecto.Changeset.t()}
   def pin_device(user_id, device_id) do
-    %{user_id: user_id, device_id: device_id}
+    %{device_id: device_id, user_id: user_id}
     |> PinnedDevice.create()
     |> Repo.insert()
   end

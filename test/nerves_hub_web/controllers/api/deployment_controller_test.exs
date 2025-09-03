@@ -18,16 +18,16 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
       firmware = Fixtures.firmware_fixture(org_key, context.product)
 
       params = %{
-        name: "test",
-        org_id: context.org.id,
+        conditions: %{
+          tags: ["test"],
+          version: ""
+        },
         firmware: firmware.uuid,
         firmware_id: firmware.id,
-        product_id: firmware.product_id,
-        conditions: %{
-          version: "",
-          tags: ["test"]
-        },
-        is_active: false
+        is_active: false,
+        name: "test",
+        org_id: context.org.id,
+        product_id: firmware.product_id
       }
 
       [params: params, firmware: firmware, org_key: org_key]
@@ -197,9 +197,9 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
 
     test "deletes chosen deployment group", %{
       conn: conn,
+      deployment_group: deployment_group,
       org: org,
-      product: product,
-      deployment_group: deployment_group
+      product: product
     } do
       conn =
         delete(
@@ -231,7 +231,7 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
     end
   end
 
-  defp create_deployment_group(%{user: user, org: org, product: product}) do
+  defp create_deployment_group(%{org: org, product: product, user: user}) do
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment_group = Fixtures.deployment_group_fixture(org, firmware)

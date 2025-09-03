@@ -91,8 +91,8 @@ defmodule NervesHub.Devices.Alarms do
   defp latest_row_query() do
     DeviceHealth
     |> select([dh], %{
-      device_id: dh.device_id,
       data: dh.data,
+      device_id: dh.device_id,
       inserted_at: dh.inserted_at,
       rn: row_number() |> over(partition_by: dh.device_id, order_by: [desc: dh.inserted_at])
     })

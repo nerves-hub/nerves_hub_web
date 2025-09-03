@@ -12,46 +12,46 @@ defmodule NervesHubWeb.API.Schemas.UserResponse do
       description: "A registered user",
       type: :object,
       properties: %{
-        id: %Schema{type: :integer, description: "User ID"},
-        name: %Schema{
-          type: :string,
-          description: "Users name",
-          pattern: ~r/[a-zA-Z][a-zA-Z0-9_]+/
-        },
-        email: %Schema{type: :string, description: "Email address", format: :email},
+        email: %Schema{description: "Email address", format: :email, type: :string},
+        id: %Schema{description: "User ID", type: :integer},
         inserted_at: %Schema{
-          type: :string,
           description: "Creation timestamp",
-          format: :"date-time"
+          format: :"date-time",
+          type: :string
         },
-        updated_at: %Schema{type: :string, description: "Update timestamp", format: :"date-time"}
+        name: %Schema{
+          description: "Users name",
+          pattern: ~r/[a-zA-Z][a-zA-Z0-9_]+/,
+          type: :string
+        },
+        updated_at: %Schema{description: "Update timestamp", format: :"date-time", type: :string}
       },
       required: [:name, :email],
       example: %{
-        "id" => 123,
-        "name" => "Jane User",
         "email" => "jane@iot-company.com",
+        "id" => 123,
         "inserted_at" => "2017-09-12T12:34:55Z",
+        "name" => "Jane User",
         "updated_at" => "2017-09-13T10:11:12Z"
       }
     })
   end
 
   OpenApiSpex.schema(%{
-    title: "UserResponse",
     description: "Response schema for single user",
-    type: :object,
+    example: %{
+      "data" => %{
+        "email" => "jane@iot-company.com",
+        "id" => 123,
+        "inserted_at" => "2017-09-12T12:34:55Z",
+        "name" => "Jane User",
+        "updated_at" => "2017-09-13T10:11:12Z"
+      }
+    },
     properties: %{
       data: User
     },
-    example: %{
-      "data" => %{
-        "id" => 123,
-        "name" => "Jane User",
-        "email" => "jane@iot-company.com",
-        "inserted_at" => "2017-09-12T12:34:55Z",
-        "updated_at" => "2017-09-13T10:11:12Z"
-      }
-    }
+    title: "UserResponse",
+    type: :object
   })
 end

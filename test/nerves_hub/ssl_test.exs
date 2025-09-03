@@ -79,9 +79,9 @@ defmodule NervesHub.SSLTest do
       # Enable JITP
       jitp =
         %Devices.CACertificate.JITP{
+          description: "jitp",
           product_id: product.id,
-          tags: ["hello", "jitp"],
-          description: "jitp"
+          tags: ["hello", "jitp"]
         }
         |> NervesHub.Repo.insert!()
 
@@ -294,9 +294,9 @@ defmodule NervesHub.SSLTest do
       # Add JITP profile to CA db cert
       jitp =
         %Devices.CACertificate.JITP{
+          description: "jitp",
           product_id: context.product.id,
-          tags: ["hello", "jitp"],
-          description: "jitp"
+          tags: ["hello", "jitp"]
         }
         |> NervesHub.Repo.insert!()
 
@@ -347,8 +347,8 @@ defmodule NervesHub.SSLTest do
 
     %{
       ca_cert: ca_fix.cert,
-      ca_key: ca_fix.key,
       ca_db_cert: ca_fix.db_cert,
+      ca_key: ca_fix.key,
       device: device,
       firmware: firmware,
       org: org,

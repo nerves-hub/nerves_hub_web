@@ -117,7 +117,7 @@ defmodule NervesHubWeb.ConsoleChannel do
     {:noreply, socket}
   end
 
-  def handle_info(%Broadcast{payload: payload, event: event}, socket) do
+  def handle_info(%Broadcast{event: event, payload: payload}, socket) do
     push(socket, event, payload)
     {:noreply, socket}
   end

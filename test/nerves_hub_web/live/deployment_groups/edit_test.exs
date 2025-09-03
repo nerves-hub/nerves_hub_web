@@ -9,10 +9,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
 
   test "update the chosen resource, and adds an audit log", %{
     conn: conn,
-    user: user,
     org: org,
     org_key: org_key,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -48,10 +48,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
 
   test "failed update shows errors", %{
     conn: conn,
-    user: user,
     org: org,
     org_key: org_key,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -69,10 +69,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
 
   test "can clear tags and version", %{
     conn: conn,
-    user: user,
     org: org,
     org_key: org_key,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -88,8 +88,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}"))
 
     assert Repo.reload(deployment_group) |> Map.get(:conditions) == %{
-             "version" => "",
-             "tags" => []
+             "tags" => [],
+             "version" => ""
            }
   end
 end

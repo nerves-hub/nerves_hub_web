@@ -14,12 +14,13 @@ defmodule NervesHub.Accounts.OrgKey do
   @optional_params []
 
   schema "org_keys" do
-    belongs_to(:org, Org)
-    belongs_to(:created_by, User)
-    has_many(:firmwares, Firmware)
-
-    field(:name, :string)
     field(:key, :string)
+    field(:name, :string)
+
+    belongs_to(:created_by, User)
+    belongs_to(:org, Org)
+
+    has_many(:firmwares, Firmware)
 
     timestamps()
   end

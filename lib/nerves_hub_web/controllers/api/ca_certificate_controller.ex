@@ -89,14 +89,14 @@ defmodule NervesHubWeb.API.CACertificateController do
          ski = Certificate.get_ski(cert),
          {not_before, not_after} <- Certificate.get_validity(cert),
          params = %{
-           serial: serial,
            aki: aki,
-           ski: ski,
-           not_before: not_before,
-           not_after: not_after,
            der: X509.Certificate.to_der(cert),
            description: Map.get(params, "description"),
-           jitp: params["jitp"]
+           jitp: params["jitp"],
+           not_after: not_after,
+           not_before: not_before,
+           serial: serial,
+           ski: ski
          },
          {:ok, ca_certificate} <- Devices.create_ca_certificate(org, params) do
       conn

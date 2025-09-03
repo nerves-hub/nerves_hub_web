@@ -19,23 +19,22 @@ defmodule NervesHub.Products.Product do
 
   @derive {Phoenix.Param, key: :name}
   schema "products" do
-    has_many(:devices, Device, where: [deleted_at: nil])
-    has_many(:firmwares, Firmware)
-    has_many(:jitp, CACertificate.JITP)
-    has_many(:archives, Archive)
-    has_many(:scripts, Script)
-    has_many(:deployment_groups, DeploymentGroup)
-    has_many(:update_stats, UpdateStat, on_delete: :nilify_all)
-
-    has_many(:shared_secret_auths, SharedSecretAuth, preload_order: [desc: :deactivated_at, asc: :id])
+    field(:deleted_at, :utc_datetime)
+    field(:device_count, :integer, virtual: true)
+    field(:name, :string)
 
     belongs_to(:org, Org, where: [deleted_at: nil])
 
-    field(:name, :string)
-    field(:deleted_at, :utc_datetime)
-    embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
+    has_many(:archives, Archive)
+    has_many(:deployment_groups, DeploymentGroup)
+    has_many(:devices, Device, where: [deleted_at: nil])
+    has_many(:firmwares, Firmware)
+    has_many(:jitp, CACertificate.JITP)
+    has_many(:scripts, Script)
+    has_many(:shared_secret_auths, SharedSecretAuth, preload_order: [desc: :deactivated_at, asc: :id])
+    has_many(:update_stats, UpdateStat, on_delete: :nilify_all)
 
-    field(:device_count, :integer, virtual: true)
+    embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
 
     timestamps()
   end

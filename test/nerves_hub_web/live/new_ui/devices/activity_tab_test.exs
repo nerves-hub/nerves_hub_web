@@ -9,9 +9,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
 
   test "no audit log history exists for the device", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     conn
     |> visit(~p"/org/#{org}/#{product}/devices/#{device}/activity")
@@ -20,9 +20,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
 
   test "audit log history exists for the device", %{
     conn: conn,
+    device: device,
     org: org,
     product: product,
-    device: device,
     user: user
   } do
     # Add audit log item for the device
@@ -36,9 +36,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
   describe "pagination" do
     test "pagination works with URL parameters", %{
       conn: conn,
+      device: device,
       org: org,
       product: product,
-      device: device,
       user: user
     } do
       # Create multiple audit log entries for pagination testing (30 entries)
@@ -69,9 +69,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
 
     test "pagination events work correctly", %{
       conn: conn,
+      device: device,
       org: org,
       product: product,
-      device: device,
       user: user
     } do
       # Create enough audit logs for pagination
@@ -95,9 +95,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
 
     test "page size selection works correctly", %{
       conn: conn,
+      device: device,
       org: org,
       product: product,
-      device: device,
       user: user
     } do
       # Create 60 audit logs for testing page size changes

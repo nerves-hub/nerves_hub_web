@@ -61,9 +61,9 @@ defmodule NervesHub.AccountsTest do
 
   test "user cannot have two of the same org" do
     params = %{
+      email: "testy@smiths.com",
       name: "Testy Smith  ",
       org_name: "smiths.com",
-      email: "testy@smiths.com",
       password: "test_password"
     }
 
@@ -77,8 +77,8 @@ defmodule NervesHub.AccountsTest do
 
   test "add user and remove user from an org" do
     user_params = %{
-      name: "Testy Smith",
       email: "testy@smiths.com",
+      name: "Testy Smith",
       password: "test_password"
     }
 
@@ -129,9 +129,9 @@ defmodule NervesHub.AccountsTest do
   describe "authenticate" do
     setup do
       user_params = %{
-        orgs: [%{name: "test org 1"}],
-        name: "Testy Smith",
         email: "testy@smiths.com",
+        name: "Testy Smith",
+        orgs: [%{name: "test org 1"}],
         password: "test_password"
       }
 
@@ -162,9 +162,9 @@ defmodule NervesHub.AccountsTest do
     expected_email = "ThatsTesty@smiths.com"
 
     params = %{
+      email: expected_email,
       name: "Testy Smith",
       org_name: "smiths.com",
-      email: expected_email,
       password: "test_password"
     }
 
@@ -181,18 +181,18 @@ defmodule NervesHub.AccountsTest do
 
     {:ok, _} =
       Accounts.create_org_key(%{
-        name: "org's key",
-        org_id: org.id,
+        created_by_id: user.id,
         key: "foo",
-        created_by_id: user.id
+        name: "org's key",
+        org_id: org.id
       })
 
     assert {:error, %Ecto.Changeset{errors: [name: {"has already been taken", [_ | _]}]}} =
              Accounts.create_org_key(%{
-               name: "org's key",
-               org_id: org.id,
+               created_by_id: user.id,
                key: "foobar",
-               created_by_id: user.id
+               name: "org's key",
+               org_id: org.id
              })
   end
 
@@ -201,14 +201,14 @@ defmodule NervesHub.AccountsTest do
 
     {:ok, _} =
       Accounts.create_org_key(%{
-        name: "org's key",
-        org_id: org.id,
+        created_by_id: user.id,
         key: "foo",
-        created_by_id: user.id
+        name: "org's key",
+        org_id: org.id
       })
 
     {:error, %Ecto.Changeset{}} =
-      Accounts.create_org_key(%{name: "org's second key", org_id: org.id, key: "foo"})
+      Accounts.create_org_key(%{key: "foo", name: "org's second key", org_id: org.id})
   end
 
   test "cannot change org_id of a org_key once created", %{user: user} do
@@ -225,7 +225,7 @@ defmodule NervesHub.AccountsTest do
   describe "org_metrics" do
     setup [:setup_org_metric]
 
-    test "create", %{org: org, firmware: firmware} do
+    test "create", %{firmware: firmware, org: org} do
       assert {:ok, org_metric} = Accounts.create_org_metric(org.id, DateTime.utc_now())
       assert org_metric.devices == 1
       assert org_metric.bytes_stored == firmware.size
@@ -244,8 +244,8 @@ defmodule NervesHub.AccountsTest do
 
     assert {:ok, %OrgUser{}} =
              Accounts.create_user_from_invite(invite, org, %{
-               "password" => "password123456",
-               "name" => "Invited"
+               "name" => "Invited",
+               "password" => "password123456"
              })
   end
 
@@ -356,10 +356,10 @@ defmodule NervesHub.AccountsTest do
   def create_firmware_transfer(org, firmware) do
     {:ok, firmware_transfer} =
       NervesHub.Firmwares.create_firmware_transfer(%{
-        org_id: org.id,
-        firmware_uuid: firmware.uuid,
         bytes_sent: firmware.size,
         bytes_total: firmware.size,
+        firmware_uuid: firmware.uuid,
+        org_id: org.id,
         remote_ip: "127.0.0.1",
         timestamp: DateTime.utc_now()
       })

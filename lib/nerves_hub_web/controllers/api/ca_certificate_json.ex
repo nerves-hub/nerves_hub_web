@@ -13,19 +13,19 @@ defmodule NervesHubWeb.API.CACertificateJSON do
 
   def ca_certificate(ca_certificate) do
     %{
-      serial: ca_certificate.serial,
-      not_before: ca_certificate.not_before,
-      not_after: ca_certificate.not_after,
       description: ca_certificate.description,
-      jitp: maybe_add_jitp(ca_certificate.jitp)
+      jitp: maybe_add_jitp(ca_certificate.jitp),
+      not_after: ca_certificate.not_after,
+      not_before: ca_certificate.not_before,
+      serial: ca_certificate.serial
     }
   end
 
   defp maybe_add_jitp(%JITP{} = jitp) do
     %{
+      description: jitp.description,
       product_name: jitp.product.name,
-      tags: jitp.tags,
-      description: jitp.description
+      tags: jitp.tags
     }
   end
 

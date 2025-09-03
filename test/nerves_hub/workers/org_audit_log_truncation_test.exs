@@ -11,7 +11,7 @@ defmodule NervesHub.Workers.OrgAuditLogTruncationTest do
 
     Fixtures.add_audit_logs(10, org.id, 10)
 
-    assert :ok = perform_job(OrgAuditLogTruncation, %{"org_id" => org.id, "days_to_keep" => 3})
+    assert :ok = perform_job(OrgAuditLogTruncation, %{"days_to_keep" => 3, "org_id" => org.id})
 
     assert Repo.aggregate(AuditLog, :count) == 3
   end

@@ -5,7 +5,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
   alias NervesHub.Support.Fwup
 
   describe "index" do
-    test "shows 'no firmware yet' message", %{conn: conn, user: user, org: org} do
+    test "shows 'no firmware yet' message", %{conn: conn, org: org, user: user} do
       product = Fixtures.product_fixture(user, org)
 
       conn
@@ -13,7 +13,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("h3", text: "#{product.name} doesn’t have any firmware yet")
     end
 
-    test "lists all firmwares", %{conn: conn, user: user, org: org} do
+    test "lists all firmwares", %{conn: conn, org: org, user: user} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
@@ -24,7 +24,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("a", text: firmware.uuid)
     end
 
-    test "delete firmware from list", %{conn: conn, user: user, org: org} do
+    test "delete firmware from list", %{conn: conn, org: org, user: user} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
@@ -40,8 +40,8 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
     test "error deleting firmware when it has associated deployments", %{
       conn: conn,
-      user: user,
-      org: org
+      org: org,
+      user: user
     } do
       product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
       org_key = Fixtures.org_key_fixture(org, user)
@@ -61,7 +61,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
   end
 
   describe "show" do
-    test "shows the firmware information", %{conn: conn, user: user, org: org} do
+    test "shows the firmware information", %{conn: conn, org: org, user: user} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
@@ -71,7 +71,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("h1", text: "Firmware #{firmware.version}")
     end
 
-    test "delete firmware", %{conn: conn, user: user, org: org} do
+    test "delete firmware", %{conn: conn, org: org, user: user} do
       product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
       org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
@@ -87,8 +87,8 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
     test "error deleting firmware when it has associated deployments", %{
       conn: conn,
-      user: user,
-      org: org
+      org: org,
+      user: user
     } do
       product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
       org_key = Fixtures.org_key_fixture(org, user)
@@ -109,17 +109,17 @@ defmodule NervesHubWeb.Live.FirmwareTest do
   describe "upload firmware" do
     test "redirects after successful upload", %{
       conn: conn,
-      user: user,
       org: org,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
       {:ok, signed_firmware_path} =
         Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{
-          product: product.name,
-          dir: tmp_dir
+          dir: tmp_dir,
+          product: product.name
         })
 
       conn
@@ -128,8 +128,8 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> unwrap(fn view ->
         file_input(view, "form", :firmware, [
           %{
-            name: "signed.fw",
-            content: File.read!(signed_firmware_path)
+            content: File.read!(signed_firmware_path),
+            name: "signed.fw"
           }
         ])
         |> render_upload("signed.fw")
@@ -143,17 +143,17 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
     test "error if corrupt firmware uploaded", %{
       conn: conn,
-      user: user,
       org: org,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
       {:ok, signed_firmware_path} =
         Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{
-          product: product.name,
-          dir: tmp_dir
+          dir: tmp_dir,
+          product: product.name
         })
 
       {:ok, corrupt_firmware_path} = Fwup.corrupt_firmware_file(signed_firmware_path, tmp_dir)
@@ -164,8 +164,8 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> unwrap(fn view ->
         file_input(view, "form", :firmware, [
           %{
-            name: "signed.fw",
-            content: File.read!(corrupt_firmware_path)
+            content: File.read!(corrupt_firmware_path),
+            name: "signed.fw"
           }
         ])
         |> render_upload("signed.fw")
@@ -178,9 +178,9 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
     test "error if org keys do not match firmware", %{
       conn: conn,
-      user: user,
       org: org,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
 
@@ -188,8 +188,8 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
       {:ok, signed_firmware_path} =
         Fwup.create_signed_firmware("wrong", "unsigned", "signed", %{
-          product: product.name,
-          dir: tmp_dir
+          dir: tmp_dir,
+          product: product.name
         })
 
       conn
@@ -198,8 +198,8 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> unwrap(fn view ->
         file_input(view, "form", :firmware, [
           %{
-            name: "signed.fw",
-            content: File.read!(signed_firmware_path)
+            content: File.read!(signed_firmware_path),
+            name: "signed.fw"
           }
         ])
         |> render_upload("signed.fw")
@@ -212,17 +212,17 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
     test "error if meta-product does not match product name", %{
       conn: conn,
-      user: user,
       org: org,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
       {:ok, signed_firmware_path} =
         Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{
-          product: "AnotherProduct",
-          dir: tmp_dir
+          dir: tmp_dir,
+          product: "AnotherProduct"
         })
 
       conn
@@ -231,8 +231,8 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> unwrap(fn view ->
         file_input(view, "form", :firmware, [
           %{
-            name: "signed.fw",
-            content: File.read!(signed_firmware_path)
+            content: File.read!(signed_firmware_path),
+            name: "signed.fw"
           }
         ])
         |> render_upload("signed.fw")

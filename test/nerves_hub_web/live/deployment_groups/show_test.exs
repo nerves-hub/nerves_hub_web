@@ -11,10 +11,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
   test "shows the deployment group", %{
     conn: conn,
-    user: user,
     org: org,
     org_key: org_key,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -36,11 +36,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
   test "shows the deployment group with device count", %{
     conn: conn,
-    user: user,
+    device: device,
     org: org,
     org_key: org_key,
-    device: device,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -67,10 +67,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
   test "you can delete a deployment group with no devices attached to it", %{
     conn: conn,
-    user: user,
     org: org,
     org_key: org_key,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -93,10 +93,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
   test "you can delete a deployment group with devices attached to it", %{
     conn: conn,
-    user: user,
     org: org,
     org_key: org_key,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -126,10 +126,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
   test "you can toggle the deployment group being on or off", %{
     conn: conn,
-    user: user,
     org: org,
     org_key: org_key,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -170,10 +170,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
   test "displays text when every device in deployment group matches conditions", %{
     conn: conn,
-    user: user,
     org: org,
     org_key: org_key,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -199,10 +199,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
   test "removing device from deployment that doesn't match conditions", %{
     conn: conn,
-    user: user,
     org: org,
     org_key: org_key,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -237,10 +237,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
 
   test "adding devices from outside deployment that matches conditions", %{
     conn: conn,
-    user: user,
     org: org,
     org_key: org_key,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})

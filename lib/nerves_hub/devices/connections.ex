@@ -41,10 +41,10 @@ defmodule NervesHub.Devices.Connections do
 
     changeset =
       DeviceConnection.create_changeset(%{
-        product_id: product_id,
         device_id: device_id,
         established_at: now,
         last_seen_at: now,
+        product_id: product_id,
         status: :connecting
       })
 

@@ -226,9 +226,9 @@ defmodule NervesHubWeb.Components.Navigation do
 
     if Enum.any?(links) do
       assigns = %{
+        links: links,
         org: assigns.org,
-        product: assigns.product,
-        links: links
+        product: assigns.product
       }
 
       ~H"""
@@ -281,32 +281,32 @@ defmodule NervesHubWeb.Components.Navigation do
   def sidebar_org(assigns, path) do
     ([
        %{
-         title: "Products",
          active: "",
-         href: ~p"/org/#{assigns.org}"
+         href: ~p"/org/#{assigns.org}",
+         title: "Products"
        }
      ] ++
        if assigns.org_user.role in User.role_or_higher(:manage) do
          [
            %{
-             title: "Signing Keys",
              active: "",
-             href: ~p"/org/#{assigns.org}/settings/keys"
+             href: ~p"/org/#{assigns.org}/settings/keys",
+             title: "Signing Keys"
            },
            %{
-             title: "Users",
              active: "",
-             href: ~p"/org/#{assigns.org}/settings/users"
+             href: ~p"/org/#{assigns.org}/settings/users",
+             title: "Users"
            },
            %{
-             title: "Certificates",
              active: "",
-             href: ~p"/org/#{assigns.org}/settings/certificates"
+             href: ~p"/org/#{assigns.org}/settings/certificates",
+             title: "Certificates"
            },
            %{
-             title: "Settings",
              active: "",
-             href: ~p"/org/#{assigns.org}/settings"
+             href: ~p"/org/#{assigns.org}/settings",
+             title: "Settings"
            }
          ]
        else
@@ -318,41 +318,41 @@ defmodule NervesHubWeb.Components.Navigation do
   def sidebar_product(assigns, path, tab_hint) do
     [
       %{
-        title: "Dashboard",
         active: "",
+        deactivated?: Application.get_env(:nerves_hub, :dashboard_enabled) != true,
         href: ~p"/org/#{assigns.org}/#{assigns.product}/dashboard",
-        deactivated?: Application.get_env(:nerves_hub, :dashboard_enabled) != true
+        title: "Dashboard"
       },
       %{
-        title: "Devices",
         active: "",
         href: ~p"/org/#{assigns.org}/#{assigns.product}/devices",
-        tab: :devices
+        tab: :devices,
+        title: "Devices"
       },
       %{
-        title: "Firmware",
         active: "",
-        href: ~p"/org/#{assigns.org}/#{assigns.product}/firmware"
+        href: ~p"/org/#{assigns.org}/#{assigns.product}/firmware",
+        title: "Firmware"
       },
       %{
-        title: "Archives",
         active: "",
-        href: ~p"/org/#{assigns.org}/#{assigns.product}/archives"
+        href: ~p"/org/#{assigns.org}/#{assigns.product}/archives",
+        title: "Archives"
       },
       %{
-        title: "Deployments",
         active: "",
-        href: ~p"/org/#{assigns.org}/#{assigns.product}/deployment_groups"
+        href: ~p"/org/#{assigns.org}/#{assigns.product}/deployment_groups",
+        title: "Deployments"
       },
       %{
-        title: "Scripts",
         active: "",
-        href: ~p"/org/#{assigns.org}/#{assigns.product}/scripts"
+        href: ~p"/org/#{assigns.org}/#{assigns.product}/scripts",
+        title: "Scripts"
       },
       %{
-        title: "Settings",
         active: "",
-        href: ~p"/org/#{assigns.org}/#{assigns.product}/settings"
+        href: ~p"/org/#{assigns.org}/#{assigns.product}/settings",
+        title: "Settings"
       }
     ]
     |> Enum.reject(& &1[:deactivated?])
@@ -362,14 +362,14 @@ defmodule NervesHubWeb.Components.Navigation do
   def sidebar_account(_assigns, path) do
     [
       %{
-        title: "Personal Info",
         active: "",
-        href: ~p"/account"
+        href: ~p"/account",
+        title: "Personal Info"
       },
       %{
-        title: "Access Tokens",
         active: "",
-        href: ~p"/account/tokens"
+        href: ~p"/account/tokens",
+        title: "Access Tokens"
       }
     ]
     |> sidebar_active(path)

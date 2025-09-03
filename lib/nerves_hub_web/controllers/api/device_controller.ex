@@ -34,8 +34,8 @@ defmodule NervesHubWeb.API.DeviceController do
 
   def index(%{assigns: %{org: org, product: product}} = conn, params) do
     opts = %{
-      pagination: Map.get(params, "pagination", %{}),
-      filters: Map.get(params, "filters", %{})
+      filters: Map.get(params, "filters", %{}),
+      pagination: Map.get(params, "pagination", %{})
     }
 
     {devices, page} =
@@ -72,7 +72,7 @@ defmodule NervesHubWeb.API.DeviceController do
     render(conn, :show)
   end
 
-  def delete(%{assigns: %{org: _org, device: device}} = conn, _params) do
+  def delete(%{assigns: %{device: device, org: _org}} = conn, _params) do
     {:ok, _device} = Devices.delete_device(device)
 
     send_resp(conn, :no_content, "")
@@ -106,7 +106,7 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  def reboot(%{assigns: %{user: user, device: device}} = conn, _params) do
+  def reboot(%{assigns: %{device: device, user: user}} = conn, _params) do
     DeviceEvents.reboot(device, user)
 
     send_resp(conn, :no_content, "")
@@ -144,9 +144,9 @@ defmodule NervesHubWeb.API.DeviceController do
     DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
     payload = %UpdatePayload{
-      update_available: true,
+      firmware_meta: meta,
       firmware_url: url,
-      firmware_meta: meta
+      update_available: true
     }
 
     _ =

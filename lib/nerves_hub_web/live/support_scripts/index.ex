@@ -25,8 +25,8 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
     total_pages: :integer
   }
 
-  @default_sorting %{sort_direction: "asc", sort: "name"}
-  @sort_types %{sort_direction: :string, sort: :string}
+  @default_sorting %{sort: "name", sort_direction: "asc"}
+  @sort_types %{sort: :string, sort_direction: :string}
 
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
 
   @impl Phoenix.LiveView
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    params = %{"page_size" => page_size, "page_number" => 1}
+    params = %{"page_number" => 1, "page_size" => page_size}
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -80,7 +80,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
 
     # switch sort direction for column because
     sort_direction = if sort_direction == "desc", do: "asc", else: "desc"
-    params = %{sort_direction: sort_direction, sort: value}
+    params = %{sort: value, sort_direction: sort_direction}
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -90,7 +90,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   # User has clicked a new column to sort
   @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, socket) do
-    new_params = %{sort_direction: "asc", sort: value}
+    new_params = %{sort: value, sort_direction: "asc"}
 
     socket
     |> push_patch(to: self_path(socket, new_params))
@@ -116,10 +116,10 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   defp assign_scripts_with_pagination(socket) do
     %{
       assigns: %{
-        product: product,
+        current_sort: current_sort,
         paginate_opts: paginate_opts,
-        sort_direction: sort_direction,
-        current_sort: current_sort
+        product: product,
+        sort_direction: sort_direction
       }
     } = socket
 

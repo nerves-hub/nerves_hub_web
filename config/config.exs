@@ -16,9 +16,9 @@ config :esbuild,
 config :flop, repo: NervesHub.Repo
 
 config :mime, :types, %{
-  "application/pem" => ["pem"],
   "application/crt" => ["crt"],
-  "application/fwup" => ["fw"]
+  "application/fwup" => ["fw"],
+  "application/pem" => ["pem"]
 }
 
 config :nerves_hub, NervesHub.Repo,

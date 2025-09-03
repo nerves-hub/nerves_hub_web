@@ -13,19 +13,19 @@ defmodule NervesHub.Devices.DeviceConnection do
   @wanted_on_update @required_params ++ [:disconnected_at, :disconnected_reason, :metadata]
 
   schema "device_connections" do
-    belongs_to(:product, Product)
-    belongs_to(:device, Device)
-
-    field(:established_at, :utc_datetime_usec)
-    field(:last_seen_at, :utc_datetime_usec)
     field(:disconnected_at, :utc_datetime_usec)
     field(:disconnected_reason, :string)
+    field(:established_at, :utc_datetime_usec)
+    field(:last_seen_at, :utc_datetime_usec)
     field(:metadata, :map, default: %{})
 
     field(:status, Ecto.Enum,
       values: [:connecting, :connected, :disconnected],
       default: :connecting
     )
+
+    belongs_to(:device, Device)
+    belongs_to(:product, Product)
   end
 
   def create_changeset(params) do

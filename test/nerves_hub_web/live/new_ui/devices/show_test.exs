@@ -39,9 +39,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
     test "only the current user", %{
       conn: conn,
+      device: device,
       org: org,
       product: product,
-      device: device,
       user: user
     } do
       conn
@@ -52,9 +52,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
     test "two users, same device", %{
       conn: conn,
+      device: device,
       org: org,
       product: product,
-      device: device,
       user: user,
       user_two: user_two
     } do
@@ -81,9 +81,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
     test "two users, different devices", %{
       conn: conn,
+      device: device,
       org: org,
       product: product,
-      device: device,
       user: user,
       user_two: user_two
     } do
@@ -123,18 +123,18 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
   describe "device's deployment group" do
     test "eligible deployment groups are listed when device is provisioned", %{
       conn: conn,
+      deployment_group: deployment_group,
+      device: device,
+      fixture: %{firmware: firmware},
       org: org,
       product: product,
-      device: device,
-      user: user,
-      deployment_group: deployment_group,
-      fixture: %{firmware: firmware}
+      user: user
     } do
       _ = Devices.set_as_provisioned!(device)
       org_key2 = Fixtures.org_key_fixture(org, user)
 
       mismatched_firmware =
-        Fixtures.firmware_fixture(org_key2, product, %{platform: "Vulture", architecture: "arm"})
+        Fixtures.firmware_fixture(org_key2, product, %{architecture: "arm", platform: "Vulture"})
 
       mismatched_firmware_deployment_group =
         Fixtures.deployment_group_fixture(org, mismatched_firmware, %{
@@ -153,12 +153,12 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
     test "product's deployment groups are listed when device is registered", %{
       conn: conn,
+      deployment_group: deployment_group,
+      device: device,
+      fixture: %{firmware: firmware},
       org: org,
       product: product,
-      device: device,
-      user: user,
-      deployment_group: deployment_group,
-      fixture: %{firmware: firmware}
+      user: user
     } do
       assert device.status == :registered
       org_key2 = Fixtures.org_key_fixture(org, user)
@@ -182,10 +182,10 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
     test "set deployment group", %{
       conn: conn,
-      org: org,
-      product: product,
+      deployment_group: deployment_group,
       device: device,
-      deployment_group: deployment_group
+      org: org,
+      product: product
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -200,10 +200,10 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
     test "remove from deployment group", %{
       conn: conn,
-      org: org,
-      product: product,
+      deployment_group: deployment_group,
       device: device,
-      deployment_group: deployment_group
+      org: org,
+      product: product
     } do
       device = Devices.update_deployment_group(device, deployment_group)
       assert device.deployment_id
@@ -221,11 +221,11 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
   describe "sending a manual update" do
     test "lists only eligible firmwares for device", %{
       conn: conn,
+      device: device,
+      fixture: %{firmware: firmware},
       org: org,
       product: product,
-      device: device,
-      user: user,
-      fixture: %{firmware: firmware}
+      user: user
     } do
       mismatched_architecture_firmware =
         Fixtures.org_key_fixture(org, user)
@@ -244,9 +244,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
     test "cannot send when device is disconnected", %{
       conn: conn,
+      device: device,
       org: org,
-      product: product,
-      device: device
+      product: product
     } do
       device = %{id: device_id} = Repo.preload(device, :latest_connection)
       refute device.latest_connection
@@ -257,10 +257,10 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{id: latest_connection_id} =
         DeviceConnection.create_changeset(%{
-          product_id: product.id,
           device_id: device_id,
           established_at: DateTime.utc_now(),
           last_seen_at: DateTime.utc_now(),
+          product_id: product.id,
           status: :disconnected
         })
         |> Repo.insert!()
@@ -276,10 +276,10 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
     test "updates devices's firmware", %{
       conn: conn,
-      org: org,
-      product: product,
       device: device,
-      fixture: %{firmware: firmware}
+      fixture: %{firmware: firmware},
+      org: org,
+      product: product
     } do
       assert device.updates_enabled
 
@@ -291,17 +291,17 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
         |> submit()
       end)
 
-      %{version: version, architecture: architecture, platform: platform} = firmware
+      %{architecture: architecture, platform: platform, version: version} = firmware
 
       assert_receive %Phoenix.Socket.Broadcast{
+        event: "update",
         payload: %{
           firmware_meta: %{
-            version: ^version,
             architecture: ^architecture,
-            platform: ^platform
+            platform: ^platform,
+            version: ^version
           }
-        },
-        event: "update"
+        }
       }
 
       refute Repo.reload(device) |> Map.get(:updates_enabled)
@@ -310,9 +310,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
   test "enabling and disabling priority updates", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     refute device.priority_updates
 

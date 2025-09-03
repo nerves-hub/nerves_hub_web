@@ -202,7 +202,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   slot(:inner_block, required: true)
 
-  def button(%{type: "link", style: "secondary"} = assigns) do
+  def button(%{style: "secondary", type: "link"} = assigns) do
     ~H"""
     <.link
       class={[

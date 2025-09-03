@@ -20,12 +20,12 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
     {:ok,
      %{
        device: device,
-       user: user,
-       user2: user2,
        org: org,
        org2: org2,
        product: product,
-       product2: product2
+       product2: product2,
+       user: user,
+       user2: user2
      }}
   end
 
@@ -45,7 +45,7 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
              Devices.pin_device(2, device.id)
   end
 
-  test "Get pinned devices for user", %{user: user, device: device} do
+  test "Get pinned devices for user", %{device: device, user: user} do
     {:ok, _} =
       Devices.pin_device(user.id, device.id)
 
@@ -61,9 +61,9 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
   end
 
   test "Move device to new org - unpin if user has no access to new org", %{
-    user: user,
     device: device,
-    product2: product2
+    product2: product2,
+    user: user
   } do
     assert {:ok, _} =
              Devices.pin_device(user.id, device.id)
@@ -79,9 +79,9 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
   end
 
   test "Unpin devices when org access for user is revoked", %{
-    user2: user2,
     device: device,
-    org: org
+    org: org,
+    user2: user2
   } do
     # Add user2 to org
     Accounts.add_org_user(org, user2, %{role: :view})
@@ -99,7 +99,7 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
     assert [] = Devices.get_pinned_devices(user2.id)
   end
 
-  test "Remove entries when user is soft-deleted", %{user: user, device: device} do
+  test "Remove entries when user is soft-deleted", %{device: device, user: user} do
     assert {:ok, _} =
              Devices.pin_device(user.id, device.id)
 
@@ -111,7 +111,7 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
     assert [] = Devices.get_pinned_devices(user.id)
   end
 
-  test "Remove entries when device is (soft)deleted", %{user: user, device: device} do
+  test "Remove entries when device is (soft)deleted", %{device: device, user: user} do
     assert {:ok, _} =
              Devices.pin_device(user.id, device.id)
 

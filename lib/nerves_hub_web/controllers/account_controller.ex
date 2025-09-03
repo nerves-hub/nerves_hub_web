@@ -50,7 +50,7 @@ defmodule NervesHubWeb.AccountController do
     end
   end
 
-  def accept_invite(conn, %{"user" => user_params, "token" => token}) do
+  def accept_invite(conn, %{"token" => token, "user" => user_params}) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
       _accept_invite(conn, token, user_params, invite, org)

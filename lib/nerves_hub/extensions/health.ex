@@ -65,8 +65,8 @@ defmodule NervesHub.Extensions.Health do
       end
 
     device_health = %{
-      "device_id" => socket.assigns.device.id,
       "data" => device_report,
+      "device_id" => socket.assigns.device.id,
       "status" => status,
       "status_reasons" => reasons
     }

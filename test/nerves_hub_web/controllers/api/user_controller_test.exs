@@ -7,8 +7,8 @@ defmodule NervesHubWeb.API.UserControllerTest do
     conn = get(conn, Routes.api_user_path(conn, :me))
 
     assert json_response(conn, 200)["data"] == %{
-             "name" => user.name,
-             "email" => user.email
+             "email" => user.email,
+             "name" => user.name
            }
   end
 
@@ -17,8 +17,8 @@ defmodule NervesHubWeb.API.UserControllerTest do
 
     user =
       Fixtures.user_fixture(%{
-        name: "New User",
         email: "account_test@test.com",
+        name: "New User",
         password: password
       })
 
@@ -26,8 +26,8 @@ defmodule NervesHubWeb.API.UserControllerTest do
     conn = post(conn, Routes.api_user_path(conn, :auth), %{email: user.email, password: password})
 
     assert json_response(conn, 200)["data"] == %{
-             "name" => user.name,
-             "email" => user.email
+             "email" => user.email,
+             "name" => user.name
            }
   end
 
@@ -36,8 +36,8 @@ defmodule NervesHubWeb.API.UserControllerTest do
 
     user =
       Fixtures.user_fixture(%{
-        name: "New User",
         email: "account_test@test.com",
+        name: "New User",
         password: password
       })
 
@@ -46,8 +46,8 @@ defmodule NervesHubWeb.API.UserControllerTest do
     conn =
       post(conn, Routes.api_user_path(conn, :login), %{
         email: user.email,
-        password: password,
-        note: "tester"
+        note: "tester",
+        password: password
       })
 
     resp = json_response(conn, 200)

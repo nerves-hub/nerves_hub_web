@@ -25,23 +25,23 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   defmodule State do
     defstruct deployment_group: nil,
               rate_limit?: true,
-              timer_ref: nil,
-              should_run?: false
+              should_run?: false,
+              timer_ref: nil
 
     @type t ::
             %__MODULE__{
               deployment_group: DeploymentGroup.t(),
               rate_limit?: boolean(),
-              timer_ref: reference() | nil,
-              should_run?: boolean()
+              should_run?: boolean(),
+              timer_ref: reference() | nil
             }
   end
 
   def child_spec(deployment_group, rate_limit \\ true) do
     %{
       id: :"distributed_orchestrator_#{deployment_group.id}",
-      start: {__MODULE__, :start_link, [deployment_group, rate_limit]},
-      restart: :transient
+      restart: :transient,
+      start: {__MODULE__, :start_link, [deployment_group, rate_limit]}
     }
   end
 
@@ -71,8 +71,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     state = %State{
       deployment_group: deployment_group,
       rate_limit?: rate_limit,
-      timer_ref: nil,
-      should_run?: true
+      should_run?: true,
+      timer_ref: nil
     }
 
     {:ok, state}
@@ -188,7 +188,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
     timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
 
-    {:noreply, %{state | timer_ref: timer_ref, should_run?: false}}
+    {:noreply, %{state | should_run?: false, timer_ref: timer_ref}}
   end
 
   # if a "delay" timer is set, queue a `trigger_update`
@@ -222,7 +222,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
     timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
 
-    {:noreply, %{state | timer_ref: timer_ref, should_run?: false}}
+    {:noreply, %{state | should_run?: false, timer_ref: timer_ref}}
   end
 
   # if the 'run again' boolean in the state is `false`, no requests to run the orchestrator
@@ -233,7 +233,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployment/device-online")
   def handle_info(
-        %Broadcast{topic: "orchestrator:deployment:" <> _rest, event: "device-online", payload: payload},
+        %Broadcast{event: "device-online", payload: payload, topic: "orchestrator:deployment:" <> _rest},
         state
       ) do
     if should_trigger?(payload, state.deployment_group) do
@@ -244,22 +244,22 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   end
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployment/device-update")
-  def handle_info(%Broadcast{topic: "orchestrator:deployment:" <> _, event: "device-updated"}, state) do
+  def handle_info(%Broadcast{event: "device-updated", topic: "orchestrator:deployment:" <> _}, state) do
     maybe_trigger_update(state)
   end
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployments/update")
-  def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deployments/update"}, state) do
+  def handle_info(%Broadcast{event: "deployments/update", topic: "deployment:" <> _}, state) do
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(state.deployment_group)
 
     maybe_trigger_update(%{state | deployment_group: deployment_group})
   end
 
-  def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deleted"}, state) do
+  def handle_info(%Broadcast{event: "deleted", topic: "deployment:" <> _}, state) do
     {:stop, :normal, state}
   end
 
-  def handle_info(%Broadcast{topic: "orchestrator:deployment:" <> _, event: "deactivated"}, state) do
+  def handle_info(%Broadcast{event: "deactivated", topic: "orchestrator:deployment:" <> _}, state) do
     {:stop, :normal, state}
   end
 

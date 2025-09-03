@@ -28,8 +28,8 @@ defmodule NervesHub.Accounts.UserNotifierTest do
 
   test "forgot_password email" do
     user = %User{
-      name: "Sad Guy",
-      email: "sad_guy@forgot_password.com"
+      email: "sad_guy@forgot_password.com",
+      name: "Sad Guy"
     }
 
     password_reset_token = "ultrarandomresettoken"
@@ -51,13 +51,13 @@ defmodule NervesHub.Accounts.UserNotifierTest do
     org = %{name: "My Org Name"}
 
     user = %User{
-      name: "Tony",
-      email: "tony@salami.com"
+      email: "tony@salami.com",
+      name: "Tony"
     }
 
     invited_by = %User{
-      name: "Baloney",
-      email: "baloney@curedmeats.com"
+      email: "baloney@curedmeats.com",
+      name: "Baloney"
     }
 
     {:ok, email} =

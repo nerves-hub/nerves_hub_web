@@ -18,7 +18,7 @@ defmodule NervesHubWeb.RoleValidateHelpersTest do
       |> assign(:org, org)
       |> assign(:product, product)
 
-    %{conn: conn, user: user, org: org, product: product}
+    %{conn: conn, org: org, product: product, user: user}
   end
 
   test "org creator has admin role", %{conn: conn} do

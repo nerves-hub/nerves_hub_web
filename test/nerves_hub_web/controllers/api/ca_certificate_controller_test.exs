@@ -34,7 +34,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
       ca_cert_pem = X509.Certificate.to_pem(ca_cert)
       description = "My ca"
 
-      jitp = %{description: "Jitter", tags: ["howdy"], product_id: pid}
+      jitp = %{description: "Jitter", product_id: pid, tags: ["howdy"]}
       params = %{cert: Base.encode64(ca_cert_pem), description: description, jitp: jitp}
 
       conn = post(conn, Routes.api_ca_certificate_path(conn, :create, org.name), params)
@@ -42,7 +42,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
       assert %{"serial" => ^serial} = resp_data
       assert %{"description" => ^description} = resp_data
 
-      assert %{"description" => "Jitter", "tags" => ["howdy"], "product_name" => ^product_name} =
+      assert %{"description" => "Jitter", "product_name" => ^product_name, "tags" => ["howdy"]} =
                resp_data["jitp"]
     end
 
@@ -56,7 +56,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
   describe "delete ca_certificate" do
     setup [:create_ca_certificate]
 
-    test "deletes chosen ca_certificate", %{conn: conn, org: org, ca_certificate: ca_certificate} do
+    test "deletes chosen ca_certificate", %{ca_certificate: ca_certificate, conn: conn, org: org} do
       conn =
         delete(
           conn,
@@ -73,7 +73,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
   end
 
   test "includes jitp when available", context do
-    params = %{jitp: %{description: "Jitter", tags: ["howdy"], product_id: context.product.id}}
+    params = %{jitp: %{description: "Jitter", product_id: context.product.id, tags: ["howdy"]}}
     {:ok, %{ca_certificate: ca_cert}} = create_ca_certificate(context, params)
 
     conn =
@@ -84,8 +84,8 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
     assert json_response(conn, 200)["data"]["jitp"] == %{
              "description" => "Jitter",
-             "tags" => ["howdy"],
-             "product_name" => context.product.name
+             "product_name" => context.product.name,
+             "tags" => ["howdy"]
            }
   end
 
@@ -96,13 +96,13 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
     params =
       %{
-        serial: Certificate.get_serial_number(ca),
         aki: Certificate.get_aki(ca),
-        ski: Certificate.get_ski(ca),
-        not_before: not_before,
-        not_after: not_after,
         der: X509.Certificate.to_der(ca),
-        description: "My CA"
+        description: "My CA",
+        not_after: not_after,
+        not_before: not_before,
+        serial: Certificate.get_serial_number(ca),
+        ski: Certificate.get_ski(ca)
       }
       |> Map.merge(params)
 

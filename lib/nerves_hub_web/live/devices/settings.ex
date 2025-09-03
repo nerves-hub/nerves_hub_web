@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
   def handle_event("update-device", %{"device" => device_params}, socket) do
     authorized!(:"device:update", socket.assigns.org_user)
 
-    %{org: org, product: product, device: device, user: user} = socket.assigns
+    %{device: device, org: org, product: product, user: user} = socket.assigns
 
     message = "User #{user.name} updated device #{device.identifier}"
 

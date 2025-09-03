@@ -6,8 +6,8 @@ defmodule NervesHubWeb.Mounts.EnrichSentryContext do
   def on_mount(_, _, _, socket) do
     if user = socket.assigns.user do
       Sentry.Context.set_user_context(%{
-        id: user.id,
-        email: user.email
+        email: user.email,
+        id: user.id
       })
 
       {:cont, socket}

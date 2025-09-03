@@ -12,11 +12,11 @@ defmodule NervesHubWeb.API.FirmwareJSON do
   defp firmware(firmware) do
     %{
       architecture: firmware.architecture,
-      uuid: firmware.uuid,
       author: firmware.author,
       platform: firmware.platform,
-      version: firmware.version,
-      product: firmware.product.name
+      product: firmware.product.name,
+      uuid: firmware.uuid,
+      version: firmware.version
     }
   end
 end

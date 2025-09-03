@@ -121,9 +121,9 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
   defp generate_map_marker(
          %{
            connection_status: connection_status,
-           longitude: longitude,
+           firmware_uuid: firmware_uuid,
            latitude: latitude,
-           firmware_uuid: firmware_uuid
+           longitude: longitude
          },
          markers,
          latest_firmwares
@@ -131,9 +131,9 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
        when is_number(longitude) and is_number(latitude) do
     new_marker =
       %{
-        s: get_connection_status(connection_status),
+        l: %{"at" => latitude, "ng" => longitude},
         lf: Map.has_key?(latest_firmwares, firmware_uuid),
-        l: %{"ng" => longitude, "at" => latitude}
+        s: get_connection_status(connection_status)
       }
 
     [new_marker | markers]

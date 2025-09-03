@@ -62,7 +62,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
   end
 
   # This ties in the messages from Device that need to be handled in the console
-  def handle_info(%Broadcast{payload: payload, event: event}, socket) do
+  def handle_info(%Broadcast{event: event, payload: payload}, socket) do
     push(socket, event, payload)
     {:noreply, socket}
   end
@@ -71,8 +71,8 @@ defmodule NervesHubWeb.UserConsoleChannel do
     _ =
       if socket.joined do
         broadcast(socket, "message", %{
-          name: socket.assigns.user.name,
-          event: "closed the console"
+          event: "closed the console",
+          name: socket.assigns.user.name
         })
       end
 

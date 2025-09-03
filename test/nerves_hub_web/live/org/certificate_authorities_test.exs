@@ -117,7 +117,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
     end
 
     @tag timeout: :infinity
-    test "create with JITP", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+    test "create with JITP", %{conn: conn, org: org, tmp_dir: tmp_dir, user: user} do
       product = Fixtures.product_fixture(user, org)
 
       ca_file_path = Fixtures.device_certificate_authority_file()
@@ -160,8 +160,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       assert {:ok,
               %{
                 description: ^description,
-                serial: ^serial,
-                jitp: %{tags: ["prod"], description: "a jitp description"}
+                jitp: %{description: "a jitp description", tags: ["prod"]},
+                serial: ^serial
               }} = Devices.get_ca_certificate_by_serial(serial)
     end
   end
@@ -198,7 +198,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
                Devices.get_ca_certificate_by_serial(serial)
     end
 
-    test "update fails when description is blank", %{conn: conn, user: user, org: org} do
+    test "update fails when description is blank", %{conn: conn, org: org, user: user} do
       %{db_cert: %{serial: serial}} = Fixtures.ca_certificate_fixture(org)
       product = Fixtures.product_fixture(user, org)
 
@@ -230,9 +230,9 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
     csr =
       file_input(view, "form", form_field, [
         %{
+          content: File.read!(file_path),
           last_modified: 1_594_171_879_000,
-          name: file_name,
-          content: File.read!(file_path)
+          name: file_name
         }
       ])
 

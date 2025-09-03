@@ -6,8 +6,8 @@ defmodule NervesHubWeb.FirmwareControllerTest do
   describe "download firmware" do
     test "downloads chosen firmware", %{
       conn: conn,
-      user: user,
-      org: org
+      org: org,
+      user: user
     } do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user)

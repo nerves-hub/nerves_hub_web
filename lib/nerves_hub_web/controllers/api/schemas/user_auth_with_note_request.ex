@@ -3,19 +3,19 @@ defmodule NervesHubWeb.API.Schemas.UserAuthWithNoteRequest do
   require OpenApiSpex
 
   OpenApiSpex.schema(%{
-    title: "UserAuthRequest",
     description: "POST body for authenticating a user",
-    type: :object,
-    properties: %{
-      email: %Schema{type: :string},
-      password: %Schema{type: :string},
-      note: %Schema{type: :string}
-    },
-    required: [:email, :password],
     example: %{
       "email" => "jane@iot-company.com",
-      "password" => "my-secure-password",
-      "note" => "Local automation"
-    }
+      "note" => "Local automation",
+      "password" => "my-secure-password"
+    },
+    properties: %{
+      email: %Schema{type: :string},
+      note: %Schema{type: :string},
+      password: %Schema{type: :string}
+    },
+    required: [:email, :password],
+    title: "UserAuthRequest",
+    type: :object
   })
 end

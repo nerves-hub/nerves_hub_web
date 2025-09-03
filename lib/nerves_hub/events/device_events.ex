@@ -65,8 +65,8 @@ defmodule NervesHub.DeviceEvents do
       broadcast(device, "update", update_payload)
 
       :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1}, %{
-        identifier: device.identifier,
-        firmware_uuid: inflight_update.firmware_uuid
+        firmware_uuid: inflight_update.firmware_uuid,
+        identifier: device.identifier
       })
 
       {:ok, inflight_update}
@@ -82,9 +82,9 @@ defmodule NervesHub.DeviceEvents do
       DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
       payload = %UpdatePayload{
-        update_available: true,
+        firmware_meta: meta,
         firmware_url: url,
-        firmware_meta: meta
+        update_available: true
       }
 
       broadcast(device, "update", payload)

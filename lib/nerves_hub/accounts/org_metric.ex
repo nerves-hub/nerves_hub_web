@@ -16,11 +16,11 @@ defmodule NervesHub.Accounts.OrgMetric do
   ]
 
   schema "org_metrics" do
-    belongs_to(:org, Org, where: [deleted_at: nil])
-
-    field(:devices, :integer)
     field(:bytes_stored, :integer)
+    field(:devices, :integer)
     field(:timestamp, :utc_datetime)
+
+    belongs_to(:org, Org, where: [deleted_at: nil])
   end
 
   def changeset(%__MODULE__{} = org_metric, params) do

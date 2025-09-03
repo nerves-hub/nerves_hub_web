@@ -18,7 +18,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   test "joining device channel works without understanding extensions" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -39,23 +39,23 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
 
     {:ok, device} =
       Devices.create_device(%{
-        product_id: product.id,
+        identifier: Ecto.UUID.generate(),
         org_id: org.id,
-        identifier: Ecto.UUID.generate()
+        product_id: product.id
       })
 
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     # simulate the device channel updating the params
     params = %{
-      "nerves_fw_uuid" => Ecto.UUID.generate(),
-      "nerves_fw_product" => product.name,
       "nerves_fw_architecture" => "arm64",
-      "nerves_fw_version" => "0.0.0",
-      "nerves_fw_platform" => "test_host"
+      "nerves_fw_platform" => "test_host",
+      "nerves_fw_product" => product.name,
+      "nerves_fw_uuid" => Ecto.UUID.generate(),
+      "nerves_fw_version" => "0.0.0"
     }
 
     # taken from `DeviceChannel`, I don't love just stealing this, but it will do for now
@@ -86,7 +86,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   test "joining extensions channel suggests attaching geo, health, and logging" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -116,7 +116,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   test "joining extensions channel with unknown extensions is fine" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -155,11 +155,11 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{x_headers: Utils.nh1_key_secret_headers(auth, Ecto.UUID.generate())})
 
     params = %{
-      "nerves_fw_uuid" => Ecto.UUID.generate(),
-      "nerves_fw_product" => product.name,
       "nerves_fw_architecture" => "arm64",
-      "nerves_fw_version" => "0.0.0",
-      "nerves_fw_platform" => "test_host"
+      "nerves_fw_platform" => "test_host",
+      "nerves_fw_product" => product.name,
+      "nerves_fw_uuid" => Ecto.UUID.generate(),
+      "nerves_fw_version" => "0.0.0"
     }
 
     {:ok, _, _device_channel} =
@@ -188,7 +188,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     product = Products.get_product!(device.product_id)
     Products.disable_extension_setting(product, "health")
     Products.disable_extension_setting(product, "geo")
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -215,7 +215,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
     product = Products.get_product!(device.product_id)
     Products.disable_extension_setting(product, "geo")
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -243,7 +243,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
 
     Application.put_env(:nerves_hub, :analytics_enabled, false)
 
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -269,7 +269,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   test "attached health extension will receive request for health report" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -294,7 +294,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   test "attached geo extension will receive request for location update" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -319,7 +319,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   test "attached extensions will receive detach events on disabling at product level" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -356,7 +356,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   test "disabled extensions can be re-attached" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: _cert, db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -423,9 +423,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     %{
       alarms: %{},
       checks: %{},
+      connectivity: %{},
       metadata: %{},
-      timestamp: "2025-01-20T20:00:37.106480Z",
-      connectivity: %{}
+      timestamp: "2025-01-20T20:00:37.106480Z"
     }
   end
 

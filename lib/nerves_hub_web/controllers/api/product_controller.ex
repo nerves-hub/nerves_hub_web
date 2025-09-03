@@ -28,7 +28,7 @@ defmodule NervesHubWeb.API.ProductController do
     ]
   )
 
-  def index(%{assigns: %{user: user, org: org}} = conn, _params) do
+  def index(%{assigns: %{org: org, user: user}} = conn, _params) do
     products = Products.get_products_by_user_and_org(user, org)
     render(conn, :index, products: products)
   end

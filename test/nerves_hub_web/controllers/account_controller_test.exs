@@ -69,8 +69,8 @@ defmodule NervesHubWeb.AccountControllerTest do
       Application.put_env(:nerves_hub, :open_for_registrations, true)
 
       params = %{
-        name: "Sgt Pepper",
         email: "sgtpepper@geocities.com",
+        name: "Sgt Pepper",
         password: "JohnRingoPaulGeorge"
       }
 
@@ -96,8 +96,8 @@ defmodule NervesHubWeb.AccountControllerTest do
       Application.put_env(:nerves_hub, :open_for_registrations, true)
 
       params = %{
-        name: "Sgt Pepper",
         email: "sgtpepper@geocities.com",
+        name: "Sgt Pepper",
         password: "JohnRingoPaulGeorge"
       }
 

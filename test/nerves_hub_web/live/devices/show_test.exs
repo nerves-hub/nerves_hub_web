@@ -27,9 +27,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       {:ok, device} =
         Devices.create_device(%{
+          identifier: "no-firmware-device",
           org_id: org.id,
-          product_id: product.id,
-          identifier: "no-firmware-device"
+          product_id: product.id
         })
 
       conn
@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   describe "handle_event" do
-    test "delete device", %{conn: conn, org: org, product: product, device: device} do
+    test "delete device", %{conn: conn, device: device, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
@@ -107,9 +107,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "connection:status updates assigns when coming online", %{
       conn: conn,
-      fixture: fixture,
+      deployment_group: deployment_group,
       device: device,
-      deployment_group: deployment_group
+      fixture: fixture
     } do
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
@@ -164,7 +164,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   describe "fwup progress" do
-    test "no fwup progress", %{conn: conn, org: org, product: product, device: device} do
+    test "no fwup progress", %{conn: conn, device: device, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
@@ -172,7 +172,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> refute_has("div.progress")
     end
 
-    test "some fwup progress", %{conn: conn, org: org, product: product, device: device} do
+    test "some fwup progress", %{conn: conn, device: device, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
@@ -184,7 +184,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div.progress", text: "50%")
     end
 
-    test "complete fwup progress", %{conn: conn, org: org, product: product, device: device} do
+    test "complete fwup progress", %{conn: conn, device: device, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
@@ -205,9 +205,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "hides flash after the device has restarted", %{
       conn: conn,
+      device: device,
       org: org,
-      product: product,
-      device: device
+      product: product
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -220,9 +220,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "Update complete: The device will reboot shortly.")
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
           event: "connection:change",
-          payload: %{status: "offline"}
+          payload: %{status: "offline"},
+          topic: "device:#{device.identifier}:internal"
         })
 
         render(view)
@@ -230,9 +230,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "Update complete: The device will reboot shortly.")
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
           event: "connection:change",
-          payload: %{status: "online"}
+          payload: %{status: "online"},
+          topic: "device:#{device.identifier}:internal"
         })
 
         render(view)
@@ -246,7 +246,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       Application.put_env(:nerves_hub, :mapbox_access_token, "abc")
     end
 
-    test "mapbox not enabled", %{conn: conn, org: org, product: product, device: device} do
+    test "mapbox not enabled", %{conn: conn, device: device, org: org, product: product} do
       Application.put_env(:nerves_hub, :mapbox_access_token, nil)
 
       conn
@@ -258,9 +258,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "location information is empty", %{
       conn: conn,
+      device: device,
       org: org,
-      product: product,
-      device: device
+      product: product
     } do
       {:ok, connection} = Connections.device_connecting(device.id, device.product_id)
       :ok = Connections.device_connected(connection.id)
@@ -273,7 +273,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "No location information found.")
     end
 
-    test "a location error occurred", %{conn: conn, org: org, product: product, device: device} do
+    test "a location error occurred", %{conn: conn, device: device, org: org, product: product} do
       metadata = %{
         "location" => %{"error_code" => "BOOP", "error_description" => "BEEP"}
       }
@@ -290,12 +290,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "BEEP")
     end
 
-    test "the happy path", %{conn: conn, org: org, product: product, device: device} do
+    test "the happy path", %{conn: conn, device: device, org: org, product: product} do
       metadata = %{
         "location" => %{
+          "accuracy" => "20",
           "latitude" => "-41.3159",
           "longitude" => "174.8185",
-          "accuracy" => "20",
           "source" => "geoip"
         }
       }
@@ -315,7 +315,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   describe "device health" do
-    test "no device health", %{conn: conn, org: org, product: product, device: device} do
+    test "no device health", %{conn: conn, device: device, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
@@ -325,13 +325,13 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "has active alarms", %{
       conn: conn,
+      device: device,
       org: org,
-      product: product,
-      device: device
+      product: product
     } do
       device_health = %{
-        "device_id" => device.id,
-        "data" => %{"alarms" => %{"SomeAlarm" => "Some description"}}
+        "data" => %{"alarms" => %{"SomeAlarm" => "Some description"}},
+        "device_id" => device.id
       }
 
       assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
@@ -346,9 +346,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "has no active alarms", %{
       conn: conn,
+      device: device,
       org: org,
-      product: product,
-      device: device
+      product: product
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -358,8 +358,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert {:ok, _} =
                NervesHub.Devices.save_device_health(%{
-                 "device_id" => device.id,
-                 "data" => %{"alarms" => %{}}
+                 "data" => %{"alarms" => %{}},
+                 "device_id" => device.id
                })
 
       conn
@@ -371,9 +371,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "full set of metrics", %{
       conn: conn,
+      device: device,
       org: org,
-      product: product,
-      device: device
+      product: product
     } do
       metrics = %{
         "cpu_temp" => 30,
@@ -401,9 +401,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "cpu temp missing", %{
       conn: conn,
+      device: device,
       org: org,
-      product: product,
-      device: device
+      product: product
     } do
       metrics = %{
         "load_15min" => 0.00,
@@ -432,10 +432,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   describe "firmware selection" do
     test "updates when new firmware is available", %{
       conn: conn,
-      org: org,
-      product: product,
       device: device,
+      org: org,
       org_key: org_key,
+      product: product,
       tmp_dir: tmp_dir
     } do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -455,10 +455,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   describe "available update" do
     test "no available update exists", %{
       conn: conn,
-      org: org,
-      product: product,
+      deployment_group: deployment_group,
       device: device,
-      deployment_group: deployment_group
+      org: org,
+      product: product
     } do
       device =
         device
@@ -473,11 +473,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "available update exists", %{
       conn: conn,
-      org: org,
-      product: product,
-      device: device,
       deployment_group: deployment_group,
+      device: device,
+      org: org,
       org_key: org_key,
+      product: product,
       tmp_dir: tmp_dir
     } do
       device =
@@ -505,18 +505,18 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       topic = "device:#{device.id}"
 
       assert_receive %Phoenix.Socket.Broadcast{
-        topic: ^topic,
-        event: "update"
+        event: "update",
+        topic: ^topic
       }
     end
 
     test "available update exists but deployment is not active", %{
       conn: conn,
-      org: org,
-      product: product,
-      device: device,
       deployment_group: deployment_group,
+      device: device,
+      org: org,
       org_key: org_key,
+      product: product,
       tmp_dir: tmp_dir
     } do
       device =
@@ -544,9 +544,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   describe "support scripts" do
     test "no scripts available", %{
       conn: conn,
+      device: device,
       org: org,
-      product: product,
-      device: device
+      product: product
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -555,9 +555,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "list scripts", %{
       conn: conn,
+      device: device,
       org: org,
       product: product,
-      device: device,
       user: user
     } do
       {:ok, _script} =
@@ -574,10 +574,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   describe "clearing deployment" do
     test "clears deployment and eligible deployments list is refreshed", %{
       conn: conn,
-      org: org,
-      product: product,
+      deployment_group: deployment_group,
       device: device,
-      deployment_group: deployment_group
+      org: org,
+      product: product
     } do
       device =
         device
@@ -598,9 +598,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "cannot clear deployment if no deployment is set", %{
       conn: conn,
+      device: device,
       org: org,
-      product: product,
-      device: device
+      product: product
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -611,10 +611,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   describe "setting deployment" do
     test "displays and sets product deployments for unprovisioned device", %{
       conn: conn,
-      org: org,
-      product: product,
+      deployment_group: deployment_group,
       device: device,
-      deployment_group: deployment_group
+      org: org,
+      product: product
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -629,10 +629,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "sets deployment and creates audit", %{
       conn: conn,
-      org: org,
-      product: product,
+      deployment_group: deployment_group,
       device: device,
-      deployment_group: deployment_group
+      org: org,
+      product: product
     } do
       # Set device status to :provisioned for deployment eligibility
       %{status: :provisioned} = Devices.set_as_provisioned!(device)
@@ -653,10 +653,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "'no eligible deployments' text displays properly", %{
       conn: conn,
-      org: org,
-      product: product,
+      deployment_group: deployment_group,
       device: device,
-      deployment_group: deployment_group
+      org: org,
+      product: product
     } do
       # Set device status to :provisioned for deployment eligibility
       %{status: :provisioned} = Devices.set_as_provisioned!(device)
@@ -669,10 +669,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "broadcasts to devices channel", %{
       conn: conn,
-      org: org,
-      product: product,
+      deployment_group: deployment_group,
       device: device,
-      deployment_group: deployment_group
+      org: org,
+      product: product
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -688,9 +688,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   describe "audit logs pagination" do
     test "pagination works with URL parameters", %{
       conn: conn,
+      device: device,
       org: org,
       product: product,
-      device: device,
       user: user
     } do
       # Create multiple audit log entries for pagination testing
@@ -719,9 +719,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "pagination events work correctly", %{
       conn: conn,
+      device: device,
       org: org,
       product: product,
-      device: device,
       user: user
     } do
       # Create enough audit logs for pagination

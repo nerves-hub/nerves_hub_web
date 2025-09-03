@@ -211,7 +211,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       device2 = Fixtures.device_fixture(org, product, firmware)
 
-      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{"SomeAlarm" => []}}}
+      device_health = %{"data" => %{"alarms" => %{"SomeAlarm" => []}}, "device_id" => device.id}
       assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
 
       conn
@@ -231,7 +231,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       device2 = Fixtures.device_fixture(org, product, firmware)
 
-      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{"SomeAlarm" => []}}}
+      device_health = %{"data" => %{"alarms" => %{"SomeAlarm" => []}}, "device_id" => device.id}
       assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
 
       conn
@@ -252,7 +252,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       device2 = Fixtures.device_fixture(org, product, firmware)
 
       alarm = "SomeAlarm"
-      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{alarm => []}}}
+      device_health = %{"data" => %{"alarms" => %{alarm => []}}, "device_id" => device.id}
       assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
 
       conn
@@ -270,11 +270,11 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
     test "filters devices by deployment group", %{conn: conn, fixture: fixture} do
       %{
+        deployment_group: deployment_group,
         device: device,
         firmware: firmware,
         org: org,
-        product: product,
-        deployment_group: deployment_group
+        product: product
       } =
         fixture
 
@@ -357,11 +357,11 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     test "add multiple devices to deployment in old UI",
          %{conn: conn, fixture: fixture} do
       %{
+        deployment_group: deployment_group,
         device: device,
-        org: org,
-        product: product,
         firmware: firmware,
-        deployment_group: deployment_group
+        org: org,
+        product: product
       } = fixture
 
       device2 = Fixtures.device_fixture(org, product, firmware)

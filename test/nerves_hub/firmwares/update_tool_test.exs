@@ -208,11 +208,11 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       {:ok,
        %{
          filepath: delta_path,
-         tool: "fwup",
-         tool_metadata: %{},
          size: delta_size,
          source_size: ^source_size,
-         target_size: ^target_size
+         target_size: ^target_size,
+         tool: "fwup",
+         tool_metadata: %{}
        }} =
         Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
@@ -254,11 +254,11 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       {:ok,
        %{
          filepath: delta_path,
-         tool: "fwup",
-         tool_metadata: %{},
          size: delta_size,
          source_size: ^source_size,
-         target_size: ^target_size
+         target_size: ^target_size,
+         tool: "fwup",
+         tool_metadata: %{}
        }} =
         Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
@@ -316,11 +316,11 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       {:ok,
        %{
          filepath: delta_path,
-         tool: "fwup",
-         tool_metadata: %{},
          size: delta_size,
          source_size: ^source_size,
-         target_size: ^target_size
+         target_size: ^target_size,
+         tool: "fwup",
+         tool_metadata: %{}
        }} = Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
       assert %{size: ^delta_size} = File.stat!(delta_path)
@@ -405,11 +405,11 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       {:ok,
        %{
          filepath: delta_path,
-         tool: "fwup",
-         tool_metadata: %{},
          size: delta_size,
          source_size: ^source_size,
-         target_size: ^target_size
+         target_size: ^target_size,
+         tool: "fwup",
+         tool_metadata: %{}
        }} =
         Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
@@ -451,11 +451,11 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       {:ok,
        %{
          filepath: delta_path,
-         tool: "fwup",
-         tool_metadata: %{},
          size: delta_size,
          source_size: ^source_size,
-         target_size: ^target_size
+         target_size: ^target_size,
+         tool: "fwup",
+         tool_metadata: %{}
        }} =
         Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
@@ -519,11 +519,11 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       {:ok,
        %{
          filepath: delta_path,
-         tool: "fwup",
-         tool_metadata: %{},
          size: delta_size,
          source_size: ^source_size,
-         target_size: ^target_size
+         target_size: ^target_size,
+         tool: "fwup",
+         tool_metadata: %{}
        }} =
         Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
@@ -613,11 +613,11 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       {:ok,
        %{
          filepath: delta_path,
-         tool: "fwup",
-         tool_metadata: %{},
          size: delta_size,
          source_size: ^source_size,
-         target_size: ^target_size
+         target_size: ^target_size,
+         tool: "fwup",
+         tool_metadata: %{}
        }} =
         Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
@@ -677,11 +677,11 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       {:ok,
        %{
          filepath: delta_path,
-         tool: "fwup",
-         tool_metadata: %{},
          size: delta_size,
          source_size: ^source_size,
-         target_size: ^target_size
+         target_size: ^target_size,
+         tool: "fwup",
+         tool_metadata: %{}
        }} =
         Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
 
@@ -741,11 +741,11 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
 
       {:ok,
        %{
-         user: user,
+         firmware: firmware,
          org: org,
          org_key: org_key,
-         firmware: firmware,
-         product: product
+         product: product,
+         user: user
        }}
     end
 

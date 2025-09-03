@@ -136,14 +136,14 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
          :ok <- check_validity(csr_validity),
          {:ok, params} <- maybe_delete_jitp(params),
          params = %{
-           serial: serial,
            aki: aki,
-           ski: ski,
-           not_before: cert_not_before,
-           not_after: cert_not_after,
            der: X509.Certificate.to_der(cert),
            description: params["description"],
-           jitp: params["jitp"]
+           jitp: params["jitp"],
+           not_after: cert_not_after,
+           not_before: cert_not_before,
+           serial: serial,
+           ski: ski
          },
          {:ok, _ca_certificate} <- Devices.create_ca_certificate(socket.assigns.org, params) do
       socket

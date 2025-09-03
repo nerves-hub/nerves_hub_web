@@ -55,6 +55,6 @@ defmodule NervesHubWeb.Plugs.SetLocale do
         _ -> 1.0
       end
 
-    %{tag: captures["tag"], quality: quality}
+    %{quality: quality, tag: captures["tag"]}
   end
 end

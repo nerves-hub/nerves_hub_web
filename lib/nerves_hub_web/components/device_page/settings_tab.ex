@@ -342,7 +342,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   end
 
   def hooked_event("destroy-device", _, socket) do
-    %{org: org, org_user: org_user, product: product, device: device} = socket.assigns
+    %{device: device, org: org, org_user: org_user, product: product} = socket.assigns
 
     authorized!(:"device:destroy", org_user)
 

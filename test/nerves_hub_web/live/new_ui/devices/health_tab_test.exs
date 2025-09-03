@@ -25,9 +25,9 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
 
   test "assert page render when no health exist for device", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/healthz")
@@ -37,9 +37,9 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
 
   test "Assert canvas is rendered when metrics data exists", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     assert {7, _} = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
 
@@ -62,9 +62,9 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
 
   test "assert time frame shows correct metrics - within 1 day", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     timestamp =
       DateTime.now!("Etc/UTC")
@@ -88,9 +88,9 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
 
   test "assert time frame shows correct metrics - within 7 days", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     timestamp =
       DateTime.now!("Etc/UTC")
@@ -127,9 +127,9 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
 
   test "assert charts are updating when metrics are reported", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/healthz")
@@ -138,9 +138,9 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
       assert {7, _} = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
 
       send(view.pid, %Broadcast{
-        topic: "device:#{device.identifier}:internal",
         event: "health_check_report",
-        payload: %{}
+        payload: %{},
+        topic: "device:#{device.identifier}:internal"
       })
 
       render(view)
@@ -150,9 +150,9 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
 
   test "assert metrics data is correctly structured for js graphs", %{
     conn: conn,
+    device: device,
     org: org,
-    product: product,
-    device: device
+    product: product
   } do
     now = DateTime.now!("Etc/UTC")
     value = 0.55
@@ -160,9 +160,9 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     assert {:ok, _} =
              %{
                device_id: device.id,
+               inserted_at: now,
                key: "load_1min",
-               value: value,
-               inserted_at: now
+               value: value
              }
              |> DeviceMetric.save_with_timestamp()
              |> Repo.insert()
@@ -183,9 +183,9 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
       Enum.map(@metrics, fn {key, val} ->
         DeviceMetric.save_with_timestamp(%{
           device_id: device_id,
+          inserted_at: timestamp,
           key: key,
-          value: val,
-          inserted_at: timestamp
+          value: val
         }).changes
       end)
 

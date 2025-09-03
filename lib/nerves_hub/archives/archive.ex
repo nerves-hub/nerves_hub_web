@@ -23,19 +23,18 @@ defmodule NervesHub.Archives.Archive do
 
   @derive {Phoenix.Param, key: :uuid}
   schema "archives" do
-    belongs_to(:product, Product, where: [deleted_at: nil])
-    belongs_to(:org_key, OrgKey)
-
-    field(:size, :integer)
-
     field(:architecture, :string)
     field(:author, :string)
     field(:description, :string)
     field(:misc, :string)
     field(:platform, :string)
+    field(:size, :integer)
     field(:uuid, Ecto.UUID)
-    field(:version, :string)
     field(:vcs_identifier, :string)
+    field(:version, :string)
+
+    belongs_to(:org_key, OrgKey)
+    belongs_to(:product, Product, where: [deleted_at: nil])
 
     timestamps()
   end

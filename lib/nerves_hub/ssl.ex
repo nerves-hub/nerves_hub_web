@@ -202,7 +202,7 @@ defmodule NervesHub.SSL do
     end
   end
 
-  defp maybe_jitp_device(cn, %{org_id: org_id, jitp: nil}) do
+  defp maybe_jitp_device(cn, %{jitp: nil, org_id: org_id}) do
     case Devices.get_device_by(identifier: cn, org_id: org_id) do
       {:ok, %{deleted_at: nil}} = resp ->
         resp
@@ -215,7 +215,7 @@ defmodule NervesHub.SSL do
     end
   end
 
-  defp maybe_jitp_device(cn, %{org_id: org_id, jitp: %Devices.CACertificate.JITP{} = jitp}) do
+  defp maybe_jitp_device(cn, %{jitp: %Devices.CACertificate.JITP{} = jitp, org_id: org_id}) do
     case Devices.get_device_by(identifier: cn, org_id: org_id) do
       {:ok, %{deleted_at: nil}} = resp ->
         resp
@@ -225,11 +225,11 @@ defmodule NervesHub.SSL do
 
       _ ->
         params = %{
+          description: jitp.description,
           identifier: cn,
           org_id: org_id,
           product_id: jitp.product_id,
-          tags: jitp.tags,
-          description: jitp.description
+          tags: jitp.tags
         }
 
         case Devices.create_device(params) do
@@ -277,9 +277,9 @@ defmodule NervesHub.SSL do
     cert_subject = Certificate.get_common_name(otp_cert)
 
     :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1}, %{
-      reason: reason,
       cert_serial: cert_serial,
-      cert_subject: cert_subject
+      cert_subject: cert_subject,
+      reason: reason
     })
 
     {:fail, reason}

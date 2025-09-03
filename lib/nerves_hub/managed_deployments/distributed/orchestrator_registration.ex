@@ -15,8 +15,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
   def child_spec(_) do
     %{
       id: OrchestratorRegistration,
-      start: {__MODULE__, :start_link, []},
-      restart: :permanent
+      restart: :permanent,
+      start: {__MODULE__, :start_link, []}
     }
   end
 
@@ -54,7 +54,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
     if process_count != deployment_count do
       _ =
         Sentry.capture_message("Not enough Orchestrator processes are running",
-          extra: %{process_count: process_count, deployment_count: deployment_count},
+          extra: %{deployment_count: deployment_count, process_count: process_count},
           result: :none
         )
 

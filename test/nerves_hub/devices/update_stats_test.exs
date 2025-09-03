@@ -36,26 +36,26 @@ defmodule NervesHub.Devices.UpdateStatsTest do
 
     {:ok,
      %{
-       user: user,
-       org: org,
+       deployment_group: deployment_group,
        device: device,
        device2: device2,
        device3: device3,
-       product: product,
-       deployment_group: deployment_group,
-       source_firmware: source_firmware,
-       target_firmware: target_firmware,
+       org: org,
        other_firmware: other_firmware,
-       source_firmware_metadata: source_firmware_metadata
+       product: product,
+       source_firmware: source_firmware,
+       source_firmware_metadata: source_firmware_metadata,
+       target_firmware: target_firmware,
+       user: user
      }}
   end
 
   describe "log_update/2" do
     test "creates update stat record for full update", %{
+      deployment_group: deployment_group,
       device: device,
       source_firmware: source_firmware,
-      target_firmware: target_firmware,
-      deployment_group: deployment_group
+      target_firmware: target_firmware
     } do
       {:ok, metadata} = Firmwares.metadata_from_firmware(source_firmware)
       device = Devices.update_deployment_group(device, deployment_group)
@@ -109,8 +109,8 @@ defmodule NervesHub.Devices.UpdateStatsTest do
     end
 
     test "deployment group isn't set if target firmware doesn't match deployment's firmware", %{
-      device: device,
       deployment_group: deployment_group,
+      device: device,
       other_firmware: other_firmware
     } do
       device = Devices.update_deployment_group(device, deployment_group)
@@ -131,12 +131,12 @@ defmodule NervesHub.Devices.UpdateStatsTest do
 
   describe "stats_by_device/1" do
     test "returns aggregated stats for a specific device", %{
+      deployment_group: deployment_group,
       device: device,
       device2: device2,
-      deployment_group: deployment_group,
       source_firmware: source_firmware,
-      target_firmware: target_firmware,
-      source_firmware_metadata: source_firmware_metadata
+      source_firmware_metadata: source_firmware_metadata,
+      target_firmware: target_firmware
     } do
       :ok = UpdateStats.log_update(device, source_firmware_metadata)
       delta = Fixtures.firmware_delta_fixture(source_firmware, target_firmware)
@@ -157,13 +157,13 @@ defmodule NervesHub.Devices.UpdateStatsTest do
 
     test "returns empty result for device with no stats", %{device: device} do
       result = UpdateStats.stats_by_device(device)
-      assert result == %{total_update_bytes: 0, total_updates: 0, total_saved_bytes: 0}
+      assert result == %{total_saved_bytes: 0, total_update_bytes: 0, total_updates: 0}
     end
 
     test "handles device with only one stat record", %{
+      deployment_group: deployment_group,
       device: device,
-      source_firmware_metadata: source_firmware_metadata,
-      deployment_group: deployment_group
+      source_firmware_metadata: source_firmware_metadata
     } do
       UpdateStats.log_update(device, source_firmware_metadata)
 
@@ -177,13 +177,13 @@ defmodule NervesHub.Devices.UpdateStatsTest do
 
   describe "stats_by_deployment/1" do
     test "returns stats grouped by source firmware uuid for deployment", %{
+      deployment_group: deployment_group,
       device: device,
       device2: device2,
-      deployment_group: deployment_group,
-      source_firmware: source_firmware,
-      target_firmware: target_firmware,
       other_firmware: other_firmware,
-      source_firmware_metadata: source_firmware_metadata
+      source_firmware: source_firmware,
+      source_firmware_metadata: source_firmware_metadata,
+      target_firmware: target_firmware
     } do
       device = Devices.update_deployment_group(device, deployment_group)
       device2 = Devices.update_deployment_group(device2, deployment_group)
@@ -204,8 +204,8 @@ defmodule NervesHub.Devices.UpdateStatsTest do
         UpdateStats.log_update(
           %{
             device2
-            | firmware_metadata: %{uuid: other_firmware.uuid},
-              deployment_group: deployment_group
+            | deployment_group: deployment_group,
+              firmware_metadata: %{uuid: other_firmware.uuid}
           },
           source_firmware_metadata
         )
@@ -226,15 +226,15 @@ defmodule NervesHub.Devices.UpdateStatsTest do
 
   describe "total_stats_by_product/1" do
     test "returns aggregated stats for all devices in a product", %{
-      user: user,
-      org: org,
+      deployment_group: deployment_group,
       device: device,
       device2: device2,
+      org: org,
       product: product,
-      deployment_group: deployment_group,
       source_firmware: source_firmware,
+      source_firmware_metadata: source_firmware_metadata,
       target_firmware: target_firmware,
-      source_firmware_metadata: source_firmware_metadata
+      user: user
     } do
       # Stats for devices in product
       :ok = UpdateStats.log_update(device, source_firmware_metadata)
@@ -259,7 +259,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
 
     test "returns empty result for product with no stats", %{product: product} do
       result = UpdateStats.total_stats_by_product(product)
-      assert result == %{total_update_bytes: 0, total_updates: 0, total_saved_bytes: 0}
+      assert result == %{total_saved_bytes: 0, total_update_bytes: 0, total_updates: 0}
     end
   end
 end

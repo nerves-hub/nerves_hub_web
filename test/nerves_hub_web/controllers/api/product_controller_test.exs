@@ -43,7 +43,7 @@ defmodule NervesHubWeb.API.ProductControllerTest do
   end
 
   describe "create products roles" do
-    test "ok: org manage", %{user2: user, conn2: conn, org: org} do
+    test "ok: org manage", %{conn2: conn, org: org, user2: user} do
       name = "test"
       product = %{name: name}
 
@@ -56,7 +56,7 @@ defmodule NervesHubWeb.API.ProductControllerTest do
       assert json_response(conn, 200)["data"]["name"] == name
     end
 
-    test "error: org read", %{user2: user, conn2: conn, org: org} do
+    test "error: org read", %{conn2: conn, org: org, user2: user} do
       name = "test"
       product = %{name: name}
 
@@ -86,7 +86,7 @@ defmodule NervesHubWeb.API.ProductControllerTest do
   describe "delete product roles" do
     setup [:create_product]
 
-    test "ok: org delete", %{user2: user, conn2: conn, org: org, product: product} do
+    test "ok: org delete", %{conn2: conn, org: org, product: product, user2: user} do
       Accounts.add_org_user(org, user, %{role: :admin})
 
       conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
@@ -98,7 +98,7 @@ defmodule NervesHubWeb.API.ProductControllerTest do
       |> assert_authorization_error(404)
     end
 
-    test "error: org delete", %{user2: user, conn2: conn, org: org, product: product} do
+    test "error: org delete", %{conn2: conn, org: org, product: product, user2: user} do
       Accounts.add_org_user(org, user, %{role: :view})
 
       assert_error_sent(401, fn ->
@@ -108,7 +108,7 @@ defmodule NervesHubWeb.API.ProductControllerTest do
     end
   end
 
-  defp create_product(%{user: user, org: org}) do
+  defp create_product(%{org: org, user: user}) do
     product = Fixtures.product_fixture(user, org, %{name: "api"})
     {:ok, %{product: product}}
   end

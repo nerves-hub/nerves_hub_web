@@ -7,8 +7,8 @@ defmodule NervesHub.ManagedDeployments.InflightDeploymentCheck do
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
   schema "inflight_deployment_checks" do
-    belongs_to(:device, Device)
     belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
+    belongs_to(:device, Device)
 
     timestamps()
   end

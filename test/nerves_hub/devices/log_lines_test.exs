@@ -37,26 +37,26 @@ defmodule NervesHub.Devices.LogLinesTest do
 
     {:ok, log} =
       LogLines.async_create(device, %{
-        "timestamp" => logged_at,
         "level" => level,
-        "message" => message
+        "message" => message,
+        "timestamp" => logged_at
       })
 
     %LogLine{
-      timestamp: ^logged_at,
       device_id: ^device_id,
-      product_id: ^product_id,
       level: ^level,
-      message: ^message
+      message: ^message,
+      product_id: ^product_id,
+      timestamp: ^logged_at
     } = log
 
     [
       %LogLine{
-        timestamp: ^logged_at,
         device_id: ^device_id,
-        product_id: ^product_id,
         level: ^level,
-        message: ^message
+        message: ^message,
+        product_id: ^product_id,
+        timestamp: ^logged_at
       }
     ] = AnalyticsRepo.all(LogLine)
   end
@@ -78,20 +78,20 @@ defmodule NervesHub.Devices.LogLinesTest do
       })
 
     %LogLine{
-      timestamp: ^logged_at,
       device_id: ^device_id,
-      product_id: ^product_id,
       level: ^level,
-      message: ^message
+      message: ^message,
+      product_id: ^product_id,
+      timestamp: ^logged_at
     } = log
 
     [
       %LogLine{
-        timestamp: ^logged_at,
         device_id: ^device_id,
-        product_id: ^product_id,
         level: ^level,
-        message: ^message
+        message: ^message,
+        product_id: ^product_id,
+        timestamp: ^logged_at
       }
     ] = AnalyticsRepo.all(LogLine)
   end
@@ -114,9 +114,9 @@ defmodule NervesHub.Devices.LogLinesTest do
 
   defp random_log(device) do
     attrs = %{
-      "timestamp" => DateTime.utc_now(),
       "level" => Enum.random(["error", "warning", "info", "debug"]),
-      "message" => random_word()
+      "message" => random_word(),
+      "timestamp" => DateTime.utc_now()
     }
 
     {:ok, log_line} = LogLines.async_create(device, attrs)

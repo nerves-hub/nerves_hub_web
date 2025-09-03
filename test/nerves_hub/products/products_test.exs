@@ -16,9 +16,9 @@ defmodule NervesHub.ProductsTest do
     end
 
     test "get_products_by_user_and_org returns products for user", %{
+      org: org,
       product: product,
-      user: user,
-      org: org
+      user: user
     } do
       assert Products.get_products_by_user_and_org(user, org) == [product]
     end
@@ -43,7 +43,7 @@ defmodule NervesHub.ProductsTest do
     end
 
     test "create_product/1 fails with duplicate names", %{org: org} do
-      params = %{org_id: org.id, name: "same name"}
+      params = %{name: "same name", org_id: org.id}
       {:ok, _product} = Products.create_product(params)
       assert {:error, %Ecto.Changeset{}} = Products.create_product(params)
     end
@@ -73,8 +73,8 @@ defmodule NervesHub.ProductsTest do
     test "create devices CSV IO", %{
       device: device,
       device_certificate: db_cert,
-      product: product,
-      org: org
+      org: org,
+      product: product
     } do
       ##
       # Need to create a second certificate without a DER saved to test JSON

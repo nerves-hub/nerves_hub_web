@@ -11,7 +11,7 @@ defmodule NervesHubWeb.Components.Pager do
     end_range = min(round(start_range + distance), assigns.total_pages)
 
     assigns =
-      Map.merge(assigns, %{start_range: start_range, end_range: end_range, distance: distance})
+      Map.merge(assigns, %{distance: distance, end_range: end_range, start_range: start_range})
 
     ~H"""
     <div :if={@total_pages > 1} class="flex gap-4">

@@ -24,18 +24,18 @@ defmodule NervesHub.Fixtures do
   @org_params %{name: "Test-Org"}
 
   @deployment_group_params %{
-    name: "Test Deployment",
     conditions: %{
-      "version" => "<= 1.0.0",
-      "tags" => ["beta", "beta-edge"]
+      "tags" => ["beta", "beta-edge"],
+      "version" => "<= 1.0.0"
     },
+    delta_updatable: false,
     is_active: false,
-    delta_updatable: false
+    name: "Test Deployment"
   }
-  @device_params %{tags: ["beta", "beta-edge"], extensions: %{health: true, geo: true}}
+  @device_params %{extensions: %{geo: true, health: true}, tags: ["beta", "beta-edge"]}
   @product_params %{
-    name: "valid product",
-    extensions: %{health: true, geo: true, logging: true}
+    extensions: %{geo: true, health: true, logging: true},
+    name: "valid product"
   }
 
   defdelegate reload(record), to: Repo
@@ -44,9 +44,9 @@ defmodule NervesHub.Fixtures do
 
   def user_params() do
     %{
-      org_name: "org-#{counter()}.com",
       email: "email-#{counter()}@smiths.com",
       name: "User #{counter_in_alpha()}",
+      org_name: "org-#{counter()}.com",
       password: "test_password"
     }
   end
@@ -56,21 +56,21 @@ defmodule NervesHub.Fixtures do
       architecture: "arm",
       author: "test_author",
       description: "test_description",
-      platform: "rpi0",
-      version: "1.0.0",
-      vcs_identifier: "test_vcs_identifier",
       misc: "test_misc",
-      upload_metadata: @uploader.metadata(org_id, filepath)
+      platform: "rpi0",
+      upload_metadata: @uploader.metadata(org_id, filepath),
+      vcs_identifier: "test_vcs_identifier",
+      version: "1.0.0"
     }
   end
 
   def firmware_transfer_params(org_id, firmware_uuid) do
     %{
-      org_id: org_id,
-      firmware_uuid: firmware_uuid,
-      remote_ip: "192.0.2.3",
       bytes_sent: 300_000,
       bytes_total: 32_184_752,
+      firmware_uuid: firmware_uuid,
+      org_id: org_id,
+      remote_ip: "192.0.2.3",
       timestamp: DateTime.utc_now()
     }
   end
@@ -89,10 +89,10 @@ defmodule NervesHub.Fixtures do
     key = Fwup.get_public_key(fwup_key_name, dir)
 
     params = %{
-      org_id: org.id,
+      created_by_id: user.id,
       key: key,
       name: fwup_key_name,
-      created_by_id: user.id
+      org_id: org.id
     }
 
     {:ok, org_key} = Accounts.create_org_key(params)
@@ -111,16 +111,16 @@ defmodule NervesHub.Fixtures do
     aki = NervesHub.Certificate.get_aki(ca)
 
     params = %{
-      serial: serial,
       aki: aki,
-      ski: NervesHub.Certificate.get_ski(ca),
-      not_before: not_before,
+      der: X509.Certificate.to_der(ca),
       not_after: not_after,
-      der: X509.Certificate.to_der(ca)
+      not_before: not_before,
+      serial: serial,
+      ski: NervesHub.Certificate.get_ski(ca)
     }
 
     {:ok, db_cert} = Devices.create_ca_certificate(org, params)
-    %{cert: ca, key: ca_key, db_cert: db_cert}
+    %{cert: ca, db_cert: db_cert, key: ca_key}
   end
 
   def user_fixture(params \\ %{}) do
@@ -176,14 +176,14 @@ defmodule NervesHub.Fixtures do
 
     {:ok, firmware_delta} =
       Firmwares.insert_firmware_delta(%{
-        source_id: source_id,
-        target_id: target_id,
-        status: :completed,
-        tool_metadata: %{"delta_fwup_version" => "1.13.0"},
-        tool: "fwup",
         size: 500,
+        source_id: source_id,
         source_size: 700,
+        status: :completed,
+        target_id: target_id,
         target_size: 1000,
+        tool: "fwup",
+        tool_metadata: %{"delta_fwup_version" => "1.13.0"},
         upload_metadata: Map.merge(delta_metadata, @uploader.metadata(org_id, "#{Ecto.UUID.generate()}.fw"))
       })
 
@@ -220,7 +220,7 @@ defmodule NervesHub.Fixtures do
     {is_active, params} = Map.pop(params, :is_active, false)
 
     {:ok, deployment_group} =
-      %{org_id: org.id, firmware_id: firmware.id, product_id: firmware.product_id}
+      %{firmware_id: firmware.id, org_id: org.id, product_id: firmware.product_id}
       |> Enum.into(params)
       |> Enum.into(@deployment_group_params)
       |> ManagedDeployments.create_deployment_group()
@@ -242,10 +242,10 @@ defmodule NervesHub.Fixtures do
 
     {:ok, device} =
       %{
-        org_id: org.id,
-        product_id: product.id,
         firmware_metadata: Map.put(metadata, :fwup_version, fwup_version),
-        identifier: "device-#{counter()}"
+        identifier: "device-#{counter()}",
+        org_id: org.id,
+        product_id: product.id
       }
       |> Enum.into(params)
       |> Enum.into(@device_params)
@@ -287,9 +287,9 @@ defmodule NervesHub.Fixtures do
     )
 
     %{
-      verification_cert_key: verification_cert_key,
+      verification_cert_crt: verification_cert_crt,
       verification_cert_csr: verification_cert_csr,
-      verification_cert_crt: verification_cert_crt
+      verification_cert_key: verification_cert_key
     }
   end
 
@@ -335,16 +335,16 @@ defmodule NervesHub.Fixtures do
       X509.Certificate.new(public_key, subject_rdn, signer_cert, signer_key,
         template:
           X509.Certificate.Template.new(%X509.Certificate.Template{
-            serial: {:random, 20},
-            validity: X509.Certificate.Validity.new(not_before, not_after),
-            hash: :sha256,
             extensions: [
               basic_constraints: X509.Certificate.Extension.basic_constraints(false),
               key_usage: X509.Certificate.Extension.key_usage([:digitalSignature, :keyEncipherment]),
               ext_key_usage: X509.Certificate.Extension.ext_key_usage([:clientAuth]),
               subject_key_identifier: true,
               authority_key_identifier: true
-            ]
+            ],
+            hash: :sha256,
+            serial: {:random, 20},
+            validity: X509.Certificate.Validity.new(not_before, not_after)
           })
       )
 
@@ -359,16 +359,16 @@ defmodule NervesHub.Fixtures do
     der = Certificate.to_der(cert)
 
     params = %{
-      serial: serial,
       aki: aki,
-      ski: ski,
-      not_before: not_before,
+      der: der,
       not_after: not_after,
-      der: der
+      not_before: not_before,
+      serial: serial,
+      ski: ski
     }
 
     {:ok, device_cert} = Devices.create_device_certificate(device, params)
-    %{db_cert: device_cert, cert: cert}
+    %{cert: cert, db_cert: device_cert}
   end
 
   def device_certificate_fixture_without_der(%Devices.Device{} = device, cert) do
@@ -389,11 +389,11 @@ defmodule NervesHub.Fixtures do
       |> DateTime.truncate(:second)
 
     defaults = %{
-      "device_id" => device.id,
       "deployment_id" => deployment_group.id,
+      "device_id" => device.id,
+      "expires_at" => expires_at,
       "firmware_id" => deployment_group.firmware_id,
-      "firmware_uuid" => deployment_group.firmware.uuid,
-      "expires_at" => expires_at
+      "firmware_uuid" => deployment_group.firmware.uuid
     }
 
     defaults
@@ -432,14 +432,14 @@ defmodule NervesHub.Fixtures do
     %{db_cert: device_certificate} = device_certificate_fixture(device)
 
     %{
-      org: org,
+      deployment_group: deployment_group,
       device: device,
       device_certificate: device_certificate,
-      org_key: org_key,
-      user: user,
       firmware: firmware,
-      deployment_group: deployment_group,
-      product: product
+      org: org,
+      org_key: org_key,
+      product: product,
+      user: user
     }
   end
 
@@ -449,10 +449,10 @@ defmodule NervesHub.Fixtures do
     DeviceConnection.create_changeset(
       Map.merge(
         %{
-          product_id: device.product_id,
           device_id: device.id,
           established_at: now,
           last_seen_at: now,
+          product_id: device.product_id,
           status: :connected
         },
         params
@@ -479,37 +479,33 @@ defmodule NervesHub.Fixtures do
 
   def ueberauth_google_success_fixture() do
     %Ueberauth.Auth{
-      uid: "735086597857067149793",
-      provider: :google,
-      strategy: Ueberauth.Strategy.Google,
-      info: %Ueberauth.Auth.Info{
-        name: "Jane Person",
-        first_name: "Jane",
-        last_name: "Person",
-        nickname: nil,
-        email: "jane@person.com",
-        location: nil,
-        description: nil,
-        image: "https://lh3.googleusercontent.com/a/thisdoesntexist=s96-c",
-        phone: nil,
-        birthday: nil
-      },
       credentials: %Ueberauth.Auth.Credentials{
-        token: "dummytoken",
-        refresh_token: nil,
-        token_type: "Bearer",
-        secret: nil,
         expires: true,
         expires_at: 1_745_381_095,
+        other: %{},
+        refresh_token: nil,
         scopes: [
           "https://www.googleapis.com/auth/userinfo.email",
           "https://www.googleapis.com/auth/userinfo.profile",
           "openid"
         ],
-        other: %{}
+        secret: nil,
+        token: "dummytoken",
+        token_type: "Bearer"
       },
       extra: %Ueberauth.Auth.Extra{
         raw_info: %{
+          token: %OAuth2.AccessToken{
+            access_token: "dummytoken",
+            expires_at: 1_745_381_095,
+            other_params: %{
+              "id_token" => "anotherdummytoken",
+              "scope" =>
+                "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid"
+            },
+            refresh_token: nil,
+            token_type: "Bearer"
+          },
           user: %{
             "email" => "jane@person.com",
             "email_verified" => true,
@@ -519,20 +515,24 @@ defmodule NervesHub.Fixtures do
             "name" => "Jane Person",
             "picture" => "https://lh3.googleusercontent.com/a/thisdoesntexist=s96-c",
             "sub" => "735086597857067149793"
-          },
-          token: %OAuth2.AccessToken{
-            access_token: "dummytoken",
-            refresh_token: nil,
-            expires_at: 1_745_381_095,
-            token_type: "Bearer",
-            other_params: %{
-              "id_token" => "anotherdummytoken",
-              "scope" =>
-                "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid"
-            }
           }
         }
-      }
+      },
+      info: %Ueberauth.Auth.Info{
+        birthday: nil,
+        description: nil,
+        email: "jane@person.com",
+        first_name: "Jane",
+        image: "https://lh3.googleusercontent.com/a/thisdoesntexist=s96-c",
+        last_name: "Person",
+        location: nil,
+        name: "Jane Person",
+        nickname: nil,
+        phone: nil
+      },
+      provider: :google,
+      strategy: Ueberauth.Strategy.Google,
+      uid: "735086597857067149793"
     }
   end
 

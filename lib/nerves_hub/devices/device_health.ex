@@ -10,7 +10,6 @@ defmodule NervesHub.Devices.DeviceHealth do
   @optional_params [:status, :status_reasons]
 
   schema "device_health" do
-    belongs_to(:device, Device)
     field(:data, :map)
 
     field(:status, Ecto.Enum,
@@ -19,6 +18,8 @@ defmodule NervesHub.Devices.DeviceHealth do
     )
 
     field(:status_reasons, :map)
+
+    belongs_to(:device, Device)
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end

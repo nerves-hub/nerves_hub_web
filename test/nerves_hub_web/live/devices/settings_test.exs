@@ -4,7 +4,7 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
   alias NervesHub.Devices
 
   describe "device settings" do
-    test "can change tags", %{conn: conn, org: org, product: product, device: device} do
+    test "can change tags", %{conn: conn, device: device, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
       |> assert_has("h1", text: "Device Settings")
@@ -16,7 +16,7 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
       |> assert_has("span", text: "lars")
     end
 
-    test "can add 'first connect code'", %{conn: conn, org: org, product: product, device: device} do
+    test "can add 'first connect code'", %{conn: conn, device: device, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
       |> assert_has("h1", text: "Device Settings")
@@ -32,7 +32,7 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
   end
 
   describe "device certificates" do
-    test "can upload certificate", %{conn: conn, org: org, product: product, device: device} do
+    test "can upload certificate", %{conn: conn, device: device, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
       # Device has 1 certificate as default
@@ -41,8 +41,8 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
       |> unwrap(fn view ->
         file_input(view, ".import-pem", :certificate, [
           %{
-            name: "device-test-cert.pem",
-            content: File.read!("test/fixtures/ssl/device-test-cert.pem")
+            content: File.read!("test/fixtures/ssl/device-test-cert.pem"),
+            name: "device-test-cert.pem"
           }
         ])
         |> render_upload("device-test-cert.pem")
@@ -54,7 +54,7 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
       |> assert_has(".certificates .item", count: 2)
     end
 
-    test "can delete certificate", %{conn: conn, org: org, product: product, device: device} do
+    test "can delete certificate", %{conn: conn, device: device, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
       # Device has 1 certificate as default
@@ -63,7 +63,7 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
       |> refute_has(".certificates .item")
     end
 
-    test "can download certificate", %{conn: conn, org: org, product: product, device: device} do
+    test "can download certificate", %{conn: conn, device: device, org: org, product: product} do
       result =
         conn
         |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")

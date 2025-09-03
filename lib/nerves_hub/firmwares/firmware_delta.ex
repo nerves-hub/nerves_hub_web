@@ -28,8 +28,8 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
   @spec start_changeset(source_id :: integer(), target_id :: integer()) :: Ecto.Changeset.t()
   def start_changeset(source_id, target_id) do
     params = %{
-      status: :processing,
       source_id: source_id,
+      status: :processing,
       target_id: target_id,
       tool: "pending",
       tool_metadata: %{},
@@ -72,11 +72,11 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
     firmware_delta
     |> cast(
       %{
-        status: :completed,
-        tool: tool,
         size: size,
         source_size: source_size,
+        status: :completed,
         target_size: target_size,
+        tool: tool,
         tool_metadata: tool_metadata,
         upload_metadata: upload_metadata
       },

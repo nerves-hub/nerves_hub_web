@@ -7,7 +7,7 @@ defmodule NervesHubWeb.API.Plugs.Org do
     opts
   end
 
-  def call(%{params: %{"org_name" => org_name}, assigns: %{user: user}} = conn, _opts) do
+  def call(%{assigns: %{user: user}, params: %{"org_name" => org_name}} = conn, _opts) do
     org = Accounts.get_org_by_name_and_user!(org_name, user)
 
     assign(conn, :org, org)

@@ -52,12 +52,12 @@ defmodule NervesHub.Devices.HealthStatusTest do
       expected_warnings =
         %{
           "cpu_usage_percent" => %{
-            value: cpu_warning,
-            threshold: cpu_warning
+            threshold: cpu_warning,
+            value: cpu_warning
           }
         }
 
-      assert {:warning, %{warning: expected_warnings, unhealthy: %{}}} ==
+      assert {:warning, %{unhealthy: %{}, warning: expected_warnings}} ==
                HealthStatus.calculate_metrics_status(metrics)
     end
 
@@ -69,23 +69,23 @@ defmodule NervesHub.Devices.HealthStatusTest do
 
       metrics = %{
         "cpu_usage_percent" => cpu_warning,
-        "mem_used_percent" => mem_warning,
-        "disk_used_percentage" => below_warning(thresholds, "disk_used_percentage")
+        "disk_used_percentage" => below_warning(thresholds, "disk_used_percentage"),
+        "mem_used_percent" => mem_warning
       }
 
       expected_warnings =
         %{
           "cpu_usage_percent" => %{
-            value: cpu_warning,
-            threshold: cpu_warning
+            threshold: cpu_warning,
+            value: cpu_warning
           },
           "mem_used_percent" => %{
-            value: mem_warning,
-            threshold: mem_warning
+            threshold: mem_warning,
+            value: mem_warning
           }
         }
 
-      assert {:warning, %{warning: expected_warnings, unhealthy: %{}}} ==
+      assert {:warning, %{unhealthy: %{}, warning: expected_warnings}} ==
                HealthStatus.calculate_metrics_status(metrics)
     end
 
@@ -94,19 +94,19 @@ defmodule NervesHub.Devices.HealthStatusTest do
 
       metrics = %{
         "cpu_usage_percent" => below_warning(thresholds, "cpu_usage_percent"),
-        "mem_used_percent" => mem_unhealthy,
-        "disk_used_percentage" => below_warning(thresholds, "disk_used_percentage")
+        "disk_used_percentage" => below_warning(thresholds, "disk_used_percentage"),
+        "mem_used_percent" => mem_unhealthy
       }
 
       expected_unhealthy =
         %{
           "mem_used_percent" => %{
-            value: mem_unhealthy,
-            threshold: mem_unhealthy
+            threshold: mem_unhealthy,
+            value: mem_unhealthy
           }
         }
 
-      assert {:unhealthy, %{warning: %{}, unhealthy: expected_unhealthy}} ==
+      assert {:unhealthy, %{unhealthy: expected_unhealthy, warning: %{}}} ==
                HealthStatus.calculate_metrics_status(metrics)
     end
 
@@ -118,23 +118,23 @@ defmodule NervesHub.Devices.HealthStatusTest do
 
       metrics = %{
         "cpu_usage_percent" => below_warning(thresholds, "cpu_usage_percent"),
-        "mem_used_percent" => mem_unhealthy,
-        "disk_used_percentage" => disk_unhealthy
+        "disk_used_percentage" => disk_unhealthy,
+        "mem_used_percent" => mem_unhealthy
       }
 
       expected_unhealthy =
         %{
-          "mem_used_percent" => %{
-            value: mem_unhealthy,
-            threshold: mem_unhealthy
-          },
           "disk_used_percentage" => %{
-            value: disk_unhealthy,
-            threshold: disk_unhealthy
+            threshold: disk_unhealthy,
+            value: disk_unhealthy
+          },
+          "mem_used_percent" => %{
+            threshold: mem_unhealthy,
+            value: mem_unhealthy
           }
         }
 
-      assert {:unhealthy, %{warning: %{}, unhealthy: expected_unhealthy}} ==
+      assert {:unhealthy, %{unhealthy: expected_unhealthy, warning: %{}}} ==
                HealthStatus.calculate_metrics_status(metrics)
     end
 
@@ -146,26 +146,26 @@ defmodule NervesHub.Devices.HealthStatusTest do
 
       metrics = %{
         "cpu_usage_percent" => below_warning(thresholds, "cpu_usage_percent"),
-        "mem_used_percent" => mem_unhealthy,
-        "disk_used_percentage" => disk_warning
+        "disk_used_percentage" => disk_warning,
+        "mem_used_percent" => mem_unhealthy
       }
 
       expected_unhealthy =
         %{
           "mem_used_percent" => %{
-            value: mem_unhealthy,
-            threshold: mem_unhealthy
+            threshold: mem_unhealthy,
+            value: mem_unhealthy
           }
         }
 
       expected_warnings = %{
         "disk_used_percentage" => %{
-          value: disk_warning,
-          threshold: disk_warning
+          threshold: disk_warning,
+          value: disk_warning
         }
       }
 
-      assert {:unhealthy, %{warning: expected_warnings, unhealthy: expected_unhealthy}} ==
+      assert {:unhealthy, %{unhealthy: expected_unhealthy, warning: expected_warnings}} ==
                HealthStatus.calculate_metrics_status(metrics)
     end
   end

@@ -21,7 +21,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   def handle_event(
         "update-script",
         %{"script" => script_params},
-        %{assigns: %{org: org, product: product, script: script, org_user: org_user}} = socket
+        %{assigns: %{org: org, org_user: org_user, product: product, script: script}} = socket
       ) do
     authorized!(:"support_script:update", org_user)
 

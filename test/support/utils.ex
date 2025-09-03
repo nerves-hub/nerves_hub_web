@@ -15,9 +15,9 @@ defmodule NervesHub.Support.Utils do
     token = "nhu_#{rand}#{crc}"
 
     Repo.insert!(%UserToken{
-      old_token: token,
       context: "api",
       note: "I love working with binary",
+      old_token: token,
       user_id: user.id
     })
   end

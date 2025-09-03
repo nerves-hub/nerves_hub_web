@@ -14,8 +14,8 @@ defmodule NervesHubWeb.SessionControllerTest do
       Application.put_env(:nerves_hub, :open_for_registrations, true)
 
       params = %{
-        name: "Sgt Pepper",
         email: "sgtpepper@geocities.com",
+        name: "Sgt Pepper",
         password: "JohnRingoPaulGeorge"
       }
 
@@ -41,8 +41,8 @@ defmodule NervesHubWeb.SessionControllerTest do
       Application.put_env(:nerves_hub, :open_for_registrations, true)
 
       params = %{
-        name: "Sgt Pepper",
         email: "sgtpepper@geocities.com",
+        name: "Sgt Pepper",
         password: "JohnRingoPaulGeorge"
       }
 
@@ -79,8 +79,8 @@ defmodule NervesHubWeb.SessionControllerTest do
   describe "create session" do
     test "redirected to the orgs page when logging in" do
       %{
-        name: "Sgt Pepper",
         email: "sgtpepper@geocities.com",
+        name: "Sgt Pepper",
         password: "JohnRingoPaulGeorge"
       }
       |> Fixtures.user_fixture()
@@ -97,8 +97,8 @@ defmodule NervesHubWeb.SessionControllerTest do
 
     test "redirected to original URL when logging in" do
       %{
-        name: "Sgt Pepper",
         email: "sgtpepper@geocities.com",
+        name: "Sgt Pepper",
         password: "JohnRingoPaulGeorge"
       }
       |> Fixtures.user_fixture()

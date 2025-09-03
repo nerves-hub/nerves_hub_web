@@ -137,7 +137,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       deployment_group
       |> ManagedDeployments.matched_device_ids(in_deployment: false)
       |> Devices.move_many_to_deployment_group(deployment_group)
-      |> then(fn {:ok, %{updated: updated_count, ignored: ignored_count}} ->
+      |> then(fn {:ok, %{ignored: ignored_count, updated: updated_count}} ->
         if ignored_count > 0 do
           {:error, updated_count, ignored_count}
         else
@@ -159,7 +159,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       ManagedDeployments.matched_device_ids(deployment_group, in_deployment: true)
 
     remove_devices = fn ->
-      {:ok, %{updated: updated, ignored: ignored}} =
+      {:ok, %{ignored: ignored, updated: updated}} =
         Devices.remove_unmatched_devices_from_deployment_group(
           matched_device_ids,
           deployment_group
@@ -187,9 +187,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
         deployment_group,
         "There was an issue moving devices to a deployment group.",
         %{
-          updated_count: updated_count,
+          deployment_group_id: deployment_group.id,
           ignored_count: ignored_count,
-          deployment_group_id: deployment_group.id
+          updated_count: updated_count
         }
       )
 
@@ -236,9 +236,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
         deployment_group,
         "There was an issue removing devices from a deployment group.",
         %{
-          updated_count: updated_count,
+          deployment_group_id: deployment_group.id,
           ignored_count: ignored_count,
-          deployment_group_id: deployment_group.id
+          updated_count: updated_count
         }
       )
 

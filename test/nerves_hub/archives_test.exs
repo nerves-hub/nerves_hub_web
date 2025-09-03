@@ -18,10 +18,10 @@ defmodule NervesHub.ArchivesTest do
           "manifest",
           "signed-manifest",
           %{
-            platform: "generic",
             architecture: "generic",
-            version: "0.1.0",
-            dir: tmp_dir
+            dir: tmp_dir,
+            platform: "generic",
+            version: "0.1.0"
           }
         )
 

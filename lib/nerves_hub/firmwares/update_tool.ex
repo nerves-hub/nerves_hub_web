@@ -8,26 +8,26 @@ defmodule NervesHub.Firmwares.UpdateTool do
 
     defstruct [
       :architecture,
-      :platform,
-      :product,
-      :uuid,
-      :version,
       :author,
       :description,
       :misc,
-      :vcs_identifier
+      :platform,
+      :product,
+      :uuid,
+      :vcs_identifier,
+      :version
     ]
 
     @type t() :: %__MODULE__{
             architecture: String.t(),
-            platform: String.t(),
-            product: String.t(),
-            uuid: String.t(),
-            version: String.t(),
             author: String.t(),
             description: String.t(),
             misc: String.t(),
-            vcs_identifier: String.t()
+            platform: String.t(),
+            product: String.t(),
+            uuid: String.t(),
+            vcs_identifier: String.t(),
+            version: String.t()
           }
 
     def keys() do
@@ -55,10 +55,10 @@ defmodule NervesHub.Firmwares.UpdateTool do
   """
   @type metadata :: %{
           firmware_metadata: Metadata.t(),
-          tool_metadata: map(),
           tool: String.t(),
           tool_delta_required_version: String.t(),
-          tool_full_required_version: String.t()
+          tool_full_required_version: String.t(),
+          tool_metadata: map()
         }
   @typedoc """
   On delta creation we get a file, we get some size information and we get any

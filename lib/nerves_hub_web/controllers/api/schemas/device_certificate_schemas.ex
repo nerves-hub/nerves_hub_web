@@ -5,14 +5,14 @@ defmodule NervesHubWeb.API.Schemas.DeviceCertificateSchemas do
   defmodule DeviceCertificateAuthRequest do
     OpenApiSpex.schema(%{
       description: "POST body for testing certificate auth for a Device",
-      type: :object,
+      example: %{
+        "certificate" => "Base64 encoded certificate"
+      },
       properties: %{
         certificate: %Schema{type: :string}
       },
       required: [:certificate],
-      example: %{
-        "certificate" => "Base64 encoded certificate"
-      }
+      type: :object
     })
   end
 end

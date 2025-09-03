@@ -45,7 +45,7 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @decorate with_span("Channels.DeviceSocket.heartbeat")
-  defp heartbeat(%Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"}, socket) do
+  defp heartbeat(%Phoenix.Socket.Message{event: "heartbeat", topic: "phoenix"}, socket) do
     if heartbeat?(socket) do
       %{device: device, reference_id: ref_id} = socket.assigns
       Connections.device_heartbeat(device, ref_id)
@@ -113,10 +113,10 @@ defmodule NervesHubWeb.DeviceSocket do
        }} ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
           auth: :shared_secrets,
-          reason: :duplicate_device_identifier,
+          identifier: identifier,
           org_id: org_id,
           product_id: product_id,
-          identifier: identifier
+          reason: :duplicate_device_identifier
         })
 
         {:error, :invalid_auth}
@@ -249,9 +249,9 @@ defmodule NervesHubWeb.DeviceSocket do
       Connections.device_connecting(device.id, device.product_id)
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
-      ref_id: connection_id,
+      firmware_uuid: get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
       identifier: socket.assigns.device.identifier,
-      firmware_uuid: get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)])
+      ref_id: connection_id
     })
 
     Tracker.online(device)
@@ -271,14 +271,14 @@ defmodule NervesHubWeb.DeviceSocket do
 
     if reason == {:error, {:shutdown, :disconnected}} do
       :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
-        ref_id: reference_id,
-        device: device
+        device: device,
+        ref_id: reference_id
       })
     end
 
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
-      ref_id: reference_id,
-      identifier: device.identifier
+      identifier: device.identifier,
+      ref_id: reference_id
     })
 
     :ok = Connections.device_disconnected(reference_id)

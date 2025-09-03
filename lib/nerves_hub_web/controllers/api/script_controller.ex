@@ -56,8 +56,8 @@ defmodule NervesHubWeb.API.ScriptController do
           do: {String.to_existing_atom(key), val}
 
     opts = %{
-      pagination: Map.get(params, "pagination", %{}),
-      filters: filters
+      filters: filters,
+      pagination: Map.get(params, "pagination", %{})
     }
 
     {scripts, page} = Scripts.filter(product, opts)

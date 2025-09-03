@@ -25,12 +25,12 @@ defmodule NervesHub.FirmwaresTest do
 
     {:ok,
      %{
-       user: user,
-       org: org,
-       org_key: org_key,
        firmware: firmware,
        matching_device: device,
-       product: product
+       org: org,
+       org_key: org_key,
+       product: product,
+       user: user
      }}
   end
 
@@ -106,9 +106,9 @@ defmodule NervesHub.FirmwaresTest do
 
   describe "get_firmwares_by_product/1" do
     test "returns firmwares", %{
-      product: product,
+      firmware: %{id: first2_same_ver, version: version},
       org_key: org_key,
-      firmware: %{id: first2_same_ver, version: version}
+      product: product
     } do
       product_id = product.id
 
@@ -144,7 +144,7 @@ defmodule NervesHub.FirmwaresTest do
   end
 
   describe "get_firmware/2" do
-    test "returns firmwares", %{org: %{id: t_id} = org, firmware: %{id: f_id} = firmware} do
+    test "returns firmwares", %{firmware: %{id: f_id} = firmware, org: %{id: t_id} = org} do
       {:ok, gotten_firmware} = Firmwares.get_firmware(org, firmware.id)
 
       assert %{id: ^f_id, product: %{org_id: ^t_id}} = gotten_firmware
@@ -157,9 +157,9 @@ defmodule NervesHub.FirmwaresTest do
     end
 
     test "returns {:ok, key} when signature passes", %{
-      user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      user: user
     } do
       {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
 
@@ -178,10 +178,10 @@ defmodule NervesHub.FirmwaresTest do
     end
 
     test "returns {:error, :invalid_signature} when signature fails", %{
-      user: user,
       org: org,
       org_key: org_key,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
       other_org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
@@ -421,8 +421,8 @@ defmodule NervesHub.FirmwaresTest do
 
   describe "filter/2" do
     test "counts the number of devices that have the firmware installed", %{
-      org: org,
       firmware: firmware,
+      org: org,
       product: product
     } do
       _device_2 = Fixtures.device_fixture(org, product, firmware)

@@ -29,49 +29,49 @@ defmodule NervesHubWeb.Live.Devices.Index do
   @list_refresh_time 10_000
 
   @default_filters %{
+    alarm: "",
+    alarm_status: "",
     connection: "",
     connection_type: "",
+    deployment_id: "",
+    display_deleted: "exclude",
     firmware_version: "",
-    platform: "",
-    healthy: "",
-    health_status: "",
-    identifier: "",
-    tags: "",
-    updates: "",
     has_no_tags: false,
-    alarm_status: "",
-    alarm: "",
+    health_status: "",
+    healthy: "",
+    identifier: "",
+    is_pinned: false,
     metrics_key: "",
     metrics_operator: "gt",
     metrics_value: "",
-    deployment_id: "",
-    is_pinned: false,
+    only_updating: false,
+    platform: "",
     search: "",
-    display_deleted: "exclude",
-    only_updating: false
+    tags: "",
+    updates: ""
   }
 
   @filter_types %{
+    alarm: :string,
+    alarm_status: :string,
     connection: :string,
     connection_type: :string,
+    deployment_id: :string,
+    display_deleted: :string,
     firmware_version: :string,
-    platform: :string,
-    healthy: :string,
-    health_status: :string,
-    identifier: :string,
-    tags: :string,
-    updates: :string,
     has_no_tags: :boolean,
-    alarm_status: :string,
-    alarm: :string,
+    health_status: :string,
+    healthy: :string,
+    identifier: :string,
+    is_pinned: :boolean,
     metrics_key: :string,
     metrics_operator: :string,
     metrics_value: :string,
-    deployment_id: :string,
-    is_pinned: :boolean,
+    only_updating: :boolean,
+    platform: :string,
     search: :string,
-    display_deleted: :string,
-    only_updating: :boolean
+    tags: :string,
+    updates: :string
   }
 
   @default_page 1
@@ -172,7 +172,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     # switch sort direction for column because
     sort_direction = if sort_direction == "desc", do: "asc", else: "desc"
-    params = %{sort_direction: sort_direction, sort: value}
+    params = %{sort: value, sort_direction: sort_direction}
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -181,7 +181,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # User has clicked a new column to sort
   def handle_event("sort", %{"sort" => value}, socket) do
-    params = %{sort_direction: "asc", sort: value}
+    params = %{sort: value, sort_direction: "asc"}
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -197,7 +197,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    params = %{"page_size" => page_size, "page_number" => 1}
+    params = %{"page_number" => 1, "page_size" => page_size}
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -260,7 +260,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_event("deselect-all", _, socket) do
-    {:noreply, assign(socket, %{selected_devices: [], available_deployment_groups_for_filtered_platform: []})}
+    {:noreply, assign(socket, %{available_deployment_groups_for_filtered_platform: [], selected_devices: []})}
   end
 
   def handle_event("validate-tags", %{"tags" => tags}, socket) do
@@ -292,8 +292,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
         [org_id_str, pid_str, name] ->
           %Product{
             id: String.to_integer(pid_str),
-            org_id: String.to_integer(org_id_str),
-            name: name
+            name: name,
+            org_id: String.to_integer(org_id_str)
           }
 
         _ ->
@@ -340,7 +340,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
         _,
         %{assigns: %{selected_devices: selected_devices, target_deployment_group: target_deployment_group}} = socket
       ) do
-    {:ok, %{updated: updated, ignored: ignored}} =
+    {:ok, %{ignored: ignored, updated: updated}} =
       Devices.move_many_to_deployment_group(selected_devices, target_deployment_group.id)
 
     socket
@@ -453,11 +453,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  defp assign_display_devices(%{assigns: %{product: product, paginate_opts: paginate_opts, user: user}} = socket) do
+  defp assign_display_devices(%{assigns: %{paginate_opts: paginate_opts, product: product, user: user}} = socket) do
     opts = %{
+      filters: transform_deployment_filter(socket.assigns.current_filters),
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
-      sort: {String.to_existing_atom(socket.assigns.sort_direction), String.to_atom(socket.assigns.current_sort)},
-      filters: transform_deployment_filter(socket.assigns.current_filters)
+      sort: {String.to_existing_atom(socket.assigns.sort_direction), String.to_atom(socket.assigns.current_sort)}
     }
 
     if socket.assigns[:devices] && socket.assigns.devices.ok? do
@@ -471,7 +471,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_async(:update_device_list, {:ok, {updated_devices, pager}}, socket) do
-    %{devices: old_devices, device_statuses: old_device_statuses, paginate_opts: paginate_opts} =
+    %{device_statuses: old_device_statuses, devices: old_devices, paginate_opts: paginate_opts} =
       socket.assigns
 
     updated_device_statuses =
@@ -489,7 +489,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_async(:update_device_list, {:exit, reason}, socket) do
-    %{devices: devices, device_statuses: device_statuses} = socket.assigns
+    %{device_statuses: device_statuses, devices: devices} = socket.assigns
 
     message =
       "Live.Devices.Index.handle_async:update_device_list failed due to exit: #{inspect(reason)}"
@@ -570,7 +570,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp devices_table_header(title, value, current_sort, sort_direction) when value == current_sort do
     caret_class = if sort_direction == "asc", do: "up", else: "down"
 
-    assigns = %{value: value, title: title, caret_class: caret_class}
+    assigns = %{caret_class: caret_class, title: title, value: value}
 
     ~H"""
     <th phx-click="sort" phx-value-sort={@value} class="pointer sort-selected">
@@ -580,7 +580,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp devices_table_header(title, value, _current_sort, _sort_direction) do
-    assigns = %{value: value, title: title}
+    assigns = %{title: title, value: value}
 
     ~H"""
     <th phx-click="sort" phx-value-sort={@value} class="pointer">
@@ -680,8 +680,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters), empty_values: []).changes
   end
 
-  @sort_default %{sort_direction: "asc", sort: "identifier"}
-  @sort_types %{sort_direction: :string, sort: :string}
+  @sort_default %{sort: "identifier", sort_direction: "asc"}
+  @sort_types %{sort: :string, sort_direction: :string}
   defp sort_changes(params) do
     Ecto.Changeset.cast({@sort_default, @sort_types}, params, Map.keys(@sort_default)).changes
   end
@@ -750,7 +750,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp maybe_assign_available_deployment_groups_for_filtered_platform(
-         %{assigns: %{product: product, current_filters: %{platform: platform}}} = socket
+         %{assigns: %{current_filters: %{platform: platform}, product: product}} = socket
        )
        when platform != "" do
     assign(

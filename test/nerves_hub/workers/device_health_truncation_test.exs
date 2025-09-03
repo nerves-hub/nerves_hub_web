@@ -18,7 +18,7 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
       days_ago = DateTime.shift(DateTime.utc_now(), day: -x)
 
       inserted_health =
-        %{"device_id" => device.id, "data" => %{"literally_any_map" => "values"}}
+        %{"data" => %{"literally_any_map" => "values"}, "device_id" => device.id}
         |> Devices.DeviceHealth.save()
         |> Ecto.Changeset.put_change(:inserted_at, days_ago)
         |> Repo.insert()

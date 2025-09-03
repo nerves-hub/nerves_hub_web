@@ -11,13 +11,13 @@ defmodule NervesHub.Accounts.Invite do
   @type t :: %__MODULE__{}
 
   schema "invites" do
-    belongs_to(:org, Org)
-    belongs_to(:invited_by, User)
-
-    field(:email, :string)
-    field(:token, Ecto.UUID)
     field(:accepted, :boolean)
+    field(:email, :string)
     field(:role, Ecto.Enum, values: Ecto.Enum.values(OrgUser, :role))
+    field(:token, Ecto.UUID)
+
+    belongs_to(:invited_by, User)
+    belongs_to(:org, Org)
 
     timestamps()
   end

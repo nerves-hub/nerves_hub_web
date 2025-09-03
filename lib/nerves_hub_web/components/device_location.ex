@@ -77,10 +77,10 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     assigns = %{
       lat: location["latitude"],
       lng: location["longitude"],
-      source: location["source"],
-      zoom: 10,
+      mapbox_access_token: assigns.mapbox_access_token,
       size: "463x250",
-      mapbox_access_token: assigns.mapbox_access_token
+      source: location["source"],
+      zoom: 10
     }
 
     ~H"""

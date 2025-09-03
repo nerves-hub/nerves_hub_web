@@ -78,7 +78,7 @@ defmodule NervesHubWeb.LayoutView do
   as `:page_size`) to `pagination_links/2` which will calculate `:total_pages`
   for you.
   """
-  def pagination_links(%{total_pages: _, links: true} = opts) do
+  def pagination_links(%{links: true, total_pages: _} = opts) do
     opts = Map.put_new(opts, :page_number, 1)
 
     anchor = if opts.anchor, do: "##{opts.anchor}", else: ""
@@ -89,10 +89,10 @@ defmodule NervesHubWeb.LayoutView do
 
     assigns =
       Map.merge(opts, %{
-        start_range: start_range,
-        end_range: end_range,
+        anchor: anchor,
         distance: distance,
-        anchor: anchor
+        end_range: end_range,
+        start_range: start_range
       })
 
     ~H"""
@@ -130,7 +130,7 @@ defmodule NervesHubWeb.LayoutView do
     end_range = min(round(start_range + distance), opts.total_pages)
 
     assigns =
-      Map.merge(opts, %{start_range: start_range, end_range: end_range, distance: distance})
+      Map.merge(opts, %{distance: distance, end_range: end_range, start_range: start_range})
 
     ~H"""
     <div :if={@total_pages > 0} class="btn-group btn-group-toggle btn-group-gap">
@@ -163,7 +163,7 @@ defmodule NervesHubWeb.LayoutView do
     """
   end
 
-  def pagination_links(%{total_records: record_count, page_size: size} = opts) do
+  def pagination_links(%{page_size: size, total_records: record_count} = opts) do
     opts
     |> Map.put(:total_pages, ceil(record_count / size))
     |> pagination_links()
@@ -177,7 +177,7 @@ defmodule NervesHubWeb.LayoutView do
     end_range = min(round(start_range + distance), opts.total_pages)
 
     assigns =
-      Map.merge(opts, %{start_range: start_range, end_range: end_range, distance: distance})
+      Map.merge(opts, %{distance: distance, end_range: end_range, start_range: start_range})
 
     ~H"""
     <div :if={@total_pages > 1} class="flex gap-4">
@@ -212,34 +212,34 @@ defmodule NervesHubWeb.LayoutView do
     [
       # %{title: "Dashboard", icon: "tachometer-alt", active: "", href: Routes.product_path(conn, :show, conn.assigns.org.name, conn.assigns.product.name)},
       %{
-        title: "Devices",
         active: "",
-        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/devices"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/devices",
+        title: "Devices"
       },
       %{
-        title: "Firmware",
         active: "",
-        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/firmware"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/firmware",
+        title: "Firmware"
       },
       %{
-        title: "Archives",
         active: "",
-        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/archives"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/archives",
+        title: "Archives"
       },
       %{
-        title: "Deployments",
         active: "",
-        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/deployment_groups"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/deployment_groups",
+        title: "Deployments"
       },
       %{
-        title: "Scripts",
         active: "",
-        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/scripts"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/scripts",
+        title: "Scripts"
       },
       %{
-        title: "Settings",
         active: "",
-        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/settings"
+        href: ~p"/org/#{conn.assigns.org}/#{conn.assigns.product}/settings",
+        title: "Settings"
       }
     ]
     |> sidebar_active(conn)
@@ -248,14 +248,14 @@ defmodule NervesHubWeb.LayoutView do
   def sidebar_account(conn) do
     [
       %{
-        title: "Personal Info",
         active: "",
-        href: ~p"/account"
+        href: ~p"/account",
+        title: "Personal Info"
       },
       %{
-        title: "Access Tokens",
         active: "",
-        href: ~p"/account/tokens"
+        href: ~p"/account/tokens",
+        title: "Access Tokens"
       }
     ]
     |> sidebar_active(conn)

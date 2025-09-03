@@ -27,12 +27,12 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          {:ok, tool_metadata} <- get_tool_metadata(meta_conf_path) do
       {:ok,
        %{
-         path: meta_conf_path,
          firmware_metadata: firmware_metadata,
-         tool_metadata: tool_metadata,
+         path: meta_conf_path,
          tool: "fwup",
          tool_delta_required_version: tool_metadata.delta_fwup_version,
-         tool_full_required_version: tool_metadata.complete_fwup_version
+         tool_full_required_version: tool_metadata.complete_fwup_version,
+         tool_metadata: tool_metadata
        }}
     end
   end
@@ -96,7 +96,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     # Unknown version, assume oldest
     device_fwup_version = device.firmware_metadata.fwup_version || @oldest_version
 
-    %{product_id: product_id, firmware_metadata: %{uuid: firmware_uuid}} = device
+    %{firmware_metadata: %{uuid: firmware_uuid}, product_id: product_id} = device
 
     with {:source, {:ok, source}} <-
            {:source, Firmwares.get_firmware_by_product_id_and_uuid(product_id, firmware_uuid)},
@@ -118,7 +118,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
       Logging.log_to_sentry(
         device,
         "[UpdateTool.Fwup] Error fetching device update type: #{inspect(e)}",
-        %{target_firmware_uuid: target.uuid, source_firmware_uuid: Map.get(fw_meta, :uuid)}
+        %{source_firmware_uuid: Map.get(fw_meta, :uuid), target_firmware_uuid: target.uuid}
       )
 
       Logger.error("Error fetching device update type: #{inspect(e)}",

@@ -153,10 +153,10 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
     assigns = %{
       lat: location["latitude"],
       lng: location["longitude"],
-      source: location["source"],
-      zoom: if(String.downcase(location["source"]) == "gps", do: 15, else: 13),
       mapbox_access_token: assigns.mapbox_access_token,
-      target: assigns[:target]
+      source: location["source"],
+      target: assigns[:target],
+      zoom: if(String.downcase(location["source"]) == "gps", do: 15, else: 13)
     }
 
     source_information =

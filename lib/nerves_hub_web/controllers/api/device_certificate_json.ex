@@ -11,9 +11,9 @@ defmodule NervesHubWeb.API.DeviceCertificateJSON do
 
   def device_certificate(device_certificate) do
     %{
-      serial: device_certificate.serial,
+      not_after: device_certificate.not_after,
       not_before: device_certificate.not_before,
-      not_after: device_certificate.not_after
+      serial: device_certificate.serial
     }
   end
 

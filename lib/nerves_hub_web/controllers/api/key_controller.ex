@@ -20,7 +20,7 @@ defmodule NervesHubWeb.API.KeyController do
 
   operation(:create, summary: "Create a new Signing Key for an Organization")
 
-  def create(%{assigns: %{user: user, org: org}} = conn, params) do
+  def create(%{assigns: %{org: org, user: user}} = conn, params) do
     params =
       Map.take(params, ["name", "key"])
       |> Map.put("org_id", org.id)

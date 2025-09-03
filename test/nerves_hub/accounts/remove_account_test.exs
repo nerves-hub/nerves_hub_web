@@ -21,10 +21,10 @@ defmodule NervesHub.Accounts.RemoveAccountTest do
   test "remove_account with org_users" do
     %{
       firmware: firmware1,
-      user: user,
       org: org,
       org_key: org_key,
-      product: product
+      product: product,
+      user: user
     } = Fixtures.standard_fixture()
 
     firmware2 = Fixtures.firmware_fixture(org_key, product)

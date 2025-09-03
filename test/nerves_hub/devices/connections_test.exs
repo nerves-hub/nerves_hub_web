@@ -31,7 +31,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
     assert :ok = Connections.device_disconnected(ref)
 
-    assert %DeviceConnection{status: :disconnected, disconnected_at: disconnected_at} =
+    assert %DeviceConnection{disconnected_at: disconnected_at, status: :disconnected} =
              Connections.get_latest_for_device(device.id)
 
     refute is_nil(disconnected_at)
@@ -58,8 +58,8 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
     deleted_device_connection =
       Fixtures.device_connection_fixture(device, %{
-        status: :disconnected,
-        last_seen_at: two_weeks_ago
+        last_seen_at: two_weeks_ago,
+        status: :disconnected
       })
 
     _ = Connections.delete_old_connections()

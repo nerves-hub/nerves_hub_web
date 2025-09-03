@@ -26,8 +26,8 @@ defmodule NervesHubWeb.Components.CAHelpers do
       end
 
     assigns = %{
-      status: status,
-      class: certificate_status_class(status)
+      class: certificate_status_class(status),
+      status: status
     }
 
     ~H"""

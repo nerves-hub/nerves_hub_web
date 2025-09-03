@@ -92,7 +92,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   @impl Phoenix.LiveView
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    params = %{"page_size" => page_size, "page_number" => 1}
+    params = %{"page_number" => 1, "page_size" => page_size}
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -109,7 +109,7 @@ defmodule NervesHubWeb.Live.Firmware do
     # switch sort direction for column because
     sort_direction = if sort_direction == "asc", do: "desc", else: "asc"
 
-    params = %{sort_direction: sort_direction, sort: value}
+    params = %{sort: value, sort_direction: sort_direction}
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -155,7 +155,7 @@ defmodule NervesHubWeb.Live.Firmware do
   def handle_event("delete-firmware", _params, socket) do
     authorized!(:"firmware:delete", socket.assigns.org_user)
 
-    %{org: org, product: product, firmware: firmware} = socket.assigns
+    %{firmware: firmware, org: org, product: product} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, firmware.uuid)
 
@@ -193,7 +193,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp assign_firmware_with_pagination(socket) do
-    %{assigns: %{product: product, params: params}} = socket
+    %{assigns: %{params: params, product: product}} = socket
 
     pagination_opts = Map.take(params, @pagination_opts)
 

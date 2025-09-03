@@ -11,7 +11,7 @@ defmodule NervesHub.ScriptsTest do
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
 
-    %{user: user, user2: user2, org: org, product: product}
+    %{org: org, product: product, user: user, user2: user2}
   end
 
   describe "creating a script" do
@@ -30,8 +30,8 @@ defmodule NervesHub.ScriptsTest do
       {:ok, script} =
         Scripts.create(product, user, %{
           name: "MOTD",
-          text: "NervesMOTD.print()",
-          tags: "red, green"
+          tags: "red, green",
+          text: "NervesMOTD.print()"
         })
 
       assert script.product_id == product.id
@@ -102,15 +102,15 @@ defmodule NervesHub.ScriptsTest do
       {:ok, script1} =
         Scripts.create(product, user, %{
           name: "MOTD",
-          text: "NervesMOTD.print()",
-          tags: "hello, world"
+          tags: "hello, world",
+          text: "NervesMOTD.print()"
         })
 
       {:ok, _script} =
         Scripts.create(product, user, %{
           name: "Another script",
-          text: "Some code",
-          tags: "world"
+          tags: "world",
+          text: "Some code"
         })
 
       {scripts, _page} = Scripts.filter(product, %{filters: %{tags: "hello"}})

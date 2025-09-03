@@ -22,12 +22,12 @@ defmodule NervesHubWeb.ConnCase.Browser do
         fixture = Fixtures.standard_fixture(context.tmp_dir)
 
         %{
+          deployment_group: deployment_group,
+          device: device,
           org: org,
           org_key: org_key,
-          user: user,
           product: product,
-          device: device,
-          deployment_group: deployment_group
+          user: user
         } = fixture
 
         token = NervesHub.Accounts.create_user_session_token(user)
@@ -40,13 +40,13 @@ defmodule NervesHubWeb.ConnCase.Browser do
 
         %{
           conn: conn,
-          user: user,
-          org: org,
+          deployment_group: deployment_group,
+          device: device,
           fixture: fixture,
+          org: org,
           org_key: org_key,
           product: product,
-          device: device,
-          deployment_group: deployment_group
+          user: user
         }
       end
     end

@@ -5,30 +5,30 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   alias NervesHubWeb.API.Schemas.DeviceCertificateSchemas
 
   @organization_parameter %OpenApiSpex.Parameter{
-    name: :org_name,
-    in: :path,
     description: "Organization Name",
+    example: "example_org",
+    in: :path,
+    name: :org_name,
     required: true,
-    schema: %OpenApiSpex.Schema{type: :string},
-    example: "example_org"
+    schema: %OpenApiSpex.Schema{type: :string}
   }
 
   @product_parameter %OpenApiSpex.Parameter{
-    name: :product_name,
-    in: :path,
     description: "Product Name",
+    example: "example_product",
+    in: :path,
+    name: :product_name,
     required: true,
-    schema: %OpenApiSpex.Schema{type: :string},
-    example: "example_product"
+    schema: %OpenApiSpex.Schema{type: :string}
   }
 
   @device_parameter %OpenApiSpex.Parameter{
-    name: :identifier,
-    in: :path,
     description: "Device Identifier",
+    example: "abc123",
+    in: :path,
+    name: :identifier,
     required: true,
-    schema: %OpenApiSpex.Schema{type: :string},
-    example: "abc123"
+    schema: %OpenApiSpex.Schema{type: :string}
   }
 
   @device_response %{
@@ -48,19 +48,19 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   }
 
   @path_structures %{
-    short: %{
-      path_prefix: "/api/devices/{identifier}",
-      tags: ["Devices (short URL)"],
-      parameters: [@device_parameter]
-    },
     long: %{
-      path_prefix: "/api/orgs/{org_name}/products/{product_name}/devices/{identifier}",
-      tags: ["Devices"],
       parameters: [
         @organization_parameter,
         @product_parameter,
         @device_parameter
-      ]
+      ],
+      path_prefix: "/api/orgs/{org_name}/products/{product_name}/devices/{identifier}",
+      tags: ["Devices"]
+    },
+    short: %{
+      parameters: [@device_parameter],
+      path_prefix: "/api/devices/{identifier}",
+      tags: ["Devices (short URL)"]
     }
   }
 
@@ -105,10 +105,10 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     opts = @path_structures[:long]
 
     add_to_paths(openapi, opts.path_prefix, %OpenApiSpex.PathItem{
-      get: show_device_action(@path_structures[:long]),
       delete: delete_device_action(@path_structures[:long]),
-      put: update_device_action(@path_structures[:long]),
-      post: create_device_action(@path_structures[:long])
+      get: show_device_action(@path_structures[:long]),
+      post: create_device_action(@path_structures[:long]),
+      put: update_device_action(@path_structures[:long])
     })
   end
 
@@ -189,20 +189,20 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     query_parameters = [
       %OpenApiSpex.Parameter{
-        name: :new_org_name,
-        in: :query,
         description: "New Organization Name",
+        example: "new_example_org",
+        in: :query,
+        name: :new_org_name,
         required: true,
-        schema: %OpenApiSpex.Schema{type: :string},
-        example: "new_example_org"
+        schema: %OpenApiSpex.Schema{type: :string}
       },
       %OpenApiSpex.Parameter{
-        name: :new_product_name,
-        in: :query,
         description: "New Product Name",
+        example: "new_example_product",
+        in: :query,
+        name: :new_product_name,
         required: true,
-        schema: %OpenApiSpex.Schema{type: :string},
-        example: "new_example_product"
+        schema: %OpenApiSpex.Schema{type: :string}
       }
     ]
 
@@ -293,20 +293,20 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     additional_parameters = [
       %OpenApiSpex.Parameter{
-        name: :script_id,
-        in: :path,
         description: "Support Script ID",
+        example: "123",
+        in: :path,
+        name: :script_id,
         required: true,
-        schema: %OpenApiSpex.Schema{type: :integer},
-        example: "123"
+        schema: %OpenApiSpex.Schema{type: :integer}
       },
       %OpenApiSpex.Parameter{
-        name: :timeout,
-        in: :path,
         description: "How long to wait for a device response in milliseconds",
+        example: "10000",
+        in: :path,
+        name: :timeout,
         required: false,
-        schema: %OpenApiSpex.Schema{type: :integer},
-        example: "10000"
+        schema: %OpenApiSpex.Schema{type: :integer}
       }
     ]
 
@@ -358,29 +358,29 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
   defp device_operation(summary, operation_id, parameters, tags, opts) do
     %OpenApiSpex.Operation{
-      tags: tags,
-      summary: summary,
+      callbacks: %{},
+      extensions: %{},
       operationId: "NervesHubWeb.API.Devices.#{operation_id}",
       parameters: parameters,
       requestBody: opts[:request_body],
       responses: opts[:response],
-      callbacks: %{},
       security: [%{}, %{"bearer_auth" => []}],
-      extensions: %{}
+      summary: summary,
+      tags: tags
     }
   end
 
   defp script_operation(summary, operation_id, parameters, tags, opts) do
     %OpenApiSpex.Operation{
-      tags: tags,
-      summary: summary,
+      callbacks: %{},
+      extensions: %{},
       operationId: "NervesHubWeb.API.ScriptController.#{operation_id}",
       parameters: parameters,
       requestBody: opts[:request_body],
       responses: opts[:response],
-      callbacks: %{},
       security: [%{}, %{"bearer_auth" => []}],
-      extensions: %{}
+      summary: summary,
+      tags: tags
     }
   end
 

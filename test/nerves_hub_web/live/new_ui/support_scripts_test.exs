@@ -4,7 +4,7 @@ defmodule NervesHubWeb.Live.NewUI.SupportScriptsTest do
   alias NervesHub.Fixtures
   alias NervesHub.Scripts
 
-  setup %{conn: conn, user: user, org: org} do
+  setup %{conn: conn, org: org, user: user} do
     conn = init_test_session(conn, %{"new_ui" => true})
 
     [conn: conn, product: Fixtures.product_fixture(user, org, %{name: "Amazing"})]

@@ -60,8 +60,8 @@ defmodule NervesHub.Logger do
           duration: duration(duration),
           method: conn.method,
           path: request_path(conn),
-          status: conn.status,
-          remote_ip: formatted_ip(conn)
+          remote_ip: formatted_ip(conn),
+          status: conn.status
         })
     end
   end
@@ -69,13 +69,13 @@ defmodule NervesHub.Logger do
   def log_event([:nerves_hub, :devices, :invalid_auth], _, metadata, _) do
     extra =
       %{
-        event: "nerves_hub.devices.invalid_auth",
         auth: to_string(metadata[:auth]),
-        reason: inspect(metadata[:reason]),
+        event: "nerves_hub.devices.invalid_auth",
+        identifier: metadata[:device_identifier],
         org_id: metadata[:org_id],
         product_id: metadata[:product_id],
-        shared_key: metadata[:shared_key],
-        identifier: metadata[:device_identifier]
+        reason: inspect(metadata[:reason]),
+        shared_key: metadata[:shared_key]
       }
       |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
@@ -117,9 +117,9 @@ defmodule NervesHub.Logger do
   def log_event([:nerves_hub, :devices, :join_failure], _, metadata, _) do
     extra =
       %{
-        event: "nerves_hub.devices.join_failure",
-        error: inspect(metadata[:error]),
         channel: metadata[:channel],
+        error: inspect(metadata[:error]),
+        event: "nerves_hub.devices.join_failure",
         identifier: metadata[:device_identifier]
       }
       |> Map.reject(fn {_key, val} -> is_nil(val) end)
@@ -148,9 +148,9 @@ defmodule NervesHub.Logger do
     extra =
       %{
         event: "nerves_hub.devices.unhandled_info",
+        identifier: metadata[:device_identifier],
         msg: inspect(metadata[:msg]),
-        params: inspect(metadata[:params]),
-        identifier: metadata[:device_identifier]
+        params: inspect(metadata[:params])
       }
       |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
@@ -161,8 +161,8 @@ defmodule NervesHub.Logger do
     extra =
       %{
         event: "nerves_hub.devices.unhandled_in",
-        msg: inspect(metadata[:msg]),
-        identifier: metadata[:device_identifier]
+        identifier: metadata[:device_identifier],
+        msg: inspect(metadata[:msg])
       }
       |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
@@ -247,7 +247,7 @@ defmodule NervesHub.Logger do
     |> Enum.join()
   end
 
-  defp request_path(%{request_path: request_path, query_string: query_string}) when query_string not in ["", nil],
+  defp request_path(%{query_string: query_string, request_path: request_path}) when query_string not in ["", nil],
     do: request_path <> "?" <> query_string
 
   defp request_path(%{request_path: request_path}), do: request_path

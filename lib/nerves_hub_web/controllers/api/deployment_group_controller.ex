@@ -66,8 +66,8 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   operation(:update, summary: "Update a Deployment Group")
 
   def update(%{assigns: %{product: product, user: user}} = conn, %{
-        "name" => name,
-        "deployment" => deployment_group_params
+        "deployment" => deployment_group_params,
+        "name" => name
       }) do
     with {:ok, deployment_group} <-
            ManagedDeployments.get_deployment_group_by_name(product, name),

@@ -234,11 +234,11 @@ defmodule NervesHub.Products do
         |> X509.Certificate.to_pem()
       else
         %{
-          serial: db_cert.serial,
           aki: Base.encode16(db_cert.aki),
-          ski: if(db_cert.ski, do: Base.encode16(db_cert.ski)),
+          not_after: db_cert.not_after,
           not_before: db_cert.not_before,
-          not_after: db_cert.not_after
+          serial: db_cert.serial,
+          ski: if(db_cert.ski, do: Base.encode16(db_cert.ski))
         }
         |> Jason.encode!()
         |> Kernel.<>(@csv_certs_sep)

@@ -16,7 +16,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       conn = get(conn, Routes.api_org_user_path(conn, :index, org.name))
 
       assert json_response(conn, 200)["data"] ==
-               [%{"email" => user.email, "role" => "admin", "name" => user.name}]
+               [%{"email" => user.email, "name" => user.name, "role" => "admin"}]
     end
   end
 
@@ -89,7 +89,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
 
       test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
         Accounts.add_org_user(org, user, %{role: @role})
-        org_user = %{"username" => "1234", "role" => "admin"}
+        org_user = %{"role" => "admin", "username" => "1234"}
 
         assert_error_sent(401, fn ->
           post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
@@ -159,7 +159,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
     end
   end
 
-  defp create_org_user(%{user2: user, org: org}) do
+  defp create_org_user(%{org: org, user2: user}) do
     {:ok, org_user} = Accounts.add_org_user(org, user, %{role: :admin})
     {:ok, %{org_user: org_user}}
   end

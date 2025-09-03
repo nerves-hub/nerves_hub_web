@@ -9,11 +9,11 @@ defmodule NervesHub.Accounts.OrgUser do
   @type t :: %__MODULE__{}
 
   schema "org_users" do
+    field(:deleted_at, :utc_datetime)
+    field(:role, Ecto.Enum, values: [:admin, :manage, :view])
+
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:user, User, where: [deleted_at: nil])
-
-    field(:role, Ecto.Enum, values: [:admin, :manage, :view])
-    field(:deleted_at, :utc_datetime)
 
     timestamps()
   end

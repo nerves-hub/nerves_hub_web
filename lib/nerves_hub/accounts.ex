@@ -29,8 +29,8 @@ defmodule NervesHub.Accounts do
       |> Multi.insert(:org_user, fn %{org: org} ->
         org_user = %OrgUser{
           org_id: org.id,
-          user_id: user.id,
-          role: :admin
+          role: :admin,
+          user_id: user.id
         }
 
         Org.add_user(org_user, %{})
@@ -353,8 +353,8 @@ defmodule NervesHub.Accounts do
     devices =
       Device
       |> select([d], %{
-        product_id: d.product_id,
-        device_count: count()
+        device_count: count(),
+        product_id: d.product_id
       })
       |> Repo.exclude_deleted()
       |> group_by([d], d.product_id)
@@ -557,9 +557,9 @@ defmodule NervesHub.Accounts do
   def invite(params, org, invited_by) do
     params =
       Map.merge(params, %{
+        "invited_by_id" => invited_by.id,
         "org_id" => org.id,
-        "token" => Ecto.UUID.generate(),
-        "invited_by_id" => invited_by.id
+        "token" => Ecto.UUID.generate()
       })
 
     %Invite{}
@@ -718,9 +718,9 @@ defmodule NervesHub.Accounts do
       |> Enum.reduce(0, &(&1.size + &2))
 
     params = %{
-      org_id: org_id,
-      devices: devices,
       bytes_stored: bytes_stored,
+      devices: devices,
+      org_id: org_id,
       timestamp: timestamp
     }
 

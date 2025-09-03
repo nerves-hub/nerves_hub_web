@@ -4,7 +4,7 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
   alias NervesHub.Fixtures
   alias NervesHub.Scripts
 
-  setup %{user: user, org: org} do
+  setup %{org: org, user: user} do
     [product: Fixtures.product_fixture(user, org, %{name: "Amazing"})]
   end
 

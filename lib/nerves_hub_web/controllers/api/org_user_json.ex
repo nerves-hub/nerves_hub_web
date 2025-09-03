@@ -11,8 +11,8 @@ defmodule NervesHubWeb.API.OrgUserJSON do
 
   defp org_user(org_user) do
     %{
-      name: org_user.user.name,
       email: org_user.user.email,
+      name: org_user.user.name,
       role: org_user.role
     }
   end

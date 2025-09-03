@@ -12,13 +12,13 @@ defmodule NervesHub.Scripts.Script do
   @optional [:tags]
 
   schema "scripts" do
-    belongs_to(:product, Product)
+    field(:name, :string)
+    field(:tags, Tag)
+    field(:text, :string)
+
     belongs_to(:created_by, User, where: [deleted_at: nil])
     belongs_to(:last_updated_by, User, where: [deleted_at: nil])
-
-    field(:name, :string)
-    field(:text, :string)
-    field(:tags, Tag)
+    belongs_to(:product, Product)
 
     timestamps()
   end

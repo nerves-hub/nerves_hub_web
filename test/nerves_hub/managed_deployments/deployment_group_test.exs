@@ -8,17 +8,17 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
   describe "shared changeset validations" do
     setup do
       deployment_group = %DeploymentGroup{
-        org_id: 1,
-        firmware_id: 1,
-        name: "Bestest Devices",
+        concurrent_updates: 1000,
         conditions: %{
           "tags" => ["foo"],
           "version" => "1.2.3"
         },
+        firmware_id: 1,
+        inflight_update_expiration_minutes: 10,
         is_active: true,
-        product_id: 1,
-        concurrent_updates: 1000,
-        inflight_update_expiration_minutes: 10
+        name: "Bestest Devices",
+        org_id: 1,
+        product_id: 1
       }
 
       %{deployment_group: deployment_group, functions: [:create_changeset, :update_changeset]}
@@ -48,7 +48,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
           apply(DeploymentGroup, function, [
             deployment_group,
             %{
-              conditions: %{"version" => "1.2.0", "tags" => []}
+              conditions: %{"tags" => [], "version" => "1.2.0"}
             }
           ])
 
@@ -99,7 +99,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
           apply(DeploymentGroup, function, [
             deployment_group,
             %{
-              conditions: %{"version" => "", "tags" => []}
+              conditions: %{"tags" => [], "version" => ""}
             }
           ])
 
@@ -113,7 +113,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
           apply(DeploymentGroup, function, [
             deployment_group,
             %{
-              conditions: %{"version" => nil, "tags" => []}
+              conditions: %{"tags" => [], "version" => nil}
             }
           ])
 
@@ -131,7 +131,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
           apply(DeploymentGroup, function, [
             deployment_group,
             %{
-              conditions: %{"version" => "1.2.3.5.6", "tags" => []}
+              conditions: %{"tags" => [], "version" => "1.2.3.5.6"}
             }
           ])
 

@@ -15,7 +15,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> assert_has("h1", text: "Create Product")
     end
 
-    test "lists all products in the org", %{conn: conn, org: org, fixture: %{product: product}} do
+    test "lists all products in the org", %{conn: conn, fixture: %{product: product}, org: org} do
       conn
       |> visit("/org/#{org.name}")
       |> assert_has("h3", text: product.name)

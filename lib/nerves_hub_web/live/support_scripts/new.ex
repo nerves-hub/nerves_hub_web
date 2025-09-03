@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
   def handle_event(
         "create-script",
         %{"script" => script_params},
-        %{assigns: %{org_user: org_user, org: org, product: product}} = socket
+        %{assigns: %{org: org, org_user: org_user, product: product}} = socket
       ) do
     authorized!(:"support_script:create", org_user)
 

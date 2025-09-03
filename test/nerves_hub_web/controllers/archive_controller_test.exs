@@ -7,9 +7,9 @@ defmodule NervesHubWeb.ArchiveControllerTest do
     @tag :tmp_dir
     test "downloads chosen archive", %{
       conn: conn,
-      user: user,
       org: org,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)

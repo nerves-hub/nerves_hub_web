@@ -31,16 +31,16 @@ defmodule NervesHubWeb.ApiSpec do
       # Populate the paths from a phoenix router
       paths: set_paths(),
       components: %Components{
-        securitySchemes: %{
-          "bearer_auth" => %SecurityScheme{
-            type: "http",
-            scheme: "bearer"
-          }
-        },
         responses: %{
           "unprocessable_entity" => %Response{
-            description: "Unprocessable Entity",
-            content: %{"application/json" => %MediaType{schema: %Schema{type: :object}}}
+            content: %{"application/json" => %MediaType{schema: %Schema{type: :object}}},
+            description: "Unprocessable Entity"
+          }
+        },
+        securitySchemes: %{
+          "bearer_auth" => %SecurityScheme{
+            scheme: "bearer",
+            type: "http"
           }
         }
       },
@@ -51,52 +51,52 @@ defmodule NervesHubWeb.ApiSpec do
       ],
       tags: [
         %Tag{
-          name: "Auth",
-          description: "User authentication and API token creation"
+          description: "User authentication and API token creation",
+          name: "Auth"
         },
         %Tag{
-          name: "CA Certificates",
-          description: "Organization Certificate Authority management"
+          description: "Organization Certificate Authority management",
+          name: "CA Certificates"
         },
         %Tag{
-          name: "Devices",
-          description: "Device management, including action requests eg. upgrade, reboot, reconnect"
+          description: "Device management, including action requests eg. upgrade, reboot, reconnect",
+          name: "Devices"
         },
         %Tag{
-          name: "Devices (short URL)",
-          description: "Device management, including action requests eg. upgrade, reboot, reconnect"
+          description: "Device management, including action requests eg. upgrade, reboot, reconnect",
+          name: "Devices (short URL)"
         },
         %Tag{
-          name: "Device Certificates",
-          description: "Device Certificate management"
+          description: "Device Certificate management",
+          name: "Device Certificates"
         },
         %Tag{
-          name: "Deployment Groups",
-          description: "Operations related to Deployment Groups"
+          description: "Operations related to Deployment Groups",
+          name: "Deployment Groups"
         },
         %Tag{
-          name: "Firmwares",
-          description: "Firmware uploading and management"
+          description: "Firmware uploading and management",
+          name: "Firmwares"
         },
         %Tag{
-          name: "Organization Members",
-          description: "Organization User membership"
+          description: "Organization User membership",
+          name: "Organization Members"
         },
         %Tag{
-          name: "Products",
-          description: "Product management"
+          description: "Product management",
+          name: "Products"
         },
         %Tag{
-          name: "Signing Keys",
-          description: "Organization Signing Key management"
+          description: "Organization Signing Key management",
+          name: "Signing Keys"
         },
         %Tag{
-          name: "Status",
-          description: "Application healthcheck"
+          description: "Application healthcheck",
+          name: "Status"
         },
         %Tag{
-          name: "Support Scripts",
-          description: "Organization Support Script management"
+          description: "Organization Support Script management",
+          name: "Support Scripts"
         }
       ]
     }

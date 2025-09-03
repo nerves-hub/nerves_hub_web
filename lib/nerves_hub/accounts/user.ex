@@ -74,11 +74,11 @@ defmodule NervesHub.Accounts.User do
     oauth_attrs = [:name, :email, :profile_picture_url, :google_id, :google_hd]
 
     attrs = %{
-      name: info.name,
       email: info.email,
-      profile_picture_url: info.image,
+      google_hd: auth.extra.raw_info.user["hd"],
       google_id: auth.uid,
-      google_hd: auth.extra.raw_info.user["hd"]
+      name: info.name,
+      profile_picture_url: info.image
     }
 
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)

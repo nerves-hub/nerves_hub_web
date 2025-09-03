@@ -20,9 +20,9 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_confirmation_instructions(user, confirmation_url) do
     assigns = %{
-      user_name: user.name,
       confirmation_url: confirmation_url,
-      platform_name: platform_name()
+      platform_name: platform_name(),
+      user_name: user.name
     }
 
     {html, text} = render(ConfirmationTemplate, assigns)
@@ -32,9 +32,9 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_password_updated(user, reset_url) do
     assigns = %{
-      user_name: user.name,
+      platform_name: platform_name(),
       reset_url: reset_url,
-      platform_name: platform_name()
+      user_name: user.name
     }
 
     {html, text} = render(PasswordUpdatedTemplate, assigns)
@@ -44,9 +44,9 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_login_with_google_reminder(user, login_url) do
     assigns = %{
-      user_name: user.name,
       login_url: login_url,
-      platform_name: platform_name()
+      platform_name: platform_name(),
+      user_name: user.name
     }
 
     {html, text} = render(LoginWithGoogleReminderTemplate, assigns)
@@ -56,9 +56,9 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_reset_password_instructions(user, reset_url) do
     assigns = %{
-      user_name: user.name,
+      platform_name: platform_name(),
       reset_url: reset_url,
-      platform_name: platform_name()
+      user_name: user.name
     }
 
     {html, text} = render(PasswordResetTemplate, assigns)
@@ -68,8 +68,8 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_reset_password_confirmation(user) do
     assigns = %{
-      user_name: user.name,
-      platform_name: platform_name()
+      platform_name: platform_name(),
+      user_name: user.name
     }
 
     {html, text} = render(PasswordResetConfirmationTemplate, assigns)
@@ -78,7 +78,7 @@ defmodule NervesHub.Accounts.UserNotifier do
   end
 
   def deliver_welcome_email(user) do
-    assigns = %{user_name: user.name, platform_name: platform_name()}
+    assigns = %{platform_name: platform_name(), user_name: user.name}
 
     {html, text} = render(WelcomeTemplate, assigns)
 
@@ -87,10 +87,10 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_user_invite(email, org, invited_by, invite_url) do
     assigns = %{
-      org_name: org.name,
-      platform_name: platform_name(),
+      invite_url: invite_url,
       invited_by_name: invited_by.name,
-      invite_url: invite_url
+      org_name: org.name,
+      platform_name: platform_name()
     }
 
     {html, text} = render(UserInviteTemplate, assigns)
@@ -105,9 +105,9 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_org_user_added(org, user, invited_by) do
     assigns = %{
-      user_name: user.name,
       invited_by_name: invited_by.name,
-      org_name: org.name
+      org_name: org.name,
+      user_name: user.name
     }
 
     {html, text} = render(OrgUserAddedTemplate, assigns)
@@ -130,10 +130,10 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_tell_org_user_invited(org, admin, instigator, new_user_email) do
     assigns = %{
-      user_name: admin.name,
-      new_user_email: new_user_email,
       invited_by_name: instigator.name,
-      org_name: org.name
+      new_user_email: new_user_email,
+      org_name: org.name,
+      user_name: admin.name
     }
 
     {html, text} = render(TellOrgUserInvitedTemplate, assigns)
@@ -158,10 +158,10 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_tell_org_user_added(org, admin, instigator, new_user) do
     assigns = %{
-      user_name: admin.name,
-      new_user_name: new_user.name,
       invited_by_name: instigator.name,
-      org_name: org.name
+      new_user_name: new_user.name,
+      org_name: org.name,
+      user_name: admin.name
     }
 
     {html, text} = render(TellOrgUserAddedTemplate, assigns)
@@ -186,10 +186,10 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_tell_org_user_removed(org, admin, instigator, removed_user) do
     assigns = %{
-      user_name: admin.name,
-      removed_user_name: removed_user.name,
       instigator_name: instigator.name,
-      org_name: org.name
+      org_name: org.name,
+      removed_user_name: removed_user.name,
+      user_name: admin.name
     }
 
     {html, text} = render(TellOrgUserRemovedTemplate, assigns)

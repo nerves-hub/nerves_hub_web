@@ -50,8 +50,8 @@ defmodule NervesHub.Firmwares.Upload.File do
          |> String.trim("/"))
 
     %{
-      public_path: public_path,
-      local_path: local_path
+      local_path: local_path,
+      public_path: public_path
     }
   end
 
@@ -84,8 +84,8 @@ defmodule NervesHub.Firmwares.Upload.File do
       ])
 
     %{
-      public_path: public_path,
-      local_path: local_path
+      local_path: local_path,
+      public_path: public_path
     }
   end
 
