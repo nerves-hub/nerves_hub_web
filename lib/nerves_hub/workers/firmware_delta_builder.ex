@@ -1,10 +1,12 @@
 defmodule NervesHub.Workers.FirmwareDeltaBuilder do
   use Oban.Worker,
-    max_attempts: 5,
+    max_attempts: 3,
     queue: :firmware_delta_builder,
     unique: [
       period: 60 * 10,
-      states: [:available, :scheduled, :executing]
+      states: [:available, :scheduled, :executing],
+      keys: [:source_id, :target_id],
+      fields: [:worker, :args]
     ]
 
   require Logger
@@ -47,7 +49,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
       {:ok, %FirmwareDelta{status: :processing} = delta} ->
         Logger.info("Attempting firmware delta build for #{source.platform} #{source.version} to #{target.version}...")
 
-        :ok = Firmwares.generate_firmware_delta(delta, source, target)
+        Firmwares.generate_firmware_delta(delta, source, target)
 
       # Currently we do not retry timed out or failed delta builds
       # This could lead to generating too many times
