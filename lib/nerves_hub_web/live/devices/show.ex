@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
@@ -243,9 +244,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:reboot", org_user)
 
-    DeviceTemplates.audit_reboot(user, device)
-
-    socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
+    DeviceEvents.reboot(device, user)
 
     {:noreply, put_flash(socket, :info, "Device reboot requested")}
   end
@@ -267,9 +266,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:identify", org_user)
 
-    DeviceTemplates.audit_request_action(user, device, "identify itself")
-
-    socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "identify", %{})
+    DeviceEvents.identify(device, user)
 
     {:noreply, put_flash(socket, :info, "Device identification requested")}
   end
