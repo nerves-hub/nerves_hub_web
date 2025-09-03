@@ -9,6 +9,7 @@ defmodule NervesHub.Devices.UpdateStats do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -48,7 +49,7 @@ defmodule NervesHub.Devices.UpdateStats do
               total_update_bytes: non_neg_integer(),
               total_saved_bytes: integer(),
               total_updates: non_neg_integer(),
-              source_firmware_uuid: String.t()
+              target_firmware_uuid: String.t()
             }
           }
   def stats_by_deployment(deployment_group) do
@@ -64,10 +65,9 @@ defmodule NervesHub.Devices.UpdateStats do
       target_firmware_uuid: s.target_firmware_uuid
     })
     |> Repo.all()
-    |> Enum.map(fn stat ->
+    |> Map.new(fn stat ->
       Map.pop(stat, :target_firmware_uuid)
     end)
-    |> Map.new()
   end
 
   @spec total_stats_by_product(Product.t()) ::
@@ -154,6 +154,11 @@ defmodule NervesHub.Devices.UpdateStats do
         :ok
 
       {:error, %Ecto.Changeset{} = changeset} = error ->
+        Logging.log_message_to_sentry("Failed to create update stat for device", %{
+          errors: changeset.errors,
+          device_identifier: device.identifier
+        })
+
         Logger.warning(
           "Could not create update stat for device",
           errors: changeset.errors,
