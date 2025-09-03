@@ -11,13 +11,12 @@ defmodule NervesHub.Devices.SharedSecretAuth do
   @key_prefix "nhd"
 
   schema "device_shared_secret_auths" do
-    belongs_to(:device, Device)
-    belongs_to(:product_shared_secret_auth, Products.SharedSecretAuth)
-
+    field(:deactivated_at, :utc_datetime)
     field(:key, :string)
     field(:secret, :string)
 
-    field(:deactivated_at, :utc_datetime)
+    belongs_to(:device, Device)
+    belongs_to(:product_shared_secret_auth, Products.SharedSecretAuth)
 
     timestamps()
   end

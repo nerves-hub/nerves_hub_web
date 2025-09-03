@@ -14,11 +14,11 @@ defmodule NervesHub.Devices.UpdatePayload do
              :deployment_id
            ]}
 
-  defstruct update_available: false,
-            firmware_url: nil,
+  defstruct deployment_group: nil,
+            deployment_id: nil,
             firmware_meta: nil,
-            deployment_group: nil,
-            deployment_id: nil
+            firmware_url: nil,
+            update_available: false
 
   @type t ::
           %__MODULE__{

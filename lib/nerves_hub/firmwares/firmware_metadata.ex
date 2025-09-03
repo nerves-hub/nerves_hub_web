@@ -53,16 +53,16 @@ defmodule NervesHub.Firmwares.FirmwareMetadata do
 
   @derive Jason.Encoder
   embedded_schema do
-    field(:uuid)
-    field(:product)
-    field(:version)
     field(:architecture)
-    field(:platform)
     field(:author)
     field(:description)
     field(:fwup_version)
-    field(:vcs_identifier)
     field(:misc)
+    field(:platform)
+    field(:product)
+    field(:uuid)
+    field(:vcs_identifier)
+    field(:version)
   end
 
   def changeset(%__MODULE__{} = metadata, params) do

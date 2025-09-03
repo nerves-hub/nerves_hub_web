@@ -25,8 +25,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   defmodule State do
     defstruct deployment_group: nil,
               rate_limit?: true,
-              timer_ref: nil,
-              should_run?: false
+              should_run?: false,
+              timer_ref: nil
 
     @type t ::
             %__MODULE__{

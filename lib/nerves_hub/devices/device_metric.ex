@@ -10,9 +10,10 @@ defmodule NervesHub.Devices.DeviceMetric do
   @required_params [:device_id, :key, :value]
 
   schema "device_metrics" do
-    belongs_to(:device, Device)
     field(:key, :string)
     field(:value, :float)
+
+    belongs_to(:device, Device)
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end

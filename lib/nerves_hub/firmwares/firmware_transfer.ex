@@ -18,13 +18,13 @@ defmodule NervesHub.Firmwares.FirmwareTransfer do
   ]
 
   schema "firmware_transfers" do
-    belongs_to(:org, Org, where: [deleted_at: nil])
-
+    field(:bytes_sent, :integer)
+    field(:bytes_total, :integer)
     field(:firmware_uuid)
     field(:remote_ip)
-    field(:bytes_total, :integer)
-    field(:bytes_sent, :integer)
     field(:timestamp, :utc_datetime)
+
+    belongs_to(:org, Org, where: [deleted_at: nil])
   end
 
   def changeset(%__MODULE__{} = transfer, params) do

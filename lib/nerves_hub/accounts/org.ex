@@ -19,17 +19,16 @@ defmodule NervesHub.Accounts.Org do
 
   @derive {Phoenix.Param, key: :name}
   schema "orgs" do
-    has_many(:org_keys, OrgKey)
-    has_many(:products, Product, where: [deleted_at: nil])
-    has_many(:devices, Device, where: [deleted_at: nil])
-    has_many(:ca_certificates, CACertificate)
-
-    has_many(:org_users, OrgUser, where: [deleted_at: nil])
-    has_many(:users, through: [:org_users, :user])
-
-    field(:name, :string)
-    field(:deleted_at, :utc_datetime)
     field(:audit_log_days_to_keep, :integer)
+    field(:deleted_at, :utc_datetime)
+    field(:name, :string)
+
+    has_many(:ca_certificates, CACertificate)
+    has_many(:devices, Device, where: [deleted_at: nil])
+    has_many(:org_keys, OrgKey)
+    has_many(:org_users, OrgUser, where: [deleted_at: nil])
+    has_many(:products, Product, where: [deleted_at: nil])
+    has_many(:users, through: [:org_users, :user])
 
     timestamps()
   end
