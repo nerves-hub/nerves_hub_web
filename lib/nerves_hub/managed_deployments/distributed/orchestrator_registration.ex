@@ -26,7 +26,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
 
   @impl GenServer
   def init(_) do
-    Process.send_after(self(), :start_orchestrators, :timer.seconds(3))
+    Process.send_after(self(), :start_orchestrators, to_timeout(second: 3))
     {:ok, nil}
   end
 
@@ -67,8 +67,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
   @spec start_orchestrators() :: :ok
   def start_orchestrators() do
     ManagedDeployments.should_run_orchestrator()
-    |> Enum.map(&Orchestrator.child_spec(&1))
-    |> Enum.map(&await_start(&1))
+    |> Enum.map(&Orchestrator.child_spec/1)
+    |> Enum.map(&await_start/1)
     |> report_errors()
   end
 

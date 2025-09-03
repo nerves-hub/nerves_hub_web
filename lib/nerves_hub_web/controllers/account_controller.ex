@@ -16,7 +16,7 @@ defmodule NervesHubWeb.AccountController do
     render(conn, :new, changeset: changeset)
   end
 
-  def create(conn, %{"user" => user_params} = _) do
+  def create(conn, %{"user" => user_params}) do
     case Accounts.create_user(user_params) do
       {:ok, new_user} ->
         {:ok, _} =
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.AccountController do
     end
   end
 
-  def invite(conn, %{"token" => token} = _) do
+  def invite(conn, %{"token" => token}) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
       conn

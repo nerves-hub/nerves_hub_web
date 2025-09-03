@@ -8,7 +8,12 @@
     only: [
       :blocks,
       :comment_directives,
-      :defs
-    ]
+      :configs,
+      :defs,
+      :deprecations,
+      :pipes,
+      :single_node
+    ],
+    exclude: [piped_functions: [:subquery]]
   ]
 ]

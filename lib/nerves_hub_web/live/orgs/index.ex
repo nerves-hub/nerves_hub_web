@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     pinned_devices = Devices.get_pinned_devices(user.id)
 
     statuses =
-      Enum.into(pinned_devices, %{}, fn device ->
+      Map.new(pinned_devices, fn device ->
         {device.identifier, Tracker.connection_status(device)}
       end)
 

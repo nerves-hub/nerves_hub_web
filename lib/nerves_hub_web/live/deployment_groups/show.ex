@@ -4,12 +4,16 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
+  alias NervesHub.Devices.UpdateStats
+  alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
   alias NervesHubWeb.Components.AuditLogFeed
+
+  alias Phoenix.Socket.Broadcast
 
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
   alias NervesHubWeb.Components.DeploymentGroupPage.ReleaseHistory, as: ReleaseHistoryTab
@@ -39,6 +43,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     inflight_updates = Devices.inflight_updates_for(deployment_group)
     updating_count = Devices.updating_count(deployment_group)
 
+    :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}:internal")
+
     socket
     |> page_title("Deployment Group - #{deployment_group.name} - #{product.name}")
     |> sidebar_tab(:deployments)
@@ -51,6 +57,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> assign(:audit_pager, audit_pager)
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:firmware, deployment_group.firmware)
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
+    |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
     |> assign_matched_devices_count()
     |> schedule_inflight_updates_updater()
     |> ok()
@@ -276,7 +284,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
 
-    send_update(self(), SummaryTab, id: "deployment_group_summary", update_inflight_info: true)
+    send_update(SummaryTab, id: "deployment_group_summary", update_inflight_info: true)
 
     socket
     |> assign(:inflight_updates, inflight_updates)
@@ -290,6 +298,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   def handle_info(:update_inflight_updates, socket) do
     Process.send_after(self(), :update_inflight_updates, 5000)
     noreply(socket)
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info(%Broadcast{event: "stat:logged"}, socket) do
+    send_update(SummaryTab, id: "deployment_group_summary", stat_logged: true)
+
+    {:noreply, socket}
   end
 
   defp selected_tab(socket) do

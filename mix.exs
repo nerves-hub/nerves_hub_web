@@ -72,6 +72,7 @@ defmodule NervesHub.MixProject do
   # Run "mix help deps" for examples and options.
   defp deps() do
     [
+      {:sizeable, "~> 1.0"},
       {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
       {:recon, "~> 2.5"},
       {:assert_eventually, "~> 1.0.0", only: [:dev, :test]},

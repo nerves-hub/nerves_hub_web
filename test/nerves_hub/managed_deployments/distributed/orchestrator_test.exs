@@ -78,10 +78,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Devices.deployment_device_online(device1)
 
     # sent when a device is a assigned a deployment group
-    assert_receive %Broadcast{topic: ^topic1, event: "devices/deployment-updated"}, 500
+    assert_receive %Broadcast{topic: ^topic1, event: "deployment_updated"}, 500
 
     # check that the first device was told to update
-    assert_receive %Broadcast{topic: ^topic1, event: "update-scheduled"}, 500
+    assert_receive %Broadcast{topic: ^topic1, event: "update"}, 500
 
     # assign a second device to the deployment group and mark it as connected
     topic2 = "device:#{device2.id}"
@@ -93,7 +93,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Devices.deployment_device_online(device2)
 
     # and check that device2 was told to update
-    assert_receive %Broadcast{topic: ^topic2, event: "update-scheduled"}, 500
+    assert_receive %Broadcast{topic: ^topic2, event: "update"}, 500
 
     # and now assign a third device to the deployment group and mark it as connected
     topic3 = "device:#{device3.id}"
@@ -105,7 +105,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Devices.deployment_device_online(device3)
 
     # and check that device3 isn't told to update as the concurrent limit has been reached
-    refute_receive %Broadcast{topic: ^topic3, event: "update-scheduled"}, 500
+    refute_receive %Broadcast{topic: ^topic3, event: "update"}, 500
   end
 
   test "finds another device to update when a device finishes updating", %{
@@ -150,7 +150,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id})
 
     # check that the first device was told to update
-    assert_receive %Broadcast{topic: ^topic1, event: "update-scheduled"}, 500
+    assert_receive %Broadcast{topic: ^topic1, event: "update"}, 500
 
     # bring the second device 'online'
     Devices.update_deployment_group(device2, deployment_group)
@@ -158,22 +158,22 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     :ok = Connections.device_connected(connection.id)
 
     # sent by the device after its updated
-    assert_receive %Broadcast{topic: ^topic2, event: "devices/deployment-updated"}, 500
+    assert_receive %Broadcast{topic: ^topic2, event: "deployment_updated"}, 500
 
     # pretend that the first device successfully updated
     {:ok, device} =
       Devices.update_device(device, %{firmware_metadata: %{"uuid" => firmware.uuid}})
 
-    Devices.firmware_update_successful(device)
+    Devices.firmware_update_successful(device, device.firmware_metadata)
 
     # sent by the device after its updated
-    assert_receive %Broadcast{topic: ^topic1, event: "devices/updated"}, 500
+    assert_receive %Broadcast{topic: ^topic1, event: "updated"}, 500
 
     # check that the orchestrator was told about the successful update
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-updated"}, 500
 
     # and that device2 was told to update
-    assert_receive %Broadcast{topic: ^topic2, event: "update-scheduled"}, 500
+    assert_receive %Broadcast{topic: ^topic2, event: "update"}, 500
   end
 
   test "the orchestrator doesn't 'trigger' if the device that came online is up-to-date", %{
@@ -231,14 +231,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Devices.deployment_device_online(device1)
 
     # sent when a device is assigned a deployment group
-    assert_receive %Broadcast{topic: ^device1_topic, event: "devices/deployment-updated"},
+    assert_receive %Broadcast{topic: ^device1_topic, event: "deployment_updated"},
                    500
 
     # the orchestrator is told that a device assigned to it is online
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-online"}, 500
 
     # and then a device is told to schedule an update
-    assert_receive %Broadcast{topic: ^device1_topic, event: "update-scheduled"}, 1_000
+    assert_receive %Broadcast{topic: ^device1_topic, event: "update"}, 1_000
 
     Mimic.reject(&Devices.available_for_update/2)
 
@@ -257,7 +257,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Devices.deployment_device_online(device2)
 
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-online"}, 500
-    refute_receive %Broadcast{topic: ^device2_topic, event: "update-scheduled"}, 500
+    refute_receive %Broadcast{topic: ^device2_topic, event: "update"}, 500
 
     # allows for db connections to finish and close
     _state = :sys.get_state(pid)
@@ -302,20 +302,20 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Devices.deployment_device_online(device1)
 
     # sent when a device is assigned a deployment group
-    assert_receive %Broadcast{topic: ^device1_topic, event: "devices/deployment-updated"},
+    assert_receive %Broadcast{topic: ^device1_topic, event: "deployment_updated"},
                    500
 
     # the orchestrator is told that a device assigned to it is online
     assert_receive %Broadcast{topic: ^deployment_topic, event: "device-online"}, 500
 
     # the device isn't told to update, yet
-    refute_receive %Broadcast{topic: ^device1_topic, event: "update-scheduled"}, 1_000
+    refute_receive %Broadcast{topic: ^device1_topic, event: "update"}, 1_000
 
     # we enable updates for the device
     Devices.enable_updates(device1, user)
 
     # and then a device is told to schedule an update
-    assert_receive %Broadcast{topic: ^device1_topic, event: "update-scheduled"}, 1_000
+    assert_receive %Broadcast{topic: ^device1_topic, event: "update"}, 1_000
 
     # allows for db connections to finish and close
     _state = :sys.get_state(pid)

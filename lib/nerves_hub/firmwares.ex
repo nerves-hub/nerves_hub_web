@@ -370,7 +370,6 @@ defmodule NervesHub.Firmwares do
   @spec get_firmware_delta(integer()) ::
           {:ok, FirmwareDelta.t()}
           | {:error, :not_found}
-
   def get_firmware_delta(firmware_delta_id) do
     case Repo.get(FirmwareDelta, firmware_delta_id) do
       nil -> {:error, :not_found}

@@ -177,7 +177,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
             all_delta_files
           )
         end
-        |> Enum.reject(&is_nil(&1))
+        |> Enum.reject(&is_nil/1)
 
       {:ok, delta_zip_path} = Plug.Upload.random_file("#{source_uuid}_#{target_uuid}_delta.zip")
       _ = File.rm(delta_zip_path)
@@ -352,9 +352,9 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     {:ok, :saved_to_file} =
       :httpc.request(
         :get,
-        {url |> to_charlist, []},
+        {url |> to_charlist(), []},
         [],
-        stream: filepath |> to_charlist
+        stream: filepath |> to_charlist()
       )
 
     :ok

@@ -205,7 +205,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   def check_validity({not_before, not_after}) do
     now = DateTime.utc_now()
     is_before? = DateTime.compare(now, not_before) != :gt
-    is_after? = DateTime.compare(now, not_after) == :gt
+    is_after? = DateTime.after?(now, not_after)
 
     if is_before? or is_after? do
       {:error, :cert_expired}
