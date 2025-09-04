@@ -23,7 +23,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, device_channel} =
-      subscribe_and_join(socket, DeviceChannel, "device", %{"device_api_version" => "2.2.0"})
+      subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", %{"device_api_version" => "2.2.0"})
 
     assert_push("extensions:get", _)
 
@@ -47,7 +47,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, device_channel} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
     assert_online_and_available(device)
     close_cleanly(device_channel)
@@ -71,7 +71,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
     assert_push("fwup_public_keys", %{keys: [_]})
 
@@ -97,7 +97,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
     assert_push("archive_public_keys", %{keys: [_]})
 
@@ -115,7 +115,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     audit_log_count_before =
       Repo.aggregate(AuditLogs.with_description("Archive update triggered%"), :count)
 
-    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
     assert_push("archive", %{uuid: ^archive_uuid})
 
@@ -132,7 +132,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
@@ -154,7 +154,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
     DeviceEvents.updated(device)
 
@@ -175,7 +175,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _join_reply, device_channel} =
-      subscribe_and_join(socket, DeviceChannel, "device")
+      subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
     assert_online_and_available(device)
 
@@ -198,7 +198,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _join_reply, device_channel} =
-      subscribe_and_join(socket, DeviceChannel, "device")
+      subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
     push(device_channel, "connection_types", %{"values" => ["ethernet", "wifi"]})
 
@@ -223,7 +223,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _join_reply, device_channel} =
-      subscribe_and_join(socket, DeviceChannel, "device")
+      subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
     assert_online_and_available(device)
 
@@ -253,7 +253,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _join_reply, device_channel} =
-      subscribe_and_join(socket, DeviceChannel, "device")
+      subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
     assert device_channel.assigns.device.deployment_id == deployment_group.id
     refute is_nil(device_channel.assigns.deployment_channel)
@@ -289,7 +289,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _join_reply, device_channel} =
-      subscribe_and_join(socket, DeviceChannel, "device")
+      subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
     assert device_channel.assigns.device.deployment_id == deployment_group.id
 
@@ -312,7 +312,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _join_reply, device_channel} =
-      subscribe_and_join(socket, DeviceChannel, "device")
+      subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
     refute device_channel.assigns.device.deployment_id
 
@@ -331,7 +331,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _join_reply, device_channel} =
-      subscribe_and_join(socket, DeviceChannel, "device")
+      subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
     assert device_channel.assigns.device.deployment_id == deployment_group.id
 
@@ -350,7 +350,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
       {:ok, _join_reply, device_channel} =
-        subscribe_and_join(socket, DeviceChannel, "device")
+        subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
       assert_online_and_available(device)
 
@@ -368,7 +368,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
       {:ok, _join_reply, device_channel} =
-        subscribe_and_join(socket, DeviceChannel, "device")
+        subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
       ref = push(device_channel, "do_you_like_dem_apples", %{"apples" => 5})
       refute_reply(ref, %{})

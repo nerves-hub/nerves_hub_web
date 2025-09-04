@@ -3,6 +3,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   use DefaultMocks
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHub.Repo
@@ -24,7 +25,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, device_channel} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
 
     assert_push("extensions:get", _extensions)
 
@@ -92,7 +93,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, _device_channel} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
 
     assert_push("extensions:get", _extensions)
 
@@ -122,7 +123,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, _device_channel} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
 
     assert_push("extensions:get", _extensions)
 
@@ -162,8 +163,10 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       "nerves_fw_platform" => "test_host"
     }
 
+    device = Repo.one(Device)
+
     {:ok, _, _device_channel} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device", params)
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}", params)
 
     assert_push("extensions:get", _extensions)
 
@@ -194,7 +197,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, socket} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
 
     assert_push("extensions:get", _extensions)
 
@@ -221,7 +224,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, socket} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
 
     assert_push("extensions:get", _extensions)
 
@@ -249,7 +252,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, socket} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
 
     assert_push("extensions:get", _extensions)
 
@@ -275,7 +278,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, socket} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
 
     assert_push("extensions:get", _extensions)
 
@@ -300,7 +303,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, socket} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
 
     assert_push("extensions:get", _extensions)
 
@@ -325,7 +328,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, socket} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
 
     assert_push("extensions:get", _extensions)
 
@@ -362,7 +365,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, socket} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
 
     assert_push("extensions:get", _extensions)
 
