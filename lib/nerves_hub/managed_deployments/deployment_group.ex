@@ -69,7 +69,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:current_updated_devices, :integer, default: 0)
     field(:inflight_update_expiration_minutes, :integer, default: 60)
     field(:queue_management, Ecto.Enum, values: [:FIFO, :LIFO], default: :FIFO)
-    field(:delta_updatable, :boolean, default: false)
+    field(:delta_updatable, :boolean, default: true)
 
     field(:device_count, :integer, virtual: true)
 
