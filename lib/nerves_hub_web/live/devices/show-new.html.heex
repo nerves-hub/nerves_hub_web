@@ -81,6 +81,16 @@
     </div>
 
     <div class="flex items-center gap-2">
+      <div :if={show_firmware_status_box(@device)} class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+        <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Firmware:</span>
+
+        <span :if={@device.firmware_validation_status == :validated && !@device.firmware_auto_revert_detected} class="text-sm text-base-300 font-mono">Validated</span>
+
+        <span :if={@device.firmware_validation_status == :not_validated} class="text-sm text-red-300 font-mono">Not validated</span>
+
+        <span :if={@device.firmware_auto_revert_detected} class="text-sm text-red-300 font-mono">Revert detected</span>
+      </div>
+
       <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
         <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Version:</span>
 

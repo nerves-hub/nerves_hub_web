@@ -198,6 +198,17 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, assign(socket, :device, device)}
   end
 
+  def handle_info(%Broadcast{event: "firmware:validated"}, socket) do
+    %{device: device, org: org} = socket.assigns
+
+    device = load_device(org, device.identifier)
+
+    socket
+    |> assign(:device, device)
+    |> put_flash(:info, "Firmware validation received from the device")
+    |> noreply()
+  end
+
   # Ignore unknown messages
   def handle_info(_unknown, socket), do: {:noreply, socket}
 
@@ -212,10 +223,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
         Logger.error("Could not pin device: #{inspect(changeset)}")
 
         socket
-        |> put_flash(
-          :info,
-          "Could not pin device. Please contact support."
-        )
+        |> put_flash(:info, "Could not pin device. Please contact support.")
         |> noreply()
     end
   end
@@ -231,10 +239,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
         Logger.error("Could not unpin device: #{inspect(changeset)}")
 
         socket
-        |> put_flash(
-          :info,
-          "Could not unpin device. Please contact support."
-        )
+        |> put_flash(:info, "Could not unpin device. Please contact support.")
         |> noreply()
     end
   end
@@ -587,6 +592,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp assign_deployment_groups(%{assigns: %{product: product}} = socket),
     do: assign(socket, deployment_groups: ManagedDeployments.get_deployment_groups_by_product(product))
+
+  defp show_firmware_status_box(device) do
+    device.firmware_validation_status in [:validated, :not_validated] or device.firmware_auto_revert_detected
+  end
 
   defp connecting_code(device) do
     if device.deployment_group && device.deployment_group.connecting_code do
