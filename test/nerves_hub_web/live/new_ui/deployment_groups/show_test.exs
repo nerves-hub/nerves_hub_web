@@ -35,7 +35,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     {:ok, target_metadata} = Firmwares.metadata_from_firmware(target_firmware)
 
     {:ok, device} =
-      Devices.update_firmware_metadata(device, target_metadata)
+      Devices.update_firmware_metadata(device, target_metadata, :unknown, false)
 
     {:ok, source_firmware_metadata} = Firmwares.metadata_from_firmware(source_firmware)
 

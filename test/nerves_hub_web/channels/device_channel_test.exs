@@ -14,6 +14,268 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
 
+  describe "firmware_validation_status" do
+    test "if device_api_version is <= 2.2.0 then status is marked as :not_supported" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      params =
+        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+          {"nerves_fw_#{k}", v}
+        end
+        |> Map.put("device_api_version", "2.2.0")
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+      # we need to let the channel process all messages before we can
+      # check if the devices firmware_validation_status has been updated
+      _socket = :sys.get_state(device_channel.channel_pid)
+
+      device = Repo.reload(device)
+      assert device.firmware_validation_status == :not_supported
+
+      # assert_online_and_available(device)
+      close_cleanly(device_channel)
+    end
+
+    test "if device_api_version is >= 2.3.0, but the param is missing, then status is marked as :unknown" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      params =
+        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+          {"nerves_fw_#{k}", v}
+        end
+        |> Map.put("device_api_version", "2.3.0")
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+      # we need to let the channel process all messages before we can
+      # check if the devices firmware_validation_status has been updated
+      _socket = :sys.get_state(device_channel.channel_pid)
+
+      device = Repo.reload(device)
+      assert device.firmware_validation_status == :unknown
+
+      # assert_online_and_available(device)
+      close_cleanly(device_channel)
+    end
+
+    test "if device_api_version is >= 2.3.0, and nerves_fw_validated is 0, then mark as :not_validated" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      params =
+        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+          {"nerves_fw_#{k}", v}
+        end
+        |> Map.put("device_api_version", "2.3.0")
+        |> Map.put("nerves_fw_validated", "0")
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+      # we need to let the channel process all messages before we can
+      # check if the devices firmware_validation_status has been updated
+      _socket = :sys.get_state(device_channel.channel_pid)
+
+      device = Repo.reload(device)
+      assert device.firmware_validation_status == :not_validated
+
+      # assert_online_and_available(device)
+      close_cleanly(device_channel)
+    end
+
+    test "if device_api_version is >= 2.3.0, and nerves_fw_validated is 1, then mark as :validated" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      params =
+        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+          {"nerves_fw_#{k}", v}
+        end
+        |> Map.put("device_api_version", "2.3.0")
+        |> Map.put("nerves_fw_validated", "1")
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+      # we need to let the channel process all messages before we can
+      # check if the devices firmware_validation_status has been updated
+      _socket = :sys.get_state(device_channel.channel_pid)
+
+      device = Repo.reload(device)
+      assert device.firmware_validation_status == :validated
+
+      # assert_online_and_available(device)
+      close_cleanly(device_channel)
+    end
+
+    test "if device_api_version is invalid, then mark as :not_supported" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      params =
+        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+          {"nerves_fw_#{k}", v}
+        end
+        |> Map.put("device_api_version", "a.b.c")
+        |> Map.put("nerves_fw_validated", "1")
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+      # we need to let the channel process all messages before we can
+      # check if the devices firmware_validation_status has been updated
+      _socket = :sys.get_state(device_channel.channel_pid)
+
+      device = Repo.reload(device)
+      assert device.firmware_validation_status == :not_supported
+
+      # assert_online_and_available(device)
+      close_cleanly(device_channel)
+    end
+
+    test "a device can send an update when its firmware is validated" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      params =
+        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+          {"nerves_fw_#{k}", v}
+        end
+        |> Map.put("device_api_version", "2.3.0")
+        |> Map.put("nerves_fw_validated", "0")
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+      # we need to let the channel process all messages before we can
+      # check if the devices firmware_validation_status has been updated
+      _socket = :sys.get_state(device_channel.channel_pid)
+
+      device = Repo.reload(device)
+      assert device.firmware_validation_status == :not_validated
+
+      push(device_channel, "firmware_validated", %{})
+
+      _socket = :sys.get_state(device_channel.channel_pid)
+
+      device = Repo.reload(device)
+      assert device.firmware_validation_status == :validated
+
+      assert Repo.exists?(AuditLogs.with_description("Device #{device.identifier} has validated its firmware"))
+
+      # assert_online_and_available(device)
+      close_cleanly(device_channel)
+    end
+  end
+
+  describe "firmware_auto_revert_detected" do
+    test "if the meta key is missing from params then firmware_auto_revert_detected is set to false" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      params =
+        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+          {"nerves_fw_#{k}", v}
+        end
+        |> Map.put("device_api_version", "2.2.0")
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+      # we need to let the channel process all messages before we can
+      # check if the devices firmware_validation_status has been updated
+      _socket = :sys.get_state(device_channel.channel_pid)
+
+      device = Repo.reload(device)
+      refute device.firmware_auto_revert_detected
+
+      # assert_online_and_available(device)
+      close_cleanly(device_channel)
+    end
+
+    test "if the meta key is present, but firmware_auto_revert_detected is missing, then firmware_auto_revert_detected is set to false" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      params =
+        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+          {"nerves_fw_#{k}", v}
+        end
+        |> Map.put("device_api_version", "2.2.0")
+        |> Map.put("meta", %{})
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+      # we need to let the channel process all messages before we can
+      # check if the devices firmware_validation_status has been updated
+      _socket = :sys.get_state(device_channel.channel_pid)
+
+      device = Repo.reload(device)
+      refute device.firmware_auto_revert_detected
+
+      # assert_online_and_available(device)
+      close_cleanly(device_channel)
+    end
+
+    test "if the meta key is present, and firmware_auto_revert_detected is true, then firmware_auto_revert_detected is set to true" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      params =
+        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+          {"nerves_fw_#{k}", v}
+        end
+        |> Map.put("device_api_version", "2.2.0")
+        |> Map.put("meta", %{"firmware_auto_revert_detected" => true})
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+      # we need to let the channel process all messages before we can
+      # check if the devices firmware_validation_status has been updated
+      _socket = :sys.get_state(device_channel.channel_pid)
+
+      device = Repo.reload(device)
+      assert device.firmware_auto_revert_detected
+
+      # assert_online_and_available(device)
+      close_cleanly(device_channel)
+    end
+  end
+
   test "extensions are requested from device if version is above 2.2.0" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})

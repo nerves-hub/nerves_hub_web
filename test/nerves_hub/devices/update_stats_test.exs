@@ -27,7 +27,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
     {:ok, metadata} = Firmwares.metadata_from_firmware(target_firmware)
 
     {:ok, device} =
-      Devices.update_firmware_metadata(device, metadata)
+      Devices.update_firmware_metadata(device, metadata, :unknown, false)
 
     device2 = Fixtures.device_fixture(org, product, target_firmware)
     device3 = Fixtures.device_fixture(org, product, target_firmware)
@@ -119,7 +119,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       {:ok, metadata} = Firmwares.metadata_from_firmware(other_firmware)
 
       {:ok, device} =
-        Devices.update_firmware_metadata(device, metadata)
+        Devices.update_firmware_metadata(device, metadata, :unknown, false)
 
       assert :ok = UpdateStats.log_update(device, nil)
 
