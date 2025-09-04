@@ -39,9 +39,28 @@ defmodule NervesHubWeb.DeviceSocket do
   def handle_in({payload, opts} = msg, {state, socket}) do
     message = socket.serializer.decode!(payload, opts)
 
+    state = maybe_update_channel_state(state)
     socket = heartbeat(message, socket)
 
     super(msg, {state, socket})
+  end
+
+  # update the channel state mappings so that the socket can route messages based on topics correctly
+  # only the "device" channel mappings are updated as this is the only channel that has changed
+  defp maybe_update_channel_state(%{channels: %{"device" => _}} = state) do
+    {device_channel, channels} = Map.pop(state.channels, "device")
+    {device_channel_pid, _, _} = device_channel
+
+    channels = Map.put(channels, "device:#{Process.get(:device_id)}", device_channel)
+
+    {{_topic, id}, channels_inverse} = Map.pop(state.channels_inverse, device_channel_pid)
+    channels_inverse = Map.put(channels_inverse, device_channel_pid, {"device:#{Process.get(:device_id)}", id})
+
+    %{state | channels: channels, channels_inverse: channels_inverse}
+  end
+
+  defp maybe_update_channel_state(state) do
+    state
   end
 
   @decorate with_span("Channels.DeviceSocket.heartbeat")
@@ -255,6 +274,10 @@ defmodule NervesHubWeb.DeviceSocket do
     })
 
     Tracker.online(device)
+
+    # this is required by `DeviceJSONSerializer` which needs to update the message topic,
+    # allowing for the socket to map messages correctly
+    Process.put(:device_id, device.id)
 
     socket
     |> assign(:device, device)
