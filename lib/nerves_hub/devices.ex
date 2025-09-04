@@ -913,6 +913,7 @@ defmodule NervesHub.Devices do
     update_device(device, %{updates_blocked_until: blocked_until, update_attempts: []})
   end
 
+  @spec update_attempted(Device.t(), DateTime.t()) :: :ok | {:error, Changeset.t()}
   def update_attempted(device, now \\ DateTime.utc_now()) do
     now = DateTime.truncate(now, :second)
 
@@ -931,8 +932,8 @@ defmodule NervesHub.Devices do
     end)
     |> Repo.transaction()
     |> case do
-      {:ok, %{device: device}} ->
-        {:ok, device}
+      {:ok, _} ->
+        :ok
 
       err ->
         err

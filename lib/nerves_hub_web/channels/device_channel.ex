@@ -199,7 +199,7 @@ defmodule NervesHubWeb.DeviceChannel do
       # then mark it as an update attempt
       #
       # we don't need to store the result as this information isn't used anywhere else
-      {:ok, _} = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(device)
 
       {:noreply, assign(socket, :update_started?, true)}
     end
