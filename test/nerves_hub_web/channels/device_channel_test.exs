@@ -29,7 +29,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
       # we need to let the channel process all messages before we can
       # check if the devices firmware_validation_status has been updated
@@ -56,7 +56,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
       # we need to let the channel process all messages before we can
       # check if the devices firmware_validation_status has been updated
@@ -84,7 +84,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
       # we need to let the channel process all messages before we can
       # check if the devices firmware_validation_status has been updated
@@ -112,7 +112,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
       # we need to let the channel process all messages before we can
       # check if the devices firmware_validation_status has been updated
@@ -140,7 +140,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
       # we need to let the channel process all messages before we can
       # check if the devices firmware_validation_status has been updated
@@ -168,7 +168,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
       # we need to let the channel process all messages before we can
       # check if the devices firmware_validation_status has been updated
@@ -206,7 +206,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
       # we need to let the channel process all messages before we can
       # check if the devices firmware_validation_status has been updated
@@ -234,7 +234,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
       # we need to let the channel process all messages before we can
       # check if the devices firmware_validation_status has been updated
@@ -262,7 +262,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
+      {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
       # we need to let the channel process all messages before we can
       # check if the devices firmware_validation_status has been updated
