@@ -198,19 +198,10 @@ defmodule NervesHubWeb.DeviceChannel do
       # if this is the first fwup we see, and we didn't know the update had already started,
       # then mark it as an update attempt
       #
-      # reload update attempts because they might have been cleared
-      # and we have a cached stale version
-      updated_device = Repo.reload(device)
-      device = %{device | update_attempts: updated_device.update_attempts}
+      # we don't need to store the result as this information isn't used anywhere else
+      {:ok, _} = Devices.update_attempted(device)
 
-      {:ok, device} = Devices.update_attempted(device)
-
-      socket =
-        socket
-        |> assign(:device, device)
-        |> assign(:update_started?, true)
-
-      {:noreply, socket}
+      {:noreply, assign(socket, :update_started?, true)}
     end
   end
 

@@ -916,13 +916,16 @@ defmodule NervesHub.Devices do
   def update_attempted(device, now \\ DateTime.utc_now()) do
     now = DateTime.truncate(now, :second)
 
-    changeset =
-      device
-      |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_change(:update_attempts, [now | device.update_attempts])
-
     Multi.new()
-    |> Multi.update(:device, changeset)
+    |> Multi.update_all(
+      :device,
+      fn _ ->
+        Device
+        |> where(id: ^device.id)
+        |> update(set: [update_attempts: fragment("update_attempts || ?::timestamp", ^now)])
+      end,
+      []
+    )
     |> Multi.run(:audit_device, fn _, _ ->
       DeviceTemplates.audit_update_attempt(device)
     end)
