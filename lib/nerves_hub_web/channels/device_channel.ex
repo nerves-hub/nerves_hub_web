@@ -34,7 +34,7 @@ defmodule NervesHubWeb.DeviceChannel do
   intercept(["updated", "deployment_updated"])
 
   @decorate with_span("Channels.DeviceChannel.join")
-  def join("device", params, %{assigns: %{device: device}} = socket) do
+  def join("device:" <> _device_id, params, %{assigns: %{device: device}} = socket) do
     Logger.metadata(device_id: device.id, device_identifier: device.identifier)
 
     params = maybe_sanitize_device_api_version(params)
@@ -93,7 +93,6 @@ defmodule NervesHubWeb.DeviceChannel do
     socket =
       socket
       |> update_device(device)
-      |> setup_pubsub_subscription()
       |> assign_api_version(params)
       |> maybe_send_archive()
 
@@ -293,24 +292,6 @@ defmodule NervesHubWeb.DeviceChannel do
     :ok = Connections.merge_update_metadata(ref_id, %{"device_api_version" => version})
 
     assign(socket, :device_api_version, version)
-  end
-
-  defp setup_pubsub_subscription(%{assigns: %{device: device}} = socket) do
-    # all devices are lumped into a `device` topic (the name used in join/3)
-    # this can be a security issue pubsub messages can be sent to all connected devices
-    # additionally, this topic isn't needed or used, so we can unsubscribe from it
-    unsubscribe("device")
-
-    topic = "device:#{device.id}"
-
-    # instead, we subscribe to `device:device.id` and setup fastlaning and intercepts so that
-    # we have the option of not acting as a middleman to all messages going to a device
-    %{transport_pid: transport_pid, serializer: serializer, pubsub_server: pubsub_server} = socket
-    fastlane = {:fastlane, transport_pid, serializer, __MODULE__.__intercepts__()}
-
-    :ok = Phoenix.PubSub.subscribe(pubsub_server, topic, metadata: fastlane)
-
-    %{socket | topic: topic}
   end
 
   defp subscribe(topic) when not is_nil(topic) do

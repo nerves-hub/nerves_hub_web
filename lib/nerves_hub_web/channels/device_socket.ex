@@ -13,7 +13,7 @@ defmodule NervesHubWeb.DeviceSocket do
   alias Plug.Crypto
 
   channel("console", NervesHubWeb.ConsoleChannel)
-  channel("device", NervesHubWeb.DeviceChannel)
+  channel("device:*", NervesHubWeb.DeviceChannel)
   channel("extensions", NervesHubWeb.ExtensionsChannel)
 
   # Default 90 seconds max age for the signature
@@ -255,6 +255,14 @@ defmodule NervesHubWeb.DeviceSocket do
     })
 
     Tracker.online(device)
+
+    # this is required by `DeviceJSONSerializer` which needs to update the message topic,
+    # allowing for the socket to map messages correctly
+    #
+    # we could remove this and instead modify the payload in `handle_in`, but I favoured
+    # this approach as it simplifies the logic in `handle_in` and keeps the topic remapping
+    # logic in one place, the serializer
+    Process.put(:device_id, device.id)
 
     socket
     |> assign(:device, device)
