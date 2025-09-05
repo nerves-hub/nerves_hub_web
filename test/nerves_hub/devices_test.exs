@@ -129,7 +129,7 @@ defmodule NervesHub.DevicesTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
     device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
 
-    {:ok, device} = Devices.update_attempted(device)
+    :ok = Devices.update_attempted(device)
     {:ok, device} = Devices.enable_updates(device, user)
 
     assert device.updates_enabled
@@ -406,17 +406,19 @@ defmodule NervesHub.DevicesTest do
 
   describe "tracking update attempts and verifying eligibility" do
     test "records the timestamp of an attempt", %{device: device} do
-      {:ok, device} = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(device)
+      device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 1
 
-      {:ok, device} = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(device)
+      device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 2
     end
 
     test "records and audit log for updating", %{device: device} do
       assert [] = AuditLogs.logs_for(device)
 
-      {:ok, device} = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(device)
 
       [audit_log] = AuditLogs.logs_for(device)
 
@@ -424,7 +426,8 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "resets update attempts on successful update", %{device: device} do
-      {:ok, device} = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(device)
+      device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 1
 
       {:ok, device} = Devices.firmware_update_successful(device, device.firmware_metadata)
@@ -468,7 +471,7 @@ defmodule NervesHub.DevicesTest do
     test "device updates successfully", %{device: device, deployment_group: deployment_group} do
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
-      {:ok, device} = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(device)
 
       {:ok, device} = Devices.verify_update_eligibility(device, deployment_group)
 
@@ -482,8 +485,10 @@ defmodule NervesHub.DevicesTest do
     } do
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
-      {:ok, device} = Devices.update_attempted(device)
-      {:ok, device} = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(device)
+
+      device = Repo.reload(device)
 
       {:ok, device} = Devices.verify_update_eligibility(device, deployment_group)
 
@@ -504,9 +509,11 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -3600, :second))
-      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -1200, :second))
-      {:ok, device} = Devices.update_attempted(device, now)
+      :ok = Devices.update_attempted(device, DateTime.add(now, -3600, :second))
+      :ok = Devices.update_attempted(device, DateTime.add(now, -1200, :second))
+      :ok = Devices.update_attempted(device, now)
+
+      device = Repo.reload(device)
 
       {:ok, device} = Devices.verify_update_eligibility(device, deployment_group)
 
@@ -530,12 +537,14 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -3600, :second))
-      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -1200, :second))
-      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -500, :second))
-      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -500, :second))
-      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -500, :second))
-      {:ok, device} = Devices.update_attempted(device, now)
+      :ok = Devices.update_attempted(device, DateTime.add(now, -3600, :second))
+      :ok = Devices.update_attempted(device, DateTime.add(now, -1200, :second))
+      :ok = Devices.update_attempted(device, DateTime.add(now, -500, :second))
+      :ok = Devices.update_attempted(device, DateTime.add(now, -500, :second))
+      :ok = Devices.update_attempted(device, DateTime.add(now, -500, :second))
+      :ok = Devices.update_attempted(device, now)
+
+      device = Repo.reload(device)
 
       {:error, :updates_blocked, device} =
         Devices.verify_update_eligibility(device, deployment_group)
@@ -554,11 +563,13 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -13, :second))
-      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -10, :second))
-      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -5, :second))
-      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -2, :second))
-      {:ok, device} = Devices.update_attempted(device, now)
+      :ok = Devices.update_attempted(device, DateTime.add(now, -13, :second))
+      :ok = Devices.update_attempted(device, DateTime.add(now, -10, :second))
+      :ok = Devices.update_attempted(device, DateTime.add(now, -5, :second))
+      :ok = Devices.update_attempted(device, DateTime.add(now, -2, :second))
+      :ok = Devices.update_attempted(device, now)
+
+      device = Repo.reload(device)
 
       {:error, :updates_blocked, device} =
         Devices.verify_update_eligibility(device, deployment_group)
