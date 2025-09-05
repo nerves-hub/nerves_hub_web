@@ -24,9 +24,7 @@ defmodule NervesHubWeb.SessionController do
         )
 
       %User{} = user ->
-        conn
-        |> put_flash(:info, "Welcome back!")
-        |> Auth.log_in_user(user, user_params)
+        login_or_redirect_to_mfa(conn, user, user_params)
 
       _ ->
         form = Phoenix.Component.to_form(user_params, as: "user")
@@ -91,5 +89,19 @@ defmodule NervesHubWeb.SessionController do
     conn
     |> put_flash(:info, "Logged out successfully.")
     |> NervesHubWeb.Auth.log_out_user()
+  end
+
+  defp login_or_redirect_to_mfa(conn, user, user_params) do
+    if Accounts.MFA.get_user_totp(user) do
+      conn
+      |> put_session(:mfa_user_id, user.id)
+      |> put_session(:mfa_user_params, user_params)
+      |> redirect(to: ~p"/mfa")
+    else
+      # No MFA, proceed with normal login
+      conn
+      |> put_flash(:info, "Welcome back!")
+      |> Auth.log_in_user(user, user_params)
+    end
   end
 end
