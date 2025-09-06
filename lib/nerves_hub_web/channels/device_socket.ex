@@ -36,39 +36,33 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @impl Phoenix.Socket.Transport
-  def handle_in({payload, opts} = msg, {state, socket}) do
-    message = socket.serializer.decode!(payload, opts)
-
-    socket = heartbeat(message, socket)
-
+  def handle_in(msg, {state, socket}) do
+    socket = heartbeat(socket)
     super(msg, {state, socket})
   end
 
   @decorate with_span("Channels.DeviceSocket.heartbeat")
-  defp heartbeat(%Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"}, socket) do
-    if heartbeat?(socket) do
-      %{device: device, reference_id: ref_id} = socket.assigns
+  defp heartbeat(%{assigns: %{device: device, reference_id: ref_id}} = socket) do
+    if update_heartbeat?(socket) do
       Connections.device_heartbeat(device, ref_id)
-
-      last_heartbeat =
-        DateTime.utc_now()
-        |> DateTime.truncate(:second)
-
-      assign(socket, :last_heartbeat_at, last_heartbeat)
-    else
-      socket
     end
+
+    last_message =
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+
+    assign(socket, :last_message_at, last_message)
   end
 
-  defp heartbeat(_message, socket), do: socket
+  defp heartbeat(socket), do: socket
 
-  defp heartbeat?(%{assigns: %{last_heartbeat_at: last_heartbeat_at}}) do
-    seconds_ago = DateTime.diff(DateTime.utc_now(), last_heartbeat_at, :second)
+  defp update_heartbeat?(%{assigns: %{last_message_at: last_message_at}}) do
+    seconds_ago = DateTime.diff(DateTime.utc_now(), last_message_at, :second)
 
     seconds_ago >= last_seen_update_interval()
   end
 
-  defp heartbeat?(_), do: true
+  defp update_heartbeat?(_), do: true
 
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
