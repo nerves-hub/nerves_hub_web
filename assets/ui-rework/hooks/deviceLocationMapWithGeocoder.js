@@ -57,7 +57,7 @@ export default {
 
     this.marker.on("dragend", () => {
       const lngLat = this.marker.getLngLat()
-      this.pushEventTo(this.el.dataset.target, "update-device-location", {
+      this.pushEvent("update-device-location", {
         lng: lngLat.lng,
         lat: lngLat.lat
       })
@@ -68,7 +68,7 @@ export default {
       zoom: 13
     })
 
-    this.pushEventTo(this.el.dataset.target, "update-device-location", {
+    this.pushEvent("update-device-location", {
       lng: lng,
       lat: lat
     })
