@@ -45,24 +45,29 @@ defmodule NervesHubWeb.DeviceSocket do
   defp heartbeat(%{assigns: %{device: device, reference_id: ref_id}} = socket) do
     if update_heartbeat?(socket) do
       Connections.device_heartbeat(device, ref_id)
+      update_last_heartbeat(socket)
+    else
+      socket
     end
-
-    last_message =
-      DateTime.utc_now()
-      |> DateTime.truncate(:second)
-
-    assign(socket, :last_message_at, last_message)
   end
 
   defp heartbeat(socket), do: socket
 
-  defp update_heartbeat?(%{assigns: %{last_message_at: last_message_at}}) do
-    seconds_ago = DateTime.diff(DateTime.utc_now(), last_message_at, :second)
+  defp update_heartbeat?(%{assigns: %{last_heartbeat: last_heartbeat}}) do
+    seconds_ago = DateTime.diff(DateTime.utc_now(), last_heartbeat, :second)
 
     seconds_ago >= last_seen_update_interval()
   end
 
   defp update_heartbeat?(_), do: false
+
+  defp update_last_heartbeat(socket) do
+    last_heartbeat =
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+
+    assign(socket, :last_heartbeat, last_heartbeat)
+  end
 
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
@@ -261,6 +266,7 @@ defmodule NervesHubWeb.DeviceSocket do
     socket
     |> assign(:device, device)
     |> assign(:reference_id, connection_id)
+    |> update_last_heartbeat()
   end
 
   defp on_disconnect(_reason, %{assigns: %{disconnection_handled?: true} = socket}) do
