@@ -66,13 +66,12 @@ defmodule NervesHub.Devices.Connections do
   """
   @spec device_connected(non_neg_integer()) :: :ok | :error
   def device_connected(id) do
-    now = DateTime.utc_now()
-
     DeviceConnection
     |> where(id: ^id)
+    |> where([dc], not (dc.status == :disconnected))
     |> Repo.update_all(
       set: [
-        last_seen_at: now,
+        last_seen_at: DateTime.utc_now(),
         status: :connected
       ]
     )
@@ -90,9 +89,10 @@ defmodule NervesHub.Devices.Connections do
     {1, nil} =
       DeviceConnection
       |> where([dc], dc.id == ^id)
+      |> where([dc], not (dc.status == :disconnected))
       |> Repo.update_all(
         set: [
-          status: "connected",
+          status: :connected,
           last_seen_at: DateTime.utc_now()
         ]
       )
