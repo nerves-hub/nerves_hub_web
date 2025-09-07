@@ -62,7 +62,7 @@ defmodule NervesHubWeb.DeviceSocket do
     seconds_ago >= last_seen_update_interval()
   end
 
-  defp update_heartbeat?(_), do: true
+  defp update_heartbeat?(_), do: false
 
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
