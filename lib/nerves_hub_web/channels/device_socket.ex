@@ -36,39 +36,38 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @impl Phoenix.Socket.Transport
-  def handle_in({payload, opts} = msg, {state, socket}) do
-    message = socket.serializer.decode!(payload, opts)
-
-    socket = heartbeat(message, socket)
-
+  def handle_in(msg, {state, socket}) do
+    socket = heartbeat(socket)
     super(msg, {state, socket})
   end
 
   @decorate with_span("Channels.DeviceSocket.heartbeat")
-  defp heartbeat(%Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"}, socket) do
-    if heartbeat?(socket) do
-      %{device: device, reference_id: ref_id} = socket.assigns
+  defp heartbeat(%{assigns: %{device: device, reference_id: ref_id}} = socket) do
+    if update_heartbeat?(socket) do
       Connections.device_heartbeat(device, ref_id)
-
-      last_heartbeat =
-        DateTime.utc_now()
-        |> DateTime.truncate(:second)
-
-      assign(socket, :last_heartbeat_at, last_heartbeat)
+      update_last_heartbeat(socket)
     else
       socket
     end
   end
 
-  defp heartbeat(_message, socket), do: socket
+  defp heartbeat(socket), do: socket
 
-  defp heartbeat?(%{assigns: %{last_heartbeat_at: last_heartbeat_at}}) do
-    seconds_ago = DateTime.diff(DateTime.utc_now(), last_heartbeat_at, :second)
+  defp update_heartbeat?(%{assigns: %{last_heartbeat: last_heartbeat}}) do
+    seconds_ago = DateTime.diff(DateTime.utc_now(), last_heartbeat, :second)
 
     seconds_ago >= last_seen_update_interval()
   end
 
-  defp heartbeat?(_), do: true
+  defp update_heartbeat?(_), do: false
+
+  defp update_last_heartbeat(socket) do
+    last_heartbeat =
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+
+    assign(socket, :last_heartbeat, last_heartbeat)
+  end
 
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
@@ -267,6 +266,7 @@ defmodule NervesHubWeb.DeviceSocket do
     socket
     |> assign(:device, device)
     |> assign(:reference_id, connection_id)
+    |> update_last_heartbeat()
   end
 
   defp on_disconnect(_reason, %{assigns: %{disconnection_handled?: true} = socket}) do
