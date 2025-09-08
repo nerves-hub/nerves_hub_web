@@ -206,7 +206,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   defp update_changed_files(file_list, delta_zip_path, output_work_dir) do
     for file <- file_list do
       args = ["-9", delta_zip_path, String.replace_prefix(file, "#{output_work_dir}/", "")]
-      {_output, 0} = System.cmd("zip", args, cd: output_work_dir)
+      {_output, 0} = System.cmd("zip", args, cd: output_work_dir, env: [])
     end
 
     :ok
