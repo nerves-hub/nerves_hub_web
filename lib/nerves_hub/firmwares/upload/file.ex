@@ -35,9 +35,8 @@ defmodule NervesHub.Firmwares.Upload.File do
 
     config = Application.get_env(:nerves_hub, __MODULE__)
 
-    common_path = Path.join([key_prefix(), Integer.to_string(org_id), filename])
-
-    local_path = Path.join([config[:local_path], common_path])
+    common_path = "#{org_id}"
+    local_path = Path.join([config[:local_path], common_path, filename])
 
     port =
       if Enum.member?([443, 80], web_config[:url][:port]),
