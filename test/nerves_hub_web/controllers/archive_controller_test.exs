@@ -17,7 +17,7 @@ defmodule NervesHubWeb.ArchiveControllerTest do
 
       conn = get(conn, ~p"/org/#{org}/#{product}/archives/#{archive}/download")
 
-      assert redirected_to(conn) == "/uploads/archives/#{archive.uuid}.fw"
+      assert redirected_to(conn) == "http://localhost:1234/uploads/archives/#{archive.uuid}.fw"
     end
   end
 end
