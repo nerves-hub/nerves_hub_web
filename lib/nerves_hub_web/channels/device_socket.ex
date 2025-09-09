@@ -8,7 +8,6 @@ defmodule NervesHubWeb.DeviceSocket do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Products
-  alias NervesHub.Tracker
 
   alias Plug.Crypto
 
@@ -245,15 +244,13 @@ defmodule NervesHubWeb.DeviceSocket do
   defp on_connect(%{assigns: %{device: device}} = socket) do
     # Report connection and use connection id as reference
     {:ok, %DeviceConnection{id: connection_id}} =
-      Connections.device_connecting(device.id, device.product_id)
+      Connections.device_connecting(device, device.product_id)
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: connection_id,
       identifier: socket.assigns.device.identifier,
       firmware_uuid: get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)])
     })
-
-    Tracker.online(device)
 
     # this is required by `DeviceJSONSerializer` which needs to update the message topic,
     # allowing for the socket to map messages correctly
@@ -289,9 +286,7 @@ defmodule NervesHubWeb.DeviceSocket do
       identifier: device.identifier
     })
 
-    :ok = Connections.device_disconnected(reference_id)
-
-    Tracker.offline(device)
+    :ok = Connections.device_disconnected(device, reference_id)
 
     assign(socket, :disconnection_handled?, true)
   end

@@ -73,8 +73,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic1)
 
     device1 = Devices.update_deployment_group(device1, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device1.id, device1.product_id)
-    :ok = Connections.device_connected(connection.id)
+    {:ok, connection} = Connections.device_connecting(device1, device1.product_id)
+    :ok = Connections.device_connected(device1, connection.id)
     Devices.deployment_device_online(device1)
 
     # sent when a device is a assigned a deployment group
@@ -88,8 +88,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic2)
 
     device2 = Devices.update_deployment_group(device2, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device2.id, device2.product_id)
-    :ok = Connections.device_connected(connection.id)
+    {:ok, connection} = Connections.device_connecting(device2, device2.product_id)
+    :ok = Connections.device_connected(device2, connection.id)
     Devices.deployment_device_online(device2)
 
     # and check that device2 was told to update
@@ -100,8 +100,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic3)
 
     device3 = Devices.update_deployment_group(device3, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device3.id, device3.product_id)
-    :ok = Connections.device_connected(connection.id)
+    {:ok, connection} = Connections.device_connecting(device3, device3.product_id)
+    :ok = Connections.device_connected(device3, connection.id)
     Devices.deployment_device_online(device3)
 
     # and check that device3 isn't told to update as the concurrent limit has been reached
@@ -120,12 +120,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1})
 
     device = Devices.update_deployment_group(device, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device.id, device.product_id)
-    :ok = Connections.device_connected(connection.id)
+    {:ok, connection} = Connections.device_connecting(device, device.product_id)
+    :ok = Connections.device_connected(device, connection.id)
 
     device2 = Devices.update_deployment_group(device2, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device2.id, device2.product_id)
-    :ok = Connections.device_connected(connection.id)
+    {:ok, connection} = Connections.device_connecting(device2, device2.product_id)
+    :ok = Connections.device_connected(device2, connection.id)
 
     topic1 = "device:#{device.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic1)
@@ -154,8 +154,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     # bring the second device 'online'
     Devices.update_deployment_group(device2, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device2.id, device2.product_id)
-    :ok = Connections.device_connected(connection.id)
+    {:ok, connection} = Connections.device_connecting(device2, device2.product_id)
+    :ok = Connections.device_connected(device2, connection.id)
 
     # sent by the device after its updated
     assert_receive %Broadcast{topic: ^topic2, event: "deployment_updated"}, 500
@@ -225,8 +225,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     device1 = Devices.update_deployment_group(device1, deployment_group)
 
-    {:ok, connection} = Connections.device_connecting(device1.id, device1.product_id)
-    :ok = Connections.device_connected(connection.id)
+    {:ok, connection} = Connections.device_connecting(device1, device1.product_id)
+    :ok = Connections.device_connected(device1, connection.id)
 
     Devices.deployment_device_online(device1)
 
@@ -252,8 +252,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       Devices.update_device(device2, %{firmware_metadata: %{"uuid" => firmware.uuid}})
 
     device2 = Devices.update_deployment_group(device2, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device2.id, device2.product_id)
-    :ok = Connections.device_connected(connection.id)
+    {:ok, connection} = Connections.device_connecting(device2, device2.product_id)
+    :ok = Connections.device_connected(device2, connection.id)
     Devices.deployment_device_online(device2)
 
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-online"}, 500
@@ -296,8 +296,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     device1 = Devices.update_deployment_group(device1, deployment_group)
     {:ok, device1} = Devices.update_device(device1, %{updates_enabled: false})
 
-    {:ok, connection} = Connections.device_connecting(device1.id, device1.product_id)
-    :ok = Connections.device_connected(connection.id)
+    {:ok, connection} = Connections.device_connecting(device1, device1.product_id)
+    :ok = Connections.device_connected(device1, connection.id)
 
     Devices.deployment_device_online(device1)
 

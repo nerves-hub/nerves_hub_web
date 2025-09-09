@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Repo
+  alias NervesHub.Tracker
 
   @doc """
   Get all connections for a device.
@@ -34,15 +35,15 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Creates a device connection, reported from device socket
   """
-  @spec device_connecting(non_neg_integer(), non_neg_integer()) ::
+  @spec device_connecting(Device.t(), non_neg_integer()) ::
           {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
-  def device_connecting(device_id, product_id) do
+  def device_connecting(device, product_id) do
     now = DateTime.utc_now()
 
     changeset =
       DeviceConnection.create_changeset(%{
         product_id: product_id,
-        device_id: device_id,
+        device_id: device.id,
         established_at: now,
         last_seen_at: now,
         status: :connecting
@@ -51,8 +52,10 @@ defmodule NervesHub.Devices.Connections do
     case Repo.insert(changeset) do
       {:ok, device_connection} ->
         Device
-        |> where(id: ^device_id)
+        |> where(id: ^device.id)
         |> Repo.update_all(set: [latest_connection_id: device_connection.id])
+
+        Tracker.connecting(device)
 
         {:ok, device_connection}
 
@@ -64,8 +67,8 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Creates a device connection, reported from device socket
   """
-  @spec device_connected(non_neg_integer()) :: :ok | :error
-  def device_connected(id) do
+  @spec device_connected(Device.t(), non_neg_integer()) :: :ok | :error
+  def device_connected(device, id) do
     DeviceConnection
     |> where(id: ^id)
     |> where([dc], not (dc.status == :disconnected))
@@ -76,42 +79,45 @@ defmodule NervesHub.Devices.Connections do
       ]
     )
     |> case do
-      {1, _} -> :ok
-      _ -> :error
+      {1, _} ->
+        Tracker.online(device)
+        :ok
+
+      _ ->
+        :error
     end
   end
 
   @doc """
   Updates the `last_seen_at`field for a device connection with current timestamp
   """
-  @spec device_heartbeat(Device.t(), UUIDv7.t()) :: :ok
+  @spec device_heartbeat(Device.t(), UUIDv7.t()) :: :ok | :error
   def device_heartbeat(device, id) do
-    {1, nil} =
-      DeviceConnection
-      |> where([dc], dc.id == ^id)
-      |> where([dc], not (dc.status == :disconnected))
-      |> Repo.update_all(
-        set: [
-          status: :connected,
-          last_seen_at: DateTime.utc_now()
-        ]
-      )
-
-    Phoenix.Channel.Server.broadcast_from!(
-      NervesHub.PubSub,
-      self(),
-      "device:#{device.identifier}:internal",
-      "connection:heartbeat",
-      %{}
+    DeviceConnection
+    |> where([dc], dc.id == ^id)
+    |> where([dc], not (dc.status == :disconnected))
+    |> Repo.update_all(
+      set: [
+        status: :connected,
+        last_seen_at: DateTime.utc_now()
+      ]
     )
+    |> case do
+      {1, _} ->
+        Tracker.heartbeat(device)
+        :ok
+
+      _ ->
+        :error
+    end
   end
 
   @doc """
   Updates `status` and relevant timestamps for a device connection record,
   and stores the reason for disconnection if provided.
   """
-  @spec device_disconnected(UUIDv7.t(), String.t() | nil) :: :ok | :error
-  def device_disconnected(ref_id, reason \\ nil) do
+  @spec device_disconnected(Device.t(), UUIDv7.t(), String.t() | nil) :: :ok | :error
+  def device_disconnected(device, ref_id, reason \\ nil) do
     now = DateTime.utc_now()
 
     DeviceConnection
@@ -128,8 +134,12 @@ defmodule NervesHub.Devices.Connections do
       timeout: 60_000
     )
     |> case do
-      {1, _} -> :ok
-      _ -> :error
+      {1, _} ->
+        Tracker.offline(device)
+        :ok
+
+      _ ->
+        :error
     end
   end
 

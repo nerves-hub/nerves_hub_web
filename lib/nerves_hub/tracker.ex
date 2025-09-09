@@ -6,6 +6,22 @@ defmodule NervesHub.Tracker do
   alias NervesHub.Devices.Device
   alias NervesHub.Repo
 
+  def heartbeat(%Device{} = device) do
+    _ =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "device:#{device.identifier}:internal",
+        "connection:heartbeat",
+        %{}
+      )
+
+    :ok
+  end
+
+  def connecting(%Device{} = device) do
+    publish(device.identifier, "connecting")
+  end
+
   def online(%{} = device) do
     online(device.identifier)
   end
