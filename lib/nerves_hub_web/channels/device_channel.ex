@@ -335,20 +335,13 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp fetch_validation_status(params) do
-    with {:version_match, true} <-
-           {:version_match, Version.match?(params["device_api_version"], ">= 2.3.0")},
-         {:has_key, true} <- {:has_key, Map.has_key?(params, "nerves_fw_validated")},
-         {:validated, true} <- {:validated, Map.get(params, "nerves_fw_validated") == "1"} do
-      :validated
-    else
-      {:version_match, false} ->
-        :not_supported
-
-      {:has_key, false} ->
-        :unknown
-
-      {:validated, false} ->
-        :not_validated
+    params
+    |> Map.get("meta", %{})
+    |> Map.get("firmware_validated")
+    |> case do
+      true -> :validated
+      false -> :not_validated
+      nil -> :unknown
     end
   end
 
