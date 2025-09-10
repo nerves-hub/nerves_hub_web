@@ -613,19 +613,6 @@ defmodule NervesHub.Devices do
   @type source_firmware_id() :: firmware_id()
   @type target_firmware_id() :: firmware_id()
 
-  @spec get_device_firmware_for_delta_generation_by_product(binary()) ::
-          list({source_firmware_id(), target_firmware_id()})
-  def get_device_firmware_for_delta_generation_by_product(product_id) do
-    DeploymentGroup
-    |> where([dep], dep.product_id == ^product_id)
-    |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
-    |> join(:inner, [dep, dev], f in Firmware, on: f.uuid == fragment("d1.firmware_metadata->>'uuid'"))
-    # Exclude the current firmware, we don't need to generate that one
-    |> where([dep, dev, f], f.id != dep.firmware_id)
-    |> select([dep, dev, f], {f.id, dep.firmware_id})
-    |> Repo.all()
-  end
-
   @spec get_device_firmware_for_delta_generation_by_deployment_group(binary()) ::
           list({source_firmware_id(), target_firmware_id()})
   def get_device_firmware_for_delta_generation_by_deployment_group(deployment_id) do

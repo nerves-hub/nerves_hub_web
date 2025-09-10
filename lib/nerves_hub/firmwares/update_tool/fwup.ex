@@ -67,7 +67,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
             target_url: target_url
           )
 
-          {:error, :delta_not_created}
+          {:error, reason}
       end
     after
       File.rmdir(work_dir)
@@ -76,12 +76,18 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
 
   @impl NervesHub.Firmwares.UpdateTool
   def cleanup_firmware_delta_files(firmware_delta_path) do
-    _ =
-      firmware_delta_path
-      |> Path.dirname()
-      |> File.rm_rf!()
+    firmware_delta_path
+    |> Path.dirname()
+    |> File.rm_rf()
+    |> case do
+      {:ok, _} ->
+        :ok
 
-    :ok
+      {:error, reason, _path} ->
+        Logging.log_message_to_sentry("Could not cleanup delta files", %{reason: reason})
+
+        :ok
+    end
   end
 
   @impl NervesHub.Firmwares.UpdateTool
