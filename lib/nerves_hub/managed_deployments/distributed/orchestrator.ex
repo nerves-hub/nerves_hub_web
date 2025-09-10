@@ -12,10 +12,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   require Logger
 
+  import Ecto.Query
+
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.Repo
 
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
@@ -113,6 +117,35 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop-status-paused")
   def trigger_update(%State{deployment_group: %DeploymentGroup{status: :paused}} = state) do
     state
+  end
+
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop-status-preparing")
+  def trigger_update(%State{deployment_group: %DeploymentGroup{status: :preparing}} = state) do
+    %{deployment_group: %{id: id, firmware_id: firmware_id}} = state
+
+    source_ids =
+      id
+      |> Devices.get_device_firmware_for_delta_generation_by_deployment_group()
+      |> Enum.map(fn {source_id, _target_id} -> source_id end)
+
+    query =
+      FirmwareDelta
+      |> where([fd], fd.source_id in ^source_ids)
+      |> where([fd], fd.target_id == ^firmware_id)
+      |> where([fd], fd.status != :completed)
+
+    if Repo.exists?(query) do
+      # :processing, :timed_out, or :failed
+      # do we handle here? probably not if it's lifted to the UI
+      state
+    else
+      ManagedDeployments.update_deployment_group(
+        state.deployment_group,
+        %{status: :ok, paused_source: nil, paused_reason: nil}
+      )
+
+      state
+    end
   end
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update")

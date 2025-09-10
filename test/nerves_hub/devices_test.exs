@@ -1038,4 +1038,44 @@ defmodule NervesHub.DevicesTest do
       assert delta_url == update_payload.firmware_url
     end
   end
+
+  describe "get_device_firmware_for_delta_generation_by_deployment_group/1" do
+    test "returns distinct firmware source and target ids", %{
+      org_key: org_key,
+      product: product,
+      org: org,
+      deployment_group: deployment_group,
+      firmware: firmware
+    } do
+      firmware2 = Fixtures.firmware_fixture(org_key, product)
+      firmware3 = Fixtures.firmware_fixture(org_key, product)
+      firmware4 = Fixtures.firmware_fixture(org_key, product)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware2)
+        |> Devices.update_deployment_group(deployment_group)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware2)
+        |> Devices.update_deployment_group(deployment_group)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware3)
+        |> Devices.update_deployment_group(deployment_group)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware3)
+        |> Devices.update_deployment_group(deployment_group)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware4)
+        |> Devices.update_deployment_group(deployment_group)
+
+      pairs = Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
+      assert length(pairs) == 3
+      assert Enum.member?(pairs, {firmware2.id, firmware.id})
+      assert Enum.member?(pairs, {firmware3.id, firmware.id})
+      assert Enum.member?(pairs, {firmware4.id, firmware.id})
+    end
+  end
 end

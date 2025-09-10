@@ -28,6 +28,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def update(%{stat_logged: true}, socket) do
     socket
     |> assign_update_stats(socket.assigns.deployment_group)
+    |> ok()
   end
 
   def update(assigns, socket) do
