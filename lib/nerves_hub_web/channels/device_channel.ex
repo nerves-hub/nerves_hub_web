@@ -110,9 +110,7 @@ defmodule NervesHubWeb.DeviceChannel do
   # Let the deployment orchestrator know that we are online
   def handle_info(:announce_online, socket) do
     # Update the connection to say that we are fully up and running
-    Connections.device_connected(socket.assigns.reference_id)
-    # Tell the tracker that we are online
-    NervesHub.Tracker.online(socket.assigns.device)
+    Connections.device_connected(socket.assigns.device, socket.assigns.reference_id)
     # tell the orchestrator that we are online
     Devices.deployment_device_online(socket.assigns.device)
 
