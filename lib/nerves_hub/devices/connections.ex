@@ -67,10 +67,10 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Creates a device connection, reported from device socket
   """
-  @spec device_connected(Device.t(), non_neg_integer()) :: :ok | :error
-  def device_connected(device, id) do
+  @spec device_connected(Device.t(), connection_id :: binary()) :: :ok | :error
+  def device_connected(device, connection_id) do
     DeviceConnection
-    |> where(id: ^id)
+    |> where(id: ^connection_id)
     |> where([dc], not (dc.status == :disconnected))
     |> Repo.update_all(
       set: [
