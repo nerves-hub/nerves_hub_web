@@ -48,11 +48,7 @@ defmodule NervesHub.Tracker do
   @doc """
   Tell internal listeners that the device is offline, via a connection change
   """
-  def offline(%{} = device) do
-    offline(device.identifier)
-  end
-
-  def offline(identifier) when is_binary(identifier) do
+  def offline(%Device{identifier: identifier}) when is_binary(identifier) do
     publish(identifier, "offline")
   end
 
