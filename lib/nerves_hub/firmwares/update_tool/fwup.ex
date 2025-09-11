@@ -244,8 +244,6 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
         {:error, :enoent} ->
           nil
       end
-    else
-      nil
     end
   end
 

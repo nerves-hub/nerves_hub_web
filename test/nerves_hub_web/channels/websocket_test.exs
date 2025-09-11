@@ -1003,7 +1003,7 @@ defmodule NervesHubWeb.WebsocketTest do
       not_before = DateTime.utc_now() |> Timex.shift(days: -1)
       not_after = DateTime.utc_now() |> Timex.shift(seconds: 1)
 
-      template = X509Template.new(:root_ca, validity: X509.Validity.new(not_before, not_after))
+      template = X509Template.new(:root_ca, validity: X509Validity.new(not_before, not_after))
 
       %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org, template: template)
 
