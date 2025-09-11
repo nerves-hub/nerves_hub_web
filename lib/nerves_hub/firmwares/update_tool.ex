@@ -65,7 +65,7 @@ defmodule NervesHub.Firmwares.UpdateTool do
   tool metadata that we should store about the delta archive. Maybe minimum
   required tool version for example.
   """
-  @type delta_created :: %{
+  @type delta_file_metadata :: %{
           filepath: String.t(),
           size: non_neg_integer(),
           source_size: non_neg_integer(),
@@ -93,7 +93,7 @@ defmodule NervesHub.Firmwares.UpdateTool do
               {source_id :: String.t(), source_url :: String.t()},
               {target_id :: String.t(), target_url :: String.t()}
             ) ::
-              {:ok, delta_created()} | {:error, term()}
+              {:ok, delta_file_metadata()} | {:error, term()}
 
   @doc """
   Called to cleanup any files or directories create during the firmware delta creation process.

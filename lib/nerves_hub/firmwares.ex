@@ -1,6 +1,7 @@
 defmodule NervesHub.Firmwares do
   import Ecto.Query
 
+  # alias NervesHub.ManagedDeployments
   alias Ecto.Changeset
 
   alias NervesHub.Accounts.Org
@@ -24,9 +25,13 @@ defmodule NervesHub.Firmwares do
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
 
   @spec get_deltas_by_target_firmware(firmware :: Firmware.t()) :: [FirmwareDelta.t()]
-  def get_deltas_by_target_firmware(firmware) do
+  def get_deltas_by_target_firmware(%Firmware{} = firmware) do
+    get_deltas_by_target_firmware(firmware.id)
+  end
+
+  def get_deltas_by_target_firmware(firmware_id) do
     FirmwareDelta
-    |> where([fd], fd.target_id == ^firmware.id)
+    |> where([fd], fd.target_id == ^firmware_id)
     |> preload(:source)
     |> preload(:target)
     |> Repo.all()
@@ -414,7 +419,6 @@ defmodule NervesHub.Firmwares do
   def generate_firmware_delta(firmware_delta, source_firmware, target_firmware) do
     Logger.info("Creating firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}.")
 
-    %Firmware{org: org} = source_firmware |> Repo.preload(:org)
     {:ok, source_url} = firmware_upload_config().download_file(source_firmware)
     {:ok, target_url} = firmware_upload_config().download_file(target_firmware)
 
@@ -422,55 +426,8 @@ defmodule NervesHub.Firmwares do
            {source_firmware.uuid, source_url},
            {target_firmware.uuid, target_url}
          ) do
-      {:ok, created} ->
-        Repo.transact(
-          fn ->
-            upload_metadata =
-              firmware_upload_config().delta_metadata(
-                org.id,
-                source_firmware.uuid,
-                target_firmware.uuid
-              )
-
-            with {:ok, firmware_delta} <-
-                   complete_firmware_delta(
-                     firmware_delta,
-                     created.tool,
-                     created.size,
-                     created.source_size,
-                     created.target_size,
-                     created.tool_metadata,
-                     upload_metadata
-                   ),
-                 {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
-                 :ok <-
-                   firmware_upload_config().upload_file(created.filepath, upload_metadata),
-                 :ok <- update_tool().cleanup_firmware_delta_files(created.filepath) do
-              Logger.info(
-                "Created firmware delta successfully.",
-                product_id: source_firmware.product_id,
-                source_firmware: source_firmware.uuid,
-                target_firmware: target_firmware.uuid
-              )
-
-              {:ok, firmware_delta}
-            else
-              {:error, error} ->
-                update_tool().cleanup_firmware_delta_files(created.filepath)
-
-                Logger.error(
-                  "Failed to create firmware delta: #{inspect(error)}",
-                  product_id: source_firmware.product_id,
-                  source_firmware: source_firmware.uuid,
-                  target_firmware: target_firmware.uuid
-                )
-
-                {:error, error}
-            end
-          end,
-          timeout: 30_000
-        )
-        |> case do
+      {:ok, delta_file_metadata} ->
+        case finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
           {:ok, _delta} ->
             :ok
 
@@ -479,23 +436,71 @@ defmodule NervesHub.Firmwares do
             {:error, err}
         end
 
-      {:error, :no_delta_support_in_firmware} ->
-        Logger.info(
-          "Delta generation failed gracefully. There were no markers for delta generation.",
-          product_id: source_firmware.product_id,
-          source_firmware: source_firmware.uuid,
-          target_firmware: target_firmware.uuid
-        )
-
-        :ok
-
-      # We log the issue in the update tool, so no need to here
-      {:error, :delta_not_created} ->
-        :ok
+      {:error, _} = error ->
+        error
     end
   end
 
-  # Private functions
+  defp finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
+    upload_metadata =
+      firmware_upload_config().delta_metadata(
+        source_firmware.org_id,
+        source_firmware.uuid,
+        target_firmware.uuid
+      )
+
+    changeset =
+      FirmwareDelta.complete_changeset(
+        firmware_delta,
+        delta_file_metadata.tool,
+        delta_file_metadata.size,
+        delta_file_metadata.source_size,
+        delta_file_metadata.target_size,
+        delta_file_metadata.tool_metadata,
+        upload_metadata
+      )
+
+    with {:ok, firmware_delta} <- Repo.update(changeset),
+         #  :ok <- unpause_deployment_groups(target_firmware),
+         {:ok, _firmware_delta} <- notify_firmware_delta_target({:ok, firmware_delta}),
+         :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata) do
+      Logger.info("Created firmware delta successfully.")
+
+      :ok = update_tool().cleanup_firmware_delta_files(delta_file_metadata.filepath)
+
+      {:ok, firmware_delta}
+    else
+      {:error, error} ->
+        # TODO: log to sentry
+        Logger.error("Failed to create firmware delta: #{inspect(error)}")
+
+        :ok = update_tool().cleanup_firmware_delta_files(delta_file_metadata.filepath)
+
+        {:error, error}
+    end
+  end
+
+  # # @spec unpause_deployment_groups(Firmware.t()) :: :ok | {:error, [{atom(), {String.t(), Keyword.t()}}]}
+  # defp unpause_deployment_groups(target_firmware) do
+  #   target_firmware
+  #   |> Repo.preload(:deployment_groups)
+  #   |> Map.get(:deployment_groups)
+  #   |> Enum.filter(&(&1.status == :paused))
+  #   |> Enum.map(fn deployment_group ->
+  #     ManagedDeployments.update_deployment_group(
+  #       deployment_group,
+  #       %{status: :ok, paused_source: nil, paused_reason: nil}
+  #     )
+  #   end)
+  #   |> Enum.reduce(fn
+  #     {:ok, _}, acc -> acc
+  #     {:error, changeset}, acc -> [changeset.errors | acc]
+  #   end)
+  #   |> case do
+  #     [] -> :ok
+  #     errors -> {:error, errors}
+  #   end
+  # end
 
   defp with_product(query) do
     query
@@ -510,9 +515,11 @@ defmodule NervesHub.Firmwares do
   def attempt_firmware_delta(source_id, target_id) do
     Repo.transaction(fn ->
       with {:error, :not_found} <- get_firmware_delta_by_source_and_target(source_id, target_id),
-           {:ok, firmware_delta} <- start_firmware_delta(source_id, target_id) do
-        FirmwareDeltaBuilder.start(source_id, target_id)
-        firmware_delta
+           {:ok, _firmware_delta} <- start_firmware_delta(source_id, target_id) do
+        {:ok, _job} =
+          %{source_id: source_id, target_id: target_id}
+          |> FirmwareDeltaBuilder.new()
+          |> Oban.insert()
       end
     end)
   end
@@ -528,36 +535,7 @@ defmodule NervesHub.Firmwares do
   def start_firmware_delta(source_id, target_id) do
     FirmwareDelta.start_changeset(source_id, target_id)
     |> Repo.insert()
-  end
-
-  @spec complete_firmware_delta(
-          firmware_delta :: FirmwareDelta.t(),
-          tool :: String.t(),
-          size :: non_neg_integer(),
-          source_size :: non_neg_integer(),
-          target_size :: non_neg_integer(),
-          tool_metadata :: map(),
-          upload_metadata :: map()
-        ) :: {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t()}
-  def complete_firmware_delta(
-        %FirmwareDelta{} = firmware_delta,
-        tool,
-        size,
-        source_size,
-        target_size,
-        tool_metadata,
-        upload_metadata
-      ) do
-    firmware_delta
-    |> FirmwareDelta.complete_changeset(
-      tool,
-      size,
-      source_size,
-      target_size,
-      tool_metadata,
-      upload_metadata
-    )
-    |> Repo.update()
+    |> notify_firmware_delta_target()
   end
 
   @spec fail_firmware_delta(FirmwareDelta.t()) ::
@@ -566,6 +544,7 @@ defmodule NervesHub.Firmwares do
     firmware_delta
     |> FirmwareDelta.fail_changeset()
     |> Repo.update()
+    |> notify_firmware_delta_target()
   end
 
   @spec time_out_firmware_delta(FirmwareDelta.t()) ::
@@ -574,6 +553,34 @@ defmodule NervesHub.Firmwares do
     firmware_delta
     |> FirmwareDelta.time_out_changeset()
     |> Repo.update()
+    |> notify_firmware_delta_target()
+  end
+
+  @spec subscribe_firmware_delta_target(target_id :: integer()) :: :ok
+  def subscribe_firmware_delta_target(target_id) do
+    _ = NervesHubWeb.Endpoint.subscribe("firmware_delta_target:#{target_id}")
+    :ok
+  end
+
+  @spec unsubscribe_firmware_delta_target(target_id :: integer()) :: :ok
+  def unsubscribe_firmware_delta_target(target_id) do
+    _ = NervesHubWeb.Endpoint.unsubscribe("firmware_delta_target:#{target_id}")
+    :ok
+  end
+
+  defp notify_firmware_delta_target({:ok, %FirmwareDelta{} = firmware_delta}) do
+    _ =
+      NervesHubWeb.Endpoint.broadcast(
+        "firmware_delta_target:#{firmware_delta.target_id}",
+        "firmware_delta_#{to_string(firmware_delta.status)}",
+        %{
+          delta_id: firmware_delta.id,
+          source_firmware_id: firmware_delta.source_id,
+          target_firmware: firmware_delta.target_id
+        }
+      )
+
+    {:ok, firmware_delta}
   end
 
   def insert_firmware_delta(params) do

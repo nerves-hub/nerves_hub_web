@@ -362,8 +362,10 @@ defmodule NervesHub.FirmwaresTest do
       firmware_delta_path = Path.join(tmp_dir, "firmware_delta.fw")
       File.cp!("test/fixtures/fwup/mixed.conf", firmware_delta_path)
 
-      assert {:ok, %FirmwareDelta{status: :processing, tool: "pending"}} =
-               Firmwares.attempt_firmware_delta(source.id, target.id)
+      _ = Firmwares.attempt_firmware_delta(source.id, target.id)
+      delta = Repo.get_by!(FirmwareDelta, source_id: source.id, target_id: target.id)
+      assert delta.status == :processing
+      assert delta.tool == "pending"
 
       assert_enqueued(
         args: %{source_id: source_id, target_id: target_id},
