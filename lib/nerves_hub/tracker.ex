@@ -91,23 +91,6 @@ defmodule NervesHub.Tracker do
   def online?(_), do: false
 
   @doc """
-  Check if a device is currently online
-
-  If the device is not online this function will wait for a timeout before returning false
-  """
-  def sync_online?(device) do
-    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", {:online?, self()})
-
-    receive do
-      :online ->
-        true
-    after
-      500 ->
-        false
-    end
-  end
-
-  @doc """
   Check if a device's console channel is available.
 
   Times out if console is unavailable.

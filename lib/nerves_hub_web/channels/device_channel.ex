@@ -79,16 +79,6 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(:online?, socket) do
-    NervesHub.Tracker.confirm_online(socket.assigns.device)
-    {:noreply, socket}
-  end
-
-  def handle_info({:online?, pid}, socket) do
-    send(pid, :online)
-    {:noreply, socket}
-  end
-
   def handle_info({:run_script, pid, text}, socket) do
     if Version.match?(socket.assigns.device_api_version, ">= 2.1.0") do
       ref = Base.encode64(:crypto.strong_rand_bytes(4), padding: false)
