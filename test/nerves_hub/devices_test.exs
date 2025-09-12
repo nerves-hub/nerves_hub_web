@@ -15,8 +15,8 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
-
   alias NervesHub.Repo
+  alias NervesHub.Support
 
   setup do
     user = Fixtures.user_fixture()
@@ -872,14 +872,14 @@ defmodule NervesHub.DevicesTest do
 
       # create some firmware which can be uploaded to each org
       {:ok, _} =
-        NervesHub.Support.Fwup.create_firmware(tmp_dir, "old-firmware", %{
+        Support.Fwup.create_firmware(tmp_dir, "old-firmware", %{
           product: "Same Product Name",
           fwup_version: "1.13.0"
         })
 
       # sign and upload for org one
       {:ok, signed_firmware_one} =
-        NervesHub.Support.Fwup.sign_firmware(
+        Support.Fwup.sign_firmware(
           tmp_dir,
           org_key_one.name,
           "old-firmware",
@@ -894,7 +894,7 @@ defmodule NervesHub.DevicesTest do
 
       # sign and upload for org two
       {:ok, old_signed_firmware_two} =
-        NervesHub.Support.Fwup.sign_firmware(
+        Support.Fwup.sign_firmware(
           tmp_dir,
           org_key_two.name,
           "old-firmware",
@@ -909,14 +909,14 @@ defmodule NervesHub.DevicesTest do
 
       # and now create some new firmware which can be uploaded to each org
       {:ok, _} =
-        NervesHub.Support.Fwup.create_firmware(tmp_dir, "new-firmware", %{
+        Support.Fwup.create_firmware(tmp_dir, "new-firmware", %{
           product: "Same Product Name",
           fwup_version: "1.13.0"
         })
 
       # sign and upload for org one
       {:ok, new_signed_firmware_one} =
-        NervesHub.Support.Fwup.sign_firmware(
+        Support.Fwup.sign_firmware(
           tmp_dir,
           org_key_one.name,
           "new-firmware",
@@ -931,7 +931,7 @@ defmodule NervesHub.DevicesTest do
 
       # sign and upload for org two
       {:ok, new_signed_firmware_two} =
-        NervesHub.Support.Fwup.sign_firmware(
+        Support.Fwup.sign_firmware(
           tmp_dir,
           org_key_two.name,
           "new-firmware",

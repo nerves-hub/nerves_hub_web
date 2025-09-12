@@ -112,11 +112,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
     end
 
     defp user_initials(user) do
-      String.split(user.name)
-      |> Enum.map_join("", fn w ->
-        String.at(w, 0)
-        |> String.upcase()
-      end)
+      user.name
+      |> String.split()
+      |> Enum.map_join("", fn w -> String.at(w, 0) |> String.upcase() end)
     end
   end
 
