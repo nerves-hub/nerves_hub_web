@@ -1,15 +1,10 @@
 defmodule NervesHubWeb.Auth do
   use NervesHubWeb, :verified_routes
 
-  import Ecto.Query
   import Plug.Conn
   import Phoenix.Controller
 
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.Org
-  alias NervesHub.Products.Product
-
-  alias NervesHub.Repo
 
   # Make the remember me cookie valid for 60 days.
   # If you want bump or reduce this value, also change
@@ -86,9 +81,7 @@ defmodule NervesHubWeb.Auth do
       # Preload orgs and products for the navigation bar
       # Since we've loaded everything then we can reuse it for plugs
       # further down the pipeline
-      org_query = from(o in Org, where: is_nil(o.deleted_at))
-      product_query = from(p in Product, where: is_nil(p.deleted_at))
-      user = Repo.preload(user, orgs: {org_query, products: product_query})
+      {:ok, user} = Accounts.get_user_with_all_orgs_and_products(user.id)
 
       conn
       |> assign(:user, user)
