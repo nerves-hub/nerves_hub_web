@@ -360,11 +360,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> within("#push-update-form", fn session ->
-        session
-        |> select("Firmware", option: new_firmware.version, exact_option: false)
-        |> click_button("Send delta update")
-      end)
+      |> select("Firmware", option: new_firmware.version, exact_option: false)
+      |> click_button("Send delta update")
 
       %{version: version, architecture: architecture, platform: platform} = new_firmware
 
