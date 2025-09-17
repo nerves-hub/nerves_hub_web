@@ -367,17 +367,18 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
 
           <div :if={Enum.any?(@firmwares)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <form id="push-update-form" phx-change="select-firmware-version" phx-submit="push-update" class="flex gap-2 items-center w-full">
+            <form id="push-update-form" phx-change="select-firmware-version" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <label for="firmware" class="hidden">Firmware</label>
                 <select
                   id="firmware"
-                  phx-update="ignore"
                   name="uuid"
                   class="col-start-1 row-start-1 appearance-none border rounded border-zinc-600 bg-zinc-900 py-1.5 pl-3 pr-8 text-sm text-zinc-400 focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-indigo-500"
                 >
                   <option value="">Select a version</option>
-                  <option :for={firmware <- @firmwares} value={firmware.uuid}>{firmware.version} ({String.slice(firmware.uuid, 0..7)})</option>
+                  <option :for={firmware <- @firmwares} value={firmware.uuid} selected={@selected_firmware && firmware.uuid == @selected_firmware}>
+                    {firmware.version} ({String.slice(firmware.uuid, 0..7)})
+                  </option>
                 </select>
               </div>
 
@@ -385,15 +386,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 :if={@delta_available?}
                 type="button"
                 disabled={disconnected?(@device_connection)}
-                aria-label="Send firmware update"
-                data-confirm="Are you sure you want to send this firmware to the device?"
+                aria-label="Send delta firmware update"
+                data-confirm="Are you sure you want to send this delta firmware to the device?"
                 phx-value-uuid={@selected_firmware}
                 phx-click="push-delta"
               >
                 Send delta update
               </.button>
               <.button
-                :if={@delta_available?}
                 type="button"
                 disabled={disconnected?(@device_connection)}
                 aria-label="Send firmware update"
@@ -402,15 +402,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 phx-click="push-update"
               >
                 Send full update
-              </.button>
-              <.button
-                :if={not @delta_available?}
-                type="submit"
-                disabled={disconnected?(@device_connection)}
-                aria-label="Send firmware update"
-                data-confirm="Are you sure you want to send this firmware to the device?"
-              >
-                Send update
               </.button>
             </form>
           </div>
@@ -669,7 +660,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       "Manually sending firmware delta for updating from #{device.firmware_metadata.uuid} to #{firmware.uuid} to #{device.identifier}"
     )
 
-    DeviceEvents.manual_update(device, firmware, user)
+    DeviceEvents.manual_update(device, firmware, user, delta: true)
 
     socket
     |> assign(:device, device)
