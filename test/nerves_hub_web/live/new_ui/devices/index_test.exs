@@ -102,7 +102,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices?platform=#{deployment_group.firmware.platform}")
       |> assert_has("div", text: "2", timeout: 1000)
-      |> check("Select all devices")
+      |> check("Select all devices", exact: false)
       |> assert_has("div", text: "2 devices selected")
       |> within("form#deployment-move", fn session ->
         session
