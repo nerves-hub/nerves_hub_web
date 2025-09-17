@@ -254,7 +254,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("button[disabled]", text: "Send update")
+      |> assert_has("button[disabled]", text: "Send full update")
 
       %{id: latest_connection_id} =
         DeviceConnection.create_changeset(%{
@@ -272,7 +272,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("button[disabled]", text: "Send update")
+      |> assert_has("button[disabled]", text: "Send full update")
     end
 
     test "updates devices's firmware", %{
@@ -284,13 +284,24 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
     } do
       assert device.updates_enabled
 
+      %{id: latest_connection_id} =
+        DeviceConnection.create_changeset(%{
+          product_id: device.product_id,
+          device_id: device.id,
+          established_at: DateTime.utc_now(),
+          last_seen_at: DateTime.utc_now(),
+          status: :connected
+        })
+        |> Repo.insert!()
+
+      Device
+      |> where(id: ^device.id)
+      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> within("#push-update-form", fn session ->
-        session
-        |> select("Firmware", option: firmware.version, exact_option: false)
-        |> submit()
-      end)
+      |> select("Firmware", option: firmware.version, exact_option: false)
+      |> click_button("Send full update")
 
       %{version: version, architecture: architecture, platform: platform} = firmware
 
@@ -349,11 +360,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> within("#push-update-form", fn session ->
-        session
-        |> select("Firmware", option: new_firmware.version, exact_option: false)
-        |> click_button("Send delta update")
-      end)
+      |> select("Firmware", option: new_firmware.version, exact_option: false)
+      |> click_button("Send delta update")
 
       %{version: version, architecture: architecture, platform: platform} = new_firmware
 
