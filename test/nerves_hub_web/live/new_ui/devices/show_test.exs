@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
@@ -218,7 +219,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
     end
   end
 
-  describe "sending a manual update" do
+  describe "sending a manual full update" do
     test "lists only eligible firmwares for device", %{
       conn: conn,
       org: org,
@@ -303,6 +304,72 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
         },
         event: "update"
       }
+
+      refute Repo.reload(device) |> Map.get(:updates_enabled)
+    end
+
+    test "updates devices's firmware using the 'send delta' option", %{
+      conn: conn,
+      org: org,
+      org_key: org_key,
+      product: product,
+      device: device,
+      tmp_dir: tmp_dir
+    } do
+      assert device.updates_enabled
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      firmware_metadata = Map.put(device.firmware_metadata, :fwup_version, "1.13.0")
+
+      %{id: latest_connection_id} =
+        DeviceConnection.create_changeset(%{
+          product_id: device.product_id,
+          device_id: device.id,
+          established_at: DateTime.utc_now(),
+          last_seen_at: DateTime.utc_now(),
+          status: :connected
+        })
+        |> Repo.insert!()
+
+      Device
+      |> where(id: ^device.id)
+      |> Repo.update_all(set: [firmware_metadata: firmware_metadata, latest_connection_id: latest_connection_id])
+
+      device = Repo.reload(device)
+
+      Firmware
+      |> where(id: ^new_firmware.id)
+      |> Repo.update_all(set: [delta_updatable: true, version: "2.0.0"])
+
+      new_firmware = Repo.reload(new_firmware)
+
+      Firmwares.get_firmware_by_uuid(device.firmware_metadata.uuid)
+      |> Fixtures.firmware_delta_fixture(new_firmware)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> within("#push-update-form", fn session ->
+        session
+        |> select("Firmware", option: new_firmware.version, exact_option: false)
+        |> click_button("Send delta update")
+      end)
+
+      %{version: version, architecture: architecture, platform: platform} = new_firmware
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        payload: %{
+          firmware_url: firmware_url,
+          firmware_meta: %{
+            version: ^version,
+            architecture: ^architecture,
+            platform: ^platform
+          }
+        },
+        event: "update"
+      }
+
+      assert String.ends_with?(firmware_url, ".delta.fw")
 
       refute Repo.reload(device) |> Map.get(:updates_enabled)
     end

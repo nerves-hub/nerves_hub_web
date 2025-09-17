@@ -167,7 +167,11 @@ defmodule NervesHub.Fixtures do
     firmware
   end
 
-  def firmware_delta_fixture(%Firmwares.Firmware{id: source_id}, %Firmwares.Firmware{id: target_id, org_id: org_id}) do
+  def firmware_delta_fixture(%Firmwares.Firmware{id: source_id, uuid: source_uuid}, %Firmwares.Firmware{
+        id: target_id,
+        org_id: org_id,
+        uuid: target_uuid
+      }) do
     delta_metadata = %{
       "size" => 5,
       "source_size" => 7,
@@ -184,7 +188,7 @@ defmodule NervesHub.Fixtures do
         size: 500,
         source_size: 700,
         target_size: 1000,
-        upload_metadata: Map.merge(delta_metadata, @uploader.metadata(org_id, "#{Ecto.UUID.generate()}.fw"))
+        upload_metadata: Map.merge(delta_metadata, @uploader.delta_metadata(org_id, source_uuid, target_uuid))
       })
 
     firmware_delta
