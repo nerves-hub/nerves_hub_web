@@ -62,13 +62,12 @@ defmodule NervesHub.Firmwares.Upload.File do
 
     common_path =
       Path.join([
-        key_prefix(),
         Integer.to_string(org_id),
         source_firmware_uuid,
         "#{target_firmware_uuid}.delta.fw"
       ])
 
-    local_path = Path.join([config[:local_path], common_path])
+    local_path = Path.join([config[:local_path], key_prefix(), common_path])
 
     port =
       if Enum.member?([443, 80], web_config[:url][:port]),

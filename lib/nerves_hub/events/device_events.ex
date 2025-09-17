@@ -73,9 +73,17 @@ defmodule NervesHub.DeviceEvents do
     end)
   end
 
-  def manual_update(device, firmware, user) do
+  def manual_update(device, firmware, user, opts \\ []) do
     Repo.transact(fn ->
-      {:ok, url} = Firmwares.get_firmware_url(firmware)
+      url =
+        if opts[:delta] do
+          {:ok, url} = Devices.get_delta_or_firmware_url(device, firmware)
+          url
+        else
+          {:ok, url} = Firmwares.get_firmware_url(firmware)
+          url
+        end
+
       {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
       {:ok, device} = Devices.disable_updates(device, user)
 
