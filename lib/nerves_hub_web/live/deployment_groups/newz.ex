@@ -60,7 +60,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
     |> noreply()
   end
 
-  # @impl Phoenix.LiveView
   def handle_event("create-deployment-group", %{"deployment_group" => params}, socket) do
     authorized!(:"deployment_group:create", socket.assigns.org_user)
 
@@ -69,7 +68,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
     params =
       params
       |> inject_conditions_map()
-      |> whitelist([:name, :conditions, :firmware_id])
+      |> whitelist([:name, :conditions, :firmware_id, :delta_updatable])
       |> Map.put(:org_id, org.id)
       |> Map.put(:is_active, false)
 
@@ -78,6 +77,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
     |> case do
       {:ok, firmware} ->
         params = Map.put(params, :product_id, firmware.product_id)
+
         {firmware, ManagedDeployments.create_deployment_group(params)}
 
       {:error, :not_found} ->
