@@ -426,25 +426,23 @@ defmodule NervesHub.Firmwares do
     {:ok, source_url} = firmware_upload_config().download_file(source_firmware)
     {:ok, target_url} = firmware_upload_config().download_file(target_firmware)
 
-    {:error, :foo}
+    case update_tool().create_firmware_delta_file(
+           {source_firmware.uuid, source_url},
+           {target_firmware.uuid, target_url}
+         ) do
+      {:ok, delta_file_metadata} ->
+        case finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
+          {:ok, _delta} ->
+            :ok
 
-    # case update_tool().create_firmware_delta_file(
-    #        {source_firmware.uuid, source_url},
-    #        {target_firmware.uuid, target_url}
-    #      ) do
-    #   {:ok, delta_file_metadata} ->
-    #     case finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
-    #       {:ok, _delta} ->
-    #         :ok
+          {:error, err} ->
+            _ = fail_firmware_delta(firmware_delta)
+            {:error, err}
+        end
 
-    #       {:error, err} ->
-    #         _ = fail_firmware_delta(firmware_delta)
-    #         {:error, err}
-    #     end
-
-    #   {:error, _} = error ->
-    #     error
-    # end
+      {:error, _} = error ->
+        error
+    end
   end
 
   defp finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do

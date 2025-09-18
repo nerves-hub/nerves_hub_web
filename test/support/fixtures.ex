@@ -188,7 +188,7 @@ defmodule NervesHub.Fixtures do
         size: 500,
         source_size: 700,
         target_size: 1000,
-        upload_metadata: Map.merge(delta_metadata, @uploader.metadata(org_id, "#{Ecto.UUID.generate()}.fw"))
+        upload_metadata: Map.merge(delta_metadata, @uploader.delta_metadata(org_id, source_uuid, target_uuid))
       }
       |> Map.merge(params)
       |> Firmwares.insert_firmware_delta()

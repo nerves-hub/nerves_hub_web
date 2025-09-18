@@ -641,8 +641,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
+    firmware_delta_updatable? = Devices.delta_updatable?(device, firmware)
+    delta_complete? = Devices.delta_ready?(device, firmware)
+
     socket
-    |> assign(:delta_available?, Devices.delta_updatable?(device, firmware))
+    |> assign(:delta_available?, firmware_delta_updatable? && delta_complete?)
     |> assign(:selected_firmware, uuid)
     |> halt()
   end

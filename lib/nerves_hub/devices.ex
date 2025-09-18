@@ -827,6 +827,21 @@ defmodule NervesHub.Devices do
       :delta == update_tool().device_update_type(device, firmware)
   end
 
+  def delta_ready?(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id}) do
+    source_firmware_id_query =
+      Firmware
+      |> where(uuid: ^source_uuid)
+      |> select([f], f.id)
+
+    query =
+      FirmwareDelta
+      |> where([fd], fd.source_id == subquery(source_firmware_id_query))
+      |> where([fd], fd.target_id == ^target_id)
+      |> where([fd], fd.status == :completed)
+
+    Repo.exists?(query)
+  end
+
   @doc """
   Returns true if Version.match? and all deployment tags are in device tags.
   """
@@ -1810,6 +1825,21 @@ defmodule NervesHub.Devices do
     )
 
     Firmwares.get_firmware_url(target)
+  end
+
+  def get_delta_url(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id}) do
+    source_firmware_id_query =
+      Firmware
+      |> where(uuid: ^source_uuid)
+      |> select([f], f.id)
+
+    delta =
+      FirmwareDelta
+      |> where([fd], fd.source_id == subquery(source_firmware_id_query))
+      |> where([fd], fd.target_id == ^target_id)
+      |> Repo.one()
+
+    Firmwares.get_firmware_url(delta)
   end
 
   @spec get_delta_if_ready(Device.t(), Firmware.t()) ::
