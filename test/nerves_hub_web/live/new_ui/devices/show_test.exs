@@ -262,6 +262,10 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
           device_id: device_id,
           established_at: DateTime.utc_now(),
           last_seen_at: DateTime.utc_now(),
+          status: :connected
+        })
+        |> DeviceConnection.update_changeset(%{
+          disconnected_at: DateTime.utc_now(),
           status: :disconnected
         })
         |> Repo.insert!()
