@@ -303,13 +303,13 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           <div class="flex flex-col pt-2 px-4 pb-6 gap-4">
             <div class="text-sm font-medium leading-6 text-zinc-300">
               <form id="toggle-priority-updates" phx-change="toggle-device-priority-updates">
-                <input type="hidden" name="device[priority_updates]" value="off" />
+                <input type="hidden" name="device[priority_updates]" value="false" />
                 <input
                   type="checkbox"
                   id="device[priority_updates]"
                   name="device[priority_updates]"
                   checked={@device.priority_updates}
-                  value="on"
+                  value="true"
                   class="rounded border-zinc-700 text-zinc-400 focus:ring-0 checked:bg-indigo-500"
                 />
                 <label for="device[priority_updates]" class="pl-2">Priority Updates</label>
