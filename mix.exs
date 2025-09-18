@@ -125,7 +125,7 @@ defmodule NervesHub.MixProject do
       {:opentelemetry_bandit, "~> 0.2.0", git: "https://github.com/open-telemetry/opentelemetry-erlang-contrib",
        subdir: "instrumentation/opentelemetry_bandit"},
       {:open_telemetry_decorator, "~> 1.5"},
-      {:phoenix, "~> 1.7.0"},
+      {:phoenix, "~> 1.8.1"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 3.3.1", override: true},
       {:phoenix_live_dashboard, "~> 0.8"},
