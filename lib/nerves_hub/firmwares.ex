@@ -144,6 +144,10 @@ defmodule NervesHub.Firmwares do
   @spec get_firmware(Org.t(), integer()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
+  def get_firmware(_, nil) do
+    {:error, :not_found}
+  end
+
   def get_firmware(%Org{id: org_id}, id) do
     Firmware
     |> with_product()
