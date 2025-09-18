@@ -1,0 +1,68 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Sign in to your account
+  </:title>
+  <:subheader>
+    Don't have an account? <.link href="/register" class="font-semibold text-indigo-500 hover:text-indigo-400">Sign up for free</.link>
+  </:subheader>
+
+  <div :if={assigns[:error_message]} role="alert" class="mt-4 mr-2 w-full rounded-sm p-3 ring-1 bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900">
+    <p class="mt-1 text-sm leading-5">{@error_message}</p>
+  </div>
+
+  <.form :let={f} for={@form} as={:mfa} id="login_form_totp" action={~p"/mfa"} class="space-y-6">
+    <div id="pin-input-container" phx-hook="LoginMFAForm">
+      <div id="pin-input-authentication-code" phx-hook="PinInput" class="mt-4">
+        <div class="flex items-center justify-between">
+          <.label for={f[:code].id <> "-authentication"}>Authentication Code</.label>
+          <button type="button" id="toggle-pin-input-authentication-code" class="text-sm text-slate-500 hover:text-indigo-500 focus:outline-none focus:underline">
+            Use a backup code
+          </button>
+        </div>
+
+        <div class="flex items-center justify-center gap-2 sm:gap-3 mt-4 max-w-xs sm:max-w-sm mx-auto">
+          <input
+            :for={_i <- 1..6}
+            type="text"
+            class="w-14 h-14 text-center text-xl sm:text-2xl font-extrabold text-slate-900 bg-slate-100 border border-transparent hover:border-slate-200 appearance-none rounded outline-none focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+            maxlength="1"
+          />
+        </div>
+
+        <input class="hidden pin-input-target" name={f[:code].name} id={f[:code].id <> "-authentication"} />
+      </div>
+
+      <div id="pin-input-backup-code" phx-hook="PinInput" class="mt-4 hidden">
+        <div class="flex items-center justify-between">
+          <.label for={f[:code].id <> "-backup"}>Backup Code</.label>
+          <button type="button" id="toggle-pin-input-backup-code" class="text-sm text-slate-500 hover:text-indigo-500 focus:outline-none focus:underline">
+            Use an authentication code
+          </button>
+        </div>
+
+        <div class="flex items-center justify-center gap-2 sm:gap-3 mt-4 max-w-xs sm:max-w-sm mx-auto">
+          <input
+            :for={_i <- 1..8}
+            type="text"
+            class="w-10 h-10 sm:w-9 sm:h-9 text-center text-sm font-extrabold text-slate-900 bg-slate-100 border border-transparent hover:border-slate-200 appearance-none rounded outline-none focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+            maxlength="1"
+          />
+        </div>
+
+        <input class="hidden pin-input-target" name={f[:code].name} id={f[:code].id <> "-backup"} disabled />
+      </div>
+    </div>
+    <div>
+      <button
+        type="submit"
+        class="flex w-full justify-center rounded-md bg-indigo-500 px-3 py-1.5 text-sm/6 font-semibold text-neutral-50 shadow-sm hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+      >
+        Verify
+      </button>
+    </div>
+  </.form>
+
+  <div class="text-center mt-3">
+    <a href={~p"/login"} class="text-muted">Back to Login</a>
+  </div>
+</Layouts.auth>
