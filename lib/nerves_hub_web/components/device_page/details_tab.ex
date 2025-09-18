@@ -232,14 +232,40 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             General Info
           </div>
           <div class="flex flex-col gap-3">
-            <div :if={@device.description != ""} class="min-h-7 px-4 flex gap-4 items-center">
+            <div :if={not is_nil(@device.description) && @device.description != ""} class="min-h-7 px-4 flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Description:</span>
               <span class="text-sm text-zinc-300">{@device.description}</span>
             </div>
 
+            <div :if={@device.latest_connection && @device.latest_connection.status == :disconnected} class="min-h-7 px-4 flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Last Seen:</span>
+              <span class="text-sm text-zinc-300">
+                <time
+                  id="connection-established-at"
+                  phx-hook="UpdatingTimeAgo"
+                  datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.disconnected_at, :second)), " ", "T")}
+                >
+                  {NaiveDateTime.to_string(@device.latest_connection.disconnected_at)}
+                </time>
+              </span>
+            </div>
+
+            <div :if={@device.latest_connection && @device.latest_connection.status != :disconnected} class="min-h-7 px-4 flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Connected:</span>
+              <span class="text-sm text-zinc-300">
+                <time
+                  id="connection-established-at"
+                  phx-hook="UpdatingTimeAgo"
+                  datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.established_at, :second)), " ", "T")}
+                >
+                  {NaiveDateTime.to_string(@device.latest_connection.established_at)}
+                </time>
+              </span>
+            </div>
+
             <div class="min-h-7 px-4 flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Added:</span>
-              <span class="text-sm text-zinc-300">{NaiveDateTime.to_string(@device.inserted_at)}</span>
+              <span class="text-sm text-zinc-300">{@device.inserted_at |> NaiveDateTime.to_date() |> Date.to_string()}</span>
             </div>
 
             <div class="min-h-7 flex px-4 gap-4 items-center relative">
