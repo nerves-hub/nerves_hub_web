@@ -46,6 +46,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :paused_reason
   ]
 
+  @statuses [:ok, :preparing, :paused]
+
   @derive {Phoenix.Param, key: :name}
   schema "deployments" do
     belongs_to(:firmware, Firmware)
@@ -77,7 +79,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:delta_updatable, :boolean, default: true)
     field(:only_send_deltas, :boolean, default: false)
 
-    field(:status, Ecto.Enum, values: [:ok, :preparing, :paused], default: :ok)
+    field(:status, Ecto.Enum, values: @statuses, default: :ok)
     field(:paused_source, Ecto.Enum, values: [:deltas])
     field(:paused_reason, Ecto.Enum, values: [:delta_generation_timeout, :delta_generation_error])
 
@@ -107,6 +109,13 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
         changeset
       end
     end)
+  end
+
+  @spec update_status_changeset(DeploymentGroup.t(), atom()) :: Ecto.Changeset.t()
+  def update_status_changeset(%DeploymentGroup{} = deployment, status) when status in @statuses do
+    deployment
+    |> cast(%{status: status}, [:status])
+    |> validate_required([:status])
   end
 
   defp base_changeset(%DeploymentGroup{} = deployment, params) do

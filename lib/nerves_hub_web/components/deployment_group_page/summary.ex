@@ -5,7 +5,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
-  alias Phoenix.Socket.Broadcast
+  alias Phoenix.Naming
 
   import NervesHubWeb.LayoutView,
     only: [humanize_size: 1]
@@ -31,6 +31,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> ok()
   end
 
+  def update(%{delta_updated: true}, socket) do
+    socket
+    |> assign(:delta_status, ManagedDeployments.get_delta_generation_status(socket.assigns.deployment_group))
+    |> ok()
+  end
+
   def update(assigns, socket) do
     %{deployment_group: deployment_group} = assigns
 
@@ -50,10 +56,22 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {:noreply, assign(socket, :update_stat_for_current_firmware, update_stat_for_current_firmware)}
   end
 
-  def handle_info(%Broadcast{topic: "firmware_delta" <> _}, %{assigns: %{deployment_group: deployment_group}} = socket) do
-    socket
-    |> assign(:delta_status, ManagedDeployments.get_delta_generation_status(deployment_group))
-    |> noreply()
+  def handle_event("delete_delta", %{"id" => id}, socket) do
+    {:ok, _} =
+      socket.assigns.delta_status.deltas
+      |> Enum.find(&(&1.id == String.to_integer(id)))
+      |> Firmwares.delete_firmware_delta()
+
+    {:noreply, socket}
+  end
+
+  def handle_event("retry_delta", %{"id" => id}, socket) do
+    delta = Enum.find(socket.assigns.delta_status.deltas, &(&1.id == String.to_integer(id)))
+
+    {:ok, _} = Firmwares.delete_firmware_delta(delta)
+    {:ok, _} = Firmwares.attempt_firmware_delta(delta.source_id, delta.target_id)
+
+    {:noreply, socket}
   end
 
   @impl Phoenix.LiveComponent
@@ -113,7 +131,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
           </div>
 
-          <div :if={@deployment_group.delta_updatable} class="flex flex-col gap-2 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div :if={Enum.any?(@delta_status.deltas)} class="flex flex-col gap-2 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
             <div class="p-4 h-9 flex items-start justify-between">
               <div class="text-neutral-50 font-medium leading-6">Firmware deltas</div>
             </div>
@@ -132,6 +150,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                         <th>Status</th>
                         <th>Size</th>
                         <th>Saving</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -145,9 +164,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                         <td>
                           <div class="flex gap-[8px] items-center">
                             {if delta.status == :completed do
-                              "ready"
+                              "Ready"
                             else
-                              delta.status
+                              Naming.humanize(delta.status)
                             end}
                           </div>
                         </td>
@@ -157,7 +176,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                             {if delta.status == :completed do
                               Sizeable.filesize(delta.size)
                             else
-                              ""
+                              "-"
                             end}
                           </div>
                         </td>
@@ -167,8 +186,34 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                             {if delta.status == :completed do
                               Sizeable.filesize(delta.target_size - delta.size)
                             else
-                              ""
+                              "-"
                             end}
+                          </div>
+                        </td>
+
+                        <td>
+                          <div class="flex gap-[8px] items-center relative">
+                            <a
+                              :if={delta.status in [:failed, :timed_out, :completed]}
+                              class="text-base-300 underline cursor-pointer"
+                              phx-click="delete_delta"
+                              data-confirm="Are you sure you want to delete this firmware delta?"
+                              phx-target={@myself}
+                              phx-value-id={delta.id}
+                            >
+                              Delete
+                            </a>
+                            <a
+                              :if={delta.status in [:failed, :timed_out]}
+                              class="text-base-300 underline cursor-pointer"
+                              phx-click="retry_delta"
+                              data-confirm="Are you sure you want to retry firmware delta generation?"
+                              phx-target={@myself}
+                              phx-value-id={delta.id}
+                            >
+                              Retry
+                            </a>
+                            <span :if={delta.status == :processing}>-</span>
                           </div>
                         </td>
                       </tr>

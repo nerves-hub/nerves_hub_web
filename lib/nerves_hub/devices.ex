@@ -764,24 +764,28 @@ defmodule NervesHub.Devices do
   defp do_resolve_update(device, deployment_group, opts) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
-        {:ok, url} = get_delta_or_firmware_url(device, deployment_group)
+        case get_delta_or_firmware_url(device, deployment_group) do
+          {:ok, url} ->
+            {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
 
-        {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
+            firmware_url =
+              if opts[:firmware_proxy_url] do
+                opts[:firmware_proxy_url] <> "?firmware=#{Base.url_encode64(url, padding: false)}"
+              else
+                url
+              end
 
-        firmware_url =
-          if opts[:firmware_proxy_url] do
-            opts[:firmware_proxy_url] <> "?firmware=#{Base.url_encode64(url, padding: false)}"
-          else
-            url
-          end
+            %UpdatePayload{
+              update_available: true,
+              firmware_url: firmware_url,
+              firmware_meta: meta,
+              deployment_group: deployment_group,
+              deployment_id: deployment_group.id
+            }
 
-        %UpdatePayload{
-          update_available: true,
-          firmware_url: firmware_url,
-          firmware_meta: meta,
-          deployment_group: deployment_group,
-          deployment_id: deployment_group.id
-        }
+          {:error, :waiting_for_delta} ->
+            %UpdatePayload{update_available: false}
+        end
 
       {:error, :deployment_group_not_active, _device} ->
         %UpdatePayload{update_available: false}
@@ -1713,14 +1717,10 @@ defmodule NervesHub.Devices do
   Get firmware or delta update URL.
   """
   @spec get_delta_or_firmware_url(Device.t(), Firmware.t() | DeploymentGroup.t()) ::
-          {:ok, String.t()} | {:error, :failure}
-  def get_delta_or_firmware_url(%Device{} = device, %DeploymentGroup{delta_updatable: true, firmware: target}) do
-    get_delta_or_firmware_url(device, target)
-  end
-
+          {:ok, String.t()} | {:error, :waiting_for_delta} | {:error, :failure}
   def get_delta_or_firmware_url(
-        %{firmware_metadata: %{uuid: source_uuid}} = device,
-        %Firmware{delta_updatable: true} = target
+        %Device{firmware_metadata: %{uuid: source_uuid}} = device,
+        %DeploymentGroup{delta_updatable: true, firmware: %Firmware{delta_updatable: true} = target} = deployment_group
       ) do
     case get_delta_if_ready(device, target) do
       {:ok, delta} ->
@@ -1755,15 +1755,27 @@ defmodule NervesHub.Devices do
         Firmwares.get_firmware_url(target)
 
       {:delta, {:ok, %{status: status} = delta}} ->
-        Logger.info(
-          "Delivering full firmware as delta had status #{status}",
-          device_id: device.id,
-          source_firmware: source_uuid,
-          target_firmware: target.uuid,
-          delta: delta.id
-        )
+        if deployment_group.only_send_deltas do
+          Logger.info(
+            "Deployment group is configured to only send deltas. Waiting for delta to finish with status #{status}",
+            device_id: device.id,
+            source_firmware: source_uuid,
+            target_firmware: target.uuid,
+            delta: delta.id
+          )
 
-        Firmwares.get_firmware_url(target)
+          {:error, :waiting_for_delta}
+        else
+          Logger.info(
+            "Delivering full firmware as delta had status #{status}",
+            device_id: device.id,
+            source_firmware: source_uuid,
+            target_firmware: target.uuid,
+            delta: delta.id
+          )
+
+          Firmwares.get_firmware_url(target)
+        end
 
       {:delta, {:error, :not_found}} ->
         Logger.info(

@@ -139,10 +139,11 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
       # do we handle here? probably not if it's lifted to the UI
       state
     else
-      ManagedDeployments.update_deployment_group(
-        state.deployment_group,
-        %{status: :ok, paused_source: nil, paused_reason: nil}
-      )
+      {:ok, _} =
+        ManagedDeployments.update_deployment_group(
+          state.deployment_group,
+          %{status: :ok, paused_source: nil, paused_reason: nil}
+        )
 
       state
     end

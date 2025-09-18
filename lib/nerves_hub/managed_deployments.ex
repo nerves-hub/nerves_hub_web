@@ -188,11 +188,6 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  @spec toggle_delta_updates(DeploymentGroup.t()) ::
-          {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def toggle_delta_updates(deployment_group),
-    do: update_deployment_group(deployment_group, %{delta_updatable: !deployment_group.delta_updatable})
-
   @doc """
   Update a deployment
 

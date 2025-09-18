@@ -14,7 +14,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
   require Logger
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.FirmwareDelta
-  # alias NervesHub.ManagedDeployments
+  alias NervesHub.Repo
 
   @impl Oban.Worker
   def perform(%Oban.Job{id: id, attempt: attempt, args: %{"source_id" => source_id, "target_id" => target_id}}) do
@@ -36,7 +36,21 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
           "Processing delta #{source.version} to #{target.version}; attempt number #{attempt}/#{@max_attempts}"
         )
 
-        Firmwares.generate_firmware_delta(delta, source, target)
+        # if on last attempt and delta hasn't been marked as failed, fail it
+        case Firmwares.generate_firmware_delta(delta, source, target) do
+          {:error, _} = err ->
+            delta = Repo.reload(delta)
+
+            if attempt == @max_attempts and delta.status != :failed do
+              Logger.warning("Delta generation failed on final attempt, marking as failed")
+              {:ok, _} = Firmwares.fail_firmware_delta(delta)
+            end
+
+            err
+
+          ok ->
+            ok
+        end
 
       # Currently we do not retry timed out or failed delta builds
       # This could lead to generating too many times
@@ -46,9 +60,5 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
       {:error, :not_found} ->
         :ok
     end
-
-    # Enum.each(ManagedDeployments.get_deployment_groups_by_firmware(target_id), fn deployment ->
-    #   ManagedDeployments.broadcast(deployment, "deployments/update")
-    # end)
   end
 end

@@ -38,10 +38,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           <div class="flex p-6 gap-6">
             <div class="w-1/2 flex flex-col gap-6">
               <.input field={@form[:name]} label="Name" placeholder="Production" />
-              <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates" phx-click="toggle-delta-updates">
+              <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates">
                 <:rich_hint>
                   Check out the <.link class="underline" href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank">NervesHub documentation</.link>
                   for more information on delta updates.
+                </:rich_hint>
+              </.input>
+              <.input field={@form[:only_send_deltas]} type="checkbox" label="Only send deltas">
+                <:rich_hint>
+                  When disabled, full firmware updates will be sent if deltas are processing or time out.<br />
+                  When enabled, only deltas will be sent. If deltas run into issues during creation, full firmware updates will not be sent. Deltas can be retried in the Summary tab.
                 </:rich_hint>
               </.input>
             </div>

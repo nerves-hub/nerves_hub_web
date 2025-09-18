@@ -426,23 +426,25 @@ defmodule NervesHub.Firmwares do
     {:ok, source_url} = firmware_upload_config().download_file(source_firmware)
     {:ok, target_url} = firmware_upload_config().download_file(target_firmware)
 
-    case update_tool().create_firmware_delta_file(
-           {source_firmware.uuid, source_url},
-           {target_firmware.uuid, target_url}
-         ) do
-      {:ok, delta_file_metadata} ->
-        case finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
-          {:ok, _delta} ->
-            :ok
+    {:error, :foo}
 
-          {:error, err} ->
-            _ = fail_firmware_delta(firmware_delta)
-            {:error, err}
-        end
+    # case update_tool().create_firmware_delta_file(
+    #        {source_firmware.uuid, source_url},
+    #        {target_firmware.uuid, target_url}
+    #      ) do
+    #   {:ok, delta_file_metadata} ->
+    #     case finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
+    #       {:ok, _delta} ->
+    #         :ok
 
-      {:error, _} = error ->
-        error
-    end
+    #       {:error, err} ->
+    #         _ = fail_firmware_delta(firmware_delta)
+    #         {:error, err}
+    #     end
+
+    #   {:error, _} = error ->
+    #     error
+    # end
   end
 
   defp finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
@@ -475,7 +477,7 @@ defmodule NervesHub.Firmwares do
       {:ok, firmware_delta}
     else
       {:error, error} ->
-        # TODO: log to sentry
+        # TODO: log to sentry?
         Logger.error("Failed to create firmware delta: #{inspect(error)}")
 
         :ok = update_tool().cleanup_firmware_delta_files(delta_file_metadata.filepath)
@@ -483,28 +485,6 @@ defmodule NervesHub.Firmwares do
         {:error, error}
     end
   end
-
-  # # @spec unpause_deployment_groups(Firmware.t()) :: :ok | {:error, [{atom(), {String.t(), Keyword.t()}}]}
-  # defp unpause_deployment_groups(target_firmware) do
-  #   target_firmware
-  #   |> Repo.preload(:deployment_groups)
-  #   |> Map.get(:deployment_groups)
-  #   |> Enum.filter(&(&1.status == :paused))
-  #   |> Enum.map(fn deployment_group ->
-  #     ManagedDeployments.update_deployment_group(
-  #       deployment_group,
-  #       %{status: :ok, paused_source: nil, paused_reason: nil}
-  #     )
-  #   end)
-  #   |> Enum.reduce(fn
-  #     {:ok, _}, acc -> acc
-  #     {:error, changeset}, acc -> [changeset.errors | acc]
-  #   end)
-  #   |> case do
-  #     [] -> :ok
-  #     errors -> {:error, errors}
-  #   end
-  # end
 
   defp with_product(query) do
     query
@@ -557,6 +537,13 @@ defmodule NervesHub.Firmwares do
     firmware_delta
     |> FirmwareDelta.time_out_changeset()
     |> Repo.update()
+    |> notify_firmware_delta_target()
+  end
+
+  def delete_firmware_delta(%FirmwareDelta{} = delta) do
+    # need to cleanup S3 and/or local files
+    delta
+    |> Repo.delete()
     |> notify_firmware_delta_target()
   end
 
