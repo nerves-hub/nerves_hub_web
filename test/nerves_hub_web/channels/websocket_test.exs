@@ -675,6 +675,8 @@ defmodule NervesHubWeb.WebsocketTest do
         })
         |> ManagedDeployments.update_deployment_group(%{is_active: true})
 
+      deployment_group = Repo.preload(deployment_group, :org)
+
       device =
         Fixtures.device_fixture(
           org,

@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
   import Ecto.Query, only: [where: 2]
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Org
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
@@ -279,7 +280,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
       |> assert_has("button[disabled]", text: "Send full update")
     end
 
-    test "updates devices's firmware", %{
+    test "broadcasts the firmware update request, using the default url config", %{
       conn: conn,
       org: org,
       product: product,
@@ -311,6 +312,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       assert_receive %Phoenix.Socket.Broadcast{
         payload: %{
+          firmware_url: firmware_url,
           firmware_meta: %{
             version: ^version,
             architecture: ^architecture,
@@ -320,10 +322,63 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
         event: "update"
       }
 
+      assert String.starts_with?(firmware_url, "http://localhost:1234")
+
       refute Repo.reload(device) |> Map.get(:updates_enabled)
     end
 
-    test "updates devices's firmware using the 'send delta' option", %{
+    test "broadcasts the firmware update request, and includes the Orgs `firmware_proxy_url` setting", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      fixture: %{firmware: firmware}
+    } do
+      Org
+      |> where(id: ^org.id)
+      |> Repo.update_all(set: [settings: %Org.Settings{firmware_proxy_url: "https://files.customer.com/download"}])
+
+      assert device.updates_enabled
+
+      %{id: latest_connection_id} =
+        DeviceConnection.create_changeset(%{
+          product_id: device.product_id,
+          device_id: device.id,
+          established_at: DateTime.utc_now(),
+          last_seen_at: DateTime.utc_now(),
+          status: :connected
+        })
+        |> Repo.insert!()
+
+      Device
+      |> where(id: ^device.id)
+      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> select("Firmware", option: firmware.version, exact_option: false)
+      |> click_button("Send full update")
+
+      %{version: version, architecture: architecture, platform: platform} = firmware
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        payload: %{
+          firmware_url: firmware_url,
+          firmware_meta: %{
+            version: ^version,
+            architecture: ^architecture,
+            platform: ^platform
+          }
+        },
+        event: "update"
+      }
+
+      assert String.starts_with?(firmware_url, "https://files.customer.com/download?firmware=")
+
+      refute Repo.reload(device) |> Map.get(:updates_enabled)
+    end
+
+    test "broadcasts the firmware update request using the 'send delta' option", %{
       conn: conn,
       org: org,
       org_key: org_key,

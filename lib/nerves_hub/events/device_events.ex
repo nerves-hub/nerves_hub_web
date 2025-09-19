@@ -84,6 +84,13 @@ defmodule NervesHub.DeviceEvents do
           url
         end
 
+      firmware_url =
+        if opts[:firmware_proxy_url] do
+          opts[:firmware_proxy_url] <> "?firmware=#{Base.url_encode64(url, padding: false)}"
+        else
+          url
+        end
+
       {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
       {:ok, device} = Devices.disable_updates(device, user)
 
@@ -91,7 +98,7 @@ defmodule NervesHub.DeviceEvents do
 
       payload = %UpdatePayload{
         update_available: true,
-        firmware_url: url,
+        firmware_url: firmware_url,
         firmware_meta: meta
       }
 

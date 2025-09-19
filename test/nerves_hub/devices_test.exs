@@ -4,6 +4,7 @@ defmodule NervesHub.DevicesTest do
   alias Ecto.Changeset
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Org
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate
@@ -17,6 +18,8 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Products
 
   alias NervesHub.Repo
+
+  alias Phoenix.Socket.Broadcast
 
   setup do
     user = Fixtures.user_fixture()
@@ -438,6 +441,8 @@ defmodule NervesHub.DevicesTest do
       device: device,
       deployment_group: deployment_group
     } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
       {:ok, inflight_update} = Devices.told_to_update(device, deployment_group)
 
       {:ok, _device} = Devices.firmware_update_successful(device, device.firmware_metadata)
@@ -450,6 +455,8 @@ defmodule NervesHub.DevicesTest do
       device: device,
       deployment_group: deployment_group
     } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
       assert deployment_group.current_updated_devices == 0
 
       {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
@@ -531,6 +538,7 @@ defmodule NervesHub.DevicesTest do
          state do
       %{device: device, deployment_group: deployment_group} = state
       deployment_group = %{deployment_group | device_failure_threshold: 6}
+      deployment_group = Repo.preload(deployment_group, :org)
 
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
       {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
@@ -557,6 +565,7 @@ defmodule NervesHub.DevicesTest do
     test "device should be rejected for updates based on attempt rate and have it's inflight updates cleared",
          state do
       %{device: device, deployment_group: deployment_group} = state
+      deployment_group = Repo.preload(deployment_group, :org)
 
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
       {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
@@ -582,6 +591,7 @@ defmodule NervesHub.DevicesTest do
     test "device in penalty box should be rejected for updates and have it's inflight updates cleared",
          state do
       %{device: device, deployment_group: deployment_group} = state
+      deployment_group = Repo.preload(deployment_group, :org)
 
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
@@ -603,6 +613,61 @@ defmodule NervesHub.DevicesTest do
       # past time
       device = %{device | updates_blocked_until: DateTime.add(now, -1, :second)}
       {:ok, _device} = Devices.verify_update_eligibility(device, deployment_group, now)
+    end
+  end
+
+  describe "told_to_update/2" do
+    test "update payload uses the default firmware url", %{device: device, deployment_group: deployment_group} do
+      {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
+
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      topic = "device:#{device.id}"
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
+
+      # check that the first device was told to update
+      assert_receive %Broadcast{
+                       topic: ^topic,
+                       event: "update",
+                       payload: %{
+                         firmware_url: firmware_url
+                       }
+                     },
+                     500
+
+      assert String.starts_with?(firmware_url, "http://localhost:1234")
+    end
+
+    test "update payload uses the Orgs `firmware_proxy_url` setting", %{
+      device: device,
+      deployment_group: deployment_group
+    } do
+      Org
+      |> where(id: ^deployment_group.org_id)
+      |> Repo.update_all(set: [settings: %Org.Settings{firmware_proxy_url: "https://files.customer.com/download"}])
+
+      {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
+
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      topic = "device:#{device.id}"
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
+
+      # check that the first device was told to update
+      assert_receive %Broadcast{
+                       topic: ^topic,
+                       event: "update",
+                       payload: %{
+                         firmware_url: firmware_url
+                       }
+                     },
+                     500
+
+      assert String.starts_with?(firmware_url, "https://files.customer.com/download?firmware=")
     end
   end
 
