@@ -76,17 +76,20 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
 
   @impl NervesHub.Firmwares.UpdateTool
   def cleanup_firmware_delta_files(firmware_delta_path) do
-    firmware_delta_path
-    |> Path.dirname()
-    |> File.rm_rf()
-    |> case do
-      {:ok, _} ->
-        :ok
+    if File.exists?(firmware_delta_path) do
+      Path.dirname(firmware_delta_path)
+      |> File.rm_rf()
+      |> case do
+        {:ok, _} ->
+          :ok
 
-      {:error, reason, _path} ->
-        Logging.log_message_to_sentry("Could not cleanup delta files", %{reason: reason})
+        {:error, reason, _path} ->
+          Logging.log_message_to_sentry("Could not cleanup delta files", %{reason: reason})
 
-        :ok
+          :ok
+      end
+    else
+      :ok
     end
   end
 
@@ -107,8 +110,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     with {:source, {:ok, source}} <-
            {:source, Firmwares.get_firmware_by_product_id_and_uuid(product_id, firmware_uuid)},
          {:delta_result, {:ok, %{tool_metadata: tm}}} <-
-           {:delta_result,
-            Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)},
+           {:delta_result, Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)},
          {:delta_min, delta_min} <-
            {:delta_min, Map.get(tm, "delta_fwup_version", @very_safe_version)},
          {:parse_version, {:ok, delta_version}} <- {:parse_version, Version.parse(delta_min)},

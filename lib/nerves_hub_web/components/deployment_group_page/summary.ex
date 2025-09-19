@@ -4,7 +4,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
-  alias NervesHub.ManagedDeployments
   alias Phoenix.Naming
 
   import NervesHubWeb.LayoutView,
@@ -33,7 +32,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
   def update(%{delta_updated: true}, socket) do
     socket
-    |> assign(:delta_status, ManagedDeployments.get_delta_generation_status(socket.assigns.deployment_group))
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(socket.assigns.deployment_group.firmware))
     |> ok()
   end
 
@@ -58,7 +57,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
   def handle_event("delete_delta", %{"id" => id}, socket) do
     {:ok, _} =
-      socket.assigns.delta_status.deltas
+      socket.assigns.deltas
       |> Enum.find(&(&1.id == String.to_integer(id)))
       |> Firmwares.delete_firmware_delta()
 
@@ -66,7 +65,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   def handle_event("retry_delta", %{"id" => id}, socket) do
-    delta = Enum.find(socket.assigns.delta_status.deltas, &(&1.id == String.to_integer(id)))
+    delta = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
 
     {:ok, _} = Firmwares.delete_firmware_delta(delta)
     :ok = Firmwares.attempt_firmware_delta(delta.source_id, delta.target_id)
@@ -131,7 +130,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
           </div>
 
-          <div :if={Enum.any?(@delta_status.deltas)} class="flex flex-col gap-2 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div :if={Enum.any?(@deltas)} class="flex flex-col gap-2 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
             <div class="p-4 h-9 flex items-start justify-between">
               <div class="text-neutral-50 font-medium leading-6">Firmware deltas</div>
             </div>
@@ -154,7 +153,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                       </tr>
                     </thead>
                     <tbody>
-                      <tr :for={delta <- @delta_status.deltas} class="border-b last:border-0 border-zinc-800 relative last:rounded-b">
+                      <tr :for={delta <- @deltas} class="border-b last:border-0 border-zinc-800 relative last:rounded-b">
                         <td>
                           <div class="flex gap-[8px] items-center">
                             {delta.source.version}
@@ -446,9 +445,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   defp assign_deltas_and_stats(%{assigns: %{deployment_group: deployment_group}} = socket) do
-    Firmwares.subscribe_firmware_delta_target(deployment_group.firmware.id)
+    :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.firmware.id)
 
     socket
-    |> assign(:delta_status, ManagedDeployments.get_delta_generation_status(deployment_group))
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
   end
 end

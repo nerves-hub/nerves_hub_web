@@ -303,13 +303,6 @@ defmodule NervesHub.ManagedDeployments do
     end)
   end
 
-  def get_delta_generation_status(deployment_group) do
-    deltas = Firmwares.get_deltas_by_target_firmware(deployment_group.firmware_id)
-    total = Enum.count(deltas)
-    completed = Enum.count(deltas, &(&1.status != :processing))
-    %{total: total, completed: completed, ready?: completed >= total, deltas: deltas}
-  end
-
   @spec new_deployment_group() :: Changeset.t()
   def new_deployment_group() do
     Ecto.Changeset.change(%DeploymentGroup{})

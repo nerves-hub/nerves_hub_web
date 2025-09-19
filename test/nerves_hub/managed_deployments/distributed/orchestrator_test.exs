@@ -5,6 +5,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.UpdateTool.Fwup
+  alias NervesHub.Firmwares.Upload.File
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
@@ -351,6 +354,53 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     ManagedDeployments.delete_deployment_group(deployment_group)
 
     assert_receive {:DOWN, _reference, :process, ^pid, :normal}, 3_000
+  end
+
+  test "triggers update when delta completes", %{deployment_group: deployment_group, org_key: org_key, product: product} do
+    source_firmware = Fixtures.firmware_fixture(org_key, product)
+
+    {:ok, pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment_group.id}",
+        start: {Orchestrator, :start_link, [deployment_group, false]},
+        restart: :temporary
+      })
+
+    delta = Fixtures.firmware_delta_fixture(source_firmware, deployment_group.firmware, %{status: :processing})
+
+    expect(Fwup, :create_firmware_delta_file, fn _, _ ->
+      {:ok,
+       %{tool: "fwup", size: "1000", source_size: "2000", target_size: "3000", filepath: "foo", tool_metadata: %{}}}
+    end)
+
+    expect(File, :upload_file, fn _, _ -> :ok end)
+
+    expect(Devices, :available_for_update, fn _, _ -> [] end)
+
+    _ = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
+    _ = :sys.get_state(pid)
+  end
+
+  test "handles delta subscriptions when firmware changes", %{
+    deployment_group: deployment_group,
+    org_key: org_key,
+    product: product
+  } do
+    new_firmware = %{id: new_firmware_id} = Fixtures.firmware_fixture(org_key, product)
+    %{firmware_id: old_firmware_id} = deployment_group
+
+    {:ok, pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment_group.id}",
+        start: {Orchestrator, :start_link, [deployment_group, false]},
+        restart: :temporary
+      })
+
+    expect(Firmwares, :unsubscribe_firmware_delta_target, fn ^old_firmware_id -> :ok end)
+    expect(Firmwares, :subscribe_firmware_delta_target, fn ^new_firmware_id -> :ok end)
+
+    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id})
+    _ = :sys.get_state(pid)
   end
 
   describe "trigger_update/1" do

@@ -16,6 +16,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -64,6 +65,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
     :ok =
       PubSub.subscribe(NervesHub.PubSub, "orchestrator:deployment:#{deployment_group.id}")
+
+    :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.firmware_id)
 
     # trigger every two minutes, plus a jitter between 1 and 10 seconds, as a back up
     interval = to_timeout(second: 120 + :rand.uniform(20))
@@ -290,7 +293,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployments/update")
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deployments/update"}, state) do
+    %{deployment_group: %{firmware_id: old_firmware_id}} = state
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(state.deployment_group)
+
+    if old_firmware_id != deployment_group.firmware_id do
+      :ok = Firmwares.unsubscribe_firmware_delta_target(old_firmware_id)
+      :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.firmware_id)
+    end
 
     maybe_trigger_update(%{state | deployment_group: deployment_group})
   end
@@ -308,7 +317,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     {:noreply, state}
   end
 
-  def handle_info(%Broadcast{topic: "firmware_delta" <> _}, state) do
+  def handle_info(%Broadcast{topic: "firmware_delta" <> _, event: "firmware_delta_completed"}, state) do
     maybe_trigger_update(state)
   end
 

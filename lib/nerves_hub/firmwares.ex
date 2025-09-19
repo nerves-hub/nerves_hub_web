@@ -459,7 +459,6 @@ defmodule NervesHub.Firmwares do
       )
 
     with {:ok, firmware_delta} <- Repo.update(changeset),
-         #  :ok <- unpause_deployment_groups(target_firmware),
          {:ok, _firmware_delta} <- notify_firmware_delta_target({:ok, firmware_delta}),
          :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata) do
       Logger.info("Created firmware delta successfully.")
