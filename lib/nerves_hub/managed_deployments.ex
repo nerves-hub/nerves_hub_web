@@ -20,7 +20,7 @@ defmodule NervesHub.ManagedDeployments do
 
   @spec should_run_orchestrator() :: [DeploymentGroup.t()]
   def should_run_orchestrator() do
-    DeploymentGroup
+    full_deployment_group_query()
     |> where(is_active: true)
     |> Repo.all()
   end
@@ -85,33 +85,15 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
   end
 
-  @spec get_deployment_group_for_update(Device.t()) ::
-          {:ok, DeploymentGroup.t()} | {:error, :not_found}
-  def get_deployment_group_for_update(%Device{deployment_id: deployment_id}) do
-    DeploymentGroup
-    |> where([d], d.id == ^deployment_id)
-    |> join(:left, [d], f in assoc(d, :firmware))
-    |> preload([d, f], firmware: f)
-    |> preload(:product)
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      deployment_group ->
-        {:ok, deployment_group}
-    end
-  end
-
-  @spec get_deployment_group(DeploymentGroup.t() | integer()) ::
+  @spec get_deployment_group(DeploymentGroup.t() | Device.t() | integer()) ::
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get_deployment_group(%DeploymentGroup{id: id}), do: get_deployment_group(id)
 
+  def get_deployment_group(%Device{deployment_id: deployment_id}), do: get_deployment_group(deployment_id)
+
   def get_deployment_group(deployment_id) do
-    DeploymentGroup
+    full_deployment_group_query()
     |> where([d], d.id == ^deployment_id)
-    |> join(:left, [d], f in assoc(d, :firmware), as: :firmware)
-    |> preload([firmware: f], firmware: f)
     |> Repo.one()
     |> case do
       nil ->
@@ -120,6 +102,14 @@ defmodule NervesHub.ManagedDeployments do
       deployment ->
         {:ok, deployment}
     end
+  end
+
+  defp full_deployment_group_query() do
+    DeploymentGroup
+    |> join(:left, [d], f in assoc(d, :firmware), as: :firmware)
+    |> join(:left, [d], p in assoc(d, :product), as: :product)
+    |> join(:left, [d], o in assoc(d, :org), as: :org)
+    |> preload([d, firmware: f, product: p, org: o], firmware: f, product: p, org: o)
   end
 
   @spec get_by_product_and_name!(Product.t(), String.t(), boolean()) :: DeploymentGroup.t()

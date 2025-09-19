@@ -656,17 +656,24 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   def hooked_event("push-update", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{product: product, device: device, user: user} = socket.assigns
+    %{product: product, device: device, user: user, org: org} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
-    Logger.info("Manually sending full firmware for updating from to #{firmware.uuid} to #{device.identifier}")
+    Logger.info("Manually sending full firmware", firmware_uuid: firmware.uuid, device_identifier: device.identifier)
 
-    DeviceEvents.manual_update(device, firmware, user)
+    opts =
+      if proxy_url = get_in(org.settings.firmware_proxy_url) do
+        [firmware_proxy_url: proxy_url]
+      else
+        []
+      end
+
+    {:ok, device} = DeviceEvents.manual_update(device, firmware, user, opts)
 
     socket
     |> assign(:device, device)
-    |> put_flash(:info, "Sending firmware update request.")
+    |> put_flash(:info, "Firmware update request requested.")
     |> halt()
   end
 
@@ -679,15 +686,25 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   def hooked_event("push-delta", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{product: product, device: %Device{} = device, user: user} = socket.assigns
+    %{product: product, device: device, user: user, org: org} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
     Logger.info(
-      "Manually sending firmware delta for updating from #{device.firmware_metadata.uuid} to #{firmware.uuid} to #{device.identifier}"
+      "Manually sending firmware delta",
+      source_uuid: device.firmware_metadata.uuid,
+      target_uuid: firmware.uuid,
+      device_identifier: device.identifier
     )
 
-    DeviceEvents.manual_update(device, firmware, user, delta: true)
+    opts =
+      if proxy_url = get_in(org.settings.firmware_proxy_url) do
+        [firmware_proxy_url: proxy_url]
+      else
+        []
+      end
+
+    {:ok, device} = DeviceEvents.manual_update(device, firmware, user, opts ++ [delta: true])
 
     socket
     |> assign(:device, device)

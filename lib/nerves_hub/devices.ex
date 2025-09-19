@@ -761,20 +761,35 @@ defmodule NervesHub.Devices do
 
   def resolve_update(%Device{firmware_metadata: fw_meta} = device) do
     Logger.metadata(device_id: device.id, source_firmware_uuid: Map.get(fw_meta, :uuid))
-    {:ok, deployment_group} = ManagedDeployments.get_deployment_group_for_update(device)
-    do_resolve_update(device, deployment_group)
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
+
+    opts =
+      if proxy_url = get_in(deployment_group.org.settings.firmware_proxy_url) do
+        [firmware_proxy_url: proxy_url]
+      else
+        []
+      end
+
+    do_resolve_update(device, deployment_group, opts)
   end
 
-  defp do_resolve_update(device, deployment_group) do
+  defp do_resolve_update(device, deployment_group, opts) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
         {:ok, url} = get_delta_or_firmware_url(device, deployment_group)
 
         {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
 
+        firmware_url =
+          if opts[:firmware_proxy_url] do
+            opts[:firmware_proxy_url] <> "?firmware=#{Base.url_encode64(url, padding: false)}"
+          else
+            url
+          end
+
         %UpdatePayload{
           update_available: true,
-          firmware_url: url,
+          firmware_url: firmware_url,
           firmware_meta: meta,
           deployment_group: deployment_group,
           deployment_id: deployment_group.id
@@ -1512,17 +1527,16 @@ defmodule NervesHub.Devices do
   """
   @spec told_to_update(
           device_or_id :: Device.t() | integer(),
-          deployment_group :: DeploymentGroup.t(),
-          device_channel_pid :: pid() | nil
+          deployment_group :: DeploymentGroup.t()
         ) ::
           {:ok, InflightUpdate.t()} | :error
-  def told_to_update(device_or_id, deployment_group, device_channel_pid \\ nil)
+  def told_to_update(device_or_id, deployment_group)
 
-  def told_to_update(%Device{id: id}, deployment_group, device_channel_pid) do
-    told_to_update(id, deployment_group, device_channel_pid)
+  def told_to_update(%Device{id: id}, deployment_group) do
+    told_to_update(id, deployment_group)
   end
 
-  def told_to_update(device_id, deployment_group, device_channel_pid) do
+  def told_to_update(device_id, deployment_group) do
     deployment_group = Repo.preload(deployment_group, :firmware)
 
     expires_at =
@@ -1541,12 +1555,7 @@ defmodule NervesHub.Devices do
     |> Repo.insert()
     |> case do
       {:ok, inflight_update} ->
-        if device_channel_pid do
-          send(device_channel_pid, {:update, inflight_update})
-        else
-          broadcast_update_request(device_id, inflight_update, deployment_group)
-        end
-
+        broadcast_update_request(device_id, inflight_update, deployment_group)
         {:ok, inflight_update}
 
       {:error, _changeset} ->
@@ -1555,16 +1564,10 @@ defmodule NervesHub.Devices do
         case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment_group.id) do
           nil ->
             Logger.error("An inflight update could not be created or found for the device (#{device_id})")
-
             :error
 
           inflight_update ->
-            if device_channel_pid do
-              send(device_channel_pid, {:update, inflight_update})
-            else
-              broadcast_update_request(device_id, inflight_update, deployment_group)
-            end
-
+            broadcast_update_request(device_id, inflight_update, deployment_group)
             {:ok, inflight_update}
         end
     end
@@ -1645,9 +1648,16 @@ defmodule NervesHub.Devices do
   defp broadcast_update_request(device_id, inflight_update, deployment_group) do
     Logger.metadata(device_id: device_id)
 
-    deployment_group = Repo.preload(deployment_group, :product)
     device = get_device(device_id)
-    update_payload = do_resolve_update(device, deployment_group)
+
+    opts =
+      if proxy_url = get_in(deployment_group.org.settings.firmware_proxy_url) do
+        [firmware_proxy_url: proxy_url]
+      else
+        []
+      end
+
+    update_payload = do_resolve_update(device, deployment_group, opts)
 
     device = %{device | deployment_group: deployment_group}
 

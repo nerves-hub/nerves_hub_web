@@ -264,6 +264,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
         deployment_group: deployment_group
       }
     } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: device.identifier, timeout: 1000)

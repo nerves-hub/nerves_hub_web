@@ -10,7 +10,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Metrics
-  alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Extensions.Health
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
@@ -389,22 +388,18 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event("push-update", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{product: product, device: device, user: user} = socket.assigns
+    %{product: product, org: org, device: device, user: user} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
-    {:ok, url} = Firmwares.get_firmware_url(firmware)
-    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
-    {:ok, device} = Devices.disable_updates(device, user)
 
-    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
+    opts =
+      if proxy_url = get_in(org.settings.firmware_proxy_url) do
+        [firmware_proxy_url: proxy_url]
+      else
+        []
+      end
 
-    payload = %UpdatePayload{
-      update_available: true,
-      firmware_url: url,
-      firmware_meta: meta
-    }
-
-    _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "devices/update-manual", payload)
+    {:ok, device} = DeviceEvents.manual_update(device, firmware, user, opts)
 
     socket
     |> assign(:device, device)
@@ -415,9 +410,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event("push-available-update", _, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{device: device, deployment_group: deployment_group, user: user} = socket.assigns
+    %{device: device, user: user} = socket.assigns
 
-    deployment_group = NervesHub.Repo.preload(deployment_group, :firmware)
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
 
     case Devices.told_to_update(device, deployment_group) do
       {:ok, _inflight_update} ->

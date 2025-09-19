@@ -31,6 +31,10 @@ defmodule NervesHub.Accounts.Org do
     field(:deleted_at, :utc_datetime)
     field(:audit_log_days_to_keep, :integer)
 
+    embeds_one :settings, __MODULE__.Settings do
+      field(:firmware_proxy_url, :string)
+    end
+
     timestamps()
   end
 

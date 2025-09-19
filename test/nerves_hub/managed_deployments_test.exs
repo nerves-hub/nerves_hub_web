@@ -912,14 +912,4 @@ defmodule NervesHub.ManagedDeploymentsTest do
     assert [] == ManagedDeployments.get_deployment_groups_by_firmware(123)
     assert length(ManagedDeployments.get_deployment_groups_by_firmware(firmware.id)) == 1
   end
-
-  test "get_deployment_group_for_update/1", %{deployment_group: deployment_group} do
-    assert {:ok, %DeploymentGroup{}} =
-             ManagedDeployments.get_deployment_group_for_update(%Device{
-               deployment_id: deployment_group.id
-             })
-
-    assert ManagedDeployments.get_deployment_group_for_update(%Device{deployment_id: 123}) ==
-             {:error, :not_found}
-  end
 end
