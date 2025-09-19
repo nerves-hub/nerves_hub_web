@@ -1,6 +1,7 @@
 Mimic.copy(ProcessHub)
 Mimic.copy(NervesHub.Devices)
 Mimic.copy(NervesHub.ManagedDeployments.Distributed.Orchestrator)
+Mimic.copy(NervesHub.Firmwares)
 Mimic.copy(NervesHub.Firmwares.UpdateTool.Fwup)
 Mimic.copy(NervesHub.Firmwares.Upload.File)
 Mimic.copy(NervesHub.Firmwares.Upload)

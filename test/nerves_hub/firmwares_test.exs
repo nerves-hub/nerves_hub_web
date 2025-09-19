@@ -240,7 +240,7 @@ defmodule NervesHub.FirmwaresTest do
       id = firmware_delta.id
 
       assert {:ok, %{id: ^id}} =
-               Firmwares.get_firmware_delta_by_source_and_target(firmware, new_firmware)
+               Firmwares.get_firmware_delta_by_source_and_target(firmware.id, new_firmware.id)
     end
 
     test ":not_found is returned when there is no match", %{
@@ -251,7 +251,7 @@ defmodule NervesHub.FirmwaresTest do
       new_firmware = Fixtures.firmware_fixture(org_key, product)
 
       assert {:error, :not_found} =
-               Firmwares.get_firmware_delta_by_source_and_target(firmware, new_firmware)
+               Firmwares.get_firmware_delta_by_source_and_target(firmware.id, new_firmware.id)
     end
   end
 
@@ -290,11 +290,11 @@ defmodule NervesHub.FirmwaresTest do
         :ok
       end)
 
-      assert {:ok, firmware_delta} = Firmwares.start_firmware_delta(source, target)
+      assert {:ok, firmware_delta} = Firmwares.start_firmware_delta(source.id, target.id)
       Firmwares.generate_firmware_delta(firmware_delta, source, target)
 
       assert {:ok, _firmware_delta} =
-               Firmwares.get_firmware_delta_by_source_and_target(source, target)
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
     end
 
     test "new firmware delta is not created if there is an error", %{
@@ -324,7 +324,7 @@ defmodule NervesHub.FirmwaresTest do
       Firmwares.generate_firmware_delta(firmware_delta, source, target)
 
       assert {:ok, %FirmwareDelta{status: :failed}} =
-               Firmwares.get_firmware_delta_by_source_and_target(source, target)
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
     end
 
     test "update tool errors are handled", %{
@@ -344,11 +344,11 @@ defmodule NervesHub.FirmwaresTest do
         {:error, :delta_not_created}
       end)
 
-      assert {:ok, firmware_delta} = Firmwares.start_firmware_delta(source, target)
+      assert {:ok, firmware_delta} = Firmwares.start_firmware_delta(source.id, target.id)
       Firmwares.generate_firmware_delta(firmware_delta, source, target)
 
       assert {:ok, _} =
-               Firmwares.get_firmware_delta_by_source_and_target(source, target)
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
     end
 
     @tag :tmp_dir
@@ -362,7 +362,7 @@ defmodule NervesHub.FirmwaresTest do
       firmware_delta_path = Path.join(tmp_dir, "firmware_delta.fw")
       File.cp!("test/fixtures/fwup/mixed.conf", firmware_delta_path)
 
-      _ = Firmwares.attempt_firmware_delta(source.id, target.id)
+      Firmwares.attempt_firmware_delta(source.id, target.id)
       delta = Repo.get_by!(FirmwareDelta, source_id: source.id, target_id: target.id)
       assert delta.status == :processing
       assert delta.tool == "pending"
@@ -389,7 +389,7 @@ defmodule NervesHub.FirmwaresTest do
                perform_job(FirmwareDeltaBuilder, %{source_id: source_id, target_id: target_id})
 
       assert {:ok, %FirmwareDelta{status: :completed, tool: "fwup"}} =
-               Firmwares.get_firmware_delta_by_source_and_target(source, target)
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
     end
   end
 
@@ -403,11 +403,11 @@ defmodule NervesHub.FirmwaresTest do
       t2 = Fixtures.firmware_fixture(org_key, product)
       t3 = Fixtures.firmware_fixture(org_key, product)
       t4 = Fixtures.firmware_fixture(org_key, product)
-      {:ok, %{id: d1}} = Firmwares.start_firmware_delta(source, t1)
-      {:ok, %{id: d2}} = Firmwares.start_firmware_delta(source, t2)
+      {:ok, %{id: d1}} = Firmwares.start_firmware_delta(source.id, t1.id)
+      {:ok, %{id: d2}} = Firmwares.start_firmware_delta(source.id, t2.id)
       :timer.sleep(2000)
-      {:ok, %{id: d3}} = Firmwares.start_firmware_delta(source, t3)
-      {:ok, %{id: d4}} = Firmwares.start_firmware_delta(source, t4)
+      {:ok, %{id: d3}} = Firmwares.start_firmware_delta(source.id, t3.id)
+      {:ok, %{id: d4}} = Firmwares.start_firmware_delta(source.id, t4.id)
       Firmwares.time_out_firmware_delta_generations(1000, :millisecond)
 
       assert [
@@ -431,6 +431,22 @@ defmodule NervesHub.FirmwaresTest do
       _device_3 = Fixtures.device_fixture(org, product, firmware)
       {[firmware], _} = Firmwares.filter(product)
       assert firmware.install_count == 3
+    end
+  end
+
+  describe "attempt_firmware_delta/2" do
+    test "it doesn't start delta worker if delta exists", %{
+      firmware: source,
+      org_key: org_key,
+      product: product
+      # tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product)
+      %FirmwareDelta{} = Fixtures.firmware_delta_fixture(source, target)
+
+      refute_enqueued(worker: FirmwareDeltaBuilder)
+
+      {:error, :delta_already_exists} = Firmwares.attempt_firmware_delta(source.id, target.id)
     end
   end
 

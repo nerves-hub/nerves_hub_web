@@ -30,7 +30,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
       job_id: id
     )
 
-    case Firmwares.get_firmware_delta_by_source_and_target(source, target) do
+    case Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id) do
       {:ok, %FirmwareDelta{status: :processing} = delta} ->
         Logger.info(
           "Processing delta #{source.version} to #{target.version}; attempt number #{attempt}/#{@max_attempts}"
@@ -41,10 +41,11 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
           {:error, _} = err ->
             delta = Repo.reload(delta)
 
-            if attempt == @max_attempts and delta.status != :failed do
-              Logger.warning("Delta generation failed on final attempt, marking as failed")
-              {:ok, _} = Firmwares.fail_firmware_delta(delta)
-            end
+            _ =
+              if attempt == @max_attempts and delta.status != :failed do
+                Logger.warning("Delta generation failed on final attempt, marking as failed")
+                {:ok, _} = Firmwares.fail_firmware_delta(delta)
+              end
 
             err
 

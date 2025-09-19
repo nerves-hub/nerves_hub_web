@@ -868,6 +868,21 @@ defmodule NervesHub.Devices do
 
     DeviceEvents.deployment_assigned(device)
 
+    deployment_group = Repo.preload(deployment_group, :firmware)
+
+    _ =
+      if device.firmware_metadata && delta_updatable?(device, deployment_group) do
+        source_uuid = Map.get(device.firmware_metadata, :uuid)
+
+        source_id =
+          Firmware
+          |> where(uuid: ^source_uuid)
+          |> select([f], f.id)
+          |> Repo.one()
+
+        Firmwares.attempt_firmware_delta(source_id, deployment_group.firmware.id)
+      end
+
     Map.put(device, :deployment_group, deployment_group)
   end
 
@@ -1858,7 +1873,11 @@ defmodule NervesHub.Devices do
          {:firmware, {:ok, source_firmware}} <-
            {:firmware, Firmwares.get_firmware_by_product_id_and_uuid(product_id, source_firmware_uuid)},
          {:delta, {:ok, %{status: :completed} = delta}} <-
-           {:delta, Firmwares.get_firmware_delta_by_source_and_target(source_firmware, target_firmware)} do
+           {:delta,
+            Firmwares.get_firmware_delta_by_source_and_target(
+              source_firmware.id,
+              target_firmware.id
+            )} do
       {:ok, delta}
     end
   end

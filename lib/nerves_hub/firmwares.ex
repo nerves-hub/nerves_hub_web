@@ -11,6 +11,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareTransfer
+  alias NervesHub.Helpers.Logging
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Workers.DeleteFirmware
@@ -386,14 +387,7 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  @spec get_firmware_delta_by_source_and_target(Firmware.t(), Firmware.t()) ::
-          {:ok, FirmwareDelta.t()}
-          | {:error, :not_found}
-  def get_firmware_delta_by_source_and_target(%Firmware{id: source_id}, %Firmware{id: target_id}) do
-    get_firmware_delta_by_source_and_target(source_id, target_id)
-  end
-
-  @spec get_firmware_delta_by_source_and_target(integer(), integer()) ::
+  @spec get_firmware_delta_by_source_and_target(non_neg_integer(), non_neg_integer()) ::
           {:ok, FirmwareDelta.t()}
           | {:error, :not_found}
   def get_firmware_delta_by_source_and_target(source_id, target_id) do
@@ -493,27 +487,36 @@ defmodule NervesHub.Firmwares do
   @spec attempt_firmware_delta(
           source_id :: non_neg_integer(),
           target_id :: non_neg_integer()
-        ) :: {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t()}
+        ) ::
+          {:ok, :started}
+          | {:error, :delta_already_exists}
+          | {:error, :failed_to_insert_delta}
+          | {:error, :failed_to_insert_job}
   def attempt_firmware_delta(source_id, target_id) do
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       with {:error, :not_found} <- get_firmware_delta_by_source_and_target(source_id, target_id),
-           {:ok, _firmware_delta} <- start_firmware_delta(source_id, target_id) do
-        {:ok, _job} =
-          %{source_id: source_id, target_id: target_id}
-          |> FirmwareDeltaBuilder.new()
-          |> Oban.insert()
+           {_, {:ok, _}} <- {:delta_insert, start_firmware_delta(source_id, target_id)},
+           {_, {:ok, _}} <- {:job, Oban.insert(FirmwareDeltaBuilder.new(%{source_id: source_id, target_id: target_id}))} do
+        {:ok, :started}
+      else
+        {:ok, %FirmwareDelta{}} ->
+          {:error, :delta_already_exists}
+
+        {:delta_insert, {:error, changeset}} ->
+          Logger.warning("Failed to start firmware delta for #{source_id} -> #{target_id}")
+          Logging.log_message_to_sentry("Failed to start firmware delta", %{errors: changeset.errors})
+          {:error, :failed_to_insert_delta}
+
+        {:job, {:error, changeset}} ->
+          Logger.warning("Failed to insert firmware delta job for #{source_id} -> #{target_id}")
+          Logging.log_message_to_sentry("Failed to insert firmware delta job", %{errors: changeset.errors})
+          {:error, :failed_to_insert_job}
       end
     end)
   end
 
-  @spec start_firmware_delta(
-          source :: Firmware.t() | non_neg_integer(),
-          target :: Firmware.t() | non_neg_integer()
-        ) :: {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t()}
-  def start_firmware_delta(%Firmware{id: source_id}, %Firmware{id: target_id}) do
-    start_firmware_delta(source_id, target_id)
-  end
-
+  @spec start_firmware_delta(non_neg_integer(), non_neg_integer()) ::
+          {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t()}
   def start_firmware_delta(source_id, target_id) do
     FirmwareDelta.start_changeset(source_id, target_id)
     |> Repo.insert()
@@ -571,6 +574,8 @@ defmodule NervesHub.Firmwares do
 
     {:ok, firmware_delta}
   end
+
+  defp notify_firmware_delta_target(error), do: error
 
   def insert_firmware_delta(params) do
     %FirmwareDelta{}

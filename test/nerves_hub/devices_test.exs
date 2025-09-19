@@ -1,5 +1,6 @@
 defmodule NervesHub.DevicesTest do
   use NervesHub.DataCase, async: false
+  use Mimic
 
   alias Ecto.Changeset
 
@@ -728,6 +729,66 @@ defmodule NervesHub.DevicesTest do
       assert device.deployment_id == deployment_group.id
       assert_receive %{event: "deployment_updated"}
     end
+
+    test "starts delta generation if conditions are met", %{
+      device: device,
+      deployment_group: deployment_group,
+      firmware: source_firmware,
+      org_key: org_key,
+      product: product
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product)
+      _ = Fixtures.firmware_delta_fixture(source_firmware, target_firmware)
+
+      expect(Firmwares, :attempt_firmware_delta, fn _, _ -> :ok end)
+
+      Devices.update_deployment_group(
+        %{device | firmware_metadata: %{device.firmware_metadata | fwup_version: "1.13.0"}},
+        %{
+          deployment_group
+          | delta_updatable: true,
+            firmware: %{target_firmware | delta_updatable: true}
+        }
+      )
+    end
+
+    test "does not start delta generation if device has no firmware metadata", %{
+      device: device,
+      deployment_group: deployment_group,
+      firmware: source_firmware,
+      org_key: org_key,
+      product: product
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product)
+      _ = Fixtures.firmware_delta_fixture(source_firmware, target_firmware)
+
+      reject(&Firmwares.attempt_firmware_delta/2)
+
+      Devices.update_deployment_group(
+        %{device | firmware_metadata: nil},
+        %{
+          deployment_group
+          | delta_updatable: true,
+            firmware: %{target_firmware | delta_updatable: true}
+        }
+      )
+    end
+
+    test "does not start delta generation if deployment group or firmware aren't delta updatable", %{
+      device: device,
+      deployment_group: deployment_group,
+      firmware: source_firmware,
+      org_key: org_key,
+      product: product
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product)
+      _ = Fixtures.firmware_delta_fixture(source_firmware, target_firmware)
+
+      refute Devices.delta_updatable?(device, deployment_group)
+      reject(&Firmwares.attempt_firmware_delta/2)
+
+      Devices.update_deployment_group(device, deployment_group)
+    end
   end
 
   describe "clear_deployment_group/2" do
@@ -1071,7 +1132,9 @@ defmodule NervesHub.DevicesTest do
         Fixtures.device_fixture(org, product, firmware4)
         |> Devices.update_deployment_group(deployment_group)
 
-      pairs = Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
+      pairs =
+        Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
+
       assert length(pairs) == 3
       assert Enum.member?(pairs, {firmware2.id, firmware.id})
       assert Enum.member?(pairs, {firmware3.id, firmware.id})
