@@ -707,7 +707,7 @@ defmodule NervesHubWeb.WebsocketTest do
         })
 
       # This is what the orchestrator process will do
-      Orchestrator.trigger_update(deployment_group)
+      Orchestrator.trigger_update(%Orchestrator.State{deployment_group: deployment_group})
 
       message = SocketClient.wait_update(socket)
 

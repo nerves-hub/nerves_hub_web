@@ -39,8 +39,14 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :total_updating_devices,
     :current_updated_devices,
     :queue_management,
-    :delta_updatable
+    :delta_updatable,
+    :only_send_deltas,
+    :status,
+    :paused_source,
+    :paused_reason
   ]
+
+  @statuses [:ok, :preparing, :paused]
 
   @derive {Phoenix.Param, key: :name}
   schema "deployments" do
@@ -69,7 +75,13 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:current_updated_devices, :integer, default: 0)
     field(:inflight_update_expiration_minutes, :integer, default: 60)
     field(:queue_management, Ecto.Enum, values: [:FIFO, :LIFO], default: :FIFO)
+
     field(:delta_updatable, :boolean, default: true)
+    field(:only_send_deltas, :boolean, default: false)
+
+    field(:status, Ecto.Enum, values: @statuses, default: :ok)
+    field(:paused_source, Ecto.Enum, values: [:deltas])
+    field(:paused_reason, Ecto.Enum, values: [:delta_generation_timeout, :delta_generation_error])
 
     field(:device_count, :integer, virtual: true)
 
@@ -97,6 +109,13 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
         changeset
       end
     end)
+  end
+
+  @spec update_status_changeset(DeploymentGroup.t(), atom()) :: Ecto.Changeset.t()
+  def update_status_changeset(%DeploymentGroup{} = deployment, status) when status in @statuses do
+    deployment
+    |> cast(%{status: status}, [:status])
+    |> validate_required([:status])
   end
 
   defp base_changeset(%DeploymentGroup{} = deployment, params) do

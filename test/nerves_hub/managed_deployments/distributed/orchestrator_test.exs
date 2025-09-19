@@ -5,6 +5,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.UpdateTool.Fwup
+  alias NervesHub.Firmwares.Upload.File
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
@@ -351,5 +354,106 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     ManagedDeployments.delete_deployment_group(deployment_group)
 
     assert_receive {:DOWN, _reference, :process, ^pid, :normal}, 3_000
+  end
+
+  test "triggers update when delta completes", %{deployment_group: deployment_group, org_key: org_key, product: product} do
+    source_firmware = Fixtures.firmware_fixture(org_key, product)
+
+    {:ok, pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment_group.id}",
+        start: {Orchestrator, :start_link, [deployment_group, false]},
+        restart: :temporary
+      })
+
+    delta = Fixtures.firmware_delta_fixture(source_firmware, deployment_group.firmware, %{status: :processing})
+
+    expect(Fwup, :create_firmware_delta_file, fn _, _ ->
+      {:ok,
+       %{tool: "fwup", size: "1000", source_size: "2000", target_size: "3000", filepath: "foo", tool_metadata: %{}}}
+    end)
+
+    expect(File, :upload_file, fn _, _ -> :ok end)
+
+    expect(Devices, :available_for_update, fn _, _ -> [] end)
+
+    _ = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
+    _ = :sys.get_state(pid)
+  end
+
+  test "handles delta subscriptions when firmware changes", %{
+    deployment_group: deployment_group,
+    org_key: org_key,
+    product: product
+  } do
+    new_firmware = %{id: new_firmware_id} = Fixtures.firmware_fixture(org_key, product)
+    %{firmware_id: old_firmware_id} = deployment_group
+
+    {:ok, pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment_group.id}",
+        start: {Orchestrator, :start_link, [deployment_group, false]},
+        restart: :temporary
+      })
+
+    expect(Firmwares, :unsubscribe_firmware_delta_target, fn ^old_firmware_id -> :ok end)
+    expect(Firmwares, :subscribe_firmware_delta_target, fn ^new_firmware_id -> :ok end)
+
+    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id})
+    _ = :sys.get_state(pid)
+  end
+
+  describe "trigger_update/1" do
+    test "ignores updates when deployment_group is inactive", %{deployment_group: deployment_group} do
+      reject(&Devices.available_for_update/2)
+      reject(&Orchestrator.schedule_devices!/2)
+
+      Orchestrator.trigger_update(%Orchestrator.State{deployment_group: %{deployment_group | is_active: false}})
+    end
+
+    test "ignores updates when deployment_group is paused", %{deployment_group: deployment_group} do
+      reject(&Devices.available_for_update/2)
+      reject(&Orchestrator.schedule_devices!/2)
+
+      Orchestrator.trigger_update(%Orchestrator.State{deployment_group: %{deployment_group | status: :paused}})
+    end
+
+    test "sets deployment group status to :ok if all associated deltas are ready", %{
+      deployment_group: deployment_group,
+      org_key: org_key,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      firmware2 = Fixtures.firmware_fixture(org_key, product)
+      firmware3 = Fixtures.firmware_fixture(org_key, product)
+      firmware4 = Fixtures.firmware_fixture(org_key, product)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware2)
+        |> Devices.update_deployment_group(deployment_group)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware3)
+        |> Devices.update_deployment_group(deployment_group)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware4)
+        |> Devices.update_deployment_group(deployment_group)
+
+      _ = Fixtures.firmware_delta_fixture(firmware2, firmware)
+      _ = Fixtures.firmware_delta_fixture(firmware3, firmware)
+      delta_processing = Fixtures.firmware_delta_fixture(firmware4, firmware, %{status: :processing})
+      deployment_group = Ecto.Changeset.change(deployment_group, %{status: :preparing}) |> Repo.update!()
+      Orchestrator.trigger_update(%Orchestrator.State{deployment_group: deployment_group})
+
+      assert Repo.reload(deployment_group) |> Map.get(:status) == :preparing
+
+      _ = Ecto.Changeset.change(delta_processing, %{status: :completed}) |> Repo.update!()
+
+      Orchestrator.trigger_update(%Orchestrator.State{deployment_group: deployment_group})
+
+      assert Repo.reload(deployment_group) |> Map.get(:status) == :ok
+    end
   end
 end

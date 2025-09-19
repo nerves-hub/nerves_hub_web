@@ -188,11 +188,6 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  @spec toggle_delta_updates(DeploymentGroup.t()) ::
-          {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def toggle_delta_updates(deployment_group),
-    do: update_deployment_group(deployment_group, %{delta_updatable: !deployment_group.delta_updatable})
-
   @doc """
   Update a deployment
 
@@ -214,6 +209,16 @@ defmodule NervesHub.ManagedDeployments do
           |> Repo.preload(:firmware)
           |> DeploymentGroup.update_changeset(params)
           |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
+          |> then(fn
+            %{changes: %{delta_updatable: true}} = changeset ->
+              Ecto.Changeset.put_change(changeset, :status, :preparing)
+
+            %{changes: %{delta_updatable: false}} = changeset ->
+              Ecto.Changeset.put_change(changeset, :status, :ok)
+
+            changeset ->
+              changeset
+          end)
 
         case Repo.update(changeset) do
           {:ok, deployment_group} ->
@@ -293,7 +298,6 @@ defmodule NervesHub.ManagedDeployments do
 
   defp trigger_delta_generation_for_deployment_group(deployment_group) do
     NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
-    |> Enum.uniq()
     |> Enum.each(fn {source_id, target_id} ->
       Firmwares.attempt_firmware_delta(source_id, target_id)
     end)
