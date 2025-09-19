@@ -761,8 +761,8 @@ defmodule NervesHub.Devices do
 
   def resolve_update(%Device{firmware_metadata: fw_meta} = device) do
     Logger.metadata(device_id: device.id, source_firmware_uuid: Map.get(fw_meta, :uuid))
-    {:ok, deployment_group} = ManagedDeployments.get_deployment_group_for_update(device)
     do_resolve_update(device, deployment_group)
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
   end
 
   defp do_resolve_update(device, deployment_group) do
