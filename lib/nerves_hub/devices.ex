@@ -1512,17 +1512,16 @@ defmodule NervesHub.Devices do
   """
   @spec told_to_update(
           device_or_id :: Device.t() | integer(),
-          deployment_group :: DeploymentGroup.t(),
-          device_channel_pid :: pid() | nil
+          deployment_group :: DeploymentGroup.t()
         ) ::
           {:ok, InflightUpdate.t()} | :error
-  def told_to_update(device_or_id, deployment_group, device_channel_pid \\ nil)
+  def told_to_update(device_or_id, deployment_group)
 
-  def told_to_update(%Device{id: id}, deployment_group, device_channel_pid) do
-    told_to_update(id, deployment_group, device_channel_pid)
+  def told_to_update(%Device{id: id}, deployment_group) do
+    told_to_update(id, deployment_group)
   end
 
-  def told_to_update(device_id, deployment_group, device_channel_pid) do
+  def told_to_update(device_id, deployment_group) do
     deployment_group = Repo.preload(deployment_group, :firmware)
 
     expires_at =
@@ -1541,12 +1540,7 @@ defmodule NervesHub.Devices do
     |> Repo.insert()
     |> case do
       {:ok, inflight_update} ->
-        if device_channel_pid do
-          send(device_channel_pid, {:update, inflight_update})
-        else
-          broadcast_update_request(device_id, inflight_update, deployment_group)
-        end
-
+        broadcast_update_request(device_id, inflight_update, deployment_group)
         {:ok, inflight_update}
 
       {:error, _changeset} ->
@@ -1555,16 +1549,10 @@ defmodule NervesHub.Devices do
         case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment_group.id) do
           nil ->
             Logger.error("An inflight update could not be created or found for the device (#{device_id})")
-
             :error
 
           inflight_update ->
-            if device_channel_pid do
-              send(device_channel_pid, {:update, inflight_update})
-            else
-              broadcast_update_request(device_id, inflight_update, deployment_group)
-            end
-
+            broadcast_update_request(device_id, inflight_update, deployment_group)
             {:ok, inflight_update}
         end
     end
