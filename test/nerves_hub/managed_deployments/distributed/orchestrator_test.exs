@@ -388,7 +388,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     expect(File, :upload_file, fn _, _ -> :ok end)
 
-    expect(Devices, :available_for_update, fn _, _ -> [] end)
+    expect(Devices, :available_for_update, 1, fn _, _ -> [] end)
 
     _ = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
     _ = :sys.get_state(pid)
