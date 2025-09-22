@@ -68,7 +68,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     delta = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
 
     {:ok, _} = Firmwares.delete_firmware_delta(delta)
-    :ok = Firmwares.attempt_firmware_delta(delta.source_id, delta.target_id)
+    {:ok, _} = Firmwares.attempt_firmware_delta(delta.source_id, delta.target_id)
 
     {:noreply, socket}
   end
