@@ -439,7 +439,6 @@ defmodule NervesHub.FirmwaresTest do
       firmware: source,
       org_key: org_key,
       product: product
-      # tmp_dir: tmp_dir
     } do
       target = Fixtures.firmware_fixture(org_key, product)
       %FirmwareDelta{} = Fixtures.firmware_delta_fixture(source, target)
