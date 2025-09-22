@@ -1,5 +1,5 @@
 defmodule NervesHub.Workers.FirmwareDeltaBuilder do
-  @max_attempts 3
+  @max_attempts 5
 
   use Oban.Worker,
     max_attempts: @max_attempts,

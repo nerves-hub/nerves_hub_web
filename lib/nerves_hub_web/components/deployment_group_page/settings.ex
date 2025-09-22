@@ -286,6 +286,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           "User #{user.name} updated deployment group #{updated.name}"
         )
 
+        # no need to subscribe to new firmware here, we do that in the summary component
         if firmware_changed? do
           :ok = Firmwares.unsubscribe_firmware_delta_target(old_firmware_id)
         end

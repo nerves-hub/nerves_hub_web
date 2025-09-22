@@ -43,8 +43,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :status
   ]
 
-  @statuses [:ok, :preparing]
-
   @derive {Phoenix.Param, key: :name}
   schema "deployments" do
     belongs_to(:firmware, Firmware)
@@ -75,7 +73,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     field(:delta_updatable, :boolean, default: true)
 
-    field(:status, Ecto.Enum, values: @statuses, default: :ok)
+    field(:status, Ecto.Enum, values: [:ok, :preparing], default: :ok)
 
     field(:device_count, :integer, virtual: true)
 

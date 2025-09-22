@@ -1,7 +1,6 @@
 defmodule NervesHub.Firmwares do
   import Ecto.Query
 
-  # alias NervesHub.ManagedDeployments
   alias Ecto.Changeset
 
   alias NervesHub.Accounts.Org
@@ -26,11 +25,7 @@ defmodule NervesHub.Firmwares do
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
 
   @spec get_deltas_by_target_firmware(firmware :: Firmware.t()) :: [FirmwareDelta.t()]
-  def get_deltas_by_target_firmware(%Firmware{} = firmware) do
-    get_deltas_by_target_firmware(firmware.id)
-  end
-
-  def get_deltas_by_target_firmware(firmware_id) do
+  def get_deltas_by_target_firmware(%Firmware{id: firmware_id}) do
     FirmwareDelta
     |> where([fd], fd.target_id == ^firmware_id)
     |> preload(:source)
@@ -468,8 +463,7 @@ defmodule NervesHub.Firmwares do
       {:ok, firmware_delta}
     else
       {:error, error} ->
-        # TODO: log to sentry?
-        Logger.error("Failed to create firmware delta: #{inspect(error)}")
+        Logger.error("Failed when finalizing firmware delta: #{inspect(error)}")
 
         :ok = update_tool().cleanup_firmware_delta_files(delta_file_metadata.filepath)
 
@@ -541,7 +535,7 @@ defmodule NervesHub.Firmwares do
   end
 
   def delete_firmware_delta(%FirmwareDelta{} = delta) do
-    # need to cleanup S3 and/or local files
+    # TODO: clean up files locally or on S3
     delta
     |> Repo.delete()
     |> notify_firmware_delta_target()

@@ -1141,4 +1141,114 @@ defmodule NervesHub.DevicesTest do
       assert Enum.member?(pairs, {firmware4.id, firmware.id})
     end
   end
+
+  describe "delta_ready?/2" do
+    test "returns false when no matching delta for source is found", %{
+      device: device,
+      firmware: firmware,
+      org_key: org_key,
+      product: product
+    } do
+      firmware2 = Fixtures.firmware_fixture(org_key, product)
+      _ = Fixtures.firmware_delta_fixture(firmware2, firmware)
+
+      refute Devices.delta_ready?(device, firmware2)
+    end
+
+    test "returns false when no matching delta for target is found", %{
+      device: device,
+      firmware: firmware,
+      org_key: org_key,
+      product: product
+    } do
+      firmware2 = Fixtures.firmware_fixture(org_key, product)
+      firmware3 = Fixtures.firmware_fixture(org_key, product)
+      _ = Fixtures.firmware_delta_fixture(firmware, firmware2)
+
+      refute Devices.delta_ready?(device, firmware3)
+    end
+
+    test "returns false when no matching delta that's completed is found", %{
+      device: device,
+      firmware: firmware,
+      org_key: org_key,
+      product: product
+    } do
+      firmware2 = Fixtures.firmware_fixture(org_key, product)
+      _ = Fixtures.firmware_delta_fixture(firmware, firmware2, %{status: :processing})
+
+      refute Devices.delta_ready?(device, firmware2)
+    end
+
+    test "returns true when no completed delta is found", %{
+      device: device,
+      firmware: firmware,
+      org_key: org_key,
+      product: product
+    } do
+      firmware2 = Fixtures.firmware_fixture(org_key, product)
+      %{status: :completed} = Fixtures.firmware_delta_fixture(firmware, firmware2)
+
+      assert Devices.delta_ready?(device, firmware2)
+    end
+  end
+
+  describe "get_delta_or_firmware_url/2" do
+    test "returns delta url when delta is ready", %{
+      device: device,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product)
+      _ = Fixtures.firmware_delta_fixture(deployment_group.firmware, target_firmware)
+      device = %{device | firmware_metadata: %{device.firmware_metadata | fwup_version: "1.13.0"}}
+
+      deployment_group = %{
+        deployment_group
+        | delta_updatable: true,
+          firmware: %{target_firmware | delta_updatable: true}
+      }
+
+      {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert String.ends_with?(url, ".delta.fw")
+    end
+
+    test "returns error if device does not support deltas", %{
+      device: device,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product)
+      _ = Fixtures.firmware_delta_fixture(deployment_group.firmware, target_firmware)
+
+      deployment_group = %{
+        deployment_group
+        | delta_updatable: true,
+          firmware: %{target_firmware | delta_updatable: true}
+      }
+
+      assert {:error, :device_does_not_support_deltas} = Devices.get_delta_or_firmware_url(device, deployment_group)
+    end
+
+    test "returns error if delta isn't ready", %{
+      device: device,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product)
+      _ = Fixtures.firmware_delta_fixture(deployment_group.firmware, target_firmware, %{status: :processing})
+      device = %{device | firmware_metadata: %{device.firmware_metadata | fwup_version: "1.13.0"}}
+
+      deployment_group = %{
+        deployment_group
+        | delta_updatable: true,
+          firmware: %{target_firmware | delta_updatable: true}
+      }
+
+      assert {:error, :waiting_for_delta} = Devices.get_delta_or_firmware_url(device, deployment_group)
+    end
+  end
 end
