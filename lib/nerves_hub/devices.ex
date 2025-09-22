@@ -887,7 +887,13 @@ defmodule NervesHub.Devices do
           |> select([f], f.id)
           |> Repo.one()
 
-        Firmwares.attempt_firmware_delta(source_id, deployment_group.firmware.id)
+        case source_id do
+          nil ->
+            nil
+
+          source_id ->
+            Firmwares.attempt_firmware_delta(source_id, deployment_group.firmware.id)
+        end
       end
 
     Map.put(device, :deployment_group, deployment_group)

@@ -4,8 +4,10 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Repo
 
   setup context do
     %{
@@ -93,7 +95,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     target_firmware: target_firmware
   } do
     :ok = UpdateStats.log_update(device, source_firmware_metadata)
-    delta = Fixtures.firmware_delta_fixture(source_firmware, target_firmware)
+    delta = Repo.get_by(FirmwareDelta, source_id: source_firmware.id, target_id: target_firmware.id)
     :ok = UpdateStats.log_update(device, source_firmware_metadata)
 
     conn
