@@ -6,11 +6,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Firmwares.Upload.File
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
+  alias NervesHub.Repo
 
   alias Phoenix.Socket.Broadcast
 
@@ -139,7 +141,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
 
-    {:ok, _pid} =
+    {:ok, pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment_group.id}",
         start: {Orchestrator, :start_link, [deployment_group, false]},
@@ -177,6 +179,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     # and that device2 was told to update
     assert_receive %Broadcast{topic: ^topic2, event: "update"}, 500
+
+    :sys.get_state(pid)
   end
 
   test "the orchestrator doesn't 'trigger' if the device that came online is up-to-date", %{
@@ -435,8 +439,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       deployment_group: deployment_group,
       org_key: org_key,
       org: org,
-      product: product,
-      firmware: firmware
+      product: product
     } do
       firmware2 = Fixtures.firmware_fixture(org_key, product)
       firmware3 = Fixtures.firmware_fixture(org_key, product)
@@ -454,15 +457,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         Fixtures.device_fixture(org, product, firmware4)
         |> Devices.update_deployment_group(deployment_group)
 
-      _ = Fixtures.firmware_delta_fixture(firmware2, firmware)
-      _ = Fixtures.firmware_delta_fixture(firmware3, firmware)
-      delta_processing = Fixtures.firmware_delta_fixture(firmware4, firmware, %{status: :processing})
       deployment_group = Ecto.Changeset.change(deployment_group, %{status: :preparing}) |> Repo.update!()
       Orchestrator.trigger_update(deployment_group)
 
       assert Repo.reload(deployment_group) |> Map.get(:status) == :preparing
 
-      _ = Ecto.Changeset.change(delta_processing, %{status: :completed}) |> Repo.update!()
+      Repo.update_all(FirmwareDelta, set: [status: :completed])
 
       Orchestrator.trigger_update(deployment_group)
 
