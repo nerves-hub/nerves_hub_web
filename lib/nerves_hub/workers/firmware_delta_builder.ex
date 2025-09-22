@@ -47,6 +47,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
                 {:ok, _} = Firmwares.fail_firmware_delta(delta)
               end
 
+            Logger.warning("Delta generation failed: #{inspect(err)}")
             err
 
           ok ->

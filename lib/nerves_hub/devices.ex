@@ -1842,6 +1842,9 @@ defmodule NervesHub.Devices do
     Firmwares.get_firmware_url(target)
   end
 
+  @spec get_delta_url(Device.t(), Firmware.t()) ::
+          {:ok, String.t()}
+          | {:error, :failure}
   def get_delta_url(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id}) do
     source_firmware_id_query =
       Firmware
