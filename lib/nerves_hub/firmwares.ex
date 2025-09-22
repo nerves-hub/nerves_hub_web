@@ -496,8 +496,8 @@ defmodule NervesHub.Firmwares do
           {:error, :delta_already_exists}
 
         {:delta_insert, {:error, changeset}} ->
-          Logger.warning("Failed to start firmware delta for #{source_id} -> #{target_id}")
-          Logging.log_message_to_sentry("Failed to start firmware delta", %{errors: changeset.errors})
+          Logger.warning("Failed to insert firmware delta for #{source_id} -> #{target_id}")
+          Logging.log_message_to_sentry("Failed to insert firmware delta", %{errors: changeset.errors})
           {:error, :failed_to_insert_delta}
 
         {:job, {:error, changeset}} ->
@@ -580,19 +580,6 @@ defmodule NervesHub.Firmwares do
     %Firmware{}
     |> Firmware.create_changeset(params)
     |> Repo.insert()
-  end
-
-  @spec refresh_firmware_tool_metadata(Firmware.t()) :: :ok | {:error, any()}
-  def refresh_firmware_tool_metadata(firmware) do
-    case update_tool().get_firmware_metadata_from_upload(firmware) do
-      {:ok, %{tool_metadata: tm}} ->
-        firmware
-        |> Firmware.update_changeset(%{tool_metadata: tm})
-        |> Repo.update()
-
-      err ->
-        err
-    end
   end
 
   @spec time_out_firmware_delta_generations(

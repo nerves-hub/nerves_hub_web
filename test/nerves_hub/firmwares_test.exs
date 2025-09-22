@@ -6,9 +6,9 @@ defmodule NervesHub.FirmwaresTest do
   import Ecto.Query
 
   alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.UpdateTool.Fwup, as: UpdateToolDefault
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
+  alias NervesHub.Firmwares.UpdateTool.Fwup, as: UpdateToolDefault
   alias NervesHub.Firmwares.Upload.File, as: UploadFile
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -442,8 +442,6 @@ defmodule NervesHub.FirmwaresTest do
     } do
       target = Fixtures.firmware_fixture(org_key, product)
       %FirmwareDelta{} = Fixtures.firmware_delta_fixture(source, target)
-
-      refute_enqueued(worker: FirmwareDeltaBuilder)
 
       {:error, :delta_already_exists} = Firmwares.attempt_firmware_delta(source.id, target.id)
     end

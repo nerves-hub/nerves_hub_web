@@ -324,11 +324,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 </div>
               </form>
             </div>
-            <div class="flex pt-2 gap-4 items-center">
+            <div :if={@device.deployment_group} class="flex pt-2 gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Assigned deployment group:</span>
-              <span :if={is_nil(@device.deployment_group)} class="text-sm text-nerves-gray-500">No assigned deployment group</span>
               <.link
-                :if={@device.deployment_group}
                 navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@device.deployment_group}"}
                 class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
               >
@@ -338,7 +336,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 <span class="text-xs text-zinc-300 tracking-tight" class="">{@device.deployment_group.name}</span>
               </.link>
               <button
-                :if={@device.deployment_group}
                 class="p-1 border border-red-500 rounded-full bg-zinc-800"
                 data-confirm="Are you sure you want to remove the device from the deployment?"
                 aria-label="Remove device from the assigned deployment group"

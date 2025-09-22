@@ -878,7 +878,7 @@ defmodule NervesHub.Devices do
     deployment_group = Repo.preload(deployment_group, :firmware)
 
     _ =
-      if device.firmware_metadata && delta_updatable?(device, deployment_group) do
+      if device.firmware_metadata do
         source_uuid = Map.get(device.firmware_metadata, :uuid)
 
         source_id =

@@ -33,7 +33,8 @@ defmodule NervesHub.MixProject do
         plt_core_path: "priv/plts",
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
       ],
-      test_coverage: [tool: ExCoveralls]
+      test_coverage: [tool: ExCoveralls],
+      listeners: [Phoenix.CodeReloader]
     ]
   end
 
