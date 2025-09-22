@@ -1820,20 +1820,9 @@ defmodule NervesHub.Devices do
 
   def get_delta_or_firmware_url(%Device{firmware_metadata: fw_meta} = device, %DeploymentGroup{firmware: target} = dg) do
     Logger.warning(
-      "Delivering full firmware: deltas disabled for deployment group.",
+      "Delivering full firmware: deltas are disabled for deployment group.",
       device_id: device.id,
       deployment_group_id: dg.id,
-      source_firmware: Map.get(fw_meta, :uuid),
-      target_firmware: target.uuid
-    )
-
-    Firmwares.get_firmware_url(target)
-  end
-
-  def get_delta_or_firmware_url(%Device{firmware_metadata: fw_meta} = device, %Firmware{} = target) do
-    Logger.warning(
-      "Delivering full firmware: deltas disabled for firmware.",
-      device_id: device.id,
       source_firmware: Map.get(fw_meta, :uuid),
       target_firmware: target.uuid
     )

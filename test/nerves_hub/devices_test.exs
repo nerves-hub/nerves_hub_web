@@ -1214,6 +1214,48 @@ defmodule NervesHub.DevicesTest do
       assert String.ends_with?(url, ".delta.fw")
     end
 
+    test "returns firmware url when deployment group and firmware are not delta updatable", %{
+      device: device,
+      deployment_group: deployment_group,
+      firmware: firmware
+    } do
+      refute deployment_group.delta_updatable
+      refute firmware.delta_updatable
+
+      {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert String.ends_with?(url, "#{firmware.uuid}.fw")
+    end
+
+    test "returns firmware url when deployment_group is not delta updatable", %{
+      device: device,
+      deployment_group: deployment_group,
+      firmware: firmware
+    } do
+      deployment_group = %{
+        deployment_group
+        | delta_updatable: false,
+          firmware: %{firmware | delta_updatable: true}
+      }
+
+      {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert String.ends_with?(url, "#{firmware.uuid}.fw")
+    end
+
+    test "returns firmware url when firmware is not delta updatable", %{
+      device: device,
+      deployment_group: deployment_group,
+      firmware: firmware
+    } do
+      deployment_group = %{
+        deployment_group
+        | delta_updatable: true,
+          firmware: %{firmware | delta_updatable: false}
+      }
+
+      {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert String.ends_with?(url, "#{firmware.uuid}.fw")
+    end
+
     test "returns error if device does not support deltas", %{
       device: device,
       deployment_group: deployment_group,
