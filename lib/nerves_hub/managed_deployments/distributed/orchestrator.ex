@@ -136,10 +136,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
       :ok
     else
       {:ok, _} =
-        ManagedDeployments.update_deployment_group(
-          deployment_group,
-          %{status: :ok, paused_source: nil, paused_reason: nil}
-        )
+        ManagedDeployments.update_deployment_group(deployment_group, %{status: :ok})
 
       :ok
     end
