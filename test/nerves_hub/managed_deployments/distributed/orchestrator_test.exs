@@ -66,7 +66,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         firmware_id: firmware.id
       })
 
-    {:ok, _pid} =
+    {:ok, pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment_group.id}",
         start: {Orchestrator, :start_link, [deployment_group, false]},
@@ -111,6 +111,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     # and check that device3 isn't told to update as the concurrent limit has been reached
     refute_receive %Broadcast{topic: ^topic3, event: "update"}, 500
+
+    :sys.get_state(pid)
   end
 
   test "finds another device to update when a device finishes updating", %{
@@ -267,7 +269,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     refute_receive %Broadcast{topic: ^device2_topic, event: "update"}, 500
 
     # allows for db connections to finish and close
-    _state = :sys.get_state(pid)
+    :sys.get_state(pid)
   end
 
   test "the orchestrator is 'triggered' when a device is reenabled to accept updates", %{
@@ -325,7 +327,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     assert_receive %Broadcast{topic: ^device1_topic, event: "update"}, 1_000
 
     # allows for db connections to finish and close
-    _state = :sys.get_state(pid)
+    :sys.get_state(pid)
   end
 
   test "shuts down if the deployment group is no longer active", %{
