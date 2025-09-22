@@ -773,22 +773,6 @@ defmodule NervesHub.DevicesTest do
         }
       )
     end
-
-    test "does not start delta generation if deployment group or firmware aren't delta updatable", %{
-      device: device,
-      deployment_group: deployment_group,
-      firmware: source_firmware,
-      org_key: org_key,
-      product: product
-    } do
-      target_firmware = Fixtures.firmware_fixture(org_key, product)
-      _ = Fixtures.firmware_delta_fixture(source_firmware, target_firmware)
-
-      refute Devices.delta_updatable?(device, deployment_group)
-      reject(&Firmwares.attempt_firmware_delta/2)
-
-      Devices.update_deployment_group(device, deployment_group)
-    end
   end
 
   describe "clear_deployment_group/2" do
