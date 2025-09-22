@@ -40,14 +40,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
               <.input field={@form[:name]} label="Name" placeholder="Production" />
               <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates">
                 <:rich_hint>
+                  When enabled, deployment group will only send delta updates.
                   Check out the <.link class="underline" href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank">NervesHub documentation</.link>
                   for more information on delta updates.
-                </:rich_hint>
-              </.input>
-              <.input field={@form[:only_send_deltas]} type="checkbox" label="Only send deltas">
-                <:rich_hint>
-                  When disabled, full firmware updates will be sent if deltas are processing or time out.<br />
-                  When enabled, only deltas will be sent. If deltas run into issues during creation, full firmware updates will not be sent. Deltas can be retried in the Summary tab.
                 </:rich_hint>
               </.input>
             </div>

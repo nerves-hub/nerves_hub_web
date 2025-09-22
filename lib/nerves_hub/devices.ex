@@ -1748,10 +1748,10 @@ defmodule NervesHub.Devices do
   """
   @spec get_delta_or_firmware_url(Device.t(), Firmware.t() | DeploymentGroup.t()) ::
           {:ok, String.t()} | {:error, :waiting_for_delta} | {:error, :failure}
-  def get_delta_or_firmware_url(
-        %Device{firmware_metadata: %{uuid: source_uuid}} = device,
-        %DeploymentGroup{delta_updatable: true, firmware: %Firmware{delta_updatable: true} = target} = deployment_group
-      ) do
+  def get_delta_or_firmware_url(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
+        delta_updatable: true,
+        firmware: %Firmware{delta_updatable: true} = target
+      }) do
     case get_delta_if_ready(device, target) do
       {:ok, delta} ->
         Logger.info(
@@ -1785,27 +1785,15 @@ defmodule NervesHub.Devices do
         Firmwares.get_firmware_url(target)
 
       {:delta, {:ok, %{status: status} = delta}} ->
-        if deployment_group.only_send_deltas do
-          Logger.info(
-            "Deployment group is configured to only send deltas. Waiting for delta to finish with status #{status}",
-            device_id: device.id,
-            source_firmware: source_uuid,
-            target_firmware: target.uuid,
-            delta: delta.id
-          )
+        Logger.info(
+          "Deployment group is configured to send deltas. Waiting for delta to finish with status #{status}",
+          device_id: device.id,
+          source_firmware: source_uuid,
+          target_firmware: target.uuid,
+          delta: delta.id
+        )
 
-          {:error, :waiting_for_delta}
-        else
-          Logger.info(
-            "Delivering full firmware as delta had status #{status}",
-            device_id: device.id,
-            source_firmware: source_uuid,
-            target_firmware: target.uuid,
-            delta: delta.id
-          )
-
-          Firmwares.get_firmware_url(target)
-        end
+        {:error, :waiting_for_delta}
 
       {:delta, {:error, :not_found}} ->
         Logger.info(

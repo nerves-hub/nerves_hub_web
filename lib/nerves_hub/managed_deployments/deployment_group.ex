@@ -40,7 +40,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :current_updated_devices,
     :queue_management,
     :delta_updatable,
-    :only_send_deltas,
     :status,
     :paused_source,
     :paused_reason
@@ -77,7 +76,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:queue_management, Ecto.Enum, values: [:FIFO, :LIFO], default: :FIFO)
 
     field(:delta_updatable, :boolean, default: true)
-    field(:only_send_deltas, :boolean, default: false)
 
     field(:status, Ecto.Enum, values: @statuses, default: :ok)
     field(:paused_source, Ecto.Enum, values: [:deltas])
