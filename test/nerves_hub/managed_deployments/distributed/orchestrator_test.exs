@@ -356,7 +356,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     assert_receive {:DOWN, _reference, :process, ^pid, :normal}, 3_000
   end
 
-  test "triggers update when delta completes", %{deployment_group: deployment_group, org_key: org_key, product: product} do
+  @tag :tmp_dir
+  test "triggers update when delta completes", %{
+    deployment_group: deployment_group,
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir
+  } do
     source_firmware = Fixtures.firmware_fixture(org_key, product)
 
     {:ok, pid} =
@@ -370,7 +376,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     expect(Fwup, :create_firmware_delta_file, fn _, _ ->
       {:ok,
-       %{tool: "fwup", size: "1000", source_size: "2000", target_size: "3000", filepath: "foo", tool_metadata: %{}}}
+       %{
+         tool: "fwup",
+         size: "1000",
+         source_size: "2000",
+         target_size: "3000",
+         filepath: tmp_dir,
+         tool_metadata: %{}
+       }}
     end)
 
     expect(File, :upload_file, fn _, _ -> :ok end)
