@@ -421,14 +421,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       reject(&Devices.available_for_update/2)
       reject(&Orchestrator.schedule_devices!/2)
 
-      Orchestrator.trigger_update(%Orchestrator.State{deployment_group: %{deployment_group | is_active: false}})
+      Orchestrator.trigger_update(%{deployment_group | is_active: false})
     end
 
     test "ignores updates when deployment_group is paused", %{deployment_group: deployment_group} do
       reject(&Devices.available_for_update/2)
       reject(&Orchestrator.schedule_devices!/2)
 
-      Orchestrator.trigger_update(%Orchestrator.State{deployment_group: %{deployment_group | status: :paused}})
+      Orchestrator.trigger_update(%{deployment_group | status: :paused})
     end
 
     test "sets deployment group status to :ok if all associated deltas are ready", %{
@@ -458,13 +458,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       _ = Fixtures.firmware_delta_fixture(firmware3, firmware)
       delta_processing = Fixtures.firmware_delta_fixture(firmware4, firmware, %{status: :processing})
       deployment_group = Ecto.Changeset.change(deployment_group, %{status: :preparing}) |> Repo.update!()
-      Orchestrator.trigger_update(%Orchestrator.State{deployment_group: deployment_group})
+      Orchestrator.trigger_update(deployment_group)
 
       assert Repo.reload(deployment_group) |> Map.get(:status) == :preparing
 
       _ = Ecto.Changeset.change(delta_processing, %{status: :completed}) |> Repo.update!()
 
-      Orchestrator.trigger_update(%Orchestrator.State{deployment_group: deployment_group})
+      Orchestrator.trigger_update(deployment_group)
 
       assert Repo.reload(deployment_group) |> Map.get(:status) == :ok
     end

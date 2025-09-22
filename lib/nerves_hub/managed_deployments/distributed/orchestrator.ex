@@ -112,18 +112,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   was successful, and the process is repeated.
   """
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop-inactive")
-  def trigger_update(%State{deployment_group: %DeploymentGroup{is_active: false}} = state) do
-    state
-  end
+  def trigger_update(%DeploymentGroup{is_active: false}), do: :ok
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop-status-paused")
-  def trigger_update(%State{deployment_group: %DeploymentGroup{status: :paused}} = state) do
-    state
-  end
+  def trigger_update(%DeploymentGroup{status: :paused}), do: :ok
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop-status-preparing")
-  def trigger_update(%State{deployment_group: %DeploymentGroup{status: :preparing}} = state) do
-    %{deployment_group: %{id: id, firmware_id: firmware_id}} = state
+  def trigger_update(%DeploymentGroup{status: :preparing} = deployment_group) do
+    %{id: id, firmware_id: firmware_id} = deployment_group
 
     source_ids =
       id
@@ -137,22 +133,20 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
       |> where([fd], fd.status != :completed)
 
     if Repo.exists?(query) do
-      # :processing, :timed_out, or :failed
-      # do we handle here? probably not if it's lifted to the UI
-      state
+      :ok
     else
       {:ok, _} =
         ManagedDeployments.update_deployment_group(
-          state.deployment_group,
+          deployment_group,
           %{status: :ok, paused_source: nil, paused_reason: nil}
         )
 
-      state
+      :ok
     end
   end
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update")
-  def trigger_update(%State{deployment_group: deployment_group} = state) do
+  def trigger_update(deployment_group) do
     :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
     slots = available_slots(deployment_group)
 
@@ -166,7 +160,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
       end
     end
 
-    state
+    :ok
   end
 
   @doc """
@@ -219,14 +213,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   # if rate limiting isn't enabled, run `trigger_update`
   defp maybe_trigger_update(%State{rate_limit?: false} = state) do
-    state = trigger_update(state)
+    :ok = trigger_update(state.deployment_group)
 
     {:noreply, state}
   end
 
   # if there is no "delay" timer set, run `trigger_update`
   defp maybe_trigger_update(%State{timer_ref: nil} = state) do
-    state = trigger_update(state)
+    :ok = trigger_update(state.deployment_group)
 
     timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
 
@@ -241,7 +235,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   # if we don't have a `timer_ref` we can run `trigger_update`
   def handle_info(:trigger_interval, %State{timer_ref: nil} = state) do
-    state = trigger_update(state)
+    :ok = trigger_update(state.deployment_group)
 
     {:noreply, state}
   end
@@ -254,13 +248,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   # if the 'run again' boolean in the state is `true`, which indicates that indicates
   # that previous call has been skipped, then run `trigger_update` now
   def handle_info(:maybe_trigger, %State{rate_limit?: false} = state) do
-    state = trigger_update(state)
+    :ok = trigger_update(state.deployment_group)
 
     {:noreply, state}
   end
 
   def handle_info(:maybe_trigger, %State{should_run?: true} = state) do
-    state = trigger_update(state)
+    :ok = trigger_update(state.deployment_group)
 
     timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
 
