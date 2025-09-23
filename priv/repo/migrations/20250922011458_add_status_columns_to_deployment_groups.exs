@@ -3,7 +3,7 @@ defmodule NervesHub.Repo.Migrations.AddStatusColumnsToDeploymentGroups do
 
   def change do
     alter table(:deployments) do
-      add(:status, :string, default: "ok", null: false)
+      add(:status, :string, default: "ready", null: false)
     end
   end
 end

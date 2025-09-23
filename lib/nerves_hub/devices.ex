@@ -876,26 +876,6 @@ defmodule NervesHub.Devices do
     DeviceEvents.deployment_assigned(device)
 
     deployment_group = Repo.preload(deployment_group, :firmware)
-
-    _ =
-      if device.firmware_metadata do
-        source_uuid = Map.get(device.firmware_metadata, :uuid)
-
-        source_id =
-          Firmware
-          |> where(uuid: ^source_uuid)
-          |> select([f], f.id)
-          |> Repo.one()
-
-        case source_id do
-          nil ->
-            nil
-
-          source_id ->
-            Firmwares.attempt_firmware_delta(source_id, deployment_group.firmware.id)
-        end
-      end
-
     Map.put(device, :deployment_group, deployment_group)
   end
 

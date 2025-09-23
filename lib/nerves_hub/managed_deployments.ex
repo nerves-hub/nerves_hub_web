@@ -214,7 +214,7 @@ defmodule NervesHub.ManagedDeployments do
               Ecto.Changeset.put_change(changeset, :status, :preparing)
 
             %{changes: %{delta_updatable: false}} = changeset ->
-              Ecto.Changeset.put_change(changeset, :status, :ok)
+              Ecto.Changeset.put_change(changeset, :status, :ready)
 
             changeset ->
               changeset
@@ -235,7 +235,7 @@ defmodule NervesHub.ManagedDeployments do
 
     case result do
       {:ok, {deployment_group, changeset}} ->
-        :ok = maybe_trigger_delta_generation(deployment_group, changeset)
+        {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
         :ok = broadcast(deployment_group, "deployments/update")
 
         if Map.has_key?(changeset.changes, :is_active) do
@@ -294,13 +294,31 @@ defmodule NervesHub.ManagedDeployments do
   defp maybe_trigger_delta_generation(deployment_group, %{changes: %{delta_updatable: true}} = _changeset),
     do: trigger_delta_generation_for_deployment_group(deployment_group)
 
-  defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: :ok
+  defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: {:ok, :no_deltas_started}
 
-  defp trigger_delta_generation_for_deployment_group(deployment_group) do
+  @spec trigger_delta_generation_for_deployment_group(DeploymentGroup.t()) ::
+          {:ok, :deltas_started | :no_deltas_started}
+  def trigger_delta_generation_for_deployment_group(deployment_group) do
     Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
-    |> Enum.each(fn {source_id, target_id} ->
+    |> Enum.map(fn {source_id, target_id} ->
       Firmwares.attempt_firmware_delta(source_id, target_id)
     end)
+    |> Enum.any?(&match?({:ok, _}, &1))
+    |> case do
+      true ->
+        {:ok, :deltas_started}
+
+      false ->
+        {:ok, :no_deltas_started}
+    end
+  end
+
+  @spec update_deployment_group_status(DeploymentGroup.t(), atom()) ::
+          {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
+  def update_deployment_group_status(deployment_group, status) do
+    deployment_group
+    |> DeploymentGroup.update_status_changeset(%{status: status})
+    |> Repo.update()
   end
 
   @spec new_deployment_group() :: Changeset.t()

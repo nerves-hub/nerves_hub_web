@@ -73,7 +73,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     field(:delta_updatable, :boolean, default: true)
 
-    field(:status, Ecto.Enum, values: [:ok, :preparing], default: :ok)
+    field(:status, Ecto.Enum, values: [:ready, :preparing], default: :ready)
 
     field(:device_count, :integer, virtual: true)
 
@@ -101,6 +101,12 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
         changeset
       end
     end)
+  end
+
+  def update_status_changeset(%DeploymentGroup{} = deployment, params) do
+    deployment
+    |> cast(params, [:status])
+    |> validate_required([:status])
   end
 
   defp base_changeset(%DeploymentGroup{} = deployment, params) do

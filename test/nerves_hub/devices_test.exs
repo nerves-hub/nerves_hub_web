@@ -729,50 +729,6 @@ defmodule NervesHub.DevicesTest do
       assert device.deployment_id == deployment_group.id
       assert_receive %{event: "deployment_updated"}
     end
-
-    test "starts delta generation if conditions are met", %{
-      device: device,
-      deployment_group: deployment_group,
-      firmware: source_firmware,
-      org_key: org_key,
-      product: product
-    } do
-      target_firmware = Fixtures.firmware_fixture(org_key, product)
-      _ = Fixtures.firmware_delta_fixture(source_firmware, target_firmware)
-
-      expect(Firmwares, :attempt_firmware_delta, fn _, _ -> :ok end)
-
-      Devices.update_deployment_group(
-        %{device | firmware_metadata: %{device.firmware_metadata | fwup_version: "1.13.0"}},
-        %{
-          deployment_group
-          | delta_updatable: true,
-            firmware: %{target_firmware | delta_updatable: true}
-        }
-      )
-    end
-
-    test "does not start delta generation if device has no firmware metadata", %{
-      device: device,
-      deployment_group: deployment_group,
-      firmware: source_firmware,
-      org_key: org_key,
-      product: product
-    } do
-      target_firmware = Fixtures.firmware_fixture(org_key, product)
-      _ = Fixtures.firmware_delta_fixture(source_firmware, target_firmware)
-
-      reject(&Firmwares.attempt_firmware_delta/2)
-
-      Devices.update_deployment_group(
-        %{device | firmware_metadata: nil},
-        %{
-          deployment_group
-          | delta_updatable: true,
-            firmware: %{target_firmware | delta_updatable: true}
-        }
-      )
-    end
   end
 
   describe "clear_deployment_group/2" do

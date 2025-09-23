@@ -66,7 +66,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         firmware_id: firmware.id
       })
 
-    {:ok, pid} =
+    {:ok, _pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment_group.id}",
         start: {Orchestrator, :start_link, [deployment_group, false]},
@@ -111,8 +111,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     # and check that device3 isn't told to update as the concurrent limit has been reached
     refute_receive %Broadcast{topic: ^topic3, event: "update"}, 500
-
-    :sys.get_state(pid)
   end
 
   test "finds another device to update when a device finishes updating", %{
@@ -143,7 +141,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
 
-    {:ok, pid} =
+    {:ok, _pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment_group.id}",
         start: {Orchestrator, :start_link, [deployment_group, false]},
@@ -181,8 +179,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     # and that device2 was told to update
     assert_receive %Broadcast{topic: ^topic2, event: "update"}, 500
-
-    :sys.get_state(pid)
   end
 
   test "the orchestrator doesn't 'trigger' if the device that came online is up-to-date", %{
@@ -437,11 +433,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       Orchestrator.trigger_update(%{deployment_group | status: :paused})
     end
 
-    test "sets deployment group status to :ok if all associated deltas are ready", %{
+    test "sets deployment group status to :ready if all associated deltas are ready", %{
       deployment_group: deployment_group,
       org_key: org_key,
       org: org,
-      product: product
+      product: product,
+      firmware: firmware
     } do
       firmware2 = Fixtures.firmware_fixture(org_key, product)
       firmware3 = Fixtures.firmware_fixture(org_key, product)
@@ -459,16 +456,52 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         Fixtures.device_fixture(org, product, firmware4)
         |> Devices.update_deployment_group(deployment_group)
 
+      _ = Fixtures.firmware_delta_fixture(firmware2, firmware)
+      _ = Fixtures.firmware_delta_fixture(firmware3, firmware)
+      delta_processing = Fixtures.firmware_delta_fixture(firmware4, firmware, %{status: :processing})
       deployment_group = Ecto.Changeset.change(deployment_group, %{status: :preparing}) |> Repo.update!()
       Orchestrator.trigger_update(deployment_group)
 
       assert Repo.reload(deployment_group) |> Map.get(:status) == :preparing
 
-      Repo.update_all(FirmwareDelta, set: [status: :completed])
+      _ = Ecto.Changeset.change(delta_processing, %{status: :completed}) |> Repo.update!()
 
       Orchestrator.trigger_update(deployment_group)
 
-      assert Repo.reload(deployment_group) |> Map.get(:status) == :ok
+      assert Repo.reload(deployment_group) |> Map.get(:status) == :ready
+    end
+
+    test "triggers delta generation and sets deployment group status to :preparing", %{
+      deployment_group: deployment_group,
+      org_key: org_key,
+      org: org,
+      product: product
+    } do
+      assert Repo.all(FirmwareDelta) == []
+      firmware2 = Fixtures.firmware_fixture(org_key, product)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware2)
+        |> Devices.update_deployment_group(deployment_group)
+
+      Orchestrator.trigger_update(deployment_group)
+
+      assert length(Repo.all(FirmwareDelta)) == 1
+      assert Repo.reload(deployment_group) |> Map.get(:status) == :preparing
+    end
+
+    test "update deployment group status to :preparing if no deltas are generated", %{
+      deployment_group: deployment_group
+    } do
+      Orchestrator.trigger_update(deployment_group)
+      assert Repo.reload(deployment_group) |> Map.get(:status) == :ready
+    end
+
+    test "doesn't triggers delta generation when deployment group status is :preparing", %{
+      deployment_group: deployment_group
+    } do
+      Orchestrator.trigger_update(%{deployment_group | status: :preparing})
+      assert Repo.all(FirmwareDelta) == []
     end
   end
 end

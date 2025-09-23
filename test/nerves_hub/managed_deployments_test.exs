@@ -280,7 +280,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
 
     test "sets status to :preparing when turning on deltas", %{deployment_group: deployment_group} do
-      assert deployment_group.status == :ok
+      assert deployment_group.status == :ready
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
@@ -288,14 +288,14 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert deployment_group.status == :preparing
     end
 
-    test "sets status to :ok when turning off deltas", %{deployment_group: deployment_group} do
+    test "sets status to :ready when turning off deltas", %{deployment_group: deployment_group} do
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: false})
 
-      assert deployment_group.status == :ok
+      assert deployment_group.status == :ready
     end
   end
 
