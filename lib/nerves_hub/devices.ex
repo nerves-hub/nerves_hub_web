@@ -783,13 +783,15 @@ defmodule NervesHub.Devices do
               deployment_id: deployment_group.id
             }
 
-          {:error, :waiting_for_delta} ->
-            %UpdatePayload{update_available: false}
+          {:error, reason} ->
+            Logger.info(
+              "Firmware URL could not be generated",
+              reason: reason,
+              device_id: device.id,
+              source_firmware: Map.get(device.firmware_metadata, :uuid),
+              target_firmware: deployment_group.firmware.uuid
+            )
 
-          {:error, :device_does_not_support_deltas} ->
-            %UpdatePayload{update_available: false}
-
-          {:error, :source_firmware_not_found} ->
             %UpdatePayload{update_available: false}
         end
 
@@ -1741,65 +1743,28 @@ defmodule NervesHub.Devices do
   """
   @spec get_delta_or_firmware_url(Device.t(), DeploymentGroup.t()) ::
           {:ok, String.t()}
-          | {:error, :waiting_for_delta}
+          | {:error, :delta_not_completed}
           | {:error, :device_does_not_support_deltas}
           | {:error, :source_firmware_not_found}
           | {:error, :delta_not_found}
-  def get_delta_or_firmware_url(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
+  def get_delta_or_firmware_url(%Device{} = device, %DeploymentGroup{
         delta_updatable: true,
         firmware: %Firmware{delta_updatable: true} = target
       }) do
     case get_delta_if_ready(device, target) do
       {:ok, delta} ->
-        Logger.info(
-          "Delivering firmware delta",
-          device_id: device.id,
-          source_firmware: source_uuid,
-          target_firmware: target.uuid,
-          delta: delta.id
-        )
-
         Firmwares.get_firmware_url(delta)
 
       {:device_delta_updatable, false} ->
-        Logger.info(
-          "Device doesn't support deltas",
-          device_id: device.id,
-          source_firmware: source_uuid,
-          target_firmware: target.uuid
-        )
-
         {:error, :device_does_not_support_deltas}
 
       {:firmware, _} ->
-        Logger.warning(
-          "Source firmware could not be resolved for device",
-          device_id: device.id,
-          source_firmware: source_uuid,
-          target_firmware: target.uuid
-        )
-
         {:error, :source_firmware_not_found}
 
-      {:delta, {:ok, %{status: status} = delta}} ->
-        Logger.info(
-          "Waiting for delta to finish with status #{status}",
-          device_id: device.id,
-          source_firmware: source_uuid,
-          target_firmware: target.uuid,
-          delta: delta.id
-        )
-
-        {:error, :waiting_for_delta}
+      {:delta, {:ok, %FirmwareDelta{}}} ->
+        {:error, :delta_not_completed}
 
       {:delta, {:error, :not_found}} ->
-        Logger.info(
-          "Could not find delta",
-          device_id: device.id,
-          source_firmware: source_uuid,
-          target_firmware: target.uuid
-        )
-
         {:error, :delta_not_found}
     end
   end

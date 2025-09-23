@@ -1230,7 +1230,7 @@ defmodule NervesHub.DevicesTest do
           firmware: %{target_firmware | delta_updatable: true}
       }
 
-      assert {:error, :waiting_for_delta} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert {:error, :delta_not_completed} = Devices.get_delta_or_firmware_url(device, deployment_group)
     end
   end
 end
