@@ -198,27 +198,10 @@ defmodule NervesHub.ManagedDeployments do
   def update_deployment_group(deployment_group, params) do
     result =
       Repo.transaction(fn ->
-        device_count =
-          Device
-          |> select([d], count(d))
-          |> where([d], d.deployment_id == ^deployment_group.id)
-          |> Repo.one()
-
         changeset =
           deployment_group
           |> Repo.preload(:firmware)
           |> DeploymentGroup.update_changeset(params)
-          |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
-          |> then(fn
-            %{changes: %{delta_updatable: true}} = changeset ->
-              Ecto.Changeset.put_change(changeset, :status, :preparing)
-
-            %{changes: %{delta_updatable: false}} = changeset ->
-              Ecto.Changeset.put_change(changeset, :status, :ready)
-
-            changeset ->
-              changeset
-          end)
 
         case Repo.update(changeset) do
           {:ok, deployment_group} ->

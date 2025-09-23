@@ -2,6 +2,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   use Ecto.Schema
 
   import Ecto.Changeset
+  import Ecto.Query
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Archives.Archive
@@ -99,6 +100,36 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
         put_change(changeset, :current_updated_devices, 0)
       else
         changeset
+      end
+    end)
+    |> prepare_changes(fn changeset ->
+      device_count =
+        Device
+        |> select([d], count(d))
+        |> where([d], d.deployment_id == ^deployment.id)
+        |> changeset.repo.one()
+
+      put_change(changeset, :device_count, device_count)
+    end)
+    |> prepare_changes(fn changeset ->
+      device_count =
+        Device
+        |> select([d], count(d))
+        |> where([d], d.deployment_id == ^deployment.id)
+        |> changeset.repo.one()
+
+      put_change(changeset, :device_count, device_count)
+    end)
+    |> prepare_changes(fn changeset ->
+      case changeset do
+        %{changes: %{delta_updatable: true}} = changeset ->
+          Ecto.Changeset.put_change(changeset, :status, :preparing)
+
+        %{changes: %{delta_updatable: false}} = changeset ->
+          Ecto.Changeset.put_change(changeset, :status, :ready)
+
+        changeset ->
+          changeset
       end
     end)
   end

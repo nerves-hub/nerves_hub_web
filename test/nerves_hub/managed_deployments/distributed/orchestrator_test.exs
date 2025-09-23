@@ -390,7 +390,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     expect(File, :upload_file, fn _, _ -> :ok end)
 
-    expect(Devices, :available_for_update, 1, fn _, _ -> [] end)
+    # called once when the orchestrator starts, then again when the delta completes
+    expect(Devices, :available_for_update, 2, fn _, _ -> [] end)
     Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
     :sys.get_state(pid)
   end
