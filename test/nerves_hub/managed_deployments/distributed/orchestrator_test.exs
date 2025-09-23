@@ -16,18 +16,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
   alias Phoenix.Socket.Broadcast
 
-  setup :set_mimic_global
-
   setup do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
-
-    stub(Orchestrator, :start_orchestrator, fn _deployment ->
-      :ok
-    end)
 
     deployment_group = Fixtures.deployment_group_fixture(org, firmware, %{is_active: true})
 
@@ -141,7 +135,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
 
-    {:ok, _pid} =
+    {:ok, pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment_group.id}",
         start: {Orchestrator, :start_link, [deployment_group, false]},
@@ -179,6 +173,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     # and that device2 was told to update
     assert_receive %Broadcast{topic: ^topic2, event: "update"}, 500
+
+    :sys.get_state(pid)
   end
 
   test "the orchestrator doesn't 'trigger' if the device that came online is up-to-date", %{
@@ -219,6 +215,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         start: {Orchestrator, :start_link, [deployment_group, false]},
         restart: :temporary
       })
+
+    allow(Devices, self(), pid)
 
     # only one device in this test isn't using the same firmware as the deployment group
     # the `Devices.available_for_update/2` function should only be called once by device1
@@ -374,6 +372,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         restart: :temporary
       })
 
+    allow(Devices, self(), pid)
+
     delta = Fixtures.firmware_delta_fixture(source_firmware, deployment_group.firmware, %{status: :processing})
 
     expect(Fwup, :create_firmware_delta_file, fn _, _ ->
@@ -391,9 +391,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     expect(File, :upload_file, fn _, _ -> :ok end)
 
     expect(Devices, :available_for_update, 1, fn _, _ -> [] end)
-
-    _ = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
-    _ = :sys.get_state(pid)
+    Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
+    :sys.get_state(pid)
   end
 
   test "handles delta subscriptions when firmware changes", %{
@@ -410,6 +409,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         start: {Orchestrator, :start_link, [deployment_group, false]},
         restart: :temporary
       })
+
+    allow(Firmwares, self(), pid)
 
     expect(Firmwares, :unsubscribe_firmware_delta_target, fn ^old_firmware_id -> :ok end)
     expect(Firmwares, :subscribe_firmware_delta_target, fn ^new_firmware_id -> :ok end)
