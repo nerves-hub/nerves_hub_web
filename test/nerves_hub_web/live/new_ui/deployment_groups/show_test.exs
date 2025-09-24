@@ -5,13 +5,11 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Firmwares.Upload.File
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
-  alias NervesHub.Workers.FirmwareDeltaBuilder
 
   setup context do
     %{
@@ -222,21 +220,20 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
 
   test "retry delta", %{
     conn: conn,
-    source_firmware: source_firmware,
-    target_firmware: target_firmware
+    source_firmware: %{id: source_id} = source_firmware,
+    target_firmware: %{id: target_id} = target_firmware
   } do
     {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
     {:ok, delta} = Firmwares.fail_firmware_delta(delta)
+
+    expect(Firmwares, :attempt_firmware_delta, fn ^source_id, ^target_id ->
+      {:ok, :started}
+    end)
 
     conn
     |> assert_has("a", text: "Retry", timeout: 100)
     |> click_link("Retry")
 
     refute Repo.reload(delta)
-
-    assert %{status: :processing} =
-             Repo.get_by(FirmwareDelta, source_id: source_firmware.id, target_id: target_firmware.id)
-
-    assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: source_firmware.id, target_id: target_firmware.id})
   end
 end

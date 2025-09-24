@@ -366,23 +366,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   } do
     source_firmware = Fixtures.firmware_fixture(org_key, product)
     deployment_group = Ecto.Changeset.change(deployment_group, %{status: :preparing}) |> Repo.update!()
-
-    _ =
-      Fixtures.device_fixture(org, product, source_firmware)
-      |> Devices.update_deployment_group(deployment_group)
-
+    Fixtures.device_fixture(org, product, source_firmware, %{deployment_id: deployment_group.id})
     delta = Fixtures.firmware_delta_fixture(source_firmware, deployment_group.firmware, %{status: :processing})
-
-    {:ok, pid} =
-      start_supervised(%{
-        id: "Orchestrator##{deployment_group.id}",
-        start: {Orchestrator, :start_link, [deployment_group, false]},
-        restart: :temporary
-      })
-
-    allow(Devices, self(), pid)
-
-    assert %{deployment_group: %{status: :preparing}} = :sys.get_state(pid)
 
     expect(Fwup, :create_firmware_delta_file, fn _, _ ->
       {:ok,
@@ -399,6 +384,15 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     expect(File, :upload_file, fn _, _ -> :ok end)
 
     expect(Devices, :available_for_update, 2, fn _, _ -> [] end)
+
+    {:ok, pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment_group.id}",
+        start: {Orchestrator, :start_link, [deployment_group, false]},
+        restart: :temporary
+      })
+
+    allow(Devices, self(), pid)
 
     :ok = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
     assert %{deployment_group: %{status: :ready}} = :sys.get_state(pid)

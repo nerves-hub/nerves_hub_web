@@ -139,8 +139,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     if Repo.exists?(query) do
       deployment_group
     else
-      {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{status: :ready})
+      {:ok, deployment_group} = ManagedDeployments.update_deployment_group_status(deployment_group, :ready)
 
       do_trigger_update(deployment_group)
 
