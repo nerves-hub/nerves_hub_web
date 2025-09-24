@@ -1745,7 +1745,6 @@ defmodule NervesHub.Devices do
           | {:error, :delta_not_completed}
           | {:error, :device_does_not_support_deltas}
           | {:error, :delta_not_found}
-          | {:error, :source_firmware_not_found}
   def get_delta_or_firmware_url(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
         delta_updatable: true,
         firmware: %Firmware{delta_updatable: true} = target_firmware
@@ -1767,7 +1766,7 @@ defmodule NervesHub.Devices do
         end
 
       {:error, :not_found} ->
-        {:error, :source_firmware_not_found}
+        Firmwares.get_firmware_url(target_firmware)
     end
   end
 

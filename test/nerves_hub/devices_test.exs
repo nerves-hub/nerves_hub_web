@@ -1249,7 +1249,8 @@ defmodule NervesHub.DevicesTest do
           firmware: %{target_firmware | delta_updatable: true}
       }
 
-      assert {:error, :source_firmware_not_found} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
     end
   end
 end
