@@ -427,13 +427,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       Orchestrator.trigger_update(%{deployment_group | is_active: false})
     end
 
-    test "ignores updates when deployment_group is paused", %{deployment_group: deployment_group} do
-      reject(&Devices.available_for_update/2)
-      reject(&Orchestrator.schedule_devices!/2)
-
-      Orchestrator.trigger_update(%{deployment_group | status: :paused})
-    end
-
     test "sets deployment group status to :ready if all associated deltas are ready", %{
       deployment_group: deployment_group,
       org_key: org_key,
@@ -485,17 +478,25 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         Fixtures.device_fixture(org, product, firmware2)
         |> Devices.update_deployment_group(deployment_group)
 
-      Orchestrator.trigger_update(deployment_group)
+      Orchestrator.trigger_update(%{deployment_group | delta_updatable: true})
 
       assert length(Repo.all(FirmwareDelta)) == 1
       assert Repo.reload(deployment_group) |> Map.get(:status) == :preparing
     end
 
-    test "update deployment group status to :preparing if no deltas are generated", %{
+    test "doesn't trigger delta generation when deployment group is not updatable", %{
       deployment_group: deployment_group
     } do
-      Orchestrator.trigger_update(deployment_group)
-      assert Repo.reload(deployment_group) |> Map.get(:status) == :ready
+      assert deployment_group.status == :ready
+      assert %{status: :ready} = Orchestrator.trigger_update(%{deployment_group | delta_updatable: false})
+    end
+
+    test "doesn't update deployment group status to :preparing if no deltas are generated", %{
+      deployment_group: deployment_group
+    } do
+      assert deployment_group.status == :ready
+      reject(&ManagedDeployments.trigger_delta_generation_for_deployment_group/1)
+      assert %{status: :ready} = Orchestrator.trigger_update(deployment_group)
     end
 
     test "doesn't triggers delta generation when deployment group status is :preparing", %{

@@ -28,7 +28,9 @@ defmodule NervesHub.Firmwares do
   def get_deltas_by_target_firmware(%Firmware{id: firmware_id}) do
     FirmwareDelta
     |> where([fd], fd.target_id == ^firmware_id)
-    |> preload(:source)
+    |> join(:inner, [fd], fd in assoc(fd, :source))
+    |> order_by([fd, s], asc: s.version)
+    |> preload([fd, s], source: s)
     |> preload(:target)
     |> Repo.all()
   end
