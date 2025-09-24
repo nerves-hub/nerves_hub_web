@@ -145,7 +145,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update")
   def trigger_update(deployment_group) do
     :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
-    slots = available_slots(deployment_group)
 
     _ =
       case ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group) do
@@ -155,6 +154,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
         _ ->
           :ok
       end
+
+    slots = available_slots(deployment_group)
 
     if slots > 0 do
       available = Devices.available_for_update(deployment_group, slots)

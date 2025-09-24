@@ -787,7 +787,6 @@ defmodule NervesHub.Devices do
             Logger.info(
               "Firmware URL could not be generated",
               reason: reason,
-              device_id: device.id,
               source_firmware: Map.get(device.firmware_metadata, :uuid),
               target_firmware: deployment_group.firmware.uuid
             )
@@ -1745,57 +1744,43 @@ defmodule NervesHub.Devices do
           {:ok, String.t()}
           | {:error, :delta_not_completed}
           | {:error, :device_does_not_support_deltas}
-          | {:error, :source_firmware_not_found}
           | {:error, :delta_not_found}
-  def get_delta_or_firmware_url(%Device{} = device, %DeploymentGroup{
+          | {:error, :source_firmware_not_found}
+  def get_delta_or_firmware_url(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
         delta_updatable: true,
-        firmware: %Firmware{delta_updatable: true} = target
+        firmware: %Firmware{delta_updatable: true} = target_firmware
       }) do
-    case get_delta_if_ready(device, target) do
-      {:ok, delta} ->
-        Firmwares.get_firmware_url(delta)
+    case Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, source_uuid) do
+      {:ok, source_firmware} ->
+        case get_delta_if_ready(device, source_firmware, target_firmware) do
+          {:ok, delta} ->
+            Firmwares.get_firmware_url(delta)
 
-      {:device_delta_updatable, false} ->
-        {:error, :device_does_not_support_deltas}
+          {:device_delta_updatable, false} ->
+            {:error, :device_does_not_support_deltas}
 
-      {:firmware, _} ->
+          {:delta, {:ok, %FirmwareDelta{}}} ->
+            {:error, :delta_not_completed}
+
+          {:delta, {:error, :not_found}} ->
+            {:error, :delta_not_found}
+        end
+
+      {:error, :not_found} ->
         {:error, :source_firmware_not_found}
-
-      {:delta, {:ok, %FirmwareDelta{}}} ->
-        {:error, :delta_not_completed}
-
-      {:delta, {:error, :not_found}} ->
-        {:error, :delta_not_found}
     end
   end
 
-  def get_delta_or_firmware_url(%Device{firmware_metadata: fw_meta} = device, %DeploymentGroup{firmware: target} = dg) do
-    Logger.warning(
-      "Delivering full firmware: deltas are disabled for deployment group.",
-      device_id: device.id,
-      deployment_group_id: dg.id,
-      source_firmware: Map.get(fw_meta, :uuid),
-      target_firmware: target.uuid
-    )
+  def get_delta_or_firmware_url(%Device{}, %DeploymentGroup{firmware: target}), do: Firmwares.get_firmware_url(target)
 
-    Firmwares.get_firmware_url(target)
-  end
-
-  @spec get_delta_if_ready(Device.t(), Firmware.t()) ::
+  @spec get_delta_if_ready(Device.t(), Firmware.t(), Firmware.t()) ::
           {:ok, FirmwareDelta.t()}
           | {:device_delta_updatable, false}
-          | {:firmware, {:error, :not_found}}
-          | {:firmware, :no_device_firmware_metadata}
           | {:delta, {:ok, FirmwareDelta.t()}}
           | {:delta, {:error, :not_found}}
-  defp get_delta_if_ready(
-         %Device{firmware_metadata: %{uuid: source_firmware_uuid}, product_id: product_id} = device,
-         target_firmware
-       ) do
+  defp get_delta_if_ready(device, source_firmware, target_firmware) do
     with {:device_delta_updatable, true} <-
            {:device_delta_updatable, delta_updatable?(device, target_firmware)},
-         {:firmware, {:ok, source_firmware}} <-
-           {:firmware, Firmwares.get_firmware_by_product_id_and_uuid(product_id, source_firmware_uuid)},
          {:delta, {:ok, %{status: :completed} = delta}} <-
            {:delta,
             Firmwares.get_firmware_delta_by_source_and_target(
@@ -1805,8 +1790,6 @@ defmodule NervesHub.Devices do
       {:ok, delta}
     end
   end
-
-  defp get_delta_if_ready(_device, _target_firmware), do: {:firmware, :no_device_firmware_metadata}
 
   @spec get_delta_url(Device.t(), Firmware.t()) ::
           {:ok, String.t()}

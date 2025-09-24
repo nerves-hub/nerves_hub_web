@@ -1232,5 +1232,24 @@ defmodule NervesHub.DevicesTest do
 
       assert {:error, :delta_not_completed} = Devices.get_delta_or_firmware_url(device, deployment_group)
     end
+
+    test "returns full firmware url when source firmware can't be found", %{
+      device: device,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product)
+      _ = Fixtures.firmware_delta_fixture(deployment_group.firmware, target_firmware, %{status: :processing})
+      device = %{device | firmware_metadata: %{device.firmware_metadata | uuid: "abc123"}}
+
+      deployment_group = %{
+        deployment_group
+        | delta_updatable: true,
+          firmware: %{target_firmware | delta_updatable: true}
+      }
+
+      assert {:error, :source_firmware_not_found} = Devices.get_delta_or_firmware_url(device, deployment_group)
+    end
   end
 end
