@@ -357,13 +357,21 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   end
 
   @tag :tmp_dir
-  test "triggers update when delta completes", %{
+  test "triggers update and sets deployment group status to ready when delta completes", %{
     deployment_group: deployment_group,
+    org: org,
     org_key: org_key,
     product: product,
     tmp_dir: tmp_dir
   } do
     source_firmware = Fixtures.firmware_fixture(org_key, product)
+    deployment_group = Ecto.Changeset.change(deployment_group, %{status: :preparing}) |> Repo.update!()
+
+    _ =
+      Fixtures.device_fixture(org, product, source_firmware)
+      |> Devices.update_deployment_group(deployment_group)
+
+    delta = Fixtures.firmware_delta_fixture(source_firmware, deployment_group.firmware, %{status: :processing})
 
     {:ok, pid} =
       start_supervised(%{
@@ -373,6 +381,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       })
 
     allow(Devices, self(), pid)
+
+    assert %{deployment_group: %{status: :preparing}} = :sys.get_state(pid)
 
     expect(Fwup, :create_firmware_delta_file, fn _, _ ->
       {:ok,
@@ -390,9 +400,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     expect(Devices, :available_for_update, 2, fn _, _ -> [] end)
 
-    delta = Fixtures.firmware_delta_fixture(source_firmware, deployment_group.firmware, %{status: :processing})
-    Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
-    :sys.get_state(pid)
+    :ok = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
+    assert %{deployment_group: %{status: :ready}} = :sys.get_state(pid)
   end
 
   test "handles delta subscriptions when firmware changes", %{
@@ -454,15 +463,11 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       _ = Fixtures.firmware_delta_fixture(firmware3, firmware)
       delta_processing = Fixtures.firmware_delta_fixture(firmware4, firmware, %{status: :processing})
       deployment_group = Ecto.Changeset.change(deployment_group, %{status: :preparing}) |> Repo.update!()
-      Orchestrator.trigger_update(deployment_group)
-
-      assert Repo.reload(deployment_group) |> Map.get(:status) == :preparing
+      assert %{status: :preparing} = Orchestrator.trigger_update(deployment_group)
 
       _ = Ecto.Changeset.change(delta_processing, %{status: :completed}) |> Repo.update!()
 
-      Orchestrator.trigger_update(deployment_group)
-
-      assert Repo.reload(deployment_group) |> Map.get(:status) == :ready
+      assert %{status: :ready} = Orchestrator.trigger_update(deployment_group)
     end
 
     test "triggers delta generation and sets deployment group status to :preparing", %{
@@ -471,17 +476,15 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       org: org,
       product: product
     } do
-      assert Repo.all(FirmwareDelta) == []
+      refute Repo.exists?(FirmwareDelta)
       firmware2 = Fixtures.firmware_fixture(org_key, product)
 
       _ =
         Fixtures.device_fixture(org, product, firmware2)
         |> Devices.update_deployment_group(deployment_group)
 
-      Orchestrator.trigger_update(%{deployment_group | delta_updatable: true})
-
-      assert length(Repo.all(FirmwareDelta)) == 1
-      assert Repo.reload(deployment_group) |> Map.get(:status) == :preparing
+      assert %{status: :preparing} = Orchestrator.trigger_update(%{deployment_group | delta_updatable: true})
+      assert Repo.exists?(FirmwareDelta)
     end
 
     test "doesn't trigger delta generation when deployment group is not updatable", %{
@@ -503,7 +506,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       deployment_group: deployment_group
     } do
       Orchestrator.trigger_update(%{deployment_group | status: :preparing})
-      assert Repo.all(FirmwareDelta) == []
+      refute Repo.exists?(FirmwareDelta)
     end
   end
 end

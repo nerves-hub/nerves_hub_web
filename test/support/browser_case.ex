@@ -11,6 +11,7 @@ defmodule NervesHubWeb.ConnCase.Browser do
       use DefaultMocks
       use ConnCase, unquote(opts)
       use NervesHubWeb, :verified_routes
+      use Oban.Testing, repo: NervesHub.ObanRepo
 
       import Test
       import Phoenix.LiveViewTest

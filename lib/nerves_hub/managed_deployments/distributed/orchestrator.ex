@@ -97,6 +97,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   @doc """
   Trigger an update for a deployments devices.
 
+  If deployment group's status is `:preparing`, check if deltas are still being
+  generated. If so, do nothing. If not, set the status to `:ready` and update devices.
+
+  If deployment group's status is `:ready`, attempt to generated deltas if deployment
+  group has them enabled. Then update devices.
+
   Finds devices matching:
 
   - the deployment
@@ -111,6 +117,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   As devices update and reconnect, the new orchestrator is told that the update
   was successful, and the process is repeated.
   """
+  @spec trigger_update(DeploymentGroup.t()) :: DeploymentGroup.t()
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop-inactive")
   def trigger_update(%DeploymentGroup{is_active: false} = deployment_group), do: deployment_group
 
@@ -135,16 +142,22 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{status: :ready})
 
+      do_trigger_update(deployment_group)
+
       deployment_group
     end
   end
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update")
   def trigger_update(deployment_group) do
-    :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
-
     deployment_group = maybe_trigger_deltas_and_set_deployment_preparing(deployment_group)
+    do_trigger_update(deployment_group)
 
+    deployment_group
+  end
+
+  defp do_trigger_update(deployment_group) do
+    :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
     slots = available_slots(deployment_group)
 
     if slots > 0 do
@@ -156,8 +169,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
         send(self(), :trigger)
       end
     end
-
-    deployment_group
   end
 
   @doc """

@@ -61,6 +61,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
       |> Enum.find(&(&1.id == String.to_integer(id)))
       |> Firmwares.delete_firmware_delta()
 
+    socket = put_flash(socket, :info, "Delta successfully deleted")
     {:noreply, socket}
   end
 
@@ -70,6 +71,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {:ok, _} = Firmwares.delete_firmware_delta(delta)
     {:ok, _} = Firmwares.attempt_firmware_delta(delta.source_id, delta.target_id)
 
+    socket = put_flash(socket, :info, "Retrying delta generation")
     {:noreply, socket}
   end
 
