@@ -8,14 +8,14 @@ defmodule NervesHub.Firmwares.UpdateTool do
 
     defstruct [
       :architecture,
-      :platform,
-      :product,
-      :uuid,
-      :version,
       :author,
       :description,
       :misc,
-      :vcs_identifier
+      :platform,
+      :product,
+      :uuid,
+      :vcs_identifier,
+      :version
     ]
 
     @type t() :: %__MODULE__{
