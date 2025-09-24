@@ -372,6 +372,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         restart: :temporary
       })
 
+    allow(Devices, self(), pid)
+
     expect(Fwup, :create_firmware_delta_file, fn _, _ ->
       {:ok,
        %{
@@ -386,13 +388,11 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     expect(File, :upload_file, fn _, _ -> :ok end)
 
-    # called once when the orchestrator starts, then again when the delta completes
     expect(Devices, :available_for_update, 2, fn _, _ -> [] end)
-
-    allow(Devices, self(), pid)
 
     delta = Fixtures.firmware_delta_fixture(source_firmware, deployment_group.firmware, %{status: :processing})
     Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
+    :sys.get_state(pid)
   end
 
   test "handles delta subscriptions when firmware changes", %{
