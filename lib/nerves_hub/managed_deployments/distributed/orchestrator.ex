@@ -12,15 +12,11 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   require Logger
 
-  import Ecto.Query
-
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias NervesHub.Repo
 
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
@@ -123,20 +119,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#status-preparing")
   def trigger_update(%DeploymentGroup{status: :preparing} = deployment_group) do
-    %{id: id, firmware_id: firmware_id} = deployment_group
-
-    source_ids =
-      id
-      |> Devices.get_device_firmware_for_delta_generation_by_deployment_group()
-      |> Enum.map(fn {source_id, _target_id} -> source_id end)
-
-    query =
-      FirmwareDelta
-      |> where([fd], fd.source_id in ^source_ids)
-      |> where([fd], fd.target_id == ^firmware_id)
-      |> where([fd], fd.status != :completed)
-
-    if Repo.exists?(query) do
+    if ManagedDeployments.deltas_processing?(deployment_group) do
       deployment_group
     else
       {:ok, deployment_group} = ManagedDeployments.update_deployment_group_status(deployment_group, :ready)

@@ -9,6 +9,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Products.Product
@@ -294,6 +295,20 @@ defmodule NervesHub.ManagedDeployments do
       false ->
         {:ok, :no_deltas_started}
     end
+  end
+
+  @spec deltas_processing?(DeploymentGroup.t()) :: boolean()
+  def deltas_processing?(%DeploymentGroup{id: id, firmware_id: firmware_id}) do
+    source_ids =
+      id
+      |> Devices.get_device_firmware_for_delta_generation_by_deployment_group()
+      |> Enum.map(fn {source_id, _target_id} -> source_id end)
+
+    FirmwareDelta
+    |> where([fd], fd.source_id in ^source_ids)
+    |> where([fd], fd.target_id == ^firmware_id)
+    |> where([fd], fd.status != :completed)
+    |> Repo.exists?()
   end
 
   @spec update_deployment_group_status(DeploymentGroup.t(), atom()) ::
