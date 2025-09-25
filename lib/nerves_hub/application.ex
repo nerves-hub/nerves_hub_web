@@ -13,7 +13,7 @@ defmodule NervesHub.Application do
     end
 
     setup_open_telemetry()
-    setup_logging()
+    _ = setup_logging()
 
     children =
       [{Finch, name: Swoosh.Finch}] ++
