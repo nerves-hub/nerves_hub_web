@@ -53,7 +53,7 @@ defmodule NervesHubWeb.DeviceSocket do
   defp heartbeat(socket), do: socket
 
   defp update_heartbeat?(%{assigns: %{last_heartbeat: last_heartbeat}}) do
-    seconds_ago = DateTime.diff(DateTime.utc_now(), last_heartbeat, :second)
+    seconds_ago = System.monotonic_time(:second) - last_heartbeat
 
     seconds_ago >= last_seen_update_interval()
   end
@@ -61,11 +61,7 @@ defmodule NervesHubWeb.DeviceSocket do
   defp update_heartbeat?(_), do: false
 
   defp update_last_heartbeat(socket) do
-    last_heartbeat =
-      DateTime.utc_now()
-      |> DateTime.truncate(:second)
-
-    assign(socket, :last_heartbeat, last_heartbeat)
+    assign(socket, :last_heartbeat, System.monotonic_time(:second))
   end
 
   # Used by Devices connecting with SSL certificates
