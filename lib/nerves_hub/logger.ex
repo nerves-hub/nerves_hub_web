@@ -25,23 +25,30 @@ defmodule NervesHub.Logger do
 
   @doc false
   def attach() do
-    events = [
-      [:phoenix, :endpoint, :stop],
-      [:nerves_hub, :devices, :invalid_auth],
-      [:nerves_hub, :devices, :connect],
-      [:nerves_hub, :devices, :disconnect],
-      [:nerves_hub, :devices, :duplicate_connection],
-      [:nerves_hub, :devices, :update, :automatic],
-      [:nerves_hub, :devices, :update, :successful],
-      [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
-      [:nerves_hub, :managed_deployments, :set_deployment_group, :one_found],
-      [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found],
-      [:nerves_hub, :ssl, :fail]
-    ]
+    exclusions =
+      case Application.get_env(:nerves_hub, :logger_exclusions) do
+        nil -> []
+        exclusions -> String.split(exclusions, ",")
+      end
 
-    Enum.each(events, fn event ->
+    events =
+      [
+        [:phoenix, :endpoint, :stop],
+        [:nerves_hub, :devices, :invalid_auth],
+        [:nerves_hub, :devices, :connect],
+        [:nerves_hub, :devices, :disconnect],
+        [:nerves_hub, :devices, :duplicate_connection],
+        [:nerves_hub, :devices, :update, :automatic],
+        [:nerves_hub, :devices, :update, :successful],
+        [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
+        [:nerves_hub, :managed_deployments, :set_deployment_group, :one_found],
+        [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found],
+        [:nerves_hub, :ssl, :fail]
+      ]
+
+    for event <- events, not Enum.member?(exclusions, Enum.join(event, "_")) do
       :ok = :telemetry.attach({__MODULE__, event}, event, &__MODULE__.log_event/4, :ok)
-    end)
+    end
   end
 
   # Phoenix request logging
