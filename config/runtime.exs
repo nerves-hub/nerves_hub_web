@@ -360,6 +360,7 @@ if config_env() == :prod do
     tls_versions =
       System.get_env("SMTP_TLS_VERSIONS", "")
       |> String.split(",")
+      |> Enum.reject(&(&1 == ""))
       |> Enum.map(&String.to_atom/1)
 
     tls_opts = if Enum.any?(tls_versions), do: [versions: tls_versions], else: []
