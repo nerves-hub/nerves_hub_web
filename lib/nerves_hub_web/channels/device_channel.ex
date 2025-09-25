@@ -211,7 +211,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # if we know the update has already started, we can move on
-  def maybe_update_update_attempts(%{update_started?: true} = socket), do: socket
+  def maybe_update_update_attempts(%{assigns: %{update_started?: true}} = socket), do: socket
 
   # if this is the first fwup we see, and we didn't know the update had already started,
   # then mark it as an update attempt
