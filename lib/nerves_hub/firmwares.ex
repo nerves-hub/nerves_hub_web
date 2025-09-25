@@ -559,11 +559,12 @@ defmodule NervesHub.Firmwares do
     _ =
       NervesHubWeb.Endpoint.broadcast(
         "firmware_delta_target:#{firmware_delta.target_id}",
-        "firmware_delta_#{to_string(firmware_delta.status)}",
+        "status_update",
         %{
           delta_id: firmware_delta.id,
           source_firmware_id: firmware_delta.source_id,
-          target_firmware: firmware_delta.target_id
+          target_firmware: firmware_delta.target_id,
+          status: firmware_delta.status
         }
       )
 

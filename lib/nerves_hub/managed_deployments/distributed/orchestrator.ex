@@ -300,11 +300,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     {:noreply, state}
   end
 
-  def handle_info(%Broadcast{topic: "firmware_delta" <> _, event: "firmware_delta_completed"}, state) do
+  def handle_info(
+        %Broadcast{topic: "firmware_delta_target:" <> _, event: "status_update", payload: %{status: :completed}},
+        state
+      ) do
     maybe_trigger_update(state)
   end
 
-  def handle_info(%Broadcast{topic: "firmware_delta" <> _}, state) do
+  def handle_info(%Broadcast{topic: "firmware_delta_target:" <> _}, state) do
     {:noreply, state}
   end
 

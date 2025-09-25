@@ -293,7 +293,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
-  def handle_info(%Broadcast{topic: "firmware_delta_target" <> _}, socket) do
+  def handle_info(%Broadcast{topic: "firmware_delta_target:" <> _}, socket) do
     send_update(SummaryTab, id: "deployment_group_summary", delta_updated: true)
 
     {:noreply, socket}
