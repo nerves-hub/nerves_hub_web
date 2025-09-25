@@ -25,12 +25,6 @@ defmodule NervesHub.Logger do
 
   @doc false
   def attach() do
-    exclusions =
-      case Application.get_env(:nerves_hub, :logger_exclusions) do
-        nil -> []
-        exclusions -> String.split(exclusions, ",")
-      end
-
     events =
       [
         [:phoenix, :endpoint, :stop],
@@ -46,7 +40,9 @@ defmodule NervesHub.Logger do
         [:nerves_hub, :ssl, :fail]
       ]
 
-    for event <- events, not Enum.member?(exclusions, Enum.join(event, "_")) do
+    exclusions = Application.get_env(:nerves_hub, :logger_exclusions)
+
+    for event <- events, Enum.join(event, ".") not in exclusions do
       :ok = :telemetry.attach({__MODULE__, event}, event, &__MODULE__.log_event/4, :ok)
     end
   end
