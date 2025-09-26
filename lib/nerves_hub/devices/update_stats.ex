@@ -122,7 +122,7 @@ defmodule NervesHub.Devices.UpdateStats do
         ) :: :ok | {:error, Ecto.Changeset.t()}
   defp log_stat(device, source_firmware_metadata \\ nil, delta \\ nil) do
     %{update_bytes: update_bytes, saved_bytes: saved_bytes} =
-      get_byte_stats(delta, device.firmware_metadata.uuid)
+      get_byte_stats(delta, device.product_id, device.firmware_metadata.uuid)
 
     source_firmware_uuid = get_in(source_firmware_metadata, [Access.key(:uuid)])
     deployment_id = get_deployment_id(device)
@@ -170,22 +170,23 @@ defmodule NervesHub.Devices.UpdateStats do
     end
   end
 
-  @spec get_byte_stats(FirmwareDelta.t() | nil, Ecto.UUID.t()) :: %{
-          update_bytes: integer(),
-          saved_bytes: integer()
-        }
-  defp get_byte_stats(%FirmwareDelta{size: delta_size}, target_firmware_uuid) do
-    target_firmware = Firmwares.get_firmware_by_uuid(target_firmware_uuid)
+  @spec get_byte_stats(FirmwareDelta.t() | nil, product_id :: pos_integer(), target_firmware_uuid :: Ecto.UUID.t()) ::
+          %{
+            update_bytes: integer(),
+            saved_bytes: integer()
+          }
+  defp get_byte_stats(%FirmwareDelta{size: delta_size}, product_id, target_firmware_uuid) do
+    {:ok, target_firmware} = Firmwares.get_firmware_by_product_id_and_uuid(product_id, target_firmware_uuid)
 
     %{update_bytes: delta_size, saved_bytes: target_firmware.size - delta_size}
   end
 
-  defp get_byte_stats(nil, target_firmware_uuid) do
-    case Firmwares.get_firmware_by_uuid(target_firmware_uuid) do
-      %Firmware{} = target_firmware ->
+  defp get_byte_stats(nil, product_id, target_firmware_uuid) do
+    case Firmwares.get_firmware_by_product_id_and_uuid(product_id, target_firmware_uuid) do
+      {:ok, target_firmware} ->
         %{update_bytes: target_firmware.size, saved_bytes: 0}
 
-      nil ->
+      {:error, _} ->
         %{update_bytes: 0, saved_bytes: 0}
     end
   end
