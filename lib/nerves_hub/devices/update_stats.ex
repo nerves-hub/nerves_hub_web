@@ -55,7 +55,9 @@ defmodule NervesHub.Devices.UpdateStats do
   def stats_by_deployment(deployment_group) do
     UpdateStat
     |> where(deployment_id: ^deployment_group.id)
-    |> join(:inner, [s], f in Firmware, on: fragment("?::uuid", f.uuid) == s.target_firmware_uuid)
+    |> join(:inner, [s], f in Firmware,
+      on: fragment("?::uuid", f.uuid) == s.target_firmware_uuid and f.product_id == ^deployment_group.product_id
+    )
     |> group_by([s, f], [s.target_firmware_uuid, f.version])
     |> select([s, f], %{
       version: f.version,

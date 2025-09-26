@@ -222,6 +222,34 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       result = UpdateStats.stats_by_deployment(deployment_group)
       assert result == %{}
     end
+
+    test "scopes by product id", %{
+      device: device,
+      device2: device2,
+      deployment_group: deployment_group,
+      target_firmware: target_firmware,
+      source_firmware_metadata: source_firmware_metadata
+    } do
+      device = Devices.update_deployment_group(device, deployment_group)
+      :ok = UpdateStats.log_update(device, source_firmware_metadata)
+
+      # create firmware from different product with same uuid
+      user2 = Fixtures.user_fixture()
+      org2 = Fixtures.org_fixture(user2, %{name: "foo"})
+      org_key2 = Fixtures.org_key_fixture(org2, user2)
+      product2 = Fixtures.product_fixture(user2, org2)
+
+      firmware2 =
+        Fixtures.firmware_fixture(org_key2, product2, %{version: "2.0.0"})
+        |> Ecto.Changeset.change(%{uuid: target_firmware.uuid})
+        |> Repo.update!()
+
+      {:ok, firmware2_metadata} = Firmwares.metadata_from_firmware(firmware2)
+      :ok = UpdateStats.log_update(device2, firmware2_metadata)
+
+      stats = UpdateStats.stats_by_deployment(deployment_group)
+      assert stats[target_firmware.uuid].total_updates == 1
+    end
   end
 
   describe "total_stats_by_product/1" do
