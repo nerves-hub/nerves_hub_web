@@ -182,11 +182,6 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
-  @spec get_firmware_by_uuid(String.t()) :: Firmware.t() | nil
-  def get_firmware_by_uuid(uuid) do
-    Repo.get_by(Firmware, uuid: uuid)
-  end
-
   @spec get_firmware_by_product_id_and_uuid(integer(), String.t()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
@@ -329,8 +324,8 @@ defmodule NervesHub.Firmwares do
     {:ok, metadata}
   end
 
-  @spec metadata_from_device(map()) :: {:ok, FirmwareMetadata.t() | nil}
-  def metadata_from_device(metadata) do
+  @spec metadata_from_device(metadata :: map(), product_id :: pos_integer()) :: {:ok, FirmwareMetadata.t() | nil}
+  def metadata_from_device(metadata, product_id) do
     metadata = %{
       uuid: Map.get(metadata, "nerves_fw_uuid"),
       architecture: Map.get(metadata, "nerves_fw_architecture"),
@@ -354,11 +349,11 @@ defmodule NervesHub.Firmwares do
             {:ok, nil}
 
           uuid ->
-            case get_firmware_by_uuid(uuid) do
-              nil ->
+            case get_firmware_by_product_id_and_uuid(product_id, uuid) do
+              {:error, _} ->
                 {:ok, nil}
 
-              firmware ->
+              {:ok, firmware} ->
                 metadata_from_firmware(firmware)
             end
         end

@@ -155,7 +155,7 @@ defmodule NervesHub.DeviceLink do
 
   # A new UUID is being reported from an update
   defp update_firmware_metadata(%{firmware_metadata: previous_metadata} = device, params) do
-    with {:ok, metadata} <- Firmwares.metadata_from_device(params),
+    with {:ok, metadata} <- Firmwares.metadata_from_device(params, device.product_id),
          validation_status = fetch_validation_status(params),
          auto_revert_detected? = firmware_auto_revert_detected?(params),
          {:ok, device} <-
