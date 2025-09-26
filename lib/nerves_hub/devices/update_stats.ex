@@ -104,8 +104,9 @@ defmodule NervesHub.Devices.UpdateStats do
 
   def log_update(device, source_firmware_metadata) do
     case get_delta_from_metadata(
-           source_uuid: source_firmware_metadata.uuid,
-           target_uuid: device.firmware_metadata.uuid
+           device.product_id,
+           source_firmware_metadata.uuid,
+           device.firmware_metadata.uuid
          ) do
       %FirmwareDelta{} = delta ->
         log_stat(device, source_firmware_metadata, delta)
@@ -190,17 +191,19 @@ defmodule NervesHub.Devices.UpdateStats do
     end
   end
 
-  @spec get_delta_from_metadata(source_uuid: Ecto.UUID.t(), target_uuid: Ecto.UUID.t()) ::
+  @spec get_delta_from_metadata(product_id :: pos_integer(), source_uuid :: Ecto.UUID.t(), target_uuid :: Ecto.UUID.t()) ::
           FirmwareDelta.t() | nil
-  defp get_delta_from_metadata(source_uuid: source_uuid, target_uuid: target_uuid) do
+  defp get_delta_from_metadata(product_id, source_uuid, target_uuid) do
     source_query =
       Firmware
       |> where([f], f.uuid == ^source_uuid)
+      |> where([f], f.product_id == ^product_id)
       |> select([f], f.id)
 
     target_query =
       Firmware
       |> where([f], f.uuid == ^target_uuid)
+      |> where([f], f.product_id == ^product_id)
       |> select([f], f.id)
 
     FirmwareDelta
