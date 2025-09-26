@@ -55,7 +55,9 @@ defmodule NervesHub.Devices.UpdateStats do
   def stats_by_deployment(deployment_group) do
     UpdateStat
     |> where(deployment_id: ^deployment_group.id)
-    |> join(:inner, [s], f in Firmware, on: fragment("?::uuid", f.uuid) == s.target_firmware_uuid)
+    |> join(:inner, [s], f in Firmware,
+      on: fragment("?::uuid", f.uuid) == s.target_firmware_uuid and f.product_id == ^deployment_group.product_id
+    )
     |> group_by([s, f], [s.target_firmware_uuid, f.version])
     |> select([s, f], %{
       version: f.version,
@@ -104,8 +106,9 @@ defmodule NervesHub.Devices.UpdateStats do
 
   def log_update(device, source_firmware_metadata) do
     case get_delta_from_metadata(
-           source_uuid: source_firmware_metadata.uuid,
-           target_uuid: device.firmware_metadata.uuid
+           device.product_id,
+           source_firmware_metadata.uuid,
+           device.firmware_metadata.uuid
          ) do
       %FirmwareDelta{} = delta ->
         log_stat(device, source_firmware_metadata, delta)
@@ -122,7 +125,7 @@ defmodule NervesHub.Devices.UpdateStats do
         ) :: :ok | {:error, Ecto.Changeset.t()}
   defp log_stat(device, source_firmware_metadata \\ nil, delta \\ nil) do
     %{update_bytes: update_bytes, saved_bytes: saved_bytes} =
-      get_byte_stats(delta, device.firmware_metadata.uuid)
+      get_byte_stats(delta, device.product_id, device.firmware_metadata.uuid)
 
     source_firmware_uuid = get_in(source_firmware_metadata, [Access.key(:uuid)])
     deployment_id = get_deployment_id(device)
@@ -170,37 +173,40 @@ defmodule NervesHub.Devices.UpdateStats do
     end
   end
 
-  @spec get_byte_stats(FirmwareDelta.t() | nil, Ecto.UUID.t()) :: %{
-          update_bytes: integer(),
-          saved_bytes: integer()
-        }
-  defp get_byte_stats(%FirmwareDelta{size: delta_size}, target_firmware_uuid) do
-    target_firmware = Firmwares.get_firmware_by_uuid(target_firmware_uuid)
+  @spec get_byte_stats(FirmwareDelta.t() | nil, product_id :: pos_integer(), target_firmware_uuid :: Ecto.UUID.t()) ::
+          %{
+            update_bytes: integer(),
+            saved_bytes: integer()
+          }
+  defp get_byte_stats(%FirmwareDelta{size: delta_size}, product_id, target_firmware_uuid) do
+    {:ok, target_firmware} = Firmwares.get_firmware_by_product_id_and_uuid(product_id, target_firmware_uuid)
 
     %{update_bytes: delta_size, saved_bytes: target_firmware.size - delta_size}
   end
 
-  defp get_byte_stats(nil, target_firmware_uuid) do
-    case Firmwares.get_firmware_by_uuid(target_firmware_uuid) do
-      %Firmware{} = target_firmware ->
+  defp get_byte_stats(nil, product_id, target_firmware_uuid) do
+    case Firmwares.get_firmware_by_product_id_and_uuid(product_id, target_firmware_uuid) do
+      {:ok, target_firmware} ->
         %{update_bytes: target_firmware.size, saved_bytes: 0}
 
-      nil ->
+      {:error, _} ->
         %{update_bytes: 0, saved_bytes: 0}
     end
   end
 
-  @spec get_delta_from_metadata(source_uuid: Ecto.UUID.t(), target_uuid: Ecto.UUID.t()) ::
+  @spec get_delta_from_metadata(product_id :: pos_integer(), source_uuid :: Ecto.UUID.t(), target_uuid :: Ecto.UUID.t()) ::
           FirmwareDelta.t() | nil
-  defp get_delta_from_metadata(source_uuid: source_uuid, target_uuid: target_uuid) do
+  defp get_delta_from_metadata(product_id, source_uuid, target_uuid) do
     source_query =
       Firmware
       |> where([f], f.uuid == ^source_uuid)
+      |> where([f], f.product_id == ^product_id)
       |> select([f], f.id)
 
     target_query =
       Firmware
       |> where([f], f.uuid == ^target_uuid)
+      |> where([f], f.product_id == ^product_id)
       |> select([f], f.id)
 
     FirmwareDelta

@@ -89,7 +89,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
       user: user,
       user_two: user_two
     } do
-      firmware = Firmwares.get_firmware_by_uuid(device.firmware_metadata.uuid)
+      {:ok, firmware} = Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, device.firmware_metadata.uuid)
       device_two = Fixtures.device_fixture(org, product, firmware)
 
       token_two = NervesHub.Accounts.create_user_session_token(user_two)
@@ -414,8 +414,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       new_firmware = Repo.reload(new_firmware)
 
-      Firmwares.get_firmware_by_uuid(device.firmware_metadata.uuid)
-      |> Fixtures.firmware_delta_fixture(new_firmware)
+      {:ok, firmware} = Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, device.firmware_metadata.uuid)
+      _ = Fixtures.firmware_delta_fixture(firmware, new_firmware)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
