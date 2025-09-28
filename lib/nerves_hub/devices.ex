@@ -1016,10 +1016,7 @@ defmodule NervesHub.Devices do
     _ = UpdateStats.log_update(device, previous_metadata)
 
     device
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_change(:update_attempts, [])
-    |> Ecto.Changeset.put_change(:updates_blocked_until, nil)
-    |> Ecto.Changeset.put_change(:priority_updates, false)
+    |> Device.clear_updates_information_changeset()
     |> Repo.update()
   end
 

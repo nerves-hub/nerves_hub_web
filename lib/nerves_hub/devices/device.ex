@@ -118,4 +118,12 @@ defmodule NervesHub.Devices.Device do
       end
     end)
   end
+
+  def clear_updates_information_changeset(%Device{} = device) do
+    device
+    |> change()
+    |> put_change(:update_attempts, [])
+    |> put_change(:updates_blocked_until, nil)
+    |> put_change(:priority_updates, false)
+  end
 end
