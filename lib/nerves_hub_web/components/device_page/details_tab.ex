@@ -607,7 +607,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     %{device: device, user: user} = socket.assigns
 
-    deployment_group = NervesHub.Repo.preload(device.deployment_group, :firmware)
+    deployment_group = NervesHub.Repo.preload(device.deployment_group, [:firmware, :org])
 
     case Devices.told_to_update(device, deployment_group) do
       {:ok, _inflight_update} ->
