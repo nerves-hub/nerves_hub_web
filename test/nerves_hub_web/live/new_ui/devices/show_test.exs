@@ -7,11 +7,13 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
 
   alias NervesHubWeb.Endpoint
@@ -439,6 +441,189 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
       assert String.ends_with?(firmware_url, ".delta.fw")
 
       refute Repo.reload(device) |> Map.get(:updates_enabled)
+    end
+  end
+
+  describe "skip the queue when there is an available update" do
+    test "only shows the button if an update is available", %{
+      conn: conn,
+      org: org,
+      org_key: org_key,
+      product: product,
+      device: device,
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      assert device.updates_enabled
+
+      device = Devices.update_deployment_group(device, deployment_group)
+      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      :ok = Connections.device_connected(device, connection.id)
+      device = Devices.set_as_provisioned!(device)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> refute_has("button", text: "Skip the queue")
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      DeploymentGroup
+      |> where(id: ^deployment_group.id)
+      |> Repo.update_all(set: [is_active: true, firmware_id: new_firmware.id])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("button", text: "Skip the queue")
+    end
+
+    test "allows a device to be sent the available update immediately, using the default url config", %{
+      conn: conn,
+      org: org,
+      org_key: org_key,
+      product: product,
+      device: device,
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      assert device.updates_enabled
+
+      device = Devices.update_deployment_group(device, deployment_group)
+      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      :ok = Connections.device_connected(device, connection.id)
+      device = Devices.set_as_provisioned!(device)
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      DeploymentGroup
+      |> where(id: ^deployment_group.id)
+      |> Repo.update_all(set: [is_active: true, firmware_id: new_firmware.id])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button("Skip the queue")
+
+      %{version: version, architecture: architecture, platform: platform} = new_firmware
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        payload: %{
+          firmware_url: firmware_url,
+          firmware_meta: %{
+            version: ^version,
+            architecture: ^architecture,
+            platform: ^platform
+          }
+        },
+        event: "update"
+      }
+
+      assert String.starts_with?(firmware_url, "http://localhost:1234")
+
+      assert Repo.reload(device) |> Map.get(:updates_enabled)
+    end
+
+    test "allows a device to be sent the available update immediately, using the available Org `firmware_proxy_url` setting",
+         %{
+           conn: conn,
+           org: org,
+           org_key: org_key,
+           product: product,
+           device: device,
+           deployment_group: deployment_group,
+           tmp_dir: tmp_dir
+         } do
+      Org
+      |> where(id: ^org.id)
+      |> Repo.update_all(set: [settings: %Org.Settings{firmware_proxy_url: "https://files.customer.com/download"}])
+
+      assert device.updates_enabled
+
+      device = Devices.update_deployment_group(device, deployment_group)
+      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      :ok = Connections.device_connected(device, connection.id)
+      device = Devices.set_as_provisioned!(device)
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      DeploymentGroup
+      |> where(id: ^deployment_group.id)
+      |> Repo.update_all(set: [is_active: true, firmware_id: new_firmware.id])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button("Skip the queue")
+
+      %{version: version, architecture: architecture, platform: platform} = new_firmware
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        payload: %{
+          firmware_url: firmware_url,
+          firmware_meta: %{
+            version: ^version,
+            architecture: ^architecture,
+            platform: ^platform
+          }
+        },
+        event: "update"
+      }
+
+      assert String.starts_with?(firmware_url, "https://files.customer.com/download?")
+
+      assert Repo.reload(device) |> Map.get(:updates_enabled)
+    end
+
+    test "allows a device to be sent the available delta update immediately, if a delta is available", %{
+      conn: conn,
+      org: org,
+      org_key: org_key,
+      product: product,
+      device: device,
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      assert device.updates_enabled
+
+      metadata = Map.put(device.firmware_metadata, :fwup_version, "1.13.0") |> Map.from_struct()
+      Devices.update_device(device, %{firmware_metadata: metadata})
+
+      device = Devices.update_deployment_group(device, deployment_group)
+      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      :ok = Connections.device_connected(device, connection.id)
+      device = Devices.set_as_provisioned!(device)
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      Firmware
+      |> where(id: ^new_firmware.id)
+      |> Repo.update_all(set: [delta_updatable: true, version: "2.0.0"])
+
+      {:ok, firmware} = Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, device.firmware_metadata.uuid)
+      _ = Fixtures.firmware_delta_fixture(firmware, new_firmware)
+
+      DeploymentGroup
+      |> where(id: ^deployment_group.id)
+      |> Repo.update_all(set: [is_active: true, firmware_id: new_firmware.id, delta_updatable: true])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button("Skip the queue")
+
+      %{architecture: architecture, platform: platform} = new_firmware
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        payload: %{
+          firmware_url: firmware_url,
+          firmware_meta: %{
+            version: "2.0.0",
+            architecture: ^architecture,
+            platform: ^platform
+          }
+        },
+        event: "update"
+      }
+
+      assert String.ends_with?(firmware_url, ".delta.fw")
+
+      assert Repo.reload(device) |> Map.get(:updates_enabled)
     end
   end
 
