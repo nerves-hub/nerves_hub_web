@@ -277,9 +277,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </span>
             </div>
 
-            <div :if={!Enum.empty?(@metadata)} class="min-h-7 flex px-4 gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">Metadata:</span>
-              <span class="flex gap-1">
+            <div :if={!Enum.empty?(@metadata)} class="min-h-7 flex px-4 gap-4">
+              <span class="pt-1 text-sm text-nerves-gray-500">Metadata:</span>
+              <span class="flex flex-col gap-1">
                 <span :for={{key, value} <- Map.filter(@metadata, fn {_key, val} -> val != "" end)} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">
                   <span>{key |> String.replace("_", " ") |> String.capitalize()}: {value}</span>
                 </span>
