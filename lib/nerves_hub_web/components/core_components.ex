@@ -14,7 +14,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   Icons are provided by [heroicons](https://heroicons.com). See `icon/1` for usage.
   """
-  use Phoenix.Component
+  use Phoenix.Component, global_prefixes: ~w(js-)
 
   import NervesHubWeb.Components.Icons
 
@@ -139,12 +139,17 @@ defmodule NervesHubWeb.CoreComponents do
     <div id={@id}>
       <.flash kind={:info} title={gettext("Success")} flash={@flash} phx-mounted={show("#flash-info")} phx-hook="Flash" hidden />
       <.flash kind={:error} title={gettext("Error")} flash={@flash} phx-mounted={show("#flash-error")} hidden />
-      <.flash id="client-error" kind={:error} title={gettext("We can't find the internet")} phx-disconnected={show(".phx-client-error #client-error")} phx-connected={hide("#client-error")} hidden>
-        {gettext("Attempting to reconnect")}
-      </.flash>
 
-      <.flash id="server-error" kind={:error} title={gettext("Something went wrong!")} phx-disconnected={show(".phx-server-error #server-error")} phx-connected={hide("#server-error")} hidden>
-        {gettext("Hang in there while we get back on track")}
+      <.flash
+        id="connection-status"
+        kind={:error}
+        title={gettext("Internet connection lost")}
+        phx-disconnected={show("#connection-status")}
+        js-hide={hide("#connection-status")}
+        js-show={show("#connection-status")}
+        hidden
+      >
+        {gettext("Attempting to reconnect...")}
       </.flash>
     </div>
     """
