@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Plugs.FileUpload do
   use NervesHubWeb, :plug
 
+  alias NervesHubWeb.Plugs.FirmwareDownload
+
   def init(_opts), do: []
 
   def call(conn, _opts) do
@@ -12,9 +14,9 @@ defmodule NervesHubWeb.Plugs.FileUpload do
         from: file_upload_config[:local_path]
       ]
 
-      init = Plug.Static.init(opts)
+      init = FirmwareDownload.init(opts)
 
-      Plug.Static.call(conn, init)
+      FirmwareDownload.call(conn, init)
     else
       conn
     end
