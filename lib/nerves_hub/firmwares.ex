@@ -249,7 +249,7 @@ defmodule NervesHub.Firmwares do
     )
   end
 
-  @spec delete_firmware(Firmware.t()) :: {:ok, Firmware.t()} | none()
+  @spec delete_firmware(Firmware.t()) :: {:ok, Firmware.t()} | {:error, Ecto.Changeset.t()} | none()
   def delete_firmware(%Firmware{} = firmware) do
     changeset = Firmware.delete_changeset(firmware)
     delete_firmware_job = DeleteFirmware.new(firmware.upload_metadata)
