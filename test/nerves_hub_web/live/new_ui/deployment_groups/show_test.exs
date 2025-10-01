@@ -214,6 +214,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     conn
     |> assert_has("a", text: "Delete", timeout: 100)
     |> click_link("Delete")
+    |> refute_has("div", text: "Failed", timeout: 100)
 
     refute Repo.reload(delta)
   end

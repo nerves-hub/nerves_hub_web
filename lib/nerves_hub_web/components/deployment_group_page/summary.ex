@@ -56,12 +56,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   def handle_event("delete_delta", %{"id" => id}, socket) do
-    {:ok, _} =
-      socket.assigns.deltas
-      |> Enum.find(&(&1.id == String.to_integer(id)))
-      |> Firmwares.delete_firmware_delta()
+    delta_to_delete = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
 
-    socket = put_flash(socket, :info, "Delta successfully deleted")
+    {:ok, _} = Firmwares.delete_firmware_delta(delta_to_delete)
+    deltas = Enum.filter(socket.assigns.deltas, &(&1.id != delta_to_delete.id))
+
+    socket =
+      socket
+      |> assign(:deltas, deltas)
+      |> put_flash(:info, "Delta successfully deleted")
+
     {:noreply, socket}
   end
 
