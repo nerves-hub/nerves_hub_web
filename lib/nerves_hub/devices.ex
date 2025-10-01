@@ -835,10 +835,11 @@ defmodule NervesHub.Devices do
   end
 
   @spec delta_ready?(Device.t(), Firmware.t()) :: boolean()
-  def delta_ready?(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id}) do
+  def delta_ready?(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
     source_firmware_id_query =
       Firmware
       |> where(uuid: ^source_uuid)
+      |> where(product_id: ^product_id)
       |> select([f], f.id)
 
     query =
@@ -1793,10 +1794,11 @@ defmodule NervesHub.Devices do
   @spec get_delta_url(Device.t(), Firmware.t()) ::
           {:ok, String.t()}
           | {:error, :failure}
-  def get_delta_url(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id}) do
+  def get_delta_url(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
     source_firmware_id_query =
       Firmware
       |> where(uuid: ^source_uuid)
+      |> where(product_id: ^product_id)
       |> select([f], f.id)
 
     delta =
