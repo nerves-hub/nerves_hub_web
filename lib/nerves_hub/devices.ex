@@ -715,6 +715,7 @@ defmodule NervesHub.Devices do
     |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
     |> where(deployment_id: ^deployment_group.id)
     |> where(updates_enabled: true)
+    |> where([d], d.firmware_validation_status in [:validated, :unknown])
     |> where([latest_connection: lc], lc.status == :connected)
     |> where([d], not is_nil(d.firmware_metadata))
     |> where([d, firmware: f], fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, f.uuid))
@@ -1033,10 +1034,7 @@ defmodule NervesHub.Devices do
     _ = UpdateStats.log_update(device, previous_metadata)
 
     device
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_change(:update_attempts, [])
-    |> Ecto.Changeset.put_change(:updates_blocked_until, nil)
-    |> Ecto.Changeset.put_change(:priority_updates, false)
+    |> Device.clear_updates_information_changeset()
     |> Repo.update()
   end
 

@@ -20,7 +20,7 @@ defmodule NervesHub.Devices.Device do
 
   @type t :: %__MODULE__{}
 
-  @type firmware_validation_statuses :: :validated | :not_validated | :unknown | :not_supported
+  @type firmware_validation_statuses :: :validated | :not_validated | :unknown
 
   @optional_params [
     :description,
@@ -75,8 +75,8 @@ defmodule NervesHub.Devices.Device do
     embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
 
     field(:firmware_validation_status, Ecto.Enum,
-      values: [:validated, :not_validated, :unknown, :not_supported],
-      default: :not_supported
+      values: [:validated, :not_validated, :unknown],
+      default: :unknown
     )
 
     field(:firmware_auto_revert_detected, :boolean, default: false)
@@ -117,5 +117,13 @@ defmodule NervesHub.Devices.Device do
         changeset
       end
     end)
+  end
+
+  def clear_updates_information_changeset(%Device{} = device) do
+    device
+    |> change()
+    |> put_change(:update_attempts, [])
+    |> put_change(:updates_blocked_until, nil)
+    |> put_change(:priority_updates, false)
   end
 end

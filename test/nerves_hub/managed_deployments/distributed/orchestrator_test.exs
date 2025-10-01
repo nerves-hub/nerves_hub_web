@@ -179,6 +179,44 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     :sys.get_state(pid)
   end
 
+  test "doesn't try to update devices whos firmware is not validated", %{
+    product: product,
+    deployment_group: deployment_group,
+    org_key: org_key,
+    device: device
+  } do
+    # only allow for 1 update at a time
+    {:ok, deployment_group} =
+      ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1})
+
+    device = Devices.update_deployment_group(device, deployment_group)
+    {:ok, device} = Devices.update_device(device, %{firmware_validation_status: "not_validated"})
+    {:ok, connection} = Connections.device_connecting(device, device.product_id)
+    :ok = Connections.device_connected(device, connection.id)
+
+    topic1 = "device:#{device.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, topic1)
+
+    deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
+
+    {:ok, _pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment_group.id}",
+        start: {Orchestrator, :start_link, [deployment_group, false]},
+        restart: :temporary
+      })
+
+    # create new firmware and update the deployment group with it
+    firmware = Fixtures.firmware_fixture(org_key, product)
+
+    {:ok, _deployment_group} =
+      ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id})
+
+    # check that the device is not told to update
+    refute_receive %Broadcast{topic: ^topic1, event: "update"}, 1_000
+  end
+
   test "the orchestrator doesn't 'trigger' if the device that came online is up-to-date", %{
     deployment_group: deployment_group,
     org_key: org_key,
