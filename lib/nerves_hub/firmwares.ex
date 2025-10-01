@@ -249,27 +249,30 @@ defmodule NervesHub.Firmwares do
     )
   end
 
+  @spec delete_firmware(Firmware.t()) :: {:ok, Firmware.t()} | none()
   def delete_firmware(%Firmware{} = firmware) do
-    do_delete_firmware = fn ->
-      firmware
-      |> Firmware.delete_changeset(%{})
-      |> Repo.delete()
-    end
-
-    do_delete_from_s3 = fn ->
-      firmware.upload_metadata
-      |> DeleteFirmware.new()
-      |> Oban.insert()
-    end
+    changeset = Firmware.delete_changeset(firmware)
+    delete_firmware_job = DeleteFirmware.new(firmware.upload_metadata)
 
     Repo.transaction(fn ->
-      with {:ok, firmware} <- do_delete_firmware.(),
-           {:ok, _} <- do_delete_from_s3.() do
+      with {:ok, firmware} <- Repo.delete(changeset),
+           {:ok, _} <- Oban.insert(delete_firmware_job) do
         {:ok, firmware}
       else
         {:error, error} -> Repo.rollback(error)
       end
     end)
+  end
+
+  @spec delete_firmware_delta(FirmwareDelta.t()) ::
+          {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t() | Oban.Job.changeset()}
+  def delete_firmware_delta(%FirmwareDelta{} = delta) do
+    delete_delta_job = DeleteFirmware.new(delta.upload_metadata)
+
+    with {:ok, firmware} <- Repo.delete(delta),
+         {:ok, _} <- Oban.insert(delete_delta_job) do
+      {:ok, firmware}
+    end
   end
 
   @spec verify_signature(String.t(), [OrgKey.t()]) ::
@@ -528,13 +531,6 @@ defmodule NervesHub.Firmwares do
     firmware_delta
     |> FirmwareDelta.time_out_changeset()
     |> Repo.update()
-    |> notify_firmware_delta_target()
-  end
-
-  def delete_firmware_delta(%FirmwareDelta{} = delta) do
-    # TODO: clean up files locally or on S3
-    delta
-    |> Repo.delete()
     |> notify_firmware_delta_target()
   end
 

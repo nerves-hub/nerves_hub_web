@@ -13,6 +13,7 @@ defmodule NervesHub.FirmwaresTest do
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHub.Support.Fwup
+  alias NervesHub.Workers.DeleteFirmware
   alias NervesHub.Workers.FirmwareDeltaBuilder
 
   setup do
@@ -62,7 +63,7 @@ defmodule NervesHub.FirmwaresTest do
       {:ok, _} = Firmwares.delete_firmware(firmware)
 
       assert_enqueued(
-        worker: NervesHub.Workers.DeleteFirmware,
+        worker: DeleteFirmware,
         args: %{
           "local_path" => firmware.upload_metadata[:local_path],
           "public_path" => firmware.upload_metadata[:public_path]
@@ -71,19 +72,36 @@ defmodule NervesHub.FirmwaresTest do
 
       assert {:error, :not_found} = Firmwares.get_firmware(org, firmware.id)
     end
+
+    test "cannot delete firmware when it is referenced by deployment", %{
+      org: org,
+      org_key: org_key,
+      product: product
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      assert File.exists?(firmware.upload_metadata[:local_path])
+
+      Fixtures.deployment_group_fixture(org, firmware, %{name: "a deployment"})
+
+      assert {:error, %Changeset{}} = Firmwares.delete_firmware(firmware)
+    end
   end
 
-  test "cannot delete firmware when it is referenced by deployment", %{
-    org: org,
-    org_key: org_key,
-    product: product
-  } do
+  test "deletes delta firmware and enqueues job", %{org_key: org_key, product: product} do
     firmware = Fixtures.firmware_fixture(org_key, product)
-    assert File.exists?(firmware.upload_metadata[:local_path])
+    firmware2 = Fixtures.firmware_fixture(org_key, product)
+    delta = Fixtures.firmware_delta_fixture(firmware2, firmware)
+    {:ok, _} = Firmwares.delete_firmware_delta(delta)
 
-    Fixtures.deployment_group_fixture(org, firmware, %{name: "a deployment"})
+    assert {:error, :not_found} = Firmwares.get_firmware_delta(delta.id)
 
-    assert {:error, %Changeset{}} = Firmwares.delete_firmware(firmware)
+    assert_enqueued(
+      worker: DeleteFirmware,
+      args: %{
+        "local_path" => delta.upload_metadata[:local_path],
+        "public_path" => delta.upload_metadata[:public_path]
+      }
+    )
   end
 
   test "firmware stores size", %{
