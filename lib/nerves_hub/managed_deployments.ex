@@ -275,6 +275,12 @@ defmodule NervesHub.ManagedDeployments do
        ),
        do: trigger_delta_generation_for_deployment_group(deployment_group)
 
+  defp maybe_trigger_delta_generation(
+         %{delta_updatable: true} = deployment_group,
+         %{changes: %{is_active: true}} = _changeset
+       ),
+       do: trigger_delta_generation_for_deployment_group(deployment_group)
+
   defp maybe_trigger_delta_generation(deployment_group, %{changes: %{delta_updatable: true}} = _changeset),
     do: trigger_delta_generation_for_deployment_group(deployment_group)
 

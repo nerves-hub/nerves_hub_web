@@ -128,6 +128,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
         %{changes: %{delta_updatable: false}} = changeset ->
           Ecto.Changeset.put_change(changeset, :status, :ready)
 
+        %{changes: %{is_active: true}} = changeset ->
+          Ecto.Changeset.put_change(changeset, :status, :preparing)
+
         changeset ->
           changeset
       end

@@ -23,7 +23,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
 
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware, %{is_active: true})
+    {:ok, deployment_group} =
+      Fixtures.deployment_group_fixture(org, firmware, %{is_active: true})
+      |> ManagedDeployments.update_deployment_group_status(:ready)
 
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
     device2 = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
@@ -422,6 +424,39 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     _ = :sys.get_state(pid)
   end
 
+  test "updating deployment group to active waits for deltas to be ready", %{
+    deployment_group: deployment_group,
+    org_key: org_key,
+    product: product,
+    org: org
+  } do
+    other_firmware = Fixtures.firmware_fixture(org_key, product)
+
+    device =
+      Fixtures.device_fixture(org, product, other_firmware)
+      |> Devices.update_deployment_group(deployment_group)
+
+    {:ok, connection} = Connections.device_connecting(device, device.product_id)
+    :ok = Connections.device_connected(device, connection.id)
+
+    deployment_group =
+      Ecto.Changeset.change(deployment_group, %{is_active: false, delta_updatable: true}) |> Repo.update!()
+
+    {:ok, pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment_group.id}",
+        start: {Orchestrator, :start_link, [deployment_group, false]},
+        restart: :temporary
+      })
+
+    reject(&Devices.available_for_update/2)
+
+    allow(Devices, self(), pid)
+
+    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
+    _ = :sys.get_state(pid)
+  end
+
   describe "trigger_update/1" do
     test "ignores updates when deployment_group is inactive", %{deployment_group: deployment_group} do
       reject(&Devices.available_for_update/2)
@@ -477,21 +512,18 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         Fixtures.device_fixture(org, product, firmware2)
         |> Devices.update_deployment_group(deployment_group)
 
-      assert %{status: :preparing} = Orchestrator.trigger_update(%{deployment_group | delta_updatable: true})
-      assert Repo.exists?(FirmwareDelta)
-    end
+      assert %{status: :preparing} =
+               Orchestrator.trigger_update(%{deployment_group | delta_updatable: true})
 
-    test "doesn't trigger delta generation when deployment group is not updatable", %{
-      deployment_group: deployment_group
-    } do
-      assert deployment_group.status == :ready
-      assert %{status: :ready} = Orchestrator.trigger_update(%{deployment_group | delta_updatable: false})
+      assert Repo.exists?(FirmwareDelta)
     end
 
     test "doesn't update deployment group status to :preparing if no deltas are generated", %{
       deployment_group: deployment_group
     } do
       assert deployment_group.status == :ready
+      refute deployment_group.delta_updatable
+
       reject(&ManagedDeployments.trigger_delta_generation_for_deployment_group/1)
       assert %{status: :ready} = Orchestrator.trigger_update(deployment_group)
     end
