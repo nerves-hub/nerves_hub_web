@@ -211,6 +211,8 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
     {:ok, delta} = Firmwares.fail_firmware_delta(delta)
 
+    expect(Oban, :insert, fn _ -> {:ok, %Oban.Job{}} end)
+
     conn
     |> assert_has("a", text: "Delete", timeout: 100)
     |> click_link("Delete")
@@ -230,6 +232,8 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     expect(Firmwares, :attempt_firmware_delta, fn ^source_id, ^target_id ->
       {:ok, :started}
     end)
+
+    expect(Oban, :insert, fn _ -> {:ok, %Oban.Job{}} end)
 
     conn
     |> assert_has("a", text: "Retry", timeout: 100)

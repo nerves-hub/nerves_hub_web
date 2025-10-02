@@ -10,6 +10,7 @@ Mimic.copy(NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration)
 Mimic.copy(NervesHub.Tracker)
 Mimic.copy(NervesHub.Scripts.Runner)
 Mimic.copy(NervesHub.Workers.FirmwareDeltaBuilder)
+Mimic.copy(Oban)
 Mimic.copy(Sentry)
 Mimic.copy(Ueberauth)
 
