@@ -95,9 +95,9 @@ defmodule NervesHub.Firmwares.Firmware do
     |> foreign_key_constraint(:deployment_groups, name: :deployment_groups_firmware_id_fkey)
   end
 
-  def delete_changeset(%Firmware{} = firmware, params) do
+  def delete_changeset(%Firmware{} = firmware) do
     firmware
-    |> cast(params, @required_params ++ @optional_params)
+    |> change()
     |> no_assoc_constraint(:deployment_groups, message: "Firmware has associated deployments")
   end
 end

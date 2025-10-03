@@ -9,6 +9,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Products.Product
@@ -188,11 +189,6 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  @spec toggle_delta_updates(DeploymentGroup.t()) ::
-          {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def toggle_delta_updates(deployment_group),
-    do: update_deployment_group(deployment_group, %{delta_updatable: !deployment_group.delta_updatable})
-
   @doc """
   Update a deployment
 
@@ -203,17 +199,10 @@ defmodule NervesHub.ManagedDeployments do
   def update_deployment_group(deployment_group, params) do
     result =
       Repo.transaction(fn ->
-        device_count =
-          Device
-          |> select([d], count(d))
-          |> where([d], d.deployment_id == ^deployment_group.id)
-          |> Repo.one()
-
         changeset =
           deployment_group
           |> Repo.preload(:firmware)
           |> DeploymentGroup.update_changeset(params)
-          |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
 
         case Repo.update(changeset) do
           {:ok, deployment_group} ->
@@ -230,7 +219,7 @@ defmodule NervesHub.ManagedDeployments do
 
     case result do
       {:ok, {deployment_group, changeset}} ->
-        :ok = maybe_trigger_delta_generation(deployment_group, changeset)
+        {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
         :ok = broadcast(deployment_group, "deployments/update")
 
         if Map.has_key?(changeset.changes, :is_active) do
@@ -286,17 +275,54 @@ defmodule NervesHub.ManagedDeployments do
        ),
        do: trigger_delta_generation_for_deployment_group(deployment_group)
 
+  defp maybe_trigger_delta_generation(
+         %{delta_updatable: true} = deployment_group,
+         %{changes: %{is_active: true}} = _changeset
+       ),
+       do: trigger_delta_generation_for_deployment_group(deployment_group)
+
   defp maybe_trigger_delta_generation(deployment_group, %{changes: %{delta_updatable: true}} = _changeset),
     do: trigger_delta_generation_for_deployment_group(deployment_group)
 
-  defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: :ok
+  defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: {:ok, :no_deltas_started}
 
-  defp trigger_delta_generation_for_deployment_group(deployment_group) do
-    NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
-    |> Enum.uniq()
-    |> Enum.each(fn {source_id, target_id} ->
+  @spec trigger_delta_generation_for_deployment_group(DeploymentGroup.t()) ::
+          {:ok, :deltas_started | :no_deltas_started}
+  def trigger_delta_generation_for_deployment_group(deployment_group) do
+    Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
+    |> Enum.map(fn {source_id, target_id} ->
       Firmwares.attempt_firmware_delta(source_id, target_id)
     end)
+    |> Enum.any?(&match?({:ok, _}, &1))
+    |> case do
+      true ->
+        {:ok, :deltas_started}
+
+      false ->
+        {:ok, :no_deltas_started}
+    end
+  end
+
+  @spec deltas_processing?(DeploymentGroup.t()) :: boolean()
+  def deltas_processing?(%DeploymentGroup{id: id, firmware_id: firmware_id}) do
+    source_ids =
+      id
+      |> Devices.get_device_firmware_for_delta_generation_by_deployment_group()
+      |> Enum.map(fn {source_id, _target_id} -> source_id end)
+
+    FirmwareDelta
+    |> where([fd], fd.source_id in ^source_ids)
+    |> where([fd], fd.target_id == ^firmware_id)
+    |> where([fd], fd.status != :completed)
+    |> Repo.exists?()
+  end
+
+  @spec update_deployment_group_status(DeploymentGroup.t(), atom()) ::
+          {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
+  def update_deployment_group_status(deployment_group, status) do
+    deployment_group
+    |> DeploymentGroup.update_status_changeset(%{status: status})
+    |> Repo.update()
   end
 
   @spec new_deployment_group() :: Changeset.t()

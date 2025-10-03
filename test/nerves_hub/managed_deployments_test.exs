@@ -104,7 +104,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
   end
 
-  describe "update_deployment_group" do
+  describe "update_deployment_group/2" do
     test "updating firmware sends an update message", %{
       org: org,
       org_key: org_key,
@@ -168,8 +168,8 @@ defmodule NervesHub.ManagedDeploymentsTest do
     test "triggers delta generation when firmware is updated and delta updates are enabled",
          %{
            deployment_group: deployment_group,
-           firmware: %{id: firmware_id} = firmware,
-           firmware2: %{id: firmware2_id} = firmware2,
+           firmware: firmware,
+           firmware2: firmware2,
            org: org,
            product: product
          } do
@@ -185,21 +185,17 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       assert device.deployment_id == deployment_group.id
 
-      expect(
-        FirmwareDeltaBuilder,
-        :start,
-        fn ^firmware_id, ^firmware2_id -> :ok end
-      )
-
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware2.id})
+
+      assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware.id, target_id: firmware2.id})
     end
 
     test "triggers delta generation when delta updates are enabled",
          %{
            deployment_group: deployment_group,
-           firmware: %{id: firmware_id} = firmware,
-           firmware2: %{id: firmware2_id} = firmware2,
+           firmware: firmware,
+           firmware2: firmware2,
            org: org,
            product: product
          } do
@@ -215,14 +211,10 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       assert device.deployment_id == deployment_group.id
 
-      expect(
-        FirmwareDeltaBuilder,
-        :start,
-        fn ^firmware_id, ^firmware2_id -> :ok end
-      )
-
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+
+      assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware.id, target_id: firmware2.id})
     end
 
     test "does not trigger delta generation if firmware has not changed",
@@ -241,10 +233,69 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       assert device.deployment_id == deployment_group.id
 
-      reject(FirmwareDeltaBuilder, :start, 2)
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+
+      reject(FirmwareDeltaBuilder, :new, 1)
+    end
+
+    test "triggers delta generation for every unique device firmware + deployment firmware combination",
+         %{
+           deployment_group: deployment_group,
+           firmware: firmware,
+           org: org,
+           product: product,
+           org_key: org_key
+         } do
+      firmware2 = Fixtures.firmware_fixture(org_key, product)
+      firmware3 = Fixtures.firmware_fixture(org_key, product)
+      firmware4 = Fixtures.firmware_fixture(org_key, product)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware2)
+        |> Devices.update_deployment_group(deployment_group)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware2)
+        |> Devices.update_deployment_group(deployment_group)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware3)
+        |> Devices.update_deployment_group(deployment_group)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware3)
+        |> Devices.update_deployment_group(deployment_group)
+
+      _ =
+        Fixtures.device_fixture(org, product, firmware4)
+        |> Devices.update_deployment_group(deployment_group)
 
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+
+      assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware2.id, target_id: firmware.id})
+      assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware3.id, target_id: firmware.id})
+      assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware4.id, target_id: firmware.id})
+    end
+
+    test "sets status to :preparing when turning on deltas", %{deployment_group: deployment_group} do
+      assert deployment_group.status == :ready
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+
+      assert deployment_group.status == :preparing
+    end
+
+    test "sets status to :ready when turning off deltas", %{deployment_group: deployment_group} do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: false})
+
+      assert deployment_group.status == :ready
     end
   end
 

@@ -67,7 +67,7 @@ defmodule NervesHub.Firmwares.Upload.File do
         "#{target_firmware_uuid}.delta.fw"
       ])
 
-    local_path = Path.join([config[:local_path], key_prefix(), common_path])
+    local_path = Path.join([config[:local_path], common_path])
 
     port =
       if Enum.member?([443, 80], web_config[:url][:port]),
@@ -85,9 +85,5 @@ defmodule NervesHub.Firmwares.Upload.File do
       public_path: public_path,
       local_path: local_path
     }
-  end
-
-  def key_prefix() do
-    "firmware"
   end
 end

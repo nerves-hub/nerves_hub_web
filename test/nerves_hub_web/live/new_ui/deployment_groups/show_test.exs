@@ -1,11 +1,15 @@
 defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
   use NervesHubWeb.ConnCase.Browser, async: false
+  use Mimic
 
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.UpdateTool.Fwup
+  alias NervesHub.Firmwares.Upload.File
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Repo
 
   setup context do
     %{
@@ -147,5 +151,94 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     |> select("Version", option: "2.0.1")
     |> assert_has("span", text: "Update count:")
     |> assert_has("span", text: "2")
+  end
+
+  test "shows delta status and available actions", %{
+    conn: conn,
+    source_firmware: source_firmware,
+    target_firmware: target_firmware,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
+
+    conn
+    |> assert_has("div", text: "Processing", timeout: 100)
+    |> refute_has("a", text: "Delete")
+    |> refute_has("a", text: "Retry")
+
+    {:ok, delta} = Firmwares.fail_firmware_delta(delta)
+
+    conn
+    |> assert_has("div", text: "Failed", timeout: 100)
+    |> assert_has("a", text: "Delete")
+    |> assert_has("a", text: "Retry")
+
+    {:ok, delta} = Firmwares.time_out_firmware_delta(delta)
+
+    conn
+    |> assert_has("div", text: "Timed out", timeout: 100)
+    |> assert_has("a", text: "Delete")
+    |> assert_has("a", text: "Retry")
+
+    expect(Fwup, :create_firmware_delta_file, fn _, _ ->
+      {:ok,
+       %{
+         tool: "fwup",
+         size: "1000",
+         source_size: "2000",
+         target_size: "3000",
+         filepath: tmp_dir,
+         tool_metadata: %{}
+       }}
+    end)
+
+    expect(File, :upload_file, fn _, _ -> :ok end)
+
+    :ok = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
+
+    conn
+    |> assert_has("div", text: "Ready", timeout: 100)
+    |> assert_has("a", text: "Delete")
+    |> refute_has("a", text: "Retry")
+  end
+
+  test "delete delta", %{
+    conn: conn,
+    source_firmware: source_firmware,
+    target_firmware: target_firmware
+  } do
+    {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
+    {:ok, delta} = Firmwares.fail_firmware_delta(delta)
+
+    expect(Oban, :insert, fn _ -> {:ok, %Oban.Job{}} end)
+
+    conn
+    |> assert_has("a", text: "Delete", timeout: 100)
+    |> click_link("Delete")
+    |> refute_has("div", text: "Failed", timeout: 100)
+
+    refute Repo.reload(delta)
+  end
+
+  test "retry delta", %{
+    conn: conn,
+    source_firmware: %{id: source_id} = source_firmware,
+    target_firmware: %{id: target_id} = target_firmware
+  } do
+    {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
+    {:ok, delta} = Firmwares.fail_firmware_delta(delta)
+
+    expect(Firmwares, :attempt_firmware_delta, fn ^source_id, ^target_id ->
+      {:ok, :started}
+    end)
+
+    expect(Oban, :insert, fn _ -> {:ok, %Oban.Job{}} end)
+
+    conn
+    |> assert_has("a", text: "Retry", timeout: 100)
+    |> click_link("Retry")
+
+    refute Repo.reload(delta)
   end
 end
