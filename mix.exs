@@ -179,6 +179,7 @@ defmodule NervesHub.MixProject do
         "format --check-formatted",
         "deps.unlock --check-unused",
         "dialyzer --format github --format dialyxir",
+        "credo --min-priority low",
         "spellweaver.check"
       ]
     ]
