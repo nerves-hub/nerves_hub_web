@@ -102,7 +102,7 @@ defmodule NervesHub.MixProject do
       {:hackney, "~> 1.16"},
       {:hammer, "~> 7.1.0"},
       {:hlclock, "~> 1.0"},
-      {:process_hub, "~> 0.3.1-alpha"},
+      {:process_hub, "~> 0.4.0-beta"},
       {:jason, "~> 1.2", override: true},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:libcluster_postgres, "~> 0.2.0"},
