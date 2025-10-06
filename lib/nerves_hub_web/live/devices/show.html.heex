@@ -1,330 +1,231 @@
-<div :if={@device.deleted_at} class="alert alert-danger mt-0">
-  <div class="content-container">
-    <center>Device is deleted and must be restored to use</center>
+<div class="h-[56px] shrink-0 flex justify-end bg-base-900 border-b border-base-700 pl-6 items-center">
+  <div class="flex gap-2.5 items-center">
+    <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="back-link flex gap-2.5 items-center">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="text-base-400 whitespace-nowrap hidden md:block">All Devices</span>
+    </.link>
+    <span class="text-base-400 hidden lg:block">/</span>
+    <span class="text-zinc-50 font-semibold hidden lg:block">{@device.identifier}</span>
+  </div>
+
+  <div class="flex items-center gap-2 ml-auto mr-6">
+    <div id="present-users" phx-update="stream" class="border-r border-base-700 px-5 mr-3 h-8 flex flex-row-reverse -space-x-1 space-x-reverse overflow-hidden">
+      <div :for={{id, %{user: user}} <- @streams.presences} class="inline-flex items-center justify-center z-10 cursor-default" id={id} phx-hook="ToolTip" data-placement="bottom">
+        <span :if={!@user.profile_picture_url} class="inline-flex items-center justify-center px-1 size-7 ring-2 ring-zinc-600 rounded-full bg-zinc-800 font-medium text-zinc-400 text-sm">
+          {String.split(user.name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}
+        </span>
+        <img :if={@user.profile_picture_url} src={@user.profile_picture_url} alt="User Profile Picture" class="w-full h-full object-cover rounded-full" />
+        <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+          {user.name}
+          <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+        </div>
+      </div>
+    </div>
+    <.button :if={@pinned?} aria-label="Unpin device" style="primary" phx-click="unpin">
+      <.icon name="pinned" />
+    </.button>
+    <.button :if={!@pinned?} aria-label="Pin device" style="secondary" phx-click="pin">
+      <.icon name="unpinned" />
+    </.button>
+    <.button aria-label="Reboot device" style="secondary" phx-click="reboot" data-confirm="Are you sure you want to reboot the device?" disabled={disconnected?(@device_connection)}>
+      <.icon name="power" />Reboot
+    </.button>
+
+    <.button aria-label="Reconnect device" style="secondary" phx-click="reconnect" disabled={disconnected?(@device_connection)}>
+      <.icon name="connection" />Reconnect
+    </.button>
+
+    <.button aria-label="Identify device" style="secondary" phx-click="identify" disabled={disconnected?(@device_connection)}>
+      <.icon name="identify" />Identify
+    </.button>
   </div>
 </div>
 
-<div class="action-row mb-1">
-  <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="back-link">
-    All Devices
-  </.link>
-  <div class="btn-group" role="group" aria-label="Device Actions">
-    <%= if @device.deleted_at do %>
-      <button class="btn btn-outline-light btn-action" aria-label="Restore" type="button" phx-click="restore">
-        <span class="button-icon power"></span>
-        <span class="action-text">Restore</span>
-      </button>
-      <button class="btn btn-outline-light btn-action btn-primary" aria-label="Destroy" type="button" phx-click="destroy" data-confirm="Are you sure?">
-        <span class="button-icon delete"></span>
-        <span class="action-text">Destroy</span>
-      </button>
-    <% else %>
-      <button class={["btn btn-outline-light btn-action", disconnected?(@device_connection) && "disabled"]} aria-label="Reboot device" type="button" phx-click="reboot" data-confirm="Are you sure?">
-        <span class="button-icon power"></span>
-        <span class="action-text">Reboot</span>
-      </button>
-      <button class={["btn btn-outline-light btn-action", disconnected?(@device_connection) && "disabled"]} aria-label="Reconnect device" type="button" phx-click="reconnect">
-        <span class="button-icon reconnect"></span>
-        <span class="action-text">Reconnect</span>
-      </button>
-      <button class={["btn btn-outline-light btn-action", disconnected?(@device_connection) && "disabled"]} aria-label="Identify device" type="button" phx-click="identify">
-        <span class="button-icon identify"></span>
-        <span class="action-text">Identify</span>
-      </button>
+<div class="h-0 flex-1 overflow-y-auto flex flex-col">
+  <FwupProgress.updated_render :if={@fwup_progress} fwup_progress={@fwup_progress} />
 
-      <%= link(class: "btn btn-outline-light btn-action #{unless (@console_online.ok? && @console_online.result), do: "disabled"}", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
-        <span class="button-icon console-icon"></span>
-        <span class="action-text">Console</span>
-      <% end %>
-      <button
-        class="btn btn-outline-light btn-action"
-        aria-label={if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}
-        type="button"
-        phx-click="toggle-deployment-firmware-updates"
+  <div :if={@device.deleted_at} class="flex items-center justify-center p-4 bg-red-100 h-[89px] shrink-0">
+    <div class="font-medium text-red-500">
+      Device is deleted and must be restored to use.
+    </div>
+  </div>
+
+  <div class="h-[89px] shrink-0 flex justify-between p-6">
+    <div class="flex gap-3 items-center">
+      <svg
+        data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
+        class="h-3 w-3 data-[connection-status=connecting]:fill-indigo-500 data-[connection-status=connecting]:animate-pulse data-[connection-status=connected]:fill-emerald-500 data-[connection-status=disconnected]:fill-zinc-500 data-[connection-status=unknown]:fill-zinc-500"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 6 6"
+        fill="currentColor"
       >
-        <span class="button-icon firmware-disabled"></span>
-        <span class="action-text">{if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}</span>
-      </button>
-      <button class={["btn btn-outline-light btn-action", @org_user.role == :view && "disabled"]} aria-label="Delete" type="button" phx-click="delete" data-confirm="Are you sure?">
-        <span class="button-icon delete"></span>
-        <span class="action-text">Delete</span>
-      </button>
-      <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"} class="btn btn-outline-light btn-action" aria-label="Edit">
-        <span class="button-icon edit"></span>
-        <span class="action-text">Settings</span>
-      </.link>
-    <% end %>
-  </div>
-</div>
-
-<DeviceHeader.render org={@org} product={@product} device={@device} device_connection={@device_connection} />
-
-<FwupProgress.render :if={assigns.fwup_progress} fwup_progress={@fwup_progress} />
-
-<div class="divider mt-3 mb-4"></div>
-
-<div class="row">
-  <div class="col-lg-6">
-    <div>
-      <h3 class="mb-2">Information</h3>
-      <!-- Show if device has overridden any product-level extensions by disabling them -->
-      <div :if={@extension_overrides != []} class="display-box">
-        <div class="help-text mb-1">Extensions</div>
-        Device has disabled extensions: {Enum.join(@extension_overrides, ", ")}
-      </div>
-
-      <div class="display-box">
-        <div class="help-text mb-1">Tags</div>
-        <p :if={is_nil(@device.tags)}>No Tags</p>
-        <span :for={tag <- @device.tags || []} class="badge">{tag}</span>
-      </div>
-
-      <DeviceLocation.render :if={@product.extensions.geo and @device.extensions.geo} location={fetch_location(@device.latest_connection)} />
-
-      <%= if !Enum.empty?(@metadata) do %>
-        <h3 class="mb-2">Metadata</h3>
-        <div class="display-box metrics">
-          <div :for={{key, value} <- @metadata} class="display-box-item">
-            <div :if={value != ""} class="help-text">{key |> String.replace("_", " ") |> String.capitalize()}</div>
-            <p>{value}</p>
-          </div>
-        </div>
-      <% end %>
+        <circle cx="3" cy="3" r="3" />
+      </svg>
+      <h1 class="text-xl font-semibold leading-[30px] text-zinc-50 font-mono">
+        {@device.identifier}
+      </h1>
     </div>
 
-    <div>
-      <h3 class="mb-2">First Connect Code</h3>
-      <%= if code = connecting_code(@device) do %>
-        <pre class="hljs"><code class="hljs elixir" phx-hook="HighlightCode" id={"connecting-code-#{@device.id}"}><%= code %></code></pre>
-      <% else %>
-        <div class="display-box">
-          No code sent
-        </div>
-      <% end %>
-    </div>
+    <div class="flex items-center gap-2">
+      <div :if={show_firmware_status_box(@device)} class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+        <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Firmware:</span>
 
-    <div :if={@scripts != []}>
-      <h3 class="mb-2">Support Scripts</h3>
+        <span :if={@device.firmware_validation_status == :validated && !@device.firmware_auto_revert_detected} class="text-sm text-base-300 font-mono">Validated</span>
 
-      <div class="display-box">
-        <div :for={{script, idx} <- @scripts} class="mb-2 pb-2 border-bottom border-dark">
-          <div class="flex-row align-items-center justify-content-between">
-            <div>{script.name}</div>
-            <button class="btn btn-secondary" disabled={script.output == running_script_placeholder()} phx-click={if script.output, do: "clear-script-output", else: "run-script"} phx-value-idx={idx}>
-              {script_button_text(script.output)}
+        <span :if={@device.firmware_validation_status == :not_validated} class="text-sm text-red-300 font-mono">Not validated</span>
+
+        <span :if={@device.firmware_auto_revert_detected} class="text-sm text-red-300 font-mono">Revert detected</span>
+      </div>
+
+      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+        <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Version:</span>
+
+        <span :if={is_nil(@device.firmware_metadata)} class="text-sm text-base-300 font-mono">Unknown</span>
+
+        <.link :if={@device.firmware_metadata} navigate={~p"/org/#{@org}/#{@product}/firmware/#{@device.firmware_metadata.uuid}"} class="flex items-center">
+          <span class="text-sm text-base-300 mr-1 font-mono">{@device.firmware_metadata.version} ({String.slice(@device.firmware_metadata.uuid, 0..7)})</span>
+          <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M8 10V8M8 6V5.99333M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
+              stroke="#A1A1AA"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </.link>
+      </div>
+
+      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+        <span class="text-sm text-zinc-400 hidden lg:block">Firmware updates:</span>
+        <%= cond do %>
+          <% is_nil(@device.deployment_id) -> %>
+            <span class="ml-2 mr-1 text-sm text-base-300">N/A</span>
+          <% Devices.device_in_penalty_box?(@device) -> %>
+            <div class="relative z-20" id={"update-status-#{@device.id}"} phx-hook="ToolTip" data-placement="left">
+              <svg class="mx-2 size-4 stroke-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900">
+                Updates blocked {DeviceUpdateStatus.friendly_blocked_until(@device.updates_blocked_until)}
+                <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              phx-click="clear-penalty-box"
+              class={[
+                "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
+                "bg-amber-500"
+              ]}
+              role="switch"
+              aria-checked="false"
+            >
+              <span
+                aria-hidden="true"
+                class={[
+                  "pointer-events-none inline-block size-3",
+                  "translate-x-0",
+                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                ]}
+              >
+              </span>
             </button>
-          </div>
-          <div :if={script.output} class="mt-2">
-            <code class="alarms-description color-white wb-ba ff-m">{script.output}</code>
-          </div>
-        </div>
-        <div class="text-right">
-          <.link navigate={~p"/org/#{@org}/#{@product}/scripts"}>
-            Add and edit scripts
-          </.link>
-        </div>
-      </div>
-    </div>
-  </div>
+          <% @device.updates_enabled == false -> %>
+            <svg class="mx-2 size-4 stroke-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
 
-  <div class="col-lg-6">
-    <div :if={@product.extensions.health and @device.extensions.health} class="device-health-section">
-      <div class="device-header-group justify-content-between">
-        <h3 class="mb-2">Health</h3>
+            <button
+              type="button"
+              phx-click="toggle-deployment-firmware-updates"
+              class={[
+                "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
+                "bg-red-500"
+              ]}
+              role="switch"
+              aria-checked="false"
+            >
+              <span
+                aria-hidden="true"
+                class={[
+                  "pointer-events-none inline-block size-3",
+                  "translate-x-0",
+                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                ]}
+              >
+              </span>
+            </button>
+          <% true -> %>
+            <svg class="mx-2 size-4 stroke-emerald-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M5.99992 8L7.33325 9.33333L9.99992 6M7.99992 14C7.99992 14 12.6666 12 12.6666 9.33333V3.33333C11.6666 3.44444 9.33325 3.33333 7.99992 2C6.66659 3.33333 4.33325 3.44444 3.33325 3.33333V9.33333C3.33325 12 7.99992 14 7.99992 14Z"
+                stroke-width="1.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
 
-        <button
-          class="btn btn-outline-light btn-action"
-          aria-label={if @health_check_timer, do: "Disable Auto Refresh", else: "Enable Auto Refresh"}
-          type="button"
-          phx-click="toggle-health-check-auto-refresh"
-        >
-          <span :if={@health_check_timer} class="action-text">Disable Auto Refresh</span>
-          <span :if={!@health_check_timer} class="action-text">Enable Auto Refresh</span>
-        </button>
-      </div>
-
-      <%= if (Enum.empty?(@latest_metrics) and is_nil(@alarms) )do %>
-        <div class="display-box">
-          No health information has been received for this device.
-        </div>
-      <% end %>
-      <div>
-        <div class="device-health current-alarms">
-          <div class="callout">
-            <%= if @alarms do %>
-              <div class="help-text label">Active Alarms</div>
-              <div :for={{{alarm, description}, index} <- Enum.with_index(@alarms)}>
-                <div>
-                  <span phx-click={JS.toggle_class("hidden", to: "#alarm-#{index}")} class={"badge #{if has_description?(description), do: "alarm-clickable"}"}>{alarm}</span>
-                </div>
-                <code :if={has_description?(description)} id={"alarm-#{index}"} class="hidden alarms-description color-white wb-ba ff-m">{description}</code>
-              </div>
-            <% else %>
-              <div class="help-text label">No active alarms</div>
-            <% end %>
-          </div>
-        </div>
-        <%= if (Enum.any?(Map.values(@latest_metrics))) do %>
-          <div class="device-health">
-            <%!-- Display CPU load averages as a group. --%>
-            <div :if={@latest_metrics["load_1min"]} class="callout">
-              <div class="help-text label">Load avg</div>
-              {@latest_metrics["load_1min"]} | {@latest_metrics["load_5min"]} | {@latest_metrics["load_15min"]}
-            </div>
-            <%!--Show CPU and memory usage if reported. Higher values will be displayed in warningly colors. --%>
-            <%= if @latest_metrics["cpu_usage_percent"] do %>
-              <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["cpu_usage_percent"])}"}>
-                <div class="help-text label">CPU use</div>
-                {round(@latest_metrics["cpu_usage_percent"])}%
-              </div>
-            <% end %>
-            <%= if @latest_metrics["cpu_temp"] do %>
-              <div class={"callout #{Utils.cpu_temp_to_status(@latest_metrics["cpu_temp"])}"}>
-                <div class="help-text label">CPU temp</div>
-                {round(@latest_metrics["cpu_temp"])}°
-              </div>
-            <% end %>
-            <%= if @latest_metrics["mem_used_mb"] do %>
-              <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["mem_used_percent"])}"}>
-                <div class="help-text label">Memory used</div>
-                {round(@latest_metrics["mem_used_mb"])}MB ({round(@latest_metrics["mem_used_percent"])}%)
-              </div>
-            <% end %>
-            <%= if @latest_metrics["disk_available_kb"] do %>
-              <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["disk_used_percentage"])}"}>
-                <div class="help-text label">Disk used</div>
-                {Utils.disk_usage(@latest_metrics)}
-              </div>
-            <% end %>
-            <%!--Display custom metrics, if any. Filters out "timestamp" key.--%>
-            <%= for {key, val} <- @latest_metrics do %>
-              <div :if={key not in Metrics.default_metrics() and key != "timestamp"} class="callout">
-                <div class="help-text label">{format_key(key)}</div>
-                {val}
-              </div>
-            <% end %>
-          </div>
-
-          <div class="flex-row justify-content-between">
-            <div class="last-report">
-              <span class="label pr-1">Last reported :</span>
-              <time id="health-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
-                {Timex.from_now(@latest_metrics["timestamp"])}
-              </time>
-            </div>
-            <div>
-              <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{@device}/health"}>
-                Full metrics
-              </.link>
-            </div>
-          </div>
+            <button
+              type="button"
+              phx-click="toggle-deployment-firmware-updates"
+              class={[
+                "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
+                "bg-emerald-500"
+              ]}
+              role="switch"
+              aria-checked="false"
+            >
+              <span
+                aria-hidden="true"
+                class={[
+                  "pointer-events-none inline-block size-3",
+                  "translate-x-3",
+                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                ]}
+              >
+              </span>
+            </button>
         <% end %>
       </div>
     </div>
+  </div>
 
-    <div>
-      <h3 class="mb-2">Deployment Group</h3>
-      <div class="display-box">
-        <div :if={@device.deployment_id}>
-          <div class="help-text mb-1">
-            Assigned Deployment Group
-          </div>
-          <div :if={@deployment_group} class="d-flex flex-row">
-            <div class="mr-1">
-              <.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}"} class="badge">
-                <div class={"deployment-group-state state-#{if @deployment_group.is_active, do: "on", else: "off"}"}>{@deployment_group.name}</div>
-              </.link>
-            </div>
-            <div>
-              <button
-                class="btn btn-sm btn-primary btn-action help-text tooltip-label help-tooltip mt-1 mb-1 pt-1 pb-1"
-                phx-click="remove-from-deployment-group"
-                data-confirm="Are you sure you want to remove this device from its deployment?"
-              >
-                <span class="button-icon delete"></span>
-                <span class="tooltip-text ml-1">Remove this device from the assigned Deployment Group.</span>
-              </button>
-            </div>
-          </div>
-          <div :if={@device.status == :registered} class="mt-1">
-            Device will be removed from the deployment group upon connection if the arch and platform doesn't match.
-          </div>
-          <span :if={is_nil(@deployment_group)} class="color-white-50">No Assigned Deployment Group</span>
-        </div>
-
-        <div :if={Enum.empty?(@deployment_groups) && is_nil(@device.deployment_id) && @device.status == :provisioned}>
-          No Eligible Deployment Groups
-        </div>
-
-        <div :if={Enum.any?(@deployment_groups) && is_nil(@device.deployment_id)}>
-          <div class="help-text mb-1">
-            {if @device.status == :provisioned, do: "Eligible Deployment Groups", else: "Product Deployment Groups"}
-          </div>
-          <form phx-submit="set-deployment-group">
-            <div class="flex-row justify-content-between">
-              <select name="deployment_id" class="form-control">
-                <option value="">Select a deployment</option>
-                <%= for deployment_group <- @deployment_groups do %>
-                  <option value={deployment_group.id}>{deployment_group.name} - {deployment_group.firmware.platform}, {deployment_group.firmware.architecture}</option>
-                <% end %>
-              </select>
-              <button class="btn btn-secondary ml-2">Set</button>
-            </div>
-          </form>
-        </div>
-
-        <div :if={@update_information.update_available && @device.deployment_id} class="mt-4">
-          <div class="help-text mb-1 tooltip-label help-tooltip">
-            <span>Update available</span>
-            <span class="tooltip-info"></span>
-            <span class="tooltip-text">An update is available in the assigned deployment group. You can skip the queue by clicking "Send available update".</span>
-          </div>
-          <form id="available_update_form" phx-submit="push-available-update">
-            <div class="flex-row justify-content-between">
-              <button class="btn btn-secondary">Send available update</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="mt-4">
-          <div class="help-text mb-1 tooltip-label help-tooltip">
-            <span>Send update</span>
-            <span class="tooltip-info"></span>
-            <span class="tooltip-text">Push a specific version of firmware to a device. This disables updates to prevent a deployment pushing an update on reconnect.</span>
-          </div>
-          <form :if={Enum.any?(@firmwares)} phx-submit="push-update">
-            <div class="flex-row justify-content-between">
-              <select name="uuid" class="form-control">
-                <option value="">Select a version</option>
-                <%= for firmware <- @firmwares do %>
-                  <option value={firmware.uuid}>{firmware.version}</option>
-                <% end %>
-              </select>
-              <button class="btn btn-secondary ml-2">Send</button>
-            </div>
-          </form>
-          <div :if={Enum.empty?(@firmwares)} class="color-white-50">
-            No firmware is available for this device.
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <div class="device-header-group justify-content-between">
-        <h3 class="mb-2">Latest Activity</h3>
-
-        <a
-          class="btn btn-outline-light btn-action"
-          title="Download Audit Logs"
-          aria-label="Download Audit Logs"
-          href={Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, @device.identifier)}
-        >
-          <div class="button-icon download"></div>
-        </a>
-      </div>
-
-      <AuditLogFeed.render audit_logs={@audit_logs} audit_pager={@audit_pager} />
+  <div class="flex w-full justify-between px-6 border-b border-zinc-700">
+    <div class="flex">
+      <.link class={tab_classes(@tab, :details)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}"}>
+        Details
+      </.link>
+      <.link class={tab_classes(@tab, :health)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/health"}>
+        Health
+      </.link>
+      <.link class={tab_classes(@tab, :console)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/console"}>
+        Console
+      </.link>
+      <.link :if={analytics_enabled?()} class={tab_classes(@tab, :logs)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"}>
+        Logs
+      </.link>
+      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"}>
+        Activity
+      </.link>
+      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"}>
+        Settings
+      </.link>
     </div>
   </div>
+
+  <.render_tab {assigns} />
 </div>

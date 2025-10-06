@@ -85,7 +85,7 @@ defmodule NervesHubWeb do
 
   defp live_view_setup() do
     quote do
-      use NervesHubWeb.LiveView,
+      use Phoenix.LiveView,
         layout: {NervesHubWeb.LayoutView, :live},
         container: {:div, class: "h-screen"}
 
@@ -142,23 +142,15 @@ defmodule NervesHubWeb do
   defp tab_component_functions() do
     quote do
       defp setup_tab_components(socket, tabs \\ []) do
-        if socket.assigns[:new_ui] do
-          tabs
-          |> Enum.reduce(socket, fn component, socket -> component.connect(socket) end)
-          |> put_private(:tabs, tabs)
-        else
-          socket
-        end
+        tabs
+        |> Enum.reduce(socket, fn component, socket -> component.connect(socket) end)
+        |> put_private(:tabs, tabs)
       end
 
       defp update_tab_component_hooks(socket) do
-        if socket.assigns[:new_ui] do
-          socket
-          |> detach_hooks()
-          |> attach_hooks()
-        else
-          socket
-        end
+        socket
+        |> detach_hooks()
+        |> attach_hooks()
       end
 
       defp detach_hooks(socket) do

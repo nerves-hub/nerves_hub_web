@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
     {:ok, lv, html} = live(conn, "/org/#{org.name}/#{product.name}/devices")
 
-    assert html =~ "Loading devices..."
+    assert html =~ "Loading..."
 
     assert render_async(lv) =~ device.identifier
   end
@@ -30,12 +30,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "2 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("Show Filters")
-      |> fill_in("ID", with: device.identifier)
-      |> assert_has("div", text: "1 devices found", timeout: 1_000)
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> fill_in("Identifier", with: device.identifier)
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
       |> refute_has("div a", text: device2.identifier)
     end
@@ -49,9 +49,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("Show Filters")
-      |> fill_in("ID", with: "foo")
-      |> assert_has("div", text: "0 devices found", timeout: 1000)
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> fill_in("Identifier", with: "foo")
+      |> assert_has("#device-count", text: "0", timeout: 1000)
     end
 
     test "filters devices by prefix identifier", %{conn: conn, fixture: fixture} do
@@ -60,9 +60,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      |> click_button("Show Filters")
-      |> fill_in("ID", with: "device-")
-      |> assert_has("div", text: "1 devices found", timeout: 1000)
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> fill_in("Identifier", with: "device-")
+      |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
     end
 
@@ -74,9 +74,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      |> click_button("Show Filters")
-      |> fill_in("ID", with: just_the_tail)
-      |> assert_has("div", text: "1 devices found", timeout: 1000)
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> fill_in("Identifier", with: just_the_tail)
+      |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
     end
 
@@ -86,9 +86,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      |> click_button("Show Filters")
-      |> fill_in("ID", with: "ice-")
-      |> assert_has("div", text: "1 devices found", timeout: 1000)
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> fill_in("Identifier", with: "ice-")
+      |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
     end
 
@@ -99,15 +99,15 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "2 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("Show Filters")
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
       |> fill_in("Tags", with: "filter-test-no-show")
-      |> assert_has("div", text: "0 devices found", timeout: 1_000)
+      |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
       |> fill_in("Tags", with: "filter-test")
-      |> assert_has("div", text: "1 devices found", timeout: 1_000)
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
     end
 
@@ -125,26 +125,26 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "2 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("Show Filters")
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
       |> select("Metrics", option: "cpu_temp")
       |> assert_has("label", text: "Operator", timeout: 1000)
-      |> select("Operator", option: "Greater Than")
-      |> assert_has("label", text: "Value", timeout: 1000)
-      |> fill_in("Value", with: "37")
+      |> select("Metrics Operator", option: "Greater Than")
+      |> assert_has("label", text: "Metrics Value", timeout: 1000)
+      |> fill_in("Metrics Value", with: "37")
       # Show only show device2, which has a value greater than 37 on most recent cpu_temp metric.
-      |> assert_has("div", text: "1 devices found", timeout: 1_000)
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device.identifier)
       |> select("Metrics", option: "cpu_temp")
       |> assert_has("label", text: "Operator", timeout: 1000)
-      |> select("Operator", option: "Less than")
-      |> assert_has("label", text: "Value", timeout: 1000)
-      |> fill_in("Value", with: "37")
+      |> select("Metrics Operator", option: "Less Than")
+      |> assert_has("label", text: "Metrics Value", timeout: 1000)
+      |> fill_in("Metrics Value", with: "37")
       # Should not show any device since the query is for values less than 37
-      |> assert_has("div", text: "0 devices found", timeout: 1_000)
+      |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device.identifier)
     end
@@ -157,18 +157,18 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "2 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("Show Filters")
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
       |> fill_in("Tags", with: "filter-test-no-show")
-      |> assert_has("div", text: "0 devices found", timeout: 1_000)
+      |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
       |> fill_in("Tags", with: "filter-test")
-      |> assert_has("div", text: "1 devices found", timeout: 1_000)
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
       |> fill_in("Tags", with: "filter-test, test-filter")
-      |> assert_has("div", text: "1 devices found", timeout: 1_000)
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
     end
 
@@ -181,9 +181,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("Show Filters")
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
       |> fill_in("Tags", with: "does_not_matter")
-      |> assert_has("div", text: "0 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "0", timeout: 1000)
       |> refute_has("div a", text: device2.identifier)
     end
 
@@ -195,13 +195,13 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "3 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "3", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
       |> assert_has("div a", text: device3.identifier)
-      |> click_button("Show Filters")
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
       |> select("Untagged", option: "Only untagged")
-      |> assert_has("div", text: "1 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device3.identifier)
     end
@@ -216,12 +216,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "2 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("Show Filters")
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
       |> select("Alarm Status", option: "Has Alarms")
-      |> assert_has("div", text: "1 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> refute_has("div a", text: device2.identifier)
     end
@@ -236,12 +236,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "2 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("Show Filters")
-      |> select("Alarm Status", option: "No alarms")
-      |> assert_has("div", text: "1 devices found", timeout: 1000)
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> select("Alarm Status", option: "No Alarms")
+      |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device.identifier)
     end
@@ -257,13 +257,13 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "2 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("Show Filters")
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
       |> select("Alarm", option: alarm)
       |> assert_path(device_index_path(fixture), query_params: %{alarm: alarm})
-      |> assert_has("div", text: "1 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> refute_has("div a", text: device2.identifier)
     end
@@ -284,12 +284,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "2 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("Show Filters")
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
       |> select("Deployment Group", option: deployment_group.name)
-      |> assert_has("div", text: "1 devices found", timeout: 1_000)
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
       |> refute_has("div a", text: device2.identifier)
     end
@@ -299,10 +299,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("span", text: "Show Filters", timeout: 1000)
-      |> click_button("Show Filters")
+      |> assert_has("button", text: "Filters", timeout: 1000)
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
       |> select("Deployment Group", option: "All")
-      |> assert_has("div", text: "1 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "1", timeout: 1000)
     end
 
     test "select device", %{conn: conn, fixture: fixture} do
@@ -313,10 +313,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "3 devices found", timeout: 1000)
-      |> refute_has("div", text: "(1 selected)")
-      |> check("Select device #{device2.identifier}")
-      |> assert_has("div", text: "(1 selected)")
+      |> assert_has("#device-count", text: "3", timeout: 1000)
+      |> refute_has("h4", text: "1 device selected")
+      |> check("input#checkbox-device-#{device2.id}", "")
+      |> assert_has("h4", text: "1 device selected")
     end
 
     test "select/deselect all devices", %{conn: conn, fixture: fixture} do
@@ -327,13 +327,13 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "3 devices found", timeout: 1000)
+      |> assert_has("#device-count", text: "3", timeout: 1000)
       |> check("Select all devices")
-      |> assert_has("div", text: "3 devices found")
-      |> assert_has("div", text: "(3 selected)")
+      |> assert_has("#device-count", text: "3")
+      |> assert_has("h4", text: "3 devices selected")
       |> uncheck("Select all devices")
-      |> assert_has("div", text: "3 devices found")
-      |> refute_has("div", text: "selected)")
+      |> assert_has("#device-count", text: "3")
+      |> refute_has("h4", text: "devices selected")
     end
   end
 
@@ -349,47 +349,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> unwrap(fn view ->
         render_change(view, "select", %{"id" => device.id})
       end)
-      |> fill_in("Set tag(s) to:", with: "moussaka")
+      |> fill_in("Set tags", with: "moussaka")
       |> click_button("Set")
       |> assert_has("span", text: "moussaka", timeout: 1_000)
-    end
-
-    test "add multiple devices to deployment in old UI",
-         %{conn: conn, fixture: fixture} do
-      %{
-        device: device,
-        org: org,
-        product: product,
-        firmware: firmware,
-        deployment_group: deployment_group
-      } = fixture
-
-      device2 = Fixtures.device_fixture(org, product, firmware)
-      Endpoint.subscribe("device:#{device2.id}")
-
-      refute device.deployment_id
-      refute device2.deployment_id
-
-      conn
-      |> visit(device_index_path(fixture))
-      |> assert_has("div", text: "2 devices found", timeout: 1000)
-      |> click_button("Show Filters")
-      |> select("Platform", option: deployment_group.firmware.platform)
-      |> assert_has("div", text: "2 devices found", timeout: 1_000)
-      |> check("Select all devices")
-      |> assert_has("span", text: "2 selected")
-      |> select("Move device(s) to deployment group:",
-        option: deployment_group.name,
-        exact_option: false
-      )
-      |> click_button("#move-deployment-group-submit", "Move")
-      |> assert_has("div", text: "2 devices added to deployment")
-
-      assert_receive %{event: "updated"}
-      assert_receive %{event: "updated"}
-
-      assert Repo.reload(device) |> Map.get(:deployment_id)
-      assert Repo.reload(device2) |> Map.get(:deployment_id)
     end
   end
 

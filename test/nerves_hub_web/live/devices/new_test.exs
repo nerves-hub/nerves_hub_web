@@ -9,14 +9,14 @@ defmodule NervesHubWeb.Live.Devices.NewTest do
       |> click_button("Add Device")
       |> assert_path("/org/#{org.name}/#{product.name}/devices/new")
       |> assert_has("div", text: "Failed to add new device.")
-      |> assert_has(".help-block", text: "can't be blank")
+      |> assert_has("p", text: "can't be blank")
     end
 
     test "creates a device with just an identifier", %{conn: conn, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/new")
       |> assert_has("h1", text: "Add Device")
-      |> fill_in("ID", with: "aaabbbccc111222333")
+      |> fill_in("Identifier", with: "aaabbbccc111222333")
       |> click_button("Add Device")
       |> assert_path("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("div", text: "Device created successfully.")
@@ -27,7 +27,7 @@ defmodule NervesHubWeb.Live.Devices.NewTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/new")
       |> assert_has("h1", text: "Add Device")
-      |> fill_in("ID", with: "aaabbbccc111222333")
+      |> fill_in("Identifier", with: "aaabbbccc111222333")
       |> fill_in("Tags", with: "josh, lars")
       |> click_button("Add Device")
       |> assert_path("/org/#{org.name}/#{product.name}/devices")

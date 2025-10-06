@@ -10,7 +10,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("h3", text: "#{product.name} doesn’t have any firmware yet")
+      |> assert_has("span", text: "#{product.name} doesn’t have any firmware yet")
     end
 
     test "lists all firmwares", %{conn: conn, user: user, org: org} do
@@ -23,41 +23,6 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("h1", text: "Firmware")
       |> assert_has("a", text: firmware.uuid)
     end
-
-    test "delete firmware from list", %{conn: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("h1", text: "Firmware")
-      |> assert_has("a", text: firmware.uuid)
-      |> click_link("Delete")
-      |> assert_has("div", text: "Firmware successfully deleted")
-      |> assert_has("h3", text: "#{product.name} doesn’t have any firmware yet")
-    end
-
-    test "error deleting firmware when it has associated deployments", %{
-      conn: conn,
-      user: user,
-      org: org
-    } do
-      product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-
-      # Create a deployment from the firmware
-      Fixtures.deployment_group_fixture(org, firmware)
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("h1", text: "Firmware")
-      |> assert_has("a", text: firmware.uuid)
-      |> click_link("Delete")
-      |> assert_path("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("div", text: "Firmware has associated deployments")
-    end
   end
 
   describe "show" do
@@ -68,7 +33,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
-      |> assert_has("h1", text: "Firmware #{firmware.version}")
+      |> assert_has("h1", text: firmware.uuid)
     end
 
     test "delete firmware", %{conn: conn, user: user, org: org} do
@@ -78,11 +43,11 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
-      |> assert_has("h1", text: "Firmware #{firmware.version}")
-      |> click_link("Delete")
+      |> assert_has("h1", text: firmware.uuid)
+      |> click_button("Delete")
       |> assert_path("/org/#{org.name}/#{product.name}/firmware")
       |> assert_has("div", text: "Firmware successfully deleted")
-      |> assert_has("h3", text: "#{product.name} doesn’t have any firmware yet")
+      |> assert_has("span", text: "#{product.name} doesn’t have any firmware yet")
     end
 
     test "error deleting firmware when it has associated deployments", %{
@@ -99,8 +64,8 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
-      |> assert_has("h1", text: "Firmware #{firmware.version}")
-      |> click_link("Delete")
+      |> assert_has("h1", text: firmware.uuid)
+      |> click_button("Delete")
       |> assert_path("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
       |> assert_has("div", text: "Firmware has associated deployments")
     end
@@ -123,19 +88,8 @@ defmodule NervesHubWeb.Live.FirmwareTest do
         })
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/firmware/upload")
-      |> assert_has("h1", text: "Add Firmware")
-      |> unwrap(fn view ->
-        file_input(view, "form", :firmware, [
-          %{
-            name: "signed.fw",
-            content: File.read!(signed_firmware_path)
-          }
-        ])
-        |> render_upload("signed.fw")
-
-        render(view)
-      end)
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> upload("Upload Firmware", signed_firmware_path)
       |> assert_path("/org/#{org.name}/#{product.name}/firmware")
       |> assert_has("div", text: "Firmware uploaded")
       |> assert_has("h1", text: "Firmware")
@@ -159,20 +113,9 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       {:ok, corrupt_firmware_path} = Fwup.corrupt_firmware_file(signed_firmware_path, tmp_dir)
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/firmware/upload")
-      |> assert_has("h1", text: "Add Firmware")
-      |> unwrap(fn view ->
-        file_input(view, "form", :firmware, [
-          %{
-            name: "signed.fw",
-            content: File.read!(corrupt_firmware_path)
-          }
-        ])
-        |> render_upload("signed.fw")
-
-        render(view)
-      end)
-      |> assert_path("/org/#{org.name}/#{product.name}/firmware/upload")
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> upload("Upload Firmware", corrupt_firmware_path)
+      |> assert_path("/org/#{org.name}/#{product.name}/firmware")
       |> assert_has("div", text: "Firmware corrupt, signature invalid, or missing public key")
     end
 
@@ -193,20 +136,9 @@ defmodule NervesHubWeb.Live.FirmwareTest do
         })
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/firmware/upload")
-      |> assert_has("h1", text: "Add Firmware")
-      |> unwrap(fn view ->
-        file_input(view, "form", :firmware, [
-          %{
-            name: "signed.fw",
-            content: File.read!(signed_firmware_path)
-          }
-        ])
-        |> render_upload("signed.fw")
-
-        render(view)
-      end)
-      |> assert_path("/org/#{org.name}/#{product.name}/firmware/upload")
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> upload("Upload Firmware", signed_firmware_path)
+      |> assert_path("/org/#{org.name}/#{product.name}/firmware")
       |> assert_has("div", text: "Firmware corrupt, signature invalid, or missing public key")
     end
 
@@ -226,20 +158,9 @@ defmodule NervesHubWeb.Live.FirmwareTest do
         })
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/firmware/upload")
-      |> assert_has("h1", text: "Add Firmware")
-      |> unwrap(fn view ->
-        file_input(view, "form", :firmware, [
-          %{
-            name: "signed.fw",
-            content: File.read!(signed_firmware_path)
-          }
-        ])
-        |> render_upload("signed.fw")
-
-        render(view)
-      end)
-      |> assert_path("/org/#{org.name}/#{product.name}/firmware/upload")
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> upload("Upload Firmware", signed_firmware_path)
+      |> assert_path("/org/#{org.name}/#{product.name}/firmware")
       |> assert_has("div", text: "No matching product could be found.")
     end
   end

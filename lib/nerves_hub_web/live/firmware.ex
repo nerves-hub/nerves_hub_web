@@ -37,13 +37,7 @@ defmodule NervesHubWeb.Live.Firmware do
       progress: &handle_progress/3
     )
     |> assign_firmware_with_pagination()
-    |> then(fn socket ->
-      if Application.get_env(:nerves_hub, :new_ui) && socket.assigns[:new_ui] do
-        render_with(socket, &list_firmware_template_new/1)
-      else
-        render_with(socket, &list_firmware_template/1)
-      end
-    end)
+    |> render_with(&list_firmware_template/1)
   end
 
   defp apply_action(%{assigns: %{product: product}} = socket, :show, %{"firmware_uuid" => firmware_uuid}) do
@@ -53,28 +47,7 @@ defmodule NervesHubWeb.Live.Firmware do
     |> page_title("Firmware #{firmware_uuid} - #{product.name}")
     |> assign(:firmware, firmware)
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
-    |> then(fn socket ->
-      if Application.get_env(:nerves_hub, :new_ui) && socket.assigns[:new_ui] do
-        render_with(socket, &show_firmware_template_new/1)
-      else
-        render_with(socket, &show_firmware_template/1)
-      end
-    end)
-  end
-
-  defp apply_action(%{assigns: %{product: product}} = socket, :upload, _params) do
-    socket
-    |> page_title("Upload Firmware - #{product.name}")
-    |> assign(:error_message, nil)
-    |> assign(:error_code, nil)
-    |> allow_upload(:firmware,
-      accept: ~w(.fw),
-      max_entries: 1,
-      auto_upload: true,
-      max_file_size: max_file_size(),
-      progress: &handle_progress/3
-    )
-    |> render_with(&upload_firmware_template/1)
+    |> render_with(&show_firmware_template/1)
   end
 
   # A phx-change handler is required when using live uploads.

@@ -772,12 +772,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
-  def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
-    latest_metrics = Metrics.get_latest_metric_set(device.id)
-
-    socket
-    |> assign(:latest_metrics, latest_metrics)
-    |> assign_metadata()
+  def hooked_info(:platform_or_architecture_updated, %{assigns: %{device: device}} = socket) do
+    assign(socket, :firmwares, Firmwares.get_firmware_for_device(device))
     |> halt()
   end
 
@@ -787,6 +783,15 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     socket
     |> assign(:firmwares, firmware)
     |> put_flash(:info, "New firmware available for selection")
+    |> halt()
+  end
+
+  def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
+    latest_metrics = Metrics.get_latest_metric_set(device.id)
+
+    socket
+    |> assign(:latest_metrics, latest_metrics)
+    |> assign_metadata()
     |> halt()
   end
 

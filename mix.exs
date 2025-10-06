@@ -15,6 +15,7 @@ defmodule NervesHub.MixProject do
       ],
       elixirc_paths: elixirc_paths(Mix.env()),
       elixir: "~> 1.18.0",
+      listeners: [Phoenix.CodeReloader],
       releases: [
         nerves_hub: [
           steps: [:assemble],

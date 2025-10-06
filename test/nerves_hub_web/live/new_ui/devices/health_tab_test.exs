@@ -18,9 +18,9 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     "mem_used_percent" => 2
   }
 
-  setup %{conn: conn, device: device} do
+  setup %{device: device} = context do
     Endpoint.subscribe("device:#{device.id}")
-    [conn: init_test_session(conn, %{"new_ui" => true})]
+    context
   end
 
   test "assert page render when no health exist for device", %{
@@ -30,7 +30,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     device: device
   } do
     conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/healthz")
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     |> assert_has("div", text: "Health over time")
     |> assert_has("span", text: "No metrics for the selected period")
   end
@@ -44,7 +44,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     assert {7, _} = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/healthz")
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     # Six of the default metric types are shown as charts
     |> assert_has("canvas", count: 6)
     # Charts should be displayed for all time frames
@@ -74,7 +74,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     _ = save_metrics_with_timestamp(device.id, timestamp)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/healthz")
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     # Default time frame is 1 hour, so no charts are expected.
     |> refute_has("canvas")
     |> click_button("1 day")
@@ -101,7 +101,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     _ = save_metrics_with_timestamp(device.id, timestamp)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/healthz")
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     |> refute_has("canvas")
     |> click_button("1 day")
     |> refute_has("canvas")
@@ -117,7 +117,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     _ = save_metrics_with_timestamp(device.id, timestamp)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/healthz")
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     |> refute_has("canvas")
     |> click_button("1 day")
     |> refute_has("canvas")
@@ -132,7 +132,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     device: device
   } do
     conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/healthz")
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     |> refute_has("canvas")
     |> unwrap(fn view ->
       assert {7, _} = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
@@ -168,7 +168,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
              |> Repo.insert()
 
     {:ok, _view, html} =
-      live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/healthz")
+      live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
 
     organized_metrics =
       ~s([{"y":#{value},"x":"#{now}"}])

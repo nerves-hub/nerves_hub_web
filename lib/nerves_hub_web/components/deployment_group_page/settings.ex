@@ -286,7 +286,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
         # TODO: if we move away from slugs with deployment names we won't need
         # to use `push_navigate` here.
         socket
-        |> put_flash(:info, "Deployment group updated")
+        |> put_flash(:info, "Deployment Group updated")
         |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{updated}")
         |> noreply()
 

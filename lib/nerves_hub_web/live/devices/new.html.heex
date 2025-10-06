@@ -1,43 +1,47 @@
-<h1>Add Device</h1>
+<div class="h-[56px] shrink-0 flex justify-between bg-base-900 border-b border-base-700 pl-6 items-center">
+  <div class="flex gap-2.5">
+    <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="back-link flex gap-2.5 items-center">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="text-base-400">All Devices</span>
+    </.link>
+    <span class="text-base-400">/</span>
+    <span class="text-zinc-50 font-semibold">Add Device</span>
+  </div>
+</div>
 
-<.form :let={f} for={@form} phx-submit="save-device">
-  <div class="form-group">
-    <div class="help-text tooltip-label help-tooltip">
-      <label for="identifier_input" class="tooltip-label">
-        ID
-      </label>
-      <span class="tooltip-info mb-1"></span>
-      <span class="tooltip-text">Device ID cannot be changed once created</span>
-    </div>
-    {text_input(f, :identifier, class: "form-control", id: "identifier_input")}
-    <div class="has-error">{error_tag(f, :identifier)}</div>
+<div class="h-0 flex-1 overflow-y-auto">
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <h1 class="text-base font-semibold text-neutral-50">Add Device</h1>
   </div>
 
-  <div class="form-group">
-    <div class="help-text tooltip-label help-tooltip">
-      <label for="description_input" class="tooltip-label">
-        Description
-      </label>
-      <span class="tooltip-info mb-1"></span>
-      <span class="tooltip-text">Description for this device</span>
-    </div>
-    {text_input(f, :description, class: "form-control", id: "description_input")}
-    <div class="has-error">{error_tag(f, :description)}</div>
-  </div>
+  <div class="flex flex-col items-start justify-between gap-4 p-6">
+    <.form for={@form} class="w-full" phx-submit="save-device">
+      <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+        <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+          <div class="text-base text-neutral-50 font-medium">General settings</div>
+        </div>
+        <div class="flex p-6 gap-6">
+          <div class="w-1/2 flex flex-col gap-6">
+            <.input field={@form[:identifier]} label="Identifier" placeholder="eg. a-random-uuid" />
 
-  <div class="form-group" aria-hidden="true">
-    <div class="help-text tooltip-label help-tooltip">
-      <label for="tags_input" class="tooltip-label">
-        Tags
-      </label>
-      <span class="tooltip-info mb-1"></span>
-      <span class="tooltip-text">Tags are used by deployments to target a device. A device must have matching tag(s) for the deployment to update it</span>
-    </div>
-    {text_input(f, :tags, class: "form-control", id: "tags_input")}
-    <div class="has-error">{error_tag(f, :tags)}</div>
-  </div>
+            <.input field={@form[:description]} label="Description" placeholder="eg. sensor hub at customer X" />
 
-  <div class="button-submit-wrapper">
-    {submit("Add Device", class: "btn btn-primary")}
+            <.input field={@form[:tags]} value={tags_to_string(@form[:tags])} label="Tags" placeholder="eg. batch-123" />
+          </div>
+
+          <div class="w-1/2 flex flex-col gap-2">
+            <.input field={@form[:first_connect_code]} label="First connect code" type="textarea" rows="10" />
+            <div class="text-xs tracking-wide text-zinc-400">Make sure this is valid Elixir and will not crash the device</div>
+          </div>
+        </div>
+        <div class="flex justify-between items-center h-14 px-4 border-t border-zinc-700">
+          <.button style="secondary" type="submit">
+            <.icon name="save" /> Add Device
+          </.button>
+        </div>
+      </div>
+    </.form>
   </div>
-</.form>
+</div>
