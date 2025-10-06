@@ -3,9 +3,9 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   alias NervesHub.Devices
   alias NervesHub.Tracker
-  alias NervesHubWeb.Components.PinnedDevices
+  # alias NervesHubWeb.Components.PinnedDevices
 
-  alias Number.Delimit
+  # alias Number.Delimit
   alias Phoenix.Socket.Broadcast
 
   @pinned_devices_limit 5
@@ -64,15 +64,15 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     |> noreply()
   end
 
-  defp limit_devices(devices) do
-    {limited_devices, _} = Enum.split(devices, @pinned_devices_limit)
+  # defp limit_devices(devices) do
+  #   {limited_devices, _} = Enum.split(devices, @pinned_devices_limit)
 
-    limited_devices
-  end
+  #   limited_devices
+  # end
 
-  defp format_device_count(nil), do: 0
+  # defp format_device_count(nil), do: 0
 
-  defp format_device_count(count) do
-    Delimit.number_to_delimited(count, precision: 0)
-  end
+  # defp format_device_count(count) do
+  #   Delimit.number_to_delimited(count, precision: 0)
+  # end
 end
