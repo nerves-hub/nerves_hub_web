@@ -15,7 +15,7 @@ defmodule NervesHub.MixProject do
       ],
       elixirc_paths: elixirc_paths(Mix.env()),
       elixir: "~> 1.18.0",
-      listeners: [Phoenix.CodeReloader],
+      listeners: listeners(),
       releases: [
         nerves_hub: [
           steps: [:assemble],
@@ -64,6 +64,18 @@ defmodule NervesHub.MixProject do
       {sha, 0} -> String.trim(sha)
       _ -> "dev"
     end
+  end
+
+  defp listeners() do
+    if dependabot?() do
+      []
+    else
+      [Phoenix.CodeReloader]
+    end
+  end
+
+  defp dependabot?() do
+    Enum.any?(System.get_env(), fn {key, _value} -> String.starts_with?(key, "DEPENDABOT") end)
   end
 
   # Dependencies listed here are available only for this
