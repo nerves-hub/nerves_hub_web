@@ -676,7 +676,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "No assigned deployment group")
+      |> assert_has("span", text: "No deployment groups match the devices platform and architecture.")
       |> refute_has("option", text: "Select a deployment group")
     end
   end
