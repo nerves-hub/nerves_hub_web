@@ -2,6 +2,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   use Ecto.Schema
 
   import Ecto.Changeset
+  import Ecto.Query
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Archives.Archive
@@ -39,7 +40,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :total_updating_devices,
     :current_updated_devices,
     :queue_management,
-    :delta_updatable
+    :delta_updatable,
+    :status
   ]
 
   @derive {Phoenix.Param, key: :name}
@@ -69,7 +71,10 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:current_updated_devices, :integer, default: 0)
     field(:inflight_update_expiration_minutes, :integer, default: 60)
     field(:queue_management, Ecto.Enum, values: [:FIFO, :LIFO], default: :FIFO)
+
     field(:delta_updatable, :boolean, default: true)
+
+    field(:status, Ecto.Enum, values: [:ready, :preparing], default: :ready)
 
     field(:device_count, :integer, virtual: true)
 
@@ -97,6 +102,45 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
         changeset
       end
     end)
+    |> prepare_changes(fn changeset ->
+      device_count =
+        Device
+        |> select([d], count(d))
+        |> where([d], d.deployment_id == ^deployment.id)
+        |> changeset.repo.one()
+
+      put_change(changeset, :device_count, device_count)
+    end)
+    |> prepare_changes(fn changeset ->
+      device_count =
+        Device
+        |> select([d], count(d))
+        |> where([d], d.deployment_id == ^deployment.id)
+        |> changeset.repo.one()
+
+      put_change(changeset, :device_count, device_count)
+    end)
+    |> prepare_changes(fn changeset ->
+      case changeset do
+        %{changes: %{delta_updatable: true}} = changeset ->
+          Ecto.Changeset.put_change(changeset, :status, :preparing)
+
+        %{changes: %{delta_updatable: false}} = changeset ->
+          Ecto.Changeset.put_change(changeset, :status, :ready)
+
+        %{changes: %{is_active: true}} = changeset ->
+          Ecto.Changeset.put_change(changeset, :status, :preparing)
+
+        changeset ->
+          changeset
+      end
+    end)
+  end
+
+  def update_status_changeset(%DeploymentGroup{} = deployment, params) do
+    deployment
+    |> cast(params, [:status])
+    |> validate_required([:status])
   end
 
   defp base_changeset(%DeploymentGroup{} = deployment, params) do

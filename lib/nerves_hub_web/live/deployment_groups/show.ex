@@ -96,21 +96,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
-  def handle_event("toggle-delta-updates", _params, socket) do
-    authorized!(:"deployment_group:toggle_delta_updates", socket.assigns.org_user)
-
-    {:ok, deployment_group} =
-      ManagedDeployments.toggle_delta_updates(socket.assigns.deployment_group)
-
-    socket
-    |> assign(:deployment_group, deployment_group)
-    |> put_flash(
-      :info,
-      "Delta updates #{(deployment_group.delta_updatable && "enabled") || "disabled"} successfully."
-    )
-    |> noreply()
-  end
-
   def handle_event("delete", _params, socket) do
     authorized!(:"deployment_group:delete", socket.assigns.org_user)
 
@@ -299,6 +284,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   @impl Phoenix.LiveView
   def handle_info(%Broadcast{event: "stat:logged"}, socket) do
     send_update(SummaryTab, id: "deployment_group_summary", stat_logged: true)
+
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info(%Broadcast{topic: "firmware_delta_target:" <> _}, socket) do
+    send_update(SummaryTab, id: "deployment_group_summary", delta_updated: true)
 
     {:noreply, socket}
   end

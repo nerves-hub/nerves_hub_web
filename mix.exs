@@ -34,7 +34,8 @@ defmodule NervesHub.MixProject do
         plt_core_path: "priv/plts",
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
       ],
-      test_coverage: [tool: ExCoveralls]
+      test_coverage: [tool: ExCoveralls],
+      listeners: get_listeners(Mix.env())
     ]
   end
 
@@ -204,4 +205,7 @@ defmodule NervesHub.MixProject do
 
   defp compilers(mix_unused) when not is_nil(mix_unused), do: [:phoenix_live_view, :unused]
   defp compilers(_), do: [:phoenix_live_view]
+
+  defp get_listeners(:dev), do: [Phoenix.CodeReloader]
+  defp get_listeners(_), do: []
 end

@@ -118,7 +118,7 @@ defmodule NervesHubWeb.Live.Firmware do
         |> put_flash(:info, "Firmware successfully deleted")
         |> noreply()
 
-      {:error, changeset} ->
+      {:error, %Ecto.Changeset{} = changeset} ->
         error_feedback(socket, changeset)
     end
   end

@@ -14,6 +14,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
@@ -60,6 +61,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     :ok =
       PubSub.subscribe(NervesHub.PubSub, "orchestrator:deployment:#{deployment_group.id}")
 
+    :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.firmware_id)
+
     # trigger every two minutes, plus a jitter between 1 and 10 seconds, as a back up
     interval = to_timeout(second: 120 + :rand.uniform(20))
     _ = :timer.send_interval(interval, :trigger_interval)
@@ -90,6 +93,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   @doc """
   Trigger an update for a deployments devices.
 
+  If deployment group's status is `:preparing`, check if deltas are still being
+  generated. If so, do nothing. If not, set the status to `:ready` and update devices.
+
+  If deployment group's status is `:ready`, attempt to generated deltas if deployment
+  group has them enabled. Then update devices.
+
   Finds devices matching:
 
   - the deployment
@@ -104,20 +113,37 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   As devices update and reconnect, the new orchestrator is told that the update
   was successful, and the process is repeated.
   """
-  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop")
-  def trigger_update(%DeploymentGroup{is_active: false}) do
-    :ok
+  @spec trigger_update(DeploymentGroup.t()) :: DeploymentGroup.t()
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop-inactive")
+  def trigger_update(%DeploymentGroup{is_active: false} = deployment_group), do: deployment_group
+
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#status-preparing")
+  def trigger_update(%DeploymentGroup{status: :preparing} = deployment_group) do
+    if ManagedDeployments.deltas_processing?(deployment_group) do
+      deployment_group
+    else
+      {:ok, deployment_group} = ManagedDeployments.update_deployment_group_status(deployment_group, :ready)
+
+      do_trigger_update(deployment_group)
+
+      deployment_group
+    end
   end
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update")
   def trigger_update(deployment_group) do
-    :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
+    deployment_group = maybe_trigger_deltas_and_set_deployment_preparing(deployment_group)
+    do_trigger_update(deployment_group)
 
+    deployment_group
+  end
+
+  defp do_trigger_update(deployment_group) do
+    :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
     slots = available_slots(deployment_group)
 
     if slots > 0 do
       available = Devices.available_for_update(deployment_group, slots)
-
       updated_count = schedule_devices!(available, deployment_group)
 
       if length(available) != updated_count do
@@ -177,18 +203,18 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   # if rate limiting isn't enabled, run `trigger_update`
   defp maybe_trigger_update(%State{rate_limit?: false} = state) do
-    trigger_update(state.deployment_group)
+    deployment_group = trigger_update(state.deployment_group)
 
-    {:noreply, state}
+    {:noreply, %{state | deployment_group: deployment_group}}
   end
 
   # if there is no "delay" timer set, run `trigger_update`
   defp maybe_trigger_update(%State{timer_ref: nil} = state) do
-    trigger_update(state.deployment_group)
+    deployment_group = trigger_update(state.deployment_group)
 
     timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
 
-    {:noreply, %{state | timer_ref: timer_ref, should_run?: false}}
+    {:noreply, %{state | timer_ref: timer_ref, should_run?: false, deployment_group: deployment_group}}
   end
 
   # if a "delay" timer is set, queue a `trigger_update`
@@ -199,9 +225,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   # if we don't have a `timer_ref` we can run `trigger_update`
   def handle_info(:trigger_interval, %State{timer_ref: nil} = state) do
-    trigger_update(state.deployment_group)
+    deployment_group = trigger_update(state.deployment_group)
 
-    {:noreply, state}
+    {:noreply, %{state | deployment_group: deployment_group}}
   end
 
   # we can ignore `trigger_interval` since we have a `timer_ref`
@@ -212,17 +238,17 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   # if the 'run again' boolean in the state is `true`, which indicates that indicates
   # that previous call has been skipped, then run `trigger_update` now
   def handle_info(:maybe_trigger, %State{rate_limit?: false} = state) do
-    trigger_update(state.deployment_group)
+    deployment_group = trigger_update(state.deployment_group)
 
-    {:noreply, state}
+    {:noreply, %{state | deployment_group: deployment_group}}
   end
 
   def handle_info(:maybe_trigger, %State{should_run?: true} = state) do
-    trigger_update(state.deployment_group)
+    deployment_group = trigger_update(state.deployment_group)
 
     timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
 
-    {:noreply, %{state | timer_ref: timer_ref, should_run?: false}}
+    {:noreply, %{state | timer_ref: timer_ref, should_run?: false, deployment_group: deployment_group}}
   end
 
   # if the 'run again' boolean in the state is `false`, no requests to run the orchestrator
@@ -250,7 +276,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployments/update")
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deployments/update"}, state) do
+    %{deployment_group: %{firmware_id: old_firmware_id}} = state
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(state.deployment_group)
+
+    if old_firmware_id != deployment_group.firmware_id do
+      :ok = Firmwares.unsubscribe_firmware_delta_target(old_firmware_id)
+      :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.firmware_id)
+    end
 
     maybe_trigger_update(%{state | deployment_group: deployment_group})
   end
@@ -265,6 +297,17 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   # Catch all for unknown broadcasts on a deployment_group
   def handle_info(%Broadcast{topic: "deployment:" <> _}, state) do
+    {:noreply, state}
+  end
+
+  def handle_info(
+        %Broadcast{topic: "firmware_delta_target:" <> _, event: "status_update", payload: %{status: :completed}},
+        state
+      ) do
+    maybe_trigger_update(state)
+  end
+
+  def handle_info(%Broadcast{topic: "firmware_delta_target:" <> _}, state) do
     {:noreply, state}
   end
 
@@ -295,4 +338,17 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
       !is_nil(payload.updates_blocked_until) and
       DateTime.after?(payload.updates_blocked_until, DateTime.utc_now())
   end
+
+  defp maybe_trigger_deltas_and_set_deployment_preparing(%{delta_updatable: true} = deployment_group) do
+    case ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group) do
+      {:ok, :deltas_started} ->
+        {:ok, deployment_group} = ManagedDeployments.update_deployment_group_status(deployment_group, :preparing)
+        deployment_group
+
+      _ ->
+        deployment_group
+    end
+  end
+
+  defp maybe_trigger_deltas_and_set_deployment_preparing(deployment_group), do: deployment_group
 end
