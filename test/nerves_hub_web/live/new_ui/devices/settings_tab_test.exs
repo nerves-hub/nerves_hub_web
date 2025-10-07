@@ -1,9 +1,9 @@
 defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
-  alias NervesHubWeb.Components.Utils
   alias NervesHub.Devices
   alias NervesHub.Repo
+  alias NervesHubWeb.Components.Utils
 
   test "download certificate", %{
     conn: conn,
