@@ -38,8 +38,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           <div class="flex p-6 gap-6">
             <div class="w-1/2 flex flex-col gap-6">
               <.input field={@form[:name]} label="Name" placeholder="Production" />
-              <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates" phx-click="toggle-delta-updates">
+              <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates">
                 <:rich_hint>
+                  When enabled, the deployment group will only send delta updates.
                   Check out the <.link class="underline" href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank">NervesHub documentation</.link>
                   for more information on delta updates.
                 </:rich_hint>
@@ -272,6 +273,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     authorized!(:"deployment_group:update", org_user)
 
     params = inject_conditions_map(params)
+    firmware_changed? = params["firmware_id"] != to_string(deployment_group.firmware_id)
+    %{firmware: %{id: old_firmware_id}} = deployment_group
 
     case ManagedDeployments.update_deployment_group(deployment_group, params) do
       {:ok, updated} ->
@@ -282,6 +285,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           updated,
           "User #{user.name} updated deployment group #{updated.name}"
         )
+
+        # no need to subscribe to new firmware here, we do that in the summary component
+        if firmware_changed? do
+          :ok = Firmwares.unsubscribe_firmware_delta_target(old_firmware_id)
+        end
 
         # TODO: if we move away from slugs with deployment names we won't need
         # to use `push_navigate` here.

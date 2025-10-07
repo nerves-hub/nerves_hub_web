@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
+  alias Phoenix.Naming
 
   import NervesHubWeb.LayoutView,
     only: [humanize_size: 1]
@@ -29,6 +30,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> ok()
   end
 
+  def update(%{delta_updated: true}, socket) do
+    socket
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(socket.assigns.deployment_group.firmware))
+    |> ok()
+  end
+
   def update(assigns, socket) do
     %{deployment_group: deployment_group} = assigns
 
@@ -36,6 +43,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> assign(assigns)
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(assigns.deployment_group.firmware))
     |> assign_update_stats(deployment_group)
+    |> assign_deltas_and_stats()
     |> ok()
   end
 
@@ -45,6 +53,30 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
       Enum.find(socket.assigns.update_stats, fn {_uuid, stats} -> stats.version == version end)
 
     {:noreply, assign(socket, :update_stat_for_current_firmware, update_stat_for_current_firmware)}
+  end
+
+  def handle_event("delete_delta", %{"id" => id}, socket) do
+    delta_to_delete = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
+
+    {:ok, _} = Firmwares.delete_firmware_delta(delta_to_delete)
+    deltas = Enum.filter(socket.assigns.deltas, &(&1.id != delta_to_delete.id))
+
+    socket =
+      socket
+      |> assign(:deltas, deltas)
+      |> put_flash(:info, "Delta successfully deleted")
+
+    {:noreply, socket}
+  end
+
+  def handle_event("retry_delta", %{"id" => id}, socket) do
+    delta = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
+
+    {:ok, _} = Firmwares.delete_firmware_delta(delta)
+    {:ok, _} = Firmwares.attempt_firmware_delta(delta.source_id, delta.target_id)
+
+    socket = put_flash(socket, :info, "Retrying delta generation")
+    {:noreply, socket}
   end
 
   @impl Phoenix.LiveComponent
@@ -90,17 +122,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span class="text-sm text-nerves-gray-500 w-16">Size:</span>
               <span class="pl-1 text-xs text-nerves-gray-700">{humanize_size(@deployment_group.firmware.size)}</span>
             </div>
-            <div :if={assigns[:deltas]} class="flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500 w-16">Deltas:</span>
-              <span :for={delta <- @deltas} class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800">
-                <span class="text-xs text-zinc-300 tracking-tight">
-                  {delta.source.version}
-                  <span :if={delta.upload_metadata["size"]}>
-                    - {humanize_size(delta.upload_metadata["size"])}
-                  </span>
-                </span>
-              </span>
-            </div>
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500 w-16">Archive:</span>
 
@@ -112,6 +133,99 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.archive.version} ({String.slice(@deployment_group.archive.uuid, 0..7)})</span>
               </.link>
               <span :if={is_nil(@deployment_group.archive)} class="pl-1 text-xs text-nerves-gray-500">No archive configured</span>
+            </div>
+          </div>
+
+          <div :if={Enum.any?(@deltas)} class="flex flex-col gap-2 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+            <div class="p-4 h-9 flex items-start justify-between">
+              <div class="text-neutral-50 font-medium leading-6">Firmware deltas</div>
+            </div>
+            <div class="p-4 flex flex-col gap-3">
+              <div class="flex gap-4 items-center">
+                <span class="text-sm text-zinc-300">Firmware deltas provide smaller update payloads by only sending the differences between firmware versions.</span>
+              </div>
+            </div>
+            <div class="bg-zinc-900 border-t rounded-b border-zinc-700">
+              <div class="flex flex-col">
+                <div class="listing">
+                  <table class="">
+                    <thead>
+                      <tr>
+                        <th class="rounded-tl">From</th>
+                        <th>Status</th>
+                        <th>Size</th>
+                        <th>Saving</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr :for={delta <- @deltas} class="border-b last:border-0 border-zinc-800 relative last:rounded-b">
+                        <td>
+                          <div class="flex gap-[8px] items-center">
+                            {delta.source.version}
+                          </div>
+                        </td>
+
+                        <td>
+                          <div class="flex gap-[8px] items-center">
+                            {if delta.status == :completed do
+                              "Ready"
+                            else
+                              Naming.humanize(delta.status)
+                            end}
+                          </div>
+                        </td>
+
+                        <td>
+                          <div class="flex gap-[8px] items-center">
+                            {if delta.status == :completed do
+                              Sizeable.filesize(delta.size)
+                            else
+                              "-"
+                            end}
+                          </div>
+                        </td>
+
+                        <td>
+                          <div class="flex gap-[8px] items-center">
+                            {if delta.status == :completed do
+                              Sizeable.filesize(delta.target_size - delta.size)
+                            else
+                              "-"
+                            end}
+                          </div>
+                        </td>
+
+                        <td>
+                          <div class="flex gap-[8px] items-center relative">
+                            <a
+                              :if={delta.status in [:failed, :timed_out, :completed]}
+                              class="text-base-300 underline cursor-pointer"
+                              phx-click="delete_delta"
+                              data-confirm="Are you sure you want to delete this firmware delta?"
+                              phx-target={@myself}
+                              phx-value-id={delta.id}
+                            >
+                              Delete
+                            </a>
+                            <a
+                              :if={delta.status in [:failed, :timed_out]}
+                              class="text-base-300 underline cursor-pointer"
+                              phx-click="retry_delta"
+                              data-confirm="Are you sure you want to retry firmware delta generation?"
+                              phx-target={@myself}
+                              phx-value-id={delta.id}
+                            >
+                              Retry
+                            </a>
+                            <span :if={delta.status == :processing}>-</span>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -334,5 +448,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     socket
     |> assign(:update_stats, update_stats)
     |> assign(:update_stat_for_current_firmware, update_stat_for_current_firmware)
+  end
+
+  defp assign_deltas_and_stats(%{assigns: %{deployment_group: deployment_group}} = socket) do
+    :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.firmware.id)
+
+    socket
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
   end
 end
