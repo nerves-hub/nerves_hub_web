@@ -623,13 +623,16 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
     end
   end
 
-  test "enabling and disabling priority updates", %{
+  test "enabling and disabling priority updates (when device is in a deployment group)", %{
     conn: conn,
     org: org,
     product: product,
-    device: device
+    device: device,
+    deployment_group: deployment_group
   } do
     refute device.priority_updates
+
+    device = Devices.update_deployment_group(device, deployment_group)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
