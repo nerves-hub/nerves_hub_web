@@ -15,7 +15,7 @@ defmodule NervesHub.MixProject do
       ],
       elixirc_paths: elixirc_paths(Mix.env()),
       elixir: "~> 1.18.0",
-      listeners: listeners(),
+      listeners: listeners(Mix.env()),
       releases: [
         nerves_hub: [
           steps: [:assemble],
@@ -34,8 +34,7 @@ defmodule NervesHub.MixProject do
         plt_core_path: "priv/plts",
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
       ],
-      test_coverage: [tool: ExCoveralls],
-      listeners: get_listeners(Mix.env())
+      test_coverage: [tool: ExCoveralls]
     ]
   end
 
@@ -65,18 +64,6 @@ defmodule NervesHub.MixProject do
       {sha, 0} -> String.trim(sha)
       _ -> "dev"
     end
-  end
-
-  defp listeners() do
-    if dependabot?() do
-      []
-    else
-      [Phoenix.CodeReloader]
-    end
-  end
-
-  defp dependabot?() do
-    Enum.any?(System.get_env(), fn {key, _value} -> String.starts_with?(key, "DEPENDABOT") end)
   end
 
   # Dependencies listed here are available only for this
@@ -206,6 +193,6 @@ defmodule NervesHub.MixProject do
   defp compilers(mix_unused) when not is_nil(mix_unused), do: [:phoenix_live_view, :unused]
   defp compilers(_), do: [:phoenix_live_view]
 
-  defp get_listeners(:dev), do: [Phoenix.CodeReloader]
-  defp get_listeners(_), do: []
+  defp listeners(:dev), do: [Phoenix.CodeReloader]
+  defp listeners(_), do: []
 end
