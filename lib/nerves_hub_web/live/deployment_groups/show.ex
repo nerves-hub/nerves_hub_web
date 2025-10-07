@@ -6,12 +6,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.DeploymentGroup
-
-  alias NervesHubWeb.Components.AuditLogFeed
 
   alias Phoenix.Socket.Broadcast
 
@@ -310,53 +306,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     else
       "px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
     end
-  end
-
-  defp deployment_group_percentage(%{total_updating_devices: 0}), do: 100
-
-  defp deployment_group_percentage(deployment_group) do
-    floor(deployment_group.current_updated_devices / deployment_group.total_updating_devices * 100)
-  end
-
-  defp help_message_for(field) do
-    case field do
-      :device_failure_rate ->
-        "Maximum number of update attempts within X seconds a device can have for this deployment group before being placed in penalty box."
-
-      :device_failure_threshold ->
-        "Maximum number of update attempts a device can have for this deployment group before being placed in penalty box."
-
-      :penalty_timeout_minutes ->
-        "Number of minutes a device is placed in penalty box for reaching the failure rate or threshold."
-    end
-  end
-
-  defp version(%DeploymentGroup{conditions: %{"version" => ""}}), do: "-"
-  defp version(%DeploymentGroup{conditions: %{"version" => version}}), do: version
-
-  defp firmware_summary(%Firmware{version: nil}) do
-    ["Unknown"]
-  end
-
-  defp firmware_summary(%Firmware{} = f) do
-    ["#{firmware_display_name(f)}"]
-  end
-
-  defp firmware_summary(%DeploymentGroup{firmware: %Firmware{} = f}) do
-    firmware_summary(f)
-  end
-
-  defp firmware_summary(%DeploymentGroup{firmware: %Ecto.Association.NotLoaded{}} = deployment_group) do
-    ManagedDeployments.preload_firmware_and_archive(deployment_group)
-  end
-
-  defp tags(%DeploymentGroup{conditions: %{"tags" => tags}}), do: tags
-
-  defp opposite_status(%DeploymentGroup{is_active: true}), do: "Off"
-  defp opposite_status(%DeploymentGroup{is_active: false}), do: "On"
-
-  defp firmware_display_name(%Firmware{} = f) do
-    "#{f.version} #{f.platform} #{f.architecture} #{f.uuid}"
   end
 
   defp assign_matched_devices_count(%{assigns: %{deployment_group: deployment_group}} = socket) do

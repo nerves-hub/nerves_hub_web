@@ -24,8 +24,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
-  import NervesHubWeb.LayoutView
-
   @list_refresh_time 10_000
 
   @default_filters %{
@@ -556,38 +554,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # MOVE TO COMPONENTS
   #
 
-  defp selected?(filters, field, value) do
-    if filters[field] == value do
-      [selected: true]
-    else
-      []
-    end
-  end
-
   defp target_selected?(%{name: name}, value) when name == value, do: [selected: true]
   defp target_selected?(_, _), do: []
-
-  defp devices_table_header(title, value, current_sort, sort_direction) when value == current_sort do
-    caret_class = if sort_direction == "asc", do: "up", else: "down"
-
-    assigns = %{value: value, title: title, caret_class: caret_class}
-
-    ~H"""
-    <th phx-click="sort" phx-value-sort={@value} class="pointer sort-selected">
-      {@title}<i class={"icon-caret icon-caret-#{@caret_class}"} />
-    </th>
-    """
-  end
-
-  defp devices_table_header(title, value, _current_sort, _sort_direction) do
-    assigns = %{value: value, title: title}
-
-    ~H"""
-    <th phx-click="sort" phx-value-sort={@value} class="pointer">
-      {@title}
-    </th>
-    """
-  end
 
   defp connection_established_at_status(nil), do: "Not seen yet"
 
@@ -602,45 +570,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     latest_connection
     |> Map.get(:established_at)
     |> DateTimeFormat.from_now()
-  end
-
-  defp last_seen_at_status(nil), do: "Not seen yet"
-
-  defp last_seen_at_status(latest_connection), do: "Last seen #{last_seen_formatted(latest_connection)}"
-
-  defp last_seen_at(nil), do: ""
-  defp last_seen_at(latest_connection), do: last_seen_formatted(latest_connection)
-
-  defp last_seen_formatted(latest_connection) do
-    latest_connection
-    |> Map.get(:last_seen_at)
-    |> DateTimeFormat.from_now()
-  end
-
-  defp firmware_update_status(device) do
-    cond do
-      Devices.device_in_penalty_box?(device) ->
-        "firmware-penalty-box"
-
-      device.updates_enabled == false ->
-        "firmware-disabled"
-
-      true ->
-        "firmware-enabled"
-    end
-  end
-
-  defp firmware_update_title(device) do
-    cond do
-      Devices.device_in_penalty_box?(device) ->
-        "Automatic Penalty Box"
-
-      device.updates_enabled == false ->
-        "Firmware Disabled"
-
-      true ->
-        "Firmware Enabled"
-    end
   end
 
   defp move_alert(nil), do: ""

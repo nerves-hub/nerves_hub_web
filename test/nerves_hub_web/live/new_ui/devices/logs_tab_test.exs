@@ -6,10 +6,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
   alias NervesHub.Devices.LogLines
   alias NervesHub.Repo
 
-  setup %{conn: conn} do
+  setup context do
     Application.put_env(:nerves_hub, :analytics_enabled, true)
-
-    [conn: init_test_session(conn, %{"new_ui" => true})]
+    context
   end
 
   test "clickhouse (analytics) isn't enabled", %{

@@ -19,14 +19,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.NewTest do
         Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "taramasalata"})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployments/new")
-      |> assert_has("h1", text: "Create Deployment Group")
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new")
+      |> assert_has("h1", text: "Add Deployment Group")
       |> assert_has("option", text: "Choose a platform")
       |> select("Platform", option: firmware.platform)
-      |> fill_in("Deployment Group name", with: "Moussaka")
+      |> select("Architecture", option: firmware.architecture)
+      |> fill_in("Name", with: "Moussaka")
       |> fill_in("Tag(s) distributed to", with: "josh, lars")
-      |> select("Firmware version", option: firmware.uuid, exact_option: false)
-      |> click_button("Create Deployment")
+      |> select("Firmware", option: firmware.uuid, exact_option: false)
+      |> click_button("Save changes")
       |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/Moussaka"))
       |> assert_has("div", text: "Deployment Group created")
       |> assert_has("h1", text: "Moussaka")
@@ -47,14 +48,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.NewTest do
         Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "taramasalata"})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployments/new")
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new")
       |> select("Platform", option: firmware.platform)
       |> unwrap(fn view ->
         view
         |> element("form")
         |> render_submit(%{deployment_group: %{"firmware_id" => -1}})
       end)
-      |> assert_path("/org/#{org.name}/#{product.name}/deployments/new")
+      |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/new")
       |> assert_has("div", text: "Invalid firmware selected")
     end
 
@@ -71,12 +72,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.NewTest do
         |> init_test_session(%{"user_token" => token})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployments/new")
-      |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/firmware/upload"))
-      |> assert_has("h1", text: "Add Firmware")
-      |> assert_has("div",
-        text: "You must upload a firmware version before creating a Deployment Group"
-      )
+      |> visit(~p"/org/#{org}/#{product}/deployment_groups/new")
+      |> assert_has("span", text: "Please upload your first firmware before creating a deployment group.")
     end
   end
 end

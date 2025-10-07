@@ -30,8 +30,8 @@ defmodule NervesHubWeb.Devices.HealthTest do
   } do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
-    |> assert_has("h1", text: "Device Health")
-    |> assert_has("p", text: "No data for selected period")
+    |> assert_has("div", text: "Health over time")
+    |> assert_has("span", text: "No metrics for the selected period.")
   end
 
   test "Assert canvas is rendered when metrics data exists", %{

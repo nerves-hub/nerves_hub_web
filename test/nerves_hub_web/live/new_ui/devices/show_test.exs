@@ -18,11 +18,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
   alias NervesHubWeb.Endpoint
 
-  setup %{conn: conn, fixture: %{device: device}} = context do
+  setup %{fixture: %{device: device}} = context do
     Endpoint.subscribe("device:#{device.id}")
-    conn = init_test_session(conn, %{"new_ui" => true})
-
-    Map.put(context, :conn, conn)
+    context
   end
 
   describe "who is currently viewing the device page" do
@@ -67,7 +65,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
       conn_two =
         build_conn()
         |> init_test_session(%{"user_token" => token_two})
-        |> init_test_session(%{"new_ui" => true})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -99,7 +96,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
       conn_two =
         build_conn()
         |> init_test_session(%{"user_token" => token_two})
-        |> init_test_session(%{"new_ui" => true})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -627,13 +623,16 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
     end
   end
 
-  test "enabling and disabling priority updates", %{
+  test "enabling and disabling priority updates (when device is in a deployment group)", %{
     conn: conn,
     org: org,
     product: product,
-    device: device
+    device: device,
+    deployment_group: deployment_group
   } do
     refute device.priority_updates
+
+    device = Devices.update_deployment_group(device, deployment_group)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")

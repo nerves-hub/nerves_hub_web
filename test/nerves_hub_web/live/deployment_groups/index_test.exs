@@ -10,7 +10,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-    |> assert_has("h3", text: "#{product.name} doesn’t have any deployments configured")
+    |> assert_has("span", text: "#{product.name} doesn’t have any deployment groups configured.")
   end
 
   test "has deployment groups", %{
@@ -23,7 +23,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
     |> assert_has("h1", text: "Deployment Groups")
     |> assert_has("a", text: deployment_group.name)
-    |> assert_has("td div", text: "0")
+    |> assert_has("td", text: "0")
   end
 
   test "device counts don't include deleted devices", %{
@@ -37,13 +37,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
     |> assert_has("h1", text: "Deployment Groups")
     |> assert_has("a", text: deployment_group.name)
-    |> assert_has("td div", text: "0")
+    |> assert_has("td", text: "0")
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
     |> assert_has("h1", text: "Deployment Groups")
     |> assert_has("a", text: deployment_group.name)
-    |> assert_has("td div", text: "1")
+    |> assert_has("td", text: "1")
 
     Devices.delete_device(device)
 
@@ -51,7 +51,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
     |> assert_has("h1", text: "Deployment Groups")
     |> assert_has("a", text: deployment_group.name)
-    |> assert_has("td div", text: "0")
+    |> assert_has("td", text: "0")
   end
 
   describe "filtering" do
@@ -62,7 +62,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       deployment_group: deployment_group
     } do
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
       |> assert_has("h1", text: "Deployment Groups")
       |> assert_has("a", text: deployment_group.name)
@@ -85,7 +84,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       platform = deployment_group.firmware.platform
 
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
       |> assert_has("td", text: platform)
       |> unwrap(fn view ->
@@ -107,7 +105,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       architecture = deployment_group.firmware.architecture
 
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
       |> assert_has("td", text: architecture)
       |> unwrap(fn view ->
@@ -127,7 +124,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       deployment_group: deployment_group
     } do
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
       |> assert_has("a", text: deployment_group.name)
       |> unwrap(fn view ->
@@ -148,7 +144,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       product: product
     } do
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
       |> refute_has("button", text: "25", timeout: 1000)
     end
@@ -169,7 +164,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       [first_deployment_group | _] = deployment_groups |> Enum.sort_by(& &1.name)
 
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
       |> assert_has("a", text: first_deployment_group.name, timeout: 1000)
       |> assert_has("button", text: "25", timeout: 1000)

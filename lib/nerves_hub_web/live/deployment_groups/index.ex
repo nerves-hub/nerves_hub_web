@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
@@ -215,10 +214,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
       params,
       Map.keys(@default_pagination)
     ).changes
-  end
-
-  defp firmware_simple_display_name(%Firmware{} = f) do
-    "#{f.version} #{f.uuid}"
   end
 
   defp version(%DeploymentGroup{conditions: %{"version" => ""}}), do: "-"

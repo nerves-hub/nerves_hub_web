@@ -251,7 +251,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
       types(charts) != types(data) ->
         push_patch(socket,
-          to: ~p"/org/#{org}/#{product}/devices/#{device}/healthz"
+          to: ~p"/org/#{org}/#{product}/devices/#{device}/health"
         )
 
       true ->

@@ -3,10 +3,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ActivityTabTest do
 
   alias NervesHub.AuditLogs.DeviceTemplates
 
-  setup %{conn: conn} do
-    [conn: init_test_session(conn, %{"new_ui" => true})]
-  end
-
   test "no audit log history exists for the device", %{
     conn: conn,
     org: org,

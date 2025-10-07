@@ -5,10 +5,6 @@ defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
   alias NervesHub.Devices
   alias NervesHub.Repo
 
-  setup %{conn: conn} do
-    [conn: init_test_session(conn, %{"new_ui" => true})]
-  end
-
   test "download certificate", %{
     conn: conn,
     org: org,
@@ -19,7 +15,7 @@ defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
 
     result =
       conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settingz")
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
       |> assert_has("div", text: "Certificates")
       |> assert_has("div", text: "Serial: #{Utils.format_serial(certificate.serial)}")
       |> unwrap(fn view ->
@@ -40,7 +36,7 @@ defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
     [certificate] = Devices.get_device_certificates(device)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settingz")
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
     |> click_button("[phx-click=\"delete-certificate\"]", "")
 
     refute Repo.reload(certificate)
@@ -53,7 +49,7 @@ defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
     device: device
   } do
     conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settingz")
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
     |> click_button("Delete device")
     |> assert_has("div", text: "Device is deleted and must be restored to use.")
 
@@ -67,7 +63,7 @@ defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
     device: device
   } do
     conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settingz")
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
     |> click_button("Delete device")
     |> click_button("Permanently delete device")
     |> assert_has("div", text: "Device permanently destroyed successfully.")

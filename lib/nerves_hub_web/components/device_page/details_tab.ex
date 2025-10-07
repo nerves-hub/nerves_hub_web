@@ -300,7 +300,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             Deployment Groups
           </div>
 
-          <div class="flex flex-col pt-2 px-4 pb-6 gap-4">
+          <div :if={is_nil(@device.deployment_group) && Enum.empty?(@deployment_groups)} class="flex pt-2 px-4 pb-6 gap-4 items-center">
+            <span class="text-sm text-nerves-gray-500">No deployment groups match the devices platform and architecture.</span>
+          </div>
+
+          <div :if={@device.deployment_group} class="flex flex-col pt-2 px-4 pb-6 gap-4">
             <div class="text-sm font-medium leading-6 text-zinc-300">
               <form id="toggle-priority-updates">
                 <input type="hidden" name="device[priority_updates]" value="false" />
@@ -324,7 +328,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 </div>
               </form>
             </div>
-            <div :if={@device.deployment_group} class="flex pt-2 gap-4 items-center">
+            <div class="flex pt-2 gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Assigned deployment group:</span>
               <.link
                 navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@device.deployment_group}"}
@@ -354,6 +358,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </button>
             </div>
           </div>
+
           <div :if={@device.status == :registered && @device.deployment_id} class="flex pt-2 px-4 pb-6 gap-4 items-center">
             <span class="text-sm text-nerves-gray-500">Please note: The device will be removed from the deployment group upon connection if the arch and platform don't match.</span>
           </div>
@@ -772,12 +777,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
-  def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
-    latest_metrics = Metrics.get_latest_metric_set(device.id)
-
-    socket
-    |> assign(:latest_metrics, latest_metrics)
-    |> assign_metadata()
+  def hooked_info(:platform_or_architecture_updated, %{assigns: %{device: device}} = socket) do
+    assign(socket, :firmwares, Firmwares.get_firmware_for_device(device))
     |> halt()
   end
 
@@ -787,6 +788,15 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     socket
     |> assign(:firmwares, firmware)
     |> put_flash(:info, "New firmware available for selection")
+    |> halt()
+  end
+
+  def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
+    latest_metrics = Metrics.get_latest_metric_set(device.id)
+
+    socket
+    |> assign(:latest_metrics, latest_metrics)
+    |> assign_metadata()
     |> halt()
   end
 

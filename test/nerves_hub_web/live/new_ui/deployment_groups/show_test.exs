@@ -13,7 +13,6 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
 
   setup context do
     %{
-      conn: conn,
       org: org,
       org_key: org_key,
       product: product,
@@ -44,8 +43,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     {:ok, source_firmware_metadata} = Firmwares.metadata_from_firmware(source_firmware)
 
     conn =
-      conn
-      |> init_test_session(%{"new_ui" => true})
+      context.conn
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
     [

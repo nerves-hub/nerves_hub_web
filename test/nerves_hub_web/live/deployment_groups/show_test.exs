@@ -23,8 +23,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
     |> assert_has("h1", text: deployment_group.name)
-    |> assert_has("p.deployment-group-state", text: "Off")
-    |> assert_has("div#device-count p", text: "0")
+    |> assert_has("svg[data-is-active=false]")
+    |> assert_has("span", text: "0")
     |> then(fn conn ->
       for tag <- deployment_group.conditions["tags"] do
         assert_has(conn, "span", text: tag)
@@ -54,8 +54,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
     |> assert_has("h1", text: deployment_group.name)
-    |> assert_has("p.deployment-group-state", text: "Off")
-    |> assert_has("div#device-count p", text: "1")
+    |> assert_has("svg[data-is-active=false]")
+    |> assert_has("span", text: "1")
     |> then(fn conn ->
       for tag <- deployment_group.conditions["tags"] do
         assert_has(conn, "span", text: tag)
@@ -77,9 +77,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     deployment_group = Fixtures.deployment_group_fixture(org, firmware)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
     |> assert_has("h1", text: deployment_group.name)
-    |> click_link("Delete")
+    |> click_button("Delete")
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
     |> assert_has("div", text: "Deployment Group successfully deleted")
 
@@ -106,9 +106,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     device = Devices.update_deployment_group(device, deployment_group)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
     |> assert_has("h1", text: deployment_group.name)
-    |> click_link("Delete")
+    |> click_button("Delete")
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
     |> assert_has("div", text: "Deployment Group successfully deleted")
 
@@ -138,28 +138,28 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
     |> assert_has("h1", text: deployment_group.name)
-    |> click_link("Turn On")
+    |> click_button("Resume")
     |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
     |> then(fn conn ->
       {:ok, reloaded_deployment_group} =
         ManagedDeployments.get_deployment_group(deployment_group.id)
 
       assert reloaded_deployment_group.is_active
-      assert_has(conn, "span", text: "Turn Off")
+      assert_has(conn, "button", text: "Pause")
 
       logs = AuditLogs.logs_for(deployment_group)
       assert Enum.count(logs) == 1
       assert List.last(logs).description =~ ~r/marked deployment/
       conn
     end)
-    |> click_link("Turn Off")
+    |> click_button("Pause")
     |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
     |> then(fn conn ->
       {:ok, reloaded_deployment_group} =
         ManagedDeployments.get_deployment_group(deployment_group.id)
 
       refute reloaded_deployment_group.is_active
-      assert_has(conn, "span", text: "Turn On")
+      assert_has(conn, "button", text: "Resume")
 
       logs = AuditLogs.logs_for(reloaded_deployment_group)
       assert Enum.count(logs) == 3
@@ -192,7 +192,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
       })
 
     conn
-    |> put_session("new_ui", true)
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
     |> assert_has("span", text: "100% of devices in this deployment group match conditions")
   end
@@ -221,7 +220,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
       })
 
     conn
-    |> put_session("new_ui", true)
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
     |> assert_has("span", text: "50% of devices in this deployment group match conditions")
     |> assert_has("div", text: "1 device doesn't match inside deployment group")
@@ -258,7 +256,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
       })
 
     conn
-    |> put_session("new_ui", true)
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
     |> assert_has("span", text: "100% of devices in this deployment group match conditions")
     |> assert_has("div", text: "1 device matches outside of deployment group")

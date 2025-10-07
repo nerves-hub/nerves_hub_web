@@ -4,10 +4,9 @@ defmodule NervesHubWeb.Live.NewUI.SupportScriptsTest do
   alias NervesHub.Fixtures
   alias NervesHub.Scripts
 
-  setup %{conn: conn, user: user, org: org} do
-    conn = init_test_session(conn, %{"new_ui" => true})
-
-    [conn: conn, product: Fixtures.product_fixture(user, org, %{name: "Amazing"})]
+  setup %{user: user, org: org} = context do
+    [product: Fixtures.product_fixture(user, org, %{name: "Amazing"})]
+    context
   end
 
   describe "list" do
@@ -45,7 +44,6 @@ defmodule NervesHubWeb.Live.NewUI.SupportScriptsTest do
       {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
 
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/scripts")
       |> refute_has("button", text: "25", timeout: 1000)
     end
@@ -65,7 +63,6 @@ defmodule NervesHubWeb.Live.NewUI.SupportScriptsTest do
       [first_script | _] = scripts |> Enum.sort_by(& &1.name)
 
       conn
-      |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/scripts")
       |> assert_has("button", text: "25", timeout: 1000)
       |> assert_has("button", text: "50", timeout: 1000)

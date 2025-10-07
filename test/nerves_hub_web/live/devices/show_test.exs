@@ -41,11 +41,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   describe "handle_event" do
     test "delete device", %{conn: conn, org: org, product: product, device: device} do
       conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
       |> assert_has("h1", text: device.identifier)
-      |> click_button("Delete")
-      |> assert_path("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div.alert div center", text: "Device is deleted and must be restored to use")
+      |> click_button("Delete device")
+      |> assert_path("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+      |> assert_has("div", text: "Device is deleted and must be restored to use.")
 
       device = Devices.get_device(device.id)
 
@@ -81,28 +81,16 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   describe "handle_info" do
-    test "presence_diff with no change", %{conn: conn, fixture: fixture} do
-      payload = %{joins: %{}, leaves: %{}}
-      {:ok, view, html} = live(conn, device_show_path(fixture))
-
-      assert html =~ "offline"
-      send(view.pid, %Broadcast{event: "presence_diff", payload: payload})
-      assert render(view) =~ "offline"
-    end
-
-    test "presence_diff with changes", %{conn: conn, fixture: fixture} do
-      {:ok, view, html} = live(conn, device_show_path(fixture))
-
-      assert html =~ "offline"
-
-      {:ok, connection} =
-        Connections.device_connecting(fixture.device, fixture.device.product_id)
-
-      :ok = Connections.device_connected(fixture.device, connection.id)
-
-      send(view.pid, %Broadcast{event: "connection:change", payload: %{status: "online"}})
-
-      assert render(view) =~ "online"
+    test "device connecting updates the UI", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_show_path(fixture))
+      |> assert_has("svg[data-connection-status=unknown]")
+      |> unwrap(fn view ->
+        {:ok, connection} = Connections.device_connecting(fixture.device, fixture.device.product_id)
+        :ok = Connections.device_connected(fixture.device, connection.id)
+        render(view)
+      end)
+      |> assert_has("svg[data-connection-status=connected]")
     end
 
     test "connection:status updates assigns when coming online", %{
@@ -115,7 +103,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
 
       # Set device status to :provisioned for deployment group eligibility
-      %{status: :provisioned} = Devices.set_as_provisioned!(device)
+      %{status: :provisioned} = device = Devices.set_as_provisioned!(device)
+
+      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      :ok = Connections.device_connected(device, connection.id)
 
       # mismatch device and deployment group firmware so "Send Update" form doesn't display
       original_firmware_platform = device.firmware_metadata.platform
@@ -129,16 +120,18 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit(device_show_path(fixture))
+      |> assert_has("svg[data-connection-status=connected]")
       |> refute_has("div", text: "Assigned Deployment Group")
       |> refute_has("span", text: "Update available")
       |> refute_has("option", text: "Select a version")
-      |> assert_has("a.disabled", text: "Console")
-      |> assert_has("div", text: "No health information has been received for this device.")
+      |> assert_has("div", text: "No device health information has been received.")
       |> refute_has("div", text: "CPU use")
       |> unwrap(fn view ->
-        # stub tracker so link to console isn't disabled
-        expect(NervesHub.Tracker, :console_active?, fn _device -> true end)
-
+        :ok = Connections.device_disconnected(device, connection.id)
+        render(view)
+      end)
+      |> assert_has("svg[data-connection-status=disconnected]")
+      |> unwrap(fn view ->
         restored_firmware_metadata =
           device.firmware_metadata
           |> Map.from_struct()
@@ -147,19 +140,23 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         {:ok, device} = Devices.update_firmware_metadata(device, restored_firmware_metadata, :unknown, false)
 
-        _device = Devices.update_deployment_group(device, deployment_group)
+        device = Devices.update_deployment_group(device, deployment_group)
 
         {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 22})
 
-        send(view.pid, %Broadcast{event: "connection:status", payload: %{status: "online"}})
+        {:ok, connection} = Connections.device_connecting(device, device.product_id)
+        :ok = Connections.device_connected(device, connection.id)
+
+        topic = "device:#{device.id}:extensions"
+        Phoenix.Channel.Server.broadcast!(NervesHub.PubSub, topic, "health_check_report", %{})
+
         render(view)
       end)
-      |> assert_has("div", text: "Assigned Deployment Group")
+      |> assert_has("div", text: "Assigned deployment group:")
       |> assert_has("span", text: "Update available")
       |> assert_has("option", text: "Select a version")
-      |> refute_has("a.disabled", text: "Console")
-      |> refute_has("div", text: "No health information has been received for this device.")
-      |> assert_has("div", text: "CPU use")
+      |> refute_has("div", text: "No device health information has been received.")
+      |> assert_has("div", text: "22%")
     end
   end
 
@@ -180,8 +177,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 50}})
         render(view)
       end)
-      |> assert_has("div", text: "Progress")
-      |> assert_has("div.progress", text: "50%")
+      |> assert_has("div", text: "Updating firmware 50%")
     end
 
     test "complete fwup progress", %{conn: conn, org: org, product: product, device: device} do
@@ -192,8 +188,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 50}})
         render(view)
       end)
-      |> assert_has("div", text: "Progress")
-      |> assert_has("div.progress", text: "50%")
+      |> assert_has("div", text: "Updating firmware 50%")
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 100}})
         render(view)
@@ -252,8 +247,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("span", text: "Device location")
-      |> assert_has("span", text: "Device maps haven't been enabled on your platform.")
+      |> assert_has("div", text: "Location")
+      |> assert_has("div", text: "Device maps haven't been enabled on your platform.")
     end
 
     test "location information is empty", %{
@@ -269,8 +264,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("span", text: "Device location")
-      |> assert_has("span", text: "No location information found.")
+      |> assert_has("div", text: "Location")
+      |> assert_has("div", text: "No location information found.")
     end
 
     test "a location error occurred", %{conn: conn, org: org, product: product, device: device} do
@@ -285,9 +280,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("span", text: "Device location")
-      |> assert_has("span", text: "An error occurred during location resolution : BOOP")
-      |> assert_has("span", text: "BEEP")
+      |> assert_has("div", text: "Location")
+      |> assert_has("div", text: "An error occurred during location resolution : BOOP")
+      |> assert_has("div", text: "BEEP")
     end
 
     test "the happy path", %{conn: conn, org: org, product: product, device: device} do
@@ -307,10 +302,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("span", text: "Device location")
-      |> assert_has(
-        "img[src=\"https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/174.8185,-41.3159,10,0/463x250@2x?access_token=abc\"]"
-      )
+      |> assert_has("div", text: "Location")
+      |> assert_has(~s(div#device-location-map[data-center-lat="-41.3159"]))
+      |> assert_has(~s(div#device-location-map[data-center-lng="174.8185"]))
     end
   end
 
@@ -320,7 +314,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "No health information has been received for this device.")
+      |> assert_has("div", text: "No device health information has been received.")
     end
 
     test "has active alarms", %{
@@ -340,8 +334,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "Active Alarms")
-      |> assert_has("span", text: "SomeAlarm")
+      |> assert_has("div", text: "Alarms")
+      |> assert_has("code", text: "SomeAlarm")
     end
 
     test "has no active alarms", %{
@@ -354,7 +348,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "No active alarms")
+      |> assert_has("div", text: "No Alarms Received")
 
       assert {:ok, _} =
                NervesHub.Devices.save_device_health(%{
@@ -366,7 +360,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "No active alarms")
+      |> assert_has("div", text: "No Alarms Received")
     end
 
     test "full set of metrics", %{
@@ -392,11 +386,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
       |> assert_has("div", text: "Load avg")
-      |> assert_has("div", text: "0.0 | 0.0 | 0.0")
+      |> assert_has("span", text: "0.0", exact: true, count: 3)
       |> assert_has("div", text: "Memory used")
-      |> assert_has("div", text: "100MB (60%)")
+      |> assert_has("span", text: "100MB")
+      |> assert_has("span", text: "60%")
       |> assert_has("div", text: "CPU")
-      |> assert_has("div", text: "30")
+      |> assert_has("span", text: "30°")
     end
 
     test "cpu temp missing", %{
@@ -406,9 +401,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device
     } do
       metrics = %{
-        "load_15min" => 0.00,
-        "load_1min" => 0.00,
-        "load_5min" => 0.00,
+        "load_15min" => 1.23,
+        "load_1min" => 4.56,
+        "load_5min" => 7.89,
         "mem_size_mb" => 7892,
         "mem_used_mb" => 100,
         "mem_used_percent" => 60
@@ -421,10 +416,13 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
       |> assert_has("div", text: "Load avg")
-      |> assert_has("div", text: "0.0 | 0.0 | 0.0")
+      |> assert_has("span", text: "1.23")
+      |> assert_has("span", text: "4.56")
+      |> assert_has("span", text: "7.89")
       |> assert_has("div", text: "Memory used")
-      |> assert_has("div", text: "100MB (60%)")
-      |> assert_has("span", text: "Last reported :")
+      |> assert_has("span", text: "100MB")
+      |> assert_has("span", text: "60%")
+      |> assert_has("span", text: "Last updated:")
       |> assert_has("time", text: "now")
     end
   end
@@ -487,6 +485,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
+      {:ok, connection} =
+        Connections.device_connecting(device, device.product_id)
+
+      :ok = Connections.device_connected(device, connection.id)
+
       deployment_group
       |> Ecto.Changeset.change(%{firmware_id: firmware.id, is_active: true})
       |> Repo.update!()
@@ -497,7 +500,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("span", text: "Update available")
-      |> click_button("Send available update")
+      |> click_button("Skip the queue")
       |> assert_has("div", text: "Pushing available firmware update")
 
       assert Repo.aggregate(NervesHub.Devices.InflightUpdate, :count) == 1
@@ -524,6 +527,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
         |> Repo.update!()
 
+      {:ok, connection} =
+        Connections.device_connecting(device, device.product_id)
+
+      :ok = Connections.device_connected(device, connection.id)
+
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       deployment_group
@@ -536,6 +544,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> refute_has("span", text: "Update available")
+      |> refute_has("button", text: "Skip the queue")
 
       assert Repo.aggregate(NervesHub.Devices.InflightUpdate, :count) == 0
     end
@@ -560,14 +569,14 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       user: user
     } do
-      {:ok, _script} =
+      {:ok, script} =
         NervesHub.Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("h3", text: "Support Scripts")
+      |> assert_has("div", text: "Support Scripts")
       |> assert_has("div", text: "MOTD")
-      |> assert_has("button", text: "Run")
+      |> assert_has("button[phx-value-id=\"#{script.id}\"]")
     end
   end
 
@@ -589,7 +598,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> unwrap(fn view ->
         render_change(view, "remove-from-deployment-group")
       end)
-      |> assert_has("div", text: "Eligible Deployment Groups")
+      |> assert_has("select#deployment_group option", text: "Select a deployment group")
 
       assert_receive %Phoenix.Socket.Broadcast{event: "deployment_updated"}
 
@@ -618,16 +627,17 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "Product Deployment Groups")
+      |> assert_has("select#deployment_group option", text: "Select a deployment group")
       |> unwrap(fn view ->
         render_change(view, "set-deployment-group", %{"deployment_id" => deployment_group.id})
       end)
-      |> assert_has("div",
-        text: "Device will be removed from the deployment group upon connection if the arch and platform doesn't match."
+      |> assert_has("span",
+        text:
+          "Please note: The device will be removed from the deployment group upon connection if the arch and platform don't match."
       )
     end
 
-    test "sets deployment and creates audit", %{
+    test "sets deployment, creates audit, and broadcasts to the devices channel", %{
       conn: conn,
       org: org,
       product: product,
@@ -641,14 +651,16 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "Eligible Deployment Group")
-      |> unwrap(fn view ->
-        render_change(view, "set-deployment-group", %{"deployment_id" => deployment_group.id})
-      end)
-      |> assert_has("div", text: "Assigned Deployment Group")
+      |> assert_has("option", text: "Select a deployment group")
+      |> select("Deployment Group", exact_option: false, option: deployment_group.name)
+      |> click_button("Add to deployment group")
+      |> refute_has("div", text: "No assigned deployment group")
 
       assert Repo.reload(device) |> Map.get(:deployment_id)
       assert length(AuditLogs.logs_for(device)) == 1
+
+      device_topic = "device:#{device.id}"
+      assert_receive %Phoenix.Socket.Broadcast{topic: ^device_topic, event: "deployment_updated"}
     end
 
     test "'no eligible deployments' text displays properly", %{
@@ -664,80 +676,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "No Eligible Deployment Groups")
-    end
-
-    test "broadcasts to devices channel", %{
-      conn: conn,
-      org: org,
-      product: product,
-      device: device,
-      deployment_group: deployment_group
-    } do
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "Product Deployment Groups")
-      |> unwrap(fn view ->
-        render_change(view, "set-deployment-group", %{"deployment_id" => deployment_group.id})
-      end)
-
-      assert_receive %Phoenix.Socket.Broadcast{event: "deployment_updated"}
-    end
-  end
-
-  describe "audit logs pagination" do
-    test "pagination works with URL parameters", %{
-      conn: conn,
-      org: org,
-      product: product,
-      device: device,
-      user: user
-    } do
-      # Create multiple audit log entries for pagination testing
-      Enum.each(1..12, fn i ->
-        NervesHub.AuditLogs.audit!(user, device, "Test audit log entry #{i}")
-      end)
-
-      # Test page 1 with default page_size=5
-      conn
-      |> visit(~p"/org/#{org}/#{product}/devices/#{device}")
-      |> assert_has("div.audit-log-item", count: 5)
-      |> assert_has("button[phx-value-page=\"2\"]")
-
-      # Test page 2 with page_size=5
-      conn
-      |> visit(~p"/org/#{org}/#{product}/devices/#{device}?page_number=2&page_size=5")
-      # Still showing 5 per page
-      |> assert_has("div.audit-log-item", count: 5)
-      |> assert_has("button[phx-value-page=\"1\"]")
-
-      # Test custom page_size=10
-      conn
-      |> visit(~p"/org/#{org}/#{product}/devices/#{device}?page_number=1&page_size=10")
-      |> assert_has("div.audit-log-item", count: 10)
-    end
-
-    test "pagination events work correctly", %{
-      conn: conn,
-      org: org,
-      product: product,
-      device: device,
-      user: user
-    } do
-      # Create enough audit logs for pagination
-      Enum.each(1..8, fn i ->
-        NervesHub.AuditLogs.audit!(user, device, "Pagination test entry #{i}")
-      end)
-
-      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices/#{device}")
-
-      # Test paginate event
-      view
-      |> element(~s(button[phx-click="paginate"][phx-value-page="2"]), "2")
-      |> render_click()
-
-      # Should redirect to page 2 on same device page
-      assert_patch(view, ~p"/org/#{org}/#{product}/devices/#{device}?page_number=2&page_size=5")
+      |> assert_has("span", text: "No deployment groups match the devices platform and architecture.")
+      |> refute_has("option", text: "Select a deployment group")
     end
   end
 

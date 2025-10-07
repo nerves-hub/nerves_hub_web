@@ -9,14 +9,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
   alias NervesHubWeb.Endpoint
 
-  setup context do
-    conn =
-      context.conn
-      |> put_session("new_ui", true)
-
-    [conn: conn]
-  end
-
   test "shows a loading message (async loading)", %{conn: conn, fixture: fixture} do
     %{device: device, org: org, product: product} = fixture
 

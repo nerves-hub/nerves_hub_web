@@ -18,10 +18,6 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.Plugs.SetLocale)
   end
 
-  pipeline :dynamic_layout do
-    plug(:put_dynamic_root_layout)
-  end
-
   pipeline :updated_layout do
     plug(:use_updated_layout)
   end
@@ -30,16 +26,6 @@ defmodule NervesHubWeb.Router do
     conn
     |> put_layout(false)
     |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
-  end
-
-  def put_dynamic_root_layout(conn, _) do
-    session = Plug.Conn.get_session(conn)
-
-    if Application.get_env(:nerves_hub, :new_ui) && session["new_ui"] do
-      put_root_layout(conn, html: {NervesHubWeb.Layouts, :root})
-    else
-      put_root_layout(conn, html: {NervesHubWeb.LayoutView, :root})
-    end
   end
 
   pipeline :logged_in do
@@ -255,7 +241,6 @@ defmodule NervesHubWeb.Router do
     get("/devices/export", ProductController, :devices_export)
 
     scope "/devices/:identifier" do
-      get("/console", DeviceController, :console)
       get("/certificate/:serial/download", DeviceController, :download_certificate)
       get("/audit_logs/download", DeviceController, :export_audit_logs)
     end
@@ -271,16 +256,13 @@ defmodule NervesHubWeb.Router do
   end
 
   scope "/", NervesHubWeb do
-    pipe_through([:browser, :live_logged_in, :dynamic_layout])
-
-    get("/ui/switch", UiSwitcherController, :index)
+    pipe_through([:browser, :live_logged_in])
 
     live_session :account,
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
         NervesHubWeb.Mounts.EnrichSentryContext,
-        NervesHubWeb.Mounts.CurrentPath,
-        {NervesHubWeb.Mounts.LayoutSelector, :no_sidebar}
+        NervesHubWeb.Mounts.CurrentPath
       ] do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
@@ -297,8 +279,7 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.EnrichSentryContext,
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
-        NervesHubWeb.Mounts.FetchOrgUser,
-        {NervesHubWeb.Mounts.LayoutSelector, :no_sidebar}
+        NervesHubWeb.Mounts.FetchOrgUser
       ] do
       live("/org/:org_name", Live.Org.Show)
       live("/org/:org_name/new", Live.Products.New)
@@ -320,14 +301,15 @@ defmodule NervesHubWeb.Router do
     end
 
     live_session :product,
+      root_layout: {NervesHubWeb.Layouts, :root},
+      layout: {NervesHubWeb.Layouts, :sidebar},
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
         NervesHubWeb.Mounts.EnrichSentryContext,
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser,
-        NervesHubWeb.Mounts.FetchProduct,
-        {NervesHubWeb.Mounts.LayoutSelector, :sidebar}
+        NervesHubWeb.Mounts.FetchProduct
       ] do
       live("/org/:org_name/:product_name/dashboard", Live.Dashboard.Index)
 
@@ -336,7 +318,7 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show, :details)
 
       live(
-        "/org/:org_name/:product_name/devices/:device_identifier/healthz",
+        "/org/:org_name/:product_name/devices/:device_identifier/health",
         Live.Devices.Show,
         :health
       )
@@ -354,25 +336,15 @@ defmodule NervesHubWeb.Router do
       )
 
       live(
-        "/org/:org_name/:product_name/devices/:device_identifier/conzole",
+        "/org/:org_name/:product_name/devices/:device_identifier/console",
         Live.Devices.Show,
         :console
       )
 
       live(
-        "/org/:org_name/:product_name/devices/:device_identifier/settingz",
+        "/org/:org_name/:product_name/devices/:device_identifier/settings",
         Live.Devices.Show,
         :settings
-      )
-
-      live(
-        "/org/:org_name/:product_name/devices/:device_identifier/health",
-        Live.Devices.DeviceHealth
-      )
-
-      live(
-        "/org/:org_name/:product_name/devices/:device_identifier/settings",
-        Live.Devices.Settings
       )
 
       live("/org/:org_name/:product_name/firmware", Live.Firmware, :index)
@@ -384,9 +356,7 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/archives/:archive_uuid", Live.Archives, :show)
 
       live("/org/:org_name/:product_name/deployment_groups", Live.DeploymentGroups.Index)
-      live("/org/:org_name/:product_name/deployments/new", Live.DeploymentGroups.New)
-
-      live("/org/:org_name/:product_name/deployment_groups/newz", Live.DeploymentGroups.Newz)
+      live("/org/:org_name/:product_name/deployment_groups/new", Live.DeploymentGroups.New)
 
       live(
         "/org/:org_name/:product_name/deployment_groups/:name",
@@ -410,11 +380,6 @@ defmodule NervesHubWeb.Router do
         "/org/:org_name/:product_name/deployment_groups/:name/settings",
         Live.DeploymentGroups.Show,
         :settings
-      )
-
-      live(
-        "/org/:org_name/:product_name/deployment_groups/:name/edit",
-        Live.DeploymentGroups.Edit
       )
 
       live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)
