@@ -14,7 +14,7 @@ defmodule NervesHub.MixProject do
         "coveralls.html": :test
       ],
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixir: "~> 1.18.0",
+      elixir: "~> 1.19.0-rc.2",
       listeners: listeners(Mix.env()),
       releases: [
         nerves_hub: [
