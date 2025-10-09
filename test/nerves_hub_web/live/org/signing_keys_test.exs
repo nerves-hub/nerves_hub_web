@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_has("div", text: "Signing Key created successfully.")
       |> assert_has("h3", text: "my amazing key")
       |> assert_has(".key-value", text: "wouldn't you like to know!")
-      |> assert_has("div", text: "Created by: #{user.username}")
+      |> assert_has("div", text: "Created by: #{user.name}")
     end
 
     test "name is trimmed if there is extra space", %{conn: conn, org: org} do
