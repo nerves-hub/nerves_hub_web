@@ -224,19 +224,16 @@ defmodule NervesHub.Firmwares do
 
   @spec create_firmware(
           org :: Org.t(),
-          filepath :: Path.t(),
-          opts :: [{:upload_file_2, upload_file_2()}]
+          filepath :: Path.t()
         ) ::
           {:ok, Firmware.t()}
           | {:error, Changeset.t() | :no_public_keys | :invalid_signature | any}
-  def create_firmware(org, filepath, opts \\ []) do
-    upload_file_2 = opts[:upload_file_2] || (&firmware_upload_config().upload_file/2)
-
+  def create_firmware(org, filepath) do
     Repo.transaction(
       fn ->
         with {:ok, params} <- build_firmware_params(org, filepath),
              {:ok, firmware} <- insert_firmware(params),
-             :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
+             :ok <- firmware_upload_config().upload_file(filepath, firmware.upload_metadata) do
           _ = NervesHubWeb.Endpoint.broadcast("firmware", "created", %{firmware: firmware})
           firmware
         else
