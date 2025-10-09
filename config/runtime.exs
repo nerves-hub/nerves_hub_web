@@ -383,7 +383,8 @@ if config_env() == :prod do
           server_name_indication: String.to_charlist(System.get_env("SMTP_SERVER")),
           customize_hostname_check: [
             match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
-          ]
+          ],
+          middlebox_comp_mode: false
         ] ++ tls_opts,
       retries: 1
   end
