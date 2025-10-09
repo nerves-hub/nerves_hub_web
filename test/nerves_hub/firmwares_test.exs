@@ -36,24 +36,26 @@ defmodule NervesHub.FirmwaresTest do
   end
 
   describe "create_firmware/2" do
+    test "enforces uuid uniqueness within a product",
+         %{firmware: %{upload_metadata: %{local_path: filepath}}, org: org} do
+      assert {:error, %Ecto.Changeset{errors: [uuid: {"has already been taken", [_ | _]}]}} =
+               Firmwares.create_firmware(org, filepath)
+    end
+
     test "remote creation failure triggers transaction rollback", %{
       org: org,
       org_key: org_key,
       product: product
     } do
       firmwares = Firmwares.get_firmwares_by_product(product.id)
-      upload_file_2 = fn _, _ -> {:error, :nope} end
+
       filepath = Fixtures.firmware_file_fixture(org_key, product)
 
-      assert {:error, _} = Firmwares.create_firmware(org, filepath, upload_file_2: upload_file_2)
+      stub(NervesHub.Firmwares.Upload.File, :upload_file, fn _, _ -> {:error, :nope} end)
+
+      assert {:error, _} = Firmwares.create_firmware(org, filepath)
 
       assert ^firmwares = Firmwares.get_firmwares_by_product(product.id)
-    end
-
-    test "enforces uuid uniqueness within a product",
-         %{firmware: %{upload_metadata: %{local_path: filepath}}, org: org} do
-      assert {:error, %Ecto.Changeset{errors: [uuid: {"has already been taken", [_ | _]}]}} =
-               Firmwares.create_firmware(org, filepath)
     end
   end
 
