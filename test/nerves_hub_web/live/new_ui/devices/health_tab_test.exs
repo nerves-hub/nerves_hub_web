@@ -167,15 +167,18 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
              |> DeviceMetric.save_with_timestamp()
              |> Repo.insert()
 
-    {:ok, _view, html} =
-      live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+    {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
 
-    organized_metrics =
-      ~s([{"y":#{value},"x":"#{now}"}])
-      |> html_escape()
-      |> safe_to_string()
+    metrics =
+      html
+      |> LazyHTML.from_document()
+      |> LazyHTML.query("canvas")
+      |> LazyHTML.attributes()
+      |> List.first()
+      |> Enum.find(fn {key, _} -> key == "data-metrics" end)
+      |> elem(1)
 
-    assert html =~ ~s(data-metrics="#{organized_metrics}")
+    assert metrics == ~s([{"x":"#{now}","y":#{value}}])
   end
 
   defp save_metrics_with_timestamp(device_id, timestamp) do
