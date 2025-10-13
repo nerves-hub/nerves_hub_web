@@ -13,6 +13,7 @@ import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
 import Flash from "./hooks/flash.js"
 import HighlightCode from "./hooks/highlightCode.js"
+import LocalShell from "./hooks/localShell.js"
 import LocalTime from "./hooks/localTime.js"
 import LogLineLocalTime from "./hooks/logLineLocalTime.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
@@ -38,6 +39,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     DeviceLocationMapWithGeocoder,
     Flash,
     HighlightCode,
+    LocalShell,
     LocalTime,
     LogLineLocalTime,
     SharedSecretClipboardClick,

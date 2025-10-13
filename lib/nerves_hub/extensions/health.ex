@@ -12,7 +12,6 @@ defmodule NervesHub.Extensions.Health do
   def description() do
     """
     Reporting of fundamental device metrics, metadata, alarms and more.
-    Also supports custom metrics. Alarms require an alarm handler to be set.
     """
   end
 

@@ -342,6 +342,12 @@ defmodule NervesHubWeb.Router do
       )
 
       live(
+        "/org/:org_name/:product_name/devices/:device_identifier/local_shell",
+        Live.Devices.Show,
+        :local_shell
+      )
+
+      live(
         "/org/:org_name/:product_name/devices/:device_identifier/settings",
         Live.Devices.Show,
         :settings

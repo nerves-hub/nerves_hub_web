@@ -17,10 +17,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
   alias NervesHubWeb.Components.DevicePage.DetailsTab
   alias NervesHubWeb.Components.DevicePage.HealthTab
+  alias NervesHubWeb.Components.DevicePage.LocalShellTab
   alias NervesHubWeb.Components.DevicePage.LogsTab
   alias NervesHubWeb.Components.DevicePage.SettingsTab
 
-  @tab_components [ActivityTab, ConsoleTab, DetailsTab, HealthTab, LogsTab, SettingsTab]
+  @tab_components [ActivityTab, ConsoleTab, DetailsTab, HealthTab, LocalShellTab, LogsTab, SettingsTab]
 
   alias NervesHubWeb.Presence
   alias Phoenix.LiveView.AsyncResult
@@ -412,6 +413,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     <ConsoleTab.render :if={@tab == :console} {assigns} />
     <DetailsTab.render :if={@tab == :details} {assigns} />
     <HealthTab.render :if={@tab == :health} {assigns} />
+    <LocalShellTab.render :if={@tab == :local_shell} {assigns} />
     <LogsTab.render :if={@tab == :logs} {assigns} />
     <SettingsTab.render :if={@tab == :settings} {assigns} />
     """

@@ -215,6 +215,9 @@
       <.link class={tab_classes(@tab, :console)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/console"}>
         Console
       </.link>
+      <.link class={tab_classes(@tab, :local_shell)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/local_shell"}>
+        System Shell
+      </.link>
       <.link :if={analytics_enabled?()} class={tab_classes(@tab, :logs)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"}>
         Logs
       </.link>
