@@ -48,8 +48,7 @@ defmodule NervesHub.Scripts do
 
   @spec create(Product.t(), User.t(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
   def create(product, user, params) do
-    %Script{}
-    |> Script.create_changeset(product, user, params)
+    Script.create_changeset(product, user, params)
     |> Repo.insert()
     |> case do
       {:ok, script} ->

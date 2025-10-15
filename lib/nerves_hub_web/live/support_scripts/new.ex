@@ -14,6 +14,14 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
   end
 
   @impl Phoenix.LiveView
+  def handle_event("validate", %{"script" => script_params}, socket) do
+    changeset = Script.validate_changeset(script_params)
+
+    socket
+    |> assign(:form, to_form(changeset, action: :validate))
+    |> noreply()
+  end
+
   def handle_event(
         "create-script",
         %{"script" => script_params},
