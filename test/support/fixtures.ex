@@ -469,7 +469,6 @@ defmodule NervesHub.Fixtures do
 
   def support_script_fixture(%Products.Product{} = product, %Accounts.User{} = user, params \\ %{}) do
     Scripts.Script.create_changeset(
-      %Scripts.Script{},
       product,
       user,
       Map.merge(
