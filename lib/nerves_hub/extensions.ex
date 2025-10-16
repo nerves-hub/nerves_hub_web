@@ -32,19 +32,23 @@ defmodule NervesHub.Extensions do
 
   require Logger
 
-  @supported_extensions [:health, :geo, :logging]
-  @type extension() :: :health | :geo | :logging
+  @supported_extensions [:health, :geo, :local_shell, :logging]
+  @type extension() :: :health | :geo | :local_shell | :logging
 
   @doc """
   Get list of supported extensions as atoms with descriptive text.
   """
-  @spec list() :: [:geo | :health | :logging, ...]
+  @spec list() :: [:geo | :health | :local_shell | :logging, ...]
   def list(), do: @supported_extensions
 
   @spec module(extension()) ::
-          NervesHub.Extensions.Geo | NervesHub.Extensions.Health | NervesHub.Extensions.Logging
+          NervesHub.Extensions.Geo
+          | NervesHub.Extensions.Health
+          | NervesHub.Extensions.LocalShell
+          | NervesHub.Extensions.Logging
   def module(:geo), do: NervesHub.Extensions.Geo
   def module(:health), do: NervesHub.Extensions.Health
+  def module(:local_shell), do: NervesHub.Extensions.LocalShell
   def module(:logging), do: NervesHub.Extensions.Logging
 
   @spec module(extension(), Version.t()) :: module() | NervesHub.Extensions.Unsupported
@@ -59,6 +63,14 @@ defmodule NervesHub.Extensions do
   def module(:geo, ver) do
     if Version.match?(ver, "~> 0.0.1") do
       NervesHub.Extensions.Geo
+    else
+      NervesHub.Extensions.Unsupported
+    end
+  end
+
+  def module(:local_shell, ver) do
+    if Version.match?(ver, "~> 0.0.1") do
+      NervesHub.Extensions.LocalShell
     else
       NervesHub.Extensions.Unsupported
     end
