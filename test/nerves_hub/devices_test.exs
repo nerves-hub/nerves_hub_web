@@ -388,9 +388,9 @@ defmodule NervesHub.DevicesTest do
     # There is a version check before the tags, so load both versions
     # here to ensure they match and we get to the tag check
     device = put_in(device.firmware_metadata.version, "1.0.0")
-    deployment_group = put_in(deployment_group.conditions["version"], "1.0.0")
+    deployment_group = put_in(deployment_group.conditions.version, "1.0.0")
 
-    nil_tags_deployment_group = put_in(deployment_group.conditions["tags"], nil)
+    nil_tags_deployment_group = put_in(deployment_group.conditions.tags, nil)
 
     refute Devices.matches_deployment_group?(%{device | tags: nil}, deployment_group)
     assert Devices.matches_deployment_group?(%{device | tags: nil}, nil_tags_deployment_group)

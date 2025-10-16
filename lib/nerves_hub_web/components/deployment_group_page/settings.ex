@@ -92,12 +92,15 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                 The matching is undertaken when a device connects to the platform.
               </p>
             </div>
-            <div class="w-1/2">
-              <.input field={@form[:tags]} value={tags_to_string(@form[:conditions])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
-            </div>
-            <div class="w-1/2">
-              <.input field={@form[:version]} value={@form[:conditions].value["version"]} label="Version requirement" placeholder="eg. 1.2.3" />
-            </div>
+            <.inputs_for :let={conditions} field={@form[:conditions]}>
+              <div class="w-1/2">
+                <.input field={conditions[:tags]} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+              </div>
+
+              <div class="w-1/2">
+                <.input field={conditions[:version]} label="Version requirement" placeholder="eg. 1.2.3" />
+              </div>
+            </.inputs_for>
           </div>
         </div>
 
@@ -272,7 +275,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
     authorized!(:"deployment_group:update", org_user)
 
-    params = inject_conditions_map(params)
     firmware_changed? = params["firmware_id"] != to_string(deployment_group.firmware_id)
     %{firmware: %{id: old_firmware_id}} = deployment_group
 
@@ -322,28 +324,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     |> put_flash(:info, "Deployment group successfully deleted")
     |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups")
     |> noreply()
-  end
-
-  defp inject_conditions_map(%{"version" => version, "tags" => tags} = params) do
-    params
-    |> Map.put("conditions", %{
-      "version" => version,
-      "tags" =>
-        tags
-        |> tags_as_list()
-        |> MapSet.new()
-        |> MapSet.to_list()
-    })
-  end
-
-  defp inject_conditions_map(params), do: params
-
-  defp tags_as_list(""), do: []
-
-  defp tags_as_list(tags) do
-    tags
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
   end
 
   def firmware_dropdown_options(firmwares) do
@@ -399,14 +379,5 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
   defp firmware_display_name(%Firmware{} = f) do
     "#{f.version} - #{f.platform} - #{f.architecture} (#{String.slice(f.uuid, 0..7)})"
-  end
-
-  @doc """
-  Convert tags from a list to a comma-separated list (in a string)
-  """
-  def tags_to_string(%Phoenix.HTML.FormField{} = field) do
-    field.value
-    |> Map.get("tags", [])
-    |> Enum.join(", ")
   end
 end

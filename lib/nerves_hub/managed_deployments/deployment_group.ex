@@ -21,7 +21,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :org_id,
     :firmware_id,
     :name,
-    :conditions,
     :is_active,
     :product_id,
     :concurrent_updates,
@@ -56,7 +55,11 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     has_many(:deployment_releases, DeploymentRelease)
     has_many(:update_stats, UpdateStat, on_delete: :nilify_all, foreign_key: :deployment_id)
 
-    field(:conditions, :map)
+    embeds_one :conditions, __MODULE__.Conditions, primary_key: false, on_replace: :update do
+      field(:version, :string, default: "")
+      field(:tags, NervesHub.Types.Tag, default: [])
+    end
+
     field(:device_failure_threshold, :integer, default: 3)
     field(:device_failure_rate_seconds, :integer, default: 180)
     field(:device_failure_rate_amount, :integer, default: 5)
@@ -148,47 +151,39 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> cast(params, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
-    |> validate_conditions()
+    |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
   end
 
-  defp validate_conditions(changeset) do
-    validate_change(changeset, :conditions, fn
-      :conditions, conditions when conditions == %{} ->
-        [conditions: "can't be blank"]
-
-      :conditions, %{"version" => nil} ->
-        [version: "can't be blank"]
-
-      :conditions, conditions ->
-        types = %{tags: {:array, :string}, version: :string}
-        # merge the new conditions with the existing ones so that we can
-        # update tags and version independently
-        conditions = Map.merge(changeset.data.conditions || %{}, conditions)
-
-        changeset =
-          {%{}, types}
-          # allow "" as valid value for `version`
-          |> cast(conditions, Map.keys(types), empty_values: [nil])
-          |> validate_required([:tags])
-          |> validate_change(
-            :version,
-            fn
-              :version, "" ->
-                []
-
-              :version, nil ->
-                [version: "can't be nil"]
-
-              :version, version ->
-                if Version.parse_requirement(version) == :error do
-                  [version: "must be valid Elixir version requirement string"]
-                else
-                  []
-                end
-            end
-          )
-
-        changeset.errors
+  def conditions_changeset(conditions, attrs) do
+    conditions
+    |> cast(attrs, [:tags, :version], empty_values: [""])
+    |> then(fn changeset ->
+      if Map.has_key?(changeset.changes, :version) && is_nil(changeset.changes.version) do
+        put_change(changeset, :version, "")
+      else
+        changeset
+      end
     end)
+    |> then(fn changeset ->
+      if Map.has_key?(changeset.changes, :tags) && is_nil(changeset.changes.tags) do
+        put_change(changeset, :tags, [])
+      else
+        changeset
+      end
+    end)
+    |> validate_change(
+      :version,
+      fn
+        :version, "" ->
+          []
+
+        :version, version ->
+          if Version.parse_requirement(version) == :error do
+            [version: "must be valid Elixir version requirement string"]
+          else
+            []
+          end
+      end
+    )
   end
 end
