@@ -38,7 +38,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
     |> submit()
 
     deployment_group = Repo.reload(deployment_group)
-    assert deployment_group.conditions["version"] == "1.2.3"
+    assert deployment_group.conditions.version == "1.2.3"
   end
 
   test "can update only tags", %{conn: conn, deployment_group: deployment_group} do
@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
     |> submit()
 
     deployment_group = Repo.reload(deployment_group)
-    assert deployment_group.conditions["tags"] == ["a", "b"]
+    assert deployment_group.conditions.tags == ["a", "b"]
   end
 
   test "can update tags and version", %{conn: conn, deployment_group: deployment_group} do
@@ -57,8 +57,8 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
     |> submit()
 
     deployment_group = Repo.reload(deployment_group)
-    assert deployment_group.conditions["tags"] == ["a", "b"]
-    assert deployment_group.conditions["version"] == "1.2.3"
+    assert deployment_group.conditions.tags == ["a", "b"]
+    assert deployment_group.conditions.version == "1.2.3"
   end
 
   test "update the chosen resource, and adds an audit log", %{
@@ -91,8 +91,8 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
     |> assert_has("div", text: "Deployment Group updated")
 
     assert reloaded_deployment_group.name == "Moussaka"
-    assert reloaded_deployment_group.conditions["version"] == "4.3.2"
-    assert Enum.sort(reloaded_deployment_group.conditions["tags"]) == Enum.sort(~w(josh lars))
+    assert reloaded_deployment_group.conditions.version == "4.3.2"
+    assert Enum.sort(reloaded_deployment_group.conditions.tags) == Enum.sort(~w(josh lars))
 
     [audit_log_one, audit_log_two] = AuditLogs.logs_for(reloaded_deployment_group)
 
@@ -140,9 +140,9 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
     |> click_button("Save changes")
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}"))
 
-    assert Repo.reload(deployment_group) |> Map.get(:conditions) == %{
-             "version" => "",
-             "tags" => []
-           }
+    deployment_group = Repo.reload(deployment_group)
+
+    assert deployment_group.conditions.version == ""
+    assert deployment_group.conditions.tags == []
   end
 end

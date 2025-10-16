@@ -303,14 +303,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500 w-36">Tag selection:</span>
-              <span :if={Enum.empty?(@deployment_group.conditions["tags"])} class="text-sm text-nerves-gray-500">No tags configured</span>
-              <span :if={Enum.any?(@deployment_group.conditions["tags"])} class="flex gap-1">
-                <span :for={tag <- @deployment_group.conditions["tags"]} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">{tag}</span>
+              <span :if={Enum.empty?(@deployment_group.conditions.tags || [])} class="text-sm text-nerves-gray-500">No tags configured</span>
+              <span :if={Enum.any?(@deployment_group.conditions.tags || [])} class="flex gap-1">
+                <span :for={tag <- @deployment_group.conditions.tags} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">{tag}</span>
               </span>
             </div>
             <div class="flex gap-4 items-center pb-2">
               <span class="text-sm text-nerves-gray-500 w-36">Version requirement:</span>
-              <code class="text-sm text-zinc-300">{@deployment_group.conditions["version"]}</code>
+              <code class="text-sm text-zinc-300">{@deployment_group.conditions.version}</code>
             </div>
             <div
               :if={@deployment_group.device_count > 0 || @unmatched_device_count > 0 || @matched_devices_outside_deployment_group_count > 0}

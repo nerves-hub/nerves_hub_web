@@ -216,8 +216,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     ).changes
   end
 
-  defp version(%DeploymentGroup{conditions: %{"version" => ""}}), do: "-"
-  defp version(%DeploymentGroup{conditions: %{"version" => version}}), do: version
+  defp version(%DeploymentGroup{conditions: %{version: ""}}), do: "-"
+  defp version(%DeploymentGroup{conditions: %{version: version}}), do: version
 
-  defp tags(%DeploymentGroup{conditions: %{"tags" => tags}}), do: tags
+  defp tags(%DeploymentGroup{conditions: %{tags: tags}}), do: tags
 end

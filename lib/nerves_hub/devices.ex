@@ -857,7 +857,7 @@ defmodule NervesHub.Devices do
   """
   def matches_deployment_group?(
         %Device{tags: tags, firmware_metadata: %FirmwareMetadata{version: version}},
-        %DeploymentGroup{conditions: %{"version" => requirement, "tags" => dep_tags}}
+        %DeploymentGroup{conditions: %{version: requirement, tags: dep_tags}}
       ) do
     if version_match?(version, requirement) and tags_match?(tags, dep_tags) do
       true

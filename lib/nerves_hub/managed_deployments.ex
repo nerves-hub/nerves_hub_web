@@ -368,9 +368,9 @@ defmodule NervesHub.ManagedDeployments do
 
   # Check that a device version matches for a deployment's conditions
   # A deployment not having a version condition returns true
-  defp version_match?(_device, %{conditions: %{"version" => ""}}), do: true
+  defp version_match?(_device, %{conditions: %{version: ""}}), do: true
 
-  defp version_match?(device, %{conditions: %{"version" => version}}) when not is_nil(version) do
+  defp version_match?(device, %{conditions: %{version: version}}) when not is_nil(version) do
     Version.match?(device.firmware_metadata.version, version)
   end
 
@@ -437,11 +437,11 @@ defmodule NervesHub.ManagedDeployments do
       |> Repo.one()
 
     bad_version =
-      if deployment_group.conditions["version"] == "" do
+      if deployment_group.conditions.version == "" do
         false
       else
         try do
-          !Version.match?(device_version, deployment_group.conditions["version"])
+          !Version.match?(device_version, deployment_group.conditions.version)
         rescue
           _ ->
             true
@@ -642,7 +642,7 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   # no tags, but version
-  defp do_matched_devices(%DeploymentGroup{conditions: %{"tags" => [], "version" => version}}, query, work_type)
+  defp do_matched_devices(%DeploymentGroup{conditions: %{tags: [], version: version}}, query, work_type)
        when version != "" do
     case work_type do
       :count ->
@@ -661,7 +661,7 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   # tags but no version
-  defp do_matched_devices(%DeploymentGroup{conditions: %{"tags" => tags, "version" => ""}}, query, work_type) do
+  defp do_matched_devices(%DeploymentGroup{conditions: %{tags: tags, version: ""}}, query, work_type) do
     query = where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
 
     case work_type do
@@ -676,7 +676,7 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   # version and tags
-  defp do_matched_devices(%DeploymentGroup{conditions: %{"tags" => tags, "version" => version}}, query, work_type) do
+  defp do_matched_devices(%DeploymentGroup{conditions: %{tags: tags, version: version}}, query, work_type) do
     query = where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
 
     case work_type do

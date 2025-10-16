@@ -10,6 +10,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentGroup.Conditions
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Workers.FirmwareDeltaBuilder
 
@@ -55,8 +56,8 @@ defmodule NervesHub.ManagedDeploymentsTest do
         product_id: firmware.product_id,
         name: "a different name",
         conditions: %{
-          "version" => "< 1.0.0",
-          "tags" => ["beta", "beta-edge"]
+          version: "< 1.0.0",
+          tags: ["beta", "beta-edge"]
         },
         is_active: false
       }
@@ -65,7 +66,13 @@ defmodule NervesHub.ManagedDeploymentsTest do
         ManagedDeployments.create_deployment_group(params)
 
       for key <- Map.keys(params) do
-        assert Map.get(deployment_group, key) == Map.get(params, key)
+        case Map.get(deployment_group, key) do
+          value when %Conditions{} == value ->
+            Map.from_struct(value) == Map.get(params, key)
+
+          value ->
+            value == Map.get(params, key)
+        end
       end
     end
 
@@ -611,7 +618,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       {:ok, _} =
         deployment_group
         |> Ecto.Changeset.change()
-        |> Ecto.Changeset.put_change(:conditions, %{"tags" => ["beta", "rpi"], "version" => "0.1"})
+        |> Ecto.Changeset.put_change(:conditions, %{tags: ["beta", "rpi"], version: "0.1"})
         |> Repo.update()
 
       deployment_group = Repo.reload(deployment_group)

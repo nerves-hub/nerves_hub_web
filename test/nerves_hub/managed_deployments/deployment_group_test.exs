@@ -3,6 +3,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
 
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentGroup.Conditions
   alias NervesHub.Repo
 
   describe "shared changeset validations" do
@@ -11,9 +12,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
         org_id: 1,
         firmware_id: 1,
         name: "Bestest Devices",
-        conditions: %{
-          "tags" => ["foo"],
-          "version" => "1.2.3"
+        conditions: %Conditions{
+          tags: ["foo"],
+          version: "1.2.3"
         },
         is_active: true,
         product_id: 1,
@@ -33,7 +34,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
           apply(DeploymentGroup, function, [
             deployment_group,
             %{
-              conditions: %{}
+              conditions: nil
             }
           ])
 
@@ -107,7 +108,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
       end
     end
 
-    test "version cannot be nil", %{deployment_group: deployment_group, functions: functions} do
+    test "a nil version is modified to be blank", %{deployment_group: deployment_group, functions: functions} do
       for function <- functions do
         changeset =
           apply(DeploymentGroup, function, [
@@ -117,8 +118,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
             }
           ])
 
-        refute changeset.valid?
-        assert errors_on(changeset).version == ["can't be blank"]
+        assert changeset.valid?
+        assert changeset.changes.conditions.changes.version == ""
       end
     end
 
@@ -136,7 +137,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
           ])
 
         refute changeset.valid?
-        assert errors_on(changeset).version == ["must be valid Elixir version requirement string"]
+        assert errors_on(changeset).conditions.version == ["must be valid Elixir version requirement string"]
       end
     end
   end

@@ -26,7 +26,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     |> assert_has("svg[data-is-active=false]")
     |> assert_has("span", text: "0")
     |> then(fn conn ->
-      for tag <- deployment_group.conditions["tags"] do
+      for tag <- deployment_group.conditions.tags do
         assert_has(conn, "span", text: tag)
       end
 
@@ -57,7 +57,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     |> assert_has("svg[data-is-active=false]")
     |> assert_has("span", text: "1")
     |> then(fn conn ->
-      for tag <- deployment_group.conditions["tags"] do
+      for tag <- deployment_group.conditions.tags do
         assert_has(conn, "span", text: tag)
       end
 

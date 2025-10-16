@@ -145,7 +145,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
 
     params =
       params
-      |> inject_conditions_map()
       |> whitelist([:name, :conditions, :firmware_id, :delta_updatable])
       |> Map.put(:org_id, org.id)
       |> Map.put(:is_active, false)
@@ -202,31 +201,5 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
 
   defp firmware_display_name(%Firmware{} = f) do
     "#{f.version} - #{f.uuid}"
-  end
-
-  defp inject_conditions_map(%{"version" => version, "tags" => tags} = params) do
-    params
-    |> Map.put("conditions", %{
-      "version" => version,
-      "tags" =>
-        tags
-        |> tags_as_list()
-        |> MapSet.new()
-        |> MapSet.to_list()
-    })
-  end
-
-  defp inject_conditions_map(params), do: params
-
-  def tags_to_string(nil), do: ""
-
-  def tags_to_string(tags), do: Enum.join(tags, ", ")
-
-  defp tags_as_list(""), do: []
-
-  defp tags_as_list(tags) do
-    tags
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
   end
 end
