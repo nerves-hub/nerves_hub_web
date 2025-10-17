@@ -23,11 +23,9 @@ defmodule NervesHubWeb.API.FirmwareController do
   operation(:create, summary: "Upload a Firmware for a Product")
 
   def create(%{assigns: %{org: org, product: product}} = conn, params) do
-    params = whitelist(params, [:firmware])
-
     Logger.info("System Memory:" <> inspect(:memsup.get_system_memory_data()))
 
-    with {%{path: filepath}, _params} <- Map.pop(params, :firmware),
+    with {%{path: filepath}, _params} <- Map.pop(params, "firmware"),
          {:ok, firmware} <- Firmwares.create_firmware(org, filepath) do
       firmware = Repo.preload(firmware, :product)
 

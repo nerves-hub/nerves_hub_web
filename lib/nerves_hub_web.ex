@@ -39,12 +39,6 @@ defmodule NervesHubWeb do
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
-
-      def whitelist(params, keys) do
-        keys
-        |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-        |> Map.new(fn x -> {x, params[to_string(x)]} end)
-      end
     end
   end
 
@@ -66,12 +60,6 @@ defmodule NervesHubWeb do
       unquote(verified_routes())
 
       action_fallback(NervesHubWeb.API.FallbackController)
-
-      def whitelist(params, keys) do
-        keys
-        |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-        |> Map.new(fn x -> {x, params[to_string(x)]} end)
-      end
     end
   end
 
@@ -125,12 +113,6 @@ defmodule NervesHubWeb do
         socket
         |> assign(:sidebar_tab, tab)
         |> assign(:tab_hint, tab)
-      end
-
-      def whitelist(params, keys) do
-        keys
-        |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-        |> Map.new(fn x -> {x, params[to_string(x)]} end)
       end
 
       def analytics_enabled?(), do: Application.get_env(:nerves_hub, :analytics_enabled)

@@ -5,15 +5,12 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.DeploymentGroup
 
   security([%{}, %{"bearer_auth" => []}])
   tags(["Deployment Groups"])
 
   plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
-
-  @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active, :product_id]
 
   operation(:index, summary: "List all Deployment Groups for a Product")
 
@@ -68,13 +65,9 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
       }) do
     with {:ok, deployment_group} <-
            ManagedDeployments.get_deployment_group_by_name(product, name),
-         {:ok, deployment_group_params} <- update_params(product, deployment_group_params),
-         deployment_group_params = whitelist(deployment_group_params, @whitelist_fields),
-         {:ok, %DeploymentGroup{} = updated_deployment_group} <-
-           ManagedDeployments.update_deployment_group(
-             deployment_group,
-             deployment_group_params
-           ) do
+         params = update_params(product, deployment_group_params),
+         {:ok, updated_deployment_group} <-
+           ManagedDeployments.update_deployment_group(deployment_group, params) do
       DeploymentGroupTemplates.audit_deployment_updated(user, deployment_group)
 
       render(conn, :show, deployment_group: updated_deployment_group)
@@ -95,10 +88,6 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
     params
     |> maybe_active_from_state()
     |> maybe_firmware_id(product)
-    |> case do
-      %{} = params -> {:ok, params}
-      err -> err
-    end
   end
 
   defp maybe_active_from_state(%{"state" => state} = params) do
@@ -109,8 +98,12 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   defp maybe_active_from_state(params), do: params
 
   defp maybe_firmware_id(%{"firmware" => uuid} = params, product) do
-    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
-      Map.put(params, "firmware_id", firmware.id)
+    case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+      {:ok, firmware} ->
+        Map.put(params, "firmware_id", firmware.id)
+
+      _ ->
+        params
     end
   end
 
