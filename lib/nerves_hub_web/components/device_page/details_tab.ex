@@ -74,7 +74,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     assigns = Map.put(assigns, :auto_refresh_health, !!assigns.health_check_timer)
 
     ~H"""
-    <div class="flex items-start justify-between gap-4 p-6">
+    <div
+      id="details-tab"
+      phx-mounted={JS.remove_class("opacity-0")}
+      class="transition-all duration-500 opacity-0 tab-content phx-click-loading:opacity-50 flex items-start justify-between gap-4 p-6"
+    >
       <div class="w-1/2 flex flex-col gap-4">
         <div :if={!@product.extensions.health || !@device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">

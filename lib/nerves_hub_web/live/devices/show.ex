@@ -392,13 +392,17 @@ defmodule NervesHubWeb.Live.Devices.Show do
     assign(socket, :tab, socket.assigns.live_action || :details)
   end
 
-  # TODO: refactor to use tailwind attributes
-  def tab_classes(tab_selected, tab) do
-    if tab_selected == tab do
-      "px-6 py-2 h-11 font-normal text-sm text-neutral-50 border-b border-indigo-500 bg-tab-selected relative -bottom-px"
-    else
-      "px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
-    end
+  defp tab(assigns) do
+    ~H"""
+    <.link
+      data-selected={"#{@selected}"}
+      class="px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 data-[selected=true]:text-neutral-50 data-[selected=true]:border-b data-[selected=true]:border-indigo-500 relative -bottom-px"
+      phx-click={JS.set_attribute({"data-selected", "false"}, to: "#tabs a") |> JS.set_attribute({"data-selected", "true"})}
+      patch={@path}
+    >
+      {@display}
+    </.link>
+    """
   end
 
   defp health_polling_seconds() do

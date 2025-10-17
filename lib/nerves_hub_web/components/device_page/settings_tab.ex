@@ -31,7 +31,11 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     assigns = Map.put(assigns, :device, device)
 
     ~H"""
-    <div class="flex flex-col items-start justify-between gap-4 p-6">
+    <div
+      id="settings-tab"
+      phx-mounted={JS.remove_class("opacity-0")}
+      class="transition-all duration-500 opacity-0 tab-content phx-click-loading:opacity-50 flex flex-col items-start justify-between gap-4 p-6"
+    >
       <.form id="settings-form" for={@settings_form} class="w-full" phx-change="validate-device-settings" phx-submit="update-device-settings">
         <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">

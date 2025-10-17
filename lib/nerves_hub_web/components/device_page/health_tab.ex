@@ -90,7 +90,11 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     assigns = Map.put(assigns, :health_enabled?, health_enabled)
 
     ~H"""
-    <div class="w-full p-6">
+    <div
+      id="health-tab"
+      phx-mounted={JS.remove_class("opacity-0")}
+      class="transition-all duration-500 opacity-0 tab-content phx-click-loading:opacity-50 w-full p-6"
+    >
       <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="mb-6 w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
         <div class="flex flex-col shadow-device-details-content">
           <div class="flex pt-2 px-4 pb-4 gap-2 items-center justify-items-stretch flex-wrap">

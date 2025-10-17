@@ -58,10 +58,26 @@ topbar.config({
   shadowColor: "rgba(0, 0, 0, .3)"
 })
 
-window.addEventListener("phx:page-loading-start", () => {
+window.addEventListener("phx:page-loading-start", info => {
+  if (info.detail.kind == "initial") {
+    document.querySelectorAll(".tab-content").forEach(el => {
+      el.classList.remove("opacity-0")
+    })
+  }
+
+  if (info.detail.kind == "patch") {
+    document.querySelectorAll(".tab-content").forEach(el => {
+      el.classList.add("phx-click-loading")
+    })
+  }
+
   topbar.show(300)
 })
 window.addEventListener("phx:page-loading-stop", () => {
+  document.querySelectorAll(".tab-content").forEach(el => {
+    el.classList.remove("phx-click-loading")
+  })
+
   topbar.hide()
 })
 
