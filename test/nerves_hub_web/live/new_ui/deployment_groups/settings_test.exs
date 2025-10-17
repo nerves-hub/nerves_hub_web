@@ -70,7 +70,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     conn =
       conn
@@ -109,7 +109,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
@@ -130,7 +130,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")

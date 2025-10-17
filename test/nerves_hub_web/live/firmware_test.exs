@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       # Create a deployment from the firmware
-      Fixtures.deployment_group_fixture(org, firmware)
+      Fixtures.deployment_group_fixture(firmware)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")

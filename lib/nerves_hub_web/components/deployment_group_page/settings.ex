@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <.form for={@form} class="w-full flex flex-col gap-4" phx-submit="update-deployment-group" phx-target={@myself}>
+      <.form id="deployment-form" for={@form} class="w-full flex flex-col gap-4" phx-change="validate-deployment-group" phx-submit="update-deployment-group" phx-target={@myself}>
         <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
             <div class="text-base text-neutral-50 font-medium">General settings</div>
@@ -37,7 +37,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
           <div class="flex p-6 gap-6">
             <div class="w-1/2 flex flex-col gap-6">
-              <.input field={@form[:name]} label="Name" placeholder="Production" />
+              <.input field={@form[:name]} label="Name" placeholder="Production" phx-debounce="blur" />
               <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates">
                 <:rich_hint>
                   When enabled, the deployment group will only send delta updates.
@@ -222,7 +222,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
           <div class="flex flex-col p-6 gap-6">
             <div class="w-2/3 flex flex-col gap-6">
-              <.input field={@form[:connecting_code]} type="textarea" rows={8} label="Run this code when the device first connects to the console.">
+              <.input field={@form[:connecting_code]} type="textarea" rows={8} label="Run this code when the device first connects to the console." phx-debounce="2000">
                 <:rich_hint>
                   <p>
                     Make sure this is valid Elixir and will not crash the device.
@@ -263,6 +263,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   end
 
   @impl Phoenix.LiveComponent
+  def handle_event("validate-deployment-group", %{"deployment_group" => params}, socket) do
+    changeset =
+      socket.assigns.deployment_group
+      |> DeploymentGroup.update_changeset(params)
+
+    socket
+    |> assign(:form, to_form(changeset, action: :validate))
+    |> noreply()
+  end
+
   def handle_event("update-deployment-group", %{"deployment_group" => params}, socket) do
     %{
       org_user: org_user,
@@ -275,9 +285,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
     authorized!(:"deployment_group:update", org_user)
 
-    firmware_changed? = params["firmware_id"] != to_string(deployment_group.firmware_id)
-    %{firmware: %{id: old_firmware_id}} = deployment_group
-
     case ManagedDeployments.update_deployment_group(deployment_group, params) do
       {:ok, updated} ->
         # Use original deployment so changes will get
@@ -288,13 +295,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           "User #{user.name} updated deployment group #{updated.name}"
         )
 
-        # no need to subscribe to new firmware here, we do that in the summary component
-        if firmware_changed? do
-          :ok = Firmwares.unsubscribe_firmware_delta_target(old_firmware_id)
-        end
-
-        # TODO: if we move away from slugs with deployment names we won't need
-        # to use `push_navigate` here.
         socket
         |> put_flash(:info, "Deployment Group updated")
         |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{updated}")

@@ -407,7 +407,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
         version: "0.0.1"
       })
 
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     params = Enum.into(device_params, %{tags: ["beta", "beta-edge"]})
 

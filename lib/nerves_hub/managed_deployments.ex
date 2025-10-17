@@ -330,11 +330,12 @@ defmodule NervesHub.ManagedDeployments do
     Ecto.Changeset.change(%DeploymentGroup{})
   end
 
-  @spec create_deployment_group(map()) :: {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def create_deployment_group(params) do
-    changeset = DeploymentGroup.create_changeset(%DeploymentGroup{}, params)
-
-    case Repo.insert(changeset) do
+  @spec create_deployment_group(map(), Product.t()) ::
+          {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
+  def create_deployment_group(params, %Product{} = product) do
+    DeploymentGroup.create_changeset(params, product)
+    |> Repo.insert()
+    |> case do
       {:ok, deployment_group} ->
         deployment_created_event(deployment_group)
 

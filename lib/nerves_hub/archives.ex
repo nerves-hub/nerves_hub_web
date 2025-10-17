@@ -56,6 +56,17 @@ defmodule NervesHub.Archives do
     end
   end
 
+  def get_by_product_and_id(%Product{id: product_id}, id) do
+    Archive
+    |> where([a], a.id == ^id)
+    |> where([a], a.product_id == ^product_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      firmware -> {:ok, firmware}
+    end
+  end
+
   @spec get_by_product_and_uuid!(Product.t(), String.t()) :: Archive.t()
   def get_by_product_and_uuid!(product, uuid) do
     Archive

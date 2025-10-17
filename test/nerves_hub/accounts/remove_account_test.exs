@@ -11,7 +11,7 @@ defmodule NervesHub.Accounts.RemoveAccountTest do
     org_key = Fixtures.org_key_fixture(org, user)
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    Fixtures.deployment_group_fixture(org, firmware)
+    Fixtures.deployment_group_fixture(firmware)
 
     RemoveAccount.remove_account(user.id)
 
@@ -42,7 +42,7 @@ defmodule NervesHub.Accounts.RemoveAccountTest do
     org2_key = Fixtures.org_key_fixture(org2, org_user.user)
     org2_product = Fixtures.product_fixture(org_user.user, org2)
     org2_firmware = Fixtures.firmware_fixture(org2_key, org2_product)
-    Fixtures.deployment_group_fixture(org, org2_firmware)
+    Fixtures.deployment_group_fixture(org2_firmware)
 
     firmware2 = Fixtures.firmware_fixture(org_key, product)
     Fixtures.firmware_delta_fixture(firmware1, firmware2)
@@ -51,7 +51,7 @@ defmodule NervesHub.Accounts.RemoveAccountTest do
     org3_key = Fixtures.org_key_fixture(org3, org_user.user)
     org3_product = Fixtures.product_fixture(org_user.user, org3)
     org3_firmware = Fixtures.firmware_fixture(org3_key, org3_product)
-    Fixtures.deployment_group_fixture(org, org3_firmware)
+    Fixtures.deployment_group_fixture(org3_firmware)
 
     RemoveAccount.remove_account(user.id)
 
