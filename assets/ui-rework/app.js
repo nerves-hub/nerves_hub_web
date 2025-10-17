@@ -27,6 +27,12 @@ import dates from "../js/dates"
 
 TimeAgo.addDefaultLocale(en)
 
+let execJS = (selector, attr) => {
+  document
+    .querySelectorAll(selector)
+    .forEach(el => liveSocket.execJS(el, el.getAttribute(attr)))
+}
+
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content")
@@ -81,6 +87,11 @@ window.addEventListener("phx:page-loading-stop", () => {
   topbar.hide()
 })
 
+// borrowed from https://github.com/fly-apps/live_beats/blob/master/assets/js/app.js#L330
+// this guards against the flash not hiding after reconnection, possibly due to the browser
+// not passing along js events.
+liveSocket.getSocket().onOpen(() => execJS("#connection-status", "js-hide"))
+liveSocket.getSocket().onError(() => execJS("#connection-status", "js-show"))
 liveSocket.connect()
 
 // expose liveSocket on window for web console debug logs and latency simulation:
