@@ -143,30 +143,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
 
     %{user: user, org: org, product: product} = socket.assigns
 
-    params =
-      params
-      |> whitelist([:name, :conditions, :firmware_id, :delta_updatable])
-      |> Map.put(:org_id, org.id)
-      |> Map.put(:is_active, false)
-
-    org
-    |> Firmwares.get_firmware(params[:firmware_id])
+    ManagedDeployments.create_deployment_group(params, product)
     |> case do
-      {:ok, firmware} ->
-        params = Map.put(params, :product_id, firmware.product_id)
-
-        {firmware, ManagedDeployments.create_deployment_group(params)}
-
-      {:error, :not_found} ->
-        {:error, :not_found}
-    end
-    |> case do
-      {:error, :not_found} ->
-        socket
-        |> put_flash(:error, "Invalid firmware selected")
-        |> noreply()
-
-      {_, {:ok, deployment_group}} ->
+      {:ok, deployment_group} ->
         _ = DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)
 
         socket
@@ -174,7 +153,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
         |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}")
         |> noreply()
 
-      {_firmware, {:error, changeset}} ->
+      {:error, changeset} ->
         socket
         |> put_flash(:error, "There was an error creating the deployment")
         |> assign(:form, to_form(changeset))

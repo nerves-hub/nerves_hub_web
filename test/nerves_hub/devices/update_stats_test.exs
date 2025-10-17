@@ -18,7 +18,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
     target_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0"})
     other_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.1"})
 
-    deployment_group = Fixtures.deployment_group_fixture(org, target_firmware, %{is_active: true})
+    deployment_group = Fixtures.deployment_group_fixture(target_firmware, %{is_active: true})
 
     device = Fixtures.device_fixture(org, product, source_firmware, %{status: :provisioned})
 

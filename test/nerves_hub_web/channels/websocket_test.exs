@@ -666,7 +666,7 @@ defmodule NervesHubWeb.WebsocketTest do
         |> Repo.preload([:product])
 
       {:ok, deployment_group} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "a different name",
           conditions: %{
             "version" => "<= 1.0.0",
@@ -769,7 +769,7 @@ defmodule NervesHubWeb.WebsocketTest do
         })
 
       {:ok, deployment_group} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "Every Device",
           conditions: %{
             "version" => "<= 1.0.0",
@@ -836,7 +836,7 @@ defmodule NervesHubWeb.WebsocketTest do
         })
 
       {:ok, deployment_group} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "a different name",
           conditions: %{
             "version" => "<= 1.0.0",
@@ -902,7 +902,7 @@ defmodule NervesHubWeb.WebsocketTest do
         })
 
       {:ok, deployment_group} =
-        Fixtures.deployment_group_fixture(org, target_firmware, %{
+        Fixtures.deployment_group_fixture(target_firmware, %{
           name: "Every Device",
           conditions: %{
             "version" => "<= 1.0.0",
@@ -1134,15 +1134,14 @@ defmodule NervesHubWeb.WebsocketTest do
       archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, deployment_group} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "beta",
           conditions: %{
             "version" => "<= 1.0.0",
             "tags" => ["beta"]
-          },
-          archive_id: archive.id
+          }
         })
-        |> ManagedDeployments.update_deployment_group(%{is_active: true})
+        |> ManagedDeployments.update_deployment_group(%{is_active: true, archive_id: archive.id})
 
       device =
         Fixtures.device_fixture(
@@ -1188,15 +1187,14 @@ defmodule NervesHubWeb.WebsocketTest do
       archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, deployment_group} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "beta",
           conditions: %{
             "version" => "<= 1.0.0",
             "tags" => ["beta"]
-          },
-          archive_id: archive.id
+          }
         })
-        |> ManagedDeployments.update_deployment_group(%{is_active: true})
+        |> ManagedDeployments.update_deployment_group(%{is_active: true, archive_id: archive.id})
 
       device =
         Fixtures.device_fixture(
@@ -1246,7 +1244,7 @@ defmodule NervesHubWeb.WebsocketTest do
         |> Repo.preload([:product])
 
       {:ok, deployment_group} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "beta",
           conditions: %{
             "version" => "<= 1.0.0",

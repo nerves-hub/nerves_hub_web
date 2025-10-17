@@ -24,7 +24,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
 
     {:ok, deployment_group} =
-      Fixtures.deployment_group_fixture(org, firmware, %{is_active: true})
+      Fixtures.deployment_group_fixture(firmware, %{is_active: true})
       |> ManagedDeployments.update_deployment_group_status(:ready)
 
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})

@@ -222,14 +222,14 @@ defmodule NervesHub.Fixtures do
     archive
   end
 
-  def deployment_group_fixture(%Org{} = org, %Firmwares.Firmware{} = firmware, params \\ %{}) do
+  def deployment_group_fixture(%Firmwares.Firmware{} = firmware, params \\ %{}) do
     {is_active, params} = Map.pop(params, :is_active, false)
 
     {:ok, deployment_group} =
-      %{org_id: org.id, firmware_id: firmware.id, product_id: firmware.product_id}
-      |> Enum.into(params)
+      params
+      |> Map.put(:firmware_id, firmware.id)
       |> Enum.into(@deployment_group_params)
-      |> ManagedDeployments.create_deployment_group()
+      |> ManagedDeployments.create_deployment_group(%Product{id: firmware.product_id})
 
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(deployment_group, %{is_active: is_active})
@@ -433,7 +433,7 @@ defmodule NervesHub.Fixtures do
     product = product_fixture(user, org, %{name: "Hop"})
     org_key = org_key_fixture(org, user, dir)
     firmware = firmware_fixture(org_key, product, %{dir: dir})
-    deployment_group = deployment_group_fixture(org, firmware)
+    deployment_group = deployment_group_fixture(firmware)
     device = device_fixture(org, product, firmware)
     %{db_cert: device_certificate} = device_certificate_fixture(device)
 

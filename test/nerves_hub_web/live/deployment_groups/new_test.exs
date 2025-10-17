@@ -56,7 +56,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.NewTest do
         |> render_submit(%{deployment_group: %{"firmware_id" => -1}})
       end)
       |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/new")
-      |> assert_has("div", text: "Invalid firmware selected")
+      |> assert_has("p", text: "does not exist")
     end
 
     test "redirects to firmware upload firmware_id is passed and no firmwares are found" do

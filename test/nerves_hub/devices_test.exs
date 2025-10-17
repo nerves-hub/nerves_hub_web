@@ -28,7 +28,7 @@ defmodule NervesHub.DevicesTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware, %{is_active: true})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{is_active: true})
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
     device2 = Fixtures.device_fixture(org, product, firmware)
     device3 = Fixtures.device_fixture(org, product, firmware)
@@ -894,7 +894,7 @@ defmodule NervesHub.DevicesTest do
         |> Repo.update!()
 
       deployment_group =
-        Fixtures.deployment_group_fixture(org, new_firmware, %{
+        Fixtures.deployment_group_fixture(new_firmware, %{
           name: "Delta deployment updates",
           is_active: true,
           delta_updatable: true
@@ -1012,7 +1012,7 @@ defmodule NervesHub.DevicesTest do
 
       # create a deployment group for org one with the new firmware
       deployment_group =
-        Fixtures.deployment_group_fixture(org_one, new_firmware_one, %{
+        Fixtures.deployment_group_fixture(new_firmware_one, %{
           name: "Delta deployment updates",
           is_active: true,
           delta_updatable: true

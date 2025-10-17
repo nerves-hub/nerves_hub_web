@@ -24,7 +24,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
       Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
 
     deployment_group =
-      Fixtures.deployment_group_fixture(org, target_firmware, %{
+      Fixtures.deployment_group_fixture(target_firmware, %{
         is_active: true,
         name: "Coolest Deployment"
       })

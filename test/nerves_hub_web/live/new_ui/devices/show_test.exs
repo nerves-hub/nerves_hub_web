@@ -137,12 +137,12 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
         Fixtures.firmware_fixture(org_key2, product, %{platform: "Vulture", architecture: "arm"})
 
       mismatched_firmware_deployment_group =
-        Fixtures.deployment_group_fixture(org, mismatched_firmware, %{
+        Fixtures.deployment_group_fixture(mismatched_firmware, %{
           name: "Vulture Deployment 2025"
         })
 
       deployment_group2 =
-        Fixtures.deployment_group_fixture(org, firmware, %{name: "Beta Deployment"})
+        Fixtures.deployment_group_fixture(firmware, %{name: "Beta Deployment"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -166,12 +166,12 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
       firmware2 = Fixtures.firmware_fixture(org_key2, product2)
 
       deployment_group_from_product2 =
-        Fixtures.deployment_group_fixture(org, firmware2, %{
+        Fixtures.deployment_group_fixture(firmware2, %{
           name: "Vulture Deployment 2025"
         })
 
       deployment_group2 =
-        Fixtures.deployment_group_fixture(org, firmware, %{name: "Beta Deployment"})
+        Fixtures.deployment_group_fixture(firmware, %{name: "Beta Deployment"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")

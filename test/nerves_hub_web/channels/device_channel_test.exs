@@ -464,7 +464,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     device = NervesHub.Repo.preload(device, :org)
 
     new_deployment_group =
-      Fixtures.deployment_group_fixture(device.org, firmware, %{name: "Super Deployment"})
+      Fixtures.deployment_group_fixture(firmware, %{name: "Super Deployment"})
 
     Devices.update_deployment_group(device, new_deployment_group)
 
@@ -590,7 +590,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
         version: "0.0.1"
       })
 
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     params = Enum.into(device_params, %{tags: ["beta", "beta-edge"]})
 
@@ -612,7 +612,9 @@ defmodule NervesHubWeb.DeviceChannelTest do
     org_key = Fixtures.org_key_fixture(org, user)
     archive = %{uuid: archive_uuid} = Fixtures.archive_fixture(org_key, product)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: System.tmp_dir()})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware, %{archive_id: archive.id})
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
+
+    ManagedDeployments.update_deployment_group(deployment_group, %{archive_id: archive.id})
 
     {device, _firmware, _deployment_group} =
       device_fixture(user, %{identifier: "123", deployment_id: deployment_group.id})

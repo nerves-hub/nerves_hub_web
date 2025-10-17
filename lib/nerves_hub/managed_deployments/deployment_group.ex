@@ -5,10 +5,12 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   import Ecto.Query
 
   alias NervesHub.Accounts.Org
+  alias NervesHub.Archives
   alias NervesHub.Archives.Archive
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdateStat
+  alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
@@ -17,30 +19,14 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
   @type t :: %__MODULE__{}
 
-  @required_fields [
-    :org_id,
-    :firmware_id,
-    :name,
-    :is_active,
-    :product_id,
+  @numeric_fields_with_defaults [
     :concurrent_updates,
-    :inflight_update_expiration_minutes
-  ]
-
-  @optional_fields [
-    :archive_id,
     :device_failure_threshold,
     :device_failure_rate_seconds,
     :device_failure_rate_amount,
     :failure_threshold,
-    :healthy,
-    :penalty_timeout_minutes,
-    :connecting_code,
-    :total_updating_devices,
-    :current_updated_devices,
-    :queue_management,
-    :delta_updatable,
-    :status
+    :inflight_update_expiration_minutes,
+    :penalty_timeout_minutes
   ]
 
   @derive {Phoenix.Param, key: :name}
@@ -64,7 +50,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:device_failure_rate_seconds, :integer, default: 180)
     field(:device_failure_rate_amount, :integer, default: 5)
     field(:failure_threshold, :integer, default: 50)
-    field(:is_active, :boolean)
+    field(:is_active, :boolean, default: false)
     field(:name, :string)
     field(:healthy, :boolean, default: true)
     field(:penalty_timeout_minutes, :integer, default: 1440)
@@ -90,49 +76,125 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     timestamps()
   end
 
-  @spec create_changeset(DeploymentGroup.t(), map()) :: Ecto.Changeset.t()
-  def create_changeset(%DeploymentGroup{} = deployment, params) do
-    base_changeset(deployment, params)
+  @spec create_changeset(map(), Product.t()) :: Ecto.Changeset.t()
+  def create_changeset(params, product) do
+    %DeploymentGroup{}
+    |> cast(params, [:name, :delta_updatable, :firmware_id])
+    |> cast_and_validate_firmware(product)
+    |> validate_required([:name, :delta_updatable])
+    |> unique_constraint(:name, name: :deployments_product_id_name_index)
+    |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
   end
 
   @spec update_changeset(DeploymentGroup.t(), map()) :: Ecto.Changeset.t()
   def update_changeset(%DeploymentGroup{} = deployment, params) do
-    base_changeset(deployment, params)
-    |> prepare_changes(fn changeset ->
+    deployment
+    |> cast(params, [
+      :name,
+      :is_active,
+      :delta_updatable,
+      :connecting_code,
+      :queue_management,
+      :firmware_id,
+      :archive_id
+    ])
+    |> cast_and_validate_numeric_fields(params)
+    |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
+    |> cast_and_validate_firmware()
+    |> cast_and_validate_archive()
+    |> validate_required([:name, :delta_updatable, :is_active, :queue_management])
+    |> unique_constraint(:name, name: :deployments_product_id_name_index)
+    |> prepare_current_updated_devices()
+    |> prepare_device_count()
+    |> prepare_status()
+  end
+
+  defp cast_and_validate_numeric_fields(changeset, params) do
+    changeset
+    |> cast(params, @numeric_fields_with_defaults, empty_values: [nil])
+    |> validate_number(:concurrent_updates, greater_than: 0)
+    |> validate_number(:device_failure_threshold, greater_than: 0)
+    |> validate_number(:device_failure_rate_seconds, greater_than_or_equal_to: 60)
+    |> validate_number(:device_failure_rate_amount, greater_than: 0)
+    |> validate_number(:failure_threshold, greater_than: 0)
+    |> validate_number(:inflight_update_expiration_minutes, greater_than_or_equal_to: 30)
+    |> validate_number(:penalty_timeout_minutes, greater_than_or_equal_to: 60)
+  end
+
+  defp cast_and_validate_firmware(changeset, product \\ nil) do
+    product = product || %Product{id: changeset.data.product_id}
+
+    if firmware_id = changeset.changes[:firmware_id] do
+      case Firmwares.get_firmware(product, firmware_id) do
+        {:ok, firmware} ->
+          changeset
+          |> put_change(:org_id, firmware.org_id)
+          |> put_change(:product_id, firmware.product_id)
+          |> put_change(:firmware_id, firmware.id)
+          |> assoc_constraint(:org)
+          |> assoc_constraint(:product)
+          |> assoc_constraint(:firmware)
+
+        {:error, _} ->
+          add_error(changeset, :firmware_id, "does not exist")
+      end
+    else
+      changeset
+      |> validate_required([:firmware_id])
+    end
+  end
+
+  defp cast_and_validate_archive(changeset) do
+    if archive_id = changeset.changes[:archive_id] do
+      %Product{id: changeset.data.product_id}
+      |> Archives.get_by_product_and_id(archive_id)
+      |> case do
+        {:ok, archive} ->
+          changeset
+          |> put_change(:archive_id, archive.id)
+          |> assoc_constraint(:archive)
+
+        {:error, _} ->
+          add_error(changeset, :archive_id, "invalid archive")
+      end
+    else
+      changeset
+    end
+  end
+
+  defp prepare_current_updated_devices(changeset) do
+    prepare_changes(changeset, fn changeset ->
       if changeset.changes[:firmware_id] do
         put_change(changeset, :current_updated_devices, 0)
       else
         changeset
       end
     end)
-    |> prepare_changes(fn changeset ->
+  end
+
+  defp prepare_device_count(changeset) do
+    prepare_changes(changeset, fn changeset ->
       device_count =
         Device
         |> select([d], count(d))
-        |> where([d], d.deployment_id == ^deployment.id)
+        |> where([d], d.deployment_id == ^changeset.data.id)
         |> changeset.repo.one()
 
       put_change(changeset, :device_count, device_count)
     end)
-    |> prepare_changes(fn changeset ->
-      device_count =
-        Device
-        |> select([d], count(d))
-        |> where([d], d.deployment_id == ^deployment.id)
-        |> changeset.repo.one()
+  end
 
-      put_change(changeset, :device_count, device_count)
-    end)
-    |> prepare_changes(fn changeset ->
+  defp prepare_status(changeset) do
+    prepare_changes(changeset, fn changeset ->
       case changeset do
         %{changes: %{delta_updatable: true}} = changeset ->
-          Ecto.Changeset.put_change(changeset, :status, :preparing)
+          put_change(changeset, :status, :preparing)
 
         %{changes: %{delta_updatable: false}} = changeset ->
-          Ecto.Changeset.put_change(changeset, :status, :ready)
+          put_change(changeset, :status, :ready)
 
         %{changes: %{is_active: true}} = changeset ->
-          Ecto.Changeset.put_change(changeset, :status, :preparing)
+          put_change(changeset, :status, :preparing)
 
         changeset ->
           changeset
@@ -144,14 +206,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     deployment
     |> cast(params, [:status])
     |> validate_required([:status])
-  end
-
-  defp base_changeset(%DeploymentGroup{} = deployment, params) do
-    deployment
-    |> cast(params, @required_fields ++ @optional_fields)
-    |> validate_required(@required_fields)
-    |> unique_constraint(:name, name: :deployments_product_id_name_index)
-    |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
   end
 
   def conditions_changeset(conditions, attrs) do

@@ -144,7 +144,7 @@ defmodule NervesHub.Firmwares do
     |> Enum.reverse()
   end
 
-  @spec get_firmware(Org.t(), integer()) ::
+  @spec get_firmware(Org.t() | Product.t(), integer()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
   def get_firmware(_, nil) do
@@ -156,6 +156,17 @@ defmodule NervesHub.Firmwares do
     |> with_product()
     |> where([f], f.id == ^id)
     |> where([f, p], p.org_id == ^org_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      firmware -> {:ok, firmware}
+    end
+  end
+
+  def get_firmware(%Product{id: product_id}, id) do
+    Firmware
+    |> where([f], f.id == ^id)
+    |> where([f], f.product_id == ^product_id)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
