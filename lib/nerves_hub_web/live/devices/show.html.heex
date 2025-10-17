@@ -205,28 +205,14 @@
   </div>
 
   <div class="flex w-full justify-between px-6 border-b border-zinc-700">
-    <div class="flex">
-      <.link class={tab_classes(@tab, :details)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}"}>
-        Details
-      </.link>
-      <.link class={tab_classes(@tab, :health)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/health"}>
-        Health
-      </.link>
-      <.link class={tab_classes(@tab, :console)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/console"}>
-        Console
-      </.link>
-      <.link class={tab_classes(@tab, :local_shell)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/local_shell"}>
-        System Shell
-      </.link>
-      <.link :if={analytics_enabled?()} class={tab_classes(@tab, :logs)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"}>
-        Logs
-      </.link>
-      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"}>
-        Activity
-      </.link>
-      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"}>
-        Settings
-      </.link>
+    <div id="tabs" class="flex">
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}"} selected={@tab == :details} display="Details" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/health"} selected={@tab == :health} display="Health" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/console"} selected={@tab == :console} display="Console" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/local_shell"} selected={@tab == :local_shell} display="System Shell" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"} selected={@tab == :logs} display="Logs" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"} selected={@tab == :activity} display="Activity" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"} selected={@tab == :settings} display="Settings" />
     </div>
   </div>
 

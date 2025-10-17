@@ -272,6 +272,7 @@ defmodule NervesHubWeb do
     quote do
       use Phoenix.Component
       alias Phoenix.Socket.Broadcast
+      alias Phoenix.LiveView.JS
     end
   end
 
