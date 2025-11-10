@@ -398,7 +398,7 @@ defmodule NervesHubWeb.Router do
 
   scope "/" do
     pipe_through([:browser, :logged_in, NervesHubWeb.Plugs.ServerAuth])
-    live_dashboard("/status/dashboard")
+    live_dashboard("/status/dashboard", metrics: NervesHub.StatsdMetricsReporter)
     oban_dashboard("/status/oban", resolver: NervesHubWeb.Plugs.ServerAuth)
   end
 
