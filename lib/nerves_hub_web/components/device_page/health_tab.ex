@@ -292,7 +292,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         title: title(type),
         data: data,
         max: get_max_value(type, data, memory_size),
-        min: get_min_value(data),
+        min: get_min_value(type, data),
         min_time: min_time,
         max_time: max_time,
         unit: get_time_unit(time_frame)
@@ -369,6 +369,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         data
         |> Enum.max_by(& &1.y)
         |> Map.get(:y)
+        # Space it out a little
+        |> Kernel.+(1.0)
     end
   end
 
@@ -380,10 +382,28 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> max(1)
   end
 
-  defp get_min_value(data) do
-    data
-    |> Enum.min_by(& &1.y)
-    |> Map.get(:y)
+  defp get_min_value(type, data) do
+    case type do
+      "load_" <> _ ->
+        0
+
+      type
+      when type in [
+             "mem_used_mb",
+             "mem_used_percent",
+             "cpu_temp",
+             "cpu_usage_percent",
+             "disk_used_percentage"
+           ] ->
+        0
+
+      _ ->
+        data
+        |> Enum.min_by(& &1.y)
+        |> Map.get(:y)
+        # Space it out a little
+        |> Kernel.-(1.0)
+    end
   end
 
   defp custom_metrics(metrics) do

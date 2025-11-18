@@ -85,8 +85,8 @@ export default {
               color: "rgba(63 63 70)"
             },
             type: "linear",
-            min: 0
-            // max: max
+            min: min,
+            max: max
           }
         },
         responsive: true,
