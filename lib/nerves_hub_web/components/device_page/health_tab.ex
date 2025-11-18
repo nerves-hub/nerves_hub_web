@@ -192,6 +192,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                 data-unit={Jason.encode!(chart.unit)}
                 data-max={Jason.encode!(chart.max)}
                 data-min={Jason.encode!(chart.min)}
+                data-maxtime={Jason.encode!(chart.max_time)}
+                data-mintime={Jason.encode!(chart.min_time)}
                 data-metrics={Jason.encode!(chart.data)}
                 data-title={Jason.encode!(chart_title(chart))}
               >
@@ -271,8 +273,14 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   end
 
   defp create_chart_data(device_id, {unit, _} = time_frame, memory_size) do
-    device_id
-    |> Metrics.get_device_metrics(time_frame)
+    metrics =
+      device_id
+      |> Metrics.get_device_metrics(time_frame)
+
+    %{inserted_at: max_time} = Enum.max_by(metrics, & &1.inserted_at, DateTime)
+    %{inserted_at: min_time} = Enum.min_by(metrics, & &1.inserted_at, DateTime)
+
+    metrics
     |> Enum.group_by(& &1.key)
     |> filter_and_sort()
     |> Enum.map(fn {type, metrics} ->
@@ -285,6 +293,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         data: data,
         max: get_max_value(type, data, memory_size),
         min: get_min_value(data),
+        min_time: min_time,
+        max_time: max_time,
         unit: get_time_unit(time_frame)
       }
     end)
