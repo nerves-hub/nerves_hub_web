@@ -370,6 +370,11 @@ defmodule NervesHubWeb.Components.Navigation do
         title: "Access Tokens",
         active: "",
         href: ~p"/account/tokens"
+      },
+      %{
+        title: "Multi-Factor Authentication",
+        active: "",
+        href: ~p"/account/mfa"
       }
     ]
     |> sidebar_active(path)

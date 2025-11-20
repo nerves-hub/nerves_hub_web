@@ -1,0 +1,18 @@
+<div class="action-row">
+  <div class="flex-row align-items-center">
+    <h1 class="mr-3 mb-0">
+      Multi Factor Authentication
+    </h1>
+  </div>
+  <div>
+    <button :if={is_nil(assigns[:editing_totp]) and is_nil(@current_totp)} class="btn btn-outline-light" phx-click="toggle-mfa">
+      Enable
+    </button>
+    <button :if={not is_nil(@current_totp)} class="btn btn-outline-light" phx-click="toggle-mfa" data-confirm="Are you sure you want to disable multi-factor authentication?">
+      Disable
+    </button>
+  </div>
+</div>
+
+<.totp_create_form :if={assigns[:editing_totp]} editing_totp={@editing_totp} qrcode_uri={@qrcode_uri} form={@totp_form} />
+<.totp_backup_codes :if={not is_nil(@current_totp)} current_totp={@current_totp} backup_codes_visible={@backup_codes_visible} />

@@ -22,6 +22,8 @@ import SupportScriptOutput from "./hooks/supportScriptOutput.js"
 import ToolTip from "./hooks/toolTip.js"
 import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
 import WorldMap from "./hooks/worldMap.js"
+import PinInput from "./hooks/pinInput.js"
+import LoginMFAForm from "./hooks/loginMFAForm.js"
 
 import dates from "../js/dates"
 
@@ -53,7 +55,9 @@ let liveSocket = new LiveSocket("/live", Socket, {
     SupportScriptOutput,
     ToolTip,
     UpdatingTimeAgo,
-    WorldMap
+    WorldMap,
+    PinInput,
+    LoginMFAForm,
   }
 })
 
