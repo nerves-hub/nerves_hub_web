@@ -72,7 +72,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
-  def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
+  def hooked_info(
+        %Broadcast{event: "health_check_report"},
+        %{assigns: %{device: device}} = socket
+      ) do
     latest_metrics = Metrics.get_latest_metric_set(device.id)
 
     socket
@@ -277,8 +280,15 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       device_id
       |> Metrics.get_device_metrics(time_frame)
 
-    %{inserted_at: max_time} = Enum.max_by(metrics, & &1.inserted_at, DateTime)
-    %{inserted_at: min_time} = Enum.min_by(metrics, & &1.inserted_at, DateTime)
+    %{inserted_at: max_time} =
+      Enum.max_by(metrics, & &1.inserted_at, DateTime, fn ->
+        %{inserted_at: DateTime.from_unix!(0)}
+      end)
+
+    %{inserted_at: min_time} =
+      Enum.min_by(metrics, & &1.inserted_at, DateTime, fn ->
+        %{inserted_at: DateTime.from_unix!(1)}
+      end)
 
     metrics
     |> Enum.group_by(& &1.key)
