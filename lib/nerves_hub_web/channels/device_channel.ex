@@ -189,7 +189,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("scripts/run", %{"ref" => "connecting_code", "return" => "nil", "output" => output}, socket)
-      when output != "" do
+      when byte_size(output) > 0 do
     :telemetry.execute([:nerves_hub, :devices, :connecting_code_failure], %{output: output})
 
     {:noreply, socket}
