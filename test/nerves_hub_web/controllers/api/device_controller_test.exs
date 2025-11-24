@@ -45,7 +45,45 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
 
-      assert json_response(conn, 200)["data"]
+      assert json_response(conn, 200) == %{
+               "data" => [
+                 %{
+                   "connection_status" => "not_seen",
+                   "deleted" => false,
+                   "deployment_group" => nil,
+                   "description" => nil,
+                   "firmware_metadata" => %{
+                     "architecture" => "x86_64",
+                     "author" => "me",
+                     "description" => "D ",
+                     "fwup_version" => "1.0.0",
+                     "id" => device.firmware_metadata.id,
+                     "misc" => nil,
+                     "platform" => "platform",
+                     "product" => "valid product",
+                     "uuid" => firmware.uuid,
+                     "vcs_identifier" => nil,
+                     "version" => "1.0.0"
+                   },
+                   "identifier" => device.identifier,
+                   "last_communication" => "never",
+                   "online" => "not_seen",
+                   "org_name" => "Test-Org",
+                   "priority_updates" => false,
+                   "product_name" => "valid product",
+                   "tags" => ["beta", "beta-edge"],
+                   "updates_blocked_until" => nil,
+                   "updates_enabled" => true,
+                   "version" => "1.0.0"
+                 }
+               ],
+               "pagination" => %{
+                 "page_number" => 1,
+                 "page_size" => nil,
+                 "total_entries" => 1,
+                 "total_pages" => 1
+               }
+             }
 
       assert Enum.find(conn.assigns.devices, fn %{identifier: identifier} ->
                device.identifier == identifier
