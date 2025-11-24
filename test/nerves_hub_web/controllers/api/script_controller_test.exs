@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.ScriptControllerTest do
   use NervesHubWeb.APIConnCase, async: true
+  use Mimic
 
   alias NervesHub.Fixtures
 
@@ -42,6 +43,56 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
       data = [script_response] = json_response(conn, 200)["data"]
       assert Enum.count(data) == 1
       assert script_response["id"] == script_with_tags.id
+    end
+  end
+
+  describe "send" do
+    test "sends script to device by name", %{conn: conn, device: device, product: product, user: user} do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      path = Routes.api_script_path(conn, :send, device, script.name)
+
+      NervesHub.Scripts.Runner
+      |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
+
+      conn
+      |> post(path)
+      |> response(200)
+    end
+
+    test "sends script to device by id", %{conn: conn, device: device, product: product, user: user} do
+      script = Fixtures.support_script_fixture(product, user)
+
+      path = Routes.api_script_path(conn, :send, device, script.id)
+
+      NervesHub.Scripts.Runner
+      |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
+
+      conn
+      |> post(path)
+      |> response(200)
+    end
+
+    test "returns error when script not found by name", %{conn: conn, device: device} do
+      path = Routes.api_script_path(conn, :send, device, "nonexistent-script")
+
+      resp =
+        conn
+        |> post(path)
+        |> json_response(503)
+
+      assert resp == %{"errors" => %{"detail" => "not_found"}}
+    end
+
+    test "returns error when script not found by id", %{conn: conn, device: device} do
+      path = Routes.api_script_path(conn, :send, device, 99_999)
+
+      resp =
+        conn
+        |> post(path)
+        |> json_response(503)
+
+      assert resp == %{"errors" => %{"detail" => "not_found"}}
     end
   end
 end
