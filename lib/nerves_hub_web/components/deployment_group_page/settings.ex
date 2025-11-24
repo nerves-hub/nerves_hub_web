@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -94,7 +95,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             </div>
             <.inputs_for :let={conditions} field={@form[:conditions]}>
               <div class="w-1/2">
-                <.input field={conditions[:tags]} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+                <.input field={conditions[:tags]} value={Utils.tags_to_string(conditions[:tags])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
               </div>
 
               <div class="w-1/2">
