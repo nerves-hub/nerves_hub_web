@@ -79,25 +79,25 @@ defmodule NervesHubWeb.ConsoleChannel do
     device = socket.assigns.device
     device = Repo.preload(device, [:deployment_group])
 
-    if device.deployment_group && device.deployment_group.connecting_code do
-      device.deployment_group.connecting_code
-      |> String.graphemes()
-      |> Enum.each(fn character ->
-        push(socket, "dn", %{"data" => character})
-      end)
+    # if device.deployment_group && device.deployment_group.connecting_code do
+    #   device.deployment_group.connecting_code
+    #   |> String.graphemes()
+    #   |> Enum.each(fn character ->
+    #     push(socket, "dn", %{"data" => character})
+    #   end)
 
-      push(socket, "dn", %{"data" => "\r"})
-    end
+    #   push(socket, "dn", %{"data" => "\r"})
+    # end
 
-    if device.connecting_code do
-      device.connecting_code
-      |> String.graphemes()
-      |> Enum.each(fn character ->
-        push(socket, "dn", %{"data" => character})
-      end)
+    # if device.connecting_code do
+    #   device.connecting_code
+    #   |> String.graphemes()
+    #   |> Enum.each(fn character ->
+    #     push(socket, "dn", %{"data" => character})
+    #   end)
 
-      push(socket, "dn", %{"data" => "\r"})
-    end
+    #   push(socket, "dn", %{"data" => "\r"})
+    # end
 
     {:noreply, socket}
   end

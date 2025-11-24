@@ -38,15 +38,18 @@ defmodule NervesHubWeb.DeviceChannel do
     params = maybe_sanitize_device_api_version(params)
 
     case DeviceLink.join(device, reference_id, params) do
-      {:ok, device} ->
+      {:ok, device, deployment_group} ->
         socket =
           socket
           |> assign(:currently_downloading_uuid, params["currently_downloading_uuid"])
           |> assign(:update_started?, !!params["currently_downloading_uuid"])
           |> assign(:device_api_version, params["device_api_version"])
+          |> assign(:script_refs, %{})
           |> update_device(device)
 
-        send(self(), {:after_join, params})
+        connecting_code = [Map.get(deployment_group, :connecting_code), device.connecting_code]
+          |> Enum.join("\n")
+        send(self(), {:after_join, params, connecting_code})
 
         {:ok, socket}
 
@@ -61,9 +64,22 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  def handle_info({:after_join, params}, socket) do
+  def handle_info({:after_join, params, connecting_code}, socket) do
     %{device: device, reference_id: reference_id} = socket.assigns
+    # :deployment_group was manually set to false, needs to force
+    device = NervesHub.Repo.preload(device, :deployment_group, force: true)
+    connecting_code = [
+      get_in(device, [Access.key(:deployment_group), Access.key(:connecting_code)]),
+      device.connecting_code
+    ] |> Enum.join("\n")
+    
+    if is_binary(connecting_code) and byte_size(connecting_code) > 0 do
+      # connecting code first incase it attempts to change things before the other messages
+      push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
+    end
+    
     :ok = DeviceLink.after_join(device, reference_id, params)
+
     {:noreply, socket}
   end
 
