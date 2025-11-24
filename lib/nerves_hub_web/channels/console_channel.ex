@@ -2,7 +2,6 @@
 defmodule NervesHubWeb.ConsoleChannel do
   use Phoenix.Channel
 
-  alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
   def join("console", payload, %{assigns: %{device: device}} = socket) do
@@ -74,30 +73,6 @@ defmodule NervesHubWeb.ConsoleChannel do
       "console_joined",
       %{}
     )
-
-    # now that the console is connected, push down the device's elixir, line by line
-    device = socket.assigns.device
-    device = Repo.preload(device, [:deployment_group])
-
-    # if device.deployment_group && device.deployment_group.connecting_code do
-    #   device.deployment_group.connecting_code
-    #   |> String.graphemes()
-    #   |> Enum.each(fn character ->
-    #     push(socket, "dn", %{"data" => character})
-    #   end)
-
-    #   push(socket, "dn", %{"data" => "\r"})
-    # end
-
-    # if device.connecting_code do
-    #   device.connecting_code
-    #   |> String.graphemes()
-    #   |> Enum.each(fn character ->
-    #     push(socket, "dn", %{"data" => character})
-    #   end)
-
-    #   push(socket, "dn", %{"data" => "\r"})
-    # end
 
     {:noreply, socket}
   end
