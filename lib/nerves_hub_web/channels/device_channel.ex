@@ -24,7 +24,6 @@ defmodule NervesHubWeb.DeviceChannel do
 
   alias NervesHub.DeviceLink
   alias NervesHub.Devices
-  alias NervesHubWeb.Endpoint
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
@@ -73,17 +72,23 @@ defmodule NervesHubWeb.DeviceChannel do
         get_in(device, [Access.key(:deployment_group), Access.key(:connecting_code)]),
         device.connecting_code
       ]
+      |> Enum.filter(&(not is_nil(&1) and byte_size(&1) > 0))
 
-    if safe_to_run_scripts?(socket) and Enum.any?(connecting_codes) do
-      connecting_code = Enum.join(connecting_codes, "\n")
-      # connecting code first incase it attempts to change things before the other messages
-      push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
-    else
-      connecting_code = Enum.join(connecting_codes, "\n")
-      text = ~s/#{connecting_code}\n\r/
-      topic = "device:console:#{device.id}"
+    case [safe_to_run_scripts?(socket), Enum.empty?(connecting_codes)] do
+      [true, false] ->
+        connecting_code = Enum.join(connecting_codes, "\n")
+        # connecting code first incase it attempts to change things before the other messages
+        push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
 
-      Endpoint.broadcast_from!(self(), topic, "dn", %{"data" => text})
+      [false, false] ->
+        connecting_code = Enum.join(connecting_codes, "\n")
+        topic = "device:console:#{device.id}"
+
+        socket.endpoint.broadcast_from!(self(), topic, "dn", %{"data" => connecting_code})
+        socket.endpoint.broadcast_from!(self(), topic, "dn", %{"data" => "\r"})
+
+      _ ->
+        :ok
     end
 
     :ok = DeviceLink.after_join(device, reference_id, params)
