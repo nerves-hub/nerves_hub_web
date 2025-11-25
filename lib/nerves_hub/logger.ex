@@ -98,7 +98,8 @@ defmodule NervesHub.Logger do
   def log_event([:nerves_hub, :devices, :connecting_code_failure], _, metadata, _) do
     Logger.info("Connecting code failure",
       event: "nerves_hub.devices.connecting_code_failure",
-      output: metadata[:output]
+      output: metadata[:output],
+      identifier: metadata[:identifier]
     )
   end
 
