@@ -68,21 +68,21 @@ defmodule NervesHubWeb.DeviceChannel do
     # :deployment_group is manually set to nil in DeviceLink, need to force reload here
     device = NervesHub.Repo.preload(device, :deployment_group, force: true)
 
-    connecting_code =
+    connecting_codes =
       [
         get_in(device, [Access.key(:deployment_group), Access.key(:connecting_code)]),
         device.connecting_code
       ]
-      |> Enum.join("\n")
 
-    if safe_to_run_scripts?(socket) do
-      if is_binary(connecting_code) and byte_size(connecting_code) > 0 do
-        # connecting code first incase it attempts to change things before the other messages
-        push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
-      end
+    if safe_to_run_scripts?(socket) and Enum.any?(connecting_codes) do
+      connecting_code = Enum.join(connecting_codes, "\n")
+      # connecting code first incase it attempts to change things before the other messages
+      push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
     else
+      connecting_code = Enum.join(connecting_codes, "\n")
       text = ~s/#{connecting_code}\n# [NERVESHUB:END]/
       topic = "device:console:#{device.id}"
+
       Endpoint.broadcast_from!(self(), topic, "dn", %{"data" => text})
       Endpoint.broadcast_from!(self(), topic, "dn", %{"data" => "\r"})
     end
