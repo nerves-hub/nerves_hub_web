@@ -89,7 +89,7 @@ defmodule NervesHubWeb.Router do
       delete("/penalty", DeviceController, :penalty)
 
       get("/scripts", ScriptController, :index)
-      post("/scripts/:id", ScriptController, :send)
+      post("/scripts/:name_or_id", ScriptController, :send)
     end
 
     scope "/" do
@@ -154,7 +154,7 @@ defmodule NervesHubWeb.Router do
                   delete("/penalty", DeviceController, :penalty)
 
                   scope "/scripts", as: :device do
-                    post("/:id", ScriptController, :send)
+                    post("/:name_or_id", ScriptController, :send)
                   end
 
                   scope "/certificates" do

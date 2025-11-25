@@ -24,8 +24,8 @@ defmodule NervesHubWeb.API.ScriptController do
   # This operation is defined in `NervesHubWeb.API.OpenAPI.DeviceControllerSpecs`
   operation(:send, false)
 
-  def send(%{assigns: %{device: device}} = conn, %{"id" => id} = params) do
-    with {:ok, command} <- Scripts.get(device.product, id),
+  def send(%{assigns: %{device: device}} = conn, %{"name_or_id" => name_or_id} = params) do
+    with {:ok, command} <- Scripts.get_by_product_and_name_with_id_fallback(device.product, name_or_id),
          {:ok, timeout} <- get_timeout_param(params),
          {:ok, io} <- Scripts.Runner.send(device, command, timeout) do
       text(conn, io)
