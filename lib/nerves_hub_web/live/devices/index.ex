@@ -97,7 +97,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:sort_direction, "asc")
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:firmware_versions, firmware_versions(product.id))
-    |> assign(:platforms, Devices.platforms(product.id))
+    |> assign(:platforms, [])
     |> assign(:show_filters, false)
     |> assign(:current_filters, @default_filters)
     |> assign(:currently_filtering, false)
@@ -107,15 +107,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
     |> assign(:total_entries, 0)
-    |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
-    |> assign(:metrics_keys, Metrics.default_metrics())
-    |> assign(:deployment_groups, ManagedDeployments.get_deployment_groups_by_product(product))
+    |> assign(:current_alarms, [])
+    |> assign(:metrics_keys, [])
+    |> assign(:deployment_groups, [])
     |> assign(:available_deployment_groups_for_filtered_platform, [])
     |> assign(:target_deployment_group, nil)
     |> assign(
       :soft_deleted_devices_exist,
       Devices.soft_deleted_devices_exist_for_product?(product.id)
     )
+    |> assign(:filters_ready?, false)
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
@@ -135,6 +136,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:params, unsigned_params)
     |> assign_display_devices()
     |> maybe_assign_available_deployment_groups_for_filtered_platform()
+    |> assign_filter_data()
     |> noreply()
   end
 
@@ -451,6 +453,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  defp assign_filter_data(%{assigns: %{product: product}} = socket) do
+    socket
+    |> start_async(:update_filter_data, fn ->
+      [
+        current_alarms: Alarms.get_current_alarm_types(product.id),
+        metrics_keys: Metrics.default_metrics(),
+        deployment_groups: ManagedDeployments.get_deployment_groups_by_product(product),
+        platforms: Devices.platforms(product.id)
+      ]
+    end)
+  end
+
   defp assign_display_devices(%{assigns: %{product: product, paginate_opts: paginate_opts, user: user}} = socket) do
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
@@ -498,6 +512,21 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:devices, AsyncResult.failed(devices, {:exit, reason}))
     |> assign(:device_statuses, AsyncResult.ok(device_statuses, {:exit, reason}))
     |> noreply()
+  end
+
+  def handle_async(:update_filter_data, {:ok, new_assigns}, socket) do
+    socket
+    |> assign(new_assigns)
+    |> assign(:filters_ready?, true)
+    |> noreply()
+  end
+
+  def handle_async(:update_filter_data, {:exit, reason}, socket) do
+    message =
+      "Live.Devices.Index.handle_async:update_filter_data failed due to exit: #{inspect(reason)}"
+
+    {:ok, _} = Sentry.capture_message(message, result: :none)
+    socket
   end
 
   defp device_pagination_assigns(socket, paginate_opts, pager) do
