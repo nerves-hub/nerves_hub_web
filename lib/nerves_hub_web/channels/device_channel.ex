@@ -209,9 +209,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("scripts/run", params, socket) do
-    refs = Map.get(socket.assigns, :script_refs, %{})
-
-    if pid = refs[params["ref"]] do
+    if pid = get_in(socket.assigns, [:script_refs, params["ref"]]) do
       output = Enum.join([params["output"], params["return"]], "\n")
       output = String.trim(output)
       send(pid, {:output, output})
