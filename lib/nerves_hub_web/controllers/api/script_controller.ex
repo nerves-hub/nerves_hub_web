@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.ScriptController do
   use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Scripts
+  alias NervesHubWeb.API.PaginationHelpers
 
   security([%{}, %{"bearer_auth" => []}])
   tags(["Support Scripts"])
@@ -55,18 +56,15 @@ defmodule NervesHubWeb.API.ScriptController do
           into: %{},
           do: {String.to_existing_atom(key), val}
 
-    opts = %{
-      pagination: Map.get(params, "pagination", %{}),
-      filters: filters
-    }
-
-    {scripts, page} = Scripts.filter(product, opts)
-
-    pagination = Map.take(page, [:page_number, :page_size, :total_entries, :total_pages])
+    {scripts, page} =
+      Scripts.filter(product, %{
+        pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
+        filters: filters
+      })
 
     conn
     |> assign(:scripts, scripts)
-    |> assign(:pagination, pagination)
+    |> assign(:pagination, PaginationHelpers.format_pagination_meta(page))
     |> render(:index)
   end
 end
