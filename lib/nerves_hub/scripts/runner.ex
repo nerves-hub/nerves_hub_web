@@ -62,11 +62,7 @@ defmodule NervesHub.Scripts.Runner do
   def handle_info({:error, :incompatible_version}, state) do
     text = ~s/#{state.text}\n# [NERVESHUB:END]/
 
-    text
-    |> String.graphemes()
-    |> Enum.each(fn character ->
-      Endpoint.broadcast_from!(self(), state.send_channel, "dn", %{"data" => character})
-    end)
+    Endpoint.broadcast_from!(self(), state.send_channel, "dn", %{"data" => text})
 
     _ = Endpoint.subscribe(state.receive_channel)
 

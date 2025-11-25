@@ -24,6 +24,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   alias NervesHub.DeviceLink
   alias NervesHub.Devices
+  alias NervesHubWeb.Endpoint
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
@@ -63,6 +64,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   def handle_info({:after_join, params}, socket) do
     %{device: device, reference_id: reference_id} = socket.assigns
+
     # :deployment_group is manually set to nil in DeviceLink, need to force reload here
     device = NervesHub.Repo.preload(device, :deployment_group, force: true)
 
@@ -73,9 +75,16 @@ defmodule NervesHubWeb.DeviceChannel do
       ]
       |> Enum.join("\n")
 
-    if is_binary(connecting_code) and byte_size(connecting_code) > 0 do
-      # connecting code first incase it attempts to change things before the other messages
-      push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
+    if safe_to_run_scripts?(socket) do
+      if is_binary(connecting_code) and byte_size(connecting_code) > 0 do
+        # connecting code first incase it attempts to change things before the other messages
+        push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
+      end
+    else
+      text = ~s/#{connecting_code}\n# [NERVESHUB:END]/
+      topic = "device:console:#{device.id}"
+      Endpoint.broadcast_from!(self(), topic, "dn", %{"data" => text})
+      Endpoint.broadcast_from!(self(), topic, "dn", %{"data" => "\r"})
     end
 
     :ok = DeviceLink.after_join(device, reference_id, params)
@@ -96,7 +105,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:run_script, pid, text}, socket) do
-    if Version.match?(socket.assigns.device_api_version, ">= 2.1.0") do
+    if safe_to_run_scripts?(socket) do
       ref = Base.encode64(:crypto.strong_rand_bytes(4), padding: false)
 
       push(socket, "scripts/run", %{"text" => text, "ref" => ref})
@@ -296,4 +305,6 @@ defmodule NervesHubWeb.DeviceChannel do
       "deployment:#{device.deployment_id}"
     end
   end
+
+  defp safe_to_run_scripts?(socket), do: Version.match?(socket.assigns.device_api_version, ">= 2.1.0")
 end
