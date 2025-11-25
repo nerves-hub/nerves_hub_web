@@ -80,11 +80,10 @@ defmodule NervesHubWeb.DeviceChannel do
       push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
     else
       connecting_code = Enum.join(connecting_codes, "\n")
-      text = ~s/#{connecting_code}\n# [NERVESHUB:END]/
+      text = ~s/#{connecting_code}\n\r/
       topic = "device:console:#{device.id}"
 
       Endpoint.broadcast_from!(self(), topic, "dn", %{"data" => text})
-      Endpoint.broadcast_from!(self(), topic, "dn", %{"data" => "\r"})
     end
 
     :ok = DeviceLink.after_join(device, reference_id, params)
