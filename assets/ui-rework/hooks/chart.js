@@ -12,6 +12,8 @@ export default {
     let type = JSON.parse(this.el.dataset.type)
     let max = JSON.parse(this.el.dataset.max)
     let min = JSON.parse(this.el.dataset.min)
+    let maxTime = JSON.parse(this.el.dataset.maxtime)
+    let minTime = JSON.parse(this.el.dataset.mintime)
     let title = JSON.parse(this.el.dataset.title)
 
     const ctx = this.el
@@ -73,7 +75,9 @@ export default {
             ticks: {
               display: true,
               autoSkip: false
-            }
+            },
+            min: minTime,
+            max: maxTime
           },
           y: {
             offset: true,
@@ -81,8 +85,8 @@ export default {
               color: "rgba(63 63 70)"
             },
             type: "linear",
-            min: 0
-            // max: max
+            min: min,
+            max: max
           }
         },
         responsive: true,
