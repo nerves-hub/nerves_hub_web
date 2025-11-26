@@ -82,10 +82,10 @@ defmodule NervesHubWeb.DeviceChannel do
 
       [false, false] ->
         connecting_code = Enum.join(connecting_codes, "\n")
+        text = ~s/#{connecting_code}\n\r/
         topic = "device:console:#{device.id}"
 
-        socket.endpoint.broadcast_from!(self(), topic, "dn", %{"data" => connecting_code})
-        socket.endpoint.broadcast_from!(self(), topic, "dn", %{"data" => "\r"})
+        socket.endpoint.broadcast_from!(self(), topic, "dn", %{"data" => text})
 
       _ ->
         :ok
