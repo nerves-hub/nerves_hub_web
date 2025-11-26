@@ -63,7 +63,36 @@ defmodule NervesHubWeb.DeviceChannel do
 
   def handle_info({:after_join, params}, socket) do
     %{device: device, reference_id: reference_id} = socket.assigns
+
+    # :deployment_group is manually set to nil in DeviceLink, need to force reload here
+    device = NervesHub.Repo.preload(device, :deployment_group, force: true)
+
+    connecting_codes =
+      [
+        get_in(device, [Access.key(:deployment_group), Access.key(:connecting_code)]),
+        device.connecting_code
+      ]
+      |> Enum.filter(&(not is_nil(&1) and byte_size(&1) > 0))
+
+    case [safe_to_run_scripts?(socket), Enum.empty?(connecting_codes)] do
+      [true, false] ->
+        connecting_code = Enum.join(connecting_codes, "\n")
+        # connecting code first incase it attempts to change things before the other messages
+        push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
+
+      [false, false] ->
+        connecting_code = Enum.join(connecting_codes, "\n")
+        text = ~s/#{connecting_code}\n\r/
+        topic = "device:console:#{device.id}"
+
+        socket.endpoint.broadcast_from!(self(), topic, "dn", %{"data" => text})
+
+      _ ->
+        :ok
+    end
+
     :ok = DeviceLink.after_join(device, reference_id, params)
+
     {:noreply, socket}
   end
 
@@ -80,7 +109,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:run_script, pid, text}, socket) do
-    if Version.match?(socket.assigns.device_api_version, ">= 2.1.0") do
+    if safe_to_run_scripts?(socket) do
       ref = Base.encode64(:crypto.strong_rand_bytes(4), padding: false)
 
       push(socket, "scripts/run", %{"text" => text, "ref" => ref})
@@ -172,8 +201,28 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_in(
+        "scripts/run",
+        %{"ref" => "connecting_code", "result" => result, "return" => return, "output" => output},
+        socket
+      )
+      when result == "error" or return == "nil" do
+    :telemetry.execute([:nerves_hub, :devices, :connecting_code_failure], %{
+      output: output,
+      identifier: socket.assigns.device.identifier
+    })
+
+    {:noreply, socket}
+  end
+
+  def handle_in("scripts/run", %{"ref" => "connecting_code"}, socket) do
+    :telemetry.execute([:nerves_hub, :devices, :connecting_code_success], %{count: 1})
+
+    {:noreply, socket}
+  end
+
   def handle_in("scripts/run", params, socket) do
-    if pid = socket.assigns.script_refs[params["ref"]] do
+    if pid = get_in(socket.assigns, [:script_refs, params["ref"]]) do
       output = Enum.join([params["output"], params["return"]], "\n")
       output = String.trim(output)
       send(pid, {:output, output})
@@ -260,4 +309,6 @@ defmodule NervesHubWeb.DeviceChannel do
       "deployment:#{device.deployment_id}"
     end
   end
+
+  defp safe_to_run_scripts?(socket), do: Version.match?(socket.assigns.device_api_version, ">= 2.1.0")
 end

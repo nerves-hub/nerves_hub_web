@@ -30,6 +30,7 @@ defmodule NervesHub.Logger do
         [:phoenix, :endpoint, :stop],
         [:nerves_hub, :devices, :invalid_auth],
         [:nerves_hub, :devices, :connect],
+        [:nerves_hub, :devices, :connecting_code_failure],
         [:nerves_hub, :devices, :disconnect],
         [:nerves_hub, :devices, :duplicate_connection],
         [:nerves_hub, :devices, :update, :automatic],
@@ -91,6 +92,14 @@ defmodule NervesHub.Logger do
       ref_id: metadata[:ref_id],
       identifier: metadata[:identifier],
       firmware_uuid: metadata[:firmware_uuid]
+    )
+  end
+
+  def log_event([:nerves_hub, :devices, :connecting_code_failure], _, metadata, _) do
+    Logger.info("Connecting code failure",
+      event: "nerves_hub.devices.connecting_code_failure",
+      output: metadata[:output],
+      identifier: metadata[:identifier]
     )
   end
 
