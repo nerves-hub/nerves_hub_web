@@ -21,6 +21,76 @@ defmodule NervesHub.Devices.Connections do
   end
 
   @doc """
+  Get device connection information for Orgs.
+  """
+  @spec get_connection_status_by_orgs(org_ids :: [non_neg_integer()]) :: %{
+          non_neg_integer() => %{online: non_neg_integer(), offline: non_neg_integer()}
+        }
+  def get_connection_status_by_orgs(org_ids) when is_list(org_ids) do
+    q =
+      from(d in DeviceConnection)
+      |> join(:inner, [d], p in assoc(d, :product))
+      |> select([d, p], [p.org_id, count(d.id)])
+      |> where([_, p], p.org_id in ^org_ids)
+      |> group_by([_, p], p.org_id)
+
+    online =
+      q
+      |> where([d], d.status == :connected)
+      |> Repo.all()
+
+    offline =
+      q
+      |> where([d], d.status != :connected)
+      |> Repo.all()
+
+    for org_id <- org_ids, into: %{} do
+      {org_id, %{online: 0, offline: 0}}
+    end
+    |> to_connection_status(online, :online)
+    |> to_connection_status(offline, :offline)
+  end
+
+  @doc """
+  Get device connection information for Products.
+  """
+  @spec get_connection_status_by_products(product_ids :: [non_neg_integer()]) :: %{
+          non_neg_integer() => %{online: non_neg_integer(), offline: non_neg_integer()}
+        }
+  def get_connection_status_by_products(product_ids) when is_list(product_ids) do
+    q =
+      from(d in DeviceConnection)
+      |> join(:inner, [d], p in assoc(d, :product))
+      |> select([d, p], [p.id, count(d.id)])
+      |> where([_, p], p.id in ^product_ids)
+      |> group_by([_, p], p.id)
+
+    online =
+      q
+      |> where([d], d.status == :connected)
+      |> Repo.all()
+
+    offline =
+      q
+      |> where([d], d.status != :connected)
+      |> Repo.all()
+
+    for product_id <- product_ids, into: %{} do
+      {product_id, %{online: 0, offline: 0}}
+    end
+    |> to_connection_status(online, :online)
+    |> to_connection_status(offline, :offline)
+  end
+
+  defp to_connection_status(start, counts, status) do
+    counts
+    |> Enum.reduce(start, fn [id, count], acc ->
+      current = Map.get(acc, id, %{})
+      Map.put(acc, id, Map.put(current, status, count))
+    end)
+  end
+
+  @doc """
   Get latest inserted connection for a device.
   """
   @spec get_latest_for_device(non_neg_integer()) :: DeviceConnection.t() | nil
