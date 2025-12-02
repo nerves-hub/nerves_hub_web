@@ -48,9 +48,11 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     socket
     |> assign(:time_frame, time_frame)
     |> assign(:time_frame_opts, @time_frame_opts)
+    |> assign(:enabled_charts, nil)
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(socket.assigns.device.id))
     |> assign_charts()
     |> update_charts()
+    |> update_enabled_charts()
     |> cont()
   end
 
@@ -72,7 +74,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
-  def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
+  def hooked_info(
+        %Broadcast{event: "health_check_report"},
+        %{assigns: %{device: device}} = socket
+      ) do
     latest_metrics = Metrics.get_latest_metric_set(device.id)
 
     socket
@@ -100,7 +105,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
           <div class="flex pt-2 px-4 pb-4 gap-2 items-center justify-items-stretch flex-wrap">
             <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-emerald-500 bg-health-good">
               <span class="text-xs text-zinc-400 tracking-wide">CPU</span>
-              <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex justify-between items-end">
+              <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class={"flex justify-between items-end" <> on_cls(assigns, "cpu_temp")>}>
                 <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
                 <span class="text-base text-emerald-500">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
@@ -182,7 +187,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
             <span class="text-zinc-500 font-extralight">No metrics for the selected period.</span>
           </div>
 
-          <div :for={chart <- @charts} :if={Enum.any?(@charts)} class="flex flex-col gap-3">
+          <div :for={chart <- @enabled_charts} :if={Enum.any?(@charts)} class="flex flex-col gap-3">
             <div class="w-full h-[200px]">
               <canvas
                 id={chart.type}
@@ -212,6 +217,15 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     charts = create_chart_data(device.id, time_frame, latest_metrics["mem_size_mb"])
 
     assign(socket, :charts, charts)
+    |> update_enabled_charts()
+  end
+
+  defp update_enabled_charts(socket) do
+    if socket.assigns.enabled_charts do
+      assign(socket, :enabled_charts, socket.assigns.charts)
+    else
+      assign(socket, :enabled_charts, socket.assigns.charts)
+    end
   end
 
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
@@ -424,5 +438,13 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     key
     |> String.replace("_", " ")
     |> String.capitalize()
+  end
+
+  defp on_cls(assigns, metric) do
+    if assigns.enabled_charts and metric in assigns.enabled_charts do
+      " enabled_chart"
+    else
+      " "
+    end
   end
 end
