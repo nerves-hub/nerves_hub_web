@@ -25,6 +25,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
   @list_refresh_time 10_000
+  # Delay frequent refresh triggers to this interval
+  @refresh_delay 1000
 
   @default_filters %{
     connection: "",
@@ -107,6 +109,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
     |> assign(:total_entries, 0)
+    |> assign(:visible?, true)
+    |> assign(:live_refresh_timer, nil)
+    |> assign(:live_refresh_pending?, false)
+    |> assign(:received_connection_change_identifiers, [])
     |> assign(:current_alarms, [])
     |> assign(:metrics_keys, [])
     |> assign(:deployment_groups, [])
@@ -415,42 +421,83 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  def handle_event("page_visibility_change", %{"visible" => visible?}, socket) do
+    socket
+    |> then(fn socket ->
+      # refresh if switching to visible from non-visible
+      if not socket.assigns.visible? and visible? do
+        safe_refresh(socket)
+      else
+        socket
+      end
+    end)
+    |> assign(visible?: visible?)
+    |> noreply()
+  end
+
   def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
-    update_device_statuses(socket, payload)
+    socket
+    |> assign(:received_connection_change_identifiers, [payload | socket.assigns.received_connection_change_identifiers])
+    |> safe_refresh()
+    |> update_device_statuses(payload)
   end
 
   def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
-    update_device_statuses(socket, payload)
+    socket
+    |> assign(:received_connection_change_identifiers, [payload | socket.assigns.received_connection_change_identifiers])
+    |> safe_refresh()
+    |> update_device_statuses(payload)
   end
 
   def handle_info(%Broadcast{event: "fwup_progress", payload: %{device_id: device_id, percent: percent}}, socket)
       when percent > 99 do
     socket
     |> assign(:progress, Map.delete(socket.assigns.progress, device_id))
+    |> safe_refresh()
     |> noreply()
   end
 
   def handle_info(%Broadcast{event: "fwup_progress", payload: %{device_id: device_id, percent: percent}}, socket) do
     socket
     |> assign(:progress, Map.put(socket.assigns.progress, device_id, percent))
+    |> safe_refresh()
     |> noreply()
   end
 
   # Unknown broadcasts get ignored, likely from the device:id:internal channel
   def handle_info(%Broadcast{}, socket) do
-    {:noreply, socket}
+    socket
+    |> safe_refresh()
+    |> noreply()
   end
 
   def handle_info(:refresh_device_list, socket) do
-    Tracer.with_span "NervesHubWeb.Live.Devices.Index.refresh_device_list" do
-      Process.send_after(self(), :refresh_device_list, @list_refresh_time)
+    if socket.assigns.visible? do
+      Tracer.with_span "NervesHubWeb.Live.Devices.Index.refresh_device_list" do
+        Process.send_after(self(), :refresh_device_list, @list_refresh_time)
 
-      if socket.assigns.paginate_opts.total_pages == 1 do
-        {:noreply, assign_display_devices(socket)}
-      else
-        {:noreply, socket}
+        socket
+        |> safe_refresh()
+        |> noreply()
       end
+
+      socket
+      |> noreply()
     end
+  end
+
+  def handle_info(:live_refresh, socket) do
+    if socket.assigns.visible? and socket.assigns.live_refresh_pending? do
+      Tracer.with_span "NervesHubWeb.Live.Devices.Index.live_refresh_device_list" do
+        socket
+        |> assign_display_devices()
+      end
+    else
+      socket
+    end
+    |> assign(:live_refresh_timer, nil)
+    |> assign(:live_refresh_pending?, false)
+    |> noreply()
   end
 
   defp assign_filter_data(%{assigns: %{product: product}} = socket) do
@@ -490,12 +537,22 @@ defmodule NervesHubWeb.Live.Devices.Index do
       Map.new(updated_devices, fn device ->
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
 
-        {device.identifier, Tracker.connection_status(device)}
+        payload =
+          Enum.find(socket.assigns.received_connection_change_identifiers, fn %{device_id: identifier} ->
+            identifier == device.identifier
+          end)
+
+        if payload do
+          {payload.device_id, payload.status}
+        else
+          {device.identifier, Tracker.connection_status(device)}
+        end
       end)
 
     socket
     |> assign(:devices, AsyncResult.ok(old_devices, updated_devices))
     |> assign(:device_statuses, AsyncResult.ok(old_device_statuses, updated_device_statuses))
+    |> assign(:received_connection_change_identifiers, [])
     |> device_pagination_assigns(paginate_opts, pager)
     |> noreply()
   end
@@ -723,5 +780,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp has_results?(%AsyncResult{} = device_async, currently_filtering?) do
     device_async.ok? && (Enum.any?(device_async.result) || currently_filtering?)
+  end
+
+  defp safe_refresh(socket) do
+    if is_nil(socket.assigns.live_refresh_timer) and socket.assigns.visible? do
+      # Nothing pending, we perform a refresh
+      socket
+      |> assign_display_devices()
+      |> assign(:live_refresh_timer, Process.send_after(self(), :live_refresh, @refresh_delay))
+    else
+      # a timer is already pending, we flag the pending request
+      socket
+      |> assign(:live_refresh_pending?, true)
+    end
   end
 end
