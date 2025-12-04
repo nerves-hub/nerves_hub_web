@@ -28,7 +28,7 @@ defmodule NervesHub.Devices.Connections do
         }
   def get_connection_status_by_orgs(org_ids) when is_list(org_ids) do
     q =
-      from(d in DeviceConnection)
+      DeviceConnection
       |> join(:inner, [d], p in assoc(d, :product))
       |> select([d, p], [p.org_id, count(d.id)])
       |> where([_, p], p.org_id in ^org_ids)
