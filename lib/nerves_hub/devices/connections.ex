@@ -59,7 +59,7 @@ defmodule NervesHub.Devices.Connections do
         }
   def get_connection_status_by_products(product_ids) when is_list(product_ids) do
     q =
-      from(d in DeviceConnection)
+      DeviceConnection
       |> join(:inner, [d], p in assoc(d, :product))
       |> select([d, p], [p.id, count(d.id)])
       |> where([_, p], p.id in ^product_ids)
