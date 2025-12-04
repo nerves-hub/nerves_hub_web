@@ -16,11 +16,21 @@
       <.link navigate={~p"/org/#{org}"} class="grid-item">
         <h3>{org.name}</h3>
         <div class="flex-row">
-          <div>
-            <div class="help-text">Total Products</div>
-            <div class="flex-row mt-1 align-items-center">
+          <div class="flex-grow-1 mt-1">
+            <div class="help-text">Products</div>
+            <div class="mt-1">
               <img src="/images/icons/product.svg" alt="products" class="mr-1" style="margin-top: -1px" />
-              <p>{Enum.count(org.products)}</p>
+              <span>{Enum.count(org.products)}</span>
+            </div>
+
+            <div class="help-text mt-2">Devices</div>
+            <div class="flex flex-row mt-1 align-items-center justify-content-between">
+              <div>
+                <p>{get_in(@device_info, [org.id, :online]) || "-"} online</p>
+              </div>
+              <div>
+                <p>{get_in(@device_info, [org.id, :offline]) || "-"} offline</p>
+              </div>
             </div>
           </div>
         </div>

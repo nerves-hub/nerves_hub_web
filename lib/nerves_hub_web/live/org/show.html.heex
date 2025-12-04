@@ -22,6 +22,19 @@
     <%= for product <- @products do %>
       <.link navigate={~p"/org/#{@org}/#{product}/devices"} class="grid-item">
         <h3>{product.name}</h3>
+        <div class="flex-row">
+          <div class="flex-grow-1">
+            <div class="help-text mt-2">Devices</div>
+            <div class="flex flex-row mt-1 align-items-center justify-content-between">
+              <div>
+                <p>{get_in(@device_info, [product.id, :online]) || "-"} online</p>
+              </div>
+              <div>
+                <p>{get_in(@device_info, [product.id, :offline]) || "-"} offline</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </.link>
     <% end %>
   </div>
