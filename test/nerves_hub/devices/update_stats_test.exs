@@ -183,7 +183,8 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       source_firmware: source_firmware,
       target_firmware: target_firmware,
       other_firmware: other_firmware,
-      source_firmware_metadata: source_firmware_metadata
+      source_firmware_metadata: source_firmware_metadata,
+      user: user
     } do
       device = Devices.update_deployment_group(device, deployment_group)
       device2 = Devices.update_deployment_group(device2, deployment_group)
@@ -193,9 +194,13 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       :ok = UpdateStats.log_update(device, source_firmware_metadata)
 
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{
-          firmware_id: other_firmware.id
-        })
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            firmware_id: other_firmware.id
+          },
+          user
+        )
 
       # deployment group needs to be explicitly passed in because association
       # is already preloaded from fixtures, causing the preload in log_update/2

@@ -286,7 +286,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
     authorized!(:"deployment_group:update", org_user)
 
-    case ManagedDeployments.update_deployment_group(deployment_group, params) do
+    case ManagedDeployments.update_deployment_group(deployment_group, params, user) do
       {:ok, updated} ->
         # Use original deployment so changes will get
         # marked in audit log

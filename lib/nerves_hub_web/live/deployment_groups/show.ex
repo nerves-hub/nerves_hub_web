@@ -38,6 +38,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
     updating_count = Devices.updating_count(deployment_group)
+    releases = ManagedDeployments.list_deployment_releases(deployment_group)
 
     :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}:internal")
 
@@ -55,6 +56,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> assign(:firmware, deployment_group.firmware)
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
     |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
+    |> assign(:releases, releases)
     |> assign_matched_devices_count()
     |> schedule_inflight_updates_updater()
     |> ok()
@@ -85,7 +87,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     value = !deployment_group.is_active
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: value})
+      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: value}, user)
 
     active_str = if value, do: "active", else: "inactive"
     DeploymentGroupTemplates.audit_deployment_toggle_active(user, deployment_group, active_str)

@@ -46,14 +46,14 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
       context.conn
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
-    [
+    %{
       conn: conn,
       device: device,
       deployment_group: deployment_group,
       source_firmware: source_firmware,
       target_firmware: target_firmware,
       source_firmware_metadata: source_firmware_metadata
-    ]
+    }
   end
 
   test "empty state and displaying update stats", %{
@@ -114,7 +114,8 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     org_key: org_key,
     product: product,
     deployment_group: deployment_group,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     :ok = UpdateStats.log_update(device, source_firmware_metadata)
 
@@ -124,9 +125,13 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     {:ok, other_firmware_metadata} = Firmwares.metadata_from_firmware(other_firmware)
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{
-        firmware_id: other_firmware.id
-      })
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{
+          firmware_id: other_firmware.id
+        },
+        user
+      )
 
     # deployment group needs to be explicitly passed in because association
     # is already preloaded from fixtures, causing the preload in log_update/2

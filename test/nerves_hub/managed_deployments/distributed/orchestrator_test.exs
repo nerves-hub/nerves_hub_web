@@ -51,16 +51,21 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     org_key: org_key,
     device: device1,
     device2: device2,
-    device3: device3
+    device3: device3,
+    user: user
   } do
     # setup deployment group, listen for broadcasts, and start the orchestrator
     firmware = Fixtures.firmware_fixture(org_key, product)
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{
-        concurrent_updates: 2,
-        firmware_id: firmware.id
-      })
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{
+          concurrent_updates: 2,
+          firmware_id: firmware.id
+        },
+        user
+      )
 
     {:ok, _pid} =
       start_supervised(%{
@@ -114,11 +119,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     deployment_group: deployment_group,
     org_key: org_key,
     device: device,
-    device2: device2
+    device2: device2,
+    user: user
   } do
     # only allow for 1 update at a time
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1})
+      ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1}, user)
 
     device = Devices.update_deployment_group(device, deployment_group)
     {:ok, connection} = Connections.device_connecting(device, device.product_id)
@@ -148,7 +154,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
 
     {:ok, _deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id})
+      ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id}, user)
 
     # check that the first device was told to update
     assert_receive %Broadcast{topic: ^topic1, event: "update"}, 500
@@ -183,11 +189,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     product: product,
     deployment_group: deployment_group,
     org_key: org_key,
-    device: device
+    device: device,
+    user: user
   } do
     # only allow for 1 update at a time
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1})
+      ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1}, user)
 
     device = Devices.update_deployment_group(device, deployment_group)
     {:ok, device} = Devices.update_device(device, %{firmware_validation_status: "not_validated"})
@@ -211,7 +218,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
 
     {:ok, _deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id})
+      ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id}, user)
 
     # check that the device is not told to update
     refute_receive %Broadcast{topic: ^topic1, event: "update"}, 1_000
@@ -222,7 +229,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     org_key: org_key,
     product: product,
     device: device1,
-    device2: device2
+    device2: device2,
+    user: user
   } do
     # An ugly set of expectations
     # `Devices.available_for_update` should be called:
@@ -241,10 +249,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{
-        concurrent_updates: 2,
-        firmware_id: firmware.id
-      })
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{
+          concurrent_updates: 2,
+          firmware_id: firmware.id
+        },
+        user
+      )
 
     deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
@@ -316,10 +328,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{
-        concurrent_updates: 2,
-        firmware_id: firmware.id
-      })
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{
+          concurrent_updates: 2,
+          firmware_id: firmware.id
+        },
+        user
+      )
 
     deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
@@ -441,7 +457,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   test "handles delta subscriptions when firmware changes", %{
     deployment_group: deployment_group,
     org_key: org_key,
-    product: product
+    product: product,
+    user: user
   } do
     new_firmware = %{id: new_firmware_id} = Fixtures.firmware_fixture(org_key, product)
     %{firmware_id: old_firmware_id} = deployment_group
@@ -458,7 +475,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     expect(Firmwares, :unsubscribe_firmware_delta_target, fn ^old_firmware_id -> :ok end)
     expect(Firmwares, :subscribe_firmware_delta_target, fn ^new_firmware_id -> :ok end)
 
-    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id})
+    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id}, user)
     _ = :sys.get_state(pid)
   end
 
@@ -466,7 +483,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     deployment_group: deployment_group,
     org_key: org_key,
     product: product,
-    org: org
+    org: org,
+    user: user
   } do
     other_firmware = Fixtures.firmware_fixture(org_key, product)
 
@@ -491,7 +509,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     allow(Devices, self(), pid)
 
-    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
+    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
     _ = :sys.get_state(pid)
   end
 

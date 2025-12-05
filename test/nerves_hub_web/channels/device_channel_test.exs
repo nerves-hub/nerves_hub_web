@@ -484,7 +484,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     refute device.deployment_id
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
+      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
@@ -505,9 +505,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
     Devices.update_deployment_group(device, deployment_group)
 
     {:ok, _deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{
-        conditions: %{"version" => "< 0.0.1"}
-      })
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{
+          conditions: %{"version" => "< 0.0.1"}
+        },
+        user
+      )
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
@@ -614,7 +618,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: System.tmp_dir()})
     deployment_group = Fixtures.deployment_group_fixture(firmware)
 
-    ManagedDeployments.update_deployment_group(deployment_group, %{archive_id: archive.id})
+    ManagedDeployments.update_deployment_group(deployment_group, %{archive_id: archive.id}, user)
 
     {device, _firmware, _deployment_group} =
       device_fixture(user, %{identifier: "123", deployment_id: deployment_group.id})

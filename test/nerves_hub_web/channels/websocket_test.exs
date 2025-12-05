@@ -673,7 +673,7 @@ defmodule NervesHubWeb.WebsocketTest do
             "tags" => ["beta"]
           }
         })
-        |> ManagedDeployments.update_deployment_group(%{is_active: true})
+        |> ManagedDeployments.update_deployment_group(%{is_active: true}, user)
 
       deployment_group = Repo.preload(deployment_group, :org)
 
@@ -702,9 +702,13 @@ defmodule NervesHubWeb.WebsocketTest do
         Fixtures.firmware_fixture(org_key, firmware.product, %{version: "0.0.2", dir: tmp_dir})
 
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{
-          firmware_id: new_firmware.id
-        })
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            firmware_id: new_firmware.id
+          },
+          user
+        )
 
       # This is what the orchestrator process will do
       Orchestrator.trigger_update(deployment_group)
@@ -776,7 +780,7 @@ defmodule NervesHubWeb.WebsocketTest do
             "tags" => ["beta", "beta-edge"]
           }
         })
-        |> ManagedDeployments.update_deployment_group(%{is_active: true})
+        |> ManagedDeployments.update_deployment_group(%{is_active: true}, user)
 
       device =
         Fixtures.device_fixture(
@@ -843,7 +847,7 @@ defmodule NervesHubWeb.WebsocketTest do
             "tags" => ["beta", "beta-edge"]
           }
         })
-        |> ManagedDeployments.update_deployment_group(%{is_active: true})
+        |> ManagedDeployments.update_deployment_group(%{is_active: true}, user)
 
       device =
         Fixtures.device_fixture(
@@ -909,7 +913,7 @@ defmodule NervesHubWeb.WebsocketTest do
             "tags" => ["beta", "beta-edge"]
           }
         })
-        |> ManagedDeployments.update_deployment_group(%{is_active: true})
+        |> ManagedDeployments.update_deployment_group(%{is_active: true}, user)
 
       device =
         Fixtures.device_fixture(
@@ -1141,7 +1145,7 @@ defmodule NervesHubWeb.WebsocketTest do
             "tags" => ["beta"]
           }
         })
-        |> ManagedDeployments.update_deployment_group(%{is_active: true, archive_id: archive.id})
+        |> ManagedDeployments.update_deployment_group(%{is_active: true, archive_id: archive.id}, user)
 
       device =
         Fixtures.device_fixture(
@@ -1194,7 +1198,7 @@ defmodule NervesHubWeb.WebsocketTest do
             "tags" => ["beta"]
           }
         })
-        |> ManagedDeployments.update_deployment_group(%{is_active: true, archive_id: archive.id})
+        |> ManagedDeployments.update_deployment_group(%{is_active: true, archive_id: archive.id}, user)
 
       device =
         Fixtures.device_fixture(
@@ -1251,7 +1255,7 @@ defmodule NervesHubWeb.WebsocketTest do
             "tags" => ["beta"]
           }
         })
-        |> ManagedDeployments.update_deployment_group(%{is_active: true})
+        |> ManagedDeployments.update_deployment_group(%{is_active: true}, user)
 
       device =
         Fixtures.device_fixture(
@@ -1278,7 +1282,7 @@ defmodule NervesHubWeb.WebsocketTest do
       assert_online_and_available(device)
 
       {:ok, _deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{archive_id: archive.id})
+        ManagedDeployments.update_deployment_group(deployment_group, %{archive_id: archive.id}, user)
 
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive

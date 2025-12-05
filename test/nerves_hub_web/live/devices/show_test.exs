@@ -100,7 +100,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       deployment_group: deployment_group
     } do
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, fixture.user)
 
       # Set device status to :provisioned for deployment group eligibility
       %{status: :provisioned} = device = Devices.set_as_provisioned!(device)
