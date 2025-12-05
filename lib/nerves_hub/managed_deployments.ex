@@ -3,6 +3,7 @@ defmodule NervesHub.ManagedDeployments do
 
   require Logger
 
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
@@ -11,6 +12,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Products.Product
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
@@ -193,27 +195,28 @@ defmodule NervesHub.ManagedDeployments do
   Update a deployment
 
   - Records audit logs depending on changes
+  - Creates deployment release record if firmware_id changed (requires user_id in params)
   """
-  @spec update_deployment_group(DeploymentGroup.t(), map) ::
+  @spec update_deployment_group(DeploymentGroup.t(), map, User.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def update_deployment_group(deployment_group, params) do
+  def update_deployment_group(deployment_group, params, user) do
     result =
-      Repo.transaction(fn ->
+      Repo.transact(fn ->
         changeset =
           deployment_group
           |> Repo.preload(:firmware)
           |> DeploymentGroup.update_changeset(params)
 
-        case Repo.update(changeset) do
-          {:ok, deployment_group} ->
-            deployment_group = Repo.preload(deployment_group, [:firmware], force: true)
-
-            audit_changes!(deployment_group, changeset)
-
-            {deployment_group, changeset}
-
-          {:error, changeset} ->
-            Repo.rollback(changeset)
+        with {:ok, deployment_group} <- Repo.update(changeset),
+             deployment_group = Repo.preload(deployment_group, [:firmware], force: true),
+             :ok <- create_audit_logs!(deployment_group, changeset),
+             {:ok, _deployment_group} <-
+               maybe_create_deployment_release(
+                 deployment_group,
+                 changeset.changes,
+                 user.id
+               ) do
+          {:ok, {deployment_group, changeset}}
         end
       end)
 
@@ -237,7 +240,22 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  defp audit_changes!(deployment_group, changeset) do
+  # Create deployment release if firmware or archive changed
+  defp maybe_create_deployment_release(deployment_group, changes, user_id)
+       when is_map_key(changes, :firmware_id) or is_map_key(changes, :archive_id) do
+    %DeploymentRelease{}
+    |> DeploymentRelease.changeset(%{
+      deployment_group_id: deployment_group.id,
+      firmware_id: deployment_group.firmware_id,
+      archive_id: deployment_group.archive_id,
+      created_by_id: user_id
+    })
+    |> Repo.insert()
+  end
+
+  defp maybe_create_deployment_release(_deployment_group, _changes, _user_id), do: {:ok, nil}
+
+  defp create_audit_logs!(deployment_group, changeset) do
     Enum.each(changeset.changes, fn
       {:archive_id, archive_id} ->
         # Trigger the new archive to get downloaded by devices
@@ -344,6 +362,21 @@ defmodule NervesHub.ManagedDeployments do
       {:error, changeset} ->
         {:error, changeset}
     end
+  end
+
+  @doc """
+  List all deployment releases for a deployment group, ordered by most recent first.
+  """
+  @spec list_deployment_releases(DeploymentGroup.t()) :: [DeploymentRelease.t()]
+  def list_deployment_releases(%DeploymentGroup{id: deployment_group_id}) do
+    DeploymentRelease
+    |> where([r], r.deployment_group_id == ^deployment_group_id)
+    |> join(:inner, [r], f in assoc(r, :firmware))
+    |> join(:inner, [r], u in assoc(r, :user))
+    |> join(:left, [r], a in assoc(r, :archive))
+    |> preload([r, f, u, a], firmware: f, user: u, archive: a)
+    |> order_by([r], desc: r.inserted_at, desc: r.id)
+    |> Repo.all()
   end
 
   @spec broadcast(DeploymentGroup.t() | atom(), String.t(), map()) :: :ok | {:error, term()}

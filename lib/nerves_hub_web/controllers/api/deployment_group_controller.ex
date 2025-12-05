@@ -67,7 +67,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
            ManagedDeployments.get_deployment_group_by_name(product, name),
          params = update_params(product, deployment_group_params),
          {:ok, updated_deployment_group} <-
-           ManagedDeployments.update_deployment_group(deployment_group, params) do
+           ManagedDeployments.update_deployment_group(deployment_group, params, user) do
       DeploymentGroupTemplates.audit_deployment_updated(user, deployment_group)
 
       render(conn, :show, deployment_group: updated_deployment_group)

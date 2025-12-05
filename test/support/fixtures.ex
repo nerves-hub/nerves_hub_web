@@ -232,7 +232,11 @@ defmodule NervesHub.Fixtures do
       |> ManagedDeployments.create_deployment_group(%Product{id: firmware.product_id})
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: is_active})
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{is_active: is_active},
+        Map.get_lazy(params, :user, &user_fixture/0)
+      )
 
     deployment_group
   end
