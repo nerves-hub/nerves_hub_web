@@ -29,7 +29,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
       uuid ->
         with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
              params = Map.put(params, "firmware_id", firmware.id),
-             {:ok, deployment_group} <- ManagedDeployments.create_deployment_group(params, product) do
+             {:ok, deployment_group} <- ManagedDeployments.create_deployment_group(params, product, user) do
           DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)
 
           conn

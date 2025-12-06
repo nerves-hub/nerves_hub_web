@@ -38,7 +38,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     has_many(:inflight_updates, InflightUpdate, foreign_key: :deployment_id)
     has_many(:devices, Device, foreign_key: :deployment_id, on_delete: :nilify_all)
-    has_many(:deployment_releases, DeploymentRelease)
+    has_many(:deployment_releases, DeploymentRelease, on_delete: :delete_all)
     has_many(:update_stats, UpdateStat, on_delete: :nilify_all, foreign_key: :deployment_id)
 
     embeds_one :conditions, __MODULE__.Conditions, primary_key: false, on_replace: :update do

@@ -195,7 +195,7 @@ defmodule NervesHub.ManagedDeployments do
   Update a deployment
 
   - Records audit logs depending on changes
-  - Creates deployment release record if firmware_id changed (requires user_id in params)
+  - Creates deployment release record if firmware_id or archive_id changed
   """
   @spec update_deployment_group(DeploymentGroup.t(), map, User.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
@@ -207,14 +207,17 @@ defmodule NervesHub.ManagedDeployments do
           |> Repo.preload(:firmware)
           |> DeploymentGroup.update_changeset(params)
 
+        create_deployment_release? =
+          Map.has_key?(changeset.changes, :firmware_id) or
+            Map.has_key?(changeset.changes, :archive_id)
+
         with {:ok, deployment_group} <- Repo.update(changeset),
              deployment_group = Repo.preload(deployment_group, [:firmware], force: true),
              :ok <- create_audit_logs!(deployment_group, changeset),
              {:ok, _deployment_group} <-
-               maybe_create_deployment_release(
-                 deployment_group,
-                 changeset.changes,
-                 user.id
+               if(create_deployment_release?,
+                 do: create_deployment_release(deployment_group, user.id),
+                 else: {:ok, nil}
                ) do
           {:ok, {deployment_group, changeset}}
         end
@@ -240,9 +243,7 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  # Create deployment release if firmware or archive changed
-  defp maybe_create_deployment_release(deployment_group, changes, user_id)
-       when is_map_key(changes, :firmware_id) or is_map_key(changes, :archive_id) do
+  defp create_deployment_release(deployment_group, user_id) do
     %DeploymentRelease{}
     |> DeploymentRelease.changeset(%{
       deployment_group_id: deployment_group.id,
@@ -252,8 +253,6 @@ defmodule NervesHub.ManagedDeployments do
     })
     |> Repo.insert()
   end
-
-  defp maybe_create_deployment_release(_deployment_group, _changes, _user_id), do: {:ok, nil}
 
   defp create_audit_logs!(deployment_group, changeset) do
     Enum.each(changeset.changes, fn
@@ -348,11 +347,17 @@ defmodule NervesHub.ManagedDeployments do
     Ecto.Changeset.change(%DeploymentGroup{})
   end
 
-  @spec create_deployment_group(map(), Product.t()) ::
+  @spec create_deployment_group(map(), Product.t(), User.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def create_deployment_group(params, %Product{} = product) do
-    DeploymentGroup.create_changeset(params, product)
-    |> Repo.insert()
+  def create_deployment_group(params, %Product{} = product, user) do
+    Repo.transact(fn ->
+      changeset = DeploymentGroup.create_changeset(params, product)
+
+      with {:ok, deployment_group} <- Repo.insert(changeset),
+           {:ok, _release} <- create_deployment_release(deployment_group, user.id) do
+        {:ok, deployment_group}
+      end
+    end)
     |> case do
       {:ok, deployment_group} ->
         deployment_created_event(deployment_group)
