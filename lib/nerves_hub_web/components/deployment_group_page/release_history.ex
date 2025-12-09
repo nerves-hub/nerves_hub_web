@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.ReleaseHistory do
                   <td class="px-4 py-3 text-sm text-zinc-300">
                     <div class="flex flex-col">
                       <span>{Calendar.strftime(release.inserted_at, "%B %d, %Y")}</span>
-                      <span class="text-xs text-zinc-500">{Calendar.strftime(release.inserted_at, "%I:%M %p")}</span>
+                      <span class="text-xs text-zinc-500">{Calendar.strftime(release.inserted_at, "%I:%M %p")} UTC</span>
                     </div>
                   </td>
                   <td class="px-4 py-3 text-sm text-zinc-300 font-medium">
