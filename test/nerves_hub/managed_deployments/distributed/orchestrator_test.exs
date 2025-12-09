@@ -591,4 +591,616 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       refute Repo.exists?(FirmwareDelta)
     end
   end
+
+  describe "priority queue" do
+    test "processes priority queue devices first", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      # Preload org and enable priority queue
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 2,
+            priority_queue_firmware_version_threshold: "1.0.0",
+            concurrent_updates: 1
+          },
+          user
+        )
+
+      deployment_group = Repo.preload(deployment_group, :org, force: true)
+
+      # Create devices with different firmware versions
+      old_device1 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_1"})
+      old_device2 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_2"})
+      new_device = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "new_device"})
+
+      {:ok, old_device1} =
+        Devices.update_firmware_metadata(
+          old_device1,
+          %{"version" => "0.9.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      {:ok, old_device2} =
+        Devices.update_firmware_metadata(
+          old_device2,
+          %{"version" => "0.8.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      {:ok, new_device} =
+        Devices.update_firmware_metadata(
+          new_device,
+          %{"version" => "1.5.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
+      old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
+      new_device = Devices.update_deployment_group(new_device, deployment_group)
+
+      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
+      {:ok, conn2} = Connections.device_connecting(old_device2, product.id)
+      {:ok, conn3} = Connections.device_connecting(new_device, product.id)
+
+      :ok = Connections.device_connected(old_device1, conn1.id)
+      :ok = Connections.device_connected(old_device2, conn2.id)
+      :ok = Connections.device_connected(new_device, conn3.id)
+
+      # Test logic
+      old_device1_topic = "device:#{old_device1.id}"
+      old_device2_topic = "device:#{old_device2.id}"
+      new_device_topic = "device:#{new_device.id}"
+
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, old_device1_topic)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, old_device2_topic)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, new_device_topic)
+
+      Orchestrator.trigger_update(deployment_group)
+
+      # Priority queue devices should get updates first
+      # Receive all messages and verify priority queue devices were scheduled
+      assert_receive %Broadcast{topic: topic1, event: "update"}, 1_000
+      assert_receive %Broadcast{topic: topic2, event: "update"}, 1_000
+      assert_receive %Broadcast{topic: topic3, event: "update"}, 1_000
+
+      # Verify the priority queue devices were in the first two messages
+      priority_topics = [old_device1_topic, old_device2_topic]
+      assert topic1 in priority_topics
+      assert topic2 in priority_topics
+      # The normal queue device should be last
+      assert topic3 == new_device_topic
+    end
+
+    test "available_priority_slots/1 calculates correctly", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 2,
+            priority_queue_firmware_version_threshold: "1.0.0"
+          },
+          user
+        )
+
+      deployment_group = Repo.preload(deployment_group, :org, force: true)
+
+      old_device1 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_1"})
+
+      {:ok, old_device1} =
+        Devices.update_firmware_metadata(
+          old_device1,
+          %{"version" => "0.9.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
+
+      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
+      :ok = Connections.device_connected(old_device1, conn1.id)
+      assert Orchestrator.available_priority_slots(deployment_group) == 2
+
+      # Add one device to priority queue
+      {:ok, _} = Devices.told_to_update(old_device1, deployment_group, priority_queue: true)
+
+      assert Orchestrator.available_priority_slots(deployment_group) == 1
+    end
+
+    test "priority and normal queues operate independently", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 2,
+            priority_queue_firmware_version_threshold: "1.0.0"
+          },
+          user
+        )
+
+      deployment_group = Repo.preload(deployment_group, :org, force: true)
+
+      old_device1 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_1"})
+      new_device = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "new_device"})
+
+      {:ok, old_device1} =
+        Devices.update_firmware_metadata(
+          old_device1,
+          %{"version" => "0.9.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      {:ok, new_device} =
+        Devices.update_firmware_metadata(
+          new_device,
+          %{"version" => "1.5.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
+      new_device = Devices.update_deployment_group(new_device, deployment_group)
+
+      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
+      {:ok, conn2} = Connections.device_connecting(new_device, product.id)
+
+      :ok = Connections.device_connected(old_device1, conn1.id)
+      :ok = Connections.device_connected(new_device, conn2.id)
+      # Fill priority queue
+      {:ok, _} = Devices.told_to_update(old_device1, deployment_group, priority_queue: true)
+
+      # Normal queue should still have full capacity
+      assert Orchestrator.available_slots(deployment_group) == deployment_group.concurrent_updates
+
+      # Fill normal queue partially
+      {:ok, _} = Devices.told_to_update(new_device, deployment_group, priority_queue: false)
+
+      # Priority queue should still have capacity
+      assert Orchestrator.available_priority_slots(deployment_group) == 1
+    end
+
+    test "priority queue disabled by default", %{org: org, product: product, firmware: firmware} do
+      {:ok, deployment_group} =
+        Fixtures.deployment_group_fixture(firmware, %{name: "Priority Queue Test Disabled", is_active: true})
+        |> ManagedDeployments.update_deployment_group_status(:ready)
+
+      refute deployment_group.priority_queue_enabled
+
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          %{"version" => "0.1.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      device = Devices.update_deployment_group(device, deployment_group)
+
+      {:ok, conn} = Connections.device_connecting(device, product.id)
+      :ok = Connections.device_connected(device, conn.id)
+
+      # Should return empty list since priority queue is disabled
+      assert Devices.available_for_priority_update(deployment_group, 10) == []
+    end
+
+    test "devices with version above threshold not eligible for priority queue", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 2,
+            priority_queue_firmware_version_threshold: "1.0.0"
+          },
+          user
+        )
+
+      new_device = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "new_device"})
+
+      {:ok, new_device} =
+        Devices.update_firmware_metadata(
+          new_device,
+          %{"version" => "1.5.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      new_device = Devices.update_deployment_group(new_device, deployment_group)
+
+      {:ok, conn} = Connections.device_connecting(new_device, product.id)
+      :ok = Connections.device_connected(new_device, conn.id)
+      # new_device has version 1.5.0, threshold is 1.0.0
+      available = Devices.available_for_priority_update(deployment_group, 10)
+      refute Enum.any?(available, &(&1.id == new_device.id))
+    end
+
+    test "devices with version at or below threshold eligible for priority queue", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 2,
+            priority_queue_firmware_version_threshold: "1.0.0"
+          },
+          user
+        )
+
+      old_device1 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_1"})
+      old_device2 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_2"})
+
+      {:ok, old_device1} =
+        Devices.update_firmware_metadata(
+          old_device1,
+          %{"version" => "0.9.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      {:ok, old_device2} =
+        Devices.update_firmware_metadata(
+          old_device2,
+          %{"version" => "0.8.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
+      old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
+
+      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
+      {:ok, conn2} = Connections.device_connecting(old_device2, product.id)
+
+      :ok = Connections.device_connected(old_device1, conn1.id)
+      :ok = Connections.device_connected(old_device2, conn2.id)
+      # old devices have versions 0.9.0 and 0.8.0, threshold is 1.0.0
+      available = Devices.available_for_priority_update(deployment_group, 10)
+      device_ids = Enum.map(available, & &1.id)
+
+      assert old_device1.id in device_ids
+      assert old_device2.id in device_ids
+    end
+
+    test "count_inflight_priority_updates_for/1 counts only priority queue updates", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 2,
+            priority_queue_firmware_version_threshold: "1.0.0"
+          },
+          user
+        )
+
+      deployment_group = Repo.preload(deployment_group, :org, force: true)
+
+      old_device1 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_1"})
+      old_device2 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_2"})
+      new_device = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "new_device"})
+
+      {:ok, old_device1} =
+        Devices.update_firmware_metadata(
+          old_device1,
+          %{"version" => "0.9.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      {:ok, old_device2} =
+        Devices.update_firmware_metadata(
+          old_device2,
+          %{"version" => "0.8.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      {:ok, new_device} =
+        Devices.update_firmware_metadata(
+          new_device,
+          %{"version" => "1.5.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
+      old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
+      new_device = Devices.update_deployment_group(new_device, deployment_group)
+
+      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
+      {:ok, conn2} = Connections.device_connecting(old_device2, product.id)
+      {:ok, conn3} = Connections.device_connecting(new_device, product.id)
+
+      :ok = Connections.device_connected(old_device1, conn1.id)
+      :ok = Connections.device_connected(old_device2, conn2.id)
+      :ok = Connections.device_connected(new_device, conn3.id)
+      assert Devices.count_inflight_priority_updates_for(deployment_group) == 0
+
+      {:ok, _} = Devices.told_to_update(old_device1, deployment_group, priority_queue: true)
+      assert Devices.count_inflight_priority_updates_for(deployment_group) == 1
+
+      {:ok, _} = Devices.told_to_update(new_device, deployment_group, priority_queue: false)
+      # Should still be 1, not counting normal queue
+      assert Devices.count_inflight_priority_updates_for(deployment_group) == 1
+
+      {:ok, _} = Devices.told_to_update(old_device2, deployment_group, priority_queue: true)
+      assert Devices.count_inflight_priority_updates_for(deployment_group) == 2
+    end
+
+    test "count_inflight_updates_for/1 counts only normal queue updates", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 2,
+            priority_queue_firmware_version_threshold: "1.0.0"
+          },
+          user
+        )
+
+      deployment_group = Repo.preload(deployment_group, :org, force: true)
+
+      old_device1 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_1"})
+      new_device = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "new_device"})
+
+      {:ok, old_device1} =
+        Devices.update_firmware_metadata(
+          old_device1,
+          %{"version" => "0.9.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      {:ok, new_device} =
+        Devices.update_firmware_metadata(
+          new_device,
+          %{"version" => "1.5.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
+      new_device = Devices.update_deployment_group(new_device, deployment_group)
+
+      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
+      {:ok, conn2} = Connections.device_connecting(new_device, product.id)
+
+      :ok = Connections.device_connected(old_device1, conn1.id)
+      :ok = Connections.device_connected(new_device, conn2.id)
+      assert Devices.count_inflight_updates_for(deployment_group) == 0
+
+      {:ok, _} = Devices.told_to_update(new_device, deployment_group, priority_queue: false)
+      assert Devices.count_inflight_updates_for(deployment_group) == 1
+
+      {:ok, _} = Devices.told_to_update(old_device1, deployment_group, priority_queue: true)
+      # Should still be 1, not counting priority queue
+      assert Devices.count_inflight_updates_for(deployment_group) == 1
+    end
+
+    test "priority queue empty when threshold is nil", %{org: org, product: product, firmware: firmware, user: user} do
+      {:ok, deployment_group} =
+        Fixtures.deployment_group_fixture(firmware, %{name: "Priority Queue Test Nil", is_active: true})
+        |> ManagedDeployments.update_deployment_group(
+          %{
+            priority_queue_enabled: true,
+            priority_queue_firmware_version_threshold: nil
+          },
+          user
+        )
+
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          %{"version" => "0.1.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      device = Devices.update_deployment_group(device, deployment_group)
+
+      {:ok, conn} = Connections.device_connecting(device, product.id)
+      :ok = Connections.device_connected(device, conn.id)
+
+      assert Devices.available_for_priority_update(deployment_group, 10) == []
+    end
+
+    test "priority queue empty when threshold is empty string", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_firmware_version_threshold: ""
+          },
+          user
+        )
+
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          %{"version" => "0.1.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      device = Devices.update_deployment_group(device, deployment_group)
+
+      {:ok, conn} = Connections.device_connecting(device, product.id)
+      :ok = Connections.device_connected(device, conn.id)
+
+      assert Devices.available_for_priority_update(deployment_group, 10) == []
+    end
+
+    test "correctly handles semantic versioning with double-digit minor/patch versions", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 10,
+            priority_queue_firmware_version_threshold: "1.2.0"
+          },
+          user
+        )
+
+      # Create devices with versions that test semantic versioning
+      # String comparison would say "1.10.0" < "1.2.0" (WRONG!)
+      device_1_10 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "device_1_10"})
+      # String comparison would say "1.9.0" > "1.2.0" (correct by accident)
+      device_1_9 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "device_1_9"})
+      # This one should definitely be excluded
+      device_2_0 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "device_2_0"})
+      # This one should be included (1.1.0 <= 1.2.0)
+      device_1_1 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "device_1_1"})
+
+      # Ensure devices have different firmware UUIDs from the target firmware
+      # so they'll be considered for updates
+      old_firmware_uuid = Ecto.UUID.generate()
+
+      {:ok, device_1_10} =
+        Devices.update_firmware_metadata(
+          device_1_10,
+          %{"version" => "1.10.0", "uuid" => old_firmware_uuid},
+          :validated,
+          false
+        )
+
+      {:ok, device_1_9} =
+        Devices.update_firmware_metadata(
+          device_1_9,
+          %{"version" => "1.9.0", "uuid" => old_firmware_uuid},
+          :validated,
+          false
+        )
+
+      {:ok, device_2_0} =
+        Devices.update_firmware_metadata(
+          device_2_0,
+          %{"version" => "2.0.0", "uuid" => old_firmware_uuid},
+          :validated,
+          false
+        )
+
+      {:ok, device_1_1} =
+        Devices.update_firmware_metadata(
+          device_1_1,
+          %{"version" => "1.1.0", "uuid" => old_firmware_uuid},
+          :validated,
+          false
+        )
+
+      device_1_10 = Devices.update_deployment_group(device_1_10, deployment_group)
+      device_1_9 = Devices.update_deployment_group(device_1_9, deployment_group)
+      device_2_0 = Devices.update_deployment_group(device_2_0, deployment_group)
+      device_1_1 = Devices.update_deployment_group(device_1_1, deployment_group)
+
+      {:ok, conn1} = Connections.device_connecting(device_1_10, product.id)
+      {:ok, conn2} = Connections.device_connecting(device_1_9, product.id)
+      {:ok, conn3} = Connections.device_connecting(device_2_0, product.id)
+      {:ok, conn4} = Connections.device_connecting(device_1_1, product.id)
+
+      :ok = Connections.device_connected(device_1_10, conn1.id)
+      :ok = Connections.device_connected(device_1_9, conn2.id)
+      :ok = Connections.device_connected(device_2_0, conn3.id)
+      :ok = Connections.device_connected(device_1_1, conn4.id)
+
+      available = Devices.available_for_priority_update(deployment_group, 10)
+      device_ids = Enum.map(available, & &1.id)
+
+      # With proper semantic versioning:
+      # 1.1.0 <= 1.2.0 is TRUE - should be included
+      # 1.9.0 > 1.2.0 is TRUE - should be excluded
+      # 1.10.0 > 1.2.0 is TRUE - should be excluded
+      # 2.0.0 > 1.2.0 is TRUE - should be excluded
+      assert device_1_1.id in device_ids, "Device 1.1.0 should be included (1.1.0 <= 1.2.0)"
+      refute device_1_9.id in device_ids, "Device 1.9.0 should be excluded (1.9.0 > 1.2.0)"
+      refute device_1_10.id in device_ids, "Device 1.10.0 should be excluded (1.10.0 > 1.2.0)"
+      refute device_2_0.id in device_ids, "Device 2.0.0 should be excluded (2.0.0 > 1.2.0)"
+    end
+  end
 end

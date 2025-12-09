@@ -459,10 +459,7 @@ defmodule NervesHubWeb.CoreComponents do
   def input(assigns) do
     ~H"""
     <div phx-feedback-for={@name}>
-      <span class="flex items-end">
-        <.label for={@id}>{@label}</.label>
-        <span :if={assigns[:hint]} class="ml-3 text-xs text-zinc-400">{@hint}</span>
-      </span>
+      <.label for={@id}>{@label}</.label>
       <input
         type={@type}
         name={@name}
@@ -476,6 +473,7 @@ defmodule NervesHubWeb.CoreComponents do
         ]}
         {@rest}
       />
+      <p :if={assigns[:hint]} class="mt-1 text-xs text-zinc-400">{@hint}</p>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
     """

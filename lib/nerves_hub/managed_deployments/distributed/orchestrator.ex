@@ -140,17 +140,54 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   defp do_trigger_update(deployment_group) do
     :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
+
+    # Process priority queue first, if enabled
+    priority_updated =
+      if deployment_group.priority_queue_enabled do
+        do_trigger_priority_update(deployment_group)
+      else
+        0
+      end
+
+    # Process normal queue
     slots = available_slots(deployment_group)
 
     if slots > 0 do
       available = Devices.available_for_update(deployment_group, slots)
-      updated_count = schedule_devices!(available, deployment_group)
+      updated_count = schedule_devices!(available, deployment_group, false)
 
-      if length(available) != updated_count do
+      if length(available) != updated_count or priority_updated > 0 do
         # rerun the deployment check since some devices were skipped
         send(self(), :trigger)
       end
     end
+  end
+
+  # Process priority queue updates for devices below the firmware version threshold.
+  # Returns the number of devices that were scheduled for priority updates.
+  @spec do_trigger_priority_update(DeploymentGroup.t()) :: non_neg_integer()
+  defp do_trigger_priority_update(deployment_group) do
+    priority_slots = available_priority_slots(deployment_group)
+
+    if priority_slots > 0 do
+      available = Devices.available_for_priority_update(deployment_group, priority_slots)
+      schedule_devices!(available, deployment_group, true)
+    else
+      0
+    end
+  end
+
+  @doc """
+  Determine how many devices should update in the priority queue based on
+  the priority queue update limit and the number currently updating in priority queue.
+  """
+  @spec available_priority_slots(DeploymentGroup.t()) :: non_neg_integer()
+  def available_priority_slots(deployment_group) do
+    # Just in case inflight goes higher than concurrent, limit it to 0
+    (deployment_group.priority_queue_concurrent_updates -
+       Devices.count_inflight_priority_updates_for(deployment_group))
+    |> max(0)
+    |> round()
   end
 
   @doc """
@@ -171,12 +208,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   Returns the number of devices that were allowed to update.
   """
-  @spec schedule_devices!([Device.t()], DeploymentGroup.t()) :: non_neg_integer()
-  def schedule_devices!(available, deployment_group) do
+  @spec schedule_devices!([Device.t()], DeploymentGroup.t(), boolean()) :: non_neg_integer()
+  def schedule_devices!(available, deployment_group, priority_queue \\ false) do
     Enum.count(available, fn device ->
       case can_device_update?(device, deployment_group) do
         true ->
-          tell_device_to_update(device.id, deployment_group)
+          tell_device_to_update(device.id, deployment_group, priority_queue)
 
         false ->
           _ = Devices.update_blocked_until(device, deployment_group)
@@ -191,11 +228,11 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
            Devices.failure_threshold_met?(device, deployment_group))
   end
 
-  @spec tell_device_to_update(integer(), DeploymentGroup.t()) :: boolean()
-  defp tell_device_to_update(device_id, deployment_group) do
+  @spec tell_device_to_update(integer(), DeploymentGroup.t(), boolean()) :: boolean()
+  defp tell_device_to_update(device_id, deployment_group, priority_queue) do
     :telemetry.execute([:nerves_hub, :deployments, :trigger_update, :device], %{count: 1})
 
-    case Devices.told_to_update(device_id, deployment_group) do
+    case Devices.told_to_update(device_id, deployment_group, priority_queue: priority_queue) do
       {:ok, _} -> true
       _ -> false
     end
