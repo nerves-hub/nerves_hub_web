@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.Org.Show do
   use NervesHubWeb, :updated_live_view
 
+  alias NervesHub.Devices.Connections
   alias NervesHub.Products
 
   @impl Phoenix.LiveView
@@ -11,8 +12,19 @@ defmodule NervesHubWeb.Live.Org.Show do
       socket
       |> page_title("Products - #{socket.assigns.org.name}")
       |> assign(:products, products)
+      |> assign(:device_info, %{})
+
+    if connected?(socket), do: send(self(), :load_extras)
 
     {:ok, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info(:load_extras, socket) do
+    statuses =
+      Connections.get_connection_status_by_products(Enum.map(socket.assigns.products, & &1.id))
+
+    {:noreply, assign(socket, :device_info, statuses)}
   end
 
   def fade_in(selector) do
