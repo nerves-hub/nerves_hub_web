@@ -130,7 +130,7 @@ defmodule NervesHub.DeviceLink do
     :ok
   end
 
-  defp maybe_clear_inflight_update(_device, %{"currently_downloading_uuid" => _uuid}), do: :ok
+  defp maybe_clear_inflight_update(_device, %{"currently_downloading_uuid" => uuid}) when not is_nil(uuid), do: :ok
 
   defp maybe_clear_inflight_update(device, _) do
     Devices.clear_inflight_update(device)
