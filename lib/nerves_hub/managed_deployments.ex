@@ -200,11 +200,12 @@ defmodule NervesHub.ManagedDeployments do
   @spec update_deployment_group(DeploymentGroup.t(), map, User.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
   def update_deployment_group(deployment_group, params, user) do
+    deployment_group = Repo.preload(deployment_group, :firmware)
+
     result =
       Repo.transact(fn ->
         changeset =
           deployment_group
-          |> Repo.preload(:firmware)
           |> DeploymentGroup.update_changeset(params)
 
         create_deployment_release? =
@@ -212,7 +213,6 @@ defmodule NervesHub.ManagedDeployments do
             Map.has_key?(changeset.changes, :archive_id)
 
         with {:ok, deployment_group} <- Repo.update(changeset),
-             deployment_group = Repo.preload(deployment_group, [:firmware], force: true),
              :ok <- create_audit_logs!(deployment_group, changeset),
              {:ok, _deployment_group} <-
                if(create_deployment_release?,
