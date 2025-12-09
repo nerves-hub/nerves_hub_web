@@ -10,6 +10,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Repo
 
   alias Phoenix.Channel.Server, as: ChannelServer
 
@@ -130,10 +131,23 @@ defmodule NervesHub.DeviceLink do
     :ok
   end
 
-  defp maybe_clear_inflight_update(_device, %{"currently_downloading_uuid" => _uuid}), do: :ok
+  defp maybe_clear_inflight_update(_device, %{"currently_downloading_uuid" => uuid}) when not is_nil(uuid), do: :ok
 
   defp maybe_clear_inflight_update(device, _) do
     Devices.clear_inflight_update(device)
+
+    dbg(Application.get_env(:nerves_hub, :remind_devices_to_update_enabled))
+
+    if Application.get_env(:nerves_hub, :remind_devices_to_update_enabled) do
+      device = Repo.preload(device, deployment_group: :org)
+
+      dbg(device.deployment_group.remind_devices_to_update)
+
+      if device.deployment_group.remind_devices_to_update do
+        {:ok, _} = Devices.told_to_update(device, device.deployment_group)
+      end
+    end
+
     :ok
   end
 

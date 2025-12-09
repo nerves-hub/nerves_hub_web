@@ -65,6 +65,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     field(:status, Ecto.Enum, values: [:ready, :preparing], default: :ready)
 
+    field(:remind_devices_to_update, :boolean, default: false)
+
     field(:device_count, :integer, virtual: true)
 
     # TODO: (joshk) this column is unused, remove after 1st May
@@ -96,7 +98,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       :connecting_code,
       :queue_management,
       :firmware_id,
-      :archive_id
+      :archive_id,
+      :remind_devices_to_update
     ])
     |> cast_and_validate_numeric_fields(params)
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)

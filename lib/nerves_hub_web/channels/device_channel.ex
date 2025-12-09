@@ -37,6 +37,8 @@ defmodule NervesHubWeb.DeviceChannel do
 
     params = maybe_sanitize_device_api_version(params)
 
+    dbg(params)
+
     case DeviceLink.join(device, reference_id, params) do
       {:ok, device} ->
         socket =

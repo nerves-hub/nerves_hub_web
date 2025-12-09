@@ -23,6 +23,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     |> assign(:firmware, assigns.deployment_group.firmware)
     |> assign(:firmwares, firmwares)
     |> assign(:form, to_form(changeset))
+    |> assign(:display_remind_devices_to_update, Application.get_env(:nerves_hub, :remind_devices_to_update_enabled))
     |> ok()
   end
 
@@ -44,6 +45,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                   When enabled, the deployment group will only send delta updates.
                   Check out the <.link class="underline" href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank">NervesHub documentation</.link>
                   for more information on delta updates.
+                </:rich_hint>
+              </.input>
+              <.input :if={@display_remind_devices_to_update} field={@form[:remind_devices_to_update]} type="checkbox" label="Remind devices to update">
+                <:rich_hint>
+                  When enabled, devices will be told to update on connect, regardless if NervesHub assumes they are updating.
                 </:rich_hint>
               </.input>
             </div>
