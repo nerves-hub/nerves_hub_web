@@ -143,7 +143,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
 
     %{user: user, org: org, product: product} = socket.assigns
 
-    ManagedDeployments.create_deployment_group(params, product)
+    ManagedDeployments.create_deployment_group(params, product, user)
     |> case do
       {:ok, deployment_group} ->
         _ = DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)

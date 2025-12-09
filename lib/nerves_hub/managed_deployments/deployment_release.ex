@@ -15,9 +15,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   @required_fields [
     :deployment_group_id,
     :firmware_id,
-    :archive_id,
-    :created_by_id,
-    :status
+    :created_by_id
   ]
 
   @optional_fields [:archive_id]

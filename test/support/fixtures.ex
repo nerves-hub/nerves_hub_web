@@ -224,15 +224,20 @@ defmodule NervesHub.Fixtures do
 
   def deployment_group_fixture(%Firmwares.Firmware{} = firmware, params \\ %{}) do
     {is_active, params} = Map.pop(params, :is_active, false)
+    user = Map.get_lazy(params, :user, &user_fixture/0)
 
     {:ok, deployment_group} =
       params
       |> Map.put(:firmware_id, firmware.id)
       |> Enum.into(@deployment_group_params)
-      |> ManagedDeployments.create_deployment_group(%Product{id: firmware.product_id})
+      |> ManagedDeployments.create_deployment_group(%Product{id: firmware.product_id}, user)
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: is_active})
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{is_active: is_active},
+        user
+      )
 
     deployment_group
   end

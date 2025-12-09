@@ -101,7 +101,7 @@
     update_stats={@update_stats}
   />
 
-  <.live_component :if={@tab == :release_history} module={ReleaseHistoryTab} id="deployment_group_release_history" />
+  <.live_component :if={@tab == :release_history} module={ReleaseHistoryTab} id="deployment_group_release_history" releases={@releases} />
 
   <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_group_activity" deployment_group={@deployment_group} org={@org} product={@product} user={@user} />
 

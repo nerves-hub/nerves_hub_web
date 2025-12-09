@@ -805,12 +805,17 @@ defmodule NervesHub.DevicesTest do
            deployment_group: deployment_group,
            device: device1 = %{id: device1_id},
            org: org,
-           product: product
+           product: product,
+           user: user
          } do
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{
-          enable_priority_updates: true
-        })
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            enable_priority_updates: true
+          },
+          user
+        )
 
       {:ok, device1} = Devices.update_device(device1, %{first_seen_at: DateTime.utc_now()})
 
