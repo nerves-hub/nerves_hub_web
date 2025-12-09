@@ -163,7 +163,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       assert release.deployment_group_id == deployment_group.id
       assert release.firmware_id == firmware.id
-      assert release.archive_id == nil
+      refute release.archive_id
       assert release.created_by_id == user.id
       assert release.firmware.id == firmware.id
       assert release.user.id == user.id
