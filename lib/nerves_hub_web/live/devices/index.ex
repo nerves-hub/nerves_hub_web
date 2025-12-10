@@ -471,19 +471,20 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_info(:refresh_device_list, socket) do
-    if socket.assigns.visible? do
-      Tracer.with_span "NervesHubWeb.Live.Devices.Index.refresh_device_list" do
-        Process.send_after(self(), :refresh_device_list, @list_refresh_time)
-
-        socket
-        |> safe_refresh()
-        |> noreply()
-      end
+  def handle_info(:refresh_device_list, %{assigns: %{visible?: true}} = socket) do
+    Tracer.with_span "NervesHubWeb.Live.Devices.Index.refresh_device_list" do
+      Process.send_after(self(), :refresh_device_list, @list_refresh_time)
 
       socket
+      |> safe_refresh()
       |> noreply()
     end
+
+    noreply(socket)
+  end
+
+  def handle_info(:refresh_device_list, socket) do
+    noreply(socket)
   end
 
   def handle_info(:live_refresh, socket) do
