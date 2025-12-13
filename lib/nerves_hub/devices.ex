@@ -703,7 +703,36 @@ defmodule NervesHub.Devices do
   """
   @spec available_for_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
   def available_for_update(deployment_group, count) do
+    build_available_devices_query(deployment_group, count, [])
+    |> Repo.all()
+  end
+
+  @doc """
+  Get devices eligible for priority queue updates.
+
+  Similar to `available_for_update/2` but filters devices whose firmware version
+  is less than or equal to the priority_queue_firmware_version_threshold.
+  """
+  @spec available_for_priority_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
+
+  # No threshold set, return empty list
+  def available_for_priority_update(%DeploymentGroup{priority_queue_firmware_version_threshold: threshold}, _count)
+      when threshold in [nil, ""],
+      do: []
+
+  def available_for_priority_update(deployment_group, count) do
+    threshold = deployment_group.priority_queue_firmware_version_threshold
+
+    build_available_devices_query(deployment_group, count, version_threshold: threshold)
+    |> Repo.all()
+  end
+
+  # Builds the query for finding available devices for updates
+  # Options:
+  #   - :version_threshold - Optional firmware version threshold for priority queue filtering
+  defp build_available_devices_query(deployment_group, count, opts) do
     now = DateTime.utc_now(:second)
+    version_threshold = Keyword.get(opts, :version_threshold)
 
     Device
     |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
@@ -722,6 +751,17 @@ defmodule NervesHub.Devices do
     |> where([inflight_update: ifu], is_nil(ifu))
     |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
     |> then(fn query ->
+      if version_threshold do
+        where(
+          query,
+          [d],
+          fragment("semver_match(? #>> '{\"version\"}', ?)", d.firmware_metadata, ^"<= #{version_threshold}")
+        )
+      else
+        query
+      end
+    end)
+    |> then(fn query ->
       case deployment_group.queue_management do
         :FIFO ->
           order_by(query, [d, latest_connection: lc],
@@ -737,59 +777,6 @@ defmodule NervesHub.Devices do
       end
     end)
     |> limit(^count)
-    |> Repo.all()
-  end
-
-  @doc """
-  Get devices eligible for priority queue updates.
-
-  Similar to `available_for_update/2` but filters devices whose firmware version
-  is less than or equal to the priority_queue_firmware_version_threshold.
-  """
-  @spec available_for_priority_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
-  def available_for_priority_update(deployment_group, count) do
-    threshold = deployment_group.priority_queue_firmware_version_threshold
-
-    if threshold && threshold != "" do
-      now = DateTime.utc_now(:second)
-
-      Device
-      |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
-      |> join(:inner, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
-      |> join(:inner, [deployment_group: dg], f in assoc(dg, :firmware),
-        on: [product_id: ^deployment_group.product_id],
-        as: :firmware
-      )
-      |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
-      |> where(deployment_id: ^deployment_group.id)
-      |> where(updates_enabled: true)
-      |> where([d], d.firmware_validation_status in [:validated, :unknown])
-      |> where([latest_connection: lc], lc.status == :connected)
-      |> where([d], not is_nil(d.firmware_metadata))
-      |> where([d, firmware: f], fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, f.uuid))
-      |> where([inflight_update: ifu], is_nil(ifu))
-      |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
-      |> where([d], fragment("semver_match(? #>> '{\"version\"}', ?)", d.firmware_metadata, ^"<= #{threshold}"))
-      |> then(fn query ->
-        case deployment_group.queue_management do
-          :FIFO ->
-            order_by(query, [d, latest_connection: lc],
-              desc: d.priority_updates,
-              asc: lc.established_at
-            )
-
-          :LIFO ->
-            order_by(query, [d],
-              desc: d.priority_updates,
-              desc_nulls_last: d.first_seen_at
-            )
-        end
-      end)
-      |> limit(^count)
-      |> Repo.all()
-    else
-      []
-    end
   end
 
   @doc """
