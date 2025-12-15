@@ -698,8 +698,7 @@ defmodule NervesHub.Devices do
   be updated first.
 
   If the deployment group has `enable_priority_updates` set to true,
-  devices are ordered by most recently connected for the first time (`device.first_seen_at`),
-  then by `device.priority_updates`.
+  devices are ordered by most recently connected for the first time (`device.first_seen_at`)
   """
   @spec available_for_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
   def available_for_update(deployment_group, count) do
@@ -764,16 +763,10 @@ defmodule NervesHub.Devices do
     |> then(fn query ->
       case deployment_group.queue_management do
         :FIFO ->
-          order_by(query, [d, latest_connection: lc],
-            desc: d.priority_updates,
-            asc: lc.established_at
-          )
+          order_by(query, [latest_connection: lc], asc: lc.established_at)
 
         :LIFO ->
-          order_by(query, [d],
-            desc: d.priority_updates,
-            desc_nulls_last: d.first_seen_at
-          )
+          order_by(query, [d], desc_nulls_last: d.first_seen_at)
       end
     end)
     |> limit(^count)

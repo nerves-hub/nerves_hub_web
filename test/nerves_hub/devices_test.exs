@@ -468,14 +468,6 @@ defmodule NervesHub.DevicesTest do
       assert deployment_group.current_updated_devices == 1
     end
 
-    test "reverts device.priority_updates to false", %{device: device} do
-      {:ok, device} = Devices.update_device(device, %{priority_updates: true})
-      assert device.priority_updates
-
-      {:ok, device} = Devices.firmware_update_successful(device, device.firmware_metadata)
-      refute device.priority_updates
-    end
-
     test "device updates successfully", %{device: device, deployment_group: deployment_group} do
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
@@ -757,11 +749,11 @@ defmodule NervesHub.DevicesTest do
 
       device2 =
         %{id: device2_id} =
-        Fixtures.device_fixture(org, product, deployment_group.firmware, %{priority_updates: true})
+        Fixtures.device_fixture(org, product, deployment_group.firmware)
 
       device3 =
         %{id: device3_id} =
-        Fixtures.device_fixture(org, product, deployment_group.firmware, %{priority_updates: true})
+        Fixtures.device_fixture(org, product, deployment_group.firmware)
 
       device4 =
         %{id: device4_id} =
@@ -796,7 +788,7 @@ defmodule NervesHub.DevicesTest do
         {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
       end)
 
-      assert [%{id: ^device2_id}, %{id: ^device3_id}, %{id: ^device1_id}, %{id: ^device4_id}] =
+      assert [%{id: ^device1_id}, %{id: ^device2_id}, %{id: ^device3_id}, %{id: ^device4_id}] =
                Devices.available_for_update(deployment_group, 10)
     end
 
@@ -822,14 +814,12 @@ defmodule NervesHub.DevicesTest do
       device2 =
         %{id: device2_id} =
         Fixtures.device_fixture(org, product, deployment_group.firmware, %{
-          priority_updates: true,
           first_seen_at: DateTime.utc_now() |> DateTime.add(-1, :day)
         })
 
       device3 =
         %{id: device3_id} =
         Fixtures.device_fixture(org, product, deployment_group.firmware, %{
-          priority_updates: true,
           first_seen_at: DateTime.utc_now() |> DateTime.add(-7, :day)
         })
 
@@ -868,7 +858,7 @@ defmodule NervesHub.DevicesTest do
         {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
       end)
 
-      assert [%{id: ^device2_id}, %{id: ^device3_id}, %{id: ^device1_id}, %{id: ^device4_id}] =
+      assert [%{id: ^device1_id}, %{id: ^device2_id}, %{id: ^device4_id}, %{id: ^device3_id}] =
                Devices.available_for_update(%{deployment_group | queue_management: :LIFO}, 10)
     end
   end

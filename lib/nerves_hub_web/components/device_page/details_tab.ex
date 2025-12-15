@@ -309,29 +309,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
 
           <div :if={@device.deployment_group} class="flex flex-col pt-2 px-4 pb-6 gap-4">
-            <div class="text-sm font-medium leading-6 text-zinc-300">
-              <form id="toggle-priority-updates">
-                <input type="hidden" name="device[priority_updates]" value="false" />
-                <input
-                  type="checkbox"
-                  id="device[priority_updates]"
-                  name="device[priority_updates]"
-                  checked={@device.priority_updates}
-                  phx-click="toggle-device-priority-updates"
-                  value="true"
-                  class="rounded border-zinc-700 text-zinc-400 focus:ring-0 checked:bg-indigo-500"
-                />
-                <label for="device[priority_updates]" class="pl-2">Priority Updates</label>
-                <div id="priority-update-info" class="inline-block align-middle relative pl-1" phx-hook="ToolTip" data-placement="right">
-                  <.icon name="info" class="stroke-zinc-400" />
-                  <div class="tooltip-content hidden w-max absolute top-0 left-0 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
-                    When enabled, this device will be prioritized for updates and <br /> bypasses the deployment group's queue management. <br />
-                    The priority setting will automatically revert after the next successful update. <br />
-                    <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
-                  </div>
-                </div>
-              </form>
-            </div>
             <div class="flex pt-2 gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Assigned deployment group:</span>
               <.link
@@ -754,32 +731,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     socket
     |> assign(:support_scripts, update_script(scripts, id, %{output: nil, running?: false}))
     |> halt()
-  end
-
-  def hooked_event("toggle-device-priority-updates", _params, socket) do
-    %{assigns: %{device: device}} = socket
-
-    case Devices.update_device(device, %{priority_updates: !device.priority_updates}) do
-      {:ok, device} ->
-        socket
-        |> assign(:device, device)
-        |> put_flash(:info, "Device updated successfully.")
-        |> halt()
-
-      {:error, changeset} ->
-        Logger.info("Couldn't update device.priority_updates: #{inspect(changeset)}")
-
-        error =
-          if Keyword.has_key?(changeset.errors, :deleted_at) do
-            "Device cannot be updated because it has been deleted. Please restore the device to make changes."
-          else
-            "There was an issue updating the device. Please contact support if this happens again."
-          end
-
-        socket
-        |> put_flash(:error, error)
-        |> halt()
-    end
   end
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}

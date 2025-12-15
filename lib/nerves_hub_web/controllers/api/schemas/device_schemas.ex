@@ -45,10 +45,6 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
           description: "Device penalty box expiration timestamp",
           format: :"date-time"
         },
-        priority_updates: %Schema{
-          type: :boolean,
-          description: "Prioritizes this device for updates when part of a deployment group"
-        },
         org_name: %Schema{type: :string},
         product_name: %Schema{type: :string},
         last_communication: %Schema{
@@ -85,7 +81,6 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
         },
         "updates_enabled" => true,
         "updates_blocked_until" => "2050-04-20T00:33:09Z",
-        "priority_updates" => true,
         "org_name" => "BigCompany",
         "product_name" => "AmazingProduct",
         "last_communication" => "2050-04-20T00:33:09Z"
@@ -134,7 +129,6 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             },
             "updates_enabled" => true,
             "updates_blocked_until" => "2050-04-20T00:33:09Z",
-            "priority_updates" => true,
             "org_name" => "BigCompany",
             "product_name" => "AmazingProduct",
             "last_communication" => "2050-04-20T00:33:09Z"
@@ -167,7 +161,6 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             },
             "updates_enabled" => true,
             "updates_blocked_until" => "2050-04-20T00:33:09Z",
-            "priority_updates" => true,
             "org_name" => "BigCompany",
             "product_name" => "AmazingProduct",
             "last_communication" => "2050-04-20T00:33:09Z"
@@ -188,8 +181,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             description: %Schema{type: :string},
             tags: %Schema{type: :string},
             deployment_group_id: %Schema{type: :integer},
-            updates_enabled: %Schema{type: :boolean},
-            priority_updates: %Schema{type: :boolean}
+            updates_enabled: %Schema{type: :boolean}
           },
           required: [:identifier]
         }
@@ -201,8 +193,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
           "description" => "Example Device",
           "tags" => "prod, customerJNK",
           "deployment_group_id" => 1,
-          "updates_enabled" => false,
-          "priority_updates" => true
+          "updates_enabled" => false
         }
       }
     })
@@ -218,8 +209,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             description: %Schema{type: :string},
             tags: %Schema{type: :string},
             deployment_group_id: %Schema{type: :integer},
-            updates_enabled: %Schema{type: :boolean},
-            priority_updates: %Schema{type: :boolean}
+            updates_enabled: %Schema{type: :boolean}
           }
         }
       },
@@ -228,8 +218,7 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
           "description" => "Example Device",
           "tags" => "prod, customerJNK",
           "deployment_group_id" => 1,
-          "updates_enabled" => false,
-          "priority_updates" => true
+          "updates_enabled" => false
         }
       }
     })
