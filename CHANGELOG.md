@@ -4,6 +4,54 @@
 
 ### Added
 
+- Add a way to extend DeviceChannel functionality via Extensions (#1479)
+- Hide disabled extensions in the UI (#1654)
+- Check device api version before requesting extensions (#1668)
+
+### Changed
+
+- Replace Scrivener with Flop for pagination (#1656)
+- Improve pager (#1664)
+
+### Fixed
+
+- Fix device pager not paging back to page 1 (#1663)
+
+### Dependencies
+
+- **bandit**: 1.6.0 -> 1.8.0
+- **bcrypt_elixir**: 3.2.0 -> 3.3.2
+- **castore**: 1.0.8 -> 1.0.10
+- **certifi**: removed
+- **ch**: 0.5.6
+- **circular_buffer**: 0.4.1 -> 1.0.0
+- **comeonin**: 5.5.0 -> 5.5.1
+- **confuse**: 0.2.1
+- **crontab**: 1.1.14 -> 1.2.0
+- **dialyxir**: 1.4.3 -> 1.4.4
+- **ecto**: 3.12.3 -> 3.12.4
+- **ecto_psql_extras**: 0.8.1 -> 0.8.2
+- **ecto_sql**: 3.12.0 -> 3.12.1
+- **ex_aws**: 2.5.5 -> 2.5.7
+- **ex_aws_s3**: 2.5.3 -> 2.5.5
+- **expo**: 0.5.2 -> 1.1.0
+- **floki**: 0.36.2 -> 0.36.3
+- **gettext**: 0.24.0 -> 0.26.2
+- **phoenix_ecto**: 4.6.2 -> 4.6.3
+- **postgrex**: 0.19.2 -> 0.19.3
+- **scrivener_ecto**: 3.0.0 -> 3.0.1
+- **sentry**: 10.7.1 -> 10.8.0
+- **slipstream**: 1.1.1 -> 1.1.2
+- **swoosh**: 1.17.1 -> 1.17.2
+- **telemetry_metrics**: 0.6.2 -> 1.0.0
+- **telemetry_metrics_statsd**: 0.7.0 -> 0.7.1
+- **tzdata**: 1.0.0 -> 1.1.0
+- **x509**: 0.8.9 -> 0.8.10
+
+## v2.1.0
+
+### Added
+
 - Add the oban integration to Sentry (#1543)
 - Add container version tagging (#1549)
 - Add device count and estimated device count for Deployment views (#1517)
@@ -19,11 +67,8 @@
 - Add support for OpenTelemetry tracing (#1612)
 - Show current alarms on device page (#1648)
 - World Map clustering (#1619)
-- Add a way to extend DeviceChannel functionality via Extensions (#1479)
-- Hide disabled extensions in the UI (#1654)
-- Check device api version before requesting extensions (#1668)
 
-### Changed
+## Changed
 
 - Device channel cleanups (#1546)
 - Increase the Repo queue_target (#1545)
@@ -53,8 +98,6 @@
 - Allow publishing docker images from PR (#1626)
 - Use PRs HEAD sha for tagging images (#1637)
 - Use PR number when looking for publish commit message (#1638)
-- Replace Scrivener with Flop for pagination (#1656)
-- Improve pager (#1664)
 
 ### Fixed
 
@@ -64,35 +107,37 @@
 - Fix an unreachable with/else code path (#1642)
 - Use the full module reference for some @specs (#1645)
 - Change health section to not show boxes for non-reported default values (#1651)
-- Fix device pager not paging back to page 1 (#1663)
 
 ### Dependencies
-
-- **bcrypt_elixir**: 3.1.0 -> 3.2.0
 - **castore**: 1.0.8 -> 1.0.10
-- **comeonin**: 5.4.0 -> 5.5.0
-- **crontab**: 1.1.13 -> 1.1.14
-- **dialyxir**: 1.4.3 -> 1.4.4
-- **ecto**: 3.12.3 -> 3.12.4
-- **ecto_psql_extras**: 0.8.1 -> 0.8.2
-- **ecto_sql**: 3.12.0 -> 3.12.1
-- **ex_aws**: 2.5.5 -> 2.5.7
 - **ex_aws_s3**: 2.5.3 -> 2.5.5
-- **expo**: 0.5.2 -> 1.1.0
-- **floki**: 0.36.2 -> 0.36.3
-- **gettext**: 0.24.0 -> 0.26.2
-- **phoenix_ecto**: 4.6.2 -> 4.6.3
-- **postgrex**: 0.19.2 -> 0.19.3
-- **scrivener_ecto**: 3.0.0 -> 3.0.1
-- **sentry**: 10.7.1 -> 10.8.0
+- **dialyxir**: 1.4.3 -> 1.4.5
+- **bcrypt_elixir**: 3.1.0 -> 3.2.0
+- **comeonin**: 5.4.0 -> 5.5.0
+- **swoosh**: 1.17.1 -> 1.17.3
 - **slipstream**: 1.1.1 -> 1.1.2
-- **swoosh**: 1.17.1 -> 1.17.2
-- **telemetry_metrics**: 0.6.2 -> 1.0.0
 - **telemetry_metrics_statsd**: 0.7.0 -> 0.7.1
-- **tzdata**: 1.0.0 -> 1.1.0
+- **ecto**: 3.12.3 -> 3.12.4
+- **ecto_sql**: 3.12.0 -> 3.12.1
+- **telemetry_metrics**: 0.6.2 -> 1.0.0
+- **ecto_psql_extras**: 0.8.1 -> 0.8.2
+- **ex_aws**: 2.5.5 -> 2.5.7
 - **x509**: 0.8.9 -> 0.8.10
+- **postgrex**: 0.19.1 -> 0.19.3
+- **floki**: 0.36.2 -> 0.36.3
+- **crontab**: 1.1.13 -> 1.1.14
+- **sentry**: 10.7.1 -> 10.8.0
+- **phoenix_ecto**: 4.6.2 -> 4.6.3
+- **gettext**: 0.24.0 -> 0.26.2
+- **phoenix_live_dashboard**: 0.8.4 -> 0.8.5
+- **bandit**: 1.5.7 -> 1.6.0
+- **opentelemetry_bandit**: 0.2.0-rc.1 -> 0.2.0
+- **opentelemetry_phoenix**: 2.0.0-rc.1 -> 2.0.0
+- **open_telemetry_decorator**: 1.5.7 -> 1.5.8
 
-Full Changelog - https://github.com/nerves-hub/nerves_hub_web/compare/v2.0.0...main
+From `assets/`:
+- **webpack**: 5.45.1 -> 5.95.0
+- **braces**: 3.0.2 -> 3.0.3
 
 ## v2.0.0
 
