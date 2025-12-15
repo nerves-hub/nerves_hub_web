@@ -17,7 +17,11 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
   alias NervesHub.Repo
 
   @impl Oban.Worker
-  def perform(%Oban.Job{id: id, attempt: attempt, args: %{"source_id" => source_id, "target_id" => target_id}}) do
+  def perform(%Oban.Job{
+        id: id,
+        attempt: attempt,
+        args: %{"source_id" => source_id, "target_id" => target_id}
+      }) do
     source = Firmwares.get_firmware!(source_id)
     target = Firmwares.get_firmware!(target_id)
 
@@ -38,6 +42,12 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
 
         # if on last attempt and delta hasn't been marked as failed, fail it
         case Firmwares.generate_firmware_delta(delta, source, target) do
+          {:error, :no_delta_support_in_firmware} ->
+            delta = Repo.reload(delta)
+            Logger.info("Delta generation failed. No delta support detected.")
+            {:ok, _} = Firmwares.fail_firmware_delta(delta)
+            :discard
+
           {:error, _} = err ->
             delta = Repo.reload(delta)
 
