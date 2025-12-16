@@ -38,6 +38,12 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
 
         # if on last attempt and delta hasn't been marked as failed, fail it
         case Firmwares.generate_firmware_delta(delta, source, target) do
+          {:error, :no_delta_support_in_firmware} ->
+            delta = Repo.reload(delta)
+            Logger.info("Delta generation failed. No delta support detected.")
+            {:ok, _} = Firmwares.fail_firmware_delta(delta)
+            :discard
+
           {:error, _} = err ->
             delta = Repo.reload(delta)
 
