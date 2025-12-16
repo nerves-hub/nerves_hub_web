@@ -86,7 +86,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit(device_show_path(fixture))
       |> assert_has("svg[data-connection-status=unknown]")
       |> unwrap(fn view ->
-        {:ok, connection} = Connections.device_connecting(fixture.device, fixture.device.product_id)
+        {:ok, connection} =
+          Connections.device_connecting(fixture.device, fixture.device.product_id)
+
         :ok = Connections.device_connected(fixture.device, connection.id)
         render(view)
       end)
@@ -100,7 +102,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       deployment_group: deployment_group
     } do
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, fixture.user)
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{is_active: true},
+          fixture.user
+        )
 
       # Set device status to :provisioned for deployment group eligibility
       %{status: :provisioned} = device = Devices.set_as_provisioned!(device)
@@ -116,7 +122,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         |> Map.from_struct()
         |> Map.put(:platform, "foobar")
 
-      {:ok, device} = Devices.update_firmware_metadata(device, updated_firmware_metadata, :unknown, false)
+      {:ok, device} =
+        Devices.update_firmware_metadata(device, updated_firmware_metadata, :unknown, false)
 
       conn
       |> visit(device_show_path(fixture))
@@ -138,7 +145,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
           |> Map.put(:platform, original_firmware_platform)
           |> Map.put(:uuid, "foobar123")
 
-        {:ok, device} = Devices.update_firmware_metadata(device, restored_firmware_metadata, :unknown, false)
+        {:ok, device} =
+          Devices.update_firmware_metadata(device, restored_firmware_metadata, :unknown, false)
 
         device = Devices.update_deployment_group(device, deployment_group)
 
@@ -653,7 +661,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("option", text: "Select a deployment group")
       |> select("Deployment Group", exact_option: false, option: deployment_group.name)
-      |> click_button("Add to deployment group")
+      |> click_button("Assign")
       |> refute_has("div", text: "No assigned deployment group")
 
       assert Repo.reload(device) |> Map.get(:deployment_id)
@@ -676,7 +684,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("span", text: "No deployment groups match the devices platform and architecture.")
+      |> assert_has("span",
+        text: "No deployment groups match the devices platform and architecture."
+      )
       |> refute_has("option", text: "Select a deployment group")
     end
   end
