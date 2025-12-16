@@ -52,24 +52,24 @@
     </div>
   </div>
 
-  <div class="h-[89px] shrink-0 flex justify-between p-6">
-    <div class="flex gap-3 items-center">
+  <div class="h-[89px] shrink-0 flex justify-between p-6 gap-2">
+    <div class="flex shrink-0 gap-3 items-center">
       <svg
         data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
-        class="h-3 w-3 data-[connection-status=connecting]:fill-indigo-500 data-[connection-status=connecting]:animate-pulse data-[connection-status=connected]:fill-emerald-500 data-[connection-status=disconnected]:fill-zinc-500 data-[connection-status=unknown]:fill-zinc-500"
+        class="shrink-0 h-3 w-3 data-[connection-status=connecting]:fill-indigo-500 data-[connection-status=connecting]:animate-pulse data-[connection-status=connected]:fill-emerald-500 data-[connection-status=disconnected]:fill-zinc-500 data-[connection-status=unknown]:fill-zinc-500"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 6 6"
         fill="currentColor"
       >
         <circle cx="3" cy="3" r="3" />
       </svg>
-      <h1 class="text-xl font-semibold leading-[30px] text-zinc-50 font-mono">
+      <h1 class="shrink-0 text-xl font-semibold leading-[30px] text-zinc-50 font-mono">
         {@device.identifier}
       </h1>
     </div>
 
     <div class="flex items-center gap-2">
-      <div :if={show_firmware_status_box(@device)} class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+      <div :if={show_firmware_status_box(@device)} class="flex py-1 px-2 items-center rounded bg-zinc-800">
         <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Firmware:</span>
 
         <span :if={@device.firmware_validation_status == :validated && !@device.firmware_auto_revert_detected} class="text-sm text-base-300 font-mono">Validated</span>
@@ -79,7 +79,7 @@
         <span :if={@device.firmware_auto_revert_detected} class="text-sm text-red-300 font-mono">Revert detected</span>
       </div>
 
-      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+      <div class="flex py-1 px-2 items-center rounded bg-zinc-800">
         <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Version:</span>
 
         <span :if={is_nil(@device.firmware_metadata)} class="text-sm text-base-300 font-mono">Unknown</span>
@@ -98,7 +98,7 @@
         </.link>
       </div>
 
-      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+      <div class="flex py-1 px-2 items-center rounded bg-zinc-800">
         <span class="text-sm text-zinc-400 hidden lg:block">Firmware updates:</span>
         <%= cond do %>
           <% is_nil(@device.deployment_id) -> %>
