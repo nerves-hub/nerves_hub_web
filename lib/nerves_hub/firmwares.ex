@@ -418,8 +418,7 @@ defmodule NervesHub.Firmwares do
 
   @spec generate_firmware_delta(FirmwareDelta.t(), Firmware.t(), Firmware.t()) ::
           :ok
-          | {:error, Changeset.t()}
-
+          | {:error, Ecto.Changeset.t() | :no_delta_support_in_firmware}
   def generate_firmware_delta(firmware_delta, source_firmware, target_firmware) do
     Logger.info("Creating firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}.")
 
