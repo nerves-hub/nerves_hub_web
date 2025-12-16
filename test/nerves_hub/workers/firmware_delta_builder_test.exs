@@ -18,17 +18,44 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
   end
 
   describe "test/1" do
-    test "fails delta on last attempt", %{source_firmware: source_firmware, target_firmware: target_firmware} do
-      delta = Fixtures.firmware_delta_fixture(source_firmware, target_firmware, %{status: :processing})
+    test "fails delta on last attempt", %{
+      source_firmware: source_firmware,
+      target_firmware: target_firmware
+    } do
+      delta =
+        Fixtures.firmware_delta_fixture(source_firmware, target_firmware, %{status: :processing})
+
       expect(Firmwares, :generate_firmware_delta, fn _, _, _ -> {:error, :some_error} end)
 
-      FirmwareDeltaBuilder.perform(%Oban.Job{
-        id: Ecto.UUID.generate(),
-        attempt: 5,
-        args: %{"source_id" => source_firmware.id, "target_id" => target_firmware.id}
-      })
+      assert {:error, :some_error} =
+               FirmwareDeltaBuilder.perform(%Oban.Job{
+                 id: Ecto.UUID.generate(),
+                 attempt: 5,
+                 args: %{"source_id" => source_firmware.id, "target_id" => target_firmware.id}
+               })
 
       assert Repo.reload(delta) |> Map.get(:status) == :failed
     end
+  end
+
+  test "fails delta immediately on no valid delta", %{
+    source_firmware: source_firmware,
+    target_firmware: target_firmware
+  } do
+    delta =
+      Fixtures.firmware_delta_fixture(source_firmware, target_firmware, %{status: :processing})
+
+    expect(Firmwares, :generate_firmware_delta, fn _, _, _ ->
+      {:error, :no_delta_support_in_firmware}
+    end)
+
+    assert :discard =
+             FirmwareDeltaBuilder.perform(%Oban.Job{
+               id: Ecto.UUID.generate(),
+               attempt: 1,
+               args: %{"source_id" => source_firmware.id, "target_id" => target_firmware.id}
+             })
+
+    assert Repo.reload(delta) |> Map.get(:status) == :failed
   end
 end

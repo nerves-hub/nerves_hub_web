@@ -382,8 +382,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   </option>
                 </select>
               </div>
-              <.button type="submit" aria-label="Add to deployment" data-confirm="Are you sure you want to add the device to the deployment group?">
-                Add to deployment group
+              <.button type="submit" aria-label="Assign to deployment" data-confirm="Are you sure you want to add the device to the deployment group?">
+                Assign
               </.button>
             </form>
           </div>
@@ -669,7 +669,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
-    Logger.info("Manually sending full firmware", firmware_uuid: firmware.uuid, device_identifier: device.identifier)
+    Logger.info("Manually sending full firmware",
+      firmware_uuid: firmware.uuid,
+      device_identifier: device.identifier
+    )
 
     opts =
       if proxy_url = get_in(org.settings.firmware_proxy_url) do
