@@ -17,11 +17,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
   alias NervesHub.Repo
 
   @impl Oban.Worker
-  def perform(%Oban.Job{
-        id: id,
-        attempt: attempt,
-        args: %{"source_id" => source_id, "target_id" => target_id}
-      }) do
+  def perform(%Oban.Job{id: id, attempt: attempt, args: %{"source_id" => source_id, "target_id" => target_id}}) do
     source = Firmwares.get_firmware!(source_id)
     target = Firmwares.get_firmware!(target_id)
 
