@@ -127,6 +127,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> validate_number(:failure_threshold, greater_than: 0)
     |> validate_number(:inflight_update_expiration_minutes, greater_than_or_equal_to: 30)
     |> validate_number(:penalty_timeout_minutes, greater_than_or_equal_to: 60)
+    |> normalize_priority_queue_threshold()
     |> validate_priority_queue_version_threshold()
   end
 
@@ -217,10 +218,18 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> validate_required([:status])
   end
 
+  defp normalize_priority_queue_threshold(changeset) do
+    if get_change(changeset, :priority_queue_firmware_version_threshold) == "" do
+      put_change(changeset, :priority_queue_firmware_version_threshold, nil)
+    else
+      changeset
+    end
+  end
+
   defp validate_priority_queue_version_threshold(changeset) do
     threshold = get_field(changeset, :priority_queue_firmware_version_threshold)
 
-    if threshold && threshold != "" do
+    if threshold do
       case Version.parse(threshold) do
         {:ok, _} ->
           changeset

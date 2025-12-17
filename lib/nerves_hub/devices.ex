@@ -716,7 +716,7 @@ defmodule NervesHub.Devices do
 
   # No threshold set, return empty list
   def available_for_priority_update(%DeploymentGroup{priority_queue_firmware_version_threshold: threshold}, _count)
-      when threshold in [nil, ""],
+      when is_nil(threshold),
       do: []
 
   def available_for_priority_update(deployment_group, count) do

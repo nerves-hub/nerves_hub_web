@@ -1071,43 +1071,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       assert Devices.available_for_priority_update(deployment_group, 10) == []
     end
 
-    test "priority queue empty when threshold is empty string", %{
-      deployment_group: deployment_group,
-      product: product,
-      org: org,
-      firmware: firmware,
-      user: user
-    } do
-      deployment_group = Repo.preload(deployment_group, :org)
-
-      {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(
-          deployment_group,
-          %{
-            priority_queue_enabled: true,
-            priority_queue_firmware_version_threshold: ""
-          },
-          user
-        )
-
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      {:ok, device} =
-        Devices.update_firmware_metadata(
-          device,
-          %{"version" => "0.1.0", "uuid" => Ecto.UUID.generate()},
-          :unknown,
-          false
-        )
-
-      device = Devices.update_deployment_group(device, deployment_group)
-
-      {:ok, conn} = Connections.device_connecting(device, product.id)
-      :ok = Connections.device_connected(device, conn.id)
-
-      assert Devices.available_for_priority_update(deployment_group, 10) == []
-    end
-
     test "correctly handles semantic versioning with double-digit minor/patch versions", %{
       deployment_group: deployment_group,
       product: product,
