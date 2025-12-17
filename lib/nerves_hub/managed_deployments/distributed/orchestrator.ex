@@ -142,7 +142,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
 
     # Process priority queue first, if enabled
-    priority_updated = maybe_do_priority_update(deployment_group)
+    skipped_updates = maybe_do_priority_update(deployment_group)
 
     # Process normal queue
     slots = available_slots(deployment_group)
@@ -151,7 +151,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
       available = Devices.available_for_update(deployment_group, slots)
       updated_count = schedule_devices!(available, deployment_group, false)
 
-      if length(available) != updated_count or priority_updated > 0 do
+      if length(available) != updated_count or skipped_updates > 0 do
         # rerun the deployment check since some devices were skipped
         send(self(), :trigger)
       end
@@ -159,7 +159,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   end
 
   # Process priority queue updates for devices below the firmware version threshold.
-  # Returns the number of devices that were scheduled for priority updates.
+  # Returns the number of devices that were skipped (not updated).
   @spec maybe_do_priority_update(DeploymentGroup.t()) :: non_neg_integer()
 
   defp maybe_do_priority_update(%DeploymentGroup{priority_queue_enabled: false}), do: 0
@@ -169,7 +169,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
     if priority_slots > 0 do
       available = Devices.available_for_priority_update(deployment_group, priority_slots)
-      schedule_devices!(available, deployment_group, true)
+
+      length(available) - schedule_devices!(available, deployment_group, true)
     else
       0
     end
