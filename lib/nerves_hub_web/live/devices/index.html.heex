@@ -164,7 +164,7 @@
               <th>Firmware</th>
               <th>Platform</th>
               <th phx-click="sort" phx-value-sort="connection_established_at" class="cursor-pointer">
-                <Sorting.sort_icon text="Uptime" field="connection_established_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+                <Sorting.sort_icon text="Connected for" field="connection_established_at" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
               <th phx-click="sort" phx-value-sort="tags" class="cursor-pointer">
                 <Sorting.sort_icon text="Tags" field="tags" selected_field={@current_sort} selected_direction={@sort_direction} />
