@@ -21,6 +21,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
   @numeric_fields_with_defaults [
     :concurrent_updates,
+    :priority_queue_concurrent_updates,
     :device_failure_threshold,
     :device_failure_rate_seconds,
     :device_failure_rate_amount,
@@ -65,6 +66,10 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     field(:status, Ecto.Enum, values: [:ready, :preparing], default: :ready)
 
+    field(:priority_queue_enabled, :boolean, default: false)
+    field(:priority_queue_concurrent_updates, :integer, default: 5)
+    field(:priority_queue_firmware_version_threshold, :string)
+
     field(:device_count, :integer, virtual: true)
 
     # TODO: (joshk) this column is unused, remove after 1st May
@@ -96,7 +101,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       :connecting_code,
       :queue_management,
       :firmware_id,
-      :archive_id
+      :archive_id,
+      :priority_queue_enabled,
+      :priority_queue_firmware_version_threshold
     ])
     |> cast_and_validate_numeric_fields(params)
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
@@ -113,12 +120,15 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     changeset
     |> cast(params, @numeric_fields_with_defaults, empty_values: [nil])
     |> validate_number(:concurrent_updates, greater_than: 0)
+    |> validate_number(:priority_queue_concurrent_updates, greater_than: 0)
     |> validate_number(:device_failure_threshold, greater_than: 0)
     |> validate_number(:device_failure_rate_seconds, greater_than_or_equal_to: 60)
     |> validate_number(:device_failure_rate_amount, greater_than: 0)
     |> validate_number(:failure_threshold, greater_than: 0)
     |> validate_number(:inflight_update_expiration_minutes, greater_than_or_equal_to: 30)
     |> validate_number(:penalty_timeout_minutes, greater_than_or_equal_to: 60)
+    |> normalize_priority_queue_threshold()
+    |> validate_priority_queue_version_threshold()
   end
 
   defp cast_and_validate_firmware(changeset, product \\ nil) do
@@ -206,6 +216,34 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     deployment
     |> cast(params, [:status])
     |> validate_required([:status])
+  end
+
+  defp normalize_priority_queue_threshold(changeset) do
+    if get_change(changeset, :priority_queue_firmware_version_threshold) == "" do
+      put_change(changeset, :priority_queue_firmware_version_threshold, nil)
+    else
+      changeset
+    end
+  end
+
+  defp validate_priority_queue_version_threshold(changeset) do
+    threshold = get_field(changeset, :priority_queue_firmware_version_threshold)
+
+    if threshold do
+      case Version.parse(threshold) do
+        {:ok, _} ->
+          changeset
+
+        :error ->
+          add_error(
+            changeset,
+            :priority_queue_firmware_version_threshold,
+            "must be a valid semantic version"
+          )
+      end
+    else
+      changeset
+    end
   end
 
   def conditions_changeset(conditions, attrs) do

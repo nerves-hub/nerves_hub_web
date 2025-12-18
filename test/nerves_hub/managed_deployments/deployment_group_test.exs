@@ -195,4 +195,108 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
       assert errors_on(changeset) == %{archive_id: ["invalid archive"]}
     end
   end
+
+  describe "priority queue validations" do
+    setup do
+      Fixtures.standard_fixture()
+    end
+
+    test "priority_queue_concurrent_updates must be greater than 0", %{
+      deployment_group: deployment_group
+    } do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          priority_queue_concurrent_updates: 0
+        })
+
+      refute changeset.valid?
+      assert errors_on(changeset).priority_queue_concurrent_updates == ["must be greater than 0"]
+    end
+
+    test "priority_queue_concurrent_updates must be greater than 0 (negative)", %{
+      deployment_group: deployment_group
+    } do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          priority_queue_concurrent_updates: -1
+        })
+
+      refute changeset.valid?
+      assert errors_on(changeset).priority_queue_concurrent_updates == ["must be greater than 0"]
+    end
+
+    test "priority_queue_firmware_version_threshold must be valid semantic version", %{
+      deployment_group: deployment_group
+    } do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          priority_queue_firmware_version_threshold: "not-a-version"
+        })
+
+      refute changeset.valid?
+
+      assert errors_on(changeset).priority_queue_firmware_version_threshold == [
+               "must be a valid semantic version"
+             ]
+    end
+
+    test "priority_queue_firmware_version_threshold accepts valid semantic versions", %{
+      deployment_group: deployment_group
+    } do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          priority_queue_firmware_version_threshold: "1.2.3"
+        })
+
+      assert changeset.valid?
+    end
+
+    test "priority_queue_firmware_version_threshold accepts nil", %{
+      deployment_group: deployment_group
+    } do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          priority_queue_firmware_version_threshold: nil
+        })
+
+      assert changeset.valid?
+    end
+
+    test "priority_queue_firmware_version_threshold accepts empty string", %{
+      deployment_group: deployment_group
+    } do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          priority_queue_firmware_version_threshold: ""
+        })
+
+      assert changeset.valid?
+    end
+
+    test "priority_queue_enabled can be set", %{deployment_group: deployment_group} do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          priority_queue_enabled: true
+        })
+
+      assert changeset.valid?
+      assert changeset.changes.priority_queue_enabled == true
+    end
+
+    test "all priority queue fields can be updated together", %{
+      deployment_group: deployment_group
+    } do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          priority_queue_enabled: true,
+          priority_queue_concurrent_updates: 3,
+          priority_queue_firmware_version_threshold: "2.0.0"
+        })
+
+      assert changeset.valid?
+      assert changeset.changes.priority_queue_enabled == true
+      assert changeset.changes.priority_queue_concurrent_updates == 3
+      assert changeset.changes.priority_queue_firmware_version_threshold == "2.0.0"
+    end
+  end
 end

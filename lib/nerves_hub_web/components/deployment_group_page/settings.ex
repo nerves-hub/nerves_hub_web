@@ -151,6 +151,47 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+            <div class="text-base text-neutral-50 font-medium">Priority queue</div>
+          </div>
+
+          <div class="flex flex-col p-6 gap-6">
+            <div class="flex flex-col gap-3">
+              <p class="text-sm text-zinc-400 w-2/3">
+                Enable priority queue to fast-track devices with older firmware versions (e.g., fresh from factory) for immediate updates, bypassing the normal rolling update queue.
+              </p>
+            </div>
+
+            <div class="w-1/2">
+              <.input
+                field={@form[:priority_queue_enabled]}
+                type="checkbox"
+                label="Enable priority queue"
+              />
+            </div>
+
+            <div class="w-1/2">
+              <.input
+                field={@form[:priority_queue_concurrent_updates]}
+                label="Priority Queue Concurrent Updates"
+                type="number"
+                hint="The number of priority devices that will update concurrently, separate from the main concurrent limit."
+              />
+            </div>
+
+            <div class="w-1/2">
+              <.input
+                field={@form[:priority_queue_firmware_version_threshold]}
+                label="Firmware Version Threshold"
+                type="text"
+                placeholder="eg. 1.0.0"
+                hint="Devices with firmware versions at or below this threshold will be processed via the priority queue. Leave empty to disable."
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
             <div class="text-base text-neutral-50 font-medium">Device penalty box logic</div>
           </div>
           <div class="flex flex-col p-6 gap-8 border-t border-zinc-700">

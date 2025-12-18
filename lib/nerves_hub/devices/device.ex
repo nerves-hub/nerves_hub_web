@@ -35,8 +35,7 @@ defmodule NervesHub.Devices.Device do
     :firmware_validation_status,
     :firmware_auto_revert_detected,
     :first_seen_at,
-    :custom_location_coordinates,
-    :priority_updates
+    :custom_location_coordinates
   ]
   @required_params [:org_id, :product_id, :identifier]
 
@@ -84,7 +83,9 @@ defmodule NervesHub.Devices.Device do
     field(:updates_enabled, :boolean, default: true)
     field(:update_attempts, {:array, :utc_datetime}, default: [])
     field(:updates_blocked_until, :utc_datetime)
-    field(:priority_updates, :boolean, default: false)
+
+    # To be removed in a migration in the next release
+    # field(:priority_updates, :boolean, default: false)
 
     field(:deleted_at, :utc_datetime)
 
@@ -124,6 +125,5 @@ defmodule NervesHub.Devices.Device do
     |> change()
     |> put_change(:update_attempts, [])
     |> put_change(:updates_blocked_until, nil)
-    |> put_change(:priority_updates, false)
   end
 end

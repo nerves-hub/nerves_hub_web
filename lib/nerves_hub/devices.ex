@@ -698,12 +698,40 @@ defmodule NervesHub.Devices do
   be updated first.
 
   If the deployment group has `enable_priority_updates` set to true,
-  devices are ordered by most recently connected for the first time (`device.first_seen_at`),
-  then by `device.priority_updates`.
+  devices are ordered by most recently connected for the first time (`device.first_seen_at`)
   """
   @spec available_for_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
   def available_for_update(deployment_group, count) do
+    build_available_devices_query(deployment_group, count, [])
+    |> Repo.all()
+  end
+
+  @doc """
+  Get devices eligible for priority queue updates.
+
+  Similar to `available_for_update/2` but filters devices whose firmware version
+  is less than or equal to the priority_queue_firmware_version_threshold.
+  """
+  @spec available_for_priority_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
+
+  # No threshold set, return empty list
+  def available_for_priority_update(%DeploymentGroup{priority_queue_firmware_version_threshold: threshold}, _count)
+      when is_nil(threshold),
+      do: []
+
+  def available_for_priority_update(deployment_group, count) do
+    threshold = deployment_group.priority_queue_firmware_version_threshold
+
+    build_available_devices_query(deployment_group, count, version_threshold: threshold)
+    |> Repo.all()
+  end
+
+  # Builds the query for finding available devices for updates
+  # Options:
+  #   - :version_threshold - Optional firmware version threshold for priority queue filtering
+  defp build_available_devices_query(deployment_group, count, opts) do
     now = DateTime.utc_now(:second)
+    version_threshold = Keyword.get(opts, :version_threshold)
 
     Device
     |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
@@ -722,22 +750,26 @@ defmodule NervesHub.Devices do
     |> where([inflight_update: ifu], is_nil(ifu))
     |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
     |> then(fn query ->
+      if version_threshold do
+        where(
+          query,
+          [d],
+          fragment("semver_match(? #>> '{\"version\"}', ?)", d.firmware_metadata, ^"<= #{version_threshold}")
+        )
+      else
+        query
+      end
+    end)
+    |> then(fn query ->
       case deployment_group.queue_management do
         :FIFO ->
-          order_by(query, [d, latest_connection: lc],
-            desc: d.priority_updates,
-            asc: lc.established_at
-          )
+          order_by(query, [latest_connection: lc], asc: lc.established_at)
 
         :LIFO ->
-          order_by(query, [d],
-            desc: d.priority_updates,
-            desc_nulls_last: d.first_seen_at
-          )
+          order_by(query, [d], desc_nulls_last: d.first_seen_at)
       end
     end)
     |> limit(^count)
-    |> Repo.all()
   end
 
   @doc """
@@ -1545,13 +1577,13 @@ defmodule NervesHub.Devices do
           deployment_group :: DeploymentGroup.t()
         ) ::
           {:ok, InflightUpdate.t()} | :error
-  def told_to_update(device_or_id, deployment_group)
+  def told_to_update(device_or_id, deployment_group, opts \\ [])
 
-  def told_to_update(%Device{id: id}, deployment_group) do
-    told_to_update(id, deployment_group)
+  def told_to_update(%Device{id: id}, deployment_group, opts) do
+    told_to_update(id, deployment_group, opts)
   end
 
-  def told_to_update(device_id, deployment_group) do
+  def told_to_update(device_id, deployment_group, opts) do
     deployment_group = Repo.preload(deployment_group, :firmware)
 
     expires_at =
@@ -1559,12 +1591,15 @@ defmodule NervesHub.Devices do
       |> DateTime.add(60 * deployment_group.inflight_update_expiration_minutes, :second)
       |> DateTime.truncate(:second)
 
+    priority_queue = Keyword.get(opts, :priority_queue, false)
+
     %{
       device_id: device_id,
       deployment_id: deployment_group.id,
       firmware_id: deployment_group.firmware_id,
       firmware_uuid: deployment_group.firmware.uuid,
-      expires_at: expires_at
+      expires_at: expires_at,
+      priority_queue: priority_queue
     }
     |> InflightUpdate.create_changeset()
     |> Repo.insert()
@@ -1621,9 +1656,25 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
+  @doc """
+  Count inflight updates for a deployment group, excluding priority queue updates.
+  This ensures normal queue capacity is calculated independently.
+  """
   def count_inflight_updates_for(%DeploymentGroup{} = deployment_group) do
     InflightUpdate
     |> where([iu], iu.deployment_id == ^deployment_group.id)
+    |> where([iu], iu.priority_queue == false)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Count inflight updates that are in the priority queue for a deployment group.
+  """
+  @spec count_inflight_priority_updates_for(DeploymentGroup.t()) :: non_neg_integer()
+  def count_inflight_priority_updates_for(%DeploymentGroup{} = deployment_group) do
+    InflightUpdate
+    |> where([iu], iu.deployment_id == ^deployment_group.id)
+    |> where([iu], iu.priority_queue == true)
     |> Repo.aggregate(:count)
   end
 

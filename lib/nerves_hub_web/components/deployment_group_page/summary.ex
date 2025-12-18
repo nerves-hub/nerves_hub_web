@@ -280,9 +280,27 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span class="text-sm text-nerves-gray-500 w-40">Device failure threshold:</span>
               <span class="text-sm text-zinc-300">{@deployment_group.device_failure_threshold}</span>
             </div>
-            <div class="flex gap-4 items-center pb-6">
+            <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Device penalty box timeout:</span>
               <span class="text-sm text-zinc-300">{@deployment_group.penalty_timeout_minutes}</span>
+            </div>
+
+            <div class="flex gap-4 items-center pb-6">
+              <span class="text-sm text-nerves-gray-500">Queue management:</span>
+              <span class="text-sm text-zinc-300">{@deployment_group.queue_management}</span>
+            </div>
+
+            <div :if={@deployment_group.priority_queue_enabled} class="flex gap-4 items-center border-t border-zinc-700 pt-4">
+              <span class="text-sm text-nerves-gray-500">Priority queue enabled:</span>
+              <span class="text-sm text-emerald-400">Yes</span>
+            </div>
+            <div :if={@deployment_group.priority_queue_enabled} class="flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Priority queue concurrent:</span>
+              <span class="text-sm text-zinc-300">{@deployment_group.priority_queue_concurrent_updates}</span>
+            </div>
+            <div :if={@deployment_group.priority_queue_enabled} class="flex gap-4 items-center pb-6">
+              <span class="text-sm text-nerves-gray-500">Priority version threshold:</span>
+              <span class="text-sm text-zinc-300">{@deployment_group.priority_queue_firmware_version_threshold || "Not set"}</span>
             </div>
 
             <div :if={!@deployment_group.connecting_code} class="flex gap-4 items-center">

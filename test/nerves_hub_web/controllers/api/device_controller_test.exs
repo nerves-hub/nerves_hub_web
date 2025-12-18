@@ -69,7 +69,6 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                    "last_communication" => "never",
                    "online" => "not_seen",
                    "org_name" => "Test-Org",
-                   "priority_updates" => false,
                    "product_name" => "valid product",
                    "tags" => ["beta", "beta-edge"],
                    "updates_blocked_until" => nil,
