@@ -25,6 +25,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
       |> assign(:page_title, "Organizations")
       |> assign(:show_all_pinned?, false)
       |> assign(:device_info, %{})
+      |> assign(:product_device_info, %{})
       |> assign(:pinned_devices, Devices.get_pinned_devices(user.id))
       |> assign(:device_statuses, statuses)
       |> assign(:device_limit, @pinned_devices_limit)
@@ -43,10 +44,20 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   @impl true
   def handle_info(:load_extras, socket) do
-    statuses =
+    org_statuses =
       Connections.get_connection_status_by_orgs(Enum.map(socket.assigns.user.orgs, & &1.id))
 
-    {:noreply, assign(socket, :device_info, statuses)}
+    product_ids =
+      socket.assigns.user.orgs
+      |> Enum.flat_map(& &1.products)
+      |> Enum.map(& &1.id)
+
+    product_statuses = Connections.get_connection_status_by_products(product_ids)
+
+    {:noreply,
+     socket
+     |> assign(:device_info, org_statuses)
+     |> assign(:product_device_info, product_statuses)}
   end
 
   def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
