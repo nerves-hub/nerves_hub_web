@@ -1,16 +1,47 @@
-<h1>Are you absolutely sure?</h1>
-
-<p>Unexpected bad things will happen if you don’t read this!</p>
-
-<p>This action cannot be undone. This will permanently delete your account.</p>
-
-<.form :let={f} for={@form} phx-submit="delete">
-  <div class="form-group">
-    <label for="email_input">Please type {@user.email} to confirm.</label>
-    {text_input(f, :confirm_email, class: "form-control", id: "email_input")}
+<div class="w-[800px]">
+  <div class="h-[88px] py-6 flex items-center justify-between">
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Delete Account</h1>
+    <.link navigate={~p"/account"} class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded border border-zinc-600 transition-colors">
+      Cancel
+    </.link>
   </div>
 
-  <div class="button-submit-wrapper">
-    {submit("I understand the consequences, delete this account", class: "btn btn-primary")}
+  <div class="bg-zinc-900 border border-red-700 rounded p-6">
+    <div class="flex items-start gap-4 mb-6">
+      <div class="flex-shrink-0 mt-1">
+        <svg class="size-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
+        </svg>
+      </div>
+      <div>
+        <h2 class="text-lg font-semibold text-red-400 mb-2">Are you absolutely sure?</h2>
+        <div class="text-zinc-300 space-y-2">
+          <p class="font-semibold">Unexpected bad things will happen if you don't read this!</p>
+          <p>This action <span class="font-semibold text-red-400">cannot be undone</span>. This will permanently delete your account and all associated data.</p>
+        </div>
+      </div>
+    </div>
+
+    <.form :let={f} for={@form} phx-submit="delete">
+      <div class="mb-6">
+        <label for="email_input" class="block text-sm font-medium text-zinc-300 mb-2">
+          Please type <span class="font-mono text-white bg-zinc-800 px-2 py-0.5 rounded">{@user.email}</span> to confirm.
+        </label>
+        {text_input(f, :confirm_email,
+          class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded text-neutral-50 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent",
+          id: "email_input",
+          placeholder: "Type your email to confirm"
+        )}
+      </div>
+
+      <div class="flex justify-end">
+        {submit("I understand the consequences, delete this account", class: "px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded transition-colors cursor-pointer")}
+      </div>
+    </.form>
   </div>
-</.form>
+</div>
