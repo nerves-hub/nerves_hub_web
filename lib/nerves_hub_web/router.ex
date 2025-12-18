@@ -266,8 +266,6 @@ defmodule NervesHubWeb.Router do
       ] do
       live("/account/tokens", Live.AccountTokens, :index)
       live("/account/tokens/new", Live.AccountTokens, :new)
-
-      live("/orgs/new", Live.Orgs.New)
     end
 
     live_session :account_refreshed,
@@ -281,11 +279,10 @@ defmodule NervesHubWeb.Router do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
       live("/orgs", Live.Orgs.Index)
+      live("/orgs/new", Live.Orgs.New)
     end
 
     live_session :org,
-      root_layout: {NervesHubWeb.Layouts, :root},
-      layout: {NervesHubWeb.Layouts, :no_sidebar},
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
         NervesHubWeb.Mounts.EnrichSentryContext,
@@ -293,8 +290,6 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser
       ] do
-      live("/org/:org_name", Live.Org.Show)
-      live("/org/:org_name/new", Live.Products.New)
       live("/org/:org_name/settings", Live.Org.Settings)
       live("/org/:org_name/settings/keys", Live.Org.SigningKeys, :index)
       live("/org/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
@@ -310,6 +305,20 @@ defmodule NervesHubWeb.Router do
         Live.Org.CertificateAuthorities,
         :edit
       )
+    end
+
+    live_session :org_refreshed,
+      root_layout: {NervesHubWeb.Layouts, :root},
+      layout: {NervesHubWeb.Layouts, :sidebar},
+      on_mount: [
+        NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.EnrichSentryContext,
+        NervesHubWeb.Mounts.CurrentPath,
+        NervesHubWeb.Mounts.FetchOrg,
+        NervesHubWeb.Mounts.FetchOrgUser
+      ] do
+      live("/org/:org_name", Live.Org.Show)
+      live("/org/:org_name/new", Live.Products.New)
     end
 
     live_session :product,
