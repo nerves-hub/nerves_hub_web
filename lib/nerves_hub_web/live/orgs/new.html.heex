@@ -1,27 +1,19 @@
-<h1 class="pt-4">Create New Organization</h1>
-
-<.form :let={f} for={@form} phx-submit="save_org">
-  <%= if @form.action do %>
-    <div class="alert alert-danger">
-      <p>Oops, something went wrong! Please check the errors below.</p>
-    </div>
-  <% end %>
-
-  <div class="form-group">
-    <div class="help-text tooltip-label help-tooltip">
-      <label for="name_input" class="tooltip-label">
-        Organization Name
-      </label>
-      <span class="tooltip-info mb-1"></span>
-      <span class="tooltip-text">Must be one word</span>
-    </div>
-    {text_input(f, :name, class: "form-control", id: "name_input")}
-    <div class="has-error">
-      {error_tag(f, :name)}
-    </div>
+<div class="w-[800px]">
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 text-sm font-medium">
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Create New Organization</h1>
   </div>
 
-  <div class="button-submit-wrapper">
-    {submit("Create Organization", class: "btn btn-primary")}
+  <div class="flex flex-col items-start justify-between gap-4 p-6">
+    <.form :let={f} for={@form} phx-submit="save_org" class="w-full flex flex-col gap-4">
+          <div class="w-1/2 flex flex-col gap-6">
+            <.input field={f[:name]} label="Name" hint="Must be one word" />
+          </div>
+
+      <div class="flex gap-3 mt-3">
+        <.button style="primary" type="submit">
+          Create Organization
+        </.button>
+      </div>
+    </.form>
   </div>
-</.form>
+</div>
