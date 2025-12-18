@@ -88,17 +88,15 @@
                 {product.name}
               </.link>
             </div>
-            <div class="flex gap-2 text-zinc-300 text-sm font-medium">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path
-                  d="M2.5 10.8333H17.5M2.5 10.8333V14.1666C2.5 15.0871 3.24619 15.8333 4.16667 15.8333H15.8333C16.7538 15.8333 17.5 15.0871 17.5 14.1666V10.8333M2.5 10.8333L3.85106 5.42907C4.03654 4.68712 4.70318 4.16663 5.46796 4.16663H14.532C15.2968 4.16663 15.9635 4.68712 16.1489 5.42907L17.5 10.8333M5 13.3333H15"
-                  stroke="#71717A"
-                  stroke-width="1.2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              {format_device_count(product.device_count)}
+            <div class="flex gap-4 text-sm font-medium">
+              <div class="flex items-center gap-1.5">
+                <div class="size-2 bg-green-500 rounded-full"></div>
+                <span class="text-zinc-300">{get_in(@product_device_info, [product.id, :online]) || 0}</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <div class="size-2 bg-zinc-500 rounded-full"></div>
+                <span class="text-zinc-400">{get_in(@product_device_info, [product.id, :offline]) || 0}</span>
+              </div>
             </div>
           </div>
         </div>
