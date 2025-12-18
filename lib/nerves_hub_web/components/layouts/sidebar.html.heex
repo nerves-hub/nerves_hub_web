@@ -62,7 +62,8 @@
 
     <div>
       <nav id="navigation" class="flex grow flex-col">
-        <Navigation.updated_sidebar org={@org} product={@product} selected_tab={assigns[:sidebar_tab]} />
+        <Navigation.updated_sidebar :if={assigns[:product]} org={@org} product={assigns[:product]} selected_tab={assigns[:sidebar_tab]} />
+        <Navigation.updated_sidebar :if={is_nil(assigns[:product])} org={@org} selected_tab={assigns[:sidebar_tab]} />
       </nav>
     </div>
 
