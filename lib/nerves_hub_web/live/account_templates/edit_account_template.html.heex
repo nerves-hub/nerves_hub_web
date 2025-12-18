@@ -1,59 +1,92 @@
-<h1>
-  Personal Info
-</h1>
+<div class="w-[800px]">
+  <div class="h-[88px] py-6 flex items-center justify-between">
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Personal Info</h1>
+    <.link navigate={~p"/account/delete"} class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded border border-red-500 transition-colors">
+      Delete Account
+    </.link>
+  </div>
 
-<div class="mb-4">
-  <.link href={~p"/account/delete"} class="btn btn-outline-light">
-    Delete Account
-  </.link>
+  <div class="flex flex-col gap-6">
+    <div class="bg-zinc-900 border border-zinc-700 rounded p-6">
+      <h2 class="text-lg font-semibold text-neutral-50 mb-4">Account Details</h2>
+      <.form :let={f} id="details-form" for={@form} phx-submit="update-details">
+        <div class="flex flex-col gap-4">
+          <div>
+            <label for="name_input" class="block text-sm font-medium text-zinc-300 mb-2">Name</label>
+            {text_input(f, :name,
+              class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded text-neutral-50 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+              id: "name_input"
+            )}
+            <div class="text-red-400 text-sm mt-1">{error_tag(f, :name)}</div>
+          </div>
+
+          <div>
+            <label for="email_input" class="block text-sm font-medium text-zinc-300 mb-2">Email</label>
+            {email_input(f, :email,
+              class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded text-neutral-50 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+              id: "email_input"
+            )}
+            <div class="text-red-400 text-sm mt-1">{error_tag(f, :email)}</div>
+          </div>
+
+          <div>
+            <label for="details_current_password_input" class="block text-sm font-medium text-zinc-300 mb-2">
+              Password <span class="text-zinc-500 text-xs">(required for updating your email address)</span>
+            </label>
+            {password_input(f, :current_password,
+              class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded text-neutral-50 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+              id: "details_current_password_input",
+              placeholder: "Enter current password"
+            )}
+            <div class="text-red-400 text-sm mt-1">{error_tag(f, :current_password)}</div>
+          </div>
+
+          <div class="flex justify-end pt-2">
+            {submit("Save Changes", class: "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors cursor-pointer")}
+          </div>
+        </div>
+      </.form>
+    </div>
+
+    <div class="bg-zinc-900 border border-zinc-700 rounded p-6">
+      <h2 class="text-lg font-semibold text-neutral-50 mb-4">Change Password</h2>
+      <.form :let={f} id="password-form" for={@password_changeset} phx-submit="update-password">
+        <div class="flex flex-col gap-4">
+          <div>
+            <label for="current_password_input" class="block text-sm font-medium text-zinc-300 mb-2">Old Password</label>
+            {password_input(f, :current_password,
+              class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded text-neutral-50 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+              id: "current_password_input",
+              placeholder: "Enter current password"
+            )}
+            <div class="text-red-400 text-sm mt-1">{error_tag(f, :current_password)}</div>
+          </div>
+
+          <div>
+            <label for="password_input" class="block text-sm font-medium text-zinc-300 mb-2">New Password</label>
+            {password_input(f, :password,
+              class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded text-neutral-50 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+              id: "password_input",
+              placeholder: "Enter new password"
+            )}
+            <div class="text-red-400 text-sm mt-1">{error_tag(f, :password)}</div>
+          </div>
+
+          <div>
+            <label for="password_confirmation_input" class="block text-sm font-medium text-zinc-300 mb-2">Confirm New Password</label>
+            {password_input(f, :password_confirmation,
+              class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded text-neutral-50 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+              id: "password_confirmation_input",
+              placeholder: "Confirm new password"
+            )}
+            <div class="text-red-400 text-sm mt-1">{error_tag(f, :password_confirmation)}</div>
+          </div>
+
+          <div class="flex justify-end pt-2">
+            {submit("Update Password", class: "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors cursor-pointer")}
+          </div>
+        </div>
+      </.form>
+    </div>
+  </div>
 </div>
-
-<.form :let={f} id="details-form" for={@form} phx-submit="update-details">
-  <div class="form-group">
-    <label for="name_input">Name</label>
-    {text_input(f, :name, class: "form-control", id: "name_input")}
-    <div class="has-error">{error_tag(f, :name)}</div>
-  </div>
-
-  <div class="form-group">
-    <label for="email_input">Email</label>
-    {email_input(f, :email, class: "form-control", id: "email_input")}
-    <div class="has-error">{error_tag(f, :email)}</div>
-  </div>
-
-  <div class="form-group">
-    <label for="details_current_password_input">Password (required for updating your email address)</label>
-    {password_input(f, :current_password, class: "form-control", id: "details_current_password_input")}
-    <div class="has-error">{error_tag(f, :current_password)}</div>
-  </div>
-
-  <div class="button-submit-wrapper">
-    {submit("Save Changes", class: "btn btn-primary")}
-  </div>
-</.form>
-
-<h4 class="color-white mt-4 mb-2">Change Password</h4>
-
-<.form :let={f} id="password-form" for={@password_changeset} phx-submit="update-password">
-  <div class="form-group">
-    <label for="current_password_input">Old Password</label>
-    {password_input(f, :current_password, class: "form-control", id: "current_password_input")}
-    <div class="has-error">{error_tag(f, :current_password)}</div>
-  </div>
-
-  <div class="form-group">
-    <label for="password_input">New Password</label>
-    {password_input(f, :password, class: "form-control", id: "password_input")}
-    <div class="has-error">{error_tag(f, :password)}</div>
-  </div>
-
-  <div class="form-group">
-    <label for="password_confirmation_input">Confirm New Password</label>
-    {password_input(f, :password_confirmation, class: "form-control", id: "password_confirmation_input")}
-    <div class="has-error">{error_tag(f, :password_confirmation)}</div>
-  </div>
-
-  <div class="button-submit-wrapper">
-    {submit("Update Password", class: "btn btn-primary")}
-  </div>
-</.form>
