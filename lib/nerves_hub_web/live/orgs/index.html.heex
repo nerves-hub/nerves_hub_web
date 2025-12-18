@@ -66,6 +66,15 @@
                 <span class="text-zinc-400">{get_in(@device_info, [org.id, :offline]) || 0}</span>
               </div>
             </div>
+            <.link
+              navigate={~p"/org/#{org}/new"}
+              class="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-300 transition-colors"
+              title="Create Product"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="size-5 stroke-current" viewBox="0 0 16 16" fill="none" stroke-width="1.5">
+                <path d="M8 3.33334V12.6667M3.33334 8H12.6667" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </.link>
           </div>
           <%!-- <div class="flex gap-2 items-center">
             <.button type="link">
@@ -81,25 +90,38 @@
             </.link>
           </div> --%>
         </div>
-        <div class="grid grid-cols-2 px-4 pb-4 pt-2 gap-4">
-          <div :for={product <- org.products} class="flex justify-between gap-[16px] p-4 w-full border border-zinc-700 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800">
-            <div class="text-neutral-50 font-semibold text-sm">
-              <.link navigate={~p"/org/#{org}/#{product}/devices"}>
-                {product.name}
-              </.link>
+        <%= if Enum.empty?(org.products) do %>
+          <div class="px-4 pb-4 pt-2">
+            <div class="p-4 border border-zinc-700 rounded bg-zinc-800/30 text-center">
+              <p class="text-sm text-zinc-400">
+                No products yet.
+                <.link navigate={~p"/org/#{org}/new"} class="text-zinc-300 hover:text-neutral-50 underline">
+                  Create your first product
+                </.link>
+              </p>
             </div>
-            <div class="flex gap-4 text-sm font-medium">
-              <div class="flex items-center gap-1.5">
-                <div class="size-2 bg-green-500 rounded-full"></div>
-                <span class="text-zinc-300">{get_in(@product_device_info, [product.id, :online]) || 0}</span>
+          </div>
+        <% else %>
+          <div class="grid grid-cols-2 px-4 pb-4 pt-2 gap-4">
+            <div :for={product <- org.products} class="flex justify-between gap-[16px] p-4 w-full border border-zinc-700 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800">
+              <div class="text-neutral-50 font-semibold text-sm">
+                <.link navigate={~p"/org/#{org}/#{product}/devices"}>
+                  {product.name}
+                </.link>
               </div>
-              <div class="flex items-center gap-1.5">
-                <div class="size-2 bg-zinc-500 rounded-full"></div>
-                <span class="text-zinc-400">{get_in(@product_device_info, [product.id, :offline]) || 0}</span>
+              <div class="flex gap-4 text-sm font-medium">
+                <div class="flex items-center gap-1.5">
+                  <div class="size-2 bg-green-500 rounded-full"></div>
+                  <span class="text-zinc-300">{get_in(@product_device_info, [product.id, :online]) || 0}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <div class="size-2 bg-zinc-500 rounded-full"></div>
+                  <span class="text-zinc-400">{get_in(@product_device_info, [product.id, :offline]) || 0}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        <% end %>
       </div>
     </div>
   </div>
