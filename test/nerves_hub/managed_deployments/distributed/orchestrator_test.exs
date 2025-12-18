@@ -5,6 +5,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.UpdateTool.Fwup
@@ -1164,6 +1165,230 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       refute device_1_9.id in device_ids, "Device 1.9.0 should be excluded (1.9.0 > 1.2.0)"
       refute device_1_10.id in device_ids, "Device 1.10.0 should be excluded (1.10.0 > 1.2.0)"
       refute device_2_0.id in device_ids, "Device 2.0.0 should be excluded (2.0.0 > 1.2.0)"
+    end
+
+    test "does not send updates when both priority and normal slots are full", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 1,
+            priority_queue_firmware_version_threshold: "1.0.0",
+            concurrent_updates: 1
+          },
+          user
+        )
+
+      deployment_group = Repo.preload(deployment_group, :org, force: true)
+
+      # Create three devices: two eligible for priority queue, one not
+      old_device1 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_1"})
+      old_device2 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_2"})
+      new_device = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "new_device"})
+
+      {:ok, old_device1} =
+        Devices.update_firmware_metadata(
+          old_device1,
+          %{"version" => "0.9.0", "uuid" => Ecto.UUID.generate()},
+          :validated,
+          false
+        )
+
+      {:ok, old_device2} =
+        Devices.update_firmware_metadata(
+          old_device2,
+          %{"version" => "0.8.0", "uuid" => Ecto.UUID.generate()},
+          :validated,
+          false
+        )
+
+      {:ok, new_device} =
+        Devices.update_firmware_metadata(
+          new_device,
+          %{"version" => "1.5.0", "uuid" => Ecto.UUID.generate()},
+          :validated,
+          false
+        )
+
+      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
+      old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
+      new_device = Devices.update_deployment_group(new_device, deployment_group)
+
+      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
+      {:ok, conn2} = Connections.device_connecting(old_device2, product.id)
+      {:ok, conn3} = Connections.device_connecting(new_device, product.id)
+
+      :ok = Connections.device_connected(old_device1, conn1.id)
+      :ok = Connections.device_connected(old_device2, conn2.id)
+      :ok = Connections.device_connected(new_device, conn3.id)
+
+      # Fill both the priority queue slot and normal queue slot
+      {:ok, _} = Devices.told_to_update(old_device1.id, deployment_group, priority_queue: true)
+      {:ok, _} = Devices.told_to_update(new_device.id, deployment_group, priority_queue: false)
+
+      # Verify both queues are full
+      assert Orchestrator.available_priority_slots(deployment_group) == 0
+      assert Orchestrator.available_slots(deployment_group) == 0
+
+      # Subscribe to device2's topic
+      old_device2_topic = "device:#{old_device2.id}"
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, old_device2_topic)
+
+      # Trigger update
+      Orchestrator.trigger_update(deployment_group)
+
+      # Device 2 should NOT receive an update because both queues are full
+      refute_receive %Broadcast{topic: ^old_device2_topic, event: "update"}, 1_000
+    end
+
+    test "re-triggers orchestrator when priority queue devices are skipped", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 2,
+            priority_queue_firmware_version_threshold: "1.0.0",
+            concurrent_updates: 1
+          },
+          user
+        )
+
+      deployment_group = Repo.preload(deployment_group, :org, force: true)
+
+      # Create four devices:
+      # - device1: priority queue eligible, but will be skipped due to failure
+      # - device2: priority queue eligible, picked up on initial trigger
+      # - device3: priority queue eligible, picked up by normal queue on initial trigger
+      # - device4: priority queue eligible, picked up on re-trigger
+      old_device1 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_1"})
+      old_device2 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_2"})
+      old_device3 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_3"})
+      old_device4 = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "old_device_4"})
+
+      {:ok, old_device1} =
+        Devices.update_firmware_metadata(
+          old_device1,
+          %{"version" => "0.9.0", "uuid" => Ecto.UUID.generate()},
+          :validated,
+          false
+        )
+
+      {:ok, old_device2} =
+        Devices.update_firmware_metadata(
+          old_device2,
+          %{"version" => "0.8.0", "uuid" => Ecto.UUID.generate()},
+          :validated,
+          false
+        )
+
+      {:ok, old_device3} =
+        Devices.update_firmware_metadata(
+          old_device3,
+          %{"version" => "0.9.0", "uuid" => Ecto.UUID.generate()},
+          :validated,
+          false
+        )
+
+      {:ok, old_device4} =
+        Devices.update_firmware_metadata(
+          old_device4,
+          %{"version" => "0.7.0", "uuid" => Ecto.UUID.generate()},
+          :validated,
+          false
+        )
+
+      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
+      old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
+      old_device3 = Devices.update_deployment_group(old_device3, deployment_group)
+      old_device4 = Devices.update_deployment_group(old_device4, deployment_group)
+
+      # Create connections with specific timestamps to ensure FIFO ordering
+      # Device 1 should be first (oldest connection - 4 minutes ago)
+      # Device 2 should be second (3 minutes ago)
+      # Device 3 should be third (2 minutes ago)
+      # Device 4 should be last (newest connection - 1 minute ago)
+      now = DateTime.utc_now()
+      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
+      conn1 = Ecto.Changeset.change(conn1, established_at: DateTime.add(now, -240, :second)) |> Repo.update!()
+      {:ok, conn2} = Connections.device_connecting(old_device2, product.id)
+      conn2 = Ecto.Changeset.change(conn2, established_at: DateTime.add(now, -180, :second)) |> Repo.update!()
+      {:ok, conn3} = Connections.device_connecting(old_device3, product.id)
+      conn3 = Ecto.Changeset.change(conn3, established_at: DateTime.add(now, -120, :second)) |> Repo.update!()
+      {:ok, conn4} = Connections.device_connecting(old_device4, product.id)
+      conn4 = Ecto.Changeset.change(conn4, established_at: DateTime.add(now, -60, :second)) |> Repo.update!()
+
+      :ok = Connections.device_connected(old_device1, conn1.id)
+      :ok = Connections.device_connected(old_device2, conn2.id)
+      :ok = Connections.device_connected(old_device3, conn3.id)
+      :ok = Connections.device_connected(old_device4, conn4.id)
+
+      # Give device1 enough failed update attempts to meet the failure threshold
+      # The default device_failure_threshold is 3, so we'll add 3 attempts
+      # This will cause it to fail can_device_update? and be skipped
+      :ok = Devices.update_attempted(old_device1)
+      :ok = Devices.update_attempted(old_device1)
+      :ok = Devices.update_attempted(old_device1)
+
+      # Start orchestrator
+      {:ok, pid} =
+        start_supervised(%{
+          id: :"test_orchestrator_#{deployment_group.id}",
+          start: {Orchestrator, :start_link, [deployment_group, false]},
+          restart: :temporary
+        })
+
+      # Trigger update by sending message to the orchestrator process
+      # Expected behavior:
+      # 1. device1 is skipped due to failure
+      # 2. device2 is picked up by priority queue (1/2 priority slots)
+      # 3. device3 is picked up by normal queue (1/1 normal slots)
+      # 4. Orchestrator re-triggers itself because device1 was skipped
+      # 5. device4 is picked up by priority queue (2/2 priority slots)
+      send(pid, :trigger)
+
+      # Wait for the initial trigger and re-trigger to complete
+      # Since rate_limit: false, both should execute immediately but we need to add a sleep to give the
+      # genserver a chance to pick up the second execution.
+      Process.sleep(100)
+
+      # Verify that we have inflight updates for devices 2, 3, and 4
+      inflight_updates = Repo.all(InflightUpdate)
+      assert length(inflight_updates) == 3
+
+      # Find each device's inflight update
+      device2_update = Enum.find(inflight_updates, &(&1.device_id == old_device2.id))
+      device3_update = Enum.find(inflight_updates, &(&1.device_id == old_device3.id))
+      device4_update = Enum.find(inflight_updates, &(&1.device_id == old_device4.id))
+
+      # Verify device2 and device4 are marked as priority queue updates
+      assert device2_update.priority_queue == true
+      assert device4_update.priority_queue == true
+
+      # Verify device3 is marked as normal queue update
+      # NOTE: This is KEY to this test, as it ensures that we actually _are_ retriggering the update and picking
+      # up device4 for a priority update, rather than just filling the priority queue with devices 2 and 3
+      assert device3_update.priority_queue == false
+
+      # Verify device1 does not have an inflight update
+      refute Enum.any?(inflight_updates, &(&1.device_id == old_device1.id))
     end
   end
 end
