@@ -24,7 +24,7 @@
         <div class="mb-6">
           <div class="flex items-center gap-2 mb-4">
             {hidden_input(fp, :delete, id: "jitp-delete")}
-            <input id="jitp_toggle_ui" type="checkbox" value="true" name="ca_certificate[jitp][jitp_toggle]" checked={@show_jitp_form} phx-click={JS.dispatch("ca:edit:jitp")} class="w-4 h-4 bg-zinc-900 border-zinc-700 rounded" />
+            <input id="jitp_toggle_ui" type="checkbox" value="true" name="ca_certificate[jitp][jitp_toggle]" checked={@show_jitp_form} phx-click={JS.dispatch("ca:edit:jitp")} class="rounded border-zinc-700 text-zinc-400 checked:bg-indigo-500 focus:ring-0" />
             <label for="jitp_toggle_ui" class="text-sm text-zinc-300">Enable Just In Time Provisioning</label>
           </div>
 
