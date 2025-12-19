@@ -290,21 +290,6 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser
       ] do
-      live("/org/:org_name/settings", Live.Org.Settings)
-      live("/org/:org_name/settings/keys", Live.Org.SigningKeys, :index)
-      live("/org/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
-      live("/org/:org_name/settings/users", Live.Org.Users, :index)
-      live("/org/:org_name/settings/users/invite", Live.Org.Users, :invite)
-      live("/org/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
-      live("/org/:org_name/settings/certificates", Live.Org.CertificateAuthorities, :index)
-      live("/org/:org_name/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
-      live("/org/:org_name/settings/delete", Live.Org.Delete)
-
-      live(
-        "/org/:org_name/settings/certificates/:serial/edit",
-        Live.Org.CertificateAuthorities,
-        :edit
-      )
     end
 
     live_session :org_refreshed,
@@ -319,6 +304,21 @@ defmodule NervesHubWeb.Router do
       ] do
       live("/org/:org_name", Live.Org.Show)
       live("/org/:org_name/new", Live.Products.New)
+      live("/org/:org_name/settings/keys", Live.Org.SigningKeys, :index)
+      live("/org/:org_name/settings", Live.Org.Settings)
+      live("/org/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
+      live("/org/:org_name/settings/users", Live.Org.Users, :index)
+      live("/org/:org_name/settings/users/invite", Live.Org.Users, :invite)
+      live("/org/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
+      live("/org/:org_name/settings/certificates", Live.Org.CertificateAuthorities, :index)
+      live("/org/:org_name/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
+      live("/org/:org_name/settings/delete", Live.Org.Delete)
+
+      live(
+        "/org/:org_name/settings/certificates/:serial/edit",
+        Live.Org.CertificateAuthorities,
+        :edit
+      )
     end
 
     live_session :product,
