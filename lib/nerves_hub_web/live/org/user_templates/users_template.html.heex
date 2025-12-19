@@ -9,7 +9,7 @@
     </.button>
   </div>
 
-  <div class="px-6 py-4">
+  <div class="">
     <%= if !Enum.empty?(@invites) do %>
       <div class="mb-6">
         <h2 class="text-base font-semibold text-neutral-50 mb-3">Outstanding Invites</h2>
@@ -42,27 +42,31 @@
       </div>
     <% end %>
 
-    <div class="border border-zinc-700 rounded overflow-hidden">
-      <table class="w-full text-sm">
-        <thead class="bg-zinc-800/50">
+    <div class="listing">
+      <table>
+        <thead>
           <tr>
-            <th class="px-4 py-3 text-left font-medium text-zinc-300">User name</th>
-            <th class="px-4 py-3 text-left font-medium text-zinc-300">Email</th>
-            <th class="px-4 py-3 text-left font-medium text-zinc-300">Role</th>
-            <th class="px-4 py-3 text-left font-medium text-zinc-300">Added on</th>
-            <th class="px-4 py-3 text-left font-medium text-zinc-300"></th>
+            <th>User name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Added on</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           <%= for org_user <- @org_users do %>
-            <tr class="border-t border-zinc-700">
-              <td class="px-4 py-3 text-zinc-300">{org_user.user.name}</td>
-              <td class="px-4 py-3 text-zinc-300">{org_user.user.email}</td>
-              <td class="px-4 py-3 text-zinc-400 capitalize">{org_user.role}</td>
-              <td class="px-4 py-3 text-zinc-400">
+            <tr class="border-b border-zinc-800 isolate">
+              <td>
+                <.link href={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="text-zinc-300 hover:text-zinc-100">
+                  {org_user.user.name}
+                </.link>
+              </td>
+              <td>{org_user.user.email}</td>
+              <td class="text-base-400 capitalize">{org_user.role}</td>
+              <td class="text-base-400">
                 <div phx-hook="SimpleDate" id={"user-#{org_user.id}-date"} class="date-time">{org_user.user.inserted_at}</div>
               </td>
-              <td :if={authorized?(:"org_user:delete", @org_user) && org_user.user.id != assigns.user.id} class="px-4 py-3 text-right">
+              <td :if={authorized?(:"org_user:delete", @org_user) && org_user.user.id != assigns.user.id} class="text-right">
                 <div class="flex gap-2 justify-end">
                   <.link patch={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700">
                     Edit

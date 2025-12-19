@@ -60,7 +60,7 @@ Email Address []:</code></pre>
         </div>
 
         <div class="mb-4 flex items-center gap-2">
-          {checkbox(f, :check_expiration, class: "w-4 h-4 bg-zinc-900 border-zinc-700 rounded", id: "check_expiration_input")}
+          {checkbox(f, :check_expiration, class: "rounded border-zinc-700 text-zinc-400 checked:bg-indigo-500 focus:ring-0", id: "check_expiration_input")}
           <label for="check_expiration_input" class="text-sm text-zinc-300">Check expiration</label>
           <CAHelpers.check_expiration_tooltip />
           <div class="text-sm text-red-400">{error_tag(f, :check_expiration)}</div>
@@ -70,7 +70,7 @@ Email Address []:</code></pre>
           <div class="mb-4">
             <div class="flex items-center gap-2 mb-4">
               <input id="jitp_toggle" type="hidden" name="ca_certificate[jitp][jitp_toggle]" value="false" checked={@show_jitp_form} />
-              <input id="jitp_toggle_ui" type="checkbox" name="ca_certificate[jitp][jitp_toggle]" value="true" checked={@show_jitp_form} phx-click={JS.dispatch("ca:new:jitp")} class="w-4 h-4 bg-zinc-900 border-zinc-700 rounded" />
+              <input id="jitp_toggle_ui" type="checkbox" name="ca_certificate[jitp][jitp_toggle]" value="true" checked={@show_jitp_form} phx-click={JS.dispatch("ca:new:jitp")} class="rounded border-zinc-700 text-zinc-400 checked:bg-indigo-500 focus:ring-0" />
               <label for="jitp_toggle_ui" class="text-sm text-zinc-300">Enable Just In Time Provisioning</label>
             </div>
             
@@ -141,10 +141,12 @@ Email Address []:</code></pre>
       </div>
 
       <div class="flex gap-3">
-        <.link id="back-button" class="px-4 py-2 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700" patch={~p"/org/#{@org}/settings/certificates"}>
+        <.button style="primary" type="submit">
+          Create Certificate
+        </.button>
+        <.button style="secondary" type="link" patch={~p"/org/#{@org}/settings/certificates"}>
           Cancel
-        </.link>
-        {submit("Create Certificate", class: "px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700")}
+        </.button>
       </div>
     </.form>
   </div>
