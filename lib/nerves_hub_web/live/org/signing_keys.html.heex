@@ -1,65 +1,82 @@
 <%= if @live_action == :index do %>
-  <div class="action-row">
-    <h1>Signing Keys</h1>
-    <.link patch={~p"/org/#{@org}/settings/keys/new"} class="btn btn-outline-light btn-action" aria-label="Add new signing key">
-      <span class="button-icon add"></span>
-      <span class="action-text">Add Key</span>
-    </.link>
-  </div>
+  <div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
 
-  <div style="max-width: 650px">
-    <p class="p-small mb-3">Signing Keys are used to sign uploaded firmware, and verify the firmware on the device before the device is updated.</p>
+  <div class="h-0 flex-1 overflow-y-auto">
+    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+      <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Signing Keys</h1>
+      <div class="mr-auto"></div>
+      <.button type="link" navigate={~p"/org/#{@org}/settings/keys/new"} aria-label="Add new signing key">
+        <.icon name="add" /> Add Key
+      </.button>
+    </div>
 
-    <%= for signing_key <- @signing_keys do %>
-      <div class="firmware-key box-item">
-        <img src="/images/icons/key.svg" alt="key" />
-        <div>
-          <h3>
-            {signing_key.name}
-          </h3>
-          <div class="key-value">{signing_key.key}</div>
-          <div :if={signing_key.created_by} class="key-value">
-            Created by: {signing_key.created_by.name} ({signing_key.created_by.email})
+    <div class="px-6 py-4">
+      <p class="text-sm text-zinc-400 mb-4">Signing Keys are used to sign uploaded firmware, and verify the firmware on the device before the device is updated.</p>
+
+      <div class="space-y-3">
+        <%= for signing_key <- @signing_keys do %>
+          <div class="flex items-start gap-4 p-4 border border-zinc-700 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800">
+            <img src="/images/icons/key.svg" alt="key" class="size-6 mt-1" />
+            <div class="flex-1 min-w-0">
+              <h3 class="text-sm font-semibold text-neutral-50 mb-2">
+                {signing_key.name}
+              </h3>
+              <div class="text-xs text-zinc-400 break-all mb-1">{signing_key.key}</div>
+              <div :if={signing_key.created_by} class="text-xs text-zinc-500">
+                Created by: {signing_key.created_by.name} ({signing_key.created_by.email})
+              </div>
+            </div>
+            <button class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed" phx-click="delete" phx-value-signing_key_id={signing_key.id} disabled={!authorized?(:"signing_key:delete", @org_user)} data-confirm="Are you sure?">
+              Delete
+            </button>
           </div>
-        </div>
-        <button class="btn btn-secondary" phx-click="delete" phx-value-signing_key_id={signing_key.id} disabled={!authorized?(:"signing_key:delete", @org_user)} data-confirm="Are you sure?">
-          Delete
-        </button>
+        <% end %>
       </div>
-    <% end %>
-  </div>
 
-  <%= link to: "https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys", class: "mt-3", target: "_blank", rel: "noopener noreferrer" do %>
-    <span>How to generate a signing key</span>
-    <img src="/images/icons/arrow-forward-red.svg" alt="arrow" class="ml-2" />
-  <% end %>
+      <%= link to: "https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys", class: "inline-flex items-center gap-2 mt-4 text-sm text-indigo-500 hover:text-indigo-400", target: "_blank", rel: "noopener noreferrer" do %>
+        <span>How to generate a signing key -&gt;</span>
+      <% end %>
+    </div>
+  </div>
 <% end %>
 
 <%= if @live_action == :new do %>
-  <h1>New Signing Key</h1>
+  <div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
 
-  <.form :let={f} for={@form} phx-submit="save">
-    <%= if @form.action do %>
-      <div class="alert alert-danger">
-        <p>Something went wrong! Please check the errors below.</p>
-      </div>
-    <% end %>
-
-    <div class="form-group">
-      {label(f, :name, for: "name_input")}
-      {text_input(f, :name, class: "form-control", id: "name_input")}
-      <div class="has-error">{error_tag(f, :name)}</div>
+  <div class="h-0 flex-1 overflow-y-auto">
+    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+      <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">New Signing Key</h1>
     </div>
 
-    <div class="form-group">
-      {label(f, :key, for: "key_input")}
-      {text_input(f, :key, class: "form-control", id: "key_input")}
-      <div class="has-error">{error_tag(f, :key)}</div>
-    </div>
+    <div class="px-6 py-4 max-w-[650px]">
+      <.form :let={f} for={@form} phx-submit="save">
+        <%= if @form.action do %>
+          <div class="p-4 mb-4 text-sm text-red-400 bg-red-900/20 border border-red-800 rounded">
+            <p>Something went wrong! Please check the errors below.</p>
+          </div>
+        <% end %>
 
-    <div class="button-submit-wrapper">
-      <.link patch={~p"/org/#{@org}/settings/keys"} class="btn btn-outline-light">Back</.link>
-      {submit("Create Key", class: "btn btn-primary")}
+        <div class="mb-4">
+          {label(f, :name, for: "name_input", class: "block text-sm font-medium text-zinc-300 mb-2")}
+          {text_input(f, :name, class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "name_input")}
+          <div class="text-sm text-red-400 mt-1">{error_tag(f, :name)}</div>
+        </div>
+
+        <div class="mb-6">
+          {label(f, :key, for: "key_input", class: "block text-sm font-medium text-zinc-300 mb-2")}
+          {text_input(f, :key, class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "key_input")}
+          <div class="text-sm text-red-400 mt-1">{error_tag(f, :key)}</div>
+        </div>
+
+        <div class="flex gap-3">
+          <.button style="primary" type="submit">
+            Create Key
+          </.button>
+          <.button style="secondary" type="link" patch={~p"/org/#{@org}/settings/keys"}>
+            Back
+          </.button>
+        </div>
+      </.form>
     </div>
-  </.form>
+  </div>
 <% end %>

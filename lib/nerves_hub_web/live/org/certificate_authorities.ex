@@ -28,6 +28,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     socket
     |> page_title("Certificate Authorities - #{socket.assigns.org.name}")
     |> list_certificates()
+    |> sidebar_tab(:certificates)
     |> render_with(&list_cas_template/1)
   end
 
@@ -42,6 +43,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     |> assign(:show_jitp_form, false)
     |> allow_upload(:cert, accept: ~w(.pem), max_entries: 1, auto_upload: true)
     |> allow_upload(:csr, accept: ~w(.crt), max_entries: 1, auto_upload: true)
+    |> sidebar_tab(:certificates)
     |> render_with(&new_ca_template/1)
   end
 
@@ -58,6 +60,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
         |> assign(:serial, cert.serial)
         |> assign(:form, to_form(changeset))
         |> assign(:show_jitp_form, show_jitp_form(changeset))
+        |> sidebar_tab(:certificates)
         |> render_with(&edit_ca_template/1)
 
       {:error, :not_found} ->

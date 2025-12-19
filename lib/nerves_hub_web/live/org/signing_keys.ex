@@ -17,12 +17,14 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
     socket
     |> page_title("Signing Keys - #{socket.assigns.org.name}")
     |> assign(:signing_keys, list_signing_keys(socket.assigns.org))
+    |> sidebar_tab(:signing_keys)
   end
 
   defp apply_action(socket, :new, _params) do
     socket
     |> page_title("New Signing Key - #{socket.assigns.org.name}")
     |> assign(:form, to_form(Accounts.OrgKey.changeset(%Accounts.OrgKey{}, %{})))
+    |> sidebar_tab(:signing_keys)
   end
 
   @impl Phoenix.LiveView

@@ -319,6 +319,18 @@ defmodule NervesHubWeb.Router do
         FetchOrg,
         FetchOrgUser
       ] do
+    end
+
+    live_session :org_refreshed,
+      root_layout: {NervesHubWeb.Layouts, :root},
+      layout: {NervesHubWeb.Layouts, :sidebar},
+      on_mount: [
+        NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.EnrichSentryContext,
+        NervesHubWeb.Mounts.CurrentPath,
+        NervesHubWeb.Mounts.FetchOrg,
+        NervesHubWeb.Mounts.FetchOrgUser
+      ] do
       live("/org/:org_name", Show)
       live("/org/:org_name/new", Live.Products.New)
       live("/org/:org_name/settings", Settings)
@@ -336,20 +348,6 @@ defmodule NervesHubWeb.Router do
         CertificateAuthorities,
         :edit
       )
-    end
-
-    live_session :org_refreshed,
-      root_layout: {NervesHubWeb.Layouts, :root},
-      layout: {NervesHubWeb.Layouts, :sidebar},
-      on_mount: [
-        NervesHubWeb.Mounts.AccountAuth,
-        NervesHubWeb.Mounts.EnrichSentryContext,
-        NervesHubWeb.Mounts.CurrentPath,
-        NervesHubWeb.Mounts.FetchOrg,
-        NervesHubWeb.Mounts.FetchOrgUser
-      ] do
-      live("/org/:org_name", Live.Org.Show)
-      live("/org/:org_name/new", Live.Products.New)
     end
 
     live_session :product,

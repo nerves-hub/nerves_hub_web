@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.Org.Delete do
     socket
     |> page_title("Delete Organization - #{socket.assigns.org.name}")
     |> assign(:form, to_form(%{}))
+    |> sidebar_tab(:settings)
     |> ok()
   end
 

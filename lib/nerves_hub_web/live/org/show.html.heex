@@ -1,16 +1,12 @@
-<div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700">
-  <div class="h-full border-l flex items-center justify-center border-base-700 bg-base-900">
-    <a href={~p"/org/#{@org}/new"} class="px-4">
-      <svg xmlns="http://www.w3.org/2000/svg" class="size-5 stroke-current" viewBox="0 0 16 16" fill="none" stroke-width="1.5">
-      <path d="M8 3.33334V12.6667M3.33334 8H12.6667" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-    </a>
-  </div>
-</div>
+<div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
 
 <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
         <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Products</h1>
+        <div class="mr-auto"></div>
+        <.button type="link" navigate={~p"/org/#{@org}/new"} aria-label="Create new product">
+          <.icon name="add" /> Create New
+        </.button>
     </div>
     <div class="grid grid-cols-2 px-4 pb-4 pt-2 gap-4">
     <div :for={product <- @products} class="flex justify-between gap-[16px] p-4 w-full border border-zinc-700 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800">

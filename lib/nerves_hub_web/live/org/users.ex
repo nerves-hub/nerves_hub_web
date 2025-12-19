@@ -25,6 +25,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     |> org_users()
     |> org_invites()
     |> page_title("Users - #{socket.assigns.org.name}")
+    |> sidebar_tab(:users)
     |> render_with(&users_template/1)
   end
 
@@ -32,6 +33,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     socket
     |> page_title("Invite User - #{socket.assigns.org.name}")
     |> assign(:form, to_form(Invite.changeset(%Invite{}, %{})))
+    |> sidebar_tab(:users)
     |> render_with(&invite_template/1)
   end
 
@@ -43,6 +45,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     |> page_title("Edit User - #{socket.assigns.org.name}")
     |> assign(:membership, org_user)
     |> assign(:form, to_form(Org.change_user_role(org_user, %{})))
+    |> sidebar_tab(:users)
     |> render_with(&edit_user_template/1)
   end
 
