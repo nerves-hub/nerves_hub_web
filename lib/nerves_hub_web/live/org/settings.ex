@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.Org.Settings do
       socket
       |> page_title("Settings - #{socket.assigns.org.name}")
       |> assign(:form, to_form(Org.changeset(socket.assigns.org, %{})))
+      |> sidebar_tab(:settings)
 
     {:ok, socket}
   end
