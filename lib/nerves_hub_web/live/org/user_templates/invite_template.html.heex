@@ -1,37 +1,43 @@
-<h1>
-  Add New User
-</h1>
+<div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
 
-<h5>An invitation will be sent to join {@org.name}. Invites expire in 48 hours.</h5>
-
-<.form :let={f} for={@form} phx-submit="send_invite">
-  <%= if f.action do %>
-    <div class="alert alert-danger">
-      <p>Something went wrong, please check the errors below.</p>
-    </div>
-  <% end %>
-
-  <div class="form-group mt-6">
-    <label for="email_input" class="h3 mb-1">Email</label>
-    {email_input(f, :email, class: "form-control", id: "email_input", value: assigns[:email])}
-    <div class="has-error">{error_tag(f, :email)}</div>
-    <div class="has-error">{error_tag(f, :org_users)}</div>
+<div class="h-0 flex-1 overflow-y-auto">
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Add New User</h1>
   </div>
 
-  <div class="form-group">
-    <label for="role_input" class="tooltip-label h3 mb-1">
-      <span>Role</span>
-      <span class="tooltip-info"></span>
-      <span class="tooltip-text">Defines the type of access this user has in this org</span>
-    </label>
-    <div class="pos-rel">
-      {select(f, :role, Utils.role_options(), selected: :view, class: "form-control")}
-      <div class="select-icon"></div>
-    </div>
-  </div>
+  <div class="px-6 py-4 max-w-[650px]">
+    <p class="text-sm text-zinc-400 mb-6">An invitation will be sent to join {@org.name}. Invites expire in 48 hours.</p>
 
-  <div class="button-submit-wrapper">
-    <.link class="btn btn-outline-light" patch={~p"/org/#{@org}/settings/users"}>Cancel</.link>
-    {submit("Send Invitation", class: "btn btn-primary")}
+    <.form :let={f} for={@form} phx-submit="send_invite">
+      <%= if f.action do %>
+        <div class="p-4 mb-4 text-sm text-red-400 bg-red-900/20 border border-red-800 rounded">
+          <p>Something went wrong, please check the errors below.</p>
+        </div>
+      <% end %>
+
+      <div class="mb-4">
+        <label for="email_input" class="block text-sm font-medium text-zinc-300 mb-2">Email</label>
+        {email_input(f, :email, class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "email_input", value: assigns[:email])}
+        <div class="text-sm text-red-400 mt-1">{error_tag(f, :email)}</div>
+        <div class="text-sm text-red-400 mt-1">{error_tag(f, :org_users)}</div>
+      </div>
+
+      <div class="mb-6">
+        <label for="role_input" class="block text-sm font-medium text-zinc-300 mb-2">
+          Role
+          <span class="text-xs text-zinc-500 ml-2">(Defines the type of access this user has in this org)</span>
+        </label>
+        {select(f, :role, Utils.role_options(), selected: :view, class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500")}
+      </div>
+
+      <div class="flex gap-3">
+        <.button style="primary" type="submit">
+          Send Invitation
+        </.button>
+        <.button style="secondary" type="link" patch={~p"/org/#{@org}/settings/users"}>
+          Cancel
+        </.button>
+      </div>
+    </.form>
   </div>
-</.form>
+</div>
