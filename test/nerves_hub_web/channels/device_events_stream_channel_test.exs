@@ -63,6 +63,40 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
                  "device:#{device.identifier}"
                )
     end
+
+    test "valid product API key can join the device channel" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      {:ok, org_user} = Accounts.get_org_user(org, user)
+      {:ok, _updated_org_user} = Accounts.change_org_user_role(org_user, :view)
+
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+
+      firmware = Fixtures.firmware_fixture(org_key, product, %{version: "0.0.1"})
+
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{identifier: "test-device-789"})
+
+      {:ok, product_api_key} =
+        NervesHub.Products.create_product_api_key(product, %{name: "test-api-key"})
+
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => product_api_key.key})
+
+      assert {:ok, _reply, _channel} =
+               subscribe_and_join(
+                 socket,
+                 DeviceEventsStreamChannel,
+                 "device:#{device.identifier}"
+               )
+    end
+
+    test "invalid product API key cannot join the device channel" do
+      invalid_key = "nhp_api_invalidkeyinvalidkeyinvalidkeyinvalidkey"
+
+      assert {:error, :authorization_failed} =
+               connect(EventStreamSocket, %{"token" => invalid_key})
+    end
   end
 
   defp device_fixture(user, device_params) do
