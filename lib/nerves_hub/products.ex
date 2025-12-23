@@ -13,6 +13,7 @@ defmodule NervesHub.Products do
   alias NervesHub.Accounts.User
   alias NervesHub.Extensions
   alias NervesHub.Products.Product
+  alias NervesHub.Products.ProductApiKey
   alias NervesHub.Products.SharedSecretAuth
 
   alias NimbleCSV.RFC4180, as: CSV
@@ -191,6 +192,63 @@ defmodule NervesHub.Products do
 
     auth
     |> SharedSecretAuth.deactivate_changeset()
+    |> Repo.update()
+  end
+
+  @spec get_product_api_key(pos_integer(), pos_integer()) ::
+          {:ok, ProductApiKey.t()} | {:error, :not_found}
+  def get_product_api_key(product_id, api_key_id) do
+    ProductApiKey
+    |> join(:inner, [pak], p in assoc(pak, :product))
+    |> where([pak], pak.id == ^api_key_id)
+    |> where([_, p], p.id == ^product_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      api_key -> {:ok, api_key}
+    end
+  end
+
+  @spec get_product_api_key(String.t()) :: {:ok, ProductApiKey.t()} | {:error, :not_found}
+  def get_product_api_key(key) do
+    ProductApiKey
+    |> join(:inner, [pak], p in assoc(pak, :product))
+    |> where([pak], pak.key == ^key)
+    |> where([pak], is_nil(pak.deactivated_at))
+    |> where([_, p], is_nil(p.deleted_at))
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      api_key -> {:ok, api_key}
+    end
+  end
+
+  @spec load_product_api_keys(Product.t()) :: Product.t()
+  def load_product_api_keys(product) do
+    product
+    |> Ecto.reset_fields([:product_api_keys])
+    |> Repo.preload(:product_api_keys)
+    |> case do
+      %Product{} = reloaded -> reloaded
+      _ -> raise "Product not found"
+    end
+  end
+
+  @spec create_product_api_key(Product.t(), map()) ::
+          {:ok, ProductApiKey.t()} | {:error, Ecto.Changeset.t()}
+  def create_product_api_key(product, attrs \\ %{}) do
+    product
+    |> ProductApiKey.create_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @spec deactivate_product_api_key(Product.t(), pos_integer()) ::
+          {:ok, ProductApiKey.t()} | {:error, Ecto.Changeset.t()}
+  def deactivate_product_api_key(product, api_key_id) do
+    {:ok, api_key} = get_product_api_key(product.id, api_key_id)
+
+    api_key
+    |> ProductApiKey.deactivate_changeset()
     |> Repo.update()
   end
 
