@@ -265,7 +265,14 @@ defmodule NervesHub.Products do
             {:error, :not_found}
 
           product ->
-            {:ok, Repo.preload(product, :org)}
+            # include the currently used API key to be able to track which one is used
+            # open to changes to this, need a mechanism like it though
+            product =
+              product
+              |> Map.put(:product_api_keys, [api_key])
+              |> Repo.preload(:org)
+
+            {:ok, product}
         end
 
       {:error, :not_found} ->

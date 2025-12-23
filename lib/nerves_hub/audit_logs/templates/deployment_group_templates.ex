@@ -2,33 +2,37 @@ defmodule NervesHub.AuditLogs.DeploymentGroupTemplates do
   @moduledoc """
   Templates for and handling of audit logging for deployment operations.
   """
-  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
-  @spec audit_deployment_created(User.t(), DeploymentGroup.t()) :: :ok
-  def audit_deployment_created(user, deployment_group) do
-    description = "User #{user.name} created deployment group #{deployment_group.name}"
-    AuditLogs.audit!(user, deployment_group, description)
+  @spec audit_deployment_created(AuditLogs.actor(), DeploymentGroup.t()) :: :ok
+  def audit_deployment_created(actor, deployment_group) do
+    actor_label = AuditLogs.actor_template(actor)
+    description = "#{actor_label} created deployment group #{deployment_group.name}"
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
-  @spec audit_deployment_updated(User.t(), DeploymentGroup.t()) :: :ok
-  def audit_deployment_updated(user, deployment_group) do
-    description = "User #{user.name} updated deployment group #{deployment_group.name}"
-    AuditLogs.audit!(user, deployment_group, description)
+  @spec audit_deployment_updated(AuditLogs.actor(), DeploymentGroup.t()) :: :ok
+  def audit_deployment_updated(actor, deployment_group) do
+    actor_label = AuditLogs.actor_template(actor)
+    description = "#{actor_label} updated deployment group #{deployment_group.name}"
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
-  @spec audit_deployment_deleted(User.t(), DeploymentGroup.t()) :: :ok
-  def audit_deployment_deleted(user, deployment_group) do
-    description = "User #{user.name} deleted deployment group #{deployment_group.name}"
-    AuditLogs.audit!(user, deployment_group, description)
+  @spec audit_deployment_deleted(AuditLogs.actor(), DeploymentGroup.t()) :: :ok
+  def audit_deployment_deleted(actor, deployment_group) do
+    actor_label = AuditLogs.actor_template(actor)
+    description = "#{actor_label} deleted deployment group #{deployment_group.name}"
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
-  @spec audit_deployment_toggle_active(User.t(), DeploymentGroup.t(), String.t()) :: :ok
-  def audit_deployment_toggle_active(user, deployment_group, status) do
-    description = "User #{user.name} marked deployment group #{deployment_group.name} #{status}"
-    AuditLogs.audit!(user, deployment_group, description)
+  @spec audit_deployment_toggle_active(AuditLogs.actor(), DeploymentGroup.t(), String.t()) ::
+          :ok
+  def audit_deployment_toggle_active(actor, deployment_group, status) do
+    actor_label = AuditLogs.actor_template(actor)
+    description = "#{actor_label} marked deployment group #{deployment_group.name} #{status}"
+    AuditLogs.audit!(actor, deployment_group, description)
   end
 
   @spec audit_deployment_mismatch(Device.t(), DeploymentGroup.t(), String.t()) :: :ok

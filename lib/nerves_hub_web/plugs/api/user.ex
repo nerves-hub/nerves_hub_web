@@ -37,7 +37,7 @@ defmodule NervesHubWeb.API.Plugs.AuthenticateUserOrProduct do
         |> assign(:product, product)
         |> assign(:org, product.org)
         # A lot of code excepts a user value, get rid of this with time
-        |> assign(:user, product)
+        |> assign(:actor, product)
 
       _ ->
         raise NervesHubWeb.UnauthorizedError
@@ -50,6 +50,7 @@ defmodule NervesHubWeb.API.Plugs.AuthenticateUserOrProduct do
       conn
       |> assign(:auth_type, :user_token)
       |> assign(:user, user)
+      |> assign(:actor, user)
     else
       _ ->
         raise NervesHubWeb.UnauthorizedError

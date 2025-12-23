@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.KeyController do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.User
 
   security([%{}, %{"bearer_auth" => []}])
   tags(["Signing Keys"])
@@ -20,11 +21,17 @@ defmodule NervesHubWeb.API.KeyController do
 
   operation(:create, summary: "Create a new Signing Key for an Organization")
 
-  def create(%{assigns: %{user: user, org: org}} = conn, params) do
+  def create(%{assigns: %{actor: actor, org: org}} = conn, params) do
+    created_by_id =
+      case actor do
+        %User{id: id} -> id
+        _ -> nil
+      end
+
     params =
       Map.take(params, ["name", "key"])
       |> Map.put("org_id", org.id)
-      |> Map.put("created_by_id", user.id)
+      |> Map.put("created_by_id", created_by_id)
 
     with {:ok, key} <- Accounts.create_org_key(params) do
       conn

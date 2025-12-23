@@ -754,7 +754,11 @@ defmodule NervesHub.Devices do
         where(
           query,
           [d],
-          fragment("semver_match(? #>> '{\"version\"}', ?)", d.firmware_metadata, ^"<= #{version_threshold}")
+          fragment(
+            "semver_match(? #>> '{\"version\"}', ?)",
+            d.firmware_metadata,
+            ^"<= #{version_threshold}"
+          )
         )
       else
         query
@@ -1153,8 +1157,8 @@ defmodule NervesHub.Devices do
   signing keys from the new org before moving otherwise the device
   might fail to update because of an unknown key.
   """
-  @spec move(Device.t() | [Device.t()], Product.t(), User.t()) :: Repo.transaction()
-  def move(%Device{} = device, product, user) do
+  @spec move(Device.t() | [Device.t()], Product.t(), AuditLogs.actor()) :: Repo.transaction()
+  def move(%Device{} = device, product, actor) do
     product = Repo.preload(product, :org)
 
     attrs = %{
@@ -1165,8 +1169,10 @@ defmodule NervesHub.Devices do
 
     _ = maybe_copy_firmware_keys(device, product.org)
 
+    actor_label = AuditLogs.actor_template(actor)
+
     description =
-      "User #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
+      "#{actor_label} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
 
     source_product = %Product{
       id: device.product_id,
@@ -1177,13 +1183,13 @@ defmodule NervesHub.Devices do
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
     |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query/1)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, description)
+      AuditLogs.audit(actor, device, description)
     end)
     |> Multi.run(:audit_target, fn _, _ ->
-      AuditLogs.audit(user, product, description)
+      AuditLogs.audit(actor, product, description)
     end)
     |> Multi.run(:audit_source, fn _, _ ->
-      AuditLogs.audit(user, source_product, description)
+      AuditLogs.audit(actor, source_product, description)
     end)
     |> Repo.transaction()
     |> case do
@@ -1208,23 +1214,24 @@ defmodule NervesHub.Devices do
     |> where([p], p.user_id not in subquery(users_in_org))
   end
 
-  @spec tag_device(Device.t() | [Device.t()], User.t(), list(String.t())) ::
+  @spec tag_device(Device.t() | [Device.t()], AuditLogs.actor(), list(String.t())) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def tag_device(%Device{} = device, user, tags) do
-    description = "User #{user.name} updated device #{device.identifier} tags"
+  def tag_device(%Device{} = device, actor, tags) do
+    actor_label = AuditLogs.actor_template(actor)
+    description = "#{actor_label} updated device #{device.identifier} tags"
     params = %{tags: tags}
-    update_device_with_audit(device, params, user, description)
+    update_device_with_audit(device, params, actor, description)
   end
 
-  @spec update_device_with_audit(Device.t(), map(), User.t(), String.t()) ::
+  @spec update_device_with_audit(Device.t(), map(), AuditLogs.actor(), String.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def update_device_with_audit(device, params, user, description) do
+  def update_device_with_audit(device, params, actor, description) do
     Multi.new()
     |> Multi.run(:update_with_audit, fn _, _ ->
       update_device(device, params, broadcast: false)
     end)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, description)
+      AuditLogs.audit(actor, device, description)
     end)
     |> Repo.transaction()
     |> case do
@@ -1237,13 +1244,14 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec enable_updates(Device.t() | [Device.t()], User.t()) ::
+  @spec enable_updates(Device.t() | [Device.t()], AuditLogs.actor()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def enable_updates(%Device{} = device, user) do
-    description = "User #{user.name} enabled updates for device #{device.identifier}"
+  def enable_updates(%Device{} = device, actor) do
+    actor_label = AuditLogs.actor_template(actor)
+    description = "#{actor_label} enabled updates for device #{device.identifier}"
     params = %{updates_enabled: true, update_attempts: []}
 
-    case update_device_with_audit(device, params, user, description) do
+    case update_device_with_audit(device, params, actor, description) do
       {:ok, device} = result ->
         _ =
           if device.deployment_id do
@@ -1262,28 +1270,30 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec disable_updates(Device.t() | [Device.t()], User.t()) ::
+  @spec disable_updates(Device.t() | [Device.t()], AuditLogs.actor()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def disable_updates(%Device{} = device, user) do
-    description = "User #{user.name} disabled updates for device #{device.identifier}"
+  def disable_updates(%Device{} = device, actor) do
+    actor_label = AuditLogs.actor_template(actor)
+    description = "#{actor_label} disabled updates for device #{device.identifier}"
     params = %{updates_enabled: false}
-    update_device_with_audit(device, params, user, description)
+    update_device_with_audit(device, params, actor, description)
   end
 
-  def toggle_automatic_updates(device, user) do
+  def toggle_automatic_updates(device, actor) do
     case device.updates_enabled do
       true ->
-        disable_updates(device, user)
+        disable_updates(device, actor)
 
       false ->
-        enable_updates(device, user)
+        enable_updates(device, actor)
     end
   end
 
-  def clear_penalty_box(%Device{} = device, user) do
-    description = "User #{user.name} removed device #{device.identifier} from the penalty box"
+  def clear_penalty_box(%Device{} = device, actor) do
+    actor_label = AuditLogs.actor_template(actor)
+    description = "#{actor_label} removed device #{device.identifier} from the penalty box"
     params = %{updates_blocked_until: nil, update_attempts: [], updates_enabled: true}
-    update_device_with_audit(device, params, user, description)
+    update_device_with_audit(device, params, actor, description)
   end
 
   def update_blocked_until(device, deployment) do
@@ -1369,14 +1379,14 @@ defmodule NervesHub.Devices do
      }}
   end
 
-  @spec move_many([Device.t()], Product.t(), User.t()) :: %{
+  @spec move_many([Device.t()], Product.t(), AuditLogs.actor()) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]
         }
-  def move_many(devices, product, user) do
+  def move_many(devices, product, actor) do
     product = Repo.preload(product, :org)
 
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :move, [&1, product, user]))
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :move, [&1, product, actor]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
@@ -1384,12 +1394,12 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  @spec disable_updates([Device.t()], User.t()) :: %{
+  @spec disable_updates([Device.t()], AuditLogs.actor()) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]
         }
-  def disable_updates_for_devices(devices, user) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :disable_updates, [&1, user]))
+  def disable_updates_for_devices(devices, actor) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :disable_updates, [&1, actor]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
@@ -1397,12 +1407,12 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  @spec tag_devices([Device.t()], User.t(), list(String.t())) :: %{
+  @spec tag_devices([Device.t()], AuditLogs.actor(), list(String.t())) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]
         }
-  def tag_devices(devices, user, tags) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :tag_device, [&1, user, tags]))
+  def tag_devices(devices, actor, tags) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :tag_device, [&1, actor, tags]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
@@ -1410,12 +1420,12 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  @spec enable_updates_for_devices([Device.t()], User.t()) :: %{
+  @spec enable_updates_for_devices([Device.t()], AuditLogs.actor()) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]
         }
-  def enable_updates_for_devices(devices, user) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :enable_updates, [&1, user]))
+  def enable_updates_for_devices(devices, actor) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :enable_updates, [&1, actor]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
@@ -1423,8 +1433,8 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  def clear_penalty_box_for_devices(devices, user) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :clear_penalty_box, [&1, user]))
+  def clear_penalty_box_for_devices(devices, actor) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :clear_penalty_box, [&1, actor]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
@@ -1614,6 +1624,7 @@ defmodule NervesHub.Devices do
         case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment_group.id) do
           nil ->
             Logger.error("An inflight update could not be created or found for the device (#{device_id})")
+
             :error
 
           inflight_update ->

@@ -27,7 +27,7 @@ defmodule NervesHubWeb.API.Plugs.ProductApiKeyTest do
 
       assert conn.assigns.product.id == product.id
       assert conn.assigns.org.id == org.id
-      assert conn.assigns.user == conn.assigns.product
+      assert conn.assigns.actor == conn.assigns.product
     end
 
     test "authenticates with valid product API key using 'Bearer' scheme", %{
@@ -43,7 +43,7 @@ defmodule NervesHubWeb.API.Plugs.ProductApiKeyTest do
 
       assert conn.assigns.product.id == product.id
       assert conn.assigns.org.id == org.id
-      assert conn.assigns.user == conn.assigns.product
+      assert conn.assigns.actor == conn.assigns.product
     end
 
     test "authenticates with valid product API key using mixed case 'BEARER' scheme", %{
@@ -175,7 +175,7 @@ defmodule NervesHubWeb.API.Plugs.ProductApiKeyTest do
       # Should assign product, not user
       assert Map.has_key?(conn.assigns, :product)
       assert Map.has_key?(conn.assigns, :org)
-      assert conn.assigns.user == conn.assigns.product
+      assert conn.assigns.actor == conn.assigns.product
     end
   end
 end
