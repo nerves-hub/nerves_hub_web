@@ -252,6 +252,27 @@ defmodule NervesHub.Products do
     |> Repo.update()
   end
 
+  @spec get_product_by_api_key(String.t()) :: {:ok, Product.t()} | {:error, :not_found}
+  def get_product_by_api_key(key) do
+    case get_product_api_key(key) do
+      {:ok, api_key} ->
+        Product
+        |> where([p], p.id == ^api_key.product_id)
+        |> Repo.exclude_deleted()
+        |> Repo.one()
+        |> case do
+          nil ->
+            {:error, :not_found}
+
+          product ->
+            {:ok, Repo.preload(product, :org)}
+        end
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+    end
+  end
+
   @spec devices_csv(Product.t()) :: binary()
   def devices_csv(%Product{} = product) do
     product = Repo.preload(product, [:org])
