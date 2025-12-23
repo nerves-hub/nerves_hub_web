@@ -1,10 +1,14 @@
 defmodule NervesHub.AuditLogs do
   import Ecto.Query
 
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NimbleCSV.RFC4180, as: CSV
+
+  @type actor() :: User.t() | Product.t()
 
   def audit(actor, resource, description) do
     AuditLog.build(actor, resource, description)
@@ -108,5 +112,14 @@ defmodule NervesHub.AuditLogs do
   # used in some tests
   def with_description(desc) do
     where(AuditLog, [a], like(a.description, ^desc))
+  end
+
+  @spec actor_template(actor()) :: String.t()
+  def actor_template(%User{name: name}) do
+    "User #{name}"
+  end
+
+  def actor_template(%Product{name: name, product_api_keys: [%{name: key_name}]}) do
+    "Product API Key #{key_name} for #{name}"
   end
 end

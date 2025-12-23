@@ -10,6 +10,7 @@ defmodule NervesHub.Products.Product do
   alias NervesHub.Extensions.ProductExtensionsSetting
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.Products.ProductApiKey
   alias NervesHub.Products.SharedSecretAuth
   alias NervesHub.Scripts.Script
 
@@ -28,6 +29,8 @@ defmodule NervesHub.Products.Product do
     has_many(:update_stats, UpdateStat, on_delete: :nilify_all)
 
     has_many(:shared_secret_auths, SharedSecretAuth, preload_order: [desc: :deactivated_at, asc: :id])
+
+    has_many(:product_api_keys, ProductApiKey, preload_order: [desc: :deactivated_at, asc: :id])
 
     belongs_to(:org, Org, where: [deleted_at: nil])
 

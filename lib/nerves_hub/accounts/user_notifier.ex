@@ -3,6 +3,7 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User
+  alias NervesHub.AuditLogs
 
   alias NervesHub.Emails.ConfirmationTemplate
   alias NervesHub.Emails.LoginWithGoogleReminderTemplate
@@ -16,6 +17,7 @@ defmodule NervesHub.Accounts.UserNotifier do
   alias NervesHub.Emails.UserInviteTemplate
   alias NervesHub.Emails.WelcomeTemplate
 
+  alias NervesHub.Products.Product
   alias NervesHub.SwooshMailer, as: Mailer
 
   def deliver_confirmation_instructions(user, confirmation_url) do
@@ -176,8 +178,14 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   def deliver_all_tell_org_user_removed(org, instigator, user) do
     admins =
-      Accounts.get_org_admins(org)
-      |> Enum.reject(&(&1.id == instigator.id))
+      case instigator do
+        %User{} ->
+          Accounts.get_org_admins(org)
+          |> Enum.reject(&(&1.id == instigator.id))
+
+        _ ->
+          Accounts.get_org_admins(org)
+      end
 
     Enum.map(admins, fn admin ->
       deliver_tell_org_user_removed(org, admin, instigator, user)
@@ -185,10 +193,12 @@ defmodule NervesHub.Accounts.UserNotifier do
   end
 
   def deliver_tell_org_user_removed(org, admin, instigator, removed_user) do
+    instigator_name = instigator_to_name(instigator)
+
     assigns = %{
       user_name: admin.name,
       removed_user_name: removed_user.name,
-      instigator_name: instigator.name,
+      instigator_name: instigator_name,
       org_name: org.name
     }
 
@@ -200,6 +210,23 @@ defmodule NervesHub.Accounts.UserNotifier do
       html,
       text
     )
+  end
+
+  defp instigator_to_name(%User{name: name}) do
+    name
+  end
+
+  defp instigator_to_name(%Product{} = product) do
+    # This is ugly but makes it clear that it is used in automation and will warn you
+    # with enough detail that you can tell which key is dropping users
+    actor = AuditLogs.actor_template(product)
+    "[#{actor}]"
+  end
+
+  defp instigator_to_name(other) do
+    # This fallback is here to handle unexpected cases and make sure notifications can
+    # still happen if the system is under attack.
+    "[Unhandled entity: #{inspect(other)}]"
   end
 
   def render(module, assigns) do

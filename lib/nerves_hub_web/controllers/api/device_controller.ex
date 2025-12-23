@@ -105,8 +105,8 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  def reboot(%{assigns: %{user: user, device: device}} = conn, _params) do
-    DeviceEvents.reboot(device, user)
+  def reboot(%{assigns: %{actor: actor, device: device}} = conn, _params) do
+    DeviceEvents.reboot(device, actor)
 
     send_resp(conn, :no_content, "")
   end
@@ -131,16 +131,16 @@ defmodule NervesHubWeb.API.DeviceController do
     send_resp(conn, :no_content, "")
   end
 
-  def upgrade(%{assigns: %{device: device, user: user}} = conn, %{"uuid" => uuid}) do
+  def upgrade(%{assigns: %{device: device, actor: actor}} = conn, %{"uuid" => uuid}) do
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(device.product, uuid)
 
     {:ok, url} = Firmwares.get_firmware_url(firmware)
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
 
-    {:ok, device} = Devices.disable_updates(device, user)
+    {:ok, device} = Devices.disable_updates(device, actor)
     device = Repo.preload(device, [:device_certificates])
 
-    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
+    DeviceTemplates.audit_firmware_pushed(actor, device, firmware)
 
     payload = %UpdatePayload{
       update_available: true,
@@ -158,8 +158,8 @@ defmodule NervesHubWeb.API.DeviceController do
     send_resp(conn, :no_content, "")
   end
 
-  def penalty(%{assigns: %{device: device, user: user}} = conn, _params) do
-    case Devices.clear_penalty_box(device, user) do
+  def penalty(%{assigns: %{device: device, actor: actor}} = conn, _params) do
+    case Devices.clear_penalty_box(device, actor) do
       {:ok, _device} ->
         send_resp(conn, :no_content, "")
 
@@ -168,7 +168,7 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  def move(%{assigns: %{device: device, user: user}} = conn, %{
+  def move(%{assigns: %{device: device, auth_type: :user_token, actor: user}} = conn, %{
         "new_org_name" => org_name,
         "new_product_name" => product_name
       }) do
