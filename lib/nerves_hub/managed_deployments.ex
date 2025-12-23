@@ -246,12 +246,12 @@ defmodule NervesHub.ManagedDeployments do
   defp create_deployment_release(deployment_group, actor) do
     %DeploymentRelease{}
     |> DeploymentRelease.changeset(
+      actor,
       %{
         deployment_group_id: deployment_group.id,
         firmware_id: deployment_group.firmware_id,
         archive_id: deployment_group.archive_id
-      },
-      actor
+      }
     )
     |> Repo.insert()
   end
