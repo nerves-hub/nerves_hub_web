@@ -46,11 +46,18 @@ defmodule NervesHub.DeviceLink do
     :ok = Connections.merge_update_metadata(reference_id, metadata)
   end
 
-  @spec status_update(device :: Device.t(), status :: String.t()) :: :ok
-  def status_update(device, status) do
+  @spec status_update(device :: Device.t(), status :: String.t(), update_started? :: boolean()) ::
+          :ok
+  def status_update(device, status, update_started?) do
     # a temporary hook into failed updates
     if String.contains?(String.downcase(status), "fwup error") do
-      # if there was an error during updating, clear the inflight update
+      # if there was an error during updating
+      # mark the attempt
+      if update_started? do
+        Devices.update_attempted(device)
+      end
+
+      # clear the inflight update
       Devices.clear_inflight_update(device)
       :ok
     else

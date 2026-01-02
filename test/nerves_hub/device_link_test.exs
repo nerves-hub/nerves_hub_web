@@ -43,7 +43,7 @@ defmodule NervesHub.DeviceLinkTest do
                |> Enum.filter(&(&1.device_id == device.id))
 
       # Call status_update with a status containing "encountered fwup error"
-      :ok = DeviceLink.status_update(device, "Update failed: encountered fwup error")
+      :ok = DeviceLink.status_update(device, "Update failed: encountered fwup error", true)
 
       # Verify the inflight update was cleared
       assert [] =
@@ -68,7 +68,7 @@ defmodule NervesHub.DeviceLinkTest do
                |> Enum.filter(&(&1.device_id == device.id))
 
       # Call status_update with a status containing "FWUP error: failure of some sort"
-      :ok = DeviceLink.status_update(device, "FWUP error: failure of some sort")
+      :ok = DeviceLink.status_update(device, "FWUP error: failure of some sort", true)
 
       # Verify the inflight update was cleared
       assert [] =
@@ -93,7 +93,7 @@ defmodule NervesHub.DeviceLinkTest do
                |> Enum.filter(&(&1.device_id == device.id))
 
       # Call status_update with a status that does not contain "fwup error"
-      :ok = DeviceLink.status_update(device, "Update in progress: downloading firmware")
+      :ok = DeviceLink.status_update(device, "Update in progress: downloading firmware", true)
 
       # Verify the inflight update still exists
       assert [%InflightUpdate{}] =
