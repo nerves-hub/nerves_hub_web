@@ -9,37 +9,34 @@
     </.button>
   </div>
 
-  <div class="">
     <%= if !Enum.empty?(@invites) do %>
-      <div class="mb-6">
-        <h2 class="text-base font-semibold text-neutral-50 mb-3">Outstanding Invites</h2>
-        <div class="border border-zinc-700 rounded overflow-hidden">
-          <table class="w-full text-sm">
-            <thead class="bg-zinc-800/50">
-              <tr>
-                <th class="px-4 py-3 text-left font-medium text-zinc-300">Email</th>
-                <th class="px-4 py-3 text-left font-medium text-zinc-300">Invite Link</th>
-                <th class="px-4 py-3 text-left font-medium text-zinc-300">Action</th>
-              </tr>
-            </thead>
-            <tbody>
+      <h2 class="text-base font-semibold text-neutral-50 px-4 py-2">Outstanding Invites</h2>
+      <div class="listing">
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Invite Link</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
               <%= for invite <- @invites do %>
-                <tr class="border-t border-zinc-700">
-                  <td class="px-4 py-3 text-zinc-300">{invite.email}</td>
-                  <td class="px-4 py-3">
+                <tr class="border-b border-zinc-800 isolate">
+                    <td class="text-base-400">{invite.email}</td>
+                    <td class="text-base-400">
                     <code class="text-xs text-zinc-400 bg-zinc-900 px-2 py-1 rounded"><%= Routes.account_url(@socket, :invite, invite.token) %></code>
-                  </td>
-                  <td :if={authorized?(:"org_user:invite:rescind", @org_user)} class="px-4 py-3">
+                    </td>
+                    <td :if={authorized?(:"org_user:invite:rescind", @org_user)} class="text-base-400">
                     <button class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700" phx-click="rescind_invite" phx-value-invite_token={invite.token} data-confirm="Are you sure you want to rescind the invite?">
-                      Rescind
+                        Rescind
                     </button>
-                  </td>
+                    </td>
                 </tr>
               <% end %>
             </tbody>
           </table>
         </div>
-      </div>
     <% end %>
 
     <div class="listing">
@@ -87,5 +84,4 @@
         </tbody>
       </table>
     </div>
-  </div>
 </div>
