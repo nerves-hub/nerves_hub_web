@@ -376,11 +376,8 @@ defmodule NervesHub.ManagedDeployments do
   def list_deployment_releases(%DeploymentGroup{id: deployment_group_id}) do
     DeploymentRelease
     |> where([r], r.deployment_group_id == ^deployment_group_id)
-    |> join(:inner, [r], f in assoc(r, :firmware))
-    |> join(:inner, [r], u in assoc(r, :user))
-    |> join(:left, [r], a in assoc(r, :archive))
-    |> preload([r, f, u, a], firmware: f, user: u, archive: a)
     |> order_by([r], desc: r.inserted_at, desc: r.id)
+    |> preload([:firmware, :user, :archive])
     |> Repo.all()
   end
 

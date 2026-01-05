@@ -57,7 +57,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.ReleaseHistory do
                     </span>
                   </td>
                   <td class="px-4 py-3 text-sm text-zinc-400">
-                    {release.user.name}
+                    <span :if={release.user}>
+                      {release.user.name}
+                    </span>
+                    <span :if={!release.user} class="text-zinc-500 italic">
+                      Unknown
+                    </span>
                   </td>
                 </tr>
               </tbody>
