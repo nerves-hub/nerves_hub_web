@@ -109,8 +109,11 @@ jobs:
       - name: Check for unused dependencies
         run: mix deps.unlock --unused
 
+      - name: Install cspell
+        run: npm install -g cspell@9.4.0
+
       - name: Check spelling
-        run: mix spellweaver.check
+        run: cspell . --quiet
 
       - name: Run Credo (won't fail the build)
         run: mix credo --mute-exit-status
