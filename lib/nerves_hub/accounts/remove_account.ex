@@ -1,9 +1,8 @@
 defmodule NervesHub.Accounts.RemoveAccount do
-  import Ecto.Query
   import Ecto.Changeset
+  import Ecto.Query
 
   alias Ecto.Multi
-
   alias NervesHub.Accounts.Invite
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
@@ -20,9 +19,8 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Firmwares.FirmwareTransfer
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
-  alias NervesHub.Scripts.Script
-
   alias NervesHub.Repo
+  alias NervesHub.Scripts.Script
 
   def remove_account(user_id) do
     Multi.new()

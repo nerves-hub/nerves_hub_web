@@ -12,6 +12,9 @@ defmodule NervesHubWeb.DynamicConfigMultipart do
   """
   @behaviour Plug.Parsers
 
+  alias NervesHub.Firmwares.Upload
+  alias Plug.Parsers.MULTIPART
+
   @impl Plug.Parsers
   def init(opts) do
     # This is called at compile time by default so adding options in runtime.exs
@@ -27,9 +30,9 @@ defmodule NervesHubWeb.DynamicConfigMultipart do
     plug_opts =
       opts
       |> Keyword.put_new_lazy(:length, fn -> max_file_size(conn) end)
-      |> Plug.Parsers.MULTIPART.init()
+      |> MULTIPART.init()
 
-    Plug.Parsers.MULTIPART.parse(conn, "multipart", subtype, headers, plug_opts)
+    MULTIPART.parse(conn, "multipart", subtype, headers, plug_opts)
   end
 
   def parse(conn, _type, _subtype, _headers, _opts) do
@@ -38,7 +41,7 @@ defmodule NervesHubWeb.DynamicConfigMultipart do
 
   defp max_file_size(conn) do
     with ["api", "orgs", _org_name, "products", _product_name, "firmwares"] <- conn.path_info,
-         size = Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload)[:max_size],
+         size = Application.get_env(:nerves_hub, Upload)[:max_size],
          true <- is_integer(size) do
       size
     else

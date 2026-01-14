@@ -6,6 +6,7 @@ defmodule NervesHubWeb.LayoutView do
   alias NervesHub.Accounts.User
   alias NervesHub.Devices
   alias NervesHub.Products.Product
+  alias Timex.Format.Duration.Formatter
 
   def product(%{assigns: %{product: %Product{} = product}}) do
     product
@@ -48,7 +49,7 @@ defmodule NervesHubWeb.LayoutView do
   def humanize_seconds(seconds) do
     seconds
     |> Timex.Duration.from_seconds()
-    |> Timex.Format.Duration.Formatter.format(:humanized)
+    |> Formatter.format(:humanized)
   end
 
   @doc """

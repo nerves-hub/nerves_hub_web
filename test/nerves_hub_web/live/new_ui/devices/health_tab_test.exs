@@ -3,7 +3,6 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
   use Phoenix.HTML
 
   alias NervesHub.Devices.DeviceMetric
-
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
   alias Phoenix.Socket.Broadcast

@@ -1,11 +1,11 @@
 defmodule NervesHub.Devices.UpdateStat do
   use Ecto.Schema
 
+  import Ecto.Changeset
+
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
-
-  import Ecto.Changeset
 
   @type t :: %__MODULE__{}
 

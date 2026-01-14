@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.Schemas.UserResponse do
   alias OpenApiSpex.Schema
+
   require OpenApiSpex
 
   defmodule User do

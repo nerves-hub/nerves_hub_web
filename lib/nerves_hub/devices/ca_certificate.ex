@@ -1,5 +1,6 @@
 defmodule NervesHub.Devices.CACertificate do
   use Ecto.Schema
+
   import Ecto.Changeset
 
   alias NervesHub.Accounts.Org

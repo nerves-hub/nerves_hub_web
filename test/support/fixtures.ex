@@ -18,6 +18,13 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Scripts
   alias NervesHub.Support
   alias NervesHub.Support.Fwup
+  alias Ueberauth.Auth.Credentials
+  alias Ueberauth.Auth.Extra
+  alias Ueberauth.Auth.Info
+  alias Ueberauth.Strategy.Google
+  alias X509.Certificate.Extension
+  alias X509.Certificate.Template
+  alias X509.Certificate.Validity
 
   @uploader Application.compile_env(:nerves_hub, :firmware_upload)
 
@@ -345,14 +352,14 @@ defmodule NervesHub.Fixtures do
     cert =
       X509.Certificate.new(public_key, subject_rdn, signer_cert, signer_key,
         template:
-          X509.Certificate.Template.new(%X509.Certificate.Template{
+          Template.new(%Template{
             serial: {:random, 20},
-            validity: X509.Certificate.Validity.new(not_before, not_after),
+            validity: Validity.new(not_before, not_after),
             hash: :sha256,
             extensions: [
-              basic_constraints: X509.Certificate.Extension.basic_constraints(false),
-              key_usage: X509.Certificate.Extension.key_usage([:digitalSignature, :keyEncipherment]),
-              ext_key_usage: X509.Certificate.Extension.ext_key_usage([:clientAuth]),
+              basic_constraints: Extension.basic_constraints(false),
+              key_usage: Extension.key_usage([:digitalSignature, :keyEncipherment]),
+              ext_key_usage: Extension.ext_key_usage([:clientAuth]),
               subject_key_identifier: true,
               authority_key_identifier: true
             ]
@@ -491,8 +498,8 @@ defmodule NervesHub.Fixtures do
     %Ueberauth.Auth{
       uid: "735086597857067149793",
       provider: :google,
-      strategy: Ueberauth.Strategy.Google,
-      info: %Ueberauth.Auth.Info{
+      strategy: Google,
+      info: %Info{
         name: "Jane Person",
         first_name: "Jane",
         last_name: "Person",
@@ -504,7 +511,7 @@ defmodule NervesHub.Fixtures do
         phone: nil,
         birthday: nil
       },
-      credentials: %Ueberauth.Auth.Credentials{
+      credentials: %Credentials{
         token: "dummytoken",
         refresh_token: nil,
         token_type: "Bearer",
@@ -518,7 +525,7 @@ defmodule NervesHub.Fixtures do
         ],
         other: %{}
       },
-      extra: %Ueberauth.Auth.Extra{
+      extra: %Extra{
         raw_info: %{
           user: %{
             "email" => "jane@person.com",

@@ -17,13 +17,15 @@ defmodule NervesHubWeb.ChannelCase do
 
   using do
     quote do
-      # Import conveniences for testing with channels
-      import Phoenix.ChannelTest
-      import Ecto.Query
-
       use DefaultMocks
       use Oban.Testing, repo: NervesHub.ObanRepo
       use AssertEventually, timeout: 500, interval: 50
+
+      import Ecto.Query
+      # Import conveniences for testing with channels
+      import Phoenix.ChannelTest
+
+      alias NervesHub.Devices.DeviceConnection
 
       # The default endpoint for testing
       @endpoint NervesHubWeb.DeviceEndpoint
@@ -38,7 +40,7 @@ defmodule NervesHubWeb.ChannelCase do
 
       def assert_online_and_available(device) do
         device_connection_query =
-          NervesHub.Devices.DeviceConnection
+          DeviceConnection
           |> where(status: :connected)
           |> where(device_id: ^device.id)
 

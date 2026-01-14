@@ -6,15 +6,6 @@
   plugins: [Phoenix.LiveView.HTMLFormatter, Quokka],
   quokka: [
     autosort: [:defstruct],
-    only: [
-      :blocks,
-      :comment_directives,
-      :configs,
-      :defs,
-      :deprecations,
-      :pipes,
-      :single_node
-    ],
     exclude: [piped_functions: [:subquery]]
   ]
 ]

@@ -7,10 +7,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
 
   use GenServer
 
-  require Logger
-
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
+
+  require Logger
 
   def child_spec(_) do
     %{

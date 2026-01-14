@@ -9,9 +9,9 @@ defmodule NervesHub.Workers.ExpireInflightUpdates do
     max_attempts: 1,
     queue: :truncate
 
-  require Logger
-
   alias NervesHub.Devices
+
+  require Logger
 
   @impl Oban.Worker
   def perform(_) do

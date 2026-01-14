@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.WebsocketTest do
   use NervesHubWeb.ChannelCase
 
+  import Ecto.Query
   import TrackerHelper
 
   alias NervesHub.AuditLogs
@@ -18,8 +19,8 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Support.Utils
   alias NervesHubWeb.DeviceEndpoint
   alias NervesHubWeb.Endpoint
-
-  import Ecto.Query
+  alias X509.Certificate.Template
+  alias X509.Certificate.Validity
 
   @valid_serial "device-1234"
   @valid_product "test-product"
@@ -183,9 +184,7 @@ defmodule NervesHubWeb.WebsocketTest do
       cert =
         key
         |> X509.PublicKey.derive()
-        |> X509.Certificate.new("CN=#{device.identifier}", ca, ca_key,
-          validity: X509.Certificate.Validity.new(not_before, not_after)
-        )
+        |> X509.Certificate.new("CN=#{device.identifier}", ca, ca_key, validity: Validity.new(not_before, not_after))
 
       # Verify our cert is indeed expired
       assert {:error, {:bad_cert, :cert_expired}} =
@@ -240,7 +239,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       not_before = DateTime.utc_now() |> Timex.shift(days: -3)
       not_after = DateTime.utc_now() |> Timex.shift(days: -1)
-      validity = X509.Certificate.Validity.new(not_before, not_after)
+      validity = Validity.new(not_before, not_after)
 
       ca_key = X509.PrivateKey.new_ec(:secp256r1)
 
@@ -1083,8 +1082,8 @@ defmodule NervesHubWeb.WebsocketTest do
       not_after = DateTime.utc_now() |> Timex.shift(seconds: 1)
 
       template =
-        X509.Certificate.Template.new(:root_ca,
-          validity: X509.Certificate.Validity.new(not_before, not_after)
+        Template.new(:root_ca,
+          validity: Validity.new(not_before, not_after)
         )
 
       %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org, template: template)

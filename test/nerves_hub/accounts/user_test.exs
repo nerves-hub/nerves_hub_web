@@ -1,5 +1,6 @@
 defmodule NervesHub.Accounts.UserTest do
   use NervesHub.DataCase
+
   alias Ecto.Changeset
   alias NervesHub.Accounts.User
 
@@ -8,13 +9,13 @@ defmodule NervesHub.Accounts.UserTest do
 
     Enum.each(invalid_chars, fn char ->
       %Changeset{errors: errors} =
-        User.creation_changeset(%NervesHub.Accounts.User{}, %{name: "Name#{char}"})
+        User.creation_changeset(%User{}, %{name: "Name#{char}"})
 
       assert {"has invalid character(s)", [{:validation, :format}]} = errors[:name]
     end)
 
     %Changeset{errors: errors} =
-      User.creation_changeset(%NervesHub.Accounts.User{}, %{
+      User.creation_changeset(%User{}, %{
         name: "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_"
       })
 

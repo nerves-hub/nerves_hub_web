@@ -3,7 +3,6 @@ defmodule NervesHubWeb.Live.Archives do
 
   alias NervesHub.Accounts
   alias NervesHub.Archives
-
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
 

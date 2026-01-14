@@ -7,6 +7,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias NervesHub.Scripts.Runner
 
   describe "create devices" do
     test "renders device when data is valid", %{conn: conn, org: org, product: product} do
@@ -844,7 +845,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           script.id
         )
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
 
       conn
@@ -871,7 +872,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           %{"timeout" => "1000"}
         )
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, 1000 -> {:ok, "hello"} end)
 
       conn
@@ -890,7 +891,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           %{"timeout" => 1000}
         )
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, 1000 -> {:ok, "hello"} end)
 
       conn
@@ -918,7 +919,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       message = "device not responding"
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, _ -> {:error, message} end)
 
       resp =
@@ -967,7 +968,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           script.id
         )
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
 
       conn

@@ -3,10 +3,10 @@ defmodule NervesHub.Accounts.Invite do
 
   import Ecto.Changeset
 
+  alias __MODULE__
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
-  alias __MODULE__
 
   @type t :: %__MODULE__{}
 

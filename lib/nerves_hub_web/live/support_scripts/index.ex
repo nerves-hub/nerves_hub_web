@@ -1,10 +1,8 @@
 defmodule NervesHubWeb.Live.SupportScripts.Index do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.Scripts
-
   alias NervesHub.Repo
-
+  alias NervesHub.Scripts
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
 

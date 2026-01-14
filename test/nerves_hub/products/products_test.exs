@@ -4,10 +4,9 @@ defmodule NervesHub.ProductsTest do
   alias NervesHub.Accounts
   alias NervesHub.Fixtures
   alias NervesHub.Products
+  alias NervesHub.Products.Product
 
   describe "products" do
-    alias NervesHub.Products.Product
-
     @valid_attrs %{name: "some name"}
     @invalid_attrs %{name: nil}
 

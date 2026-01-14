@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.Schemas.UserAuthRequest do
   alias OpenApiSpex.Schema
+
   require OpenApiSpex
 
   OpenApiSpex.schema(%{

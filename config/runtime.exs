@@ -1,5 +1,11 @@
 import Config
 
+alias NervesHub.Firmwares.Upload
+alias NervesHub.Firmwares.Upload.S3
+alias NervesHub.Telemetry.FilteredSampler
+alias Swoosh.Adapters.SMTP
+alias Ueberauth.Strategy.Google.OAuth
+
 nerves_hub_app = System.get_env("NERVES_HUB_APP", "all")
 
 if !Enum.member?(["all", "web", "device"], nerves_hub_app) do
@@ -284,10 +290,10 @@ if config_env() == :prod do
 
   case firmware_upload do
     "S3" ->
-      config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
       config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.S3
       config :nerves_hub, NervesHub.Uploads.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
-      config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.S3
+      config :nerves_hub, S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
+      config :nerves_hub, firmware_upload: S3
 
       if System.get_env("S3_ACCESS_KEY_ID") do
         config :ex_aws, :s3,
@@ -296,13 +302,13 @@ if config_env() == :prod do
       end
 
       if System.get_env("S3_BUCKET_AS_HOST", "false") == "true" do
-        config :nerves_hub, NervesHub.Firmwares.Upload.S3,
+        config :nerves_hub, S3,
           presigned_url_opts: [
             virtual_host: true,
             bucket_as_host: true
           ]
       else
-        config :nerves_hub, NervesHub.Firmwares.Upload.S3, presigned_url_opts: []
+        config :nerves_hub, S3, presigned_url_opts: []
       end
 
       config :ex_aws, :s3, bucket: System.fetch_env!("S3_BUCKET_NAME")
@@ -343,13 +349,12 @@ if config_env() == :prod do
   end
 end
 
-# Set a default max firmware upload size of 200MB for all environments
-config :nerves_hub, NervesHub.Firmwares.Upload,
-  max_size: System.get_env("FIRMWARE_UPLOAD_MAX_SIZE", "200000000") |> String.to_integer()
-
 # Set a default max archive upload size of 200MB for all environments
 config :nerves_hub, NervesHub.Uploads,
   max_size: System.get_env("ARCHIVE_UPLOAD_MAX_SIZE", "200000000") |> String.to_integer()
+
+# Set a default max firmware upload size of 200MB for all environments
+config :nerves_hub, Upload, max_size: System.get_env("FIRMWARE_UPLOAD_MAX_SIZE", "200000000") |> String.to_integer()
 
 ##
 # SMTP settings.
@@ -367,7 +372,7 @@ if config_env() == :prod do
     tls_opts = if Enum.any?(tls_versions), do: [versions: tls_versions], else: []
 
     config :nerves_hub, NervesHub.SwooshMailer,
-      adapter: Swoosh.Adapters.SMTP,
+      adapter: SMTP,
       relay: System.fetch_env!("SMTP_SERVER"),
       port: System.fetch_env!("SMTP_PORT") |> String.to_integer(),
       username: System.fetch_env!("SMTP_USERNAME"),
@@ -417,7 +422,7 @@ if otlp_endpoint = System.get_env("OTLP_ENDPOINT") do
     end
 
   config :opentelemetry,
-    sampler: {:parent_based, %{root: {NervesHub.Telemetry.FilteredSampler, otlp_sampler_ratio}}}
+    sampler: {:parent_based, %{root: {FilteredSampler, otlp_sampler_ratio}}}
 
   config :opentelemetry_exporter,
     otlp_protocol: :http_protobuf,
@@ -444,7 +449,7 @@ config :nerves_hub,
   enable_google_auth: !is_nil(System.get_env("GOOGLE_CLIENT_ID"))
 
 if System.get_env("GOOGLE_CLIENT_ID") do
-  config :ueberauth, Ueberauth.Strategy.Google.OAuth,
+  config :ueberauth, OAuth,
     client_id: System.get_env("GOOGLE_CLIENT_ID"),
     client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
 end

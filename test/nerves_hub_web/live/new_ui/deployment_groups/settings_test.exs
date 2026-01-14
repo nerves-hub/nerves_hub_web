@@ -2,11 +2,10 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.AuditLogs
+  alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
-
-  alias NervesHub.Fixtures
 
   setup context do
     conn =

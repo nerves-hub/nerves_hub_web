@@ -4,14 +4,11 @@ defmodule NervesHub.Accounts.User do
   import Ecto.Changeset
   import Ecto.Query
 
+  alias __MODULE__
+  alias Ecto.Changeset
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.UserToken
-
   alias NervesHub.Repo
-
-  alias Ecto.Changeset
-
-  alias __MODULE__
 
   @type t :: %__MODULE__{}
 

@@ -1,4 +1,10 @@
 defmodule NervesHubWeb.ApiSpec do
+  @behaviour OpenApiSpex.OpenApi
+
+  alias NervesHubWeb.API.OpenAPI.DeviceControllerSpecs
+  alias NervesHubWeb.Endpoint
+  alias NervesHubWeb.Plugs.ImAlive
+  alias NervesHubWeb.Router
   alias OpenApiSpex.Components
   alias OpenApiSpex.Info
   alias OpenApiSpex.MediaType
@@ -9,13 +15,6 @@ defmodule NervesHubWeb.ApiSpec do
   alias OpenApiSpex.SecurityScheme
   alias OpenApiSpex.Server
   alias OpenApiSpex.Tag
-
-  alias NervesHubWeb.API.OpenAPI.DeviceControllerSpecs
-  alias NervesHubWeb.Endpoint
-  alias NervesHubWeb.Router
-  alias NervesHubWeb.Plugs.ImAlive
-
-  @behaviour OpenApi
 
   @impl OpenApi
   def spec() do

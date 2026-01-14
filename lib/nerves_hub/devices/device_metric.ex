@@ -1,9 +1,9 @@
 defmodule NervesHub.Devices.DeviceMetric do
   use Ecto.Schema
 
-  alias Ecto.Changeset
   import Ecto.Changeset
 
+  alias Ecto.Changeset
   alias NervesHub.Devices.Device
 
   @type t :: %__MODULE__{}

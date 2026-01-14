@@ -8,10 +8,11 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
 
   use Phoenix.Channel
 
-  require Logger
-
   alias NervesHub.Accounts
   alias NervesHubWeb.Helpers.Authorization
+  alias Phoenix.Socket.Broadcast
+
+  require Logger
 
   @impl Phoenix.Channel
   def join("device:" <> device_identifier, _params, socket) do
@@ -26,7 +27,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   end
 
   @impl Phoenix.Channel
-  def handle_info(%Phoenix.Socket.Broadcast{event: "fwup_progress", payload: %{percent: percent}}, socket) do
+  def handle_info(%Broadcast{event: "fwup_progress", payload: %{percent: percent}}, socket) do
     # Forward the firmware update progress to the connected client
     push(socket, "firmware_update", %{percent: percent})
 

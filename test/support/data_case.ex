@@ -17,16 +17,16 @@ defmodule NervesHub.DataCase do
   using do
     quote do
       use DefaultMocks
-      alias NervesHub.Repo
+      use Oban.Testing, repo: NervesHub.ObanRepo
 
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
       import NervesHub.DataCase
 
-      @moduletag :tmp_dir
+      alias NervesHub.Repo
 
-      use Oban.Testing, repo: NervesHub.ObanRepo
+      @moduletag :tmp_dir
     end
   end
 

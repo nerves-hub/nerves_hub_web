@@ -1,7 +1,9 @@
 defmodule NervesHub.Extensions.ProductExtensionsSetting do
-  use Ecto.Schema
-  import Ecto.Changeset
   @behaviour Access
+
+  use Ecto.Schema
+
+  import Ecto.Changeset
 
   @primary_key false
   embedded_schema do

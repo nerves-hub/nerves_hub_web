@@ -2,9 +2,9 @@ defmodule NervesHub.FirmwaresTest do
   use NervesHub.DataCase, async: true
   use Mimic
 
-  alias Ecto.Changeset
   import Ecto.Query
 
+  alias Ecto.Changeset
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta

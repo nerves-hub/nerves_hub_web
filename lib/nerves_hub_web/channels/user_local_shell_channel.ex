@@ -2,13 +2,13 @@ defmodule NervesHubWeb.UserLocalShellChannel do
   use NervesHubWeb, :channel
 
   alias NervesHub.Accounts
-
+  alias NervesHub.Extensions.LocalShell
   alias NervesHubWeb.Helpers.Authorization
 
   def join("user:local_shell:" <> device_id, _, socket) do
     if authorized?(socket.assigns.user, device_id) do
       topic = "device:#{device_id}:extensions"
-      message = {NervesHub.Extensions.LocalShell, {:connect, self()}}
+      message = {LocalShell, {:connect, self()}}
       _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic, message)
       {:ok, assign(socket, :device_id, device_id)}
     else

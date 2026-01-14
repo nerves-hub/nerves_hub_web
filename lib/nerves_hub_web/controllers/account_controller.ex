@@ -5,7 +5,6 @@ defmodule NervesHubWeb.AccountController do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserNotifier
-
   alias NervesHubWeb.Auth
 
   plug(:registrations_allowed when action in [:new, :create])

@@ -3,9 +3,8 @@ defmodule NervesHubWeb.SessionController do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User
-  alias NervesHub.Accounts.UserToken
   alias NervesHub.Accounts.UserNotifier
-
+  alias NervesHub.Accounts.UserToken
   alias NervesHubWeb.Auth
 
   def new(conn, params) do

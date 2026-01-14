@@ -5,9 +5,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Repo
-  alias Phoenix.Socket.Broadcast
-
   alias NervesHubWeb.Endpoint
+  alias Phoenix.Socket.Broadcast
 
   test "shows a loading message (async loading)", %{conn: conn, fixture: fixture} do
     %{device: device, org: org, product: product} = fixture

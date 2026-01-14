@@ -1,5 +1,4 @@
 defmodule NervesHub.Devices.UpdateStatsTest do
-  alias NervesHub.ManagedDeployments
   use NervesHub.DataCase, async: false
 
   alias NervesHub.Devices
@@ -7,6 +6,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
 
   setup do

@@ -13,6 +13,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
+  alias Phoenix.Socket.Broadcast
 
   describe "firmware_validation_status" do
     test "if the param is missing, then status is marked as :unknown" do
@@ -340,7 +341,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
       "device:#{device.id}",
-      %Phoenix.Socket.Broadcast{event: "archives/updated"}
+      %Broadcast{event: "archives/updated"}
     )
 
     _ = :sys.get_state(device_channel.channel_pid)

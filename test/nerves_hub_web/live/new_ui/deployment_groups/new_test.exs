@@ -2,11 +2,11 @@ defmodule NervesHubWeb.Live.NewUI.DelploymentGroups.NewTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
+  import Ecto.Query, only: [from: 2]
+
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentGroup.Conditions
   alias NervesHub.Repo
-
-  import Ecto.Query, only: [from: 2]
 
   setup context do
     conn =
