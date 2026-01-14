@@ -80,7 +80,6 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
       |> fill_in("Name", with: "Moussaka")
       |> fill_in("Tag(s) distributed to", with: "josh, lars")
       |> fill_in("Version requirement", with: "4.3.2")
-      |> select("Firmware version", option: String.split(firmware.uuid, "-") |> List.first(), exact_option: false)
       |> click_button("Save changes")
 
     {:ok, reloaded_deployment_group} =
