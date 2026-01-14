@@ -3,11 +3,12 @@ defmodule NervesHub.Devices.LogLines do
   Device logging storage and querying.
   """
 
+  import Ecto.Query
+
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.LogLine
-
-  import Ecto.Query
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   @type log_line_payload :: %{
           timestamp: DateTime.t(),
@@ -54,7 +55,7 @@ defmodule NervesHub.Devices.LogLines do
         _ = AnalyticsRepo.insert_all(LogLine, [changeset.changes], settings: [async_insert: 1])
 
         _ =
-          Phoenix.Channel.Server.broadcast(
+          ChannelServer.broadcast(
             NervesHub.PubSub,
             "device:#{device.identifier}:internal",
             "logs:received",

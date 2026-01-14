@@ -3,20 +3,19 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User
-
   alias NervesHub.Emails.ConfirmationTemplate
   alias NervesHub.Emails.LoginWithGoogleReminderTemplate
   alias NervesHub.Emails.OrgUserAddedTemplate
-  alias NervesHub.Emails.PasswordResetTemplate
   alias NervesHub.Emails.PasswordResetConfirmationTemplate
+  alias NervesHub.Emails.PasswordResetTemplate
   alias NervesHub.Emails.PasswordUpdatedTemplate
   alias NervesHub.Emails.TellOrgUserAddedTemplate
   alias NervesHub.Emails.TellOrgUserInvitedTemplate
   alias NervesHub.Emails.TellOrgUserRemovedTemplate
   alias NervesHub.Emails.UserInviteTemplate
   alias NervesHub.Emails.WelcomeTemplate
-
   alias NervesHub.SwooshMailer, as: Mailer
+  alias Phoenix.HTML.Safe
 
   def deliver_confirmation_instructions(user, confirmation_url) do
     assigns = %{
@@ -207,7 +206,7 @@ defmodule NervesHub.Accounts.UserNotifier do
 
     text =
       module.text_render(assigns)
-      |> Phoenix.HTML.Safe.to_iodata()
+      |> Safe.to_iodata()
       |> IO.iodata_to_binary()
 
     {html, text}

@@ -8,13 +8,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.Firmwares
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
-
-  alias Phoenix.Socket.Broadcast
-
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
   alias NervesHubWeb.Components.DeploymentGroupPage.ReleaseHistory, as: ReleaseHistoryTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Settings, as: SettingsTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Summary, as: SummaryTab
+  alias Phoenix.Socket.Broadcast
 
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do

@@ -1,12 +1,10 @@
 defmodule NervesHub.Devices.LogLinesTest do
   use NervesHub.DataCase, async: false
 
+  alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.LogLine
   alias NervesHub.Devices.LogLines
-
   alias NervesHub.Fixtures
-
-  alias NervesHub.AnalyticsRepo
 
   setup do
     user = Fixtures.user_fixture()

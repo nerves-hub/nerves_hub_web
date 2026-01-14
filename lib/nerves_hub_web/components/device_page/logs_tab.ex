@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
   use NervesHubWeb, tab_component: :logs
 
   alias NervesHub.Devices.LogLines
-
   alias Phoenix.LiveView.JS
 
   def tab_params(_params, _uri, socket) do

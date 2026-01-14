@@ -7,12 +7,13 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
-
+  alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
   setup %{fixture: %{device: device}} do
@@ -156,7 +157,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         :ok = Connections.device_connected(device, connection.id)
 
         topic = "device:#{device.id}:extensions"
-        Phoenix.Channel.Server.broadcast!(NervesHub.PubSub, topic, "health_check_report", %{})
+        ChannelServer.broadcast!(NervesHub.PubSub, topic, "health_check_report", %{})
 
         render(view)
       end)
@@ -511,11 +512,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> click_button("Skip the queue")
       |> assert_has("div", text: "Pushing available firmware update")
 
-      assert Repo.aggregate(NervesHub.Devices.InflightUpdate, :count) == 1
+      assert Repo.aggregate(InflightUpdate, :count) == 1
 
       topic = "device:#{device.id}"
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         topic: ^topic,
         event: "update"
       }
@@ -554,7 +555,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> refute_has("span", text: "Update available")
       |> refute_has("button", text: "Skip the queue")
 
-      assert Repo.aggregate(NervesHub.Devices.InflightUpdate, :count) == 0
+      assert Repo.aggregate(InflightUpdate, :count) == 0
     end
   end
 
@@ -608,7 +609,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       end)
       |> assert_has("select#deployment_group option", text: "Select a deployment group")
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "deployment_updated"}
+      assert_receive %Broadcast{event: "deployment_updated"}
 
       refute Repo.reload(device) |> Map.get(:deployment_id)
     end
@@ -668,7 +669,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert length(AuditLogs.logs_for(device)) == 1
 
       device_topic = "device:#{device.id}"
-      assert_receive %Phoenix.Socket.Broadcast{topic: ^device_topic, event: "deployment_updated"}
+      assert_receive %Broadcast{topic: ^device_topic, event: "deployment_updated"}
     end
 
     test "'no eligible deployments' text displays properly", %{

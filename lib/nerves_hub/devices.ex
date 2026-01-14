@@ -1,8 +1,6 @@
 defmodule NervesHub.Devices do
   import Ecto.Query
 
-  require Logger
-
   alias Ecto.Changeset
   alias Ecto.Multi
   alias NervesHub.Accounts
@@ -31,12 +29,16 @@ defmodule NervesHub.Devices do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
+  alias Phoenix.Channel.Server, as: ChannelServer
+
+  require Logger
 
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
@@ -656,7 +658,7 @@ defmodule NervesHub.Devices do
 
     {:ok, device} = update_device(device, %{firmware_validation_status: "validated"})
 
-    Phoenix.Channel.Server.broadcast_from!(
+    ChannelServer.broadcast_from!(
       NervesHub.PubSub,
       self(),
       "device:#{device.identifier}:internal",
@@ -1084,7 +1086,7 @@ defmodule NervesHub.Devices do
     }
 
     _ =
-      Phoenix.Channel.Server.broadcast(
+      ChannelServer.broadcast(
         NervesHub.PubSub,
         "orchestrator:deployment:#{device.deployment_id}",
         "device-online",
@@ -1100,7 +1102,7 @@ defmodule NervesHub.Devices do
 
   def deployment_device_updated(device) do
     _ =
-      Phoenix.Channel.Server.broadcast(
+      ChannelServer.broadcast(
         NervesHub.PubSub,
         "orchestrator:deployment:#{device.deployment_id}",
         "device-updated",
@@ -1247,7 +1249,7 @@ defmodule NervesHub.Devices do
       {:ok, device} = result ->
         _ =
           if device.deployment_id do
-            Phoenix.Channel.Server.broadcast(
+            ChannelServer.broadcast(
               NervesHub.PubSub,
               "orchestrator:deployment:#{device.deployment_id}",
               "device-updated",
@@ -1873,7 +1875,7 @@ defmodule NervesHub.Devices do
       :nerves_hub,
       :update_tool,
       # Fall back to old config key
-      Application.get_env(:nerves_hub, :delta_updater, NervesHub.Firmwares.UpdateTool.Fwup)
+      Application.get_env(:nerves_hub, :delta_updater, Fwup)
     )
   end
 end

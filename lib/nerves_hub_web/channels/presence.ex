@@ -9,9 +9,9 @@ defmodule NervesHubWeb.Presence do
     otp_app: :nerves_hub,
     pubsub_server: NervesHub.PubSub
 
-  require Logger
-
   alias NervesHub.Helpers.Logging
+
+  require Logger
 
   @impl Phoenix.Presence
   def init(_opts) do

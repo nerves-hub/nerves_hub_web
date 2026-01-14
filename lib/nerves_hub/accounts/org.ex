@@ -4,13 +4,13 @@ defmodule NervesHub.Accounts.Org do
   import Ecto.Changeset
   import Ecto.Query
 
+  alias __MODULE__
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
-  alias __MODULE__
 
   @params [:name]
 

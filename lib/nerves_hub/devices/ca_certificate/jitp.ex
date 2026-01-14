@@ -1,7 +1,10 @@
 defmodule NervesHub.Devices.CACertificate.JITP do
   use Ecto.Schema
+
   import Ecto.Changeset
+
   alias NervesHub.Products.Product
+  alias NervesHub.Types.Tag
 
   schema "jitp" do
     # JITP enabled CA Certs must be linked to a product
@@ -9,7 +12,7 @@ defmodule NervesHub.Devices.CACertificate.JITP do
     belongs_to(:product, Product)
 
     # Will be copied to the device when it's created
-    field(:tags, NervesHub.Types.Tag)
+    field(:tags, Tag)
     field(:description, :string)
     timestamps()
   end

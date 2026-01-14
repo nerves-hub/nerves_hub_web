@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.API.FirmwareControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
+  alias NervesHub.Firmwares.Upload
   alias NervesHub.Fixtures
   alias NervesHub.Support.Fwup
 
@@ -40,11 +41,11 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
     end
 
     test "prevents too large of firmware", context do
-      prev_size = Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload)[:max_size]
-      Application.put_env(:nerves_hub, NervesHub.Firmwares.Upload, max_size: 10)
+      prev_size = Application.get_env(:nerves_hub, Upload)[:max_size]
+      Application.put_env(:nerves_hub, Upload, max_size: 10)
 
       on_exit(fn ->
-        Application.put_env(:nerves_hub, NervesHub.Firmwares.Upload, max_size: prev_size)
+        Application.put_env(:nerves_hub, Upload, max_size: prev_size)
       end)
 
       {boundary, body} = multipart_file("non-sense fw data")

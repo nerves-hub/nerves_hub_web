@@ -6,7 +6,6 @@ defmodule NervesHub.Accounts.UserNotifierTest do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserNotifier
-
   alias NervesHub.Fixtures
 
   test "invite email" do

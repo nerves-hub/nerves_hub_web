@@ -5,7 +5,6 @@ defmodule NervesHubWeb.AccountControllerTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.UserToken
-
   alias NervesHub.Repo
 
   describe "new" do
