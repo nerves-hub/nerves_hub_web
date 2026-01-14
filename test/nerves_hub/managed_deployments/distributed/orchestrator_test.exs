@@ -1,6 +1,5 @@
 defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   use NervesHub.DataCase, async: false
-
   use Mimic
 
   alias NervesHub.Devices
@@ -14,7 +13,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
   alias NervesHub.Repo
-
   alias Phoenix.Socket.Broadcast
 
   setup do

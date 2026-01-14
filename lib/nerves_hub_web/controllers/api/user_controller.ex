@@ -2,11 +2,10 @@ defmodule NervesHubWeb.API.UserController do
   use NervesHubWeb, :api_controller
   use OpenApiSpex.ControllerSpecs
 
+  alias NervesHub.Accounts
   alias NervesHubWeb.API.Schemas.UserAuthRequest
   alias NervesHubWeb.API.Schemas.UserAuthWithNoteRequest
   alias NervesHubWeb.API.Schemas.UserResponse
-
-  alias NervesHub.Accounts
 
   tags(["Auth"])
 

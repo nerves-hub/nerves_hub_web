@@ -5,16 +5,14 @@ defmodule NervesHub.Products do
 
   import Ecto.Query, warn: false
 
-  alias NervesHub.Devices.Device
-  alias NervesHub.Repo
-
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
+  alias NervesHub.Devices.Device
   alias NervesHub.Extensions
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
-
+  alias NervesHub.Repo
   alias NimbleCSV.RFC4180, as: CSV
 
   @csv_certs_sep "\n\n"

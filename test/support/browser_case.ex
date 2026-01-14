@@ -12,9 +12,9 @@ defmodule NervesHubWeb.ConnCase.Browser do
       use ConnCase, unquote(opts)
       use NervesHubWeb, :verified_routes
 
-      import Test
       import Phoenix.LiveViewTest
       import PhoenixTest
+      import Test
 
       @moduletag :tmp_dir
 

@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.Schemas.DeviceCertificateSchemas do
   alias OpenApiSpex.Schema
+
   require OpenApiSpex
 
   defmodule DeviceCertificateAuthRequest do

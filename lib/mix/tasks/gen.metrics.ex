@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.NervesHub.Gen.Metrics do
+  @shortdoc "Generate metrics for one or more devices"
+
   @moduledoc """
   Generate a collection of metrics for one or more devices.
 
@@ -6,8 +8,6 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
 
       mix nerves_hub.gen.metrics device-1234
   """
-
-  @shortdoc "Generate metrics for one or more devices"
 
   use Mix.Task
 

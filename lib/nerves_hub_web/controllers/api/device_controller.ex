@@ -10,7 +10,6 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHub.Repo
-
   alias NervesHubWeb.API.PaginationHelpers
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Helpers.RoleValidateHelpers

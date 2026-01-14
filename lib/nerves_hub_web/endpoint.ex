@@ -3,6 +3,11 @@ defmodule NervesHubWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub
 
   alias NervesHub.Helpers.WebsocketConnectionError
+  alias NervesHubWeb.Channels.DeviceJSONSerializer
+  alias NervesHubWeb.Plugs.ConfigureUploads
+  alias NervesHubWeb.Plugs.ImAlive
+  alias Phoenix.LiveDashboard.RequestLogger
+  alias Phoenix.LiveView.Socket
 
   def fetch_signing_salt() do
     Application.get_env(:nerves_hub, __MODULE__)[:live_view][:signing_salt]
@@ -14,7 +19,7 @@ defmodule NervesHubWeb.Endpoint do
     signing_salt: {__MODULE__, :fetch_signing_salt, []}
   ]
 
-  socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
+  socket("/live", Socket, websocket: [connect_info: [session: @session_options]])
 
   socket("/socket", NervesHubWeb.UserSocket, websocket: [connect_info: [session: @session_options]])
 
@@ -29,7 +34,7 @@ defmodule NervesHubWeb.Endpoint do
       timeout: 180_000,
       fullsweep_after: 0,
       error_handler: {WebsocketConnectionError, :handle_error, []},
-      serializer: [{NervesHubWeb.Channels.DeviceJSONSerializer, "~> 2.0.0"}]
+      serializer: [{DeviceJSONSerializer, "~> 2.0.0"}]
     ]
   )
 
@@ -45,7 +50,7 @@ defmodule NervesHubWeb.Endpoint do
     only: ~w(assets css fonts images js favicon.ico robots.txt geo)
   )
 
-  plug(NervesHubWeb.Plugs.ConfigureUploads)
+  plug(ConfigureUploads)
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
@@ -60,12 +65,12 @@ defmodule NervesHubWeb.Endpoint do
     plug(Phoenix.CodeReloader)
   end
 
-  plug(Phoenix.LiveDashboard.RequestLogger,
+  plug(RequestLogger,
     param_key: "request_logger",
     cookie_key: "request_logger"
   )
 
-  plug(NervesHubWeb.Plugs.ImAlive)
+  plug(ImAlive)
 
   plug(Plug.RequestId)
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])

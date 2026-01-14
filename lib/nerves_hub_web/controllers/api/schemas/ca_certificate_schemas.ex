@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
   alias OpenApiSpex.Schema
+
   require OpenApiSpex
 
   defmodule CACertificate do

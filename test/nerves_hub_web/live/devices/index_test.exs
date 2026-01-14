@@ -3,9 +3,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
   alias NervesHub.Devices
   alias NervesHub.Fixtures
-
   alias NervesHub.Repo
-
   alias NervesHubWeb.Endpoint
 
   setup %{fixture: %{device: device}} do

@@ -1,8 +1,6 @@
 defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   use NervesHubWeb, tab_component: :details
 
-  require Logger
-
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
@@ -12,9 +10,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Scripts
-
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.NewUI.DeviceLocation
+
+  require Logger
 
   @keys_to_cleanup [
     :support_scripts,

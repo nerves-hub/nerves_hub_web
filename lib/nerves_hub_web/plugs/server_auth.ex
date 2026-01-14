@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Plugs.ServerAuth do
-  use NervesHubWeb, :plug
   @behaviour Oban.Web.Resolver
+
+  use NervesHubWeb, :plug
 
   @impl Plug
   def init(_opts), do: []

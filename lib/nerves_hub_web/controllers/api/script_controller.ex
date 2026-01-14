@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.ScriptController do
   use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Scripts
+  alias NervesHubWeb.API.ErrorJSON
   alias NervesHubWeb.API.PaginationHelpers
 
   security([%{}, %{"bearer_auth" => []}])
@@ -34,7 +35,7 @@ defmodule NervesHubWeb.API.ScriptController do
       {:error, reason} ->
         conn
         |> put_status(:service_unavailable)
-        |> put_view(NervesHubWeb.API.ErrorJSON)
+        |> put_view(ErrorJSON)
         |> render(:"500", %{reason: reason})
     end
   end

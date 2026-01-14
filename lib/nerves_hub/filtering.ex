@@ -2,6 +2,8 @@ defmodule NervesHub.Filtering do
   @moduledoc """
   Common filtering functionality for NervesHub resources.
   """
+  import Ecto.Query
+
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -9,8 +11,6 @@ defmodule NervesHub.Filtering do
   alias NervesHub.Products.Product
   alias NervesHub.Scripts.Script
   alias NervesHub.Scripts.ScriptFiltering
-
-  import Ecto.Query
 
   @doc """
   Common filter function that can be used across different resources.

@@ -15,12 +15,14 @@ defmodule NervesHubWeb.CoreComponents do
   Icons are provided by [heroicons](https://heroicons.com). See `icon/1` for usage.
   """
   use Phoenix.Component, global_prefixes: ~w(js-)
+  use Gettext, backend: NervesHubWeb.Gettext
 
   import NervesHubWeb.Components.Icons
 
+  alias Phoenix.HTML.Form
+  alias Phoenix.HTML.FormField
   alias Phoenix.LiveView.JS
-
-  use Gettext, backend: NervesHubWeb.Gettext
+  alias Phoenix.LiveView.LiveStream
 
   @doc """
   Renders a modal.
@@ -335,7 +337,7 @@ defmodule NervesHubWeb.CoreComponents do
                range radio search select tel text textarea time url week)
   )
 
-  attr(:field, Phoenix.HTML.FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]")
+  attr(:field, FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]")
 
   attr(:errors, :list, default: [])
   attr(:checked, :boolean, doc: "the checked flag for checkbox inputs")
@@ -351,7 +353,7 @@ defmodule NervesHubWeb.CoreComponents do
   slot(:inner_block)
   slot(:rich_hint)
 
-  def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+  def input(%{field: %FormField{} = field} = assigns) do
     errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
 
     assigns
@@ -365,7 +367,7 @@ defmodule NervesHubWeb.CoreComponents do
   def input(%{type: "checkbox"} = assigns) do
     assigns =
       assign_new(assigns, :checked, fn ->
-        Phoenix.HTML.Form.normalize_value("checkbox", assigns[:value])
+        Form.normalize_value("checkbox", assigns[:value])
       end)
 
     ~H"""
@@ -567,7 +569,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def table(assigns) do
     assigns =
-      with %{rows: %Phoenix.LiveView.LiveStream{}} <- assigns do
+      with %{rows: %LiveStream{}} <- assigns do
         assign(assigns, row_id: assigns.row_id || fn {id, _item} -> id end)
       end
 

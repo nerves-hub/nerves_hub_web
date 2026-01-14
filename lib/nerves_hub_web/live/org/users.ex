@@ -6,7 +6,6 @@ defmodule NervesHubWeb.Live.Org.Users do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.UserNotifier
-
   alias NervesHubWeb.Components.Utils
 
   embed_templates("user_templates/*")

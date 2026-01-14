@@ -4,7 +4,6 @@ defmodule NervesHubWeb.PasswordResetController do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.PasswordReset
   alias NervesHub.Accounts.User
-
   alias NervesHubWeb.Auth
 
   plug(:get_user_by_reset_password_token when action in [:edit, :update])

@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.Schemas.OrgUserSchemas do
   alias OpenApiSpex.Schema
+
   require OpenApiSpex
 
   defmodule OrgUser do

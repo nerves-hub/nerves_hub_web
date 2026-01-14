@@ -2,15 +2,17 @@ defmodule NervesHub.Emails.ClosingBlock do
   use MjmlEEx.Component, mode: :runtime
   use NervesHubWeb, :html
 
+  alias Phoenix.HTML.Safe
+
   @impl MjmlEEx.Component
   def render(_assigns) do
     """
     <mj-section padding-top="0px">
       <mj-column>
         <mj-text font-size="20px" font-family="sans-serif">
-        #{support_section() |> Phoenix.HTML.Safe.to_iodata()}
+        #{support_section() |> Safe.to_iodata()}
         </mj-text>
-        #{signoff() |> Phoenix.HTML.Safe.to_iodata()}
+        #{signoff() |> Safe.to_iodata()}
       </mj-column>
     </mj-section>
     """

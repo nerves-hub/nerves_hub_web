@@ -9,7 +9,6 @@ defmodule NervesHub.Devices.DeviceCertificate do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
-
   alias NervesHub.Repo
 
   @type t :: %__MODULE__{}

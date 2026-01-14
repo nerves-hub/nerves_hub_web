@@ -1,5 +1,8 @@
 import Config
 
+alias OpenApiSpex.Plug.NoneCache
+alias Swoosh.Adapters.Local
+
 ssl_dir =
   (System.get_env("NERVES_HUB_CA_DIR") || Path.join([__DIR__, "../test/fixtures/ssl/"]))
   |> Path.expand()
@@ -100,7 +103,7 @@ config :nerves_hub, NervesHub.Firmwares.Upload.File,
   public_path: "/firmware"
 
 config :nerves_hub, NervesHub.RateLimit, limit: 10
-config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Local
+config :nerves_hub, NervesHub.SwooshMailer, adapter: Local
 config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
 
 config :nerves_hub, NervesHub.Uploads.File,
@@ -118,4 +121,4 @@ config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
 config :nerves_hub,
   open_for_registrations: true
 
-config :open_api_spex, :cache_adapter, OpenApiSpex.Plug.NoneCache
+config :open_api_spex, :cache_adapter, NoneCache

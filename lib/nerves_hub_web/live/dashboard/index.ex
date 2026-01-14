@@ -3,7 +3,6 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
 
   alias NervesHub.Devices
   alias NervesHub.ManagedDeployments
-
   alias Phoenix.Socket.Broadcast
 
   @default_refresh 53_000

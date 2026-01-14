@@ -18,23 +18,26 @@ defmodule NervesHubWeb.Channels.DeviceJSONSerializer do
   """
   @behaviour Phoenix.Socket.Serializer
 
-  @impl Phoenix.Socket.Serializer
+  alias Phoenix.Socket.Serializer
+  alias Phoenix.Socket.V2.JSONSerializer
+
+  @impl Serializer
   def fastlane!(msg) do
     msg
     |> remove_device_id_from_topic()
-    |> Phoenix.Socket.V2.JSONSerializer.fastlane!()
+    |> JSONSerializer.fastlane!()
   end
 
-  @impl Phoenix.Socket.Serializer
+  @impl Serializer
   def encode!(reply) do
     reply
     |> remove_device_id_from_topic()
-    |> Phoenix.Socket.V2.JSONSerializer.encode!()
+    |> JSONSerializer.encode!()
   end
 
-  @impl Phoenix.Socket.Serializer
+  @impl Serializer
   def decode!(raw_message, opts) do
-    Phoenix.Socket.V2.JSONSerializer.decode!(raw_message, opts)
+    JSONSerializer.decode!(raw_message, opts)
     |> add_device_id_to_topic()
   end
 

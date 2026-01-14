@@ -1,8 +1,9 @@
 defmodule NervesHubWeb.Plugs.ImAlive do
-  @behaviour Plug
   @moduledoc """
   A simple plug to respond to health checks.
   """
+
+  @behaviour Plug
 
   import Plug.Conn
 

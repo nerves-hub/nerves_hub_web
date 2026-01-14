@@ -3,9 +3,8 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
 
   import Ecto.Changeset
 
-  alias NervesHub.Firmwares.Firmware
-
   alias __MODULE__
+  alias NervesHub.Firmwares.Firmware
 
   @type t :: %__MODULE__{}
 

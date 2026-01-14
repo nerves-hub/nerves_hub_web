@@ -5,20 +5,22 @@ defmodule NervesHub.Firmwares.Upload.File do
 
   @behaviour NervesHub.Firmwares.Upload
 
+  alias NervesHub.Firmwares.Upload
+
   @type upload_metadata :: %{local_path: String.t(), public_path: String.t()}
 
-  @impl NervesHub.Firmwares.Upload
+  @impl Upload
   def upload_file(source, %{local_path: local_path}) do
     :ok = local_path |> Path.dirname() |> File.mkdir_p()
     :ok = File.cp(source, local_path)
   end
 
-  @impl NervesHub.Firmwares.Upload
+  @impl Upload
   def download_file(%{upload_metadata: metadata}), do: do_download_file(metadata)
   defp do_download_file(%{public_path: path}), do: {:ok, path}
   defp do_download_file(%{"public_path" => path}), do: {:ok, path}
 
-  @impl NervesHub.Firmwares.Upload
+  @impl Upload
   def delete_file(%{local_path: path}), do: delete_file(path)
   def delete_file(%{"local_path" => path}), do: delete_file(path)
 
@@ -29,7 +31,7 @@ defmodule NervesHub.Firmwares.Upload.File do
     if File.exists?(path), do: File.rm!(path), else: :ok
   end
 
-  @impl NervesHub.Firmwares.Upload
+  @impl Upload
   def metadata(org_id, filename) do
     web_config = Application.get_env(:nerves_hub, NervesHubWeb.Endpoint)
 
@@ -54,7 +56,7 @@ defmodule NervesHub.Firmwares.Upload.File do
     }
   end
 
-  @impl NervesHub.Firmwares.Upload
+  @impl Upload
   def delta_metadata(org_id, source_firmware_uuid, target_firmware_uuid) do
     web_config = Application.get_env(:nerves_hub, NervesHubWeb.Endpoint)
 

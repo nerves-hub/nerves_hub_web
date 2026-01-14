@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
   use NervesHubWeb, tab_component: :activity
 
   alias NervesHub.AuditLogs
-
   alias NervesHubWeb.Components.Pager
 
   def tab_params(params, _uri, socket) do

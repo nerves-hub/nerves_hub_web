@@ -2,14 +2,14 @@ defmodule NervesHubWeb.DeviceSocket do
   use Phoenix.Socket
   use OpenTelemetryDecorator
 
-  require Logger
-
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Products
-
+  alias Phoenix.Socket.Transport
   alias Plug.Crypto
+
+  require Logger
 
   channel("console", NervesHubWeb.ConsoleChannel)
   channel("device:*", NervesHubWeb.DeviceChannel)
@@ -20,21 +20,21 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defoverridable init: 1, handle_in: 2, terminate: 2
 
-  @impl Phoenix.Socket.Transport
+  @impl Transport
   def init(state_tuple) do
     {:ok, {state, socket}} = super(state_tuple)
     socket = on_connect(socket)
     {:ok, {state, socket}}
   end
 
-  @impl Phoenix.Socket.Transport
+  @impl Transport
   @decorate with_span("Channels.DeviceSocket.terminate")
   def terminate(reason, {channels_info, socket}) do
     socket = on_disconnect(reason, socket)
     super(reason, {channels_info, socket})
   end
 
-  @impl Phoenix.Socket.Transport
+  @impl Transport
   def handle_in(msg, {state, socket}) do
     socket = heartbeat(socket)
     super(msg, {state, socket})

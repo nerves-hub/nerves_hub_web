@@ -1,18 +1,12 @@
 defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :updated_live_view
 
-  require Logger
-
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Extensions.Health
   alias NervesHub.Tracker
-
-  alias NervesHubWeb.Components.DeviceUpdateStatus
-  alias NervesHubWeb.Components.FwupProgress
-
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
   alias NervesHubWeb.Components.DevicePage.DetailsTab
@@ -20,12 +14,15 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DevicePage.LocalShellTab
   alias NervesHubWeb.Components.DevicePage.LogsTab
   alias NervesHubWeb.Components.DevicePage.SettingsTab
-
-  @tab_components [ActivityTab, ConsoleTab, DetailsTab, HealthTab, LocalShellTab, LogsTab, SettingsTab]
-
+  alias NervesHubWeb.Components.DeviceUpdateStatus
+  alias NervesHubWeb.Components.FwupProgress
   alias NervesHubWeb.Presence
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.Socket.Broadcast
+
+  require Logger
+
+  @tab_components [ActivityTab, ConsoleTab, DetailsTab, HealthTab, LocalShellTab, LogsTab, SettingsTab]
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product, user: user} = socket.assigns

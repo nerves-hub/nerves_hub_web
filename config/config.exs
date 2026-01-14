@@ -1,5 +1,16 @@
 import Config
 
+alias NervesHub.Workers.CleanStaleDeviceConnections
+alias NervesHub.Workers.DeleteOldDeviceConnections
+alias NervesHub.Workers.DeviceHealthTruncation
+alias NervesHub.Workers.ExpireInflightUpdates
+alias NervesHub.Workers.FirmwareDeltaTimeout
+alias NervesHub.Workers.ScheduleOrgAuditLogTruncation
+alias NervesHubWeb.API.ErrorJSON
+alias Phoenix.LiveView.Engine
+alias Swoosh.ApiClient.Finch
+alias Ueberauth.Strategy.Google
+
 # Used by spellweaver
 config :bun, :version, "1.2.18"
 
@@ -38,7 +49,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
     signing_salt: "Kct3W8U7uQ6KAczYjzNbiYS6A8Pbtk3f"
   ],
   render_errors: [
-    formats: [html: NervesHubWeb.ErrorView, json: NervesHubWeb.API.ErrorJSON],
+    formats: [html: NervesHubWeb.ErrorView, json: ErrorJSON],
     accepts: ~w(html json)
   ],
   pubsub_server: NervesHub.PubSub
@@ -65,12 +76,12 @@ config :nerves_hub, Oban,
     {Oban.Plugins.Pruner, max_age: 604_800},
     {Oban.Plugins.Cron,
      crontab: [
-       {"0 * * * *", NervesHub.Workers.ScheduleOrgAuditLogTruncation},
-       {"*/1 * * * *", NervesHub.Workers.CleanStaleDeviceConnections},
-       {"* * * * *", NervesHub.Workers.FirmwareDeltaTimeout},
-       {"1,16,31,46 * * * *", NervesHub.Workers.DeleteOldDeviceConnections},
-       {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates},
-       {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation}
+       {"0 * * * *", ScheduleOrgAuditLogTruncation},
+       {"*/1 * * * *", CleanStaleDeviceConnections},
+       {"* * * * *", FirmwareDeltaTimeout},
+       {"1,16,31,46 * * * *", DeleteOldDeviceConnections},
+       {"*/5 * * * *", ExpireInflightUpdates},
+       {"*/15 * * * *", DeviceHealthTruncation}
      ]}
   ]
 
@@ -82,10 +93,10 @@ config :nerves_hub,
 config :phoenix,
   json_library: Jason,
   template_engines: [
-    leex: Phoenix.LiveView.Engine
+    leex: Engine
   ]
 
-config :swoosh, :api_client, Swoosh.ApiClient.Finch
+config :swoosh, :api_client, Finch
 
 config :tailwind,
   version: "3.4.3",
@@ -100,7 +111,7 @@ config :tailwind,
 
 config :ueberauth, Ueberauth,
   providers: [
-    google: {Ueberauth.Strategy.Google, [default_scope: "email profile openid"]}
+    google: {Google, [default_scope: "email profile openid"]}
   ]
 
 # Environment specific config

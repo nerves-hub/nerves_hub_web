@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
   use NervesHubWeb, :live_component
 
   alias NervesHub.AuditLogs
-
   alias NervesHubWeb.Components.Pager
 
   def update(assigns, socket) do

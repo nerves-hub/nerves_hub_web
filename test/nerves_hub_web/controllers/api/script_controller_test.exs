@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
   use Mimic
 
   alias NervesHub.Fixtures
+  alias NervesHub.Scripts.Runner
 
   setup context do
     org_key = Fixtures.org_key_fixture(context.org, context.user)
@@ -150,7 +151,7 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
 
       path = Routes.api_script_path(conn, :send, device, script.name)
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
 
       conn
@@ -163,7 +164,7 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
 
       path = Routes.api_script_path(conn, :send, device, script.id)
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
 
       conn

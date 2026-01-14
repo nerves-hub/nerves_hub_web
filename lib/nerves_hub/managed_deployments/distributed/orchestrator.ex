@@ -10,16 +10,15 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   use GenServer
   use OpenTelemetryDecorator
 
-  require Logger
-
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
-
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
+
+  require Logger
 
   @maybe_trigger_interval 3_000
 

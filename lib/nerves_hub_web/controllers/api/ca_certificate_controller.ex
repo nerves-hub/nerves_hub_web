@@ -4,7 +4,6 @@ defmodule NervesHubWeb.API.CACertificateController do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
-
   alias NervesHubWeb.API.Schemas.CACertificateSchemas
 
   tags(["CA Certificates"])

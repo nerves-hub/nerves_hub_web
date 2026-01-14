@@ -4,7 +4,6 @@ defmodule NervesHubWeb.API.ProductController do
 
   alias NervesHub.Products
   alias NervesHub.Products.Product
-
   alias NervesHubWeb.API.Schemas.ProductSchemas
 
   tags(["Products"])

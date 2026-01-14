@@ -1,7 +1,7 @@
 defmodule NervesHub.ScriptsTest do
-  alias NervesHub.Accounts
   use NervesHub.DataCase
 
+  alias NervesHub.Accounts
   alias NervesHub.Fixtures
   alias NervesHub.Scripts
 
