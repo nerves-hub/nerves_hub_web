@@ -30,8 +30,6 @@ defmodule NervesHub.Extensions do
   @callback description() :: String.t()
   @callback enabled?() :: boolean()
 
-  require Logger
-
   @supported_extensions [:health, :geo, :local_shell, :logging]
   @type extension() :: :health | :geo | :local_shell | :logging
 

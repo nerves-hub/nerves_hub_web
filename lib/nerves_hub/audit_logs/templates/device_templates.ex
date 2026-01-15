@@ -10,8 +10,6 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
-  require Logger
-
   ## General
 
   @spec audit_reboot(User.t(), Device.t()) :: :ok
