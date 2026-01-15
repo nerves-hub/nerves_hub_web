@@ -195,9 +195,9 @@ defmodule NervesHub.ManagedDeployments do
   - Records audit logs depending on changes
   - Creates deployment release record if firmware_id or archive_id changed
   """
-  @spec update_deployment_group(DeploymentGroup.t(), map, User.t()) ::
+  @spec update_deployment_group(DeploymentGroup.t(), map, User.t() | Product.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def update_deployment_group(deployment_group, params, user) do
+  def update_deployment_group(deployment_group, params, actor) do
     deployment_group = Repo.preload(deployment_group, :firmware)
 
     result =
@@ -214,7 +214,7 @@ defmodule NervesHub.ManagedDeployments do
              :ok <- create_audit_logs!(deployment_group, changeset),
              {:ok, _deployment_group} <-
                if(create_deployment_release?,
-                 do: create_deployment_release(deployment_group, user.id),
+                 do: create_deployment_release(deployment_group, actor),
                  else: {:ok, nil}
                ) do
           {:ok, {deployment_group, changeset}}
@@ -241,14 +241,16 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  defp create_deployment_release(deployment_group, user_id) do
+  defp create_deployment_release(deployment_group, actor) do
     %DeploymentRelease{}
-    |> DeploymentRelease.changeset(%{
-      deployment_group_id: deployment_group.id,
-      firmware_id: deployment_group.firmware_id,
-      archive_id: deployment_group.archive_id,
-      created_by_id: user_id
-    })
+    |> DeploymentRelease.changeset(
+      actor,
+      %{
+        deployment_group_id: deployment_group.id,
+        firmware_id: deployment_group.firmware_id,
+        archive_id: deployment_group.archive_id
+      }
+    )
     |> Repo.insert()
   end
 
@@ -345,14 +347,14 @@ defmodule NervesHub.ManagedDeployments do
     Ecto.Changeset.change(%DeploymentGroup{})
   end
 
-  @spec create_deployment_group(map(), Product.t(), User.t()) ::
+  @spec create_deployment_group(map(), Product.t(), User.t() | Product.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def create_deployment_group(params, %Product{} = product, user) do
+  def create_deployment_group(params, %Product{} = product, actor) do
     Repo.transact(fn ->
       changeset = DeploymentGroup.create_changeset(params, product)
 
       with {:ok, deployment_group} <- Repo.insert(changeset),
-           {:ok, _release} <- create_deployment_release(deployment_group, user.id) do
+           {:ok, _release} <- create_deployment_release(deployment_group, actor) do
         {:ok, deployment_group}
       end
     end)

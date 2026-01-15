@@ -3,7 +3,6 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   Templates for and handling of audit logging for device operations.
   """
 
-  alias NervesHub.Accounts.User
   alias NervesHub.Archives.Archive
   alias NervesHub.AuditLogs
   alias NervesHub.Devices.Device
@@ -12,16 +11,18 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
 
   ## General
 
-  @spec audit_reboot(User.t(), Device.t()) :: :ok
-  def audit_reboot(user, device) do
-    description = "User #{user.name} rebooted device #{device.identifier}"
-    AuditLogs.audit!(user, device, description)
+  @spec audit_reboot(AuditLogs.actor(), Device.t()) :: :ok
+  def audit_reboot(actor, device) do
+    actor_label = AuditLogs.actor_template(actor)
+    description = "#{actor_label} rebooted device #{device.identifier}"
+    AuditLogs.audit!(actor, device, description)
   end
 
-  @spec audit_request_action(User.t(), Device.t(), String.t()) :: :ok
-  def audit_request_action(user, device, action) do
-    description = "User #{user.name} requested the device (#{device.identifier}) #{action}"
-    AuditLogs.audit!(user, device, description)
+  @spec audit_request_action(AuditLogs.actor(), Device.t(), String.t()) :: :ok
+  def audit_request_action(actor, device, action) do
+    actor_label = AuditLogs.actor_template(actor)
+    description = "#{actor_label} requested the device (#{device.identifier}) #{action}"
+    AuditLogs.audit!(actor, device, description)
   end
 
   ## Firmware and upgrades
@@ -32,20 +33,24 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit(device, device, description)
   end
 
-  @spec audit_pushed_available_update(User.t(), Device.t(), DeploymentGroup.t()) :: :ok
-  def audit_pushed_available_update(user, device, deployment_group) do
-    description =
-      "User #{user.name} pushed available firmware update #{deployment_group.firmware.version} #{deployment_group.firmware.uuid} to device #{device.identifier}"
+  @spec audit_pushed_available_update(AuditLogs.actor(), Device.t(), DeploymentGroup.t()) :: :ok
+  def audit_pushed_available_update(actor, device, deployment_group) do
+    actor_label = AuditLogs.actor_template(actor)
 
-    AuditLogs.audit!(user, device, description)
+    description =
+      "#{actor_label} pushed available firmware update #{deployment_group.firmware.version} #{deployment_group.firmware.uuid} to device #{device.identifier}"
+
+    AuditLogs.audit!(actor, device, description)
   end
 
-  @spec audit_firmware_pushed(User.t(), Device.t(), Firmware.t()) :: :ok
-  def audit_firmware_pushed(user, device, firmware) do
-    description =
-      "User #{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+  @spec audit_firmware_pushed(AuditLogs.actor(), Device.t(), Firmware.t()) :: :ok
+  def audit_firmware_pushed(actor, device, firmware) do
+    actor_label = AuditLogs.actor_template(actor)
 
-    AuditLogs.audit!(user, device, description)
+    description =
+      "#{actor_label} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+
+    AuditLogs.audit!(actor, device, description)
   end
 
   @spec audit_firmware_metadata_updated(Device.t()) :: :ok
@@ -91,12 +96,15 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(deployment_group, device, description)
   end
 
-  @spec audit_device_deployment_group_update(User.t(), Device.t(), DeploymentGroup.t()) :: :ok
-  def audit_device_deployment_group_update(user, device, deployment_group) do
+  @spec audit_device_deployment_group_update(AuditLogs.actor(), Device.t(), DeploymentGroup.t()) ::
+          :ok
+  def audit_device_deployment_group_update(actor, device, deployment_group) do
+    actor_label = AuditLogs.actor_template(actor)
+
     AuditLogs.audit!(
-      user,
+      actor,
       device,
-      "User #{user.name} set #{device.identifier}'s deployment group to #{deployment_group.name}"
+      "#{actor_label} set #{device.identifier}'s deployment group to #{deployment_group.name}"
     )
   end
 

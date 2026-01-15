@@ -2,6 +2,7 @@ defmodule NervesHubWeb.API.ProductController do
   use NervesHubWeb, :api_controller
   use OpenApiSpex.ControllerSpecs
 
+  alias NervesHub.Accounts.User
   alias NervesHub.Products
   alias NervesHub.Products.Product
 
@@ -28,9 +29,14 @@ defmodule NervesHubWeb.API.ProductController do
     ]
   )
 
-  def index(%{assigns: %{user: user, org: org}} = conn, _params) do
+  def index(%{assigns: %{actor: %User{} = user, org: org}} = conn, _params) do
     products = Products.get_products_by_user_and_org(user, org)
     render(conn, :index, products: products)
+  end
+
+  def index(%{assigns: %{actor: %Product{} = product}} = conn, _params) do
+    # A product API key can only access the one product it is for
+    render(conn, :index, products: [product])
   end
 
   operation(:create,

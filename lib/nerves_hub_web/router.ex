@@ -50,7 +50,7 @@ defmodule NervesHubWeb.Router do
   end
 
   pipeline :api_require_authenticated_user do
-    plug(NervesHubWeb.API.Plugs.AuthenticateUser)
+    plug(NervesHubWeb.API.Plugs.AuthenticateUserOrProduct)
   end
 
   pipeline :api_org do

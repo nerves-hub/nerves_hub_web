@@ -163,6 +163,95 @@
     </div>
 
     <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+      <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="text-base text-neutral-50 font-medium">Product API Keys</div>
+      </div>
+
+      <div class="p-6 flex flex-col gap-3">
+        <div class="flex flex-col gap-3">
+          <p class="text-sm w-2/3">
+            Product API Keys allow you to authenticate API requests to manage your product programmatically.
+          </p>
+          <p class="text-sm w-2/3">
+            Each API key can optionally be given a descriptive name to help you identify its purpose.
+          </p>
+          <p class="text-sm w-2/3">
+            Keep your API keys secure and do not share them publicly. If a key is compromised, deactivate it immediately.
+          </p>
+        </div>
+      </div>
+
+      <div :if={Enum.any?(@product_api_keys)} class="pt-6 flex flex-col gap-3 listing">
+        <table>
+          <thead class="border-y border-zinc-700">
+            <tr>
+              <th>Name</th>
+              <th>Key</th>
+              <th>Created at</th>
+              <th>Deactivated at</th>
+              <th class="min-w-60"></th>
+            </tr>
+          </thead>
+          <tr :for={api_key <- @product_api_keys} class="item">
+            <td>
+              <span class="">{api_key.name || "—"}</span>
+            </td>
+            <td>
+              - redacted -
+            </td>
+            <td>
+              {Date.to_string(api_key.inserted_at)}
+            </td>
+            <td>
+              <span class="">{if api_key.deactivated_at, do: Date.to_string(api_key.deactivated_at)}</span>
+            </td>
+            <td>
+              <div :if={is_nil(api_key.deactivated_at)} class="h-full flex justify-start items-center gap-3">
+                <input type="hidden" id={"api-key-#{api_key.id}"} value={api_key.key} />
+
+                <.button value={api_key.id} id={"api-key-#{api_key.id}-button"} phx-hook="ApiKeyClipboardClick" aria-label="Copy API key">
+                  Copy key
+                </.button>
+
+                <.button
+                  phx-click="deactivate-api-key"
+                  phx-value-api_key_id={api_key.id}
+                  disabled={!authorized?(:"product:update", @org_user)}
+                  data-confirm="Are you sure you want to deactivate this API key?"
+                  aria-label="Deactivate API key"
+                >
+                  Deactivate
+                </.button>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div :if={Enum.empty?(@product_api_keys)} class="p-6 flex flex-col gap-3 border-t border-zinc-700">
+        <div class="flex flex-col gap-3">
+          <p class="text-amber-500 text-sm w-2/3">
+            You don't have any Product API Keys configured.
+          </p>
+        </div>
+      </div>
+
+      <div class="p-6 flex border-t border-zinc-700">
+        <form phx-submit="add-api-key" class="flex flex-row gap-4">
+          <.input name="name" id="product-api-key-name" value="" label="Key description" placeholder="CI integration" />
+          <.button
+            class="self-end"
+            disabled={!authorized?(:"product:update", @org_user)}
+            data-confirm="are you sure you want to generate a new product api key?"
+            aria-label="Create Product API Key"
+          >
+            <.icon name="add" />Create Product API Key
+          </.button>
+        </form>
+      </div>
+    </div>
+
+    <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
       <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
         <div>
           <button

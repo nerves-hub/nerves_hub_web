@@ -40,9 +40,9 @@ defmodule NervesHub.DeviceEvents do
     end)
   end
 
-  def reboot(device, user) do
+  def reboot(device, actor) do
     Repo.transact(fn ->
-      DeviceTemplates.audit_reboot(user, device)
+      DeviceTemplates.audit_reboot(actor, device)
 
       broadcast(device, "reboot", %{})
 

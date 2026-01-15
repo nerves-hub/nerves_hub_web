@@ -21,7 +21,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   operation(:create, summary: "Create a new Deployment Group for a Product")
 
-  def create(%{assigns: %{org: org, product: product, user: user}} = conn, params) do
+  def create(%{assigns: %{org: org, product: product, actor: actor}} = conn, params) do
     case Map.get(params, "firmware") do
       nil ->
         {:error, {:no_firmware_uuid, "No firmware UUID provided"}}
@@ -29,8 +29,9 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
       uuid ->
         with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
              params = Map.put(params, "firmware_id", firmware.id),
-             {:ok, deployment_group} <- ManagedDeployments.create_deployment_group(params, product, user) do
-          DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)
+             {:ok, deployment_group} <-
+               ManagedDeployments.create_deployment_group(params, product, actor) do
+          DeploymentGroupTemplates.audit_deployment_created(actor, deployment_group)
 
           conn
           |> put_status(:created)
@@ -59,7 +60,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   operation(:update, summary: "Update a Deployment Group")
 
-  def update(%{assigns: %{product: product, user: user}} = conn, %{
+  def update(%{assigns: %{product: product, actor: actor}} = conn, %{
         "name" => name,
         "deployment" => deployment_group_params
       }) do
@@ -67,8 +68,8 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
            ManagedDeployments.get_deployment_group_by_name(product, name),
          params = update_params(product, deployment_group_params),
          {:ok, updated_deployment_group} <-
-           ManagedDeployments.update_deployment_group(deployment_group, params, user) do
-      DeploymentGroupTemplates.audit_deployment_updated(user, deployment_group)
+           ManagedDeployments.update_deployment_group(deployment_group, params, actor) do
+      DeploymentGroupTemplates.audit_deployment_updated(actor, deployment_group)
 
       render(conn, :show, deployment_group: updated_deployment_group)
     end

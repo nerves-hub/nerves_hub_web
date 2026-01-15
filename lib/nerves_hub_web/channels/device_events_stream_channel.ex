@@ -11,18 +11,36 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   require Logger
 
   alias NervesHub.Accounts
+  alias NervesHub.Products.ProductAPIKeyAccess
   alias NervesHubWeb.Helpers.Authorization
 
   @impl Phoenix.Channel
-  def join("device:" <> device_identifier, _params, socket) do
+  def join("device:" <> device_identifier, _params, %{assigns: %{auth_type: :user_token, user: user}} = socket) do
     # Socket already has authenticated user, just validate device access
-    if authorized?(socket.assigns.user, device_identifier) do
-      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device_identifier}:internal")
-
-      {:ok, socket}
+    if authorized?(user, device_identifier) do
+      device_join(socket, device_identifier)
     else
       {:error, %{reason: "unauthorized"}}
     end
+  end
+
+  # No user, using a product api key
+  def join(
+        "device:" <> device_identifier,
+        _params,
+        %{assigns: %{auth_type: :product_api_key, product: product}} = socket
+      ) do
+    if ProductAPIKeyAccess.access_device?(product, device_identifier) do
+      device_join(socket, device_identifier)
+    else
+      {:error, %{reason: "unauthorized"}}
+    end
+  end
+
+  defp device_join(socket, device_identifier) do
+    :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device_identifier}:internal")
+
+    {:ok, socket}
   end
 
   @impl Phoenix.Channel

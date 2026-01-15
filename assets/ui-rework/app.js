@@ -7,6 +7,7 @@ import "chartjs-adapter-date-fns"
 import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
+import ApiKeyClipboardClick from "./hooks/apiKeyClipboardClick.js"
 import Chart from "./hooks/chart.js"
 import Console from "./hooks/console.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
@@ -40,6 +41,7 @@ let csrfToken = document
 let liveSocket = new LiveSocket("/live", Socket, {
   params: { _csrf_token: csrfToken },
   hooks: {
+    ApiKeyClipboardClick,
     Chart,
     Console,
     DeviceLocationMap,
