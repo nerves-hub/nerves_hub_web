@@ -8,11 +8,6 @@ defmodule NervesHub.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      preferred_cli_env: [
-        docs: :docs,
-        coveralls: :test,
-        "coveralls.html": :test
-      ],
       elixirc_paths: elixirc_paths(Mix.env()),
       elixir: "~> 1.18.0",
       listeners: listeners(Mix.env()),
@@ -54,6 +49,14 @@ defmodule NervesHub.MixProject do
         :crypto,
         :public_key
       ]
+    ]
+  end
+
+  def cli() do
+    [
+      docs: :docs,
+      coveralls: :test,
+      "coveralls.html": :test
     ]
   end
 

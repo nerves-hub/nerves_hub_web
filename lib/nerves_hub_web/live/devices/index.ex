@@ -1,7 +1,6 @@
 defmodule NervesHubWeb.Live.Devices.Index do
   use NervesHubWeb, :updated_live_view
 
-  require Logger
   require OpenTelemetry.Tracer, as: Tracer
 
   alias NervesHub.DeviceEvents
