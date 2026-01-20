@@ -393,6 +393,7 @@ defmodule NervesHubWeb do
     quote do
       use PhoenixHTMLHelpers
       use Gettext, backend: NervesHubWeb.Gettext
+
       import NervesHubWeb.ErrorHelpers
       # Use all HTML functionality (forms, tags, etc)
       import Phoenix.HTML
