@@ -1,9 +1,9 @@
 defmodule NervesHub.Telemetry.FilteredSampler do
   # Inspired by https://arathunku.com/b/2024/notes-on-adding-opentelemetry-to-an-elixir-app/
 
-  alias OpenTelemetry.Tracer
-
   @behaviour :otel_sampler
+
+  alias OpenTelemetry.Tracer
 
   require Logger
   require OpenTelemetry.Tracer, as: Tracer

@@ -391,13 +391,12 @@ defmodule NervesHubWeb do
 
   defp view_helpers() do
     quote do
+      use PhoenixHTMLHelpers
+      use Gettext, backend: NervesHubWeb.Gettext
+      import NervesHubWeb.ErrorHelpers
       # Use all HTML functionality (forms, tags, etc)
       import Phoenix.HTML
       import Phoenix.HTML.Form
-      use PhoenixHTMLHelpers
-      use Gettext, backend: NervesHubWeb.Gettext
-
-      import NervesHubWeb.ErrorHelpers
 
       # Import LiveView helpers (live_render, live_component, live_patch, etc)
       import Phoenix.LiveView.Helpers
