@@ -5,7 +5,6 @@ defmodule NervesHubWeb.SessionControllerTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.UserToken
-
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 

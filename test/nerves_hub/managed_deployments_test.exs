@@ -4,6 +4,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
   import Phoenix.ChannelTest
 
+  alias Ecto.Changeset
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -13,8 +14,6 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias NervesHub.ManagedDeployments.DeploymentGroup.Conditions
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Workers.FirmwareDeltaBuilder
-
-  alias Ecto.Changeset
   alias Phoenix.Socket.Broadcast
 
   setup do

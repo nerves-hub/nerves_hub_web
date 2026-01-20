@@ -1,8 +1,6 @@
 defmodule NervesHubWeb.Live.Devices.Index do
   use NervesHubWeb, :updated_live_view
 
-  require OpenTelemetry.Tracer, as: Tracer
-
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
@@ -11,17 +9,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
-
-  alias Phoenix.LiveView.AsyncResult
-  alias Phoenix.LiveView.JS
-  alias Phoenix.Socket.Broadcast
-
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
+  alias Phoenix.LiveView.AsyncResult
+  alias Phoenix.LiveView.JS
+  alias Phoenix.Socket.Broadcast
+
+  require Logger
+  require OpenTelemetry.Tracer, as: Tracer
 
   @list_refresh_time 10_000
   # Delay frequent refresh triggers to this interval

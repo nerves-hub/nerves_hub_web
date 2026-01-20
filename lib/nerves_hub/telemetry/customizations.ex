@@ -1,6 +1,8 @@
 defmodule NervesHub.Telemetry.Customizations do
   alias OpenTelemetry.Tracer
 
+  require OpenTelemetry.Tracer
+
   def setup() do
     :telemetry.attach_many(
       {__MODULE__, :bandit_customizations},

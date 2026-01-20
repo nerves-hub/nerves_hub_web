@@ -1,8 +1,8 @@
 defmodule NervesHubWeb.RoleValidateHelpersTest do
   use NervesHub.DataCase, async: true
 
-  import Plug.Test
   import Plug.Conn
+  import Plug.Test
 
   alias NervesHub.Fixtures
   alias NervesHubWeb.Helpers.RoleValidateHelpers, as: Validator

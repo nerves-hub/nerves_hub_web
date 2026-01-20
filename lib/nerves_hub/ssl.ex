@@ -5,7 +5,9 @@ defmodule NervesHub.SSL do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Devices.CACertificate.JITP
   alias NervesHub.Devices.Device
+  alias X509.Certificate.Extension
 
   @type pkix_path_validation_reason ::
           :cert_expired
@@ -27,7 +29,7 @@ defmodule NervesHub.SSL do
           | pkix_path_validation_reason()
   @type event ::
           {:bad_cert, reason()}
-          | {:extension, X509.Certificate.Extension.t()}
+          | {:extension, Extension.t()}
           | :valid
           | :valid_peer
 
@@ -215,7 +217,7 @@ defmodule NervesHub.SSL do
     end
   end
 
-  defp maybe_jitp_device(cn, %{org_id: org_id, jitp: %Devices.CACertificate.JITP{} = jitp}) do
+  defp maybe_jitp_device(cn, %{org_id: org_id, jitp: %JITP{} = jitp}) do
     case Devices.get_device_by(identifier: cn, org_id: org_id) do
       {:ok, %{deleted_at: nil}} = resp ->
         resp

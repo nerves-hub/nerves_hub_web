@@ -1,7 +1,7 @@
 defmodule NervesHub.Devices.PinnedDevicesTest do
-  alias NervesHub.Accounts
   use NervesHub.DataCase, async: false
 
+  alias NervesHub.Accounts
   alias NervesHub.Devices
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Fixtures

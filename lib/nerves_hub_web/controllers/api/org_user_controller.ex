@@ -4,7 +4,6 @@ defmodule NervesHubWeb.API.OrgUserController do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.UserNotifier
-
   alias NervesHubWeb.API.Schemas.OrgUserSchemas
 
   plug(:validate_role, org: :admin)

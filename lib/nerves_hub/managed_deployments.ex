@@ -1,6 +1,7 @@
 defmodule NervesHub.ManagedDeployments do
   import Ecto.Query
 
+  alias Ecto.Changeset
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
@@ -13,11 +14,10 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Products.Product
+  alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
 
-  alias NervesHub.Repo
-
-  alias Ecto.Changeset
+  require Logger
 
   @spec should_run_orchestrator() :: [DeploymentGroup.t()]
   def should_run_orchestrator() do

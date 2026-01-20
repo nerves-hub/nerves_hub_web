@@ -8,6 +8,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Fwup, as: FwupUtil
   alias NervesHub.Helpers.Logging
 
@@ -20,7 +21,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   # in the best case
   @delta_overhead_limit 22
 
-  @impl NervesHub.Firmwares.UpdateTool
+  @impl UpdateTool
   def get_firmware_metadata_from_file(filepath) do
     with {:ok, firmware_metadata} <- FwupUtil.metadata(filepath),
          {:ok, meta_conf_path} <- extract_meta_conf_locally(filepath),
@@ -37,7 +38,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     end
   end
 
-  @impl NervesHub.Firmwares.UpdateTool
+  @impl UpdateTool
   def get_firmware_metadata_from_upload(firmware) do
     case download_archive(firmware) do
       {:ok, filepath} -> get_firmware_metadata_from_file(filepath)
@@ -45,7 +46,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     end
   end
 
-  @impl NervesHub.Firmwares.UpdateTool
+  @impl UpdateTool
   def create_firmware_delta_file({source_uuid, source_url}, {target_uuid, target_url}) do
     work_dir = Path.join(System.tmp_dir(), "#{source_uuid}_#{target_uuid}")
     _ = File.mkdir_p(work_dir)
@@ -74,7 +75,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     end
   end
 
-  @impl NervesHub.Firmwares.UpdateTool
+  @impl UpdateTool
   def cleanup_firmware_delta_files(firmware_delta_path) do
     Path.dirname(firmware_delta_path)
     |> File.rm_rf()
@@ -89,14 +90,14 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     end
   end
 
-  @impl NervesHub.Firmwares.UpdateTool
+  @impl UpdateTool
   def delta_updatable?(file_path) do
     {:ok, feature_usage} = Confuse.Fwup.get_feature_usage(file_path)
 
     feature_usage.raw_deltas? or feature_usage.fat_deltas?
   end
 
-  @impl NervesHub.Firmwares.UpdateTool
+  @impl UpdateTool
   def device_update_type(%Device{firmware_metadata: fw_meta} = device, %Firmware{} = target) do
     # Unknown version, assume oldest
     device_fwup_version = device.firmware_metadata.fwup_version || @oldest_version

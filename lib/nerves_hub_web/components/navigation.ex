@@ -1,12 +1,12 @@
 defmodule NervesHubWeb.Components.Navigation do
   use NervesHubWeb, :component
 
+  import NervesHubWeb.Components.SimpleActiveLink
+
   alias NervesHub.Accounts.User
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Products.Product
-
-  import NervesHubWeb.Components.SimpleActiveLink
 
   attr(:org, :any)
   attr(:product, :any)

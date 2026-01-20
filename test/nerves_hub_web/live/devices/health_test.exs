@@ -1,10 +1,10 @@
 defmodule NervesHubWeb.Devices.HealthTest do
   use NervesHubWeb.ConnCase.Browser, async: false
-  import Phoenix.HTML
   use PhoenixHTMLHelpers
 
-  alias NervesHub.Devices.DeviceMetric
+  import Phoenix.HTML
 
+  alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
   alias Phoenix.Socket.Broadcast

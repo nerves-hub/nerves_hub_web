@@ -1,9 +1,9 @@
 defmodule Mix.Tasks.Assets.Build do
+  @shortdoc "Build web assets"
   @moduledoc false
 
   use Mix.Task
 
-  @shortdoc "Build web assets"
   @assets Path.expand("../../../assets", __DIR__)
 
   def run(_) do

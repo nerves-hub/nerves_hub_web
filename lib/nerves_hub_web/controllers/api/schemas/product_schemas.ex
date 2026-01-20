@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.Schemas.ProductSchemas do
   alias OpenApiSpex.Schema
+
   require OpenApiSpex
 
   defmodule Product do

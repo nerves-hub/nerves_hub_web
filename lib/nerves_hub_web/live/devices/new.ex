@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.Devices.New do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias Phoenix.HTML.FormField
 
   def mount(_params, _session, socket) do
     changeset = Ecto.Changeset.change(%Device{})
@@ -38,7 +39,7 @@ defmodule NervesHubWeb.Live.Devices.New do
     end
   end
 
-  defp tags_to_string(%Phoenix.HTML.FormField{} = field) do
+  defp tags_to_string(%FormField{} = field) do
     tags_to_string(field.value)
   end
 

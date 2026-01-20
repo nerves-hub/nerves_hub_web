@@ -3,6 +3,7 @@ defmodule NervesHub.Devices.Device do
 
   import Ecto.Changeset
 
+  alias __MODULE__
   alias NervesHub.Accounts.Org
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
@@ -13,8 +14,7 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
-
-  alias __MODULE__
+  alias NervesHub.Types.Tag
 
   @derive {Flop.Schema, filterable: [], sortable: []}
 
@@ -55,7 +55,7 @@ defmodule NervesHub.Devices.Device do
 
     field(:identifier, :string)
     field(:description, :string)
-    field(:tags, NervesHub.Types.Tag)
+    field(:tags, Tag)
     field(:connecting_code, :string)
     field(:custom_location_coordinates, {:array, :float})
 

@@ -3,7 +3,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   alias NervesHub.Accounts
   alias NervesHub.Firmwares
-
+  alias NervesHub.Firmwares.Upload
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
 
@@ -284,6 +284,6 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp max_file_size() do
-    Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload, [])[:max_size]
+    Application.get_env(:nerves_hub, Upload, [])[:max_size]
   end
 end

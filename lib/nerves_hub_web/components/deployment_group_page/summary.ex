@@ -1,13 +1,13 @@
 defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   use NervesHubWeb, :live_component
 
+  import NervesHubWeb.LayoutView,
+    only: [humanize_size: 1]
+
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
   alias Phoenix.Naming
-
-  import NervesHubWeb.LayoutView,
-    only: [humanize_size: 1]
 
   @impl Phoenix.LiveComponent
   def update(%{update_inflight_info: true}, socket) do

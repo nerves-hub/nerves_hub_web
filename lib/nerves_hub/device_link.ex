@@ -10,7 +10,6 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
-
   alias Phoenix.Channel.Server, as: ChannelServer
 
   @spec join(Device.t(), connection_reference :: String.t(), params :: map()) ::

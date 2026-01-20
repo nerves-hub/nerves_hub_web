@@ -6,7 +6,6 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.CACertificate.CSR
   alias NervesHub.Products
-
   alias NervesHubWeb.Components.CAHelpers
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.LayoutView.DateTimeFormat

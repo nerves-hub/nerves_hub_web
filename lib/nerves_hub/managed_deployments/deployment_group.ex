@@ -4,6 +4,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   import Ecto.Changeset
   import Ecto.Query
 
+  alias __MODULE__
   alias NervesHub.Accounts.Org
   alias NervesHub.Archives
   alias NervesHub.Archives.Archive
@@ -14,8 +15,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
-
-  alias __MODULE__
+  alias NervesHub.Types.Tag
 
   @type t :: %__MODULE__{}
 
@@ -44,7 +44,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     embeds_one :conditions, __MODULE__.Conditions, primary_key: false, on_replace: :update do
       field(:version, :string, default: "")
-      field(:tags, NervesHub.Types.Tag, default: [])
+      field(:tags, Tag, default: [])
     end
 
     field(:device_failure_threshold, :integer, default: 3)

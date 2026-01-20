@@ -3,7 +3,6 @@ defmodule NervesHub.Accounts do
 
   alias Ecto.Changeset
   alias Ecto.Multi
-
   alias NervesHub.Accounts.Invite
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
@@ -11,12 +10,11 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
-  alias NervesHub.Accounts.UserNotifier
-
   alias NervesHub.Repo
 
   @spec create_org(User.t(), map) ::
@@ -744,7 +742,7 @@ defmodule NervesHub.Accounts do
   Inspired by [GitHub authentication token formats](https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/)
   """
   @spec create_user_session_token(User.t(), String.t() | nil) :: binary()
-  def create_user_session_token(%NervesHub.Accounts.User{} = user, note \\ nil) do
+  def create_user_session_token(%User{} = user, note \\ nil) do
     {encoded_token, user_token} = UserToken.build_session_token(user, note)
     Repo.insert!(user_token)
     encoded_token
@@ -761,7 +759,7 @@ defmodule NervesHub.Accounts do
   Inspired by [GitHub authentication token formats](https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/)
   """
   @spec create_user_api_token(User.t(), String.t()) :: String.t()
-  def create_user_api_token(%NervesHub.Accounts.User{} = user, note) do
+  def create_user_api_token(%User{} = user, note) do
     {encoded_token, user_token} = UserToken.build_hashed_token(user, "api", note)
     Repo.insert!(user_token)
     encoded_token

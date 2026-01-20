@@ -5,6 +5,7 @@ defmodule NervesHub.Extensions.Health do
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
   alias NervesHub.Helpers.Logging
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -109,6 +110,6 @@ defmodule NervesHub.Extensions.Health do
   defp device_internal_broadcast!(device, event, payload) do
     topic = "device:#{device.id}:extensions"
 
-    Phoenix.Channel.Server.broadcast_from!(NervesHub.PubSub, self(), topic, event, payload)
+    ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, event, payload)
   end
 end

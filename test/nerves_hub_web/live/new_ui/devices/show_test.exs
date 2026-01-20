@@ -15,8 +15,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
-
   alias NervesHubWeb.Endpoint
+  alias Phoenix.Socket.Broadcast
 
   setup %{fixture: %{device: device}} = context do
     Endpoint.subscribe("device:#{device.id}")
@@ -308,7 +308,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{version: version, architecture: architecture, platform: platform} = firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
@@ -359,7 +359,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{version: version, architecture: architecture, platform: platform} = firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
@@ -422,7 +422,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{version: version, architecture: architecture, platform: platform} = new_firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
@@ -500,7 +500,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{version: version, architecture: architecture, platform: platform} = new_firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
@@ -550,7 +550,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{version: version, architecture: architecture, platform: platform} = new_firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
@@ -605,7 +605,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{architecture: architecture, platform: platform} = new_firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
