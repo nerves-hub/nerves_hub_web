@@ -13,10 +13,14 @@ defmodule NervesHub.DeviceLink do
 
   alias Phoenix.Channel.Server, as: ChannelServer
 
-  @spec join(Device.t(), connection_reference :: String.t(), params :: map()) :: {:ok, Device.t()} | {:error, any()}
+  @spec join(Device.t(), connection_reference :: String.t(), params :: map()) ::
+          {:ok, Device.t()} | {:error, any()}
   def join(device, ref_id, params) do
     with {:ok, device} <- update_firmware_metadata(device, params),
-         :ok <- update_connection_metadata(ref_id, %{"device_api_version" => params["device_api_version"]}),
+         :ok <-
+           update_connection_metadata(ref_id, %{
+             "device_api_version" => params["device_api_version"]
+           }),
          :ok <- maybe_clear_inflight_update(device, params) do
       device = refresh_deployment_group(device)
       {:ok, device}
@@ -25,7 +29,8 @@ defmodule NervesHub.DeviceLink do
     end
   end
 
-  @spec after_join(Device.t(), connection_reference :: String.t(), params :: map()) :: :ok | {:error, any()}
+  @spec after_join(Device.t(), connection_reference :: String.t(), params :: map()) ::
+          :ok | {:error, any()}
   def after_join(device, reference_id, params) do
     with :ok <- maybe_send_public_keys(device, params),
          :ok <- maybe_send_archive(device, params["device_api_version"], reference_id),
@@ -41,15 +46,25 @@ defmodule NervesHub.DeviceLink do
     :ok = Connections.merge_update_metadata(reference_id, metadata)
   end
 
-  @spec status_update(device :: Device.t(), status :: String.t()) :: :ok
-  def status_update(device, status) do
+  @spec status_update(device :: Device.t(), status :: String.t(), update_started? :: boolean()) ::
+          :ok
+  def status_update(device, status, update_started?) do
     # a temporary hook into failed updates
-    if String.contains?(status, "fwup error") do
-      # if there was an error during updating, clear the inflight update
-      Devices.clear_inflight_update(device)
-    end
+    if String.contains?(String.downcase(status), "fwup error") do
+      # if there was an error during updating
+      # mark the attempt
+      _ =
+        if update_started? do
+          Devices.update_attempted(device)
+        end
 
-    :ok
+      # clear the inflight update
+      Devices.clear_inflight_update(device)
+      :ok
+    else
+      # if there was no error during updating, do nothing
+      :ok
+    end
   end
 
   @spec firmware_update_progress(device :: Device.t(), percent :: integer()) :: :ok
@@ -140,7 +155,9 @@ defmodule NervesHub.DeviceLink do
   end
 
   defp maybe_request_extensions(device, device_api_version) do
-    if Version.match?(device_api_version, ">= 2.2.0"), do: broadcast(device, "extensions:get", %{})
+    if Version.match?(device_api_version, ">= 2.2.0"),
+      do: broadcast(device, "extensions:get", %{})
+
     :ok
   end
 
@@ -161,7 +178,12 @@ defmodule NervesHub.DeviceLink do
          validation_status = fetch_validation_status(params),
          auto_revert_detected? = firmware_auto_revert_detected?(params),
          {:ok, device} <-
-           Devices.update_firmware_metadata(device, metadata, validation_status, auto_revert_detected?) do
+           Devices.update_firmware_metadata(
+             device,
+             metadata,
+             validation_status,
+             auto_revert_detected?
+           ) do
       Devices.firmware_update_successful(device, previous_metadata)
     end
   end
