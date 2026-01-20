@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
-  alias NervesHubWeb.Components.DeploymentGroupPage.ReleaseHistory, as: ReleaseHistoryTab
+  alias NervesHubWeb.Components.DeploymentGroupPage.Releases, as: ReleasesTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Settings, as: SettingsTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Summary, as: SummaryTab
   alias Phoenix.Socket.Broadcast
@@ -293,6 +293,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     send_update(SummaryTab, id: "deployment_group_summary", delta_updated: true)
 
     {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info({:flash, level, message}, socket) do
+    socket
+    |> put_flash(level, message)
+    |> noreply()
   end
 
   defp selected_tab(socket) do

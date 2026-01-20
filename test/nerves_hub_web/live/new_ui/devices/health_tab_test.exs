@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
-  use Phoenix.HTML
+  import Phoenix.HTML
+  use PhoenixHTMLHelpers
 
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Repo

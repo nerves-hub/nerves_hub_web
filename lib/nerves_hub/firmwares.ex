@@ -240,7 +240,7 @@ defmodule NervesHub.Firmwares do
           {:ok, Firmware.t()}
           | {:error, Changeset.t() | :no_public_keys | :invalid_signature | any}
   def create_firmware(org, filepath, opts \\ []) do
-    upload_file_2 = opts[:upload_file_2] || (&firmware_upload_config().upload_file/2)
+    upload_file_2 = opts[:upload_file_2] || (&firmware_upload_config().upload_file(&1, &2))
 
     Repo.transaction(
       fn ->

@@ -400,7 +400,7 @@ defmodule NervesHubWeb.Router do
       live(
         "/org/:org_name/:product_name/deployment_groups/:name/releases",
         Live.DeploymentGroups.Show,
-        :release_history
+        :releases
       )
 
       live(
