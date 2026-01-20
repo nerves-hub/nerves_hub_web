@@ -444,6 +444,27 @@ defmodule NervesHub.Accounts do
     |> Repo.one!()
   end
 
+  def get_org_by_name_and_user(org_name, %User{id: user_id}) do
+    Org
+    |> join(:left, [o], u in assoc(o, :users))
+    |> where([o], o.name == ^org_name)
+    |> where([o, u], u.id == ^user_id)
+    |> Repo.exclude_deleted()
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      org -> {:ok, org}
+    end
+  end
+
+  def get_orgs_by_user(%User{id: user_id}) do
+    Org
+    |> join(:left, [o], u in assoc(o, :users))
+    |> where([o, u], u.id == ^user_id)
+    |> Repo.exclude_deleted()
+    |> Repo.all()
+  end
+
   @spec update_org(Org.t(), map) ::
           {:ok, Org.t()}
           | {:error, Changeset.t()}

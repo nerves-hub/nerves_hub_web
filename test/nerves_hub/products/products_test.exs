@@ -121,4 +121,99 @@ defmodule NervesHub.ProductsTest do
       end)
     end
   end
+
+  describe "product API keys" do
+    setup do
+      {:ok, Fixtures.standard_fixture()}
+    end
+
+    test "create_product_api_key/2 creates an API key with valid data", %{product: product} do
+      attrs = %{name: "Test API Key"}
+      assert {:ok, api_key} = Products.create_product_api_key(product, attrs)
+      assert api_key.name == "Test API Key"
+      assert api_key.product_id == product.id
+      assert String.starts_with?(api_key.key, "nhp_api_")
+      assert is_nil(api_key.deactivated_at)
+    end
+
+    test "create_product_api_key/2 requires a name", %{product: product} do
+      assert {:error, changeset} = Products.create_product_api_key(product, %{})
+      assert %{name: ["can't be blank"]} = errors_on(changeset)
+    end
+
+    test "get_product_api_key/1 returns API key by key string", %{product: product} do
+      {:ok, api_key} = Products.create_product_api_key(product, %{name: "Test Key"})
+      assert {:ok, found_key} = Products.get_product_api_key(api_key.key)
+      assert found_key.id == api_key.id
+      assert found_key.name == api_key.name
+    end
+
+    test "get_product_api_key/1 returns error for non-existent key" do
+      assert {:error, :not_found} = Products.get_product_api_key("nhp_api_invalid")
+    end
+
+    test "get_product_api_key/2 returns API key by product_id and api_key_id", %{
+      product: product
+    } do
+      {:ok, api_key} = Products.create_product_api_key(product, %{name: "Test Key"})
+      assert {:ok, found_key} = Products.get_product_api_key(product.id, api_key.id)
+      assert found_key.id == api_key.id
+    end
+
+    test "deactivate_product_api_key/2 deactivates an API key", %{product: product} do
+      {:ok, api_key} = Products.create_product_api_key(product, %{name: "Test Key"})
+      assert {:ok, deactivated} = Products.deactivate_product_api_key(product, api_key.id)
+      assert deactivated.deactivated_at != nil
+    end
+
+    test "get_product_api_key/1 does not return deactivated keys", %{product: product} do
+      {:ok, api_key} = Products.create_product_api_key(product, %{name: "Test Key"})
+      {:ok, _deactivated} = Products.deactivate_product_api_key(product, api_key.id)
+      assert {:error, :not_found} = Products.get_product_api_key(api_key.key)
+    end
+
+    test "get_product_by_api_key/1 returns product for valid API key", %{product: product} do
+      {:ok, api_key} = Products.create_product_api_key(product, %{name: "Test Key"})
+      assert {:ok, found_product} = Products.get_product_by_api_key(api_key.key)
+      assert found_product.id == product.id
+      assert found_product.name == product.name
+    end
+
+    test "get_product_by_api_key/1 returns error for non-existent key" do
+      assert {:error, :not_found} = Products.get_product_by_api_key("nhp_api_invalid")
+    end
+
+    test "get_product_by_api_key/1 returns error for deactivated key", %{product: product} do
+      {:ok, api_key} = Products.create_product_api_key(product, %{name: "Test Key"})
+      {:ok, _deactivated} = Products.deactivate_product_api_key(product, api_key.id)
+      assert {:error, :not_found} = Products.get_product_by_api_key(api_key.key)
+    end
+
+    test "get_product_by_api_key/1 does not return deleted products", %{
+      product: product,
+      user: user,
+      org: org
+    } do
+      {:ok, api_key} = Products.create_product_api_key(product, %{name: "Test Key"})
+
+      # Create a new product to delete
+      deleted_product = Fixtures.product_fixture(user, org, %{name: "to_delete"})
+
+      {:ok, deleted_api_key} =
+        Products.create_product_api_key(deleted_product, %{name: "Delete Key"})
+
+      # Verify it works before deletion
+      assert {:ok, _} = Products.get_product_by_api_key(deleted_api_key.key)
+
+      # Delete the product
+      {:ok, _} = Products.delete_product(deleted_product)
+
+      # Should not find the product
+      assert {:error, :not_found} = Products.get_product_by_api_key(deleted_api_key.key)
+
+      # Original product should still work
+      assert {:ok, found} = Products.get_product_by_api_key(api_key.key)
+      assert found.id == product.id
+    end
+  end
 end

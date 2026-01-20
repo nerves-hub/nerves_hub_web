@@ -179,13 +179,13 @@ defmodule NervesHubWeb.API.OrgUserController do
     ]
   )
 
-  def remove(%{assigns: %{org: org, user: user}} = conn, %{"user_email" => user_email}) do
+  def remove(%{assigns: %{org: org, actor: actor}} = conn, %{"user_email" => user_email}) do
     with {:ok, user_to_remove} <- Accounts.get_user_by_email(user_email),
          {:ok, _org_user} <- Accounts.get_org_user(org, user_to_remove),
          :ok <- Accounts.remove_org_user(org, user_to_remove) do
       # Now let every admin in the organization - except the admin who undertook the action
       # that this user has been removed from the organization.
-      _ = UserNotifier.deliver_all_tell_org_user_removed(org, user, user_to_remove)
+      _ = UserNotifier.deliver_all_tell_org_user_removed(org, actor, user_to_remove)
 
       send_resp(conn, :no_content, "")
     end
