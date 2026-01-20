@@ -6,7 +6,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
-
   alias NervesHub.Repo
 
   test "shows the deployment group", %{

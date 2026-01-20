@@ -4,6 +4,7 @@ defmodule NervesHub.ArchivesTest do
   alias NervesHub.Archives
   alias NervesHub.Fixtures
   alias NervesHub.Support
+  alias NervesHub.Workers.DeleteArchive
 
   describe "creating archives" do
     test "success: on a product", %{tmp_dir: tmp_dir} do
@@ -46,7 +47,7 @@ defmodule NervesHub.ArchivesTest do
       {:ok, _} = Archives.delete_archive(archive)
 
       assert_enqueued(
-        worker: NervesHub.Workers.DeleteArchive,
+        worker: DeleteArchive,
         args: %{
           "archive_path" => "/archives/#{archive.uuid}.fw"
         }

@@ -1,15 +1,13 @@
 defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   use NervesHubWeb, tab_component: :settings
 
-  alias NervesHubWeb.Components.Utils
-  alias NervesHubWeb.LayoutView.DateTimeFormat
-
   alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Extensions
-
   alias NervesHub.Repo
+  alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   def tab_params(_params, _uri, socket) do
     changeset = Ecto.Changeset.change(socket.assigns.device)

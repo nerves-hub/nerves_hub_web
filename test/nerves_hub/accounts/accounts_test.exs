@@ -2,7 +2,6 @@ defmodule NervesHub.AccountsTest do
   use NervesHub.DataCase, async: true
 
   alias Ecto.Changeset
-
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Invite
   alias NervesHub.Accounts.Org

@@ -4,7 +4,6 @@ defmodule NervesHub.Devices.Alarms do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceHealth
-
   alias NervesHub.Repo
 
   @doc """

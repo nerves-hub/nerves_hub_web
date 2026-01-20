@@ -1,6 +1,10 @@
 defmodule NervesHub.Application do
   use Application
 
+  alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
+  alias NervesHub.RateLimit.LogLines
+  alias NervesHub.Telemetry.Customizations
+
   require Logger
 
   def start(_type, _args) do
@@ -30,7 +34,7 @@ defmodule NervesHub.Application do
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
-          {NervesHub.RateLimit.LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
+          {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
           {PartitionSupervisor, child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
         ] ++
         deployments_orchestrator(deploy_env()) ++
@@ -57,7 +61,7 @@ defmodule NervesHub.Application do
       :ok = :httpc.set_option(:ipfamily, :inet6fb4)
     end
 
-    :ok = NervesHub.Telemetry.Customizations.setup()
+    :ok = Customizations.setup()
 
     :ok = OpentelemetryBandit.setup()
     :ok = OpentelemetryPhoenix.setup(adapter: :bandit)
@@ -138,7 +142,7 @@ defmodule NervesHub.Application do
       _ ->
         [
           ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
-          NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
+          OrchestratorRegistration
         ]
     end
   end

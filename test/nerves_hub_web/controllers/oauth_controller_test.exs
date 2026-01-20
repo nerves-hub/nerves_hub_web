@@ -2,12 +2,11 @@ defmodule NervesHubWeb.OAuthControllerTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
-  alias NervesHub.Accounts.User
+  import Swoosh.TestAssertions
 
+  alias NervesHub.Accounts.User
   alias NervesHub.Fixtures
   alias NervesHub.Repo
-
-  import Swoosh.TestAssertions
 
   describe "google auth enabled" do
     setup do

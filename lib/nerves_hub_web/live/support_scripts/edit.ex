@@ -3,7 +3,6 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
 
   alias NervesHub.Scripts
   alias NervesHub.Scripts.Script
-
   alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveView

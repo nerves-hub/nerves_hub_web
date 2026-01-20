@@ -4,7 +4,6 @@ defmodule NervesHub.Devices.ConnectionsTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Fixtures
-
   alias Phoenix.Socket.Broadcast
 
   setup do

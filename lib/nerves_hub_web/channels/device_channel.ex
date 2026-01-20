@@ -103,7 +103,9 @@ defmodule NervesHubWeb.DeviceChannel do
 
   # listen for notifications about archive updates for deployments
   def handle_info(%Broadcast{event: "archives/updated"}, socket) do
-    %{device: device, device_api_version: device_api_version, reference_id: reference_id} = socket.assigns
+    %{device: device, device_api_version: device_api_version, reference_id: reference_id} =
+      socket.assigns
+
     DeviceLink.maybe_send_archive(device, device_api_version, reference_id, audit_log: true)
     {:noreply, socket}
   end
@@ -192,7 +194,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("status_update", %{"status" => status}, socket) do
-    DeviceLink.status_update(socket.assigns.device, status)
+    DeviceLink.status_update(socket.assigns.device, status, socket.assigns.update_started?)
 
     {:noreply, socket}
   end
@@ -250,6 +252,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
       :error ->
         Logger.warning("[DeviceChannel] invalid device_api_version value - #{inspect(params["device_api_version"])}")
+
         Map.put(params, "device_api_version", "1.0.0")
     end
   end

@@ -10,7 +10,6 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Repo
-
   alias Phoenix.Channel.Server, as: ChannelServer
 
   def updated(device) do

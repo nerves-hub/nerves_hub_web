@@ -3,12 +3,11 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
 
   import Ecto.Changeset
 
+  alias __MODULE__
   alias NervesHub.Accounts.User
   alias NervesHub.Archives.Archive
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
-
-  alias __MODULE__
 
   @type t :: %__MODULE__{}
 

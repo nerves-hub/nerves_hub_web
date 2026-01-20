@@ -40,13 +40,16 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+      <.link
+        navigate={~p"/org/#{@org}/#{@product}/devices?deployment_id=#{@deployment_group.id}"}
+        class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800 hover:bg-zinc-700 transition-colors cursor-pointer"
+      >
         <span class="text-sm text-zinc-400 mr-1">Devices:</span>
 
         <div class="flex items-center">
           <span class="text-sm text-base-300 mr-1">{@deployment_group.device_count || 0}</span>
         </div>
-      </div>
+      </.link>
       <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
         <span class="text-sm text-zinc-400 mr-1">Arch:</span>
 
@@ -70,8 +73,8 @@
       <.link class={tab_classes(@tab, :summary)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}"}>
         Summary
       </.link>
-      <.link class={tab_classes(@tab, :release_history)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/releases"}>
-        Release History
+      <.link class={tab_classes(@tab, :releases)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/releases"}>
+        Releases
       </.link>
       <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/activity"}>
         Activity
@@ -101,7 +104,17 @@
     update_stats={@update_stats}
   />
 
-  <.live_component :if={@tab == :release_history} module={ReleaseHistoryTab} id="deployment_group_release_history" releases={@releases} />
+  <.live_component
+    :if={@tab == :releases}
+    module={ReleasesTab}
+    id="deployment_group_releases"
+    releases={@releases}
+    deployment_group={@deployment_group}
+    org={@org}
+    product={@product}
+    user={@user}
+    org_user={@org_user}
+  />
 
   <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_group_activity" deployment_group={@deployment_group} org={@org} product={@product} user={@user} />
 
