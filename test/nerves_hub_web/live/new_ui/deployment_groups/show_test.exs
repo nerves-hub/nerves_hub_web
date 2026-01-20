@@ -244,4 +244,17 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
 
     refute Repo.reload(delta)
   end
+
+  test "devices counter is a link to devices list page", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    conn
+    |> assert_has(
+      "a[href='/org/#{org.name}/#{product.name}/devices?deployment_id=#{deployment_group.id}']",
+      text: "Devices"
+    )
+  end
 end
