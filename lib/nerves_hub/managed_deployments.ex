@@ -1,8 +1,6 @@
 defmodule NervesHub.ManagedDeployments do
   import Ecto.Query
 
-  require Logger
-
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
