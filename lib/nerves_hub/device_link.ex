@@ -53,9 +53,10 @@ defmodule NervesHub.DeviceLink do
     if String.contains?(String.downcase(status), "fwup error") do
       # if there was an error during updating
       # mark the attempt
-      if update_started? do
-        Devices.update_attempted(device)
-      end
+      _ =
+        if update_started? do
+          Devices.update_attempted(device)
+        end
 
       # clear the inflight update
       Devices.clear_inflight_update(device)
