@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.2.0
+## v2.3.0
 
 ### Themes
 
@@ -489,6 +489,10 @@
 - **unzip**: 0.12.0
 - **tzdata**: 1.0.0 -> 1.1.3
 - **x509**: 0.8.9 -> 0.9.2
+
+## v2.2.0
+
+Version was used in a tag but not released. Skipped.
 
 ## v2.1.0
 
