@@ -710,6 +710,55 @@ defmodule NervesHub.ManagedDeploymentsTest do
                  false
                ])
     end
+
+    test "matchings tags are prioritized if deployment groups have the same firmware", state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: no_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => ["testing"], "version" => "> 0.7.0"}
+        })
+
+      %{id: matching_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => ["alpha", "testing"], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha", "testing", "foo"]})
+
+      [
+        %{id: ^matching_tags_deployment_id},
+        %{id: ^no_tags_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "older deployment groups are prioritized if deployment groups have the same firmware and there are no matching tags",
+         state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: older_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => [], "version" => "> 0.7.0"}
+        })
+
+      %{id: newer_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => [], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      [
+        %{id: ^older_deployment_id},
+        %{id: ^newer_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
+    end
   end
 
   describe "verify_deployment_group_membership/1" do
