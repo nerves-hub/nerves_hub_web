@@ -737,7 +737,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
     test "older deployment groups are prioritized if deployment groups have the same firmware and there are no matching tags",
          state do
-      %{org: org, product: product, firmware: firmware} = state
+      %{org: org, product: product, firmware: firmware, deployment_group: %{id: oldest_deployment_group_id}} = state
 
       %{id: older_deployment_id} =
         Fixtures.deployment_group_fixture(firmware, %{
@@ -745,7 +745,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           conditions: %{"tags" => [], "version" => "> 0.7.0"}
         })
 
-      %{id: newer_deployment_id} =
+      %{id: newest_deployment_id} =
         Fixtures.deployment_group_fixture(firmware, %{
           name: "alpha",
           conditions: %{"tags" => [], "version" => "<= 1.1.1"}
@@ -754,8 +754,34 @@ defmodule NervesHub.ManagedDeploymentsTest do
       device = Fixtures.device_fixture(org, product, firmware)
 
       [
+        %{id: ^oldest_deployment_group_id},
         %{id: ^older_deployment_id},
-        %{id: ^newer_deployment_id}
+        %{id: ^newest_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "older deployment groups are prioritized when there are the same number of matching tags",
+         state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: older_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => ["foo", "bar"], "version" => "> 0.7.0"}
+        })
+
+      %{id: newest_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => ["foo", "bar"], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["foo", "bar", "baz"]})
+
+      [
+        %{id: ^older_deployment_id},
+        %{id: ^newest_deployment_id}
       ] =
         ManagedDeployments.matching_deployment_groups(device)
     end

@@ -571,9 +571,10 @@ defmodule NervesHub.ManagedDeployments do
           :lt ->
             false
 
+          # when deployment group firmware versions are the same,
+          # prefer to sort by matchings tag count, then id
           :eq ->
-            # when versions are the same, prefer to sort by matchings tag count, then id
-            if a_matching_tag_count > 0 or b_matching_tag_count > 0 do
+            if a_matching_tag_count > 0 and b_matching_tag_count > 0 and a_matching_tag_count != b_matching_tag_count do
               a_matching_tag_count > b_matching_tag_count
             else
               a_id < b_id
