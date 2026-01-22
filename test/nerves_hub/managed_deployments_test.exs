@@ -711,7 +711,32 @@ defmodule NervesHub.ManagedDeploymentsTest do
                ])
     end
 
-    test "matchings tags are prioritized if deployment groups have the same firmware", state do
+    test "matchings tags are prioritized if deployment groups have the same firmware and one has no tags", state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: no_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => [], "version" => "> 0.7.0"}
+        })
+
+      %{id: matching_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => ["alpha"], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha", "testing"]})
+
+      [
+        %{id: ^matching_tags_deployment_id},
+        %{id: ^no_tags_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "the deployment with the most matching tags are prioritized if deployment groups have the same firmware",
+         state do
       %{org: org, product: product, firmware: firmware} = state
 
       %{id: no_tags_deployment_id} =
@@ -726,7 +751,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           conditions: %{"tags" => ["alpha", "testing"], "version" => "<= 1.1.1"}
         })
 
-      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha", "testing", "foo"]})
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha", "testing"]})
 
       [
         %{id: ^matching_tags_deployment_id},
