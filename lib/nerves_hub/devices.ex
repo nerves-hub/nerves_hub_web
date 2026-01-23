@@ -685,6 +685,13 @@ defmodule NervesHub.Devices do
     end
   end
 
+  @spec update_network_interface(Device.t(), binary()) :: {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
+  def update_network_interface(device, network_interface) do
+    device
+    |> Device.update_network_interface_changeset(network_interface)
+    |> Repo.update()
+  end
+
   @doc """
   Fetch devices associated with a deployment for updating.
 
