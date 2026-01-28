@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LocalShellTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Devices
+  alias NervesHub.Extensions.LocalShell
   alias NervesHub.Products
 
   test "the local shell extension is enabled for the product", %{
@@ -67,7 +68,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LocalShellTabTest do
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/local_shell")
     |> assert_has("div", text: "Checking if the device's local shell is available...")
     |> unwrap(fn view ->
-      assert_receive {NervesHub.Extensions.LocalShell, {:active?, pid}}
+      assert_receive {LocalShell, {:active?, pid}}
       send(pid, :active)
       render(view)
     end)

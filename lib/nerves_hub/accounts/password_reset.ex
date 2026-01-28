@@ -4,6 +4,7 @@ defmodule NervesHub.Accounts.PasswordReset do
   import Ecto.Changeset
 
   alias __MODULE__
+
   @type t :: %__MODULE__{}
 
   @optional_params []

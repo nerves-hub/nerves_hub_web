@@ -2,9 +2,36 @@ defmodule NervesHubWeb.Router do
   use NervesHubWeb, :router
 
   import NervesHubWeb.Auth
-
-  import Phoenix.LiveDashboard.Router
   import Oban.Web.Router
+  import Phoenix.LiveDashboard.Router
+
+  alias Live.Org.CertificateAuthorities
+  alias Live.Org.Delete
+  alias Live.Org.Settings
+  alias Live.Org.Show
+  alias Live.Org.SigningKeys
+  alias Live.Org.Users
+  alias Live.Orgs.Index
+  alias Live.Orgs.New
+  alias Live.SupportScripts.Edit
+  alias NervesHubWeb.API.Plugs.AuthenticateUser
+  alias NervesHubWeb.API.Plugs.Device
+  alias NervesHubWeb.Mounts.AccountAuth
+  alias NervesHubWeb.Mounts.CurrentPath
+  alias NervesHubWeb.Mounts.EnrichSentryContext
+  alias NervesHubWeb.Mounts.FetchOrg
+  alias NervesHubWeb.Mounts.FetchOrgUser
+  alias NervesHubWeb.Mounts.FetchProduct
+  alias NervesHubWeb.Plugs.EnsureAuthenticated
+  alias NervesHubWeb.Plugs.EnsureLoggedIn
+  alias NervesHubWeb.Plugs.Org
+  alias NervesHubWeb.Plugs.Product
+  alias NervesHubWeb.Plugs.ServerAuth
+  alias NervesHubWeb.Plugs.SetLocale
+  alias OpenApiSpex.Plug.PutApiSpec
+  alias OpenApiSpex.Plug.RenderSpec
+  alias OpenApiSpex.Plug.SwaggerUI
+  alias Plug.Swoosh.MailboxPreview
 
   pipeline :browser do
     plug(:accepts, ["html", "json"])
@@ -15,7 +42,7 @@ defmodule NervesHubWeb.Router do
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
     plug(:fetch_current_user)
-    plug(NervesHubWeb.Plugs.SetLocale)
+    plug(SetLocale)
   end
 
   pipeline :updated_layout do
@@ -29,28 +56,28 @@ defmodule NervesHubWeb.Router do
   end
 
   pipeline :logged_in do
-    plug(NervesHubWeb.Plugs.EnsureLoggedIn)
+    plug(EnsureLoggedIn)
   end
 
   pipeline :live_logged_in do
-    plug(NervesHubWeb.Plugs.EnsureAuthenticated)
+    plug(EnsureAuthenticated)
   end
 
   pipeline :org do
-    plug(NervesHubWeb.Plugs.Org)
+    plug(Org)
   end
 
   pipeline :product do
-    plug(NervesHubWeb.Plugs.Product)
+    plug(Product)
   end
 
   pipeline :api do
     plug(:accepts, ["json"])
-    plug(OpenApiSpex.Plug.PutApiSpec, module: NervesHubWeb.ApiSpec)
+    plug(PutApiSpec, module: NervesHubWeb.ApiSpec)
   end
 
   pipeline :api_require_authenticated_user do
-    plug(NervesHubWeb.API.Plugs.AuthenticateUser)
+    plug(AuthenticateUser)
   end
 
   pipeline :api_org do
@@ -62,12 +89,12 @@ defmodule NervesHubWeb.Router do
   end
 
   pipeline :api_device do
-    plug(NervesHubWeb.API.Plugs.Device)
+    plug(Device)
   end
 
   scope "/api" do
     pipe_through(:api)
-    get("/openapi", OpenApiSpex.Plug.RenderSpec, [])
+    get("/openapi", RenderSpec, [])
   end
 
   scope("/api", NervesHubWeb.API, as: :api) do
@@ -193,7 +220,7 @@ defmodule NervesHubWeb.Router do
     # Use the default browser stack
     pipe_through(:browser)
 
-    get("/swaggerui", OpenApiSpex.Plug.SwaggerUI, path: "/api/openapi")
+    get("/swaggerui", SwaggerUI, path: "/api/openapi")
   end
 
   scope "/", NervesHubWeb do
@@ -260,42 +287,42 @@ defmodule NervesHubWeb.Router do
 
     live_session :account,
       on_mount: [
-        NervesHubWeb.Mounts.AccountAuth,
-        NervesHubWeb.Mounts.EnrichSentryContext,
-        NervesHubWeb.Mounts.CurrentPath
+        AccountAuth,
+        EnrichSentryContext,
+        CurrentPath
       ] do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
       live("/account/tokens", Live.AccountTokens, :index)
       live("/account/tokens/new", Live.AccountTokens, :new)
 
-      live("/orgs", Live.Orgs.Index)
-      live("/orgs/new", Live.Orgs.New)
+      live("/orgs", Index)
+      live("/orgs/new", New)
     end
 
     live_session :org,
       on_mount: [
-        NervesHubWeb.Mounts.AccountAuth,
-        NervesHubWeb.Mounts.EnrichSentryContext,
-        NervesHubWeb.Mounts.CurrentPath,
-        NervesHubWeb.Mounts.FetchOrg,
-        NervesHubWeb.Mounts.FetchOrgUser
+        AccountAuth,
+        EnrichSentryContext,
+        CurrentPath,
+        FetchOrg,
+        FetchOrgUser
       ] do
-      live("/org/:org_name", Live.Org.Show)
+      live("/org/:org_name", Show)
       live("/org/:org_name/new", Live.Products.New)
-      live("/org/:org_name/settings", Live.Org.Settings)
-      live("/org/:org_name/settings/keys", Live.Org.SigningKeys, :index)
-      live("/org/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
-      live("/org/:org_name/settings/users", Live.Org.Users, :index)
-      live("/org/:org_name/settings/users/invite", Live.Org.Users, :invite)
-      live("/org/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
-      live("/org/:org_name/settings/certificates", Live.Org.CertificateAuthorities, :index)
-      live("/org/:org_name/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
-      live("/org/:org_name/settings/delete", Live.Org.Delete)
+      live("/org/:org_name/settings", Settings)
+      live("/org/:org_name/settings/keys", SigningKeys, :index)
+      live("/org/:org_name/settings/keys/new", SigningKeys, :new)
+      live("/org/:org_name/settings/users", Users, :index)
+      live("/org/:org_name/settings/users/invite", Users, :invite)
+      live("/org/:org_name/settings/users/:user_id/edit", Users, :edit)
+      live("/org/:org_name/settings/certificates", CertificateAuthorities, :index)
+      live("/org/:org_name/settings/certificates/new", CertificateAuthorities, :new)
+      live("/org/:org_name/settings/delete", Delete)
 
       live(
         "/org/:org_name/settings/certificates/:serial/edit",
-        Live.Org.CertificateAuthorities,
+        CertificateAuthorities,
         :edit
       )
     end
@@ -304,12 +331,12 @@ defmodule NervesHubWeb.Router do
       root_layout: {NervesHubWeb.Layouts, :root},
       layout: {NervesHubWeb.Layouts, :sidebar},
       on_mount: [
-        NervesHubWeb.Mounts.AccountAuth,
-        NervesHubWeb.Mounts.EnrichSentryContext,
-        NervesHubWeb.Mounts.CurrentPath,
-        NervesHubWeb.Mounts.FetchOrg,
-        NervesHubWeb.Mounts.FetchOrgUser,
-        NervesHubWeb.Mounts.FetchProduct
+        AccountAuth,
+        EnrichSentryContext,
+        CurrentPath,
+        FetchOrg,
+        FetchOrgUser,
+        FetchProduct
       ] do
       live("/org/:org_name/:product_name/dashboard", Live.Dashboard.Index)
 
@@ -373,7 +400,7 @@ defmodule NervesHubWeb.Router do
       live(
         "/org/:org_name/:product_name/deployment_groups/:name/releases",
         Live.DeploymentGroups.Show,
-        :release_history
+        :releases
       )
 
       live(
@@ -390,19 +417,19 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)
       live("/org/:org_name/:product_name/scripts/new", Live.SupportScripts.New)
-      live("/org/:org_name/:product_name/scripts/:script_id/edit", Live.SupportScripts.Edit)
+      live("/org/:org_name/:product_name/scripts/:script_id/edit", Edit)
 
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
     end
   end
 
   scope "/" do
-    pipe_through([:browser, :logged_in, NervesHubWeb.Plugs.ServerAuth])
+    pipe_through([:browser, :logged_in, ServerAuth])
     live_dashboard("/status/dashboard", metrics: NervesHub.StatsdMetricsReporter)
-    oban_dashboard("/status/oban", resolver: NervesHubWeb.Plugs.ServerAuth)
+    oban_dashboard("/status/oban", resolver: ServerAuth)
   end
 
   if Mix.env() == :dev do
-    forward("/mailbox", Plug.Swoosh.MailboxPreview)
+    forward("/mailbox", MailboxPreview)
   end
 end

@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   use NervesHubWeb, tab_component: :console
 
   alias NervesHub.Tracker
-
   alias Phoenix.LiveView.JS
 
   def tab_params(_params, _uri, socket) do

@@ -4,15 +4,10 @@ defmodule NervesHub.MixProject do
   def project() do
     [
       app: :nerves_hub,
-      version: "2.0.0+#{build()}",
+      version: "2.3.0+#{build()}",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      preferred_cli_env: [
-        docs: :docs,
-        coveralls: :test,
-        "coveralls.html": :test
-      ],
       elixirc_paths: elixirc_paths(Mix.env()),
       elixir: "~> 1.18.0",
       listeners: listeners(Mix.env()),
@@ -54,6 +49,14 @@ defmodule NervesHub.MixProject do
         :crypto,
         :public_key
       ]
+    ]
+  end
+
+  def cli() do
+    [
+      docs: :docs,
+      coveralls: :test,
+      "coveralls.html": :test
     ]
   end
 
@@ -127,7 +130,8 @@ defmodule NervesHub.MixProject do
       {:open_telemetry_decorator, "~> 1.5"},
       {:phoenix, "~> 1.8.1"},
       {:phoenix_ecto, "~> 4.0"},
-      {:phoenix_html, "~> 3.3.1", override: true},
+      {:phoenix_html, "~> 4.0"},
+      {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.1"},

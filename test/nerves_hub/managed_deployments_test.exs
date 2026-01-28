@@ -4,6 +4,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
   import Phoenix.ChannelTest
 
+  alias Ecto.Changeset
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -13,8 +14,6 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias NervesHub.ManagedDeployments.DeploymentGroup.Conditions
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Workers.FirmwareDeltaBuilder
-
-  alias Ecto.Changeset
   alias Phoenix.Socket.Broadcast
 
   setup do
@@ -166,7 +165,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       refute release.archive_id
       assert release.created_by_id == user.id
       assert release.firmware.id == firmware.id
-      assert release.user.id == user.id
+      assert release.user && release.user.id == user.id
     end
   end
 
@@ -710,6 +709,106 @@ defmodule NervesHub.ManagedDeploymentsTest do
                ManagedDeployments.matching_deployment_groups(%Device{firmware_metadata: nil}, [
                  false
                ])
+    end
+
+    test "matchings tags are prioritized if deployment groups have the same firmware and one has no tags", state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: no_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => [], "version" => "> 0.7.0"}
+        })
+
+      %{id: matching_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => ["alpha"], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha", "testing"]})
+
+      [
+        %{id: ^matching_tags_deployment_id},
+        %{id: ^no_tags_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "the deployment with the most matching tags are prioritized if deployment groups have the same firmware",
+         state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: no_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => ["testing"], "version" => "> 0.7.0"}
+        })
+
+      %{id: matching_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => ["alpha", "testing"], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha", "testing"]})
+
+      [
+        %{id: ^matching_tags_deployment_id},
+        %{id: ^no_tags_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "older deployment groups are prioritized if deployment groups have the same firmware and there are no matching tags",
+         state do
+      %{org: org, product: product, firmware: firmware, deployment_group: %{id: oldest_deployment_group_id}} = state
+
+      %{id: older_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => [], "version" => "> 0.7.0"}
+        })
+
+      %{id: newest_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => [], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      [
+        %{id: ^oldest_deployment_group_id},
+        %{id: ^older_deployment_id},
+        %{id: ^newest_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "older deployment groups are prioritized when there are the same number of matching tags",
+         state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: older_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => ["foo", "bar"], "version" => "> 0.7.0"}
+        })
+
+      %{id: newest_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => ["foo", "bar"], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["foo", "bar", "baz"]})
+
+      [
+        %{id: ^older_deployment_id},
+        %{id: ^newest_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
     end
   end
 

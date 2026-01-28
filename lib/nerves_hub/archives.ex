@@ -5,14 +5,14 @@ defmodule NervesHub.Archives do
 
   import Ecto.Query
 
-  require Logger
-
   alias NervesHub.Archives.Archive
   alias NervesHub.Fwup
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteArchive
+
+  require Logger
 
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do

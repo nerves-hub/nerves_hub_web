@@ -15,6 +15,7 @@ defmodule NervesHub.Scripts.Runner do
   use GenServer
 
   alias NervesHubWeb.Endpoint
+  alias Phoenix.Socket.Broadcast
 
   defmodule State do
     defstruct [:buffer, :device_channel, :from, :receive_channel, :send_channel, :text]
@@ -71,7 +72,7 @@ defmodule NervesHub.Scripts.Runner do
     {:noreply, state}
   end
 
-  def handle_info(%Phoenix.Socket.Broadcast{event: "up", payload: %{"data" => text}}, state) do
+  def handle_info(%Broadcast{event: "up", payload: %{"data" => text}}, state) do
     state = %{state | buffer: state.buffer <> text}
 
     if String.contains?(state.buffer, "[NERVESHUB:END]") do

@@ -3,6 +3,8 @@ defmodule NervesHub.Devices.UpdateStats do
   Module for logging and querying device update statistics.
   """
 
+  import Ecto.Query
+
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.UpdateStat
   alias NervesHub.Firmwares
@@ -14,8 +16,6 @@ defmodule NervesHub.Devices.UpdateStats do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
-
-  import Ecto.Query
 
   require Logger
 

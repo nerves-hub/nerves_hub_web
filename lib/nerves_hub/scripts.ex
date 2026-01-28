@@ -7,9 +7,8 @@ defmodule NervesHub.Scripts do
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Products
   alias NervesHub.Products.Product
-  alias NervesHub.Scripts.Script
-
   alias NervesHub.Repo
+  alias NervesHub.Scripts.Script
 
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do

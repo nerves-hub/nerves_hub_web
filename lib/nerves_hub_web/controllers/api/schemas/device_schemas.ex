@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
   alias OpenApiSpex.Schema
+
   require OpenApiSpex
 
   defmodule Device do

@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.Utils do
   use NervesHubWeb, :component
 
   alias NervesHub.Accounts.OrgUser
+  alias Phoenix.HTML.FormField
 
   def role_options() do
     for {key, value} <- Ecto.Enum.mappings(OrgUser, :role),
@@ -44,7 +45,7 @@ defmodule NervesHubWeb.Components.Utils do
     "#{Sizeable.filesize(usage * 1024)} of #{Sizeable.filesize(available * 1024)} (#{round(percentage)}%)"
   end
 
-  def tags_to_string(%Phoenix.HTML.FormField{} = field) do
+  def tags_to_string(%FormField{} = field) do
     tags_to_string(field.value)
   end
 

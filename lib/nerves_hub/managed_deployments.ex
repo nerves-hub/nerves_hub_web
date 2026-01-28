@@ -1,8 +1,7 @@
 defmodule NervesHub.ManagedDeployments do
   import Ecto.Query
 
-  require Logger
-
+  alias Ecto.Changeset
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
@@ -15,11 +14,10 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Products.Product
+  alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
 
-  alias NervesHub.Repo
-
-  alias Ecto.Changeset
+  require Logger
 
   @spec should_run_orchestrator() :: [DeploymentGroup.t()]
   def should_run_orchestrator() do
@@ -376,11 +374,8 @@ defmodule NervesHub.ManagedDeployments do
   def list_deployment_releases(%DeploymentGroup{id: deployment_group_id}) do
     DeploymentRelease
     |> where([r], r.deployment_group_id == ^deployment_group_id)
-    |> join(:inner, [r], f in assoc(r, :firmware))
-    |> join(:inner, [r], u in assoc(r, :user))
-    |> join(:left, [r], a in assoc(r, :archive))
-    |> preload([r, f, u, a], firmware: f, user: u, archive: a)
     |> order_by([r], desc: r.inserted_at, desc: r.id)
+    |> preload([:firmware, :user, :archive])
     |> Repo.all()
   end
 
@@ -554,7 +549,7 @@ defmodule NervesHub.ManagedDeployments do
     |> where(
       [d],
       fragment(
-        "?->'tags' <@ to_jsonb(?::text[]) OR (jsonb_array_length(?->'tags') = 0 and ?::text[] is null)",
+        "?->'tags' <@ to_jsonb(?::text[]) or (jsonb_array_length(?->'tags') = 0 and ?::text[] is null)",
         d.conditions,
         ^device.tags,
         d.conditions,
@@ -564,12 +559,29 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
     |> Enum.filter(&version_match?(device, &1))
     |> Enum.sort_by(
-      &{&1.firmware.version, &1.id},
-      fn {a_vsn, a_id}, {b_vsn, b_id} ->
+      fn deployment_group ->
+        {
+          deployment_group.firmware.version,
+          deployment_group.id,
+          length(Enum.filter(deployment_group.conditions.tags, &(&1 in device.tags)))
+        }
+      end,
+      fn {a_vsn, a_id, a_matching_tag_count}, {b_vsn, b_id, b_matching_tag_count} ->
         case Version.compare(a_vsn, b_vsn) do
-          :lt -> false
-          :eq -> a_id <= b_id
-          :gt -> true
+          :lt ->
+            false
+
+          # when deployment group firmware versions are the same,
+          # prefer to sort by matchings tag count, then id
+          :eq ->
+            if (a_matching_tag_count > 0 or b_matching_tag_count > 0) and a_matching_tag_count != b_matching_tag_count do
+              a_matching_tag_count > b_matching_tag_count
+            else
+              a_id < b_id
+            end
+
+          :gt ->
+            true
         end
       end
     )

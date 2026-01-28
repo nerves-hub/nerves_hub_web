@@ -3,10 +3,10 @@ defmodule NervesHub.Accounts.OrgKey do
 
   import Ecto.Changeset
 
+  alias __MODULE__
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.User
   alias NervesHub.Firmwares.Firmware
-  alias __MODULE__
 
   @type t :: %__MODULE__{}
 

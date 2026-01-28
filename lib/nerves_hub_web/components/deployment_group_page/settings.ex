@@ -1,27 +1,18 @@
 defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   use NervesHubWeb, :live_component
 
-  alias NervesHub.Archives
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
-  alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
-    archives = Archives.all_by_product(assigns.deployment_group.product)
-    firmwares = Firmwares.get_firmwares_for_deployment_group(assigns.deployment_group)
-
     changeset = DeploymentGroup.update_changeset(assigns.deployment_group, %{})
 
     socket
     |> assign(assigns)
-    |> assign(:archives, archives)
-    |> assign(:firmware, assigns.deployment_group.firmware)
-    |> assign(:firmwares, firmwares)
     |> assign(:form, to_form(changeset))
     |> ok()
   end
@@ -46,35 +37,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                   for more information on delta updates.
                 </:rich_hint>
               </.input>
-            </div>
-          </div>
-        </div>
-
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
-            <div class="text-base text-neutral-50 font-medium">Release settings</div>
-          </div>
-
-          <div class="flex flex-col p-6 gap-6">
-            <div class="w-1/2 flex flex-col gap-6">
-              <.input
-                field={@form[:firmware_id]}
-                type="select"
-                options={firmware_dropdown_options(@firmwares)}
-                label="Firmware version"
-                hint="Firmware listed is the same platform and architecture as the currently selected firmware."
-              />
-            </div>
-
-            <div class="w-1/2 flex flex-col gap-6">
-              <.input
-                field={@form[:archive_id]}
-                type="select"
-                options={archive_dropdown_options(@archives)}
-                prompt="Select an Archive"
-                label="Additional Archive version"
-                hint="Firmware listed is the same platform and architecture as the currently selected firmware."
-              />
             </div>
           </div>
         </div>
@@ -368,44 +330,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     |> noreply()
   end
 
-  def firmware_dropdown_options(firmwares) do
-    firmwares
-    |> Enum.sort_by(
-      fn firmware ->
-        case Version.parse(firmware.version) do
-          {:ok, version} ->
-            version
-
-          :error ->
-            %Version{major: 0, minor: 0, patch: 0}
-        end
-      end,
-      {:desc, Version}
-    )
-    |> Enum.map(&[value: &1.id, key: firmware_display_name(&1)])
-  end
-
-  def archive_dropdown_options(archives) do
-    archives
-    |> Enum.sort_by(
-      fn archive ->
-        case Version.parse(archive.version) do
-          {:ok, version} ->
-            version
-
-          :error ->
-            %Version{major: 0, minor: 0, patch: 0}
-        end
-      end,
-      {:desc, Version}
-    )
-    |> Enum.map(&[value: &1.id, key: archive_display_name(&1)])
-  end
-
-  def archive_display_name(%{} = a) do
-    "#{a.version} - #{a.platform} - #{a.architecture} (#{String.slice(a.uuid, 0..7)})"
-  end
-
   defp help_message_for(field) do
     case field do
       :device_failure_rate ->
@@ -417,9 +341,5 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
       :penalty_timeout_minutes ->
         "Number of minutes a device is placed in penalty box for reaching the failure rate or threshold."
     end
-  end
-
-  defp firmware_display_name(%Firmware{} = f) do
-    "#{f.version} - #{f.platform} - #{f.architecture} (#{String.slice(f.uuid, 0..7)})"
   end
 end
