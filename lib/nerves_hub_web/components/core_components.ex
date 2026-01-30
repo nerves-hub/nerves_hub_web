@@ -205,7 +205,7 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:style, :string, default: "secondary")
   attr(:type, :string, default: "button")
   attr(:class, :string, default: nil)
-  attr(:rest, :global, include: ~w(disabled form name value href navigate download))
+  attr(:rest, :global, include: ~w(disabled form name value href navigate download patch))
 
   slot(:inner_block, required: true)
 
@@ -218,6 +218,25 @@ defmodule NervesHubWeb.CoreComponents do
         "border rounded border-zinc-600 active:border-indigo-500",
         "stroke-zinc-400 active:stroke-zinc-100 disabled:stroke-zinc-600",
         "text-sm font-medium text-zinc-300 hover:text-neutral-50 active:text-neutral-50 disabled:text-zinc-500",
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </.link>
+    """
+  end
+
+  def button(%{type: "link", style: "danger"} = assigns) do
+    ~H"""
+    <.link
+      class={[
+        "flex items-center",
+        "phx-submit-loading:opacity-75 flex px-3 py-1.5 gap-2 rounded",
+        "bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600",
+        "border rounded border-red-500",
+        "stroke-red-500",
+        "text-sm font-medium text-red-500",
         @class
       ]}
       {@rest}

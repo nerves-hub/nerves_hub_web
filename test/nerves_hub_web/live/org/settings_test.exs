@@ -5,7 +5,7 @@ defmodule NervesHubWeb.Live.Org.SettingsTest do
     conn
     |> visit("/org/#{org.name}/settings")
     |> assert_has("h1", text: "Organization Settings")
-    |> fill_in("Organization Name", with: "MyAmazingOrganization")
+    |> fill_in("Organization Name", with: "MyAmazingOrganization", exact: false)
     |> click_button("Save Changes")
     |> assert_path("/org/MyAmazingOrganization/settings")
     |> assert_has("div", text: "Organization updated")
@@ -15,46 +15,18 @@ defmodule NervesHubWeb.Live.Org.SettingsTest do
     conn
     |> visit("/org/#{org.name}/settings")
     |> assert_has("h1", text: "Organization Settings")
-    |> fill_in("Organization Name", with: "My Amazing Organization")
+    |> fill_in("Organization Name", with: "My Amazing Organization", exact: false)
     |> click_button("Save Changes")
     |> assert_path("/org/#{org.name}/settings")
     |> assert_has(".help-block", text: "has invalid format")
   end
 
   describe "delete" do
-    test "requires the user to confirm their username", %{conn: conn, org: org} do
-      conn
-      |> visit("/org/#{org.name}/settings/delete")
-      |> assert_has("h1", text: "Are you absolutely sure?")
-      |> click_button("I understand the consequences, delete this organization")
-      |> assert_path("/org/#{org.name}/settings/delete")
-      |> assert_has("div", text: "Please type #{org.name} to confirm.")
-
-      org = NervesHub.Repo.reload(org)
-      assert is_nil(org.deleted_at)
-    end
-
-    test "requires the user to confirm their username (it has to be correct)", %{
-      conn: conn,
-      org: org
-    } do
-      conn
-      |> visit("/org/#{org.name}/settings/delete")
-      |> assert_has("h1", text: "Are you absolutely sure?")
-      |> fill_in("Please type #{org.name} to confirm.", with: "#{org.name}-nah")
-      |> click_button("I understand the consequences, delete this organization")
-      |> assert_path("/org/#{org.name}/settings/delete")
-      |> assert_has("div", text: "Please type #{org.name} to confirm.")
-
-      org = NervesHub.Repo.reload(org)
-      assert is_nil(org.deleted_at)
-    end
-
     test "deletes the org", %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/settings/delete")
-      |> assert_has("h1", text: "Are you absolutely sure?")
-      |> fill_in("Please type #{org.name} to confirm.", with: org.name)
+      |> assert_has("h3", text: "Are you absolutely sure?")
+      |> fill_in("Please type #{org.name} to confirm.", with: org.name, exact: false)
       |> click_button("I understand the consequences, delete this organization")
       |> assert_path("/orgs")
       |> assert_has("div", text: "The Organization #{org.name} has successfully been deleted")

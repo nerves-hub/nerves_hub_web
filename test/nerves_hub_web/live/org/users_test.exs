@@ -65,7 +65,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> click_button("Send Invitation")
       |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User has been invited")
-      |> assert_has("h1", text: "Outstanding Invites")
+      |> assert_has("h2", text: "Outstanding Invites")
       |> assert_has("td", text: "josh@mrjosh.com")
 
       assert_email_sent(subject: "NervesHub: You have been invited to join Jeff")

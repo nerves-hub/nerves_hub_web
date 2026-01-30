@@ -293,8 +293,6 @@ defmodule NervesHubWeb.Router do
       ] do
       live("/account/tokens", Live.AccountTokens, :index)
       live("/account/tokens/new", Live.AccountTokens, :new)
-
-      live("/orgs/new", New)
     end
 
     live_session :account_refreshed,
@@ -307,8 +305,8 @@ defmodule NervesHubWeb.Router do
       ] do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
-      live("/orgs", Live.Orgs.Index)
-      live("/orgs/new", Live.Orgs.New)
+      live("/orgs", Index)
+      live("/orgs/new", New)
     end
 
     live_session :org,
