@@ -13,6 +13,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHubWeb.API.PaginationHelpers
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Helpers.RoleValidateHelpers
+  alias Phoenix.Socket.Broadcast
 
   plug(
     :validate_role,
@@ -116,7 +117,26 @@ defmodule NervesHubWeb.API.DeviceController do
     send_resp(conn, :no_content, "")
   end
 
+  def code(%{assigns: %{device: device}} = conn, %{"body" => body, "stream" => true}) do
+    # Subscribe to console output before sending code
+    _ = Endpoint.subscribe("user:console:#{device.id}")
+
+    # Send the code to the device
+    send_code_to_device(device, body)
+
+    # Stream the response back
+    conn
+    |> put_resp_content_type("text/plain")
+    |> send_chunked(200)
+    |> stream_console_output()
+  end
+
   def code(%{assigns: %{device: device}} = conn, %{"body" => body}) do
+    send_code_to_device(device, body)
+    send_resp(conn, :no_content, "")
+  end
+
+  defp send_code_to_device(device, body) do
     body
     |> String.graphemes()
     |> Enum.each(fn character ->
@@ -126,8 +146,27 @@ defmodule NervesHubWeb.API.DeviceController do
     end)
 
     Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{"data" => "\r"})
+  end
 
-    send_resp(conn, :no_content, "")
+  defp stream_console_output(conn) do
+    receive do
+      %Broadcast{event: "up", payload: %{"data" => data}} ->
+        case chunk(conn, data) do
+          {:ok, conn} -> stream_console_output(conn)
+          {:error, :closed} -> conn
+        end
+
+      %Broadcast{event: _other} ->
+        # Ignore other events (file-data, etc.)
+        stream_console_output(conn)
+    after
+      10_000 ->
+        # Send keepalive empty chunk every 10 seconds
+        case chunk(conn, "") do
+          {:ok, conn} -> stream_console_output(conn)
+          {:error, :closed} -> conn
+        end
+    end
   end
 
   def upgrade(%{assigns: %{device: device, user: user}} = conn, %{"uuid" => uuid}) do

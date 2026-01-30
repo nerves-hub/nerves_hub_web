@@ -224,4 +224,28 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
       }
     })
   end
+
+  defmodule DeviceCodeRequest do
+    OpenApiSpex.schema(%{
+      description: "POST body for sending code to a Device console",
+      type: :object,
+      properties: %{
+        body: %Schema{
+          type: :string,
+          description: "The Elixir code to execute on the device"
+        },
+        stream: %Schema{
+          type: :boolean,
+          description:
+            "If true, subscribe to console output and stream it back. Connection stays open until client disconnects.",
+          default: false
+        }
+      },
+      required: [:body],
+      example: %{
+        "body" => "NervesHubLink.status()",
+        "stream" => false
+      }
+    })
+  end
 end
