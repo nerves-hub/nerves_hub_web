@@ -72,7 +72,7 @@ defmodule NervesHubWeb.Router do
   end
 
   pipeline :api do
-    plug(:accepts, ["json"])
+    plug(:accepts, ["json", "txt"])
     plug(PutApiSpec, module: NervesHubWeb.ApiSpec)
   end
 
@@ -89,6 +89,7 @@ defmodule NervesHubWeb.Router do
   end
 
   pipeline :api_device do
+    plug(:accepts, ["json", "txt"])
     plug(Device)
   end
 

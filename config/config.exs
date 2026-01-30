@@ -29,7 +29,8 @@ config :flop, repo: NervesHub.Repo
 config :mime, :types, %{
   "application/pem" => ["pem"],
   "application/crt" => ["crt"],
-  "application/fwup" => ["fw"]
+  "application/fwup" => ["fw"],
+  "text/plain" => ["txt"]
 }
 
 config :nerves_hub, NervesHub.Repo,

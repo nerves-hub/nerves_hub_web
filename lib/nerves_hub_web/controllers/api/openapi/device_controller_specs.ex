@@ -170,12 +170,21 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   def code_action(openapi, path_structure) do
     opts = @path_structures[path_structure]
 
+    request_body =
+      OpenApiSpex.Operation.request_body(
+        "Device code request",
+        "application/json",
+        DeviceSchemas.DeviceCodeRequest,
+        required: true
+      )
+
     code_operation =
       device_operation(
-        "Request a Device run some Elixir code in it's console connection",
+        "Request a Device run some Elixir code in it's console connection. If stream is true, the response will be a chunked text/plain stream of console output.",
         :code,
         opts.parameters,
         opts.tags,
+        request_body: request_body,
         response: @empty_response
       )
 
