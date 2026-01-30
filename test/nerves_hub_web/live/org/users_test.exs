@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       conn
       |> visit("/org/#{org.name}/settings/users")
       |> assert_has("h1", text: "Users")
-      |> click_link("a[phx-value-user_id=\"#{org_user.user_id}\"]", "Delete")
+      |> click_link("button[phx-value-user_id=\"#{org_user.user_id}\"]", "Delete")
       |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User removed")
 
@@ -95,7 +95,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
 
       conn
       |> visit("/org/#{org.name}/settings/users")
-      |> click_link("Rescind")
+      |> click_button("Rescind")
       |> assert_has("div", text: "Invite rescinded")
       |> assert_path("/org/#{org.name}/settings/users")
       |> refute_has("h1", text: "Outstanding Invites")
@@ -129,7 +129,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       conn =
         conn
         |> visit("/org/#{org.name}/settings/users")
-        |> assert_has("h1", text: "Outstanding Invites")
+        |> assert_has("h2", text: "Outstanding Invites")
         |> assert_has("td", text: "josh@mrjosh.com")
 
       invite
@@ -137,7 +137,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> NervesHub.Repo.update()
 
       conn
-      |> click_link("Rescind")
+      |> click_button("Rescind")
       |> refute_has("td", text: "josh@mrjosh.com")
       |> assert_has("div", text: "Invite couldn't be rescinded as the invite has been accepted.")
 

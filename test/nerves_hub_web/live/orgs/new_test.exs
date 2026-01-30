@@ -8,29 +8,27 @@ defmodule NervesHubWeb.Live.Orgs.NewTest do
       |> assert_has("h1", text: "Create New Organization")
       |> click_button("Create Organization")
       |> assert_path("/orgs/new")
-      |> assert_has("p", text: "Oops, something went wrong! Please check the errors below.")
-      |> assert_has(".help-block", text: "can't be blank")
+      |> assert_has(".error-text", text: "can't be blank")
     end
 
     test "requires a name with no spaces", %{conn: conn} do
       conn
       |> visit("/orgs/new")
       |> assert_has("h1", text: "Create New Organization")
-      |> fill_in("Organization Name", with: "my big org")
+      |> fill_in("Name", with: "my big org")
       |> click_button("Create Organization")
       |> assert_path("/orgs/new")
-      |> assert_has("p", text: "Oops, something went wrong! Please check the errors below.")
-      |> assert_has(".help-block", text: "has invalid format")
+      |> assert_has(".error-text", text: "has invalid format")
     end
 
     test "creates a new org", %{conn: conn} do
       conn
       |> visit("/orgs/new")
       |> assert_has("h1", text: "Create New Organization")
-      |> fill_in("Organization Name", with: "my-big-org")
+      |> fill_in("Name", with: "my-big-org")
       |> click_button("Create Organization")
       |> assert_path("/org/my-big-org")
-      |> assert_has("h3", text: "my-big-org doesn’t have any products yet")
+      |> assert_has("p", text: "Organization created successfully.")
     end
   end
 end

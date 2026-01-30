@@ -9,11 +9,15 @@
         </.button>
     </div>
     <div class="grid grid-cols-2 px-4 pb-4 pt-2 gap-4">
+    <div :if={@products == []}>
+        <div class="mx-4 my-4">
+            <h2 class="text-xl leading-[30px] font-semibold text-neutral-50">{@org.name} doesn't have any products yet</h2>
+            <p class="text-sm text-neutral-400">Create a new product to get started.</p>
+        </div>
+    </div>
     <div :for={product <- @products} class="flex justify-between gap-[16px] p-4 w-full border border-zinc-700 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800">
         <div class="text-neutral-50 font-semibold text-sm">
-        <.link navigate={~p"/org/#{@org}/#{product}/devices"}>
-            {product.name}
-        </.link>
+        <.link navigate={~p"/org/#{@org}/#{product}/devices"}>{product.name}</.link>
         </div>
         <div class="flex gap-4 text-sm font-medium">
         <div class="flex items-center gap-1.5">
