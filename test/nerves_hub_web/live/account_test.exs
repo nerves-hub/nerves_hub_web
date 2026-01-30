@@ -94,7 +94,7 @@ defmodule NervesHubWeb.Live.AccountTest do
     test "requires the user to confirm their username", %{conn: conn, user: user} do
       conn
       |> visit("/account/delete")
-      |> assert_has("h1", text: "Are you absolutely sure?")
+      |> assert_has("h2", text: "Are you absolutely sure?")
       |> click_button("I understand the consequences, delete this account")
       |> assert_path("/account/delete")
       |> assert_has("div", text: "Please type #{user.email} to confirm.")
@@ -106,7 +106,7 @@ defmodule NervesHubWeb.Live.AccountTest do
     } do
       conn
       |> visit("/account/delete")
-      |> assert_has("h1", text: "Are you absolutely sure?")
+      |> assert_has("h2", text: "Are you absolutely sure?")
       |> fill_in("Please type #{user.email} to confirm.", with: "#{user.email}-nah")
       |> click_button("I understand the consequences, delete this account")
       |> assert_path("/account/delete")
@@ -116,7 +116,7 @@ defmodule NervesHubWeb.Live.AccountTest do
     test "deletes your account", %{conn: conn, user: user} do
       conn
       |> visit("/account/delete")
-      |> assert_has("h1", text: "Are you absolutely sure?")
+      |> assert_has("h2", text: "Are you absolutely sure?")
       |> fill_in("Please type #{user.email} to confirm.", with: user.email)
       |> click_button("I understand the consequences, delete this account")
       |> assert_path("/login")

@@ -3,8 +3,8 @@ defmodule NervesHubWeb.Live.LayoutTest do
 
   test "can logout", %{conn: conn} do
     conn
-    |> visit("/orgs")
-    |> click_link("Logout")
+    |> visit("/")
+    |> click_link("Log out")
     |> assert_path("/login")
   end
 end

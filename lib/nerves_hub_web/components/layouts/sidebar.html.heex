@@ -73,7 +73,7 @@
         <a href={~p"/account"} class="block p-2 hover:bg-base-700">Account</a>
         <a href={~p"/logout"} class="block p-2 hover:bg-base-700">Log out</a>
       </div>
-      <a href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-white hover:bg-indigo-700" phx-click={toggle_user_menu()}>
+      <a id="user-menu-toggle" href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-white hover:bg-indigo-700" phx-click={toggle_user_menu()}>
         <div :if={!@user.profile_picture_url} class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
           <span class="font-medium text-gray-600 dark:text-gray-300">{String.split(@user.name) |> Enum.map(fn w -> String.at(w, 0) end)}</span>
         </div>

@@ -9,16 +9,16 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
 
       conn
       |> visit("/org/#{org.name}")
-      |> assert_has("h3", text: "#{org.name} doesn’t have any products yet")
+      |> assert_has("h2", text: "#{org.name} doesn't have any products yet")
       |> click_link("Create New")
       |> assert_path("/org/#{org.name}/new")
-      |> assert_has("h1", text: "Create Product")
+      |> assert_has("h1", text: "New Product")
     end
 
     test "lists all products in the org", %{conn: conn, org: org, fixture: %{product: product}} do
       conn
       |> visit("/org/#{org.name}")
-      |> assert_has("h3", text: product.name)
+      |> assert_has("a", text: product.name)
     end
   end
 
@@ -26,18 +26,17 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
     test "shows an error if the product name is blank", %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/new")
-      |> assert_has("h1", text: "Create Product")
+      |> assert_has("h1", text: "New Product")
       |> fill_in("Name", with: "    ")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/new")
-      |> assert_has("p", text: "Something went wrong! Please check the errors below.")
-      |> assert_has(".help-block", text: "can't be blank")
+      |> assert_has(".error-text", text: "can't be blank")
     end
 
     test "product name required", %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/new")
-      |> assert_has("h1", text: "Create Product")
+      |> assert_has("h1", text: "New Product")
       |> fill_in("Name", with: "MyAmazingProduct")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/MyAmazingProduct/devices")
@@ -47,7 +46,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
     test "product name accepts spaces", %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/new")
-      |> assert_has("h1", text: "Create Product")
+      |> assert_has("h1", text: "New Product")
       |> fill_in("Name", with: "My Amazing Product")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
@@ -61,7 +60,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
          %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/new")
-      |> assert_has("h1", text: "Create Product")
+      |> assert_has("h1", text: "New Product")
       |> fill_in("Name", with: "  My Amazing Product  ")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
@@ -75,7 +74,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
          %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/new")
-      |> assert_has("h1", text: "Create Product")
+      |> assert_has("h1", text: "New Product")
       |> fill_in("Name", with: "  My  Amazing  Product  ")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
