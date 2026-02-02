@@ -234,7 +234,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("network_interface_mismatch", params, socket) do
-    dbg(params)
+    :telemetry.execute([:nerves_hub, :devices, :network_interface_mismatch], %{count: 1}, %{params: params})
 
     {:noreply, socket}
   end

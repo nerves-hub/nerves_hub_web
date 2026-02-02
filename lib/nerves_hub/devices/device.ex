@@ -135,19 +135,12 @@ defmodule NervesHub.Devices.Device do
     device
     |> change(%{network_interface: friendly_interface_name})
     |> validate_required([:network_interface])
-    |> validate_change(:network_interface, fn :network_interface, interface ->
-      if interface in ["wifi", "ethernet", "cellular"] do
-        []
-      else
-        [network_interface: "#{inspect(network_interface)} is not a valid network interface"]
-      end
-    end)
   end
 
   defp get_friendly_network_interface_name(interface) do
     cond do
       String.starts_with?(interface, "wlan") -> "wifi"
-      String.starts_with?(interface, "eth") -> "ethernet"
+      String.starts_with?(interface, "eth") or String.starts_with?(interface, "en") -> "ethernet"
       String.starts_with?(interface, "wwan") -> "cellular"
       true -> "unknown"
     end

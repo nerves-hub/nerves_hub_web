@@ -33,6 +33,7 @@ defmodule NervesHub.Logger do
         [:nerves_hub, :devices, :connecting_code_failure],
         [:nerves_hub, :devices, :disconnect],
         [:nerves_hub, :devices, :duplicate_connection],
+        [:nerves_hub, :devices, :network_interface_mismatch],
         [:nerves_hub, :devices, :update, :automatic],
         [:nerves_hub, :devices, :update, :successful],
         [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
@@ -137,6 +138,13 @@ defmodule NervesHub.Logger do
       |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
     Logger.warning("Join failure", extra)
+  end
+
+  def log_event([:nerves_hub, :devices, :network_interface_mismatch], _, metadata, _) do
+    Logger.warning("Network interface mismatch detected",
+      event: "nerves_hub.devices.network_interface_mismatch",
+      params: inspect(metadata[:params])
+    )
   end
 
   def log_event([:nerves_hub, :devices, :update, :automatic], _, metadata, _) do

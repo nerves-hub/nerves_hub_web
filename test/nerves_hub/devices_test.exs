@@ -1251,13 +1251,22 @@ defmodule NervesHub.DevicesTest do
     test "updates device.network_interface", %{device: device} do
       refute device.network_interface
 
-      {:ok, device} = Devices.update_network_interface(device, "ethernet")
+      {:ok, device} = Devices.update_network_interface(device, "eth0")
       assert device.network_interface == "ethernet"
+
+      {:ok, device} = Devices.update_network_interface(device, "en0")
+      assert device.network_interface == "ethernet"
+
+      {:ok, device} = Devices.update_network_interface(device, "wlan0")
+      assert device.network_interface == "wifi"
+
+      {:ok, device} = Devices.update_network_interface(device, "wwan0")
+      assert device.network_interface == "cellular"
     end
 
-    test "doesn't allow invalid values", %{device: device} do
-      {:error, cs} = Devices.update_network_interface(device, "foobarbaz")
-      assert cs.errors[:network_interface] == {"\"foobarbaz\" is not a valid network interface", []}
+    test "sets to 'unknown' for invalid values", %{device: device} do
+      {:ok, device} = Devices.update_network_interface(device, "foobarbaz")
+      assert device.network_interface == "unknown"
     end
   end
 end

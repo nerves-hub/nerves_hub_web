@@ -1,6 +1,5 @@
 defmodule NervesHubWeb.WebsocketTest do
   use NervesHubWeb.ChannelCase
-  use Mimic
 
   import Ecto.Query
   import TrackerHelper
@@ -1046,7 +1045,7 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_architecture" => device.firmware_metadata.architecture,
         "nerves_fw_platform" => device.firmware_metadata.platform,
         "nerves_fw_version" => "0.1.0",
-        "network_interface" => "ethernet"
+        "network_interface" => "en0"
       })
 
       assert_online_and_available(device)
@@ -1055,12 +1054,11 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
-    test "does not update network interface if invalid", %{
+    test "sets network interface to 'unknown' for invalid values", %{
       user: user,
       tmp_dir: tmp_dir
     } do
       {device, _firmware} = device_fixture(tmp_dir, user)
-      {:ok, device} = Devices.update_network_interface(device, "ethernet")
       Fixtures.device_certificate_fixture(device)
 
       subscribe_for_updates(device)
@@ -1077,7 +1075,7 @@ defmodule NervesHubWeb.WebsocketTest do
         "network_interface" => "some-Crazy_VaLuE"
       })
 
-      assert Repo.reload(device).network_interface == "ethernet"
+      assert Repo.reload(device).network_interface == "unknown"
       close_socket_cleanly(socket)
     end
   end
