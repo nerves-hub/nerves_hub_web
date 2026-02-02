@@ -1246,4 +1246,18 @@ defmodule NervesHub.DevicesTest do
       assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
     end
   end
+
+  describe "update_network_interface/2" do
+    test "updates device.network_interface", %{device: device} do
+      refute device.network_interface
+
+      {:ok, device} = Devices.update_network_interface(device, "ethernet")
+      assert device.network_interface == "ethernet"
+    end
+
+    test "doesn't allow invalid values", %{device: device} do
+      {:error, cs} = Devices.update_network_interface(device, "foobarbaz")
+      assert cs.errors[:network_interface] == {"\"foobarbaz\" is not a valid network interface", []}
+    end
+  end
 end

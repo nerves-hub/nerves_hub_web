@@ -12,6 +12,8 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.ManagedDeployments
   alias Phoenix.Channel.Server, as: ChannelServer
 
+  require Logger
+
   @spec join(Device.t(), connection_reference :: String.t(), params :: map()) ::
           {:ok, Device.t()} | {:error, any()}
   def join(device, ref_id, params) do
@@ -33,7 +35,8 @@ defmodule NervesHub.DeviceLink do
   def after_join(device, reference_id, params) do
     with :ok <- maybe_send_public_keys(device, params),
          :ok <- maybe_send_archive(device, params["device_api_version"], reference_id),
-         :ok <- maybe_request_extensions(device, params["device_api_version"]) do
+         :ok <- maybe_request_extensions(device, params["device_api_version"]),
+         :ok <- maybe_update_device_network_interface(device, params["network_interface"]) do
       announce_online(device, reference_id)
     end
   rescue
@@ -158,6 +161,22 @@ defmodule NervesHub.DeviceLink do
       do: broadcast(device, "extensions:get", %{})
 
     :ok
+  end
+
+  defp maybe_update_device_network_interface(%{network_interface: network_interface}, network_interface), do: :ok
+
+  defp maybe_update_device_network_interface(device, network_interface) do
+    case Devices.update_network_interface(device, network_interface) do
+      {:ok, _device} ->
+        :ok
+
+      {:error, changeset} ->
+        Logger.warning(
+          "[DeviceChannel] could not update device network interface because: #{inspect(changeset.errors)}"
+        )
+
+        :ok
+    end
   end
 
   # The reported firmware is the same as what we already know about

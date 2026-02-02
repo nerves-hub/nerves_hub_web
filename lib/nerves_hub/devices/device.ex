@@ -87,6 +87,8 @@ defmodule NervesHub.Devices.Device do
     # To be removed in a migration in the next release
     # field(:priority_updates, :boolean, default: false)
 
+    field(:network_interface, :string)
+
     field(:deleted_at, :utc_datetime)
 
     timestamps()
@@ -125,5 +127,29 @@ defmodule NervesHub.Devices.Device do
     |> change()
     |> put_change(:update_attempts, [])
     |> put_change(:updates_blocked_until, nil)
+  end
+
+  def update_network_interface_changeset(%Device{} = device, network_interface) do
+    friendly_interface_name = get_friendly_network_interface_name(network_interface)
+
+    device
+    |> change(%{network_interface: friendly_interface_name})
+    |> validate_required([:network_interface])
+    |> validate_change(:network_interface, fn :network_interface, interface ->
+      if interface in ["wifi", "ethernet", "cellular"] do
+        []
+      else
+        [network_interface: "#{inspect(network_interface)} is not a valid network interface"]
+      end
+    end)
+  end
+
+  defp get_friendly_network_interface_name(interface) do
+    cond do
+      String.starts_with?(interface, "wlan") -> "wifi"
+      String.starts_with?(interface, "eth") -> "ethernet"
+      String.starts_with?(interface, "wwan") -> "cellular"
+      true -> "unknown"
+    end
   end
 end
