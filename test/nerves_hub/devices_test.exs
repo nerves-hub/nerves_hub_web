@@ -1268,5 +1268,10 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} = Devices.update_network_interface(device, "foobarbaz")
       assert device.network_interface == "unknown"
     end
+
+    test "cannot be explicitly set to nil", %{device: device} do
+      {:error, changeset} = Devices.update_network_interface(device, nil)
+      {"cannot be set to nil", []} = changeset.errors[:network_interface]
+    end
   end
 end

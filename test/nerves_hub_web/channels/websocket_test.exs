@@ -1078,6 +1078,30 @@ defmodule NervesHubWeb.WebsocketTest do
       assert Repo.reload(device).network_interface == "unknown"
       close_socket_cleanly(socket)
     end
+
+    test "does not blow up if network_interface is nil", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+
+      SocketClient.join_and_wait(socket, %{
+        "device_api_version" => "2.2.0",
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => "test",
+        "nerves_fw_architecture" => device.firmware_metadata.architecture,
+        "nerves_fw_platform" => device.firmware_metadata.platform,
+        "nerves_fw_version" => "0.1.0"
+      })
+
+      assert Repo.reload(device).network_interface == nil
+      close_socket_cleanly(socket)
+    end
   end
 
   describe "Custom CA Signers" do

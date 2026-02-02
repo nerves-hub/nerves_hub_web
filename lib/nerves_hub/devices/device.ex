@@ -129,6 +129,14 @@ defmodule NervesHub.Devices.Device do
     |> put_change(:updates_blocked_until, nil)
   end
 
+  def update_network_interface_changeset(%Device{} = device, nil) do
+    add_error(
+      change(device),
+      :network_interface,
+      "cannot be set to nil"
+    )
+  end
+
   def update_network_interface_changeset(%Device{} = device, network_interface) do
     friendly_interface_name = get_friendly_network_interface_name(network_interface)
 

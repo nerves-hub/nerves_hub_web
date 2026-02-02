@@ -163,6 +163,8 @@ defmodule NervesHub.DeviceLink do
     :ok
   end
 
+  defp maybe_update_device_network_interface(_device, nil), do: :ok
+
   defp maybe_update_device_network_interface(%{network_interface: network_interface}, network_interface), do: :ok
 
   defp maybe_update_device_network_interface(device, network_interface) do
