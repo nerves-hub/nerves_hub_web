@@ -145,6 +145,7 @@ defmodule NervesHub.Devices.Device do
     |> validate_required([:network_interface])
   end
 
+  @spec humanized_network_interface_name(String.t()) :: :wifi | :ethernet | :cellular | :unknown
   def humanized_network_interface_name(interface) do
     cond do
       String.starts_with?(interface, "wlan") -> :wifi
