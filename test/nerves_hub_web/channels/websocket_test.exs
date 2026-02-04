@@ -1050,7 +1050,7 @@ defmodule NervesHubWeb.WebsocketTest do
       })
 
       assert_online_and_available(device)
-      assert Repo.reload(device) |> Map.get(:network_interface) == "ethernet"
+      assert Repo.reload(device) |> Map.get(:network_interface) == :ethernet
 
       close_socket_cleanly(socket)
     end
@@ -1076,7 +1076,7 @@ defmodule NervesHubWeb.WebsocketTest do
         "network_interface" => "some-Crazy_VaLuE"
       })
 
-      assert Repo.reload(device).network_interface == "unknown"
+      assert Repo.reload(device).network_interface == :unknown
       close_socket_cleanly(socket)
     end
 

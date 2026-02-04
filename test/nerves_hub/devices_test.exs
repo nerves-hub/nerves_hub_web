@@ -1252,21 +1252,21 @@ defmodule NervesHub.DevicesTest do
       refute device.network_interface
 
       {:ok, device} = Devices.update_network_interface(device, "eth0")
-      assert device.network_interface == "ethernet"
+      assert device.network_interface == :ethernet
 
       {:ok, device} = Devices.update_network_interface(device, "en0")
-      assert device.network_interface == "ethernet"
+      assert device.network_interface == :ethernet
 
       {:ok, device} = Devices.update_network_interface(device, "wlan0")
-      assert device.network_interface == "wifi"
+      assert device.network_interface == :wifi
 
       {:ok, device} = Devices.update_network_interface(device, "wwan0")
-      assert device.network_interface == "cellular"
+      assert device.network_interface == :cellular
     end
 
     test "sets to 'unknown' for invalid values", %{device: device} do
       {:ok, device} = Devices.update_network_interface(device, "foobarbaz")
-      assert device.network_interface == "unknown"
+      assert device.network_interface == :unknown
     end
 
     test "cannot be explicitly set to nil", %{device: device} do

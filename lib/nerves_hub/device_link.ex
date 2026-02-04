@@ -166,7 +166,7 @@ defmodule NervesHub.DeviceLink do
   defp maybe_update_device_network_interface(_device, nil), do: :ok
 
   defp maybe_update_device_network_interface(device, network_interface) do
-    if Device.friendly_network_interface_name(network_interface) == device.network_interface do
+    if Device.humanized_network_interface_name(network_interface) == device.network_interface do
       :ok
     else
       case Devices.update_network_interface(device, network_interface) do
