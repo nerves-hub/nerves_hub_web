@@ -16,6 +16,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
   alias NervesHub.Products
   alias NervesHub.Repo
+  alias NervesHub.Support.EctoTelemetryHandler
   alias NervesHub.Support.Utils
   alias NervesHubWeb.DeviceEndpoint
   alias NervesHubWeb.Endpoint
@@ -1101,6 +1102,38 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert Repo.reload(device).network_interface == nil
       close_socket_cleanly(socket)
+    end
+
+    test "does not update if reported network interface hasn't changed", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      old_interface = "eth1"
+      new_interface = "eth0"
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      Devices.update_network_interface(device, old_interface)
+      Fixtures.device_certificate_fixture(device)
+
+      :ok = EctoTelemetryHandler.start_and_attach()
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+
+      SocketClient.join_and_wait(socket, %{
+        "device_api_version" => "2.2.0",
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => "test",
+        "nerves_fw_architecture" => device.firmware_metadata.architecture,
+        "nerves_fw_platform" => device.firmware_metadata.platform,
+        "nerves_fw_version" => "0.1.0",
+        "network_interface" => new_interface
+      })
+
+      refute EctoTelemetryHandler.has_queried?(:update, device, "network_interface")
+
+      close_socket_cleanly(socket)
+      :ok = EctoTelemetryHandler.detach()
     end
   end
 

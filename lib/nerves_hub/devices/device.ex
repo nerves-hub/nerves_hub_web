@@ -138,14 +138,14 @@ defmodule NervesHub.Devices.Device do
   end
 
   def update_network_interface_changeset(%Device{} = device, network_interface) do
-    friendly_interface_name = get_friendly_network_interface_name(network_interface)
+    friendly_interface_name = friendly_network_interface_name(network_interface)
 
     device
     |> change(%{network_interface: friendly_interface_name})
     |> validate_required([:network_interface])
   end
 
-  defp get_friendly_network_interface_name(interface) do
+  def friendly_network_interface_name(interface) do
     cond do
       String.starts_with?(interface, "wlan") -> "wifi"
       String.starts_with?(interface, "eth") or String.starts_with?(interface, "en") -> "ethernet"

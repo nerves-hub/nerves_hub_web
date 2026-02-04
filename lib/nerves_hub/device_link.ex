@@ -165,19 +165,21 @@ defmodule NervesHub.DeviceLink do
 
   defp maybe_update_device_network_interface(_device, nil), do: :ok
 
-  defp maybe_update_device_network_interface(%{network_interface: network_interface}, network_interface), do: :ok
-
   defp maybe_update_device_network_interface(device, network_interface) do
-    case Devices.update_network_interface(device, network_interface) do
-      {:ok, _device} ->
-        :ok
+    if Device.friendly_network_interface_name(network_interface) == device.network_interface do
+      :ok
+    else
+      case Devices.update_network_interface(device, network_interface) do
+        {:ok, _device} ->
+          :ok
 
-      {:error, changeset} ->
-        Logger.warning(
-          "[DeviceChannel] could not update device network interface because: #{inspect(changeset.errors)}"
-        )
+        {:error, changeset} ->
+          Logger.warning(
+            "[DeviceChannel] could not update device network interface because: #{inspect(changeset.errors)}"
+          )
 
-        :ok
+          :ok
+      end
     end
   end
 
