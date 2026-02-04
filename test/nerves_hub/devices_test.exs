@@ -1246,4 +1246,32 @@ defmodule NervesHub.DevicesTest do
       assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
     end
   end
+
+  describe "update_network_interface/2" do
+    test "updates device.network_interface", %{device: device} do
+      refute device.network_interface
+
+      {:ok, device} = Devices.update_network_interface(device, "eth0")
+      assert device.network_interface == :ethernet
+
+      {:ok, device} = Devices.update_network_interface(device, "en0")
+      assert device.network_interface == :ethernet
+
+      {:ok, device} = Devices.update_network_interface(device, "wlan0")
+      assert device.network_interface == :wifi
+
+      {:ok, device} = Devices.update_network_interface(device, "wwan0")
+      assert device.network_interface == :cellular
+    end
+
+    test "sets to 'unknown' for invalid values", %{device: device} do
+      {:ok, device} = Devices.update_network_interface(device, "foobarbaz")
+      assert device.network_interface == :unknown
+    end
+
+    test "cannot be explicitly set to nil", %{device: device} do
+      {:error, changeset} = Devices.update_network_interface(device, nil)
+      {"cannot be set to nil", []} = changeset.errors[:network_interface]
+    end
+  end
 end

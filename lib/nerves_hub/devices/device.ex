@@ -87,6 +87,7 @@ defmodule NervesHub.Devices.Device do
     # To be removed in a migration in the next release
     # field(:priority_updates, :boolean, default: false)
 
+    field(:network_interface, Ecto.Enum, values: [:wifi, :ethernet, :cellular, :unknown])
     field(:deleted_at, :utc_datetime)
 
     timestamps()
@@ -125,5 +126,32 @@ defmodule NervesHub.Devices.Device do
     |> change()
     |> put_change(:update_attempts, [])
     |> put_change(:updates_blocked_until, nil)
+  end
+
+  def update_network_interface_changeset(%Device{} = device, nil) do
+    add_error(
+      change(device),
+      :network_interface,
+      "cannot be set to nil"
+    )
+  end
+
+  def update_network_interface_changeset(%Device{} = device, network_interface) do
+    humanized_interface_name = humanized_network_interface_name(network_interface)
+
+    device
+    |> change(%{network_interface: humanized_interface_name})
+    |> cast(%{network_interface: humanized_interface_name}, [:network_interface])
+    |> validate_required([:network_interface])
+  end
+
+  @spec humanized_network_interface_name(String.t()) :: :wifi | :ethernet | :cellular | :unknown
+  def humanized_network_interface_name(interface) do
+    cond do
+      String.starts_with?(interface, "wlan") -> :wifi
+      String.starts_with?(interface, "eth") or String.starts_with?(interface, "en") -> :ethernet
+      String.starts_with?(interface, "wwan") -> :cellular
+      true -> :unknown
+    end
   end
 end

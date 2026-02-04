@@ -233,6 +233,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_in("network_interface_mismatch", params, socket) do
+    :telemetry.execute([:nerves_hub, :devices, :network_interface_mismatch], %{count: 1}, %{params: params})
+
+    {:noreply, socket}
+  end
+
   def handle_in(msg, params, %{assigns: %{device: device}} = socket) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.

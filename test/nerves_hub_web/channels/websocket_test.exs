@@ -16,6 +16,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
   alias NervesHub.Products
   alias NervesHub.Repo
+  alias NervesHub.Support.EctoTelemetryHandler
   alias NervesHub.Support.Utils
   alias NervesHubWeb.DeviceEndpoint
   alias NervesHubWeb.Endpoint
@@ -1024,6 +1025,118 @@ defmodule NervesHubWeb.WebsocketTest do
     end
   end
 
+  describe "setting device network interface" do
+    @describetag :tmp_dir
+
+    test "updates network interface on connect", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+
+      SocketClient.join_and_wait(socket, %{
+        "device_api_version" => "2.2.0",
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => "test",
+        "nerves_fw_architecture" => device.firmware_metadata.architecture,
+        "nerves_fw_platform" => device.firmware_metadata.platform,
+        "nerves_fw_version" => "0.1.0",
+        "network_interface" => "en0"
+      })
+
+      assert_online_and_available(device)
+      assert Repo.reload(device) |> Map.get(:network_interface) == :ethernet
+
+      close_socket_cleanly(socket)
+    end
+
+    test "sets network interface to 'unknown' for invalid values", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+
+      SocketClient.join_and_wait(socket, %{
+        "device_api_version" => "2.2.0",
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => "test",
+        "nerves_fw_architecture" => device.firmware_metadata.architecture,
+        "nerves_fw_platform" => device.firmware_metadata.platform,
+        "nerves_fw_version" => "0.1.0",
+        "network_interface" => "some-Crazy_VaLuE"
+      })
+
+      assert Repo.reload(device).network_interface == :unknown
+      close_socket_cleanly(socket)
+    end
+
+    test "does not blow up if network_interface is nil", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+
+      SocketClient.join_and_wait(socket, %{
+        "device_api_version" => "2.2.0",
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => "test",
+        "nerves_fw_architecture" => device.firmware_metadata.architecture,
+        "nerves_fw_platform" => device.firmware_metadata.platform,
+        "nerves_fw_version" => "0.1.0"
+      })
+
+      assert Repo.reload(device).network_interface == nil
+      close_socket_cleanly(socket)
+    end
+
+    test "does not update if reported network interface hasn't changed", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      old_interface = "eth1"
+      new_interface = "eth0"
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      Devices.update_network_interface(device, old_interface)
+      Fixtures.device_certificate_fixture(device)
+
+      :ok = EctoTelemetryHandler.start_and_attach()
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+
+      SocketClient.join_and_wait(socket, %{
+        "device_api_version" => "2.2.0",
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => "test",
+        "nerves_fw_architecture" => device.firmware_metadata.architecture,
+        "nerves_fw_platform" => device.firmware_metadata.platform,
+        "nerves_fw_version" => "0.1.0",
+        "network_interface" => new_interface
+      })
+
+      refute EctoTelemetryHandler.has_queried?(:update, device, "network_interface")
+
+      close_socket_cleanly(socket)
+      :ok = EctoTelemetryHandler.detach()
+    end
+  end
+
   describe "Custom CA Signers" do
     @describetag :tmp_dir
 
@@ -1327,17 +1440,7 @@ defmodule NervesHubWeb.WebsocketTest do
         })
         |> ManagedDeployments.update_deployment_group(%{is_active: true}, user)
 
-      device =
-        Fixtures.device_fixture(
-          org,
-          product,
-          firmware,
-          %{
-            tags: ["beta", "beta-edge"],
-            identifier: @valid_serial,
-            deployment_id: deployment_group.id
-          }
-        )
+      device = Fixtures.device_fixture(org, product, firmware)
 
       archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
