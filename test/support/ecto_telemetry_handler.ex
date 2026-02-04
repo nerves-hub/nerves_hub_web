@@ -13,11 +13,11 @@ defmodule NervesHub.Support.EctoTelemetryHandler do
 
   Usage:
 
-      :ok = NervesHub.Support.EctoTelemetryHandler.start_and_attach()
+      :ok = EctoTelemetryHandler.start_and_attach()
       ...
-      assert NervesHub.Support.EctoTelemetryHandler.has_queried?(:update, schema, "some field")
+      assert EctoTelemetryHandler.has_queried?(:update, schema, "some_field")
       ...
-      NervesHub.Support.EctoTelemetryHandler.detach()
+      EctoTelemetryHandler.detach()
   """
   use Agent
 
