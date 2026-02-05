@@ -31,16 +31,17 @@
   ],
   "words": [
     "castore",
-    "chartjs",
     "certifi",
+    "chartjs",
     "circuitboard",
     "citext",
     "clickhouse",
     "clipcopy",
     "comeonin",
     "conzole",
-    "extralight",
+    "evenodd",
     "extn",
+    "extralight",
     "Fastlaned",
     "filelib",
     "filesize",
@@ -88,7 +89,7 @@
     "unprovisioned",
     "validtoken",
     "webgl",
-    "xtermjs",
-    "xdelta"
+    "xdelta",
+    "xtermjs"
   ]
 }

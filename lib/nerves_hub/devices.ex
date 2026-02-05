@@ -770,6 +770,25 @@ defmodule NervesHub.Devices do
       end
     end)
     |> then(fn query ->
+      # Filter by network interface if release_network_interfaces is specified
+      # Empty list means allow all interfaces
+      if deployment_group.release_network_interfaces == [] do
+        query
+      else
+        where(query, [d], d.network_interface in ^deployment_group.release_network_interfaces)
+      end
+    end)
+    |> then(fn query ->
+      # Filter by tags if release_tags is specified
+      # Empty list means allow all devices regardless of tags
+      # Non-empty list means device must have all matching tags
+      if deployment_group.release_tags == [] do
+        query
+      else
+        where(query, [d], fragment("? @> ?", d.tags, ^deployment_group.release_tags))
+      end
+    end)
+    |> then(fn query ->
       case deployment_group.queue_management do
         :FIFO ->
           order_by(query, [latest_connection: lc], asc: lc.established_at)

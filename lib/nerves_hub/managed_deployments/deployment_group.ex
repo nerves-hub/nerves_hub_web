@@ -70,6 +70,13 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:priority_queue_concurrent_updates, :integer, default: 5)
     field(:priority_queue_firmware_version_threshold, :string)
 
+    field(:release_network_interfaces, {:array, Ecto.Enum},
+      values: [:wifi, :ethernet, :cellular, :unknown],
+      default: []
+    )
+
+    field(:release_tags, Tag, default: [])
+
     field(:device_count, :integer, virtual: true)
 
     # TODO: (joshk) this column is unused, remove after 1st May
@@ -103,7 +110,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       :firmware_id,
       :archive_id,
       :priority_queue_enabled,
-      :priority_queue_firmware_version_threshold
+      :priority_queue_firmware_version_threshold,
+      :release_network_interfaces,
+      :release_tags
     ])
     |> cast_and_validate_numeric_fields(params)
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)

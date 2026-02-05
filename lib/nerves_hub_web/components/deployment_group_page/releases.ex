@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -20,6 +21,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     |> assign(:archives, archives)
     |> assign(:firmwares, firmwares)
     |> assign(:form, to_form(changeset))
+    |> assign(:show_rollout_options, false)
     |> ok()
   end
 
@@ -53,6 +55,46 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                 label="Additional Archive version"
                 hint="Firmware listed is the same platform and architecture as the currently selected firmware."
               />
+            </div>
+
+            <div class="w-full border-t border-zinc-700 pt-6">
+              <button
+                type="button"
+                phx-click="toggle-rollout-options"
+                phx-target={@myself}
+                class="flex items-center gap-2 text-sm font-medium text-zinc-300 hover:text-zinc-100"
+              >
+                <svg
+                  class={["w-4 h-4 transition-transform", @show_rollout_options && "rotate-90"]}
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                </svg>
+                Rollout options
+              </button>
+
+              <div :if={@show_rollout_options} class="mt-4 w-1/2">
+                <.input
+                  field={@form[:release_network_interfaces]}
+                  type="select"
+                  options={network_interface_options()}
+                  multiple
+                  label="Allowed network interfaces"
+                  hint="Select which network interfaces devices must be on to receive this release. Leave empty to allow all interfaces."
+                />
+
+                <div class="mt-4">
+                  <.input
+                    field={@form[:release_tags]}
+                    value={Utils.tags_to_string(@form[:release_tags])}
+                    label="Release tags"
+                    placeholder="eg. batch-123, production"
+                    hint="Devices must have ALL of these tags to receive this release. Leave empty to allow all devices."
+                  />
+                </div>
+              </div>
             </div>
 
             <div>
@@ -139,6 +181,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     |> noreply()
   end
 
+  def handle_event("toggle-rollout-options", _params, socket) do
+    socket
+    |> assign(:show_rollout_options, !socket.assigns.show_rollout_options)
+    |> noreply()
+  end
+
   def handle_event("update-release", %{"deployment_group" => params}, socket) do
     %{
       org_user: org_user,
@@ -219,5 +267,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   defp firmware_display_name(%Firmware{} = f) do
     "#{f.version} - #{f.platform} - #{f.architecture} (#{String.slice(f.uuid, 0..7)})"
+  end
+
+  defp network_interface_options() do
+    [
+      [key: "Wi-Fi", value: :wifi],
+      [key: "Ethernet", value: :ethernet],
+      [key: "Cellular", value: :cellular],
+      [key: "Unknown", value: :unknown]
+    ]
   end
 end
