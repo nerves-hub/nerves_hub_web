@@ -31,9 +31,6 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
           [_full, uuid] ->
             # Find firmware by UUID and serve the local file
             case Repo.get_by(Firmwares.Firmware, uuid: uuid) do
-              nil ->
-                Plug.Conn.send_resp(conn, 404, Jason.encode!(%{error: "not found"}))
-
               firmware ->
                 # Get local path from upload_metadata
                 local_path =
@@ -46,9 +43,6 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
                 |> Plug.Conn.put_resp_content_type("application/octet-stream")
                 |> Plug.Conn.send_resp(200, body)
             end
-
-          nil ->
-            Plug.Conn.send_resp(conn, 404, Jason.encode!(%{error: "invalid path"}))
         end
       end)
 
@@ -131,9 +125,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
         }
       }
 
-      # Worker returns {:error, ...} on failure
-      result = FirmwareDeltaBuilder.perform(job)
-      assert match?({:error, _}, result) or match?(:error, result)
+      assert {:error, :test_failure} = FirmwareDeltaBuilder.perform(job)
 
       delta = Repo.reload(delta)
       assert delta.status == :failed
@@ -170,8 +162,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
       }
 
       # Worker returns {:error, ...} on failure
-      result = FirmwareDeltaBuilder.perform(job)
-      assert match?({:error, _}, result) or match?(:error, result)
+      assert {:error, :test_failure} = FirmwareDeltaBuilder.perform(job)
 
       delta = Repo.reload(delta)
       assert delta.status == :processing, "Should remain processing for retry"
