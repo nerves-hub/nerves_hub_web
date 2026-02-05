@@ -15,6 +15,8 @@ defmodule NervesHubWeb.ChannelCase do
 
   use ExUnit.CaseTemplate
 
+  alias Ecto.Adapters.SQL.Sandbox, as: SQLSandbox
+
   using do
     quote do
       use DefaultMocks
@@ -56,17 +58,17 @@ defmodule NervesHubWeb.ChannelCase do
 
   setup do
     # Explicitly get a connection before each test
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.ObanRepo)
+    :ok = SQLSandbox.checkout(NervesHub.Repo)
+    :ok = SQLSandbox.checkout(NervesHub.ObanRepo)
   end
 
   setup tags do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(NervesHub.Repo, shared: not tags[:async])
-    pid2 = Ecto.Adapters.SQL.Sandbox.start_owner!(NervesHub.ObanRepo, shared: not tags[:async])
+    pid = SQLSandbox.start_owner!(NervesHub.Repo, shared: not tags[:async])
+    pid2 = SQLSandbox.start_owner!(NervesHub.ObanRepo, shared: not tags[:async])
 
     on_exit(fn ->
-      Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
-      Ecto.Adapters.SQL.Sandbox.stop_owner(pid2)
+      SQLSandbox.stop_owner(pid)
+      SQLSandbox.stop_owner(pid2)
     end)
 
     :ok
