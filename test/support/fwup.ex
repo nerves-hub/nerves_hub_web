@@ -20,6 +20,8 @@ defmodule NervesHub.Support.Fwup do
               description: "D",
               platform: "platform",
               product: "nerves-hub",
+              resource_contents: "Hello, world!",
+              resource_name: nil,
               version: "1.0.0"
   end
 
@@ -152,12 +154,18 @@ defmodule NervesHub.Support.Fwup do
 
   defp make_conf(meta_params, dir) do
     path = Path.join([dir, "#{Ecto.UUID.generate()}.conf"])
-    File.write!(path, build_conf_contents(meta_params))
+    File.write!(path, build_conf_contents(meta_params, dir))
 
     path
   end
 
-  defp build_conf_contents(%MetaParams{} = meta_params) do
+  defp build_conf_contents(%MetaParams{} = meta_params, dir) do
+    uuid = meta_params.resource_name || Ecto.UUID.generate()
+
+    # Create actual data file for delta generation
+    data_file_path = Path.join(dir, "#{uuid}.txt")
+    File.write!(data_file_path, meta_params.resource_contents)
+
     """
     meta-product = "#{meta_params.product}"
     meta-description = "#{meta_params.description} "
@@ -166,13 +174,22 @@ defmodule NervesHub.Support.Fwup do
     meta-architecture = "#{meta_params.architecture}"
     meta-author = "#{meta_params.author}"
 
-    file-resource  #{Ecto.UUID.generate()}.txt {
-    contents = "Hello, world!"
+    file-resource #{uuid}.txt {
+      host-path = "#{data_file_path}"
+    }
+
+    # Add delta update support
+    task upgrade.a {
+      on-resource #{uuid}.txt {
+        delta-source-raw-offset=0
+        delta-source-raw-count=1
+        raw_write(0)
+      }
     }
     """
   end
 
-  defp build_conf_contents(%InvalidMetaParams{} = meta_params) do
+  defp build_conf_contents(%InvalidMetaParams{} = meta_params, _dir) do
     """
     meta-description = "#{meta_params.description} "
     meta-version = "#{meta_params.version}"
