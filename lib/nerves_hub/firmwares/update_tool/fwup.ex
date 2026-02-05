@@ -70,8 +70,17 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
 
           {:error, reason}
       end
+    rescue
+      e ->
+        Logger.warning(
+          "Firmware delta creation failed with exception: #{inspect(e)}, stacktrace: #{inspect(__STACKTRACE__)}",
+          source_url: source_url,
+          target_url: target_url
+        )
+
+        {:error, :download_or_delta_failed}
     after
-      File.rmdir(work_dir)
+      File.rm_rf(work_dir)
     end
   end
 
@@ -345,7 +354,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
         %{firmware_uuid: firmware.uuid}
       )
 
-      Logger.error("Downloading firmware failed due to: #{inspect(e)}",
+      Logger.error("Downloading firmware failed due to: #{inspect(e)}, stacktrace: #{inspect(__STACKTRACE__)}",
         firmware_uuid: firmware.uuid
       )
 
@@ -355,13 +364,14 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
 
   defp dl!(url, filepath) do
-    {:ok, :saved_to_file} =
-      :httpc.request(
-        :get,
-        {url |> to_charlist(), []},
-        [],
-        stream: filepath |> to_charlist()
-      )
+    # Download and write to file
+    response = Req.get!(url, Application.get_env(:nerves_hub, :firmware_download_options, []))
+
+    if response.status != 200 do
+      raise "HTTP download failed with status #{response.status}"
+    end
+
+    File.write!(filepath, response.body)
 
     :ok
   end
