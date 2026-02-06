@@ -55,7 +55,10 @@ Email Address []:</code></pre>
       <div class="border-t border-zinc-700 pt-6 mb-6">
         <div class="mb-4">
           <label for="description_input" class="block text-sm font-medium text-zinc-300 mb-2">Description</label>
-          {text_input(f, :description, class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "description_input")}
+          {text_input(f, :description,
+            class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+            id: "description_input"
+          )}
           <div class="text-sm text-red-400 mt-1">{error_tag(f, :description)}</div>
         </div>
 
@@ -70,35 +73,50 @@ Email Address []:</code></pre>
           <div class="mb-4">
             <div class="flex items-center gap-2 mb-4">
               <input id="jitp_toggle" type="hidden" name="ca_certificate[jitp][jitp_toggle]" value="false" checked={@show_jitp_form} />
-              <input id="jitp_toggle_ui" type="checkbox" name="ca_certificate[jitp][jitp_toggle]" value="true" checked={@show_jitp_form} phx-click={JS.dispatch("ca:new:jitp")} class="rounded border-zinc-700 text-zinc-400 checked:bg-indigo-500 focus:ring-0" />
+              <input
+                id="jitp_toggle_ui"
+                type="checkbox"
+                name="ca_certificate[jitp][jitp_toggle]"
+                value="true"
+                checked={@show_jitp_form}
+                phx-click={JS.dispatch("ca:new:jitp")}
+                class="rounded border-zinc-700 text-zinc-400 checked:bg-indigo-500 focus:ring-0"
+              />
               <label for="jitp_toggle_ui" class="text-sm text-zinc-300">Enable Just In Time Provisioning</label>
             </div>
-            
+
             <div class={if !@show_jitp_form, do: "hidden"} id="jitp_form">
               <div class="mb-4">
                 <label for="jitp_description_input" class="block text-sm font-medium text-zinc-300 mb-2">
-                  JITP Description
-                  <span class="text-xs text-zinc-500 ml-2">(Device Description)</span>
+                  JITP Description <span class="text-xs text-zinc-500 ml-2">(Device Description)</span>
                 </label>
-                {text_input(fp, :description, class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "jitp_description_input")}
+                {text_input(fp, :description,
+                  class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+                  id: "jitp_description_input"
+                )}
                 <div class="text-sm text-red-400 mt-1">{error_tag(fp, :description)}</div>
               </div>
 
               <div class="mb-4">
                 <label for="tag_input" class="block text-sm font-medium text-zinc-300 mb-2">
-                  JITP Tags
-                  <span class="text-xs text-zinc-500 ml-2">(Tags are used by deployments to target a device)</span>
+                  JITP Tags <span class="text-xs text-zinc-500 ml-2">(Tags are used by deployments to target a device)</span>
                 </label>
-                {text_input(fp, :tags, class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "tag_input")}
+                {text_input(fp, :tags,
+                  class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+                  id: "tag_input"
+                )}
                 <div class="text-sm text-red-400 mt-1">{error_tag(fp, :tags)}</div>
               </div>
 
               <div class="mb-4">
                 <label for="product_input" class="block text-sm font-medium text-zinc-300 mb-2">
-                  JITP Product
-                  <span class="text-xs text-zinc-500 ml-2">(JITP must be configured to use a particular product)</span>
+                  JITP Product <span class="text-xs text-zinc-500 ml-2">(JITP must be configured to use a particular product)</span>
                 </label>
-                {select(fp, :product_id, Enum.map(@products, &{&1.name, &1.id}), class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "product_input", prompt: "Select Product")}
+                {select(fp, :product_id, Enum.map(@products, &{&1.name, &1.id}),
+                  class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+                  id: "product_input",
+                  prompt: "Select Product"
+                )}
                 <div class="text-sm text-red-400 mt-1">{error_tag(fp, :product_id)}</div>
               </div>
             </div>
@@ -108,13 +126,16 @@ Email Address []:</code></pre>
         <div class="mb-4">
           <%= if Enum.any?(@uploads.cert.entries) do %>
             <label class="block text-sm font-medium text-zinc-300 mb-2" for={@uploads.cert.ref}>
-              Selected Certificate File:
-              <span class="text-zinc-400">{Enum.map(@uploads.cert.entries, fn e -> e.client_name end)}</span>
+              Selected Certificate File: <span class="text-zinc-400">{Enum.map(@uploads.cert.entries, fn e -> e.client_name end)}</span>
             </label>
           <% else %>
             <label class="block text-sm font-medium text-zinc-300 mb-2" for={@uploads.cert.ref}>Upload a Certificate Authority file (rootCA.pem)</label>
           <% end %>
-          <.live_file_input upload={@uploads.cert} required class="block w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700" />
+          <.live_file_input
+            upload={@uploads.cert}
+            required
+            class="block w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700"
+          />
           <%= for entry <- @uploads.cert.entries do %>
             <div :for={err <- upload_errors(@uploads.cert, entry)} class="text-sm text-red-400 mt-1">
               {upload_error_to_string(err)}
@@ -125,13 +146,16 @@ Email Address []:</code></pre>
         <div class="mb-6">
           <%= if Enum.any?(@uploads.csr.entries) do %>
             <label class="block text-sm font-medium text-zinc-300 mb-2" for={@uploads.csr.ref}>
-              Selected CSR File:
-              <span class="text-zinc-400">{Enum.map(@uploads.csr.entries, fn e -> e.client_name end)}</span>
+              Selected CSR File: <span class="text-zinc-400">{Enum.map(@uploads.csr.entries, fn e -> e.client_name end)}</span>
             </label>
           <% else %>
             <label class="block text-sm font-medium text-zinc-300 mb-2" for={@uploads.csr.ref}>Upload a Certificate Authority file (verificationCert.crt)</label>
           <% end %>
-          <.live_file_input upload={@uploads.csr} required class="block w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700" />
+          <.live_file_input
+            upload={@uploads.csr}
+            required
+            class="block w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700"
+          />
           <%= for entry <- @uploads.csr.entries do %>
             <div :for={err <- upload_errors(@uploads.csr, entry)} class="text-sm text-red-400 mt-1">
               {upload_error_to_string(err)}

@@ -5,7 +5,6 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   alias NervesHub.Devices.Connections
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.PinnedDevices
-
   alias Phoenix.Socket.Broadcast
 
   @pinned_devices_limit 5
