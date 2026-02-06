@@ -103,10 +103,6 @@ defmodule NervesHubWeb do
       def noreply(socket), do: {:noreply, socket}
       def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
 
-      @spec sidebar_tab(
-              Phoenix.Socket.t(),
-              :archives | :firmware | :deployments | :devices | :settings | :support_scripts
-            ) :: Phoenix.Socket.t()
       def sidebar_tab(socket, tab) do
         socket
         |> assign(:sidebar_tab, tab)

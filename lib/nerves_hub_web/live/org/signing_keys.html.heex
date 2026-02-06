@@ -26,7 +26,13 @@
                 Created by: {signing_key.created_by.name} ({signing_key.created_by.email})
               </div>
             </div>
-            <button class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed" phx-click="delete" phx-value-signing_key_id={signing_key.id} disabled={!authorized?(:"signing_key:delete", @org_user)} data-confirm="Are you sure?">
+            <button
+              class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              phx-click="delete"
+              phx-value-signing_key_id={signing_key.id}
+              disabled={!authorized?(:"signing_key:delete", @org_user)}
+              data-confirm="Are you sure?"
+            >
               Delete
             </button>
           </div>

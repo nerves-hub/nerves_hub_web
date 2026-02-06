@@ -299,9 +299,9 @@ defmodule NervesHubWeb.Router do
       root_layout: {NervesHubWeb.Layouts, :root},
       layout: {NervesHubWeb.Layouts, :no_sidebar},
       on_mount: [
-        NervesHubWeb.Mounts.AccountAuth,
-        NervesHubWeb.Mounts.EnrichSentryContext,
-        NervesHubWeb.Mounts.CurrentPath
+        AccountAuth,
+        EnrichSentryContext,
+        CurrentPath
       ] do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
@@ -323,11 +323,11 @@ defmodule NervesHubWeb.Router do
       root_layout: {NervesHubWeb.Layouts, :root},
       layout: {NervesHubWeb.Layouts, :sidebar},
       on_mount: [
-        NervesHubWeb.Mounts.AccountAuth,
-        NervesHubWeb.Mounts.EnrichSentryContext,
-        NervesHubWeb.Mounts.CurrentPath,
-        NervesHubWeb.Mounts.FetchOrg,
-        NervesHubWeb.Mounts.FetchOrgUser
+        AccountAuth,
+        EnrichSentryContext,
+        CurrentPath,
+        FetchOrg,
+        FetchOrgUser
       ] do
       live("/org/:org_name", Show)
       live("/org/:org_name/new", Live.Products.New)

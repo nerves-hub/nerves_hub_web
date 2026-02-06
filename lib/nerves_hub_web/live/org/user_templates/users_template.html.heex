@@ -9,80 +9,88 @@
     </.button>
   </div>
 
-    <%= if !Enum.empty?(@invites) do %>
-      <h2 class="text-base font-semibold text-neutral-50 px-4 py-2">Outstanding Invites</h2>
-      <div class="listing">
-        <table>
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Invite Link</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-              <%= for invite <- @invites do %>
-                <tr class="border-b border-zinc-800 isolate">
-                    <td class="text-base-400">{invite.email}</td>
-                    <td class="text-base-400">
-                    <code class="text-xs text-zinc-400 bg-zinc-900 px-2 py-1 rounded"><%= Routes.account_url(@socket, :invite, invite.token) %></code>
-                    </td>
-                    <td :if={authorized?(:"org_user:invite:rescind", @org_user)} class="text-base-400">
-                    <button class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700" phx-click="rescind_invite" phx-value-invite_token={invite.token} data-confirm="Are you sure you want to rescind the invite?">
-                        Rescind
-                    </button>
-                    </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-    <% end %>
-
+  <%= if !Enum.empty?(@invites) do %>
+    <h2 class="text-base font-semibold text-neutral-50 px-4 py-2">Outstanding Invites</h2>
     <div class="listing">
       <table>
         <thead>
           <tr>
-            <th>User name</th>
             <th>Email</th>
-            <th>Role</th>
-            <th>Added on</th>
-            <th></th>
+            <th>Invite Link</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
-          <%= for org_user <- @org_users do %>
+          <%= for invite <- @invites do %>
             <tr class="border-b border-zinc-800 isolate">
-              <td>
-                <.link href={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="text-zinc-300 hover:text-zinc-100">
-                  {org_user.user.name}
-                </.link>
-              </td>
-              <td>{org_user.user.email}</td>
-              <td class="text-base-400 capitalize">{org_user.role}</td>
+              <td class="text-base-400">{invite.email}</td>
               <td class="text-base-400">
-                <div phx-hook="SimpleDate" id={"user-#{org_user.id}-date"} class="date-time">{org_user.user.inserted_at}</div>
+                <code class="text-xs text-zinc-400 bg-zinc-900 px-2 py-1 rounded">{Routes.account_url(@socket, :invite, invite.token)}</code>
               </td>
-              <td :if={authorized?(:"org_user:delete", @org_user) && org_user.user.id != assigns.user.id} class="text-right">
-                <div class="flex gap-2 justify-end">
-                  <.link patch={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700">
-                    Edit
-                  </.link>
-                  <button
-                    :if={authorized?(:"org_user:delete", @org_user)}
-                    type="link"
-                    class="px-3 py-1.5 text-sm font-medium text-red-500 bg-zinc-800 border border-red-500 rounded hover:bg-zinc-700"
-                    phx-click="delete_org_user"
-                    phx-value-user_id={org_user.user_id}
-                    data-confirm="Are you sure you want to remove this user? This can not be undone."
-                  >
-                    Delete
-                  </button>
-                </div>
+              <td :if={authorized?(:"org_user:invite:rescind", @org_user)} class="text-base-400">
+                <button
+                  class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700"
+                  phx-click="rescind_invite"
+                  phx-value-invite_token={invite.token}
+                  data-confirm="Are you sure you want to rescind the invite?"
+                >
+                  Rescind
+                </button>
               </td>
             </tr>
           <% end %>
         </tbody>
       </table>
     </div>
+  <% end %>
+
+  <div class="listing">
+    <table>
+      <thead>
+        <tr>
+          <th>User name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Added on</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <%= for org_user <- @org_users do %>
+          <tr class="border-b border-zinc-800 isolate">
+            <td>
+              <.link href={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="text-zinc-300 hover:text-zinc-100">
+                {org_user.user.name}
+              </.link>
+            </td>
+            <td>{org_user.user.email}</td>
+            <td class="text-base-400 capitalize">{org_user.role}</td>
+            <td class="text-base-400">
+              <div phx-hook="SimpleDate" id={"user-#{org_user.id}-date"} class="date-time">{org_user.user.inserted_at}</div>
+            </td>
+            <td :if={authorized?(:"org_user:delete", @org_user) && org_user.user.id != assigns.user.id} class="text-right">
+              <div class="flex gap-2 justify-end">
+                <.link
+                  patch={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"}
+                  class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700"
+                >
+                  Edit
+                </.link>
+                <button
+                  :if={authorized?(:"org_user:delete", @org_user)}
+                  type="link"
+                  class="px-3 py-1.5 text-sm font-medium text-red-500 bg-zinc-800 border border-red-500 rounded hover:bg-zinc-700"
+                  phx-click="delete_org_user"
+                  phx-value-user_id={org_user.user_id}
+                  data-confirm="Are you sure you want to remove this user? This can not be undone."
+                >
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
 </div>

@@ -17,17 +17,23 @@
 
       <div class="mb-4">
         <label for="email_input" class="block text-sm font-medium text-zinc-300 mb-2">Email</label>
-        {email_input(f, :email, class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "email_input", value: assigns[:email])}
+        {email_input(f, :email,
+          class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+          id: "email_input",
+          value: assigns[:email]
+        )}
         <div class="text-sm text-red-400 mt-1">{error_tag(f, :email)}</div>
         <div class="text-sm text-red-400 mt-1">{error_tag(f, :org_users)}</div>
       </div>
 
       <div class="mb-6">
         <label for="role_input" class="block text-sm font-medium text-zinc-300 mb-2">
-          Role
-          <span class="text-xs text-zinc-500 ml-2">(Defines the type of access this user has in this org)</span>
+          Role <span class="text-xs text-zinc-500 ml-2">(Defines the type of access this user has in this org)</span>
         </label>
-        {select(f, :role, Utils.role_options(), selected: :view, class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500")}
+        {select(f, :role, Utils.role_options(),
+          selected: :view,
+          class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        )}
       </div>
 
       <div class="flex gap-3">
