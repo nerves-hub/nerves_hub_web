@@ -25,6 +25,29 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
 
       assert_push("firmware_update", %{percent: 50})
     end
+
+    test "handles console messages" do
+      user = Fixtures.user_fixture()
+
+      device = device_fixture(user, %{identifier: "test-device-123"})
+
+      user_token = Accounts.create_user_api_token(user, "test-token")
+
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => user_token})
+
+      {:ok, _join_reply, _channel} =
+        subscribe_and_join(
+          socket,
+          DeviceEventsStreamChannel,
+          "device:console:#{device.identifier}"
+        )
+
+      NervesHubWeb.Endpoint.broadcast("user:console:#{device.id}", "up", %{"data" => "u"})
+      assert_push("console_raw", %{data: "u"})
+      msg = %{"event" => "foo", "name" => "bar"}
+      NervesHubWeb.Endpoint.broadcast("user:console:#{device.id}", "message", msg)
+      assert_push("console_message", ^msg)
+    end
   end
 
   describe "join/3" do
@@ -61,6 +84,42 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
                  socket,
                  DeviceEventsStreamChannel,
                  "device:#{device.identifier}"
+               )
+    end
+
+    test "authorized users can join the console channel" do
+      user = Fixtures.user_fixture()
+
+      device = device_fixture(user, %{identifier: "test-device-123"})
+
+      user_token = Accounts.create_user_api_token(user, "test-token")
+
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => user_token})
+
+      assert {:ok, _reply, _channel} =
+               subscribe_and_join(
+                 socket,
+                 DeviceEventsStreamChannel,
+                 "device:console:#{device.identifier}"
+               )
+    end
+
+    test "unauthorized user cannot join the console channel" do
+      user = Fixtures.user_fixture()
+      other_user = Fixtures.user_fixture()
+
+      device = device_fixture(user, %{identifier: "test-device-456"})
+
+      other_user_token = Accounts.create_user_api_token(other_user, "test-token")
+
+      # Connect with unauthorized user's token
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => other_user_token})
+
+      assert {:error, %{reason: _reason}} =
+               subscribe_and_join(
+                 socket,
+                 DeviceEventsStreamChannel,
+                 "device:console:#{device.identifier}"
                )
     end
   end
