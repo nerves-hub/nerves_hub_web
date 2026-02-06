@@ -60,11 +60,13 @@ defmodule NervesHub.Debug do
         measurements = Map.delete(measurements, :idle_time)
 
         if Enum.any?(measurements, fn {_k, v} -> v > threshold end) do
+          # credo:disable-for-next-line
           IO.inspect(metadata)
 
           Enum.each(measurements, fn {k, v} ->
             if v > threshold do
               ms = System.convert_time_unit(v, :native, :millisecond)
+              # credo:disable-for-next-line
               IO.inspect("#{inspect(event)} #{k}: #{ms} milliseconds")
             end
           end)
@@ -106,6 +108,7 @@ defmodule NervesHub.Debug do
         wait_samples(count - 1, limit, timeout)
 
       {:sample, term} ->
+        # credo:disable-for-next-line
         IO.inspect(term, label: "sample", limit: :infinity)
         wait_samples(count - 1, limit, timeout)
     after

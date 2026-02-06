@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     |> noreply()
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_info(:load_extras, socket) do
     statuses =
       Connections.get_connection_status_by_orgs(Enum.map(socket.assigns.user.orgs, & &1.id))
