@@ -435,14 +435,19 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
     socket
-    |> assign(:received_connection_change_identifiers, [payload | socket.assigns.received_connection_change_identifiers])
+    |> assign(:received_connection_change_identifiers, [
+      payload | socket.assigns.received_connection_change_identifiers
+    ])
     |> safe_refresh()
     |> update_device_statuses(payload)
   end
 
   def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
     socket
-    |> assign(:received_connection_change_identifiers, [payload | socket.assigns.received_connection_change_identifiers])
+    |> assign(
+      :received_connection_change_identifiers,
+      [payload | socket.assigns.received_connection_change_identifiers]
+    )
     |> safe_refresh()
     |> update_device_statuses(payload)
   end
@@ -537,7 +542,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
 
         payload =
-          Enum.find(socket.assigns.received_connection_change_identifiers, fn %{device_id: identifier} ->
+          Enum.find(socket.assigns.received_connection_change_identifiers, fn %{
+                                                                                device_id: identifier
+                                                                              } ->
             identifier == device.identifier
           end)
 

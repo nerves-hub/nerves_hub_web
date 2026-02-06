@@ -112,8 +112,8 @@ jobs:
       - name: Check spelling
         run: mix spellweaver.check
 
-      - name: Run Credo (won't fail the build)
-        run: mix credo --mute-exit-status
+      - name: Run Credo
+        run: mix credo --min-priority low
 
       - name: DB Setup
         run: mix ecto.migrate.reset

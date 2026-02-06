@@ -32,9 +32,11 @@ defmodule NervesHubWeb.ConnCase do
   end
 
   setup tags do
+    # credo:disable-for-next-line
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
 
     if !tags[:async] do
+      # credo:disable-for-next-line
       Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 
@@ -86,9 +88,11 @@ defmodule NervesHubWeb.APIConnCase do
   end
 
   setup tags do
+    # credo:disable-for-next-line
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
 
     if !tags[:async] do
+      # credo:disable-for-next-line
       Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 

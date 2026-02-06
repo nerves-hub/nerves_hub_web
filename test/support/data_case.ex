@@ -14,6 +14,8 @@ defmodule NervesHub.DataCase do
 
   use ExUnit.CaseTemplate
 
+  alias Ecto.Adapters.SQL.Sandbox, as: SQLSandbox
+
   using do
     quote do
       use DefaultMocks
@@ -31,12 +33,12 @@ defmodule NervesHub.DataCase do
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.ObanRepo)
+    :ok = SQLSandbox.checkout(NervesHub.Repo)
+    :ok = SQLSandbox.checkout(NervesHub.ObanRepo)
 
     if !tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHub.ObanRepo, {:shared, self()})
+      SQLSandbox.mode(NervesHub.Repo, {:shared, self()})
+      SQLSandbox.mode(NervesHub.ObanRepo, {:shared, self()})
     end
 
     :ok

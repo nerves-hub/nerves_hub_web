@@ -7,11 +7,13 @@ defmodule NervesHubWeb.Plugs.ImAlive do
 
   import Plug.Conn
 
+  alias Ecto.Adapters.SQL
+
   @status_path "/status/alive"
   def init(config), do: config
 
   def call(%{request_path: @status_path} = conn, _) do
-    case Ecto.Adapters.SQL.query(NervesHub.Repo, "SELECT true", []) do
+    case SQL.query(NervesHub.Repo, "SELECT true", []) do
       {:ok, _} -> send_result(conn, 200, "Hello, Friend!")
       _result -> send_result(conn, 500, "Sorry, Friend :(")
     end
