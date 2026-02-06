@@ -653,6 +653,51 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
     end
 
     @tag :tmp_dir
+    test "verify that unused files are excluded from delta", %{tmp_dir: dir} do
+      fwup_conf_path = Path.join(dir, "fwup.conf")
+      File.write!(fwup_conf_path, @pi_style_delta)
+
+      data_path_1 = Path.join(dir, "data-1")
+      data_1 = for _ <- 1..100, into: <<>>, do: Ecto.UUID.generate()
+      File.write!(data_path_1, data_1)
+
+      data_path_2 = Path.join(dir, "data-2")
+      data_2 = for _ <- 1..100, into: data_1, do: Ecto.UUID.generate()
+      File.write!(data_path_2, data_2)
+
+      fw_a = build_fw!(Path.join(dir, "a.fw"), fwup_conf_path, data_path_1)
+      fw_b = build_fw!(Path.join(dir, "b.fw"), fwup_conf_path, data_path_2)
+      %{size: source_size} = File.stat!(fw_a)
+      %{size: target_size} = File.stat!(fw_b)
+
+      {:ok,
+       %{
+         filepath: delta_path
+       }} =
+        Fwup.do_delta_file({"aaa", fw_a}, {"bbb", fw_b}, Path.join(dir, "work"))
+
+      data_files =
+        delta_path
+        |> to_charlist()
+        |> :zip.list_dir()
+        |> elem(1)
+        |> Enum.map(fn item ->
+          case {elem(item, 0), elem(item, 1)} do
+            {:zip_file, path} -> String.trim_leading(to_string(path), "data/")
+            _ -> :comment
+          end
+        end)
+
+      # deltas included
+      assert "first" in data_files
+      assert "second" in data_files
+      # unused excluded
+      refute "third" in data_files
+      # non-delta included
+      assert "fourth" in data_files
+    end
+
+    @tag :tmp_dir
     @tag :mtools
     test "verify that a firmware is not delta updatable but file generated is okay", %{
       tmp_dir: dir
