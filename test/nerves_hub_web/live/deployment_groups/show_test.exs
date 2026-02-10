@@ -78,7 +78,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
     |> assert_has("h1", text: deployment_group.name)
-    |> click_button("Delete")
+    |> click_link("Delete")
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
     |> assert_has("div", text: "Deployment Group successfully deleted")
 
@@ -107,7 +107,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
     |> assert_has("h1", text: deployment_group.name)
-    |> click_button("Delete")
+    |> click_link("Delete")
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
     |> assert_has("div", text: "Deployment Group successfully deleted")
 

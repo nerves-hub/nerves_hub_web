@@ -1,81 +1,75 @@
-<h1>Create Product</h1>
+<div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
 
-<.form :let={f} for={@form} phx-submit="create_product">
-  <%= if f.action do %>
-    <div class="alert alert-danger">
-      <p>Something went wrong! Please check the errors below.</p>
-    </div>
-  <% end %>
-
-  <div class="form-group">
-    <div class="help-text tooltip-label help-tooltip">
-      <label for="name_input" class="tooltip-label">
-        Name
-      </label>
-      <span class="tooltip-info mb-1"></span>
-      <span class="tooltip-text">Once created, a product name cannot be changed</span>
-    </div>
-    <%= if assigns[:product] do %>
-      {text_input(f, :name, class: "form-control", disabled: "true", id: "name_input")}
-    <% else %>
-      {text_input(f, :name, class: "form-control", id: "name_input")}
-    <% end %>
-    <div class="has-error">{error_tag(f, :name)}</div>
+<div class="h-0 flex-1 overflow-y-auto">
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">New Product</h1>
+    <div class="mr-auto"></div>
   </div>
 
-  <div class="form-group">
-    <div class="container pl-0 mb-2">
-      <div class="row align-items-center">
-        <div class="col col-6">
-          <h3>Extensions</h3>
+  <div class="flex flex-col items-start justify-between gap-4 p-6">
+    <.form :let={f} for={@form} phx-submit="create_product" class="w-full flex flex-col gap-4">
+      <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+        <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+          <div class="text-base text-neutral-50 font-medium">General settings</div>
         </div>
-        <div class="col col-2">
-          <span class="badge bg-warning">Experimental</span>
+        <div class="flex p-6 gap-6">
+          <div class="w-1/2 flex flex-col gap-6">
+            <.input field={f[:name]} label="Name" hint="Once created, a product name cannot be changed" />
+          </div>
         </div>
       </div>
-    </div>
 
-    <p class="p-small">
-      Isolated channels for various device behaviours and extension messaging not crucial to firmware updates<br />
-      but are useful for managing, monitoring, and introspecting on wide fleets of devices.
-    </p>
-    <p class="p-small">
-      When enabled, NervesHub will request the extensions a device currently supports and then<br />
-      check against product and device settings to see if the extension should be attached to the connection.
-    </p>
-    <p class="p-small mb-3">
-      Extensions most be allowed at the product level. They can also be configured at the device level for more<br /> granular control when needed.
-    </p>
+      <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+        <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+          <div class="text-base text-neutral-50 font-medium">Device Extensions</div>
+        </div>
 
-    <table :if={Enum.any?(@available_extensions)} class="table table-sm table-hover">
-      <thead>
-        <tr>
-          <th></th>
-          <th>Name</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tr :for={{key, description} <- @available_extensions} class="item">
-        <td>
-          <input type="checkbox" id={"extension-#{key}"} name={"product[extensions][#{key}]"} checked phx-value-extension={key} value="true" />
-        </td>
-        <td class="ff-m">
-          <div class="mobile-label help-text">Name</div>
+        <div class="p-6 flex flex-col gap-3">
+          <div class="flex flex-col gap-3">
+            <p class="text-sm w-2/3">
+              Isolated channels for various device behaviours and extension messaging not crucial to firmware updates but are useful for managing, monitoring, and introspecting on wide fleets of devices.
+            </p>
+            <p class="text-sm w-2/3">
+              When enabled, NervesHub will request the extensions a device currently supports and then check against product and device settings to see if the extension should be attached to the connection.
+            </p>
+            <p class="text-sm w-2/3">
+              Extensions most be allowed at the product level. They can also be configured at the device level for more granular control when needed.
+            </p>
+          </div>
 
-          <label for={"extension-#{key}"}>
-            {String.capitalize(to_string(key))}
-          </label>
-        </td>
-        <td>
-          <div class="mobile-label help-text">Description</div>
-          {description}
-        </td>
-      </tr>
-    </table>
+          <div :for={{key, description} <- @available_extensions} class="flex items-center gap-6 h-16 p-2">
+            <div class="flex items-center h-8 py-1 px-2 bg-zinc-800 border border-zinc-700 rounded-full">
+              <input
+                id={"extension-#{key}"}
+                name={"product[extensions][#{key}]"}
+                type="checkbox"
+                class="rounded border-zinc-700 text-zinc-400 checked:bg-indigo-500 focus:ring-0"
+                checked
+                value="true"
+              />
+            </div>
+            <div class="flex flex-col">
+              <div class="flex gap-2">
+                <div class="w-14 font-medium text-zinc-300">
+                  {String.capitalize(to_string(key))}
+                </div>
+              </div>
+              <div class="text-zinc-400 text-xs">
+                {description}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <.button style="primary" type="submit">
+          Create Product
+        </.button>
+        <.button style="secondary" type="link" navigate={~p"/orgs"}>
+          Cancel
+        </.button>
+      </div>
+    </.form>
   </div>
-
-  <div class="button-submit-wrapper">
-    <.link class="btn btn-outline-light" patch={~p"/org/#{@org}"}>Cancel</.link>
-    {submit("Create Product", class: "btn btn-primary")}
-  </div>
-</.form>
+</div>

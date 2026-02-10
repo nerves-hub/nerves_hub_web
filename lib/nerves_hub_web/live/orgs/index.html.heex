@@ -1,4 +1,5 @@
 <%= if @user.orgs == [] do %>
+  <!-- TODO: Go over this empty-state with new design -->
   <div class="no-results-blowup-wrapper">
     <img src="/images/product.svg" alt="No organizations" />
     <h3 style="margin-top: 2.75rem">You aren't a member of any organizations.</h3>
@@ -10,31 +11,123 @@
     </div>
   </div>
 <% else %>
-  <h1 class="mt-2">Organizations</h1>
-  <div class="x3-grid">
-    <%= for org <- @user.orgs do %>
-      <.link navigate={~p"/org/#{org}"} class="grid-item">
-        <h3>{org.name}</h3>
-        <div class="flex-row">
-          <div class="flex-grow-1 mt-1">
-            <div class="help-text">Products</div>
-            <div class="mt-1">
-              <img src="/images/icons/product.svg" alt="products" class="mr-1" style="margin-top: -1px" />
-              <span>{Enum.count(org.products)}</span>
-            </div>
-
-            <div class="help-text mt-2">Devices</div>
-            <div class="flex flex-row mt-1 align-items-center justify-content-between">
-              <div>
-                <p>{get_in(@device_info, [org.id, :online]) || "-"} online</p>
+  <div class="w-[800px]">
+    <PinnedDevices.render
+      :if={!Enum.empty?(@pinned_devices)}
+      devices={if @show_all_pinned?, do: @pinned_devices, else: limit_devices(@pinned_devices)}
+      statuses={@device_statuses}
+      show_all?={@show_all_pinned?}
+      device_limit={@device_limit}
+      total_count={length(@pinned_devices)}
+    />
+    <div class="h-[88px] py-6 flex items-center justify-between">
+      <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Organizations</h1>
+      <.link
+        navigate={~p"/orgs/new"}
+        class="flex items-center justify-center px-3 py-1.5 gap-2 rounded bg-zinc-800 hover:bg-zinc-700 active:bg-indigo-500 border border-zinc-600 active:border-indigo-500 text-sm font-medium text-zinc-300 hover:text-neutral-50 active:text-neutral-50 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="size-4 stroke-current" viewBox="0 0 16 16" fill="none" stroke-width="1.5">
+          <path d="M8 3.33334V12.6667M3.33334 8H12.6667" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Create Organization
+      </.link>
+    </div>
+    <div class="flex flex-col gap-4">
+      <div :for={org <- @user.orgs} class="bg-zinc-900 border border-zinc-700 rounded">
+        <div class="h-[56px] px-4 flex items-center justify-between">
+          <div class="flex items-center gap-[12px]">
+            <a href={~p"/org/#{org}"} class="contents">
+              <div class="size-8 bg-zinc-800 text-zinc-500 uppercase rounded font-semibold text-sm flex items-center justify-center">
+                {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
               </div>
-              <div>
-                <p>{get_in(@device_info, [org.id, :offline]) || "-"} offline</p>
+              <h3 class="text-base font-medium text-neutral-50">{org.name}</h3>
+            </a>
+          </div>
+          <div class="flex items-center gap-6 text-sm">
+            <div class="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M2.5 10.8333H17.5M2.5 10.8333V14.1666C2.5 15.0871 3.24619 15.8333 4.16667 15.8333H15.8333C16.7538 15.8333 17.5 15.0871 17.5 14.1666V10.8333M2.5 10.8333L3.85106 5.42907C4.03654 4.68712 4.70318 4.16663 5.46796 4.16663H14.532C15.2968 4.16663 15.9635 4.68712 16.1489 5.42907L17.5 10.8333M5 13.3333H15"
+                  stroke="#71717A"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span class="text-zinc-400">{Enum.count(org.products)} {if Enum.count(org.products) == 1, do: "product", else: "products"}</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center gap-1.5">
+                <div class="size-2 bg-green-500 rounded-full"></div>
+                <span class="text-zinc-300">{get_in(@device_info, [org.id, :online]) || 0}</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <div class="size-2 bg-zinc-500 rounded-full"></div>
+                <span class="text-zinc-400">{get_in(@device_info, [org.id, :offline]) || 0}</span>
+              </div>
+            </div>
+            <.link
+              navigate={~p"/org/#{org}/new"}
+              class="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-300 transition-colors"
+              title="Create Product"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="size-5 stroke-current" viewBox="0 0 16 16" fill="none" stroke-width="1.5">
+                <path d="M8 3.33334V12.6667M3.33334 8H12.6667" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </.link>
+          </div>
+          <%!-- <div class="flex gap-2 items-center">
+            <.button type="link">
+              <.icon name="add" /> Add product
+            </.button>
+            <div class="size-6 flex justify-center">
+              <span class="h-6 border-l border-zinc-700"></span>
+            </div>
+            <.link class="p-1.5 bg-zinc-800 border border-zinc-600 rounded">
+              <svg class="size-5 fill-zinc-400" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8.33328 17.5L7.74757 17.6302C7.80857 17.9047 8.05206 18.1 8.33328 18.1V17.5ZM11.6666 17.5V18.1C11.9478 18.1 12.1913 17.9047 12.2523 17.6302L11.6666 17.5ZM11.6666 2.5L12.2523 2.36984C12.1913 2.09532 11.9478 1.9 11.6666 1.9V2.5ZM8.33328 2.5V1.9C8.05206 1.9 7.80857 2.09532 7.74757 2.36984L8.33328 2.5ZM2.67139 12.3066L2.26581 11.8645C2.05857 12.0545 2.01116 12.3631 2.15177 12.6066L2.67139 12.3066ZM4.33805 15.1934L3.81844 15.4934C3.95905 15.7369 4.24994 15.8501 4.51819 15.7657L4.33805 15.1934ZM17.3284 7.69337L17.734 8.13553C17.9413 7.94544 17.9887 7.63691 17.8481 7.39337L17.3284 7.69337ZM15.6618 4.80662L16.1814 4.50662C16.0408 4.26307 15.7499 4.14987 15.4816 4.2343L15.6618 4.80662ZM4.33805 4.80662L4.51819 4.23429C4.24994 4.14987 3.95905 4.26307 3.81844 4.50662L4.33805 4.80662ZM2.67139 7.69337L2.15177 7.39337C2.01116 7.63691 2.05857 7.94544 2.26581 8.13553L2.67139 7.69337ZM15.6618 15.1934L15.4816 15.7657C15.7499 15.8501 16.0408 15.7369 16.1814 15.4934L15.6618 15.1934ZM17.3284 12.3066L17.8481 12.6066C17.9887 12.3631 17.9413 12.0545 17.734 11.8645L17.3284 12.3066ZM15.768 9.12465L15.3625 8.68249C15.2154 8.81739 15.145 9.01659 15.1747 9.21394L15.768 9.12465ZM15.768 10.8753L15.1747 10.786C15.145 10.9834 15.2154 11.1826 15.3625 11.3175L15.768 10.8753ZM13.6414 14.5575L13.8215 13.9851C13.6308 13.9251 13.4227 13.964 13.2665 14.0889L13.6414 14.5575ZM12.1258 15.4339L11.907 14.8752C11.721 14.948 11.5834 15.1087 11.54 15.3037L12.1258 15.4339ZM7.87414 15.4339L8.45985 15.3037C8.41651 15.1087 8.27892 14.948 8.09288 14.8752L7.87414 15.4339ZM6.35851 14.5574L6.73334 14.0889C6.5772 13.964 6.3691 13.9251 6.17837 13.9851L6.35851 14.5574ZM4.23184 10.8753L4.63742 11.3174C4.78449 11.1825 4.85486 10.9833 4.82516 10.786L4.23184 10.8753ZM4.23184 9.1247L4.82516 9.21398C4.85486 9.01664 4.78449 8.81744 4.63742 8.68254L4.23184 9.1247ZM6.35852 5.44255L6.17839 6.01487C6.36912 6.0749 6.57722 6.03598 6.73335 5.91106L6.35852 5.44255ZM7.87414 4.56613L8.09288 5.12483C8.27892 5.05199 8.41651 4.89132 8.45985 4.69629L7.87414 4.56613ZM13.6413 5.44254L13.2665 5.91105C13.4227 6.03596 13.6308 6.07489 13.8215 6.01486L13.6413 5.44254ZM12.1258 4.56613L11.54 4.69629C11.5834 4.89132 11.721 5.05199 11.907 5.12483L12.1258 4.56613ZM8.33328 18.1H11.6666V16.9H8.33328V18.1ZM11.6666 1.9H8.33328V3.1H11.6666V1.9ZM2.15177 12.6066L3.81844 15.4934L4.85767 14.8934L3.191 12.0066L2.15177 12.6066ZM17.8481 7.39337L16.1814 4.50662L15.1422 5.10662L16.8088 7.99337L17.8481 7.39337ZM3.81844 4.50662L2.15177 7.39337L3.191 7.99337L4.85767 5.10662L3.81844 4.50662ZM16.1814 15.4934L17.8481 12.6066L16.8088 12.0066L15.1422 14.8934L16.1814 15.4934ZM15.1747 9.21394C15.2133 9.47001 15.2333 9.73248 15.2333 10H16.4333C16.4333 9.6725 16.4088 9.35035 16.3614 9.03537L15.1747 9.21394ZM16.1736 9.56681L17.734 8.13553L16.9229 7.2512L15.3625 8.68249L16.1736 9.56681ZM15.2333 10C15.2333 10.2675 15.2133 10.53 15.1747 10.786L16.3614 10.9646C16.4088 10.6496 16.4333 10.3275 16.4333 10H15.2333ZM17.734 11.8645L16.1736 10.4332L15.3625 11.3175L16.9229 12.7488L17.734 11.8645ZM13.4612 15.1298L15.4816 15.7657L15.8419 14.621L13.8215 13.9851L13.4612 15.1298ZM13.2665 14.0889C12.8585 14.4154 12.4009 14.6818 11.907 14.8752L12.3445 15.9926C12.9525 15.7545 13.5151 15.4268 14.0162 15.026L13.2665 14.0889ZM12.2523 17.6302L12.7115 15.564L11.54 15.3037L11.0809 17.3698L12.2523 17.6302ZM7.28843 15.564L7.74757 17.6302L8.91899 17.3698L8.45985 15.3037L7.28843 15.564ZM8.09288 14.8752C7.59902 14.6818 7.14138 14.4154 6.73334 14.0889L5.98368 15.0259C6.48473 15.4268 7.04736 15.7545 7.6554 15.9926L8.09288 14.8752ZM4.51819 15.7657L6.53864 15.1298L6.17837 13.9851L4.15792 14.621L4.51819 15.7657ZM4.82516 10.786C4.78663 10.5299 4.76661 10.2675 4.76661 10H3.56661C3.56661 10.3275 3.59113 10.6496 3.63852 10.9646L4.82516 10.786ZM3.82626 10.4331L2.26581 11.8645L3.07696 12.7488L4.63742 11.3174L3.82626 10.4331ZM4.76661 10C4.76661 9.73249 4.78663 9.47004 4.82516 9.21398L3.63852 9.03542C3.59113 9.35039 3.56661 9.67252 3.56661 10H4.76661ZM2.26581 8.13553L3.82627 9.56687L4.63742 8.68254L3.07696 7.2512L2.26581 8.13553ZM6.53866 4.87023L4.51819 4.23429L4.15792 5.37894L6.17839 6.01487L6.53866 4.87023ZM6.73335 5.91106C7.14139 5.58461 7.59903 5.31818 8.09288 5.12483L7.6554 4.00742C7.04737 4.24547 6.48474 4.57318 5.98369 4.97404L6.73335 5.91106ZM7.74757 2.36984L7.28843 4.43597L8.45985 4.69629L8.91899 2.63016L7.74757 2.36984ZM15.4816 4.2343L13.4612 4.87021L13.8215 6.01486L15.8419 5.37894L15.4816 4.2343ZM11.907 5.12483C12.4009 5.31818 12.8585 5.5846 13.2665 5.91105L14.0162 4.97402C13.5151 4.57317 12.9525 4.24547 12.3445 4.00742L11.907 5.12483ZM12.7115 4.43597L12.2523 2.36984L11.0809 2.63016L11.54 4.69629L12.7115 4.43597ZM11.8999 10C11.8999 11.0493 11.0493 11.9 9.99994 11.9V13.1C11.712 13.1 13.0999 11.7121 13.0999 10H11.8999ZM9.99994 11.9C8.9506 11.9 8.09994 11.0493 8.09994 10H6.89994C6.89994 11.7121 8.28786 13.1 9.99994 13.1V11.9ZM8.09994 10C8.09994 8.95066 8.9506 8.1 9.99994 8.1V6.9C8.28786 6.9 6.89994 8.28792 6.89994 10H8.09994ZM9.99994 8.1C11.0493 8.1 11.8999 8.95066 11.8999 10H13.0999C13.0999 8.28792 11.712 6.9 9.99994 6.9V8.1Z" />
+              </svg>
+            </.link>
+          </div> --%>
+        </div>
+        <%= if Enum.empty?(org.products) do %>
+          <div class="px-4 pb-4 pt-2">
+            <div class="p-4 border border-zinc-700 rounded bg-zinc-800/30 text-center">
+              <p class="text-sm text-zinc-400">
+                No products yet.
+                <.link navigate={~p"/org/#{org}/new"} class="text-zinc-300 hover:text-neutral-50 underline">
+                  Create your first product
+                </.link>
+              </p>
+            </div>
+          </div>
+        <% else %>
+          <div class="grid grid-cols-2 px-4 pb-4 pt-2 gap-4">
+            <div :for={product <- org.products} class="flex justify-between gap-[16px] p-4 w-full border border-zinc-700 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800">
+              <div class="text-neutral-50 font-semibold text-sm">
+                <.link navigate={~p"/org/#{org}/#{product}/devices"}>
+                  {product.name}
+                </.link>
+              </div>
+              <div class="flex gap-4 text-sm font-medium">
+                <div class="flex items-center gap-1.5">
+                  <div class="size-2 bg-green-500 rounded-full"></div>
+                  <span class="text-zinc-300">{get_in(@product_device_info, [product.id, :online]) || 0}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <div class="size-2 bg-zinc-500 rounded-full"></div>
+                  <span class="text-zinc-400">{get_in(@product_device_info, [product.id, :offline]) || 0}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </.link>
-    <% end %>
+        <% end %>
+      </div>
+    </div>
   </div>
 <% end %>
+<%!-- box-shadow: var(--sds-size-depth-0) var(--sds-size-depth-100) var(--sds-size-depth-100) var(--sds-size-depth-negative-100) var(--BackgroundDark2);
+
+box-shadow: var(--sds-size-depth-0) var(--sds-size-depth-400) var(--sds-size-depth-800) var(--sds-size-depth-negative-100) var(--BackgroundDark2);
+
+background: linear-gradient(90deg, rgba(39, 39, 42, 0.56) 0%, #27272A 100%); --%>

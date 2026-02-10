@@ -291,16 +291,37 @@ defmodule NervesHubWeb.Router do
         EnrichSentryContext,
         CurrentPath
       ] do
-      live("/account", Live.Account, :edit)
-      live("/account/delete", Live.Account, :delete)
       live("/account/tokens", Live.AccountTokens, :index)
       live("/account/tokens/new", Live.AccountTokens, :new)
+    end
 
+    live_session :account_refreshed,
+      root_layout: {NervesHubWeb.Layouts, :root},
+      layout: {NervesHubWeb.Layouts, :no_sidebar},
+      on_mount: [
+        AccountAuth,
+        EnrichSentryContext,
+        CurrentPath
+      ] do
+      live("/account", Live.Account, :edit)
+      live("/account/delete", Live.Account, :delete)
       live("/orgs", Index)
       live("/orgs/new", New)
     end
 
     live_session :org,
+      on_mount: [
+        AccountAuth,
+        EnrichSentryContext,
+        CurrentPath,
+        FetchOrg,
+        FetchOrgUser
+      ] do
+    end
+
+    live_session :org_refreshed,
+      root_layout: {NervesHubWeb.Layouts, :root},
+      layout: {NervesHubWeb.Layouts, :sidebar},
       on_mount: [
         AccountAuth,
         EnrichSentryContext,
