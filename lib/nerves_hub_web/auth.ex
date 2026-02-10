@@ -76,8 +76,9 @@ defmodule NervesHubWeb.Auth do
   """
   def fetch_current_user(conn, _opts) do
     {user_token, conn} = ensure_user_token(conn)
+    user = Accounts.get_user_by_session_token(user_token)
 
-    if user = user_token && Accounts.get_user_by_session_token(user_token) do
+    if user_token && user do
       # Preload orgs and products for the navigation bar
       # Since we've loaded everything then we can reuse it for plugs
       # further down the pipeline
