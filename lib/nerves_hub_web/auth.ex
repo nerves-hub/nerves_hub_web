@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Auth do
   import Plug.Conn
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.User
 
   # Make the remember me cookie valid for 60 days.
   # If you want bump or reduce this value, also change
@@ -77,7 +78,8 @@ defmodule NervesHubWeb.Auth do
   def fetch_current_user(conn, _opts) do
     {user_token, conn} = ensure_user_token(conn)
 
-    if user = user_token && Accounts.get_user_by_session_token(user_token) do
+    with user_token when is_binary(user_token) <- user_token,
+         %User{} = user <- Accounts.get_user_by_session_token(user_token) do
       # Preload orgs and products for the navigation bar
       # Since we've loaded everything then we can reuse it for plugs
       # further down the pipeline
@@ -88,7 +90,8 @@ defmodule NervesHubWeb.Auth do
       |> assign(:orgs, user.orgs)
       |> assign(:user_token, Phoenix.Token.sign(conn, "user salt", user.id))
     else
-      conn
+      nil ->
+        conn
     end
   end
 
