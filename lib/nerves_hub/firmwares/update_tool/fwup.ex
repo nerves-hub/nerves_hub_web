@@ -171,7 +171,8 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          {:ok, tool_metadata} <- get_tool_metadata(Path.join(target_work_dir, "meta.conf")),
          :ok <- Confuse.Fwup.validate_delta(source_meta_conf, target_meta_conf),
          {:ok, deltas} <- Confuse.Fwup.get_delta_files_from_config(target_meta_conf),
-         {:ok, all_delta_files} <- delta_files(deltas) do
+         {:ok, all_delta_files} <- delta_files(deltas),
+         {:ok, files_used} <- Confuse.Fwup.get_upgrade_tasks_files_from_config(target_meta_conf) do
       Logger.info("Generating delta for files: #{Enum.join(all_delta_files, ", ")}")
 
       file_list =
@@ -198,8 +199,18 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
       _ = File.rm(delta_zip_path)
       _ = File.cp(target_path, delta_zip_path)
 
+      remove_files =
+        for absolute <- Path.wildcard(target_work_dir <> "/data/**"), not File.dir?(absolute) do
+          path = Path.relative_to(absolute, Path.join(target_work_dir, "data"))
+
+          if path not in files_used do
+            Path.join([output_work_dir, "data", path])
+          end
+        end
+        |> Enum.reject(&is_nil/1)
+
       with {true, :changes_in_delta} <- {Enum.any?(file_list), :changes_in_delta},
-           :ok <- update_changed_files(file_list, delta_zip_path, output_work_dir),
+           :ok <- update_changed_files(file_list, delta_zip_path, output_work_dir, remove_files),
            {:ok, %{size: delta_size}} <- File.stat(delta_zip_path),
            {true, :delta_smaller} <- {delta_size < target_size, :delta_smaller} do
         {:ok,
@@ -218,9 +229,14 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     end
   end
 
-  defp update_changed_files(file_list, delta_zip_path, output_work_dir) do
+  defp update_changed_files(file_list, delta_zip_path, output_work_dir, remove_files) do
     for file <- file_list do
       args = ["-9", delta_zip_path, String.replace_prefix(file, "#{output_work_dir}/", "")]
+      {_output, 0} = System.cmd("zip", args, cd: output_work_dir, env: [])
+    end
+
+    for file <- remove_files do
+      args = ["-d", delta_zip_path, String.replace_prefix(file, "#{output_work_dir}/", "")]
       {_output, 0} = System.cmd("zip", args, cd: output_work_dir, env: [])
     end
 
