@@ -41,6 +41,19 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("div", text: "Role updated")
     end
 
+    test "clicking edit button navigates to edit page", %{conn: conn, org: org} do
+      {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users")
+      |> assert_has("h1", text: "Users")
+      |> assert_has("td", text: org_user.user.name)
+      |> click_link("Edit")
+      |> assert_path("/org/#{org.name}/settings/users/#{org_user.user_id}/edit")
+      |> assert_has("h1", text: org_user.user.name)
+      |> assert_has("label", text: "Role")
+    end
+
     test "delete org user", %{conn: conn, org: org} do
       {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
 
