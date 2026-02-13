@@ -1,8 +1,8 @@
-defmodule NervesHub.Workers.FirmwareDeltaBuilder do
-  @max_attempts 5
+max_attempts = 5
 
+defmodule NervesHub.Workers.FirmwareDeltaBuilder do
   use Oban.Worker,
-    max_attempts: @max_attempts,
+    max_attempts: unquote(max_attempts),
     queue: :firmware_delta_builder,
     unique: [
       period: 60 * 10,
@@ -11,10 +11,13 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
       fields: [:worker, :args]
     ]
 
-  require Logger
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Repo
+
+  require Logger
+
+  @max_attempts max_attempts
 
   @impl Oban.Worker
   def perform(%Oban.Job{id: id, attempt: attempt, args: %{"source_id" => source_id, "target_id" => target_id}}) do
@@ -38,6 +41,12 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
 
         # if on last attempt and delta hasn't been marked as failed, fail it
         case Firmwares.generate_firmware_delta(delta, source, target) do
+          {:error, :no_delta_support_in_firmware} ->
+            delta = Repo.reload(delta)
+            Logger.info("Delta generation failed. No delta support detected.")
+            {:ok, _} = Firmwares.fail_firmware_delta(delta)
+            :discard
+
           {:error, _} = err ->
             delta = Repo.reload(delta)
 

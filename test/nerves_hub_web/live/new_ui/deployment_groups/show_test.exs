@@ -24,7 +24,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
       Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
 
     deployment_group =
-      Fixtures.deployment_group_fixture(org, target_firmware, %{
+      Fixtures.deployment_group_fixture(target_firmware, %{
         is_active: true,
         name: "Coolest Deployment"
       })
@@ -46,14 +46,14 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
       context.conn
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
-    [
+    %{
       conn: conn,
       device: device,
       deployment_group: deployment_group,
       source_firmware: source_firmware,
       target_firmware: target_firmware,
       source_firmware_metadata: source_firmware_metadata
-    ]
+    }
   end
 
   test "empty state and displaying update stats", %{
@@ -114,7 +114,8 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     org_key: org_key,
     product: product,
     deployment_group: deployment_group,
-    tmp_dir: tmp_dir
+    tmp_dir: tmp_dir,
+    user: user
   } do
     :ok = UpdateStats.log_update(device, source_firmware_metadata)
 
@@ -124,9 +125,13 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     {:ok, other_firmware_metadata} = Firmwares.metadata_from_firmware(other_firmware)
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{
-        firmware_id: other_firmware.id
-      })
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{
+          firmware_id: other_firmware.id
+        },
+        user
+      )
 
     # deployment group needs to be explicitly passed in because association
     # is already preloaded from fixtures, causing the preload in log_update/2
@@ -238,5 +243,18 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     |> click_link("Retry")
 
     refute Repo.reload(delta)
+  end
+
+  test "devices counter is a link to devices list page", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    conn
+    |> assert_has(
+      "a[href='/org/#{org.name}/#{product.name}/devices?deployment_id=#{deployment_group.id}']",
+      text: "Devices"
+    )
   end
 end

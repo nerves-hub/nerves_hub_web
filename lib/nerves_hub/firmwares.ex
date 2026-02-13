@@ -2,7 +2,6 @@ defmodule NervesHub.Firmwares do
   import Ecto.Query
 
   alias Ecto.Changeset
-
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Devices.Device
@@ -10,13 +9,13 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareTransfer
+  alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Helpers.Logging
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHub.Repo
   alias NervesHub.Workers.DeleteFirmware
   alias NervesHub.Workers.FirmwareDeltaBuilder
-
-  alias NervesHub.Repo
 
   require Logger
 
@@ -144,7 +143,7 @@ defmodule NervesHub.Firmwares do
     |> Enum.reverse()
   end
 
-  @spec get_firmware(Org.t(), integer()) ::
+  @spec get_firmware(Org.t() | Product.t(), integer()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
   def get_firmware(_, nil) do
@@ -156,6 +155,17 @@ defmodule NervesHub.Firmwares do
     |> with_product()
     |> where([f], f.id == ^id)
     |> where([f, p], p.org_id == ^org_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      firmware -> {:ok, firmware}
+    end
+  end
+
+  def get_firmware(%Product{id: product_id}, id) do
+    Firmware
+    |> where([f], f.id == ^id)
+    |> where([f], f.product_id == ^product_id)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -228,7 +238,10 @@ defmodule NervesHub.Firmwares do
         ) ::
           {:ok, Firmware.t()}
           | {:error, Changeset.t() | :no_public_keys | :invalid_signature | any}
-  def create_firmware(org, filepath) do
+
+  def create_firmware(org, filepath, opts \\ []) do
+    upload_file_2 = opts[:upload_file_2] || (&firmware_upload_config().upload_file(&1, &2))
+
     Repo.transaction(
       fn ->
         with {:ok, params} <- build_firmware_params(org, filepath),
@@ -404,8 +417,7 @@ defmodule NervesHub.Firmwares do
 
   @spec generate_firmware_delta(FirmwareDelta.t(), Firmware.t(), Firmware.t()) ::
           :ok
-          | {:error, Changeset.t()}
-
+          | {:error, Ecto.Changeset.t() | :no_delta_support_in_firmware}
   def generate_firmware_delta(firmware_delta, source_firmware, target_firmware) do
     Logger.info("Creating firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}.")
 
@@ -640,7 +652,7 @@ defmodule NervesHub.Firmwares do
       :nerves_hub,
       :update_tool,
       # Fall back to old config key
-      Application.get_env(:nerves_hub, :delta_updater, NervesHub.Firmwares.UpdateTool.Fwup)
+      Application.get_env(:nerves_hub, :delta_updater, Fwup)
     )
   end
 end

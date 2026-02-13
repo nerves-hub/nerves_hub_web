@@ -1,8 +1,8 @@
 defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   import OpenApiSpex.Operation, only: [request_body: 4, response: 3]
 
-  alias NervesHubWeb.API.Schemas.DeviceSchemas
   alias NervesHubWeb.API.Schemas.DeviceCertificateSchemas
+  alias NervesHubWeb.API.Schemas.DeviceSchemas
 
   @organization_parameter %OpenApiSpex.Parameter{
     name: :org_name,
@@ -293,16 +293,21 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     additional_parameters = [
       %OpenApiSpex.Parameter{
-        name: :script_id,
+        name: :name_or_id,
         in: :path,
-        description: "Support Script ID",
+        description: "Support Script Name or ID. Name takes priority.",
         required: true,
-        schema: %OpenApiSpex.Schema{type: :integer},
-        example: "123"
+        schema: %OpenApiSpex.Schema{
+          oneOf: [
+            %OpenApiSpex.Schema{type: :string},
+            %OpenApiSpex.Schema{type: :integer}
+          ]
+        },
+        example: "my-script"
       },
       %OpenApiSpex.Parameter{
         name: :timeout,
-        in: :path,
+        in: :query,
         description: "How long to wait for a device response in milliseconds",
         required: false,
         schema: %OpenApiSpex.Schema{type: :integer},
@@ -325,7 +330,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     add_to_paths(
       openapi,
-      "#{opts.path_prefix}/scripts/{script_id}",
+      "#{opts.path_prefix}/scripts/{name_or_id}",
       %OpenApiSpex.PathItem{post: send_script_operation}
     )
   end

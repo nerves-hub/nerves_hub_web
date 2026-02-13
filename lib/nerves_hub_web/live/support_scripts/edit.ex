@@ -2,7 +2,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Scripts
-
+  alias NervesHub.Scripts.Script
   alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveView
@@ -18,6 +18,14 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   end
 
   @impl Phoenix.LiveView
+  def handle_event("validate", %{"script" => script_params}, socket) do
+    changeset = Script.validate_changeset(script_params)
+
+    socket
+    |> assign(:form, to_form(changeset, action: :validate))
+    |> noreply()
+  end
+
   def handle_event(
         "update-script",
         %{"script" => script_params},

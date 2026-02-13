@@ -85,13 +85,15 @@
               </p>
             </div>
             <div class="flex gap-6">
-              <div class="w-1/2">
-                <.input field={@form[:tags]} value={tags_to_string(@form[:conditions].value["tags"])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
-              </div>
+              <.inputs_for :let={conditions} field={@form[:conditions]}>
+                <div class="w-1/2">
+                  <.input field={conditions[:tags]} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+                </div>
 
-              <div class="w-1/2">
-                <.input field={@form[:version]} value={@form[:conditions].value["version"]} label="Version requirement" placeholder="eg. 1.2.3" />
-              </div>
+                <div class="w-1/2">
+                  <.input field={conditions[:version]} label="Version requirement" placeholder="eg. 1.2.3" />
+                </div>
+              </.inputs_for>
             </div>
           </div>
         </div>

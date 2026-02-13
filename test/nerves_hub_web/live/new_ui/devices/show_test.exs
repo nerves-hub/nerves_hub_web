@@ -15,8 +15,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
-
   alias NervesHubWeb.Endpoint
+  alias Phoenix.Socket.Broadcast
 
   setup %{fixture: %{device: device}} = context do
     Endpoint.subscribe("device:#{device.id}")
@@ -112,11 +112,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
     end
 
     defp user_initials(user) do
-      String.split(user.name)
-      |> Enum.map_join("", fn w ->
-        String.at(w, 0)
-        |> String.upcase()
-      end)
+      user.name
+      |> String.split()
+      |> Enum.map_join("", fn w -> String.at(w, 0) |> String.upcase() end)
     end
   end
 
@@ -137,12 +135,12 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
         Fixtures.firmware_fixture(org_key2, product, %{platform: "Vulture", architecture: "arm"})
 
       mismatched_firmware_deployment_group =
-        Fixtures.deployment_group_fixture(org, mismatched_firmware, %{
+        Fixtures.deployment_group_fixture(mismatched_firmware, %{
           name: "Vulture Deployment 2025"
         })
 
       deployment_group2 =
-        Fixtures.deployment_group_fixture(org, firmware, %{name: "Beta Deployment"})
+        Fixtures.deployment_group_fixture(firmware, %{name: "Beta Deployment"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -166,12 +164,12 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
       firmware2 = Fixtures.firmware_fixture(org_key2, product2)
 
       deployment_group_from_product2 =
-        Fixtures.deployment_group_fixture(org, firmware2, %{
+        Fixtures.deployment_group_fixture(firmware2, %{
           name: "Vulture Deployment 2025"
         })
 
       deployment_group2 =
-        Fixtures.deployment_group_fixture(org, firmware, %{name: "Beta Deployment"})
+        Fixtures.deployment_group_fixture(firmware, %{name: "Beta Deployment"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -308,7 +306,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{version: version, architecture: architecture, platform: platform} = firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
@@ -359,7 +357,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{version: version, architecture: architecture, platform: platform} = firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
@@ -422,7 +420,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{version: version, architecture: architecture, platform: platform} = new_firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
@@ -500,7 +498,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{version: version, architecture: architecture, platform: platform} = new_firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
@@ -550,7 +548,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{version: version, architecture: architecture, platform: platform} = new_firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
@@ -605,7 +603,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       %{architecture: architecture, platform: platform} = new_firmware
 
-      assert_receive %Phoenix.Socket.Broadcast{
+      assert_receive %Broadcast{
         payload: %{
           firmware_url: firmware_url,
           firmware_meta: %{
@@ -621,27 +619,6 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
 
       assert Repo.reload(device) |> Map.get(:updates_enabled)
     end
-  end
-
-  test "enabling and disabling priority updates (when device is in a deployment group)", %{
-    conn: conn,
-    org: org,
-    product: product,
-    device: device,
-    deployment_group: deployment_group
-  } do
-    refute device.priority_updates
-
-    device = Devices.update_deployment_group(device, deployment_group)
-
-    conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-    |> within("#toggle-priority-updates", fn session ->
-      session
-      |> check("Priority Updates")
-    end)
-
-    assert Repo.reload(device) |> Map.get(:priority_updates)
   end
 
   test "does not show the firmware box in the header if the firmware isn't reverted, or validated, or not validated", %{

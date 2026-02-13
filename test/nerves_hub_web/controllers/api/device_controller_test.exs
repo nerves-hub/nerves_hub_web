@@ -7,6 +7,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias NervesHub.Scripts.Runner
 
   describe "create devices" do
     test "renders device when data is valid", %{conn: conn, org: org, product: product} do
@@ -45,7 +46,44 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
 
-      assert json_response(conn, 200)["data"]
+      assert json_response(conn, 200) == %{
+               "data" => [
+                 %{
+                   "connection_status" => "not_seen",
+                   "deleted" => false,
+                   "deployment_group" => nil,
+                   "description" => nil,
+                   "firmware_metadata" => %{
+                     "architecture" => "x86_64",
+                     "author" => "me",
+                     "description" => "D ",
+                     "fwup_version" => "1.0.0",
+                     "id" => device.firmware_metadata.id,
+                     "misc" => nil,
+                     "platform" => "platform",
+                     "product" => "valid product",
+                     "uuid" => firmware.uuid,
+                     "vcs_identifier" => nil,
+                     "version" => "1.0.0"
+                   },
+                   "identifier" => device.identifier,
+                   "last_communication" => "never",
+                   "online" => "not_seen",
+                   "org_name" => "Test-Org",
+                   "product_name" => "valid product",
+                   "tags" => ["beta", "beta-edge"],
+                   "updates_blocked_until" => nil,
+                   "updates_enabled" => true,
+                   "version" => "1.0.0"
+                 }
+               ],
+               "pagination" => %{
+                 "page_number" => 1,
+                 "page_size" => nil,
+                 "total_entries" => 1,
+                 "total_pages" => 1
+               }
+             }
 
       assert Enum.find(conn.assigns.devices, fn %{identifier: identifier} ->
                device.identifier == identifier
@@ -807,7 +845,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           script.id
         )
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
 
       conn
@@ -834,7 +872,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           %{"timeout" => "1000"}
         )
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, 1000 -> {:ok, "hello"} end)
 
       conn
@@ -853,7 +891,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           %{"timeout" => 1000}
         )
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, 1000 -> {:ok, "hello"} end)
 
       conn
@@ -881,7 +919,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       message = "device not responding"
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, _ -> {:error, message} end)
 
       resp =
@@ -930,7 +968,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           script.id
         )
 
-      NervesHub.Scripts.Runner
+      Runner
       |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
 
       conn

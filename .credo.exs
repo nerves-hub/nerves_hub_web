@@ -83,13 +83,9 @@
           #
           {Credo.Check.Design.AliasUsage,
            [priority: :low, if_nested_deeper_than: 2, if_called_more_often_than: 0]},
+          # TODO comments are acceptable in our codebase, but we want to see them locally
+          {Credo.Check.Design.TagTODO, [priority: :ignore]},
           {Credo.Check.Design.TagFIXME, []},
-          # You can also customize the exit_status of each check.
-          # If you don't want TODO comments to cause `mix credo` to fail, just
-          # set this value to 0 (zero).
-          #
-          {Credo.Check.Design.TagTODO, [exit_status: 0]},
-
           #
           ## Readability Checks
           #
@@ -99,8 +95,9 @@
           {Credo.Check.Readability.LargeNumbers, []},
           {Credo.Check.Readability.MaxLineLength, [priority: :low, max_length: 120]},
           {Credo.Check.Readability.ModuleAttributeNames, []},
-          {Credo.Check.Readability.ModuleDoc, []},
           {Credo.Check.Readability.ModuleNames, []},
+          # ModuleDoc is not required in our codebase, but we want to see them locally
+          {Credo.Check.Readability.ModuleDoc, [priority: :ignore]},
           {Credo.Check.Readability.MultiAlias, []},
           {Credo.Check.Readability.ParenthesesInCondition, []},
           {Credo.Check.Readability.ParenthesesOnZeroArityDefs, [parens: true]},

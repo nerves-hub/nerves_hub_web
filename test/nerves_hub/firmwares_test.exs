@@ -2,9 +2,9 @@ defmodule NervesHub.FirmwaresTest do
   use NervesHub.DataCase, async: true
   use Mimic
 
-  alias Ecto.Changeset
   import Ecto.Query
 
+  alias Ecto.Changeset
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
@@ -76,14 +76,13 @@ defmodule NervesHub.FirmwaresTest do
     end
 
     test "cannot delete firmware when it is referenced by deployment", %{
-      org: org,
       org_key: org_key,
       product: product
     } do
       firmware = Fixtures.firmware_fixture(org_key, product)
       assert File.exists?(firmware.upload_metadata[:local_path])
 
-      Fixtures.deployment_group_fixture(org, firmware, %{name: "a deployment"})
+      Fixtures.deployment_group_fixture(firmware, %{name: "a deployment"})
 
       assert {:error, %Changeset{}} = Firmwares.delete_firmware(firmware)
     end

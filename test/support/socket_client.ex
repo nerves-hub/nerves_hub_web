@@ -188,6 +188,10 @@ defmodule SocketClient do
     {:ok, socket}
   end
 
+  def handle_message("device", "scripts/run", %{}, socket) do
+    {:ok, socket}
+  end
+
   @impl Slipstream
   def handle_call(:connected?, _from, socket) do
     {:reply, socket.assigns.connected?, socket}

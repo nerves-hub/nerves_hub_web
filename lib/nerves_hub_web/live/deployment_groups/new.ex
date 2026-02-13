@@ -143,31 +143,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
 
     %{user: user, org: org, product: product} = socket.assigns
 
-    params =
-      params
-      |> inject_conditions_map()
-      |> whitelist([:name, :conditions, :firmware_id, :delta_updatable])
-      |> Map.put(:org_id, org.id)
-      |> Map.put(:is_active, false)
-
-    org
-    |> Firmwares.get_firmware(params[:firmware_id])
+    ManagedDeployments.create_deployment_group(params, product, user)
     |> case do
-      {:ok, firmware} ->
-        params = Map.put(params, :product_id, firmware.product_id)
-
-        {firmware, ManagedDeployments.create_deployment_group(params)}
-
-      {:error, :not_found} ->
-        {:error, :not_found}
-    end
-    |> case do
-      {:error, :not_found} ->
-        socket
-        |> put_flash(:error, "Invalid firmware selected")
-        |> noreply()
-
-      {_, {:ok, deployment_group}} ->
+      {:ok, deployment_group} ->
         _ = DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)
 
         socket
@@ -175,7 +153,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
         |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}")
         |> noreply()
 
-      {_firmware, {:error, changeset}} ->
+      {:error, changeset} ->
         socket
         |> put_flash(:error, "There was an error creating the deployment")
         |> assign(:form, to_form(changeset))
@@ -202,31 +180,5 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
 
   defp firmware_display_name(%Firmware{} = f) do
     "#{f.version} - #{f.uuid}"
-  end
-
-  defp inject_conditions_map(%{"version" => version, "tags" => tags} = params) do
-    params
-    |> Map.put("conditions", %{
-      "version" => version,
-      "tags" =>
-        tags
-        |> tags_as_list()
-        |> MapSet.new()
-        |> MapSet.to_list()
-    })
-  end
-
-  defp inject_conditions_map(params), do: params
-
-  def tags_to_string(nil), do: ""
-
-  def tags_to_string(tags), do: Enum.join(tags, ", ")
-
-  defp tags_as_list(""), do: []
-
-  defp tags_as_list(tags) do
-    tags
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
   end
 end

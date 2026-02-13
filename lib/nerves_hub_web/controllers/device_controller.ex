@@ -2,8 +2,9 @@ defmodule NervesHubWeb.DeviceController do
   use NervesHubWeb, :controller
 
   alias NervesHub.AuditLogs
+  alias NervesHubWeb.Plugs.Device
 
-  plug(NervesHubWeb.Plugs.Device)
+  plug(Device)
 
   plug(
     :validate_role,

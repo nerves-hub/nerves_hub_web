@@ -3,7 +3,6 @@ defmodule NervesHub.DevicesTest do
   use Mimic
 
   alias Ecto.Changeset
-
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.AuditLogs
@@ -17,9 +16,8 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
-
   alias NervesHub.Repo
-
+  alias NervesHub.Support.Fwup
   alias Phoenix.Socket.Broadcast
 
   setup do
@@ -28,7 +26,7 @@ defmodule NervesHub.DevicesTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware, %{is_active: true})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{is_active: true})
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
     device2 = Fixtures.device_fixture(org, product, firmware)
     device3 = Fixtures.device_fixture(org, product, firmware)
@@ -388,9 +386,9 @@ defmodule NervesHub.DevicesTest do
     # There is a version check before the tags, so load both versions
     # here to ensure they match and we get to the tag check
     device = put_in(device.firmware_metadata.version, "1.0.0")
-    deployment_group = put_in(deployment_group.conditions["version"], "1.0.0")
+    deployment_group = put_in(deployment_group.conditions.version, "1.0.0")
 
-    nil_tags_deployment_group = put_in(deployment_group.conditions["tags"], nil)
+    nil_tags_deployment_group = put_in(deployment_group.conditions.tags, nil)
 
     refute Devices.matches_deployment_group?(%{device | tags: nil}, deployment_group)
     assert Devices.matches_deployment_group?(%{device | tags: nil}, nil_tags_deployment_group)
@@ -466,14 +464,6 @@ defmodule NervesHub.DevicesTest do
 
       deployment_group = Repo.reload(deployment_group)
       assert deployment_group.current_updated_devices == 1
-    end
-
-    test "reverts device.priority_updates to false", %{device: device} do
-      {:ok, device} = Devices.update_device(device, %{priority_updates: true})
-      assert device.priority_updates
-
-      {:ok, device} = Devices.firmware_update_successful(device, device.firmware_metadata)
-      refute device.priority_updates
     end
 
     test "device updates successfully", %{device: device, deployment_group: deployment_group} do
@@ -757,11 +747,11 @@ defmodule NervesHub.DevicesTest do
 
       device2 =
         %{id: device2_id} =
-        Fixtures.device_fixture(org, product, deployment_group.firmware, %{priority_updates: true})
+        Fixtures.device_fixture(org, product, deployment_group.firmware)
 
       device3 =
         %{id: device3_id} =
-        Fixtures.device_fixture(org, product, deployment_group.firmware, %{priority_updates: true})
+        Fixtures.device_fixture(org, product, deployment_group.firmware)
 
       device4 =
         %{id: device4_id} =
@@ -796,7 +786,7 @@ defmodule NervesHub.DevicesTest do
         {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
       end)
 
-      assert [%{id: ^device2_id}, %{id: ^device3_id}, %{id: ^device1_id}, %{id: ^device4_id}] =
+      assert [%{id: ^device1_id}, %{id: ^device2_id}, %{id: ^device3_id}, %{id: ^device4_id}] =
                Devices.available_for_update(deployment_group, 10)
     end
 
@@ -805,26 +795,29 @@ defmodule NervesHub.DevicesTest do
            deployment_group: deployment_group,
            device: device1 = %{id: device1_id},
            org: org,
-           product: product
+           product: product,
+           user: user
          } do
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{
-          enable_priority_updates: true
-        })
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            enable_priority_updates: true
+          },
+          user
+        )
 
       {:ok, device1} = Devices.update_device(device1, %{first_seen_at: DateTime.utc_now()})
 
       device2 =
         %{id: device2_id} =
         Fixtures.device_fixture(org, product, deployment_group.firmware, %{
-          priority_updates: true,
           first_seen_at: DateTime.utc_now() |> DateTime.add(-1, :day)
         })
 
       device3 =
         %{id: device3_id} =
         Fixtures.device_fixture(org, product, deployment_group.firmware, %{
-          priority_updates: true,
           first_seen_at: DateTime.utc_now() |> DateTime.add(-7, :day)
         })
 
@@ -863,8 +856,324 @@ defmodule NervesHub.DevicesTest do
         {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
       end)
 
-      assert [%{id: ^device2_id}, %{id: ^device3_id}, %{id: ^device1_id}, %{id: ^device4_id}] =
+      assert [%{id: ^device1_id}, %{id: ^device2_id}, %{id: ^device4_id}, %{id: ^device3_id}] =
                Devices.available_for_update(%{deployment_group | queue_management: :LIFO}, 10)
+    end
+
+    test "filters devices by release_network_interfaces when specified", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      user: user
+    } do
+      # Update deployment group to only allow wifi and ethernet
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{release_network_interfaces: [:wifi, :ethernet]},
+          user
+        )
+
+      # Create devices with different network interfaces
+      device_wifi = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_ethernet = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_cellular = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_unknown = Fixtures.device_fixture(org, product, deployment_group.firmware)
+
+      # Set network interfaces and prepare for updates
+      {:ok, device_wifi} = Devices.update_network_interface(device_wifi, "wlan0")
+      {:ok, device_ethernet} = Devices.update_network_interface(device_ethernet, "eth0")
+      {:ok, device_cellular} = Devices.update_network_interface(device_cellular, "wwan0")
+      {:ok, device_unknown} = Devices.update_network_interface(device_unknown, "hmmmmmmm")
+
+      # Set up connections and different firmware versions for all devices
+      for device <- [device_wifi, device_ethernet, device_cellular, device_unknown] do
+        %{id: latest_connection_id} =
+          DeviceConnection.create_changeset(%{
+            product_id: product.id,
+            device_id: device.id,
+            established_at: DateTime.utc_now(),
+            last_seen_at: DateTime.utc_now(),
+            status: :connected
+          })
+          |> Repo.insert!()
+
+        Device
+        |> where(id: ^device.id)
+        |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+        {:ok, device} =
+          Devices.update_firmware_metadata(
+            device,
+            Map.from_struct(%{
+              device.firmware_metadata
+              | uuid: UUIDv7.autogenerate()
+            }),
+            :unknown,
+            false
+          )
+
+        {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
+      end
+
+      # Only wifi and ethernet devices should be available for update
+      available = Devices.available_for_update(deployment_group, 10)
+      device_ids = Enum.map(available, & &1.id) |> Enum.sort()
+
+      expected_ids = [device_wifi.id, device_ethernet.id] |> Enum.sort()
+
+      assert device_ids == expected_ids
+      refute device_cellular.id in device_ids
+      refute device_unknown.id in device_ids
+    end
+
+    test "allows all network interfaces when release_network_interfaces is empty", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product
+    } do
+      # Default is empty array - should allow all interfaces
+      assert deployment_group.release_network_interfaces == []
+
+      # Create devices with different network interfaces
+      device_wifi = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_cellular = Fixtures.device_fixture(org, product, deployment_group.firmware)
+
+      {:ok, device_wifi} = Devices.update_network_interface(device_wifi, "wlan0")
+      {:ok, device_cellular} = Devices.update_network_interface(device_cellular, "wwan0")
+
+      # Set up connections and different firmware versions
+      for device <- [device_wifi, device_cellular] do
+        %{id: latest_connection_id} =
+          DeviceConnection.create_changeset(%{
+            product_id: product.id,
+            device_id: device.id,
+            established_at: DateTime.utc_now(),
+            last_seen_at: DateTime.utc_now(),
+            status: :connected
+          })
+          |> Repo.insert!()
+
+        Device
+        |> where(id: ^device.id)
+        |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+        {:ok, device} =
+          Devices.update_firmware_metadata(
+            device,
+            Map.from_struct(%{
+              device.firmware_metadata
+              | uuid: UUIDv7.autogenerate()
+            }),
+            :unknown,
+            false
+          )
+
+        {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
+      end
+
+      # All devices should be available when no filter is set
+      available = Devices.available_for_update(deployment_group, 10)
+      device_ids = Enum.map(available, & &1.id) |> Enum.sort()
+
+      assert device_wifi.id in device_ids
+      assert device_cellular.id in device_ids
+    end
+
+    test "filters devices by release_tags when specified", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      user: user
+    } do
+      # Update deployment group to only deploy to devices with both "production" AND "beta" tags
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{release_tags: ["production", "beta"]},
+          user
+        )
+
+      # Create devices with different tags
+      device_both = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_prod_only = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_beta_only = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_no_tags = Fixtures.device_fixture(org, product, deployment_group.firmware)
+
+      # Set tags on devices
+      {:ok, device_both} = Devices.update_device(device_both, %{tags: ["production", "beta", "critical"]})
+      {:ok, device_prod_only} = Devices.update_device(device_prod_only, %{tags: ["production"]})
+      {:ok, device_beta_only} = Devices.update_device(device_beta_only, %{tags: ["beta"]})
+      {:ok, device_no_tags} = Devices.update_device(device_no_tags, %{tags: []})
+
+      # Set up connections and different firmware versions for all devices
+      for device <- [device_both, device_prod_only, device_beta_only, device_no_tags] do
+        %{id: latest_connection_id} =
+          DeviceConnection.create_changeset(%{
+            product_id: product.id,
+            device_id: device.id,
+            established_at: DateTime.utc_now(),
+            last_seen_at: DateTime.utc_now(),
+            status: :connected
+          })
+          |> Repo.insert!()
+
+        Device
+        |> where(id: ^device.id)
+        |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+        {:ok, device} =
+          Devices.update_firmware_metadata(
+            device,
+            Map.from_struct(%{
+              device.firmware_metadata
+              | uuid: UUIDv7.autogenerate()
+            }),
+            :unknown,
+            false
+          )
+
+        {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
+      end
+
+      # Only devices with BOTH production AND beta tags should be available
+      available = Devices.available_for_update(deployment_group, 10)
+      device_ids = Enum.map(available, & &1.id) |> Enum.sort()
+
+      expected_ids = [device_both.id] |> Enum.sort()
+
+      assert device_ids == expected_ids
+      refute device_prod_only.id in device_ids
+      refute device_beta_only.id in device_ids
+      refute device_no_tags.id in device_ids
+    end
+
+    test "allows all tags when release_tags is empty", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product
+    } do
+      # Default is empty array - should allow all tags
+      assert deployment_group.release_tags == []
+
+      # Create devices with different tags
+      device_tagged = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_no_tags = Fixtures.device_fixture(org, product, deployment_group.firmware)
+
+      {:ok, device_tagged} = Devices.update_device(device_tagged, %{tags: ["test"]})
+
+      # Set up connections and different firmware versions
+      for device <- [device_tagged, device_no_tags] do
+        %{id: latest_connection_id} =
+          DeviceConnection.create_changeset(%{
+            product_id: product.id,
+            device_id: device.id,
+            established_at: DateTime.utc_now(),
+            last_seen_at: DateTime.utc_now(),
+            status: :connected
+          })
+          |> Repo.insert!()
+
+        Device
+        |> where(id: ^device.id)
+        |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+        {:ok, device} =
+          Devices.update_firmware_metadata(
+            device,
+            Map.from_struct(%{
+              device.firmware_metadata
+              | uuid: UUIDv7.autogenerate()
+            }),
+            :unknown,
+            false
+          )
+
+        {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
+      end
+
+      # All devices should be available when no filter is set
+      available = Devices.available_for_update(deployment_group, 10)
+      device_ids = Enum.map(available, & &1.id) |> Enum.sort()
+
+      assert device_tagged.id in device_ids
+      assert device_no_tags.id in device_ids
+    end
+
+    test "combines release_network_interfaces and release_tags filters", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      user: user
+    } do
+      # Update deployment group with both filters
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            release_network_interfaces: [:wifi, :ethernet],
+            release_tags: ["production"]
+          },
+          user
+        )
+
+      # Create devices with different combinations
+      device_wifi_prod = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_wifi_dev = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_cellular_prod = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_ethernet_prod = Fixtures.device_fixture(org, product, deployment_group.firmware)
+
+      {:ok, device_wifi_prod} = Devices.update_network_interface(device_wifi_prod, "wlan0")
+      {:ok, device_wifi_prod} = Devices.update_device(device_wifi_prod, %{tags: ["production"]})
+
+      {:ok, device_wifi_prod} = Devices.update_network_interface(device_wifi_prod, "wlan0")
+      {:ok, device_wifi_dev} = Devices.update_device(device_wifi_dev, %{tags: ["development"]})
+
+      {:ok, device_cellular_prod} = Devices.update_network_interface(device_cellular_prod, "wwan0")
+      {:ok, device_cellular_prod} = Devices.update_device(device_cellular_prod, %{tags: ["production"]})
+
+      {:ok, device_ethernet_prod} = Devices.update_network_interface(device_ethernet_prod, "eth0")
+      {:ok, device_ethernet_prod} = Devices.update_device(device_ethernet_prod, %{tags: ["production"]})
+
+      # Set up connections and different firmware versions for all devices
+      for device <- [device_wifi_prod, device_wifi_dev, device_cellular_prod, device_ethernet_prod] do
+        %{id: latest_connection_id} =
+          DeviceConnection.create_changeset(%{
+            product_id: product.id,
+            device_id: device.id,
+            established_at: DateTime.utc_now(),
+            last_seen_at: DateTime.utc_now(),
+            status: :connected
+          })
+          |> Repo.insert!()
+
+        Device
+        |> where(id: ^device.id)
+        |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+        {:ok, device} =
+          Devices.update_firmware_metadata(
+            device,
+            Map.from_struct(%{
+              device.firmware_metadata
+              | uuid: UUIDv7.autogenerate()
+            }),
+            :unknown,
+            false
+          )
+
+        {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
+      end
+
+      # Only wifi/ethernet devices with production tag should be available
+      available = Devices.available_for_update(deployment_group, 10)
+      device_ids = Enum.map(available, & &1.id) |> Enum.sort()
+
+      expected_ids = [device_wifi_prod.id, device_ethernet_prod.id] |> Enum.sort()
+
+      assert device_ids == expected_ids
+      refute device_wifi_dev.id in device_ids
+      refute device_cellular_prod.id in device_ids
     end
   end
 
@@ -894,7 +1203,7 @@ defmodule NervesHub.DevicesTest do
         |> Repo.update!()
 
       deployment_group =
-        Fixtures.deployment_group_fixture(org, new_firmware, %{
+        Fixtures.deployment_group_fixture(new_firmware, %{
           name: "Delta deployment updates",
           is_active: true,
           delta_updatable: true
@@ -938,14 +1247,14 @@ defmodule NervesHub.DevicesTest do
 
       # create some firmware which can be uploaded to each org
       {:ok, _} =
-        NervesHub.Support.Fwup.create_firmware(tmp_dir, "old-firmware", %{
+        Fwup.create_firmware(tmp_dir, "old-firmware", %{
           product: "Same Product Name",
           fwup_version: "1.13.0"
         })
 
       # sign and upload for org one
       {:ok, signed_firmware_one} =
-        NervesHub.Support.Fwup.sign_firmware(
+        Fwup.sign_firmware(
           tmp_dir,
           org_key_one.name,
           "old-firmware",
@@ -960,7 +1269,7 @@ defmodule NervesHub.DevicesTest do
 
       # sign and upload for org two
       {:ok, old_signed_firmware_two} =
-        NervesHub.Support.Fwup.sign_firmware(
+        Fwup.sign_firmware(
           tmp_dir,
           org_key_two.name,
           "old-firmware",
@@ -975,14 +1284,14 @@ defmodule NervesHub.DevicesTest do
 
       # and now create some new firmware which can be uploaded to each org
       {:ok, _} =
-        NervesHub.Support.Fwup.create_firmware(tmp_dir, "new-firmware", %{
+        Fwup.create_firmware(tmp_dir, "new-firmware", %{
           product: "Same Product Name",
           fwup_version: "1.13.0"
         })
 
       # sign and upload for org one
       {:ok, new_signed_firmware_one} =
-        NervesHub.Support.Fwup.sign_firmware(
+        Fwup.sign_firmware(
           tmp_dir,
           org_key_one.name,
           "new-firmware",
@@ -997,7 +1306,7 @@ defmodule NervesHub.DevicesTest do
 
       # sign and upload for org two
       {:ok, new_signed_firmware_two} =
-        NervesHub.Support.Fwup.sign_firmware(
+        Fwup.sign_firmware(
           tmp_dir,
           org_key_two.name,
           "new-firmware",
@@ -1012,7 +1321,7 @@ defmodule NervesHub.DevicesTest do
 
       # create a deployment group for org one with the new firmware
       deployment_group =
-        Fixtures.deployment_group_fixture(org_one, new_firmware_one, %{
+        Fixtures.deployment_group_fixture(new_firmware_one, %{
           name: "Delta deployment updates",
           is_active: true,
           delta_updatable: true
@@ -1251,6 +1560,34 @@ defmodule NervesHub.DevicesTest do
 
       assert {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
       assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
+    end
+  end
+
+  describe "update_network_interface/2" do
+    test "updates device.network_interface", %{device: device} do
+      refute device.network_interface
+
+      {:ok, device} = Devices.update_network_interface(device, "eth0")
+      assert device.network_interface == :ethernet
+
+      {:ok, device} = Devices.update_network_interface(device, "en0")
+      assert device.network_interface == :ethernet
+
+      {:ok, device} = Devices.update_network_interface(device, "wlan0")
+      assert device.network_interface == :wifi
+
+      {:ok, device} = Devices.update_network_interface(device, "wwan0")
+      assert device.network_interface == :cellular
+    end
+
+    test "sets to 'unknown' for invalid values", %{device: device} do
+      {:ok, device} = Devices.update_network_interface(device, "foobarbaz")
+      assert device.network_interface == :unknown
+    end
+
+    test "cannot be explicitly set to nil", %{device: device} do
+      {:error, changeset} = Devices.update_network_interface(device, nil)
+      {"cannot be set to nil", []} = changeset.errors[:network_interface]
     end
   end
 end

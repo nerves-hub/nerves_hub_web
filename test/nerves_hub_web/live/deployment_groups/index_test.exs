@@ -155,7 +155,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       deployment_group: deployment_group
     } do
       for i <- 1..26 do
-        Fixtures.deployment_group_fixture(org, deployment_group.firmware, %{
+        Fixtures.deployment_group_fixture(deployment_group.firmware, %{
           name: "Deployment-group-#{i}"
         })
       end

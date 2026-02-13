@@ -3,12 +3,11 @@ defmodule NervesHub.Firmwares.Firmware do
 
   import Ecto.Changeset
 
+  alias __MODULE__
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
-
-  alias __MODULE__
 
   @type t :: %Firmware{
           architecture: String.t(),

@@ -13,6 +13,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
+  alias Phoenix.Socket.Broadcast
 
   describe "firmware_validation_status" do
     test "if the param is missing, then status is marked as :unknown" do
@@ -340,7 +341,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
       "device:#{device.id}",
-      %Phoenix.Socket.Broadcast{event: "archives/updated"}
+      %Broadcast{event: "archives/updated"}
     )
 
     _ = :sys.get_state(device_channel.channel_pid)
@@ -464,7 +465,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     device = NervesHub.Repo.preload(device, :org)
 
     new_deployment_group =
-      Fixtures.deployment_group_fixture(device.org, firmware, %{name: "Super Deployment"})
+      Fixtures.deployment_group_fixture(firmware, %{name: "Super Deployment"})
 
     Devices.update_deployment_group(device, new_deployment_group)
 
@@ -484,7 +485,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     refute device.deployment_id
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
+      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
@@ -505,9 +506,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
     Devices.update_deployment_group(device, deployment_group)
 
     {:ok, _deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{
-        conditions: %{"version" => "< 0.0.1"}
-      })
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{
+          conditions: %{"version" => "< 0.0.1"}
+        },
+        user
+      )
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
@@ -590,7 +595,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
         version: "0.0.1"
       })
 
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     params = Enum.into(device_params, %{tags: ["beta", "beta-edge"]})
 
@@ -612,7 +617,9 @@ defmodule NervesHubWeb.DeviceChannelTest do
     org_key = Fixtures.org_key_fixture(org, user)
     archive = %{uuid: archive_uuid} = Fixtures.archive_fixture(org_key, product)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: System.tmp_dir()})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware, %{archive_id: archive.id})
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
+
+    ManagedDeployments.update_deployment_group(deployment_group, %{archive_id: archive.id}, user)
 
     {device, _firmware, _deployment_group} =
       device_fixture(user, %{identifier: "123", deployment_id: deployment_group.id})

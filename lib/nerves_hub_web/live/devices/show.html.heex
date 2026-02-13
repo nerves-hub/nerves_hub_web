@@ -52,24 +52,24 @@
     </div>
   </div>
 
-  <div class="h-[89px] shrink-0 flex justify-between p-6">
-    <div class="flex gap-3 items-center">
+  <div class="h-[89px] shrink-0 flex justify-between p-6 gap-2">
+    <div class="flex shrink-0 gap-3 items-center">
       <svg
         data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
-        class="h-3 w-3 data-[connection-status=connecting]:fill-indigo-500 data-[connection-status=connecting]:animate-pulse data-[connection-status=connected]:fill-emerald-500 data-[connection-status=disconnected]:fill-zinc-500 data-[connection-status=unknown]:fill-zinc-500"
+        class="shrink-0 h-3 w-3 data-[connection-status=connecting]:fill-indigo-500 data-[connection-status=connecting]:animate-pulse data-[connection-status=connected]:fill-emerald-500 data-[connection-status=disconnected]:fill-zinc-500 data-[connection-status=unknown]:fill-zinc-500"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 6 6"
         fill="currentColor"
       >
         <circle cx="3" cy="3" r="3" />
       </svg>
-      <h1 class="text-xl font-semibold leading-[30px] text-zinc-50 font-mono">
+      <h1 class="shrink-0 text-xl font-semibold leading-[30px] text-zinc-50 font-mono">
         {@device.identifier}
       </h1>
     </div>
 
     <div class="flex items-center gap-2">
-      <div :if={show_firmware_status_box(@device)} class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+      <div :if={show_firmware_status_box(@device)} class="flex py-1 px-2 items-center rounded bg-zinc-800">
         <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Firmware:</span>
 
         <span :if={@device.firmware_validation_status == :validated && !@device.firmware_auto_revert_detected} class="text-sm text-base-300 font-mono">Validated</span>
@@ -79,7 +79,7 @@
         <span :if={@device.firmware_auto_revert_detected} class="text-sm text-red-300 font-mono">Revert detected</span>
       </div>
 
-      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+      <div class="flex py-1 px-2 items-center rounded bg-zinc-800">
         <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Version:</span>
 
         <span :if={is_nil(@device.firmware_metadata)} class="text-sm text-base-300 font-mono">Unknown</span>
@@ -98,7 +98,7 @@
         </.link>
       </div>
 
-      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+      <div class="flex py-1 px-2 items-center rounded bg-zinc-800">
         <span class="text-sm text-zinc-400 hidden lg:block">Firmware updates:</span>
         <%= cond do %>
           <% is_nil(@device.deployment_id) -> %>
@@ -205,25 +205,14 @@
   </div>
 
   <div class="flex w-full justify-between px-6 border-b border-zinc-700">
-    <div class="flex">
-      <.link class={tab_classes(@tab, :details)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}"}>
-        Details
-      </.link>
-      <.link class={tab_classes(@tab, :health)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/health"}>
-        Health
-      </.link>
-      <.link class={tab_classes(@tab, :console)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/console"}>
-        Console
-      </.link>
-      <.link :if={analytics_enabled?()} class={tab_classes(@tab, :logs)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"}>
-        Logs
-      </.link>
-      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"}>
-        Activity
-      </.link>
-      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"}>
-        Settings
-      </.link>
+    <div id="tabs" class="flex">
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}"} selected={@tab == :details} display="Details" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/health"} selected={@tab == :health} display="Health" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/console"} selected={@tab == :console} display="Console" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/local_shell"} selected={@tab == :local_shell} display="System Shell" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"} selected={@tab == :logs} display="Logs" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"} selected={@tab == :activity} display="Activity" />
+      <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"} selected={@tab == :settings} display="Settings" />
     </div>
   </div>
 

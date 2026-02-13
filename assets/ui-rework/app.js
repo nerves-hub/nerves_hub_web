@@ -13,8 +13,10 @@ import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
 import Flash from "./hooks/flash.js"
 import HighlightCode from "./hooks/highlightCode.js"
+import LocalShell from "./hooks/localShell.js"
 import LocalTime from "./hooks/localTime.js"
 import LogLineLocalTime from "./hooks/logLineLocalTime.js"
+import PageVisible from "./hooks/pageVisible.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
 import SimpleDate from "./hooks/simpleDate.js"
 import SupportScriptOutput from "./hooks/supportScriptOutput.js"
@@ -25,6 +27,12 @@ import WorldMap from "./hooks/worldMap.js"
 import dates from "../js/dates"
 
 TimeAgo.addDefaultLocale(en)
+
+let execJS = (selector, attr) => {
+  document
+    .querySelectorAll(selector)
+    .forEach(el => liveSocket.execJS(el, el.getAttribute(attr)))
+}
 
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
@@ -38,8 +46,10 @@ let liveSocket = new LiveSocket("/live", Socket, {
     DeviceLocationMapWithGeocoder,
     Flash,
     HighlightCode,
+    LocalShell,
     LocalTime,
     LogLineLocalTime,
+    PageVisible,
     SharedSecretClipboardClick,
     SimpleDate,
     SupportScriptOutput,
@@ -56,13 +66,34 @@ topbar.config({
   shadowColor: "rgba(0, 0, 0, .3)"
 })
 
-window.addEventListener("phx:page-loading-start", () => {
+window.addEventListener("phx:page-loading-start", info => {
+  if (info.detail.kind == "initial") {
+    document.querySelectorAll(".tab-content").forEach(el => {
+      el.classList.remove("opacity-0")
+    })
+  }
+
+  if (info.detail.kind == "patch") {
+    document.querySelectorAll(".tab-content").forEach(el => {
+      el.classList.add("phx-click-loading")
+    })
+  }
+
   topbar.show(300)
 })
 window.addEventListener("phx:page-loading-stop", () => {
+  document.querySelectorAll(".tab-content").forEach(el => {
+    el.classList.remove("phx-click-loading")
+  })
+
   topbar.hide()
 })
 
+// borrowed from https://github.com/fly-apps/live_beats/blob/master/assets/js/app.js#L330
+// this guards against the flash not hiding after reconnection, possibly due to the browser
+// not passing along js events.
+liveSocket.getSocket().onOpen(() => execJS("#connection-status", "js-hide"))
+liveSocket.getSocket().onError(() => execJS("#connection-status", "js-show"))
 liveSocket.connect()
 
 // expose liveSocket on window for web console debug logs and latency simulation:

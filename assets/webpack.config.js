@@ -17,8 +17,7 @@ export default (_env, _options) => ({
     ]
   },
   entry: {
-    app: glob.sync("./vendor/**/*.js").concat(["./js/app.js"]),
-    console: "./js/console.js"
+    app: glob.sync("./vendor/**/*.js").concat(["./js/app.js"])
   },
   output: {
     filename: "[name].js",

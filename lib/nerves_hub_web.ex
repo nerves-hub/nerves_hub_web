@@ -22,56 +22,41 @@ defmodule NervesHubWeb do
   def plug() do
     quote do
       @behaviour Plug
-      import Plug.Conn
+
       import Phoenix.Controller
+      import Plug.Conn
     end
   end
 
   def controller() do
     quote do
       use Phoenix.Controller, formats: [:html]
-
       use Gettext, backend: NervesHubWeb.Gettext
 
-      import Plug.Conn
-
       import NervesHubWeb.Helpers.RoleValidateHelpers
+      import Plug.Conn
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
-
-      def whitelist(params, keys) do
-        keys
-        |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-        |> Map.new(fn x -> {x, params[to_string(x)]} end)
-      end
     end
   end
 
   def api_controller() do
     quote do
       use Phoenix.Controller, formats: [:json]
-
       use Gettext, backend: NervesHubWeb.Gettext
 
-      import Plug.Conn
-      import Phoenix.LiveView.Controller
       import NervesHubWeb.Helpers.RoleValidateHelpers
-
       import Phoenix.LiveView.Controller
+      import Plug.Conn
 
+      alias NervesHubWeb.API.FallbackController
       alias NervesHubWeb.Router.Helpers, as: Routes
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
 
-      action_fallback(NervesHubWeb.API.FallbackController)
-
-      def whitelist(params, keys) do
-        keys
-        |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-        |> Map.new(fn x -> {x, params[to_string(x)]} end)
-      end
+      action_fallback(FallbackController)
     end
   end
 
@@ -90,17 +75,18 @@ defmodule NervesHubWeb do
         container: {:div, class: "h-screen"}
 
       use Gettext, backend: NervesHubWeb.Gettext
+
       on_mount(Sentry.LiveViewHook)
     end
   end
 
   defp live_view_imports() do
     quote do
-      # HTML escaping functionality
-      import Phoenix.HTML
-      import NervesHubWeb.Helpers.Authorization
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
+      import NervesHubWeb.Helpers.Authorization
+      # HTML escaping functionality
+      import Phoenix.HTML
 
       alias NervesHubWeb.Components.Navigation
       alias Phoenix.LiveView.JS
@@ -117,20 +103,10 @@ defmodule NervesHubWeb do
       def noreply(socket), do: {:noreply, socket}
       def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
 
-      @spec sidebar_tab(
-              Phoenix.Socket.t(),
-              :archives | :firmware | :deployments | :devices | :settings | :support_scripts
-            ) :: Phoenix.Socket.t()
       def sidebar_tab(socket, tab) do
         socket
         |> assign(:sidebar_tab, tab)
         |> assign(:tab_hint, tab)
-      end
-
-      def whitelist(params, keys) do
-        keys
-        |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-        |> Map.new(fn x -> {x, params[to_string(x)]} end)
       end
 
       def analytics_enabled?(), do: Application.get_env(:nerves_hub, :analytics_enabled)
@@ -178,10 +154,9 @@ defmodule NervesHubWeb do
     quote do
       use Phoenix.LiveComponent
 
-      import NervesHubWeb.Helpers.Authorization
-
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
+      import NervesHubWeb.Helpers.Authorization
 
       def ok(socket), do: {:ok, socket}
 
@@ -210,9 +185,8 @@ defmodule NervesHubWeb do
       import Phoenix.Controller,
         only: [get_csrf_token: 0, view_module: 1, view_template: 1]
 
-      alias NervesHubWeb.Layouts
-
       alias NervesHubWeb.Components.OAuthLinks
+      alias NervesHubWeb.Layouts
 
       def platform_name(), do: Application.get_env(:nerves_hub, :support_email_platform_name)
 
@@ -223,11 +197,11 @@ defmodule NervesHubWeb do
 
   defp html_helpers() do
     quote do
+      import NervesHubWeb.CoreComponents
+      import NervesHubWeb.Gettext
       # HTML escaping functionality
       import Phoenix.HTML
       # Core UI components and translation
-      import NervesHubWeb.CoreComponents
-      import NervesHubWeb.Gettext
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
@@ -243,18 +217,17 @@ defmodule NervesHubWeb do
         root: "lib/nerves_hub_web/templates",
         namespace: NervesHubWeb
 
-      alias NervesHubWeb.DeviceLive
-      alias NervesHubWeb.Endpoint
+      import NervesHubWeb.Components.SimpleActiveLink
+      import Phoenix.Component
 
-      alias NervesHubWeb.Components.Navigation
-
-      # Import convenience functions from controllers
       import Phoenix.Controller,
         only: [get_flash: 1, get_flash: 2, view_module: 1, view_template: 1]
 
-      import Phoenix.Component
+      alias NervesHubWeb.Components.Navigation
+      alias NervesHubWeb.DeviceLive
+      alias NervesHubWeb.Endpoint
 
-      import NervesHubWeb.Components.SimpleActiveLink
+      # Import convenience functions from controllers
 
       # Include shared imports and aliases for views
       unquote(view_helpers())
@@ -289,6 +262,8 @@ defmodule NervesHubWeb do
   defp hooked_component_setup() do
     quote do
       use Phoenix.Component
+
+      alias Phoenix.LiveView.JS
       alias Phoenix.Socket.Broadcast
     end
   end
@@ -396,9 +371,10 @@ defmodule NervesHubWeb do
   def router() do
     quote do
       use Phoenix.Router
-      import Plug.Conn
+
       import Phoenix.Controller
       import Phoenix.LiveView.Router
+      import Plug.Conn
     end
   end
 
@@ -411,9 +387,13 @@ defmodule NervesHubWeb do
 
   defp view_helpers() do
     quote do
-      # Use all HTML functionality (forms, tags, etc)
-      use Phoenix.HTML
+      use PhoenixHTMLHelpers
       use Gettext, backend: NervesHubWeb.Gettext
+
+      import NervesHubWeb.ErrorHelpers
+      # Use all HTML functionality (forms, tags, etc)
+      import Phoenix.HTML
+      import Phoenix.HTML.Form
 
       # Import LiveView helpers (live_render, live_component, live_patch, etc)
       import Phoenix.LiveView.Helpers
@@ -421,7 +401,6 @@ defmodule NervesHubWeb do
       # Import basic rendering functionality (render, render_layout, etc)
       import Phoenix.View
 
-      import NervesHubWeb.ErrorHelpers
       alias NervesHubWeb.Router.Helpers, as: Routes
     end
   end

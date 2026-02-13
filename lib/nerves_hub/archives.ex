@@ -5,14 +5,14 @@ defmodule NervesHub.Archives do
 
   import Ecto.Query
 
-  require Logger
-
   alias NervesHub.Archives.Archive
   alias NervesHub.Fwup
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteArchive
+
+  require Logger
 
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
@@ -53,6 +53,17 @@ defmodule NervesHub.Archives do
 
       archive ->
         {:ok, Repo.preload(archive, product: [:org])}
+    end
+  end
+
+  def get_by_product_and_id(%Product{id: product_id}, id) do
+    Archive
+    |> where([a], a.id == ^id)
+    |> where([a], a.product_id == ^product_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      firmware -> {:ok, firmware}
     end
   end
 

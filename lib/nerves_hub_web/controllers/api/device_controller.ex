@@ -10,7 +10,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHub.Repo
-
+  alias NervesHubWeb.API.PaginationHelpers
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Helpers.RoleValidateHelpers
 
@@ -34,18 +34,16 @@ defmodule NervesHubWeb.API.DeviceController do
 
   def index(%{assigns: %{org: org, product: product}} = conn, params) do
     opts = %{
-      pagination: Map.get(params, "pagination", %{}),
+      pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
       filters: Map.get(params, "filters", %{})
     }
 
     {devices, page} =
       Devices.get_devices_by_org_id_and_product_id_with_pager(org.id, product.id, opts)
 
-    pagination = Map.take(page, [:page_number, :page_size, :total_entries, :total_pages])
-
     conn
     |> assign(:devices, devices)
-    |> assign(:pagination, pagination)
+    |> assign(:pagination, PaginationHelpers.format_pagination_meta(page))
     |> render(:index)
   end
 

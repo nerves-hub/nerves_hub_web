@@ -4,16 +4,16 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
   import Phoenix.ChannelTest
 
+  alias Ecto.Changeset
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentGroup.Conditions
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Workers.FirmwareDeltaBuilder
-
-  alias Ecto.Changeset
   alias Phoenix.Socket.Broadcast
 
   setup do
@@ -22,7 +22,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     user2 = Fixtures.user_fixture(%{email: "user2@test.com"})
     org2 = Fixtures.org_fixture(user2, %{name: "org2"})
@@ -32,6 +32,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
     {:ok,
      %{
+       user: user,
        org: org,
        org_key: org_key,
        firmware: firmware,
@@ -46,67 +47,131 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
   describe "create deployment" do
     test "create_deployment_group with valid parameters", %{
-      org: org,
-      firmware: firmware
+      product: product,
+      firmware: firmware,
+      user: user
     } do
       params = %{
-        org_id: org.id,
-        firmware_id: firmware.id,
-        product_id: firmware.product_id,
         name: "a different name",
         conditions: %{
-          "version" => "< 1.0.0",
-          "tags" => ["beta", "beta-edge"]
+          version: "< 1.0.0",
+          tags: ["beta", "beta-edge"]
         },
-        is_active: false
+        firmware_id: firmware.id
       }
 
       {:ok, %DeploymentGroup{} = deployment_group} =
-        ManagedDeployments.create_deployment_group(params)
+        ManagedDeployments.create_deployment_group(params, product, user)
 
       for key <- Map.keys(params) do
-        assert Map.get(deployment_group, key) == Map.get(params, key)
+        case Map.get(deployment_group, key) do
+          value when %Conditions{} == value ->
+            Map.from_struct(value) == Map.get(params, key)
+
+          value ->
+            value == Map.get(params, key)
+        end
       end
     end
 
     test "deployments have unique names wrt product", %{
-      org: org,
       firmware: firmware,
-      deployment_group: existing_deployment_group
+      product: product,
+      deployment_group: existing_deployment_group,
+      user: user
     } do
       params = %{
         name: existing_deployment_group.name,
-        org_id: org.id,
-        firmware_id: firmware.id,
-        product_id: firmware.product_id,
         conditions: %{
           "version" => "< 1.0.0",
           "tags" => ["beta", "beta-edge"]
         },
-        is_active: false
+        firmware_id: firmware.id
       }
 
       assert {:error, %Ecto.Changeset{errors: [name: {"has already been taken", _}]}} =
-               ManagedDeployments.create_deployment_group(params)
+               ManagedDeployments.create_deployment_group(params, product, user)
     end
 
-    test "create_deployment_group with invalid parameters" do
+    test "create_deployment_group with invalid parameters fails", %{product: product, firmware: firmware, user: user} do
       params = %{
-        name: "my deployment",
+        name: "",
         conditions: %{
           "version" => "< 1.0.0",
           "tags" => ["beta", "beta-edge"]
         },
-        is_active: true
+        firmware_id: firmware.id
       }
 
-      assert {:error, %Changeset{}} = ManagedDeployments.create_deployment_group(params)
+      assert {:error, %Changeset{}} = ManagedDeployments.create_deployment_group(params, product, user)
+    end
+
+    test "create_deployment_group with non existant firmware fails", %{product: product, user: user} do
+      params = %{
+        name: "Boop",
+        conditions: %{
+          "version" => "< 1.0.0",
+          "tags" => ["beta", "beta-edge"]
+        },
+        firmware_id: 0
+      }
+
+      assert {:error, %Changeset{errors: [firmware_id: {"does not exist", _}]}} =
+               ManagedDeployments.create_deployment_group(params, product, user)
+    end
+
+    test "create_deployment_group with non existant (empty) firmware fails", %{product: product, user: user} do
+      params = %{
+        name: "Boop",
+        conditions: %{
+          "version" => "< 1.0.0",
+          "tags" => ["beta", "beta-edge"]
+        },
+        firmware_id: nil
+      }
+
+      assert {:error,
+              %Changeset{
+                errors: [
+                  {:firmware_id, {"can't be blank", [validation: :required]}}
+                ]
+              }} =
+               ManagedDeployments.create_deployment_group(params, product, user)
+    end
+
+    test "creates release history when deployment group is created with firmware", %{
+      product: product,
+      firmware: firmware,
+      user: user
+    } do
+      params = %{
+        name: "new deployment with release",
+        conditions: %{
+          version: "< 1.0.0",
+          tags: ["beta"]
+        },
+        firmware_id: firmware.id
+      }
+
+      {:ok, deployment_group} = ManagedDeployments.create_deployment_group(params, product, user)
+
+      releases = ManagedDeployments.list_deployment_releases(deployment_group)
+
+      assert length(releases) == 1
+      [release] = releases
+
+      assert release.deployment_group_id == deployment_group.id
+      assert release.firmware_id == firmware.id
+      refute release.archive_id
+      assert release.created_by_id == user.id
+      assert release.firmware.id == firmware.id
+      assert release.user && release.user.id == user.id
     end
   end
 
-  describe "update_deployment_group/2" do
+  describe "update_deployment_group/3" do
     test "updating firmware sends an update message", %{
-      org: org,
+      user: user,
       org_key: org_key,
       firmware: firmware,
       product: product
@@ -116,29 +181,27 @@ defmodule NervesHub.ManagedDeploymentsTest do
       Fixtures.firmware_delta_fixture(firmware, new_firmware)
 
       params = %{
-        firmware_id: new_firmware.id,
-        product_id: new_firmware.product_id,
-        org_id: org.id,
         name: "my deployment",
         conditions: %{
           "version" => "< 1.0.1",
           "tags" => ["beta", "beta-edge"]
         },
-        is_active: false
+        firmware_id: firmware.id
       }
 
-      {:ok, deployment_group} = ManagedDeployments.create_deployment_group(params)
+      {:ok, deployment_group} = ManagedDeployments.create_deployment_group(params, product, user)
 
       Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment_group.id}")
 
       {:ok, _deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
 
       assert_broadcast("deployments/update", %{}, 500)
     end
 
     test "starts distributed orchestrator if deployment updates to active from inactive",
          %{
+           user: user,
            deployment_group: deployment_group
          } do
       refute deployment_group.is_active
@@ -156,10 +219,10 @@ defmodule NervesHub.ManagedDeploymentsTest do
       )
 
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
 
       {:ok, _deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: false})
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: false}, user)
 
       topic = "orchestrator:deployment:#{deployment_group.id}"
       assert_receive %Broadcast{topic: ^topic, event: "deactivated"}, 500
@@ -167,14 +230,15 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
     test "triggers delta generation when firmware is updated and delta updates are enabled",
          %{
+           user: user,
            deployment_group: deployment_group,
            firmware: firmware,
-           firmware2: firmware2,
            org: org,
+           org_key: org_key,
            product: product
          } do
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
 
       assert deployment_group.delta_updatable
       assert deployment_group.firmware_id == firmware.id
@@ -185,25 +249,30 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       assert device.deployment_id == deployment_group.id
 
-      {:ok, _deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware2.id})
+      new_firmware = Fixtures.firmware_fixture(org_key, product)
 
-      assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware.id, target_id: firmware2.id})
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id}, user)
+
+      assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware.id, target_id: new_firmware.id})
     end
 
     test "triggers delta generation when delta updates are enabled",
          %{
+           user: user,
            deployment_group: deployment_group,
            firmware: firmware,
-           firmware2: firmware2,
            org: org,
+           org_key: org_key,
            product: product
          } do
       refute deployment_group.delta_updatable
       assert deployment_group.firmware_id == firmware.id
 
+      new_firmware = Fixtures.firmware_fixture(org_key, product)
+
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware2.id})
+        ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id}, user)
 
       device =
         Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
@@ -212,13 +281,14 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert device.deployment_id == deployment_group.id
 
       {:ok, _deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
 
-      assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware.id, target_id: firmware2.id})
+      assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware.id, target_id: new_firmware.id})
     end
 
     test "does not trigger delta generation if firmware has not changed",
          %{
+           user: user,
            deployment_group: deployment_group,
            firmware: firmware,
            org: org,
@@ -234,13 +304,14 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert device.deployment_id == deployment_group.id
 
       {:ok, _deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
 
       reject(FirmwareDeltaBuilder, :new, 1)
     end
 
     test "triggers delta generation for every unique device firmware + deployment firmware combination",
          %{
+           user: user,
            deployment_group: deployment_group,
            firmware: firmware,
            org: org,
@@ -272,30 +343,141 @@ defmodule NervesHub.ManagedDeploymentsTest do
         |> Devices.update_deployment_group(deployment_group)
 
       {:ok, _deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
 
       assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware2.id, target_id: firmware.id})
       assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware3.id, target_id: firmware.id})
       assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware4.id, target_id: firmware.id})
     end
 
-    test "sets status to :preparing when turning on deltas", %{deployment_group: deployment_group} do
+    test "sets status to :preparing when turning on deltas", %{user: user, deployment_group: deployment_group} do
       assert deployment_group.status == :ready
 
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
 
       assert deployment_group.status == :preparing
     end
 
-    test "sets status to :ready when turning off deltas", %{deployment_group: deployment_group} do
+    test "sets status to :ready when turning off deltas", %{user: user, deployment_group: deployment_group} do
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
 
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: false})
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: false}, user)
 
       assert deployment_group.status == :ready
+    end
+
+    test "creates release record when either firmware or archive change", %{
+      user: user,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product
+    } do
+      # One from the initial creation
+      assert length(ManagedDeployments.list_deployment_releases(deployment_group)) == 1
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "3.0.0"})
+      archive = Fixtures.archive_fixture(org_key, product, %{version: "1.0.0"})
+
+      {:ok, updated_deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{firmware_id: new_firmware.id, archive_id: archive.id},
+          user
+        )
+
+      releases = ManagedDeployments.list_deployment_releases(updated_deployment_group)
+      assert length(releases) == 2
+
+      [release | _rest] = releases
+      assert release.firmware_id == new_firmware.id
+      assert release.archive_id == archive.id
+      assert release.archive.version == "1.0.0"
+
+      {:ok, updated_deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          updated_deployment_group,
+          %{archive_id: nil},
+          user
+        )
+
+      releases = ManagedDeployments.list_deployment_releases(updated_deployment_group)
+      assert length(releases) == 3
+      [latest_release | _rest] = releases
+      assert latest_release.archive_id == nil
+    end
+
+    test "does not create release record when firmware is not changed", %{
+      user: user,
+      deployment_group: deployment_group
+    } do
+      releases = ManagedDeployments.list_deployment_releases(deployment_group)
+      assert length(releases) == 1
+      # Update something other than firmware
+      {:ok, _updated_deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{is_active: true},
+          user
+        )
+
+      # Should have no new releases
+      assert ManagedDeployments.list_deployment_releases(deployment_group) == releases
+    end
+
+    test "list_deployment_releases returns releases ordered by most recent first", %{
+      user: user,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product
+    } do
+      # Create several new releases
+      Enum.each(["2.0.0", "2.1.0", "2.2.0"], fn version ->
+        firmware = Fixtures.firmware_fixture(org_key, product, %{version: version})
+
+        {:ok, updated_dg} =
+          ManagedDeployments.update_deployment_group(
+            deployment_group,
+            %{firmware_id: firmware.id},
+            user
+          )
+
+        updated_dg
+      end)
+
+      releases = ManagedDeployments.list_deployment_releases(deployment_group)
+      # 4 because one is created when the deployment group is created
+      assert length(releases) == 4
+
+      assert Enum.map(releases, & &1.firmware.version) == ["2.2.0", "2.1.0", "2.0.0", deployment_group.firmware.version]
+    end
+
+    test "deployment releases are cascade deleted when deployment group is deleted", %{
+      user: user,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product
+    } do
+      # Create some releases
+      firmware1 = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0"})
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{version: "2.1.0"})
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware1.id}, user)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware2.id}, user)
+
+      releases = ManagedDeployments.list_deployment_releases(deployment_group)
+      assert length(releases) == 3
+
+      # Delete the deployment group
+      {:ok, _deleted} = ManagedDeployments.delete_deployment_group(deployment_group)
+
+      # Verify releases are deleted
+      assert ManagedDeployments.list_deployment_releases(deployment_group) == []
     end
   end
 
@@ -304,18 +486,18 @@ defmodule NervesHub.ManagedDeploymentsTest do
       %{org: org, product: product, firmware: firmware} = state
 
       %{id: beta_deployment_group_id} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "beta",
           conditions: %{"tags" => ["beta"], "version" => ""}
         })
 
       %{id: rpi_deployment_group_id} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "rpi",
           conditions: %{"tags" => ["rpi"], "version" => ""}
         })
 
-      Fixtures.deployment_group_fixture(org, firmware, %{
+      Fixtures.deployment_group_fixture(firmware, %{
         name: "rpi0",
         conditions: %{"tags" => ["rpi0"], "version" => ""}
       })
@@ -332,17 +514,17 @@ defmodule NervesHub.ManagedDeploymentsTest do
       %{org: org, product: product, firmware: firmware} = state
 
       %{id: blank_deployment_group_id} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "beta",
           conditions: %{"tags" => [], "version" => ""}
         })
 
-      Fixtures.deployment_group_fixture(org, firmware, %{
+      Fixtures.deployment_group_fixture(firmware, %{
         name: "rpi",
         conditions: %{"tags" => ["rpi"], "version" => ""}
       })
 
-      Fixtures.deployment_group_fixture(org, firmware, %{
+      Fixtures.deployment_group_fixture(firmware, %{
         name: "rpi0",
         conditions: %{"tags" => ["rpi0"], "version" => ""}
       })
@@ -358,17 +540,17 @@ defmodule NervesHub.ManagedDeploymentsTest do
       %{org: org, product: product, firmware: firmware} = state
 
       %{id: blank_deployment_group_id} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "beta",
           conditions: %{"tags" => [], "version" => ""}
         })
 
-      Fixtures.deployment_group_fixture(org, firmware, %{
+      Fixtures.deployment_group_fixture(firmware, %{
         name: "rpi",
         conditions: %{"tags" => ["rpi"], "version" => ""}
       })
 
-      Fixtures.deployment_group_fixture(org, firmware, %{
+      Fixtures.deployment_group_fixture(firmware, %{
         name: "rpi0",
         conditions: %{"tags" => ["rpi0"], "version" => ""}
       })
@@ -387,12 +569,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
       rpi0_firmware = Fixtures.firmware_fixture(org_key, product, %{platform: "rpi0"})
 
       %{id: rpi_deployment_group_id} =
-        Fixtures.deployment_group_fixture(org, rpi_firmware, %{
+        Fixtures.deployment_group_fixture(rpi_firmware, %{
           name: "rpi",
           conditions: %{"tags" => ["rpi"], "version" => ""}
         })
 
-      Fixtures.deployment_group_fixture(org, rpi0_firmware, %{
+      Fixtures.deployment_group_fixture(rpi0_firmware, %{
         name: "rpi0",
         conditions: %{"tags" => ["rpi"], "version" => ""}
       })
@@ -410,12 +592,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
       rpi0_firmware = Fixtures.firmware_fixture(org_key, product, %{architecture: "rpi0"})
 
       %{id: rpi_deployment_group_id} =
-        Fixtures.deployment_group_fixture(org, rpi_firmware, %{
+        Fixtures.deployment_group_fixture(rpi_firmware, %{
           name: "rpi",
           conditions: %{"tags" => ["rpi"], "version" => ""}
         })
 
-      Fixtures.deployment_group_fixture(org, rpi0_firmware, %{
+      Fixtures.deployment_group_fixture(rpi0_firmware, %{
         name: "rpi0",
         conditions: %{"tags" => ["rpi"], "version" => ""}
       })
@@ -430,12 +612,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
       %{org: org, product: product, firmware: firmware} = state
 
       %{id: low_deployment_group_id} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "rpi",
           conditions: %{"tags" => ["rpi"], "version" => "~> 1.0"}
         })
 
-      Fixtures.deployment_group_fixture(org, firmware, %{
+      Fixtures.deployment_group_fixture(firmware, %{
         name: "rpi0",
         conditions: %{"tags" => ["rpi"], "version" => "~> 2.0"}
       })
@@ -450,12 +632,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
       %{org: org, org_key: org_key, product: product, firmware: firmware} = state
 
       %{id: low_deployment_group_id} =
-        Fixtures.deployment_group_fixture(org, firmware, %{
+        Fixtures.deployment_group_fixture(firmware, %{
           name: "rpi",
           conditions: %{"tags" => ["rpi"], "version" => "~> 1.0"}
         })
 
-      Fixtures.deployment_group_fixture(org, firmware, %{
+      Fixtures.deployment_group_fixture(firmware, %{
         name: "rpi0",
         conditions: %{"tags" => ["rpi"], "version" => "~> 2.0"}
       })
@@ -482,25 +664,25 @@ defmodule NervesHub.ManagedDeploymentsTest do
       v101_fw = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
       %{id: v100_deployment_id} =
-        Fixtures.deployment_group_fixture(org, v100_firmware, %{
+        Fixtures.deployment_group_fixture(v100_firmware, %{
           name: v100_firmware.version,
           conditions: %{"version" => "", "tags" => ["next"]}
         })
 
       %{id: v100rc1_deployment_id} =
-        Fixtures.deployment_group_fixture(org, v100rc1_fw, %{
+        Fixtures.deployment_group_fixture(v100rc1_fw, %{
           name: v100rc1_fw.version,
           conditions: %{"version" => "", "tags" => ["next"]}
         })
 
       %{id: v100rc2_deployment_id} =
-        Fixtures.deployment_group_fixture(org, v100rc2_fw, %{
+        Fixtures.deployment_group_fixture(v100rc2_fw, %{
           name: v100rc2_fw.version,
           conditions: %{"version" => "", "tags" => ["next"]}
         })
 
       %{id: v101_deployment_id} =
-        Fixtures.deployment_group_fixture(org, v101_fw, %{
+        Fixtures.deployment_group_fixture(v101_fw, %{
           name: v101_fw.version,
           conditions: %{"version" => "", "tags" => ["next"]}
         })
@@ -527,6 +709,106 @@ defmodule NervesHub.ManagedDeploymentsTest do
                ManagedDeployments.matching_deployment_groups(%Device{firmware_metadata: nil}, [
                  false
                ])
+    end
+
+    test "matchings tags are prioritized if deployment groups have the same firmware and one has no tags", state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: no_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => [], "version" => "> 0.7.0"}
+        })
+
+      %{id: matching_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => ["alpha"], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha", "testing"]})
+
+      [
+        %{id: ^matching_tags_deployment_id},
+        %{id: ^no_tags_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "the deployment with the most matching tags are prioritized if deployment groups have the same firmware",
+         state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: no_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => ["testing"], "version" => "> 0.7.0"}
+        })
+
+      %{id: matching_tags_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => ["alpha", "testing"], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha", "testing"]})
+
+      [
+        %{id: ^matching_tags_deployment_id},
+        %{id: ^no_tags_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "older deployment groups are prioritized if deployment groups have the same firmware and there are no matching tags",
+         state do
+      %{org: org, product: product, firmware: firmware, deployment_group: %{id: oldest_deployment_group_id}} = state
+
+      %{id: older_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => [], "version" => "> 0.7.0"}
+        })
+
+      %{id: newest_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => [], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      [
+        %{id: ^oldest_deployment_group_id},
+        %{id: ^older_deployment_id},
+        %{id: ^newest_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "older deployment groups are prioritized when there are the same number of matching tags",
+         state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      %{id: older_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "default",
+          conditions: %{"tags" => ["foo", "bar"], "version" => "> 0.7.0"}
+        })
+
+      %{id: newest_deployment_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => ["foo", "bar"], "version" => "<= 1.1.1"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["foo", "bar", "baz"]})
+
+      [
+        %{id: ^older_deployment_id},
+        %{id: ^newest_deployment_id}
+      ] =
+        ManagedDeployments.matching_deployment_groups(device)
     end
   end
 
@@ -611,7 +893,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       {:ok, _} =
         deployment_group
         |> Ecto.Changeset.change()
-        |> Ecto.Changeset.put_change(:conditions, %{"tags" => ["beta", "rpi"], "version" => "0.1"})
+        |> Ecto.Changeset.put_change(:conditions, %{tags: ["beta", "rpi"], version: "0.1"})
         |> Repo.update()
 
       deployment_group = Repo.reload(deployment_group)
@@ -627,20 +909,21 @@ defmodule NervesHub.ManagedDeploymentsTest do
   end
 
   describe "matched_devices_count/2" do
-    setup %{org: org, product: product, firmware: firmware} =
+    setup %{org: org, product: product, firmware: firmware, user: user} =
             context do
       {:ok, deployment_group} =
-        ManagedDeployments.create_deployment_group(%{
-          org_id: org.id,
-          firmware_id: firmware.id,
-          product_id: firmware.product_id,
-          name: "Deployment 123",
-          is_active: false,
-          conditions: %{
-            "version" => "> 1.0.0",
-            "tags" => []
-          }
-        })
+        ManagedDeployments.create_deployment_group(
+          %{
+            name: "Deployment 123",
+            conditions: %{
+              "version" => "> 1.0.0",
+              "tags" => []
+            },
+            firmware_id: firmware.id
+          },
+          product,
+          user
+        )
 
       Fixtures.device_fixture(org, product, firmware, %{
         tags: ["foo"],
@@ -667,28 +950,39 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
 
     test "counts devices for deployment group with tags but no version", %{
+      user: user,
       deployment_group: deployment_group
     } do
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{
-          conditions: %{"tags" => ["beta", "rpi"], "version" => ""}
-        })
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            conditions: %{"tags" => ["beta", "rpi"], "version" => ""}
+          },
+          user
+        )
 
       assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 2
     end
 
     test "counts devices for deployment group with tags and version", %{
+      user: user,
       deployment_group: deployment_group
     } do
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{
-          conditions: %{"tags" => ["beta", "rpi"], "version" => "> 1.1.0"}
-        })
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            conditions: %{"tags" => ["beta", "rpi"], "version" => "> 1.1.0"}
+          },
+          user
+        )
 
       assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 1
     end
 
     test "accounts for devices outside of deployment group", %{
+      user: user,
       deployment_group: deployment_group,
       org: org,
       product: product,
@@ -702,14 +996,19 @@ defmodule NervesHub.ManagedDeploymentsTest do
       refute device.deployment_id
 
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{
-          conditions: %{"tags" => ["beta", "rpi"], "version" => ""}
-        })
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            conditions: %{"tags" => ["beta", "rpi"], "version" => ""}
+          },
+          user
+        )
 
       assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false) == 1
     end
 
     test "devices outside deployment group account for platform and architecture", %{
+      user: user,
       deployment_group: deployment_group,
       org: org,
       product: product,
@@ -723,9 +1022,13 @@ defmodule NervesHub.ManagedDeploymentsTest do
       refute device.deployment_id
 
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{
-          conditions: %{"tags" => ["beta", "rpi"], "version" => ""}
-        })
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            conditions: %{"tags" => ["beta", "rpi"], "version" => ""}
+          },
+          user
+        )
 
       assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false) == 1
     end
@@ -735,20 +1038,22 @@ defmodule NervesHub.ManagedDeploymentsTest do
     test "takes platform and architecture into account", %{
       org: org,
       product: product,
-      firmware: firmware
+      firmware: firmware,
+      user: user
     } do
       {:ok, deployment_group} =
-        ManagedDeployments.create_deployment_group(%{
-          org_id: org.id,
-          firmware_id: firmware.id,
-          product_id: firmware.product_id,
-          name: "Deployment 123",
-          is_active: false,
-          conditions: %{
-            "version" => "1.0.0",
-            "tags" => ["beta", "rpi"]
-          }
-        })
+        ManagedDeployments.create_deployment_group(
+          %{
+            name: "Deployment 123",
+            conditions: %{
+              "version" => "1.0.0",
+              "tags" => ["beta", "rpi"]
+            },
+            firmware_id: firmware.id
+          },
+          product,
+          user
+        )
 
       _device1 =
         Fixtures.device_fixture(
@@ -773,20 +1078,22 @@ defmodule NervesHub.ManagedDeploymentsTest do
     test "matches against tags and version", %{
       org: org,
       product: product,
-      firmware: firmware
+      firmware: firmware,
+      user: user
     } do
       {:ok, deployment_group} =
-        ManagedDeployments.create_deployment_group(%{
-          org_id: org.id,
-          firmware_id: firmware.id,
-          product_id: firmware.product_id,
-          name: "Deployment 123",
-          is_active: false,
-          conditions: %{
-            "version" => "1.0.0",
-            "tags" => ["beta", "rpi"]
-          }
-        })
+        ManagedDeployments.create_deployment_group(
+          %{
+            name: "Deployment 123",
+            conditions: %{
+              "version" => "1.0.0",
+              "tags" => ["beta", "rpi"]
+            },
+            firmware_id: firmware.id
+          },
+          product,
+          user
+        )
 
       _device1 =
         Fixtures.device_fixture(
@@ -816,20 +1123,22 @@ defmodule NervesHub.ManagedDeploymentsTest do
     test "matches against only tags if deployment group has no version", %{
       org: org,
       product: product,
-      firmware: firmware
+      firmware: firmware,
+      user: user
     } do
       {:ok, deployment_group} =
-        ManagedDeployments.create_deployment_group(%{
-          org_id: org.id,
-          firmware_id: firmware.id,
-          product_id: firmware.product_id,
-          name: "Deployment 123",
-          is_active: false,
-          conditions: %{
-            "version" => "",
-            "tags" => ["beta", "rpi"]
-          }
-        })
+        ManagedDeployments.create_deployment_group(
+          %{
+            name: "Deployment 123",
+            conditions: %{
+              "version" => "",
+              "tags" => ["beta", "rpi"]
+            },
+            firmware_id: firmware.id
+          },
+          product,
+          user
+        )
 
       device1 =
         Fixtures.device_fixture(
@@ -855,20 +1164,22 @@ defmodule NervesHub.ManagedDeploymentsTest do
     test "matches against only version if deployment group has no tags", %{
       org: org,
       product: product,
-      firmware: firmware
+      firmware: firmware,
+      user: user
     } do
       {:ok, deployment_group} =
-        ManagedDeployments.create_deployment_group(%{
-          org_id: org.id,
-          firmware_id: firmware.id,
-          product_id: firmware.product_id,
-          name: "Deployment 123",
-          is_active: false,
-          conditions: %{
-            "version" => "< 1.0.0",
-            "tags" => []
-          }
-        })
+        ManagedDeployments.create_deployment_group(
+          %{
+            name: "Deployment 123",
+            conditions: %{
+              "version" => "< 1.0.0",
+              "tags" => []
+            },
+            firmware_id: firmware.id
+          },
+          product,
+          user
+        )
 
       _device1 =
         Fixtures.device_fixture(
@@ -894,20 +1205,22 @@ defmodule NervesHub.ManagedDeploymentsTest do
          %{
            org: org,
            product: product,
-           firmware: firmware
+           firmware: firmware,
+           user: user
          } do
       {:ok, deployment_group} =
-        ManagedDeployments.create_deployment_group(%{
-          org_id: org.id,
-          firmware_id: firmware.id,
-          product_id: firmware.product_id,
-          name: "Deployment 123",
-          is_active: false,
-          conditions: %{
-            "version" => "",
-            "tags" => ["beta", "rpi"]
-          }
-        })
+        ManagedDeployments.create_deployment_group(
+          %{
+            name: "Deployment 123",
+            conditions: %{
+              "version" => "",
+              "tags" => ["beta", "rpi"]
+            },
+            firmware_id: firmware.id
+          },
+          product,
+          user
+        )
 
       device1 =
         Fixtures.device_fixture(
@@ -951,9 +1264,9 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
   end
 
-  test "should_run_orchestrator/0", %{deployment_group: deployment_group} do
+  test "should_run_orchestrator/0", %{user: user, deployment_group: deployment_group} do
     assert [] == ManagedDeployments.should_run_orchestrator()
-    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
+    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
     assert length(ManagedDeployments.should_run_orchestrator()) == 1
   end
 

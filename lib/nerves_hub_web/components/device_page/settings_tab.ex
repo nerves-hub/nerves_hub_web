@@ -1,17 +1,19 @@
 defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   use NervesHubWeb, tab_component: :settings
 
+  alias NervesHub.Certificate
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Device
+  alias NervesHub.Extensions
+  alias NervesHub.Repo
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
-  alias NervesHub.Certificate
-  alias NervesHub.Devices
-  alias NervesHub.Extensions
-
-  alias NervesHub.Repo
-
   def tab_params(_params, _uri, socket) do
+    changeset = Ecto.Changeset.change(socket.assigns.device)
+
     socket
+    |> assign(:settings_form, to_form(changeset))
     |> allow_upload(:certificate,
       accept: :any,
       auto_upload: true,
@@ -24,17 +26,15 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   def render(assigns) do
     device = Repo.preload(assigns.device, :device_certificates, force: true)
 
-    changeset = Ecto.Changeset.change(assigns.device)
-
-    assigns =
-      assigns
-      |> Map.put(:device, device)
-      |> Map.put(:settings_form, to_form(changeset))
-      |> Map.put(:available_extensions, extensions())
+    assigns = Map.put(assigns, :device, device)
 
     ~H"""
-    <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <.form for={@settings_form} class="w-full" phx-submit="update-device-settings">
+    <div
+      id="settings-tab"
+      phx-mounted={JS.remove_class("opacity-0")}
+      class="transition-all duration-500 opacity-0 tab-content phx-click-loading:opacity-50 flex flex-col items-start justify-between gap-4 p-6"
+    >
+      <.form id="settings-form" for={@settings_form} class="w-full" phx-change="validate-device-settings" phx-submit="update-device-settings">
         <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
             <div class="text-base text-neutral-50 font-medium">General settings</div>
@@ -68,13 +68,13 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 </p>
               </div> --%>
 
-              <.input field={@settings_form[:description]} label="Description" placeholder="eg. sensor hub at customer X" />
+              <.input field={@settings_form[:description]} label="Description" placeholder="eg. sensor hub at customer X" phx-debounce="blur" />
 
-              <.input field={@settings_form[:tags]} value={Utils.tags_to_string(@settings_form[:tags])} label="Tags" placeholder="eg. batch-123" />
+              <.input field={@settings_form[:tags]} value={Utils.tags_to_string(@settings_form[:tags])} label="Tags" placeholder="eg. batch-123" phx-debounce="blur" />
             </div>
 
             <div class="w-1/2 flex flex-col gap-2">
-              <.input field={@settings_form[:connecting_code]} label="First connect code" type="textarea" rows="10" />
+              <.input field={@settings_form[:connecting_code]} label="First connect code" type="textarea" rows="10" phx-debounce="2000" />
               <div class="text-xs tracking-wide text-zinc-400">Make sure this is valid Elixir and will not crash the device</div>
             </div>
           </div>
@@ -86,7 +86,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
           <div class="text-base text-neutral-50 font-medium">Extensions</div>
         </div>
         <div class="py-2 px-4 flex flex-col gap-1">
-          <div :for={{key, description} <- @available_extensions} class="flex items-center gap-6 h-16 p-2">
+          <div :for={{key, description} <- available_extensions()} class="flex items-center gap-6 h-16 p-2">
             <div class="flex items-center h-8 py-1 px-2 bg-zinc-800 border border-zinc-700 rounded-full">
               <input
                 id={"extension-#{key}"}
@@ -100,11 +100,11 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             </div>
             <div class="flex flex-col">
               <div class="flex gap-2">
-                <div class="w-14 font-medium text-zinc-300">
-                  {String.capitalize(to_string(key))}
+                <div class="font-medium text-zinc-300">
+                  {format_key(key)}
                 </div>
                 <div :if={Map.get(@device.product.extensions, key) != true} class="text-red-500">
-                  Extension is disabled at the product level.
+                  - Extension is disabled at the product level.
                 </div>
               </div>
               <div class="text-zinc-300">
@@ -281,6 +281,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     """
   end
 
+  def hooked_event("validate-device-settings", %{"device" => device_params}, socket) do
+    changeset = Device.changeset(socket.assigns.device, device_params)
+
+    socket
+    |> assign(:settings_form, to_form(changeset, action: :validate))
+    |> halt()
+  end
+
   def hooked_event("update-device-settings", %{"device" => device_params}, socket) do
     authorized!(:"device:update", socket.assigns.org_user)
 
@@ -400,14 +408,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         put_flash(
           socket,
           :info,
-          "The #{extension} extension successfully #{(value == "on" && "enabled") || "disabled"}."
+          "The #{format_key(extension)} extension was successfully #{(value == "on" && "enabled") || "disabled"}."
         )
 
       {:error, _changeset} ->
         put_flash(
           socket,
           :error,
-          "There was an unexpected error when updating the #{extension} extension. Please contact support."
+          "There was an unexpected error when updating the #{format_key(extension)} extension. Please contact support."
         )
     end
     |> halt()
@@ -457,9 +465,16 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     end
   end
 
-  defp extensions() do
+  defp available_extensions() do
     for extension <- Extensions.list(),
         into: %{},
         do: {extension, Extensions.module(extension).description()}
+  end
+
+  def format_key(key) do
+    to_string(key)
+    |> Phoenix.Naming.humanize()
+    |> String.split()
+    |> Enum.map_join(" ", &String.capitalize/1)
   end
 end

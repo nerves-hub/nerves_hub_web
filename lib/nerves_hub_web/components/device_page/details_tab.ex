@@ -1,8 +1,6 @@
 defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   use NervesHubWeb, tab_component: :details
 
-  require Logger
-
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
@@ -12,9 +10,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Scripts
-
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.NewUI.DeviceLocation
+
+  require Logger
 
   @keys_to_cleanup [
     :support_scripts,
@@ -74,7 +73,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     assigns = Map.put(assigns, :auto_refresh_health, !!assigns.health_check_timer)
 
     ~H"""
-    <div class="flex items-start justify-between gap-4 p-6">
+    <div
+      id="details-tab"
+      phx-mounted={JS.remove_class("opacity-0")}
+      class="transition-all duration-500 opacity-0 tab-content phx-click-loading:opacity-50 flex items-start justify-between gap-4 p-6"
+    >
       <div class="w-1/2 flex flex-col gap-4">
         <div :if={!@product.extensions.health || !@device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
@@ -305,29 +308,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
 
           <div :if={@device.deployment_group} class="flex flex-col pt-2 px-4 pb-6 gap-4">
-            <div class="text-sm font-medium leading-6 text-zinc-300">
-              <form id="toggle-priority-updates">
-                <input type="hidden" name="device[priority_updates]" value="false" />
-                <input
-                  type="checkbox"
-                  id="device[priority_updates]"
-                  name="device[priority_updates]"
-                  checked={@device.priority_updates}
-                  phx-click="toggle-device-priority-updates"
-                  value="true"
-                  class="rounded border-zinc-700 text-zinc-400 focus:ring-0 checked:bg-indigo-500"
-                />
-                <label for="device[priority_updates]" class="pl-2">Priority Updates</label>
-                <div id="priority-update-info" class="inline-block align-middle relative pl-1" phx-hook="ToolTip" data-placement="right">
-                  <.icon name="info" class="stroke-zinc-400" />
-                  <div class="tooltip-content hidden w-max absolute top-0 left-0 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
-                    When enabled, this device will be prioritized for updates and <br /> bypasses the deployment group's queue management. <br />
-                    The priority setting will automatically revert after the next successful update. <br />
-                    <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
-                  </div>
-                </div>
-              </form>
-            </div>
             <div class="flex pt-2 gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Assigned deployment group:</span>
               <.link
@@ -378,8 +358,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   </option>
                 </select>
               </div>
-              <.button type="submit" aria-label="Add to deployment" data-confirm="Are you sure you want to add the device to the deployment group?">
-                Add to deployment group
+              <.button type="submit" aria-label="Assign to deployment" data-confirm="Are you sure you want to add the device to the deployment group?">
+                Assign
               </.button>
             </form>
           </div>
@@ -665,7 +645,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
-    Logger.info("Manually sending full firmware", firmware_uuid: firmware.uuid, device_identifier: device.identifier)
+    Logger.info("Manually sending full firmware",
+      firmware_uuid: firmware.uuid,
+      device_identifier: device.identifier
+    )
 
     opts =
       if proxy_url = get_in(org.settings.firmware_proxy_url) do
@@ -747,32 +730,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     socket
     |> assign(:support_scripts, update_script(scripts, id, %{output: nil, running?: false}))
     |> halt()
-  end
-
-  def hooked_event("toggle-device-priority-updates", _params, socket) do
-    %{assigns: %{device: device}} = socket
-
-    case Devices.update_device(device, %{priority_updates: !device.priority_updates}) do
-      {:ok, device} ->
-        socket
-        |> assign(:device, device)
-        |> put_flash(:info, "Device updated successfully.")
-        |> halt()
-
-      {:error, changeset} ->
-        Logger.info("Couldn't update device.priority_updates: #{inspect(changeset)}")
-
-        error =
-          if Keyword.has_key?(changeset.errors, :deleted_at) do
-            "Device cannot be updated because it has been deleted. Please restore the device to make changes."
-          else
-            "There was an issue updating the device. Please contact support if this happens again."
-          end
-
-        socket
-        |> put_flash(:error, error)
-        |> halt()
-    end
   end
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}

@@ -1,26 +1,18 @@
 defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   use NervesHubWeb, :live_component
 
-  alias NervesHub.Archives
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
-  alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
-    archives = Archives.all_by_product(assigns.deployment_group.product)
-    firmwares = Firmwares.get_firmwares_for_deployment_group(assigns.deployment_group)
-
     changeset = DeploymentGroup.update_changeset(assigns.deployment_group, %{})
 
     socket
     |> assign(assigns)
-    |> assign(:archives, archives)
-    |> assign(:firmware, assigns.deployment_group.firmware)
-    |> assign(:firmwares, firmwares)
     |> assign(:form, to_form(changeset))
     |> ok()
   end
@@ -29,7 +21,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <.form for={@form} class="w-full flex flex-col gap-4" phx-submit="update-deployment-group" phx-target={@myself}>
+      <.form id="deployment-form" for={@form} class="w-full flex flex-col gap-4" phx-change="validate-deployment-group" phx-submit="update-deployment-group" phx-target={@myself}>
         <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
             <div class="text-base text-neutral-50 font-medium">General settings</div>
@@ -37,7 +29,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
           <div class="flex p-6 gap-6">
             <div class="w-1/2 flex flex-col gap-6">
-              <.input field={@form[:name]} label="Name" placeholder="Production" />
+              <.input field={@form[:name]} label="Name" placeholder="Production" phx-debounce="blur" />
               <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates">
                 <:rich_hint>
                   When enabled, the deployment group will only send delta updates.
@@ -45,35 +37,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                   for more information on delta updates.
                 </:rich_hint>
               </.input>
-            </div>
-          </div>
-        </div>
-
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
-            <div class="text-base text-neutral-50 font-medium">Release settings</div>
-          </div>
-
-          <div class="flex flex-col p-6 gap-6">
-            <div class="w-1/2 flex flex-col gap-6">
-              <.input
-                field={@form[:firmware_id]}
-                type="select"
-                options={firmware_dropdown_options(@firmwares)}
-                label="Firmware version"
-                hint="Firmware listed is the same platform and architecture as the currently selected firmware."
-              />
-            </div>
-
-            <div class="w-1/2 flex flex-col gap-6">
-              <.input
-                field={@form[:archive_id]}
-                type="select"
-                options={archive_dropdown_options(@archives)}
-                prompt="Select an Archive"
-                label="Additional Archive version"
-                hint="Firmware listed is the same platform and architecture as the currently selected firmware."
-              />
             </div>
           </div>
         </div>
@@ -92,12 +55,15 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                 The matching is undertaken when a device connects to the platform.
               </p>
             </div>
-            <div class="w-1/2">
-              <.input field={@form[:tags]} value={tags_to_string(@form[:conditions])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
-            </div>
-            <div class="w-1/2">
-              <.input field={@form[:version]} value={@form[:conditions].value["version"]} label="Version requirement" placeholder="eg. 1.2.3" />
-            </div>
+            <.inputs_for :let={conditions} field={@form[:conditions]}>
+              <div class="w-1/2">
+                <.input field={conditions[:tags]} value={Utils.tags_to_string(conditions[:tags])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+              </div>
+
+              <div class="w-1/2">
+                <.input field={conditions[:version]} label="Version requirement" placeholder="eg. 1.2.3" />
+              </div>
+            </.inputs_for>
           </div>
         </div>
 
@@ -140,6 +106,47 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                 label="Minutes Before Expiring Updates"
                 type="number"
                 hint="The number of minutes before an inflight update expires to clear the queue."
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+            <div class="text-base text-neutral-50 font-medium">Priority queue</div>
+          </div>
+
+          <div class="flex flex-col p-6 gap-6">
+            <div class="flex flex-col gap-3">
+              <p class="text-sm text-zinc-400 w-2/3">
+                Enable priority queue to fast-track devices with older firmware versions (e.g., fresh from factory) for immediate updates, bypassing the normal rolling update queue.
+              </p>
+            </div>
+
+            <div class="w-1/2">
+              <.input
+                field={@form[:priority_queue_enabled]}
+                type="checkbox"
+                label="Enable priority queue"
+              />
+            </div>
+
+            <div class="w-1/2">
+              <.input
+                field={@form[:priority_queue_concurrent_updates]}
+                label="Priority Queue Concurrent Updates"
+                type="number"
+                hint="The number of priority devices that will update concurrently, separate from the main concurrent limit."
+              />
+            </div>
+
+            <div class="w-1/2">
+              <.input
+                field={@form[:priority_queue_firmware_version_threshold]}
+                label="Firmware Version Threshold"
+                type="text"
+                placeholder="eg. 1.0.0"
+                hint="Devices with firmware versions at or below this threshold will be processed via the priority queue. Leave empty to disable."
               />
             </div>
           </div>
@@ -219,7 +226,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
           <div class="flex flex-col p-6 gap-6">
             <div class="w-2/3 flex flex-col gap-6">
-              <.input field={@form[:connecting_code]} type="textarea" rows={8} label="Run this code when the device first connects to the console.">
+              <.input field={@form[:connecting_code]} type="textarea" rows={8} label="Run this code when the device first connects to the console." phx-debounce="2000">
                 <:rich_hint>
                   <p>
                     Make sure this is valid Elixir and will not crash the device.
@@ -260,6 +267,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   end
 
   @impl Phoenix.LiveComponent
+  def handle_event("validate-deployment-group", %{"deployment_group" => params}, socket) do
+    changeset =
+      socket.assigns.deployment_group
+      |> DeploymentGroup.update_changeset(params)
+
+    socket
+    |> assign(:form, to_form(changeset, action: :validate))
+    |> noreply()
+  end
+
   def handle_event("update-deployment-group", %{"deployment_group" => params}, socket) do
     %{
       org_user: org_user,
@@ -272,11 +289,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
     authorized!(:"deployment_group:update", org_user)
 
-    params = inject_conditions_map(params)
-    firmware_changed? = params["firmware_id"] != to_string(deployment_group.firmware_id)
-    %{firmware: %{id: old_firmware_id}} = deployment_group
-
-    case ManagedDeployments.update_deployment_group(deployment_group, params) do
+    case ManagedDeployments.update_deployment_group(deployment_group, params, user) do
       {:ok, updated} ->
         # Use original deployment so changes will get
         # marked in audit log
@@ -286,13 +299,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           "User #{user.name} updated deployment group #{updated.name}"
         )
 
-        # no need to subscribe to new firmware here, we do that in the summary component
-        if firmware_changed? do
-          :ok = Firmwares.unsubscribe_firmware_delta_target(old_firmware_id)
-        end
-
-        # TODO: if we move away from slugs with deployment names we won't need
-        # to use `push_navigate` here.
         socket
         |> put_flash(:info, "Deployment Group updated")
         |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{updated}")
@@ -324,66 +330,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     |> noreply()
   end
 
-  defp inject_conditions_map(%{"version" => version, "tags" => tags} = params) do
-    params
-    |> Map.put("conditions", %{
-      "version" => version,
-      "tags" =>
-        tags
-        |> tags_as_list()
-        |> MapSet.new()
-        |> MapSet.to_list()
-    })
-  end
-
-  defp inject_conditions_map(params), do: params
-
-  defp tags_as_list(""), do: []
-
-  defp tags_as_list(tags) do
-    tags
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
-  end
-
-  def firmware_dropdown_options(firmwares) do
-    firmwares
-    |> Enum.sort_by(
-      fn firmware ->
-        case Version.parse(firmware.version) do
-          {:ok, version} ->
-            version
-
-          :error ->
-            %Version{major: 0, minor: 0, patch: 0}
-        end
-      end,
-      {:desc, Version}
-    )
-    |> Enum.map(&[value: &1.id, key: firmware_display_name(&1)])
-  end
-
-  def archive_dropdown_options(archives) do
-    archives
-    |> Enum.sort_by(
-      fn archive ->
-        case Version.parse(archive.version) do
-          {:ok, version} ->
-            version
-
-          :error ->
-            %Version{major: 0, minor: 0, patch: 0}
-        end
-      end,
-      {:desc, Version}
-    )
-    |> Enum.map(&[value: &1.id, key: archive_display_name(&1)])
-  end
-
-  def archive_display_name(%{} = a) do
-    "#{a.version} - #{a.platform} - #{a.architecture} (#{String.slice(a.uuid, 0..7)})"
-  end
-
   defp help_message_for(field) do
     case field do
       :device_failure_rate ->
@@ -395,18 +341,5 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
       :penalty_timeout_minutes ->
         "Number of minutes a device is placed in penalty box for reaching the failure rate or threshold."
     end
-  end
-
-  defp firmware_display_name(%Firmware{} = f) do
-    "#{f.version} - #{f.platform} - #{f.architecture} (#{String.slice(f.uuid, 0..7)})"
-  end
-
-  @doc """
-  Convert tags from a list to a comma-separated list (in a string)
-  """
-  def tags_to_string(%Phoenix.HTML.FormField{} = field) do
-    field.value
-    |> Map.get("tags", [])
-    |> Enum.join(", ")
   end
 end

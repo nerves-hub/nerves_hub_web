@@ -7,9 +7,8 @@ defmodule NervesHub.Scripts do
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Products
   alias NervesHub.Products.Product
-  alias NervesHub.Scripts.Script
-
   alias NervesHub.Repo
+  alias NervesHub.Scripts.Script
 
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
@@ -46,10 +45,34 @@ defmodule NervesHub.Scripts do
     end
   end
 
+  def get_by_product_and_name(product, name) do
+    case Repo.get_by(Script, name: name, product_id: product.id) do
+      nil ->
+        {:error, :not_found}
+
+      script ->
+        {:ok, script}
+    end
+  end
+
+  def get_by_product_and_name_with_id_fallback(product, name_or_id) do
+    # Try to find by name first
+    case get_by_product_and_name(product, name_or_id) do
+      {:ok, script} ->
+        {:ok, script}
+
+      {:error, :not_found} ->
+        # If not found by name, try by ID
+        case Integer.parse(name_or_id) do
+          {id, ""} -> get(product, id)
+          _ -> {:error, :not_found}
+        end
+    end
+  end
+
   @spec create(Product.t(), User.t(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
   def create(product, user, params) do
-    %Script{}
-    |> Script.create_changeset(product, user, params)
+    Script.create_changeset(product, user, params)
     |> Repo.insert()
     |> case do
       {:ok, script} ->

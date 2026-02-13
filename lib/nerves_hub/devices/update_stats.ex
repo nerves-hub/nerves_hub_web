@@ -3,6 +3,8 @@ defmodule NervesHub.Devices.UpdateStats do
   Module for logging and querying device update statistics.
   """
 
+  import Ecto.Query
+
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.UpdateStat
   alias NervesHub.Firmwares
@@ -14,8 +16,6 @@ defmodule NervesHub.Devices.UpdateStats do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
-
-  import Ecto.Query
 
   require Logger
 
@@ -56,7 +56,9 @@ defmodule NervesHub.Devices.UpdateStats do
     UpdateStat
     |> where(deployment_id: ^deployment_group.id)
     |> join(:inner, [s], f in Firmware,
-      on: fragment("?::uuid", f.uuid) == s.target_firmware_uuid and f.product_id == ^deployment_group.product_id
+      on:
+        fragment("?::uuid", f.uuid) == s.target_firmware_uuid and
+          f.product_id == ^deployment_group.product_id
     )
     |> group_by([s, f], [s.target_firmware_uuid, f.version])
     |> select([s, f], %{
@@ -173,13 +175,18 @@ defmodule NervesHub.Devices.UpdateStats do
     end
   end
 
-  @spec get_byte_stats(FirmwareDelta.t() | nil, product_id :: pos_integer(), target_firmware_uuid :: Ecto.UUID.t()) ::
+  @spec get_byte_stats(
+          FirmwareDelta.t() | nil,
+          product_id :: pos_integer(),
+          target_firmware_uuid :: Ecto.UUID.t()
+        ) ::
           %{
             update_bytes: integer(),
             saved_bytes: integer()
           }
   defp get_byte_stats(%FirmwareDelta{size: delta_size}, product_id, target_firmware_uuid) do
-    {:ok, target_firmware} = Firmwares.get_firmware_by_product_id_and_uuid(product_id, target_firmware_uuid)
+    {:ok, target_firmware} =
+      Firmwares.get_firmware_by_product_id_and_uuid(product_id, target_firmware_uuid)
 
     %{update_bytes: delta_size, saved_bytes: target_firmware.size - delta_size}
   end
@@ -194,7 +201,11 @@ defmodule NervesHub.Devices.UpdateStats do
     end
   end
 
-  @spec get_delta_from_metadata(product_id :: pos_integer(), source_uuid :: Ecto.UUID.t(), target_uuid :: Ecto.UUID.t()) ::
+  @spec get_delta_from_metadata(
+          product_id :: pos_integer(),
+          source_uuid :: Ecto.UUID.t(),
+          target_uuid :: Ecto.UUID.t()
+        ) ::
           FirmwareDelta.t() | nil
   defp get_delta_from_metadata(product_id, source_uuid, target_uuid) do
     source_query =

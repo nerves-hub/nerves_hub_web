@@ -2,10 +2,11 @@ defmodule NervesHubWeb.Live.NewUI.DelploymentGroups.NewTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
-  alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias NervesHub.Repo
-
   import Ecto.Query, only: [from: 2]
+
+  alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentGroup.Conditions
+  alias NervesHub.Repo
 
   setup context do
     conn =
@@ -57,7 +58,7 @@ defmodule NervesHubWeb.Live.NewUI.DelploymentGroups.NewTest do
 
     deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
     assert deployment_group.firmware_id == fixture.firmware.id
-    assert deployment_group.conditions == %{"version" => "1.2.3", "tags" => ["a", "b"]}
+    assert deployment_group.conditions == %Conditions{version: "1.2.3", tags: ["a", "b"]}
   end
 
   test "errors display for invalid version", %{conn: conn, org: org, product: product} do

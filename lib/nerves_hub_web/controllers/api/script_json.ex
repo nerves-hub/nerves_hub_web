@@ -1,9 +1,10 @@
 defmodule NervesHubWeb.API.ScriptJSON do
   @moduledoc false
 
-  def index(%{scripts: scripts}) do
+  def index(%{scripts: scripts, pagination: pagination}) do
     %{
-      data: for(script <- scripts, do: script(script))
+      data: for(script <- scripts, do: script(script)),
+      pagination: pagination
     }
   end
 

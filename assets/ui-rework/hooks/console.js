@@ -42,21 +42,20 @@ const debounce = (func, time = 100) => {
   }
 }
 
-const resizeContent = (term, fitAddon) => {
-  term.resize(5, 5)
-  fitAddon.fit()
+const resizeContent = (term, channel) => {
+  channel.push("window_size", { height: term.rows, width: term.cols })
 }
 
 export default {
   mounted() {
     // socket + channel setup to receive device console data
-    const socket = new Socket("/socket", {
+    this.socket = new Socket("/socket", {
       params: { token: this.el.dataset.userToken }
     })
-    socket.connect()
+    this.socket.connect()
 
     const deviceId = this.el.dataset.deviceId
-    const channel = socket.channel(`user:console:${deviceId}`, {})
+    const channel = this.socket.channel(`user:console:${deviceId}`, {})
 
     // init terminal, load addons
     // use previous scrollback if available, default to 1000 lines
@@ -76,12 +75,19 @@ export default {
     fitAddon.fit()
     term.focus()
 
+    this.resizeEventListener = () => {
+      fitAddon.fit()
+      term.scrollToBottom()
+      term.focus()
+    }
+
     // resize terminal on window resize
-    window.addEventListener(
-      "resize",
+    window.addEventListener("resize", this.resizeEventListener)
+
+    term.onResize(
       debounce(() => {
-        resizeContent.apply(null, [term, fitAddon])
-      }, 300)
+        resizeContent.apply(null, [term, channel])
+      }, 500)
     )
 
     channel
@@ -162,9 +168,8 @@ export default {
     document.getElementById("fullscreen").addEventListener("click", () => {
       // put this on the next tick instead of immediate just to reduce risk of racing
       window.setTimeout(() => {
-        fitAddon.fit()
-        term.scrollToBottom()
-        term.focus()
+        this.resizeEventListener()
+        resizeContent.apply(null, [term, channel])
       }, 1000)
     })
 
@@ -229,5 +234,9 @@ export default {
       },
       false
     )
+  },
+  destroyed() {
+    window.removeEventListener("resize", this.resizeEventListener)
+    this.socket.disconnect()
   }
 }

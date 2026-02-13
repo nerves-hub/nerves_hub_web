@@ -2,11 +2,10 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.AuditLogs
+  alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
-
-  alias NervesHub.Fixtures
 
   setup context do
     conn =
@@ -38,7 +37,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
     |> submit()
 
     deployment_group = Repo.reload(deployment_group)
-    assert deployment_group.conditions["version"] == "1.2.3"
+    assert deployment_group.conditions.version == "1.2.3"
   end
 
   test "can update only tags", %{conn: conn, deployment_group: deployment_group} do
@@ -47,7 +46,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
     |> submit()
 
     deployment_group = Repo.reload(deployment_group)
-    assert deployment_group.conditions["tags"] == ["a", "b"]
+    assert deployment_group.conditions.tags == ["a", "b"]
   end
 
   test "can update tags and version", %{conn: conn, deployment_group: deployment_group} do
@@ -57,8 +56,8 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
     |> submit()
 
     deployment_group = Repo.reload(deployment_group)
-    assert deployment_group.conditions["tags"] == ["a", "b"]
-    assert deployment_group.conditions["version"] == "1.2.3"
+    assert deployment_group.conditions.tags == ["a", "b"]
+    assert deployment_group.conditions.version == "1.2.3"
   end
 
   test "update the chosen resource, and adds an audit log", %{
@@ -70,7 +69,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     conn =
       conn
@@ -80,7 +79,6 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
       |> fill_in("Name", with: "Moussaka")
       |> fill_in("Tag(s) distributed to", with: "josh, lars")
       |> fill_in("Version requirement", with: "4.3.2")
-      |> select("Firmware version", option: String.split(firmware.uuid, "-") |> List.first(), exact_option: false)
       |> click_button("Save changes")
 
     {:ok, reloaded_deployment_group} =
@@ -91,8 +89,8 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
     |> assert_has("div", text: "Deployment Group updated")
 
     assert reloaded_deployment_group.name == "Moussaka"
-    assert reloaded_deployment_group.conditions["version"] == "4.3.2"
-    assert Enum.sort(reloaded_deployment_group.conditions["tags"]) == Enum.sort(~w(josh lars))
+    assert reloaded_deployment_group.conditions.version == "4.3.2"
+    assert Enum.sort(reloaded_deployment_group.conditions.tags) == Enum.sort(~w(josh lars))
 
     [audit_log_one, audit_log_two] = AuditLogs.logs_for(reloaded_deployment_group)
 
@@ -109,7 +107,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
@@ -130,7 +128,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
@@ -140,9 +138,9 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
     |> click_button("Save changes")
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}"))
 
-    assert Repo.reload(deployment_group) |> Map.get(:conditions) == %{
-             "version" => "",
-             "tags" => []
-           }
+    deployment_group = Repo.reload(deployment_group)
+
+    assert deployment_group.conditions.version == ""
+    assert deployment_group.conditions.tags == []
   end
 end

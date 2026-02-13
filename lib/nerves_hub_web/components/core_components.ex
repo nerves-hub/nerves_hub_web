@@ -14,13 +14,15 @@ defmodule NervesHubWeb.CoreComponents do
 
   Icons are provided by [heroicons](https://heroicons.com). See `icon/1` for usage.
   """
-  use Phoenix.Component
+  use Phoenix.Component, global_prefixes: ~w(js-)
+  use Gettext, backend: NervesHubWeb.Gettext
 
   import NervesHubWeb.Components.Icons
 
+  alias Phoenix.HTML.Form
+  alias Phoenix.HTML.FormField
   alias Phoenix.LiveView.JS
-
-  use Gettext, backend: NervesHubWeb.Gettext
+  alias Phoenix.LiveView.LiveStream
 
   @doc """
   Renders a modal.
@@ -139,12 +141,17 @@ defmodule NervesHubWeb.CoreComponents do
     <div id={@id}>
       <.flash kind={:info} title={gettext("Success")} flash={@flash} phx-mounted={show("#flash-info")} phx-hook="Flash" hidden />
       <.flash kind={:error} title={gettext("Error")} flash={@flash} phx-mounted={show("#flash-error")} hidden />
-      <.flash id="client-error" kind={:error} title={gettext("We can't find the internet")} phx-disconnected={show(".phx-client-error #client-error")} phx-connected={hide("#client-error")} hidden>
-        {gettext("Attempting to reconnect")}
-      </.flash>
 
-      <.flash id="server-error" kind={:error} title={gettext("Something went wrong!")} phx-disconnected={show(".phx-server-error #server-error")} phx-connected={hide("#server-error")} hidden>
-        {gettext("Hang in there while we get back on track")}
+      <.flash
+        id="connection-status"
+        kind={:error}
+        title={gettext("Internet connection lost")}
+        phx-disconnected={show("#connection-status")}
+        js-hide={hide("#connection-status")}
+        js-show={show("#connection-status")}
+        hidden
+      >
+        {gettext("Attempting to reconnect...")}
       </.flash>
     </div>
     """
@@ -198,7 +205,7 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:style, :string, default: "secondary")
   attr(:type, :string, default: "button")
   attr(:class, :string, default: nil)
-  attr(:rest, :global, include: ~w(disabled form name value href navigate download))
+  attr(:rest, :global, include: ~w(disabled form name value href navigate download patch))
 
   slot(:inner_block, required: true)
 
@@ -211,6 +218,25 @@ defmodule NervesHubWeb.CoreComponents do
         "border rounded border-zinc-600 active:border-indigo-500",
         "stroke-zinc-400 active:stroke-zinc-100 disabled:stroke-zinc-600",
         "text-sm font-medium text-zinc-300 hover:text-neutral-50 active:text-neutral-50 disabled:text-zinc-500",
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </.link>
+    """
+  end
+
+  def button(%{type: "link", style: "danger"} = assigns) do
+    ~H"""
+    <.link
+      class={[
+        "flex items-center",
+        "phx-submit-loading:opacity-75 flex px-3 py-1.5 gap-2 rounded",
+        "bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600",
+        "border rounded border-red-500",
+        "stroke-red-500",
+        "text-sm font-medium text-red-500",
         @class
       ]}
       {@rest}
@@ -330,7 +356,7 @@ defmodule NervesHubWeb.CoreComponents do
                range radio search select tel text textarea time url week)
   )
 
-  attr(:field, Phoenix.HTML.FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]")
+  attr(:field, FormField, doc: "a form field struct retrieved from the form, for example: @form[:email]")
 
   attr(:errors, :list, default: [])
   attr(:checked, :boolean, doc: "the checked flag for checkbox inputs")
@@ -346,10 +372,12 @@ defmodule NervesHubWeb.CoreComponents do
   slot(:inner_block)
   slot(:rich_hint)
 
-  def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
+  def input(%{field: %FormField{} = field} = assigns) do
+    errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
+
     assigns
     |> assign(field: nil, id: assigns.id || field.id)
-    |> assign(:errors, Enum.map(field.errors, &translate_error/1))
+    |> assign(:errors, Enum.map(errors, &translate_error/1))
     |> assign_new(:name, fn -> if assigns.multiple, do: field.name <> "[]", else: field.name end)
     |> assign_new(:value, fn -> field.value end)
     |> input()
@@ -358,7 +386,7 @@ defmodule NervesHubWeb.CoreComponents do
   def input(%{type: "checkbox"} = assigns) do
     assigns =
       assign_new(assigns, :checked, fn ->
-        Phoenix.HTML.Form.normalize_value("checkbox", assigns[:value])
+        Form.normalize_value("checkbox", assigns[:value])
       end)
 
     ~H"""
@@ -452,10 +480,7 @@ defmodule NervesHubWeb.CoreComponents do
   def input(assigns) do
     ~H"""
     <div phx-feedback-for={@name}>
-      <span class="flex items-end">
-        <.label for={@id}>{@label}</.label>
-        <span :if={assigns[:hint]} class="ml-3 text-xs text-zinc-400">{@hint}</span>
-      </span>
+      <.label for={@id}>{@label}</.label>
       <input
         type={@type}
         name={@name}
@@ -469,6 +494,7 @@ defmodule NervesHubWeb.CoreComponents do
         ]}
         {@rest}
       />
+      <p :if={assigns[:hint]} class="mt-1 text-xs text-zinc-400">{@hint}</p>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
     """
@@ -504,7 +530,7 @@ defmodule NervesHubWeb.CoreComponents do
         <path d="M12 5V13M12 19.001V19" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
 
-      {render_slot(@inner_block)}
+      <span class="error-text">{render_slot(@inner_block)}</span>
     </p>
     """
   end
@@ -562,7 +588,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def table(assigns) do
     assigns =
-      with %{rows: %Phoenix.LiveView.LiveStream{}} <- assigns do
+      with %{rows: %LiveStream{}} <- assigns do
         assign(assigns, row_id: assigns.row_id || fn {id, _item} -> id end)
       end
 

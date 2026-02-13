@@ -19,9 +19,10 @@ defmodule NervesHubWeb.ConnCase do
     quote do
       use NervesHubWeb, :verified_routes
 
+      import Phoenix.ConnTest, except: [init_test_session: 2]
+
       # Import conveniences for testing with connections
       import Plug.Conn
-      import Phoenix.ConnTest, except: [init_test_session: 2]
 
       alias NervesHubWeb.Router.Helpers, as: Routes
 
@@ -31,9 +32,11 @@ defmodule NervesHubWeb.ConnCase do
   end
 
   setup tags do
+    # credo:disable-for-next-line
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
 
     if !tags[:async] do
+      # credo:disable-for-next-line
       Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 
@@ -57,17 +60,17 @@ defmodule NervesHubWeb.APIConnCase do
   """
 
   use ExUnit.CaseTemplate
+
   alias NervesHub.Fixtures
 
   using do
     quote do
-      # Import conveniences for testing with connections
-      import Plug.Conn
-      import Phoenix.ConnTest
-
       use DefaultMocks
 
       import NervesHubWeb.APIConnCase, only: [build_auth_conn: 1]
+      import Phoenix.ConnTest
+      # Import conveniences for testing with connections
+      import Plug.Conn
 
       alias NervesHubWeb.Router.Helpers, as: Routes
 
@@ -85,9 +88,11 @@ defmodule NervesHubWeb.APIConnCase do
   end
 
   setup tags do
+    # credo:disable-for-next-line
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
 
     if !tags[:async] do
+      # credo:disable-for-next-line
       Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 

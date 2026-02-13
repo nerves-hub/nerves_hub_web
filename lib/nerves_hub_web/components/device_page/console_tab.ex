@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   use NervesHubWeb, tab_component: :console
 
   alias NervesHub.Tracker
-
   alias Phoenix.LiveView.JS
 
   def tab_params(_params, _uri, socket) do
@@ -81,7 +80,11 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
     assigns = Map.put(assigns, :user_token, token)
 
     ~H"""
-    <div class="size-full">
+    <div
+      id="console-tab"
+      phx-mounted={JS.remove_class("opacity-0")}
+      class="transition-all duration-500 opacity-0 tab-content phx-click-loading:opacity-50 size-full"
+    >
       <div class="flex flex-col size-full items-start justify-between">
         <.async_result :let={online?} assign={@console_active?}>
           <:loading>

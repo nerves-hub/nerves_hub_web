@@ -18,6 +18,13 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Scripts
   alias NervesHub.Support
   alias NervesHub.Support.Fwup
+  alias Ueberauth.Auth.Credentials
+  alias Ueberauth.Auth.Extra
+  alias Ueberauth.Auth.Info
+  alias Ueberauth.Strategy.Google
+  alias X509.Certificate.Extension
+  alias X509.Certificate.Template
+  alias X509.Certificate.Validity
 
   @uploader Application.compile_env(:nerves_hub, :firmware_upload)
 
@@ -222,17 +229,22 @@ defmodule NervesHub.Fixtures do
     archive
   end
 
-  def deployment_group_fixture(%Org{} = org, %Firmwares.Firmware{} = firmware, params \\ %{}) do
+  def deployment_group_fixture(%Firmwares.Firmware{} = firmware, params \\ %{}) do
     {is_active, params} = Map.pop(params, :is_active, false)
+    user = Map.get_lazy(params, :user, &user_fixture/0)
 
     {:ok, deployment_group} =
-      %{org_id: org.id, firmware_id: firmware.id, product_id: firmware.product_id}
-      |> Enum.into(params)
+      params
+      |> Map.put(:firmware_id, firmware.id)
       |> Enum.into(@deployment_group_params)
-      |> ManagedDeployments.create_deployment_group()
+      |> ManagedDeployments.create_deployment_group(%Product{id: firmware.product_id}, user)
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: is_active})
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{is_active: is_active},
+        user
+      )
 
     deployment_group
   end
@@ -340,14 +352,14 @@ defmodule NervesHub.Fixtures do
     cert =
       X509.Certificate.new(public_key, subject_rdn, signer_cert, signer_key,
         template:
-          X509.Certificate.Template.new(%X509.Certificate.Template{
+          Template.new(%Template{
             serial: {:random, 20},
-            validity: X509.Certificate.Validity.new(not_before, not_after),
+            validity: Validity.new(not_before, not_after),
             hash: :sha256,
             extensions: [
-              basic_constraints: X509.Certificate.Extension.basic_constraints(false),
-              key_usage: X509.Certificate.Extension.key_usage([:digitalSignature, :keyEncipherment]),
-              ext_key_usage: X509.Certificate.Extension.ext_key_usage([:clientAuth]),
+              basic_constraints: Extension.basic_constraints(false),
+              key_usage: Extension.key_usage([:digitalSignature, :keyEncipherment]),
+              ext_key_usage: Extension.ext_key_usage([:clientAuth]),
               subject_key_identifier: true,
               authority_key_identifier: true
             ]
@@ -433,7 +445,7 @@ defmodule NervesHub.Fixtures do
     product = product_fixture(user, org, %{name: "Hop"})
     org_key = org_key_fixture(org, user, dir)
     firmware = firmware_fixture(org_key, product, %{dir: dir})
-    deployment_group = deployment_group_fixture(org, firmware)
+    deployment_group = deployment_group_fixture(firmware)
     device = device_fixture(org, product, firmware)
     %{db_cert: device_certificate} = device_certificate_fixture(device)
 
@@ -469,7 +481,6 @@ defmodule NervesHub.Fixtures do
 
   def support_script_fixture(%Products.Product{} = product, %Accounts.User{} = user, params \\ %{}) do
     Scripts.Script.create_changeset(
-      %Scripts.Script{},
       product,
       user,
       Map.merge(
@@ -487,8 +498,8 @@ defmodule NervesHub.Fixtures do
     %Ueberauth.Auth{
       uid: "735086597857067149793",
       provider: :google,
-      strategy: Ueberauth.Strategy.Google,
-      info: %Ueberauth.Auth.Info{
+      strategy: Google,
+      info: %Info{
         name: "Jane Person",
         first_name: "Jane",
         last_name: "Person",
@@ -500,7 +511,7 @@ defmodule NervesHub.Fixtures do
         phone: nil,
         birthday: nil
       },
-      credentials: %Ueberauth.Auth.Credentials{
+      credentials: %Credentials{
         token: "dummytoken",
         refresh_token: nil,
         token_type: "Bearer",
@@ -514,7 +525,7 @@ defmodule NervesHub.Fixtures do
         ],
         other: %{}
       },
-      extra: %Ueberauth.Auth.Extra{
+      extra: %Extra{
         raw_info: %{
           user: %{
             "email" => "jane@person.com",

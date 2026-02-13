@@ -44,6 +44,8 @@ defmodule NervesHubWeb.Helpers.Authorization do
   def authorized?(:"device:restore", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"device:destroy", %OrgUser{role: role}), do: role_check(:manage, role)
 
+  def authorized?(:"device:extensions:local_shell", %OrgUser{role: role}), do: role_check(:manage, role)
+
   def authorized?(:"firmware:upload", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"firmware:delete", %OrgUser{role: role}), do: role_check(:manage, role)
 

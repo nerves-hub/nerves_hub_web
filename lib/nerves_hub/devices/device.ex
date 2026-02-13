@@ -3,6 +3,7 @@ defmodule NervesHub.Devices.Device do
 
   import Ecto.Changeset
 
+  alias __MODULE__
   alias NervesHub.Accounts.Org
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
@@ -13,8 +14,7 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
-
-  alias __MODULE__
+  alias NervesHub.Types.Tag
 
   @derive {Flop.Schema, filterable: [], sortable: []}
 
@@ -35,8 +35,7 @@ defmodule NervesHub.Devices.Device do
     :firmware_validation_status,
     :firmware_auto_revert_detected,
     :first_seen_at,
-    :custom_location_coordinates,
-    :priority_updates
+    :custom_location_coordinates
   ]
   @required_params [:org_id, :product_id, :identifier]
 
@@ -56,7 +55,7 @@ defmodule NervesHub.Devices.Device do
 
     field(:identifier, :string)
     field(:description, :string)
-    field(:tags, NervesHub.Types.Tag)
+    field(:tags, Tag)
     field(:connecting_code, :string)
     field(:custom_location_coordinates, {:array, :float})
 
@@ -84,8 +83,11 @@ defmodule NervesHub.Devices.Device do
     field(:updates_enabled, :boolean, default: true)
     field(:update_attempts, {:array, :utc_datetime}, default: [])
     field(:updates_blocked_until, :utc_datetime)
-    field(:priority_updates, :boolean, default: false)
 
+    # To be removed in a migration in the next release
+    # field(:priority_updates, :boolean, default: false)
+
+    field(:network_interface, Ecto.Enum, values: [:wifi, :ethernet, :cellular, :unknown])
     field(:deleted_at, :utc_datetime)
 
     timestamps()
@@ -124,6 +126,32 @@ defmodule NervesHub.Devices.Device do
     |> change()
     |> put_change(:update_attempts, [])
     |> put_change(:updates_blocked_until, nil)
-    |> put_change(:priority_updates, false)
+  end
+
+  def update_network_interface_changeset(%Device{} = device, nil) do
+    add_error(
+      change(device),
+      :network_interface,
+      "cannot be set to nil"
+    )
+  end
+
+  def update_network_interface_changeset(%Device{} = device, network_interface) do
+    humanized_interface_name = humanized_network_interface_name(network_interface)
+
+    device
+    |> change(%{network_interface: humanized_interface_name})
+    |> cast(%{network_interface: humanized_interface_name}, [:network_interface])
+    |> validate_required([:network_interface])
+  end
+
+  @spec humanized_network_interface_name(String.t()) :: :wifi | :ethernet | :cellular | :unknown
+  def humanized_network_interface_name(interface) do
+    cond do
+      String.starts_with?(interface, "wlan") -> :wifi
+      String.starts_with?(interface, "eth") or String.starts_with?(interface, "en") -> :ethernet
+      String.starts_with?(interface, "wwan") -> :cellular
+      true -> :unknown
+    end
   end
 end

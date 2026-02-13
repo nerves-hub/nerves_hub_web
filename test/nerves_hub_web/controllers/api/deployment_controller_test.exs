@@ -234,7 +234,7 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
   defp create_deployment_group(%{user: user, org: org, product: product}) do
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
     {:ok, %{deployment_group: deployment_group}}
   end
 end

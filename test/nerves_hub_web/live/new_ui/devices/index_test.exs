@@ -5,9 +5,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Repo
-  alias Phoenix.Socket.Broadcast
-
   alias NervesHubWeb.Endpoint
+  alias Phoenix.Socket.Broadcast
 
   test "shows a loading message (async loading)", %{conn: conn, fixture: fixture} do
     %{device: device, org: org, product: product} = fixture
@@ -19,6 +18,35 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
     assert html =~ "Loading..."
 
     assert render_async(lv) =~ device.identifier
+  end
+
+  describe "refreshing device list" do
+    test "refreshes when page is visible", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("span", text: device.firmware_metadata.version, timeout: 1000)
+      |> unwrap(fn view ->
+        # TODO: (nshoes)
+        # The original intent of this test was to update the firmware version and allow the
+        # liveview to refresh and assert on the new version. However, PhoenixTest doesn't seem
+        # to trigger the `Phoenix.LiveView.handle_async/3` callback, making testing
+        # the refreshed results impossible.
+        #
+        # As it stands, this test just makes sure there's no regression in the `refresh_device_list`
+        # message handling.
+
+        # {:ok, device} =
+        #   Devices.update_device(device, %{
+        #     firmware_metadata: %{Map.from_struct(device.firmware_metadata) | version: "2.0.0"}
+        #   })
+
+        send(view.pid, :refresh_device_list)
+
+        render(view)
+      end)
+    end
   end
 
   describe "device connection status updates" do

@@ -4,7 +4,7 @@ defmodule NervesHub.MixProject do
   def project() do
     [
       app: :nerves_hub,
-      version: "2.0.0+#{build()}",
+      version: "2.3.0+#{build()}",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
@@ -81,7 +81,7 @@ defmodule NervesHub.MixProject do
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 1.0.0"},
       {:comeonin, "~> 5.3"},
-      {:confuse, "~> 0.2.0"},
+      {:confuse, "~> 0.3.1"},
       {:contex, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:crontab, "~> 1.1"},
@@ -126,7 +126,8 @@ defmodule NervesHub.MixProject do
       {:open_telemetry_decorator, "~> 1.5"},
       {:phoenix, "~> 1.8.1"},
       {:phoenix_ecto, "~> 4.0"},
-      {:phoenix_html, "~> 3.3.1", override: true},
+      {:phoenix_html, "~> 4.0"},
+      {:phoenix_html_helpers, "~> 1.0"},
       {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.1"},
@@ -136,6 +137,7 @@ defmodule NervesHub.MixProject do
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
       {:quokka, "~> 2.11.2", only: [:dev, :test]},
+      {:req, "~> 0.5"},
       {:sentry, "~> 11.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},
@@ -179,6 +181,7 @@ defmodule NervesHub.MixProject do
         "format --check-formatted",
         "deps.unlock --check-unused",
         "dialyzer --format github --format dialyxir",
+        "credo --min-priority low",
         "spellweaver.check"
       ]
     ]

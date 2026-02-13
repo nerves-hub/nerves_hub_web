@@ -3,6 +3,8 @@ defmodule NervesHubWeb.API.ScriptController do
   use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Scripts
+  alias NervesHubWeb.API.ErrorJSON
+  alias NervesHubWeb.API.PaginationHelpers
 
   security([%{}, %{"bearer_auth" => []}])
   tags(["Support Scripts"])
@@ -24,8 +26,8 @@ defmodule NervesHubWeb.API.ScriptController do
   # This operation is defined in `NervesHubWeb.API.OpenAPI.DeviceControllerSpecs`
   operation(:send, false)
 
-  def send(%{assigns: %{device: device}} = conn, %{"id" => id} = params) do
-    with {:ok, command} <- Scripts.get(device.product, id),
+  def send(%{assigns: %{device: device}} = conn, %{"name_or_id" => name_or_id} = params) do
+    with {:ok, command} <- Scripts.get_by_product_and_name_with_id_fallback(device.product, name_or_id),
          {:ok, timeout} <- get_timeout_param(params),
          {:ok, io} <- Scripts.Runner.send(device, command, timeout) do
       text(conn, io)
@@ -33,7 +35,7 @@ defmodule NervesHubWeb.API.ScriptController do
       {:error, reason} ->
         conn
         |> put_status(:service_unavailable)
-        |> put_view(NervesHubWeb.API.ErrorJSON)
+        |> put_view(ErrorJSON)
         |> render(:"500", %{reason: reason})
     end
   end
@@ -55,18 +57,15 @@ defmodule NervesHubWeb.API.ScriptController do
           into: %{},
           do: {String.to_existing_atom(key), val}
 
-    opts = %{
-      pagination: Map.get(params, "pagination", %{}),
-      filters: filters
-    }
-
-    {scripts, page} = Scripts.filter(product, opts)
-
-    pagination = Map.take(page, [:page_number, :page_size, :total_entries, :total_pages])
+    {scripts, page} =
+      Scripts.filter(product, %{
+        pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
+        filters: filters
+      })
 
     conn
     |> assign(:scripts, scripts)
-    |> assign(:pagination, pagination)
+    |> assign(:pagination, PaginationHelpers.format_pagination_meta(page))
     |> render(:index)
   end
 end

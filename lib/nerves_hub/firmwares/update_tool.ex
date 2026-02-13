@@ -3,6 +3,9 @@ defmodule NervesHub.Firmwares.UpdateTool do
   A behaviour module for the tool that handles firmware updates.
   """
 
+  alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares.Firmware
+
   defmodule Metadata do
     @enforce_keys [:architecture, :platform, :product, :uuid, :version]
 
@@ -41,9 +44,6 @@ defmodule NervesHub.Firmwares.UpdateTool do
       |> Map.keys()
     end
   end
-
-  alias NervesHub.Devices.Device
-  alias NervesHub.Firmwares.Firmware
 
   @typedoc "Metadata about the file upload."
   @type upload_metadata :: map()

@@ -6,7 +6,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
-
   alias NervesHub.Repo
 
   test "shows the deployment group", %{
@@ -18,7 +17,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
@@ -26,7 +25,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     |> assert_has("svg[data-is-active=false]")
     |> assert_has("span", text: "0")
     |> then(fn conn ->
-      for tag <- deployment_group.conditions["tags"] do
+      for tag <- deployment_group.conditions.tags do
         assert_has(conn, "span", text: tag)
       end
 
@@ -44,7 +43,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
     %Device{} = Devices.update_deployment_group(device, deployment_group)
 
     # deleted devices shouldn't be included in the count
@@ -57,7 +56,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     |> assert_has("svg[data-is-active=false]")
     |> assert_has("span", text: "1")
     |> then(fn conn ->
-      for tag <- deployment_group.conditions["tags"] do
+      for tag <- deployment_group.conditions.tags do
         assert_has(conn, "span", text: tag)
       end
 
@@ -74,12 +73,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
     |> assert_has("h1", text: deployment_group.name)
-    |> click_button("Delete")
+    |> click_link("Delete")
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
     |> assert_has("div", text: "Deployment Group successfully deleted")
 
@@ -100,7 +99,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
     device = Fixtures.device_fixture(org, product, firmware)
 
     device = Devices.update_deployment_group(device, deployment_group)
@@ -108,7 +107,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
     |> assert_has("h1", text: deployment_group.name)
-    |> click_button("Delete")
+    |> click_link("Delete")
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
     |> assert_has("div", text: "Deployment Group successfully deleted")
 
@@ -133,7 +132,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
@@ -177,7 +176,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     _device1 =
       Fixtures.device_fixture(org, product, firmware, %{
@@ -205,7 +204,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     device1 =
       Fixtures.device_fixture(org, product, firmware, %{
@@ -242,7 +241,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     device1 =
       Fixtures.device_fixture(org, product, firmware, %{

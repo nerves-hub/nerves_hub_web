@@ -1,15 +1,36 @@
-<h1>Are you absolutely sure?</h1>
+<div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
 
-<p>Unexpected bad things will happen if you don’t read this!</p>
-<p>This action cannot be undone. This will permanently delete the {@org.name} organization.</p>
-
-<.form :let={f} for={@form} phx-submit="delete">
-  <div class="form-group">
-    <label for="org_name_input">Please type {@org.name} to confirm.</label>
-    {text_input(f, :confirm_name, class: "form-control", id: "org_name_input")}
+<div class="h-0 flex-1 overflow-y-auto">
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Delete Organization</h1>
   </div>
 
-  <div class="button-submit-wrapper">
-    {submit("I understand the consequences, delete this organization.", class: "btn btn-primary")}
+  <div class="px-6 py-4 max-w-[650px]">
+    <div class="p-4 mb-6 bg-red-900/20 border border-red-800 rounded">
+      <h3 class="text-base font-semibold text-red-400 mb-2">Are you absolutely sure?</h3>
+      <p class="text-sm text-red-300 mb-2">Unexpected bad things will happen if you don't read this!</p>
+      <p class="text-sm text-red-300">This action cannot be undone. This will permanently delete the <strong>{@org.name}</strong> organization.</p>
+    </div>
+
+    <.form :let={f} for={@form} phx-submit="delete">
+      <div class="mb-6">
+        <label for="org_name_input" class="block text-sm font-medium text-zinc-300 mb-2">
+          Please type <strong>{@org.name}</strong> to confirm.
+        </label>
+        {text_input(f, :confirm_name,
+          class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-red-500",
+          id: "org_name_input"
+        )}
+      </div>
+
+      <div class="flex gap-3">
+        <.button style="danger" type="submit">
+          I understand the consequences, delete this organization.
+        </.button>
+        <.button style="secondary" type="link" patch={~p"/org/#{@org}/settings"}>
+          Cancel
+        </.button>
+      </div>
+    </.form>
   </div>
-</.form>
+</div>

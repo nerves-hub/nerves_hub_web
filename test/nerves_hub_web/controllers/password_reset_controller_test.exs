@@ -6,7 +6,6 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Fixtures
-
   alias NervesHub.Repo
 
   describe "new password_reset" do

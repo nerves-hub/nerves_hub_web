@@ -90,7 +90,11 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     assigns = Map.put(assigns, :health_enabled?, health_enabled)
 
     ~H"""
-    <div class="w-full p-6">
+    <div
+      id="health-tab"
+      phx-mounted={JS.remove_class("opacity-0")}
+      class="transition-all duration-500 opacity-0 tab-content phx-click-loading:opacity-50 w-full p-6"
+    >
       <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="mb-6 w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
         <div class="flex flex-col shadow-device-details-content">
           <div class="flex pt-2 px-4 pb-4 gap-2 items-center justify-items-stretch flex-wrap">
@@ -188,6 +192,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                 data-unit={Jason.encode!(chart.unit)}
                 data-max={Jason.encode!(chart.max)}
                 data-min={Jason.encode!(chart.min)}
+                data-maxtime={Jason.encode!(chart.max_time)}
+                data-mintime={Jason.encode!(chart.min_time)}
                 data-metrics={Jason.encode!(chart.data)}
                 data-title={Jason.encode!(chart_title(chart))}
               >
@@ -267,8 +273,21 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   end
 
   defp create_chart_data(device_id, {unit, _} = time_frame, memory_size) do
-    device_id
-    |> Metrics.get_device_metrics(time_frame)
+    metrics =
+      device_id
+      |> Metrics.get_device_metrics(time_frame)
+
+    %{inserted_at: max_time} =
+      Enum.max_by(metrics, & &1.inserted_at, DateTime, fn ->
+        %{inserted_at: DateTime.from_unix!(0)}
+      end)
+
+    %{inserted_at: min_time} =
+      Enum.min_by(metrics, & &1.inserted_at, DateTime, fn ->
+        %{inserted_at: DateTime.from_unix!(1)}
+      end)
+
+    metrics
     |> Enum.group_by(& &1.key)
     |> filter_and_sort()
     |> Enum.map(fn {type, metrics} ->
@@ -280,7 +299,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         title: title(type),
         data: data,
         max: get_max_value(type, data, memory_size),
-        min: get_min_value(data),
+        min: get_min_value(type, data),
+        min_time: min_time,
+        max_time: max_time,
         unit: get_time_unit(time_frame)
       }
     end)
@@ -355,6 +376,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         data
         |> Enum.max_by(& &1.y)
         |> Map.get(:y)
+        # Space it out a little
+        |> Kernel.+(1.0)
     end
   end
 
@@ -366,10 +389,28 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> max(1)
   end
 
-  defp get_min_value(data) do
-    data
-    |> Enum.min_by(& &1.y)
-    |> Map.get(:y)
+  defp get_min_value(type, data) do
+    case type do
+      "load_" <> _ ->
+        0
+
+      type
+      when type in [
+             "mem_used_mb",
+             "mem_used_percent",
+             "cpu_temp",
+             "cpu_usage_percent",
+             "disk_used_percentage"
+           ] ->
+        0
+
+      _ ->
+        data
+        |> Enum.min_by(& &1.y)
+        |> Map.get(:y)
+        # Space it out a little
+        |> Kernel.-(1.0)
+    end
   end
 
   defp custom_metrics(metrics) do

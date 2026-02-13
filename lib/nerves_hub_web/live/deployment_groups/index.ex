@@ -4,10 +4,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
-
+  alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
-  alias NervesHubWeb.Components.FilterSidebar
 
   @default_filters %{
     name: "",
@@ -216,8 +215,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     ).changes
   end
 
-  defp version(%DeploymentGroup{conditions: %{"version" => ""}}), do: "-"
-  defp version(%DeploymentGroup{conditions: %{"version" => version}}), do: version
+  defp version(%DeploymentGroup{conditions: %{version: ""}}), do: "-"
+  defp version(%DeploymentGroup{conditions: %{version: version}}), do: version
 
-  defp tags(%DeploymentGroup{conditions: %{"tags" => tags}}), do: tags
+  defp tags(%DeploymentGroup{conditions: %{tags: tags}}), do: tags
 end

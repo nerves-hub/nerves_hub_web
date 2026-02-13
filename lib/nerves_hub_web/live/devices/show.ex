@@ -1,30 +1,28 @@
 defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :updated_live_view
 
-  require Logger
-
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Extensions.Health
   alias NervesHub.Tracker
-
-  alias NervesHubWeb.Components.DeviceUpdateStatus
-  alias NervesHubWeb.Components.FwupProgress
-
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
   alias NervesHubWeb.Components.DevicePage.DetailsTab
   alias NervesHubWeb.Components.DevicePage.HealthTab
+  alias NervesHubWeb.Components.DevicePage.LocalShellTab
   alias NervesHubWeb.Components.DevicePage.LogsTab
   alias NervesHubWeb.Components.DevicePage.SettingsTab
-
-  @tab_components [ActivityTab, ConsoleTab, DetailsTab, HealthTab, LogsTab, SettingsTab]
-
+  alias NervesHubWeb.Components.DeviceUpdateStatus
+  alias NervesHubWeb.Components.FwupProgress
   alias NervesHubWeb.Presence
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.Socket.Broadcast
+
+  require Logger
+
+  @tab_components [ActivityTab, ConsoleTab, DetailsTab, HealthTab, LocalShellTab, LogsTab, SettingsTab]
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product, user: user} = socket.assigns
@@ -391,13 +389,17 @@ defmodule NervesHubWeb.Live.Devices.Show do
     assign(socket, :tab, socket.assigns.live_action || :details)
   end
 
-  # TODO: refactor to use tailwind attributes
-  def tab_classes(tab_selected, tab) do
-    if tab_selected == tab do
-      "px-6 py-2 h-11 font-normal text-sm text-neutral-50 border-b border-indigo-500 bg-tab-selected relative -bottom-px"
-    else
-      "px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
-    end
+  defp tab(assigns) do
+    ~H"""
+    <.link
+      data-selected={"#{@selected}"}
+      class="px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 data-[selected=true]:text-neutral-50 data-[selected=true]:border-b data-[selected=true]:border-indigo-500 relative -bottom-px"
+      phx-click={JS.set_attribute({"data-selected", "false"}, to: "#tabs a") |> JS.set_attribute({"data-selected", "true"})}
+      patch={@path}
+    >
+      {@display}
+    </.link>
+    """
   end
 
   defp health_polling_seconds() do
@@ -412,6 +414,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     <ConsoleTab.render :if={@tab == :console} {assigns} />
     <DetailsTab.render :if={@tab == :details} {assigns} />
     <HealthTab.render :if={@tab == :health} {assigns} />
+    <LocalShellTab.render :if={@tab == :local_shell} {assigns} />
     <LogsTab.render :if={@tab == :logs} {assigns} />
     <SettingsTab.render :if={@tab == :settings} {assigns} />
     """

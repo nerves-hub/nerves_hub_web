@@ -1,5 +1,8 @@
 import Config
 
+alias NervesHub.Firmwares.Upload.S3
+alias Swoosh.Adapters.Test
+
 config :bcrypt_elixir, log_rounds: 4
 
 # Print only warnings and errors during test
@@ -11,8 +14,6 @@ config :nerves_hub, NervesHub.AnalyticsRepo,
 config :nerves_hub, NervesHub.Firmwares.Upload.File,
   local_path: System.tmp_dir(),
   public_path: "/firmware"
-
-config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: "mybucket"
 
 config :nerves_hub, NervesHub.ObanRepo,
   url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
@@ -29,7 +30,7 @@ config :nerves_hub, NervesHub.Repo,
   pool_size: 10,
   queue_target: 2000
 
-config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test
+config :nerves_hub, NervesHub.SwooshMailer, adapter: Test
 config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
 config :nerves_hub, NervesHub.Uploads.File, local_path: System.tmp_dir(), public_path: "/uploads"
 
@@ -71,6 +72,8 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   ]
 
 config :nerves_hub, Oban, testing: :manual
+config :nerves_hub, S3, bucket: "mybucket"
+config :nerves_hub, :firmware_download_options, plug: {Req.Test, NervesHub}
 config :nerves_hub, analytics_enabled: true
 config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
 

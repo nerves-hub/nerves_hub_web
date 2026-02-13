@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.Plugs.EnsureAuthenticated do
-  import Plug.Conn
-
   use NervesHubWeb, :verified_routes
+
+  import Plug.Conn
 
   alias Phoenix.Controller
 
