@@ -373,14 +373,15 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
 
   defp dl!(url, filepath) do
-    # Download and write to file
-    response = Req.get!(url, Application.get_env(:nerves_hub, :firmware_download_options, []))
+    response =
+      Req.get!(
+        url,
+        [into: File.stream!(filepath)] ++ Application.get_env(:nerves_hub, :firmware_download_options, [])
+      )
 
     if response.status != 200 do
       raise "HTTP download failed with status #{response.status}"
     end
-
-    File.write!(filepath, response.body)
 
     :ok
   end
