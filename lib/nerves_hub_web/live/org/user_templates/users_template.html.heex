@@ -59,7 +59,7 @@
         <%= for org_user <- @org_users do %>
           <tr class="border-b border-zinc-800 isolate">
             <td>
-              <.link href={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="text-zinc-300 hover:text-zinc-100">
+              <.link navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="text-zinc-300 hover:text-zinc-100">
                 {org_user.user.name}
               </.link>
             </td>
@@ -71,7 +71,7 @@
             <td :if={authorized?(:"org_user:delete", @org_user) && org_user.user.id != assigns.user.id} class="text-right">
               <div class="flex gap-2 justify-end">
                 <.link
-                  patch={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"}
+                  navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"}
                   class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700"
                 >
                   Edit
