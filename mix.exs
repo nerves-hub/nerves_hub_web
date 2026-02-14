@@ -9,7 +9,7 @@ defmodule NervesHub.MixProject do
       deps: deps(),
       aliases: aliases(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixir: "~> 1.18.0",
+      elixir: "~> 1.19.0-rc.2",
       listeners: listeners(Mix.env()),
       releases: [
         nerves_hub: [
@@ -53,11 +53,7 @@ defmodule NervesHub.MixProject do
   end
 
   def cli() do
-    [
-      docs: :docs,
-      coveralls: :test,
-      "coveralls.html": :test
-    ]
+    [preferred_envs: [docs: :docs, coveralls: :test, "coveralls.html": :test]]
   end
 
   defp build() do
