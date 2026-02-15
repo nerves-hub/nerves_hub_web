@@ -273,13 +273,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_info(:update_inflight_updates, socket) do
     Process.send_after(self(), :update_inflight_updates, 5000)
     noreply(socket)
   end
 
-  @impl Phoenix.LiveView
   def handle_info(%Broadcast{event: "status/updated"}, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
@@ -301,10 +299,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     {:noreply, socket}
   end
 
-  @impl Phoenix.LiveView
   def handle_info(%Broadcast{topic: "firmware_delta_target:" <> _}, socket) do
     send_update(SummaryTab, id: "deployment_group_summary", delta_updated: true)
 
+    {:noreply, socket}
+  end
+
+  # Ignore other broadcasts
+  def handle_info(%Broadcast{}, socket) do
     {:noreply, socket}
   end
 
