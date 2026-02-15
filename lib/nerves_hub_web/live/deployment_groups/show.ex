@@ -36,7 +36,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
     updating_count = Devices.updating_count(deployment_group)
-    releases = ManagedDeployments.list_deployment_releases(deployment_group)
 
     :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}:internal")
 
@@ -54,7 +53,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> assign(:firmware, deployment_group.firmware)
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
     |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
-    |> assign(:releases, releases)
     |> assign_matched_devices_count()
     |> schedule_inflight_updates_updater()
     |> ok()

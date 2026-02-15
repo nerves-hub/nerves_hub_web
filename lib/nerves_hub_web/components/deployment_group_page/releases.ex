@@ -16,11 +16,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
     changeset = DeploymentGroup.update_changeset(assigns.deployment_group, %{})
 
+    releases = ManagedDeployments.list_deployment_releases(assigns.deployment_group)
+
     socket
     |> assign(assigns)
     |> assign(:archives, archives)
     |> assign(:firmwares, firmwares)
     |> assign(:form, to_form(changeset))
+    |> assign(:releases, releases)
     |> assign(:show_rollout_options, false)
     |> ok()
   end
