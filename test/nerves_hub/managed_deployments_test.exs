@@ -354,9 +354,51 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert deployment_group.status == :ready
 
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true, delta_updatable: true}, user)
 
       assert deployment_group.status == :preparing
+    end
+
+    test "sets status to :preparing when deltas are enabled and a new release is created", %{
+      user: user,
+      deployment_group: deployment_group,
+      product: product,
+      org_key: org_key
+    } do
+      firmware2 = Fixtures.firmware_fixture(org_key, product)
+
+      {:ok, deployment_group} =
+        deployment_group
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:delta_updatable, true)
+        |> Ecto.Changeset.put_change(:is_active, true)
+        |> Repo.update()
+
+      assert deployment_group.status == :ready
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware2.id}, user)
+
+      assert deployment_group.status == :preparing
+    end
+
+    test "does not set status to :preparing when deltas are enabled and other information is updated, but no release is created",
+         %{
+           user: user,
+           deployment_group: deployment_group
+         } do
+      {:ok, deployment_group} =
+        deployment_group
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:delta_updatable, true)
+        |> Repo.update()
+
+      assert deployment_group.status == :ready
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{name: "Chase Waterfalls"}, user)
+
+      assert deployment_group.status == :ready
     end
 
     test "sets status to :ready when turning off deltas", %{user: user, deployment_group: deployment_group} do

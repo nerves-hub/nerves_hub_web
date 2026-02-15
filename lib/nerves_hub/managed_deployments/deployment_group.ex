@@ -205,17 +205,28 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
   defp prepare_status(changeset) do
     prepare_changes(changeset, fn changeset ->
-      case changeset do
-        %{changes: %{delta_updatable: true}} = changeset ->
-          put_change(changeset, :status, :preparing)
-
-        %{changes: %{delta_updatable: false}} = changeset ->
+      cond do
+        # deployment is not active
+        not get_field(changeset, :is_active) ->
           put_change(changeset, :status, :ready)
 
-        %{changes: %{is_active: true}} = changeset ->
+        # deployment is has been switched to active
+        get_change(changeset, :is_active) ->
           put_change(changeset, :status, :preparing)
 
-        changeset ->
+        # deltas have been turned on
+        get_change(changeset, :delta_updatable) ->
+          put_change(changeset, :status, :preparing)
+
+        # deltas are on and firmware id has changed
+        changed?(changeset, :firmware_id) && get_field(changeset, :delta_updatable) ->
+          put_change(changeset, :status, :preparing)
+
+        # deltas are off and firmware id has changed
+        changed?(changeset, :firmware_id) && not get_field(changeset, :delta_updatable) ->
+          put_change(changeset, :status, :ready)
+
+        true ->
           changeset
       end
     end)
