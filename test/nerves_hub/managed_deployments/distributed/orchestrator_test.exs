@@ -438,7 +438,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     expect(File, :upload_file, fn _, _ -> :ok end)
 
-    expect(Devices, :available_for_update, 2, fn _, _ -> [] end)
+    expect(Devices, :available_for_update, 1, fn _, _ -> [] end)
 
     {:ok, pid} =
       start_supervised(%{
@@ -449,7 +449,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     allow(Devices, self(), pid)
 
+    # add a delay to simulate deltas taking a bit more time to generate
+    # this addresses an issue where the orchestrator would determine that deltas are ready
+    # before it receives the event from the delta generation process
+    Process.sleep(100)
+
     :ok = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
+
     assert %{deployment_group: %{status: :ready}} = :sys.get_state(pid)
   end
 
