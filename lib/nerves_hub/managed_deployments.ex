@@ -334,6 +334,14 @@ defmodule NervesHub.ManagedDeployments do
     deployment_group
     |> DeploymentGroup.update_status_changeset(%{status: status})
     |> Repo.update()
+    |> case do
+      {:ok, deployment_group} ->
+        :ok = broadcast(deployment_group, "deployments/update")
+        {:ok, deployment_group}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
 
   @spec new_deployment_group() :: Changeset.t()
