@@ -280,7 +280,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
-  def handle_info(%Broadcast{event: "deployments/update"}, socket) do
+  def handle_info(%Broadcast{event: "status/updated"}, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
     updated_deployment =
