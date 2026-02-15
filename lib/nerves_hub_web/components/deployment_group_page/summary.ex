@@ -36,6 +36,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> ok()
   end
 
+  def update(%{updated_deployment: deployment_group}, socket) do
+    socket
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
+    |> assign_update_stats(deployment_group)
+    |> assign_deltas_and_stats()
+    |> ok()
+  end
+
   def update(assigns, socket) do
     %{deployment_group: deployment_group} = assigns
 

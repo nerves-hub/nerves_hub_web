@@ -280,6 +280,21 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
+  def handle_info(%Broadcast{event: "deployments/update"}, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    updated_deployment =
+      ManagedDeployments.get_by_product_and_name!(deployment_group.product, deployment_group.name, true)
+
+    send_update(SummaryTab, id: "deployment_group_summary", updated_deployment: updated_deployment)
+
+    socket
+    |> assign(:deployment_group, updated_deployment)
+    |> assign(:firmware, updated_deployment.firmware)
+    |> assign_matched_devices_count()
+    |> noreply()
+  end
+
   def handle_info(%Broadcast{event: "stat:logged"}, socket) do
     send_update(SummaryTab, id: "deployment_group_summary", stat_logged: true)
 
