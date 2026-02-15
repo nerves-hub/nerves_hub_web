@@ -150,7 +150,7 @@ defmodule NervesHub.Devices.UpdateStats do
           if device.deployment_id do
             ChannelServer.broadcast(
               NervesHub.PubSub,
-              "deployment:#{device.deployment_id}:internal",
+              "deployment:#{device.deployment_id}",
               "stat:logged",
               %{}
             )

@@ -200,28 +200,16 @@ defmodule NervesHub.ManagedDeployments do
   def update_deployment_group(deployment_group, params, user) do
     deployment_group = Repo.preload(deployment_group, :firmware)
 
-    result =
-      Repo.transact(fn ->
-        changeset =
-          deployment_group
-          |> DeploymentGroup.update_changeset(params)
+    Repo.transact(fn ->
+      changeset = DeploymentGroup.update_changeset(deployment_group, params)
 
-        create_deployment_release? =
-          Map.has_key?(changeset.changes, :firmware_id) or
-            Map.has_key?(changeset.changes, :archive_id)
-
-        with {:ok, deployment_group} <- Repo.update(changeset),
-             :ok <- create_audit_logs!(deployment_group, changeset),
-             {:ok, _deployment_group} <-
-               if(create_deployment_release?,
-                 do: create_deployment_release(deployment_group, user.id),
-                 else: {:ok, nil}
-               ) do
-          {:ok, {deployment_group, changeset}}
-        end
-      end)
-
-    case result do
+      with {:ok, deployment_group} <- Repo.update(changeset),
+           :ok <- create_audit_logs!(deployment_group, changeset),
+           {:ok, _deployment_release} <- maybe_create_deployment_release(deployment_group, changeset, user.id) do
+        {:ok, {deployment_group, changeset}}
+      end
+    end)
+    |> case do
       {:ok, {deployment_group, changeset}} ->
         {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
         :ok = broadcast(deployment_group, "deployments/update")
@@ -241,15 +229,23 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  defp create_deployment_release(deployment_group, user_id) do
-    %DeploymentRelease{}
-    |> DeploymentRelease.changeset(%{
-      deployment_group_id: deployment_group.id,
-      firmware_id: deployment_group.firmware_id,
-      archive_id: deployment_group.archive_id,
-      created_by_id: user_id
-    })
-    |> Repo.insert()
+  defp maybe_create_deployment_release(deployment_group, changeset, user_id) do
+    create_deployment_release? =
+      Map.has_key?(changeset.changes, :firmware_id) or
+        Map.has_key?(changeset.changes, :archive_id)
+
+    if create_deployment_release? do
+      %DeploymentRelease{}
+      |> DeploymentRelease.changeset(%{
+        deployment_group_id: deployment_group.id,
+        firmware_id: deployment_group.firmware_id,
+        archive_id: deployment_group.archive_id,
+        created_by_id: user_id
+      })
+      |> Repo.insert()
+    else
+      {:ok, nil}
+    end
   end
 
   defp create_audit_logs!(deployment_group, changeset) do
@@ -352,7 +348,7 @@ defmodule NervesHub.ManagedDeployments do
       changeset = DeploymentGroup.create_changeset(params, product)
 
       with {:ok, deployment_group} <- Repo.insert(changeset),
-           {:ok, _release} <- create_deployment_release(deployment_group, user.id) do
+           {:ok, _release} <- maybe_create_deployment_release(deployment_group, changeset, user.id) do
         {:ok, deployment_group}
       end
     end)

@@ -37,7 +37,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     inflight_updates = Devices.inflight_updates_for(deployment_group)
     updating_count = Devices.updating_count(deployment_group)
 
-    :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}:internal")
+    :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}")
 
     socket
     |> page_title("Deployment Group - #{deployment_group.name} - #{product.name}")
