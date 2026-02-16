@@ -41,7 +41,7 @@
           </div>
         </div>
 
-        <form phx-change="validate-banner" phx-submit="upload-banner">
+        <form phx-change="validate-banner">
           <div class="flex items-center gap-4">
             <div class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600 hover:cursor-pointer">
               <label for={@uploads.banner.ref} class="text-sm font-medium text-zinc-300 hover:cursor-pointer">
@@ -59,17 +59,12 @@
                   <span class="text-sm text-zinc-300">{entry.progress}%</span>
                 </div>
                 <div class="w-full bg-zinc-700 rounded-full h-2">
-                  <div class="bg-indigo-500 h-2 rounded-full" style={"width: #{entry.progress}%"}></div>
+                  <div class="bg-indigo-500 h-2 rounded-full animate-pulse" style={"width: #{entry.progress}%"}></div>
                 </div>
               </div>
             </div>
             <div :for={err <- upload_errors(@uploads.banner, entry)} class="text-red-500 text-sm">
               {upload_error_to_string(err)}
-            </div>
-            <div :if={entry.progress == 100 || Enum.empty?(upload_errors(@uploads.banner, entry))}>
-              <button type="submit" class="flex px-3 py-1.5 gap-2 rounded bg-indigo-600 border border-indigo-500 hover:bg-indigo-500">
-                <span class="text-sm font-medium text-white">Save banner</span>
-              </button>
             </div>
           </div>
 

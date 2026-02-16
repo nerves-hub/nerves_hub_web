@@ -21,45 +21,51 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> allow_upload(:banner,
         accept: ~w(.jpg .jpeg .png .webp),
         max_entries: 1,
-        max_file_size: 5_000_000
+        max_file_size: 5_000_000,
+        auto_upload: true,
+        progress: &handle_progress/3
       )
 
     {:ok, socket}
   end
 
-  def handle_event("validate-banner", _params, socket), do: {:noreply, socket}
+  def handle_progress(:banner, entry, socket) do
+    if entry.done? do
+      authorized!(:"product:update", socket.assigns.org_user)
 
-  def handle_event("upload-banner", _params, socket) do
-    authorized!(:"product:update", socket.assigns.org_user)
+      product = socket.assigns.product
 
-    product = socket.assigns.product
+      [filepath] =
+        consume_uploaded_entries(socket, :banner, fn %{path: path}, entry ->
+          ext = Path.extname(entry.client_name)
+          dest = Path.join(System.tmp_dir(), "banner_#{product.id}#{ext}")
+          File.cp!(path, dest)
+          {:ok, dest}
+        end)
 
-    [filepath] =
-      consume_uploaded_entries(socket, :banner, fn %{path: path}, entry ->
-        ext = Path.extname(entry.client_name)
-        dest = Path.join(System.tmp_dir(), "banner_#{product.id}#{ext}")
-        File.cp!(path, dest)
-        {:ok, dest}
-      end)
+      socket =
+        try do
+          case Products.update_product_banner(product, filepath) do
+            {:ok, product} ->
+              socket
+              |> assign(:product, product)
+              |> assign(:banner_url, Products.banner_url(product))
+              |> put_flash(:info, "Banner image uploaded successfully.")
 
-    socket =
-      try do
-        case Products.update_product_banner(product, filepath) do
-          {:ok, product} ->
-            socket
-            |> assign(:product, product)
-            |> assign(:banner_url, Products.banner_url(product))
-            |> put_flash(:info, "Banner image uploaded successfully.")
-
-          {:error, _} ->
-            put_flash(socket, :error, "Failed to upload banner image.")
+            {:error, _} ->
+              put_flash(socket, :error, "Failed to upload banner image.")
+          end
+        after
+          File.rm(filepath)
         end
-      after
-        File.rm(filepath)
-      end
 
-    {:noreply, socket}
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
   end
+
+  def handle_event("validate-banner", _params, socket), do: {:noreply, socket}
 
   def handle_event("remove-banner", _params, socket) do
     authorized!(:"product:update", socket.assigns.org_user)

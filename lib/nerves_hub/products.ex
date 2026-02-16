@@ -162,7 +162,11 @@ defmodule NervesHub.Products do
 
   @spec banner_url(Product.t()) :: String.t() | nil
   def banner_url(%Product{banner_upload_key: nil}), do: nil
-  def banner_url(%Product{banner_upload_key: key}), do: Uploads.url(key)
+
+  def banner_url(%Product{banner_upload_key: key}) do
+    ts = System.unique_integer()
+    "#{Uploads.url(key)}?v=#{ts}"
+  end
 
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking product changes.
