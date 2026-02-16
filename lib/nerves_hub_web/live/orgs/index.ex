@@ -26,6 +26,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
       |> assign(:show_all_pinned?, false)
       |> assign(:device_info, %{})
       |> assign(:product_device_info, %{})
+      |> assign(:banner_urls, banner_urls(scope.user.orgs))
       |> assign(:pinned_devices, pinned_devices)
       |> assign(:device_statuses, statuses)
       |> assign(:device_limit, @pinned_devices_limit)
@@ -139,5 +140,14 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     |> Enum.map_join(", ", fn {field, errors} ->
       "#{field} #{Enum.join(errors, ", ")}"
     end)
+  end
+
+  defp banner_urls(orgs) do
+    for org <- orgs,
+        product <- org.products,
+        url = Products.banner_url(product),
+        into: %{} do
+      {product.id, url}
+    end
   end
 end

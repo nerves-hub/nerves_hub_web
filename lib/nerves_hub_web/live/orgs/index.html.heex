@@ -132,12 +132,14 @@
               <.link
                 :for={product <- org.products}
                 navigate={~p"/org/#{org}/#{product}/devices"}
-                class="flex justify-between gap-[16px] p-4 w-full border border-base-700 rounded bg-gradient-to-r from-base-800/50 to-base-800 hover:border-base-500 transition-colors"
+                class="flex justify-between gap-4 p-4 w-full border border-base-700 rounded bg-gradient-to-r from-base-800 to-base-800/0 bg-cover bg-center relative overflow-hidden hover:border-base-500 transition-colors"
+                style={@banner_urls[product.id] && "background-image: url('#{@banner_urls[product.id]}');"}
               >
-                <div class="text-neutral-50 font-semibold text-sm">
+                <div :if={@banner_urls[product.id]} class="absolute inset-0 bg-gradient-to-r from-base-900 to-base-900/0"></div>
+                <div class="text-neutral-50 font-semibold text-sm relative">
                   {product.name}
                 </div>
-                <div class="flex gap-4 text-sm font-medium">
+                <div class="flex gap-4 text-sm font-medium relative">
                   <div class="flex items-center gap-1.5">
                     <div class="size-2 bg-green-500 rounded-full"></div>
                     <span class="text-base-300">{get_in(@product_device_info, [product.id, :online]) || 0}</span>

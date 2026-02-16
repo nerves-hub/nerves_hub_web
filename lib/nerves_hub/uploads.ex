@@ -17,6 +17,10 @@ defmodule NervesHub.Uploads do
   def url(key, opts \\ []) do
     backend().url(key, opts)
   end
+
+  def delete(key) do
+    backend().delete(key)
+  end
 end
 
 defmodule NervesHub.Uploads.File do
