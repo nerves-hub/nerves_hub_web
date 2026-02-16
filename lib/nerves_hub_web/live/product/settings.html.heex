@@ -19,6 +19,69 @@
 
     <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
       <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="text-base text-neutral-50 font-medium">Banner Image</div>
+      </div>
+      <div class="p-6 flex flex-col gap-4">
+        <p class="text-sm text-zinc-400">
+          Upload a banner image for your product. Recommended size: 1500x250 pixels (30:5 ratio). Max file size: 5MB. Accepted formats: JPG, PNG, WebP.
+        </p>
+
+        <div :if={@banner_url} class="flex flex-col gap-3">
+          <img src={@banner_url} alt="Product banner" class="w-full max-w-[750px] rounded border border-zinc-700 object-cover" />
+          <div>
+            <button
+              type="button"
+              class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-red-500 hover:bg-red-100"
+              phx-click="remove-banner"
+              data-confirm="Are you sure you want to remove the banner image?"
+              disabled={!authorized?(:"product:update", @org_user)}
+            >
+              <span class="text-sm font-medium text-red-500">Remove banner</span>
+            </button>
+          </div>
+        </div>
+
+        <form phx-change="validate-banner" phx-submit="upload-banner">
+          <div class="flex items-center gap-4">
+            <div class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600 hover:cursor-pointer">
+              <label for={@uploads.banner.ref} class="text-sm font-medium text-zinc-300 hover:cursor-pointer">
+                {if @banner_url, do: "Replace banner", else: "Upload banner"}
+              </label>
+              <.live_file_input upload={@uploads.banner} class="hidden" />
+            </div>
+          </div>
+
+          <div :for={entry <- @uploads.banner.entries} class="mt-4 flex flex-col gap-2">
+            <div class="flex items-center gap-4">
+              <div class="flex-1">
+                <div class="flex justify-between mb-1">
+                  <span class="text-sm text-zinc-300">{entry.client_name}</span>
+                  <span class="text-sm text-zinc-300">{entry.progress}%</span>
+                </div>
+                <div class="w-full bg-zinc-700 rounded-full h-2">
+                  <div class="bg-indigo-500 h-2 rounded-full" style={"width: #{entry.progress}%"}></div>
+                </div>
+              </div>
+            </div>
+            <div :for={err <- upload_errors(@uploads.banner, entry)} class="text-red-500 text-sm">
+              {upload_error_to_string(err)}
+            </div>
+            <div :if={entry.progress == 100 || Enum.empty?(upload_errors(@uploads.banner, entry))}>
+              <button type="submit" class="flex px-3 py-1.5 gap-2 rounded bg-indigo-600 border border-indigo-500 hover:bg-indigo-500">
+                <span class="text-sm font-medium text-white">Save banner</span>
+              </button>
+            </div>
+          </div>
+
+          <div :for={err <- upload_errors(@uploads.banner)} class="mt-2 text-red-500 text-sm">
+            {upload_error_to_string(err)}
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+      <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
         <div class="text-base text-neutral-50 font-medium">Device Extensions</div>
       </div>
 

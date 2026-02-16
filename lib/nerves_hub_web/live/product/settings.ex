@@ -13,12 +13,70 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> assign(:page_title, "#{product.name} Settings")
       |> sidebar_tab(:settings)
       |> assign(:product, product)
+      |> assign(:banner_url, Products.banner_url(product))
       |> assign(:shared_secrets, product.shared_secret_auths)
       |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
       |> assign(:form, to_form(Ecto.Changeset.change(product)))
       |> assign(:available_extensions, extensions())
+      |> allow_upload(:banner,
+        accept: ~w(.jpg .jpeg .png .webp),
+        max_entries: 1,
+        max_file_size: 5_000_000
+      )
 
     {:ok, socket}
+  end
+
+  def handle_event("validate-banner", _params, socket), do: {:noreply, socket}
+
+  def handle_event("upload-banner", _params, socket) do
+    authorized!(:"product:update", socket.assigns.org_user)
+
+    product = socket.assigns.product
+
+    [filepath] =
+      consume_uploaded_entries(socket, :banner, fn %{path: path}, entry ->
+        ext = Path.extname(entry.client_name)
+        dest = Path.join(System.tmp_dir(), "banner_#{product.id}#{ext}")
+        File.cp!(path, dest)
+        {:ok, dest}
+      end)
+
+    socket =
+      try do
+        case Products.update_product_banner(product, filepath) do
+          {:ok, product} ->
+            socket
+            |> assign(:product, product)
+            |> assign(:banner_url, Products.banner_url(product))
+            |> put_flash(:info, "Banner image uploaded successfully.")
+
+          {:error, _} ->
+            put_flash(socket, :error, "Failed to upload banner image.")
+        end
+      after
+        File.rm(filepath)
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_event("remove-banner", _params, socket) do
+    authorized!(:"product:update", socket.assigns.org_user)
+
+    case Products.remove_product_banner(socket.assigns.product) do
+      {:ok, product} ->
+        socket
+        |> assign(:product, product)
+        |> assign(:banner_url, nil)
+        |> put_flash(:info, "Banner image removed.")
+        |> noreply()
+
+      {:error, _} ->
+        socket
+        |> put_flash(:error, "Failed to remove banner image.")
+        |> noreply()
+    end
   end
 
   def handle_event("add-shared-secret", _params, socket) do
@@ -109,4 +167,9 @@ defmodule NervesHubWeb.Live.Product.Settings do
         into: %{},
         do: {extension, Extensions.module(extension).description()}
   end
+
+  defp upload_error_to_string(:too_large), do: "File is too large (max 5MB)"
+  defp upload_error_to_string(:not_accepted), do: "Invalid file type. Accepted: JPG, PNG, WebP"
+  defp upload_error_to_string(:too_many_files), do: "Only one file can be uploaded at a time"
+  defp upload_error_to_string(_), do: "Something went wrong uploading the file"
 end

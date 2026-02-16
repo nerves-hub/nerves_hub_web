@@ -13,6 +13,7 @@ defmodule NervesHub.Products do
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
   alias NervesHub.Repo
+  alias NervesHub.Uploads
   alias NimbleCSV.RFC4180, as: CSV
 
   @csv_certs_sep "\n\n"
@@ -120,6 +121,48 @@ defmodule NervesHub.Products do
     |> Product.delete_changeset()
     |> Repo.update()
   end
+
+  @spec update_product_banner(Product.t(), String.t()) ::
+          {:ok, Product.t()} | {:error, any()}
+  def update_product_banner(%Product{} = product, file_path) do
+    ext = Path.extname(file_path)
+    key = "products/#{product.id}/banner#{ext}"
+    old_key = product.banner_upload_key
+
+    with :ok <- Uploads.upload(file_path, key),
+         {:ok, product} <-
+           product
+           |> Product.banner_changeset(%{banner_upload_key: key})
+           |> Repo.update() do
+      if old_key && old_key != key do
+        Uploads.delete(old_key)
+      end
+
+      {:ok, product}
+    end
+  end
+
+  @spec remove_product_banner(Product.t()) :: {:ok, Product.t()} | {:error, any()}
+  def remove_product_banner(%Product{banner_upload_key: nil} = product), do: {:ok, product}
+
+  def remove_product_banner(%Product{} = product) do
+    old_key = product.banner_upload_key
+
+    case product
+         |> Product.banner_changeset(%{banner_upload_key: nil})
+         |> Repo.update() do
+      {:ok, product} ->
+        Uploads.delete(old_key)
+        {:ok, product}
+
+      error ->
+        error
+    end
+  end
+
+  @spec banner_url(Product.t()) :: String.t() | nil
+  def banner_url(%Product{banner_upload_key: nil}), do: nil
+  def banner_url(%Product{banner_upload_key: key}), do: Uploads.url(key)
 
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking product changes.
