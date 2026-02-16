@@ -34,6 +34,7 @@ defmodule NervesHub.Products.Product do
 
     field(:name, :string)
     field(:deleted_at, :utc_datetime)
+    field(:banner_upload_key, :string)
     embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
 
     field(:device_count, :integer, virtual: true)
@@ -54,6 +55,11 @@ defmodule NervesHub.Products.Product do
     |> update_change(:name, &trim/1)
     |> validate_required(@required_params)
     |> unique_constraint(:name, name: :products_org_id_name_index)
+  end
+
+  def banner_changeset(product, params) do
+    product
+    |> cast(params, [:banner_upload_key])
   end
 
   def delete_changeset(product, _params \\ %{}) do

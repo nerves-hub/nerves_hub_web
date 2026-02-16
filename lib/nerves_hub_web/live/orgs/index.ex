@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Products
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.PinnedDevices
   alias Phoenix.Socket.Broadcast
@@ -24,6 +25,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
       |> assign(:show_all_pinned?, false)
       |> assign(:device_info, %{})
       |> assign(:product_device_info, %{})
+      |> assign(:banner_urls, banner_urls(user.orgs))
       |> assign(:pinned_devices, Devices.get_pinned_devices(user.id))
       |> assign(:device_statuses, statuses)
       |> assign(:device_limit, @pinned_devices_limit)
@@ -92,5 +94,14 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     {limited_devices, _} = Enum.split(devices, @pinned_devices_limit)
 
     limited_devices
+  end
+
+  defp banner_urls(orgs) do
+    for org <- orgs,
+        product <- org.products,
+        url = Products.banner_url(product),
+        into: %{} do
+      {product.id, url}
+    end
   end
 end
