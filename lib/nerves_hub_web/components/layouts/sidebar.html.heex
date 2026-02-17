@@ -51,9 +51,19 @@
             </div>
             <h3 class="subtitle ">{org.name}</h3>
           </.link>
-          <div :for={product <- org.products} class="my-4">
-            <.link navigate={~p"/org/#{org}/#{product}/devices"} class="product-picker-product">
-              {product.name}
+          <div :if={Enum.any?(org.products)} class="-mx-4 mt-3 overflow-hidden">
+            <.link
+              :for={product <- org.products}
+              navigate={~p"/org/#{org}/#{product}/devices"}
+              class="flex items-center px-4 py-4 text-sm font-medium text-zinc-300 hover:text-neutral-50 border-b border-zinc-700 bg-cover bg-center relative overflow-hidden"
+              style={assigns[:picker_banner_urls] && assigns[:picker_banner_urls][product.id] && "background-image: url('#{@picker_banner_urls[product.id]}');"}
+            >
+              <div
+                :if={assigns[:picker_banner_urls] && assigns[:picker_banner_urls][product.id]}
+                class="absolute inset-0 bg-gradient-to-r from-zinc-900 to-zinc-900/0"
+              >
+              </div>
+              <span class="relative">{product.name}</span>
             </.link>
           </div>
         </div>
