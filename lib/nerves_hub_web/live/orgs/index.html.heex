@@ -95,10 +95,10 @@
             <.link
               :for={product <- org.products}
               navigate={~p"/org/#{org}/#{product}/devices"}
-              class="flex justify-between gap-[16px] p-4 w-full border border-zinc-700 rounded bg-gradient-to-r from-zinc-800 to-zinc-800/0 bg-cover bg-center relative overflow-hidden"
+              class="flex justify-between gap-4 p-4 w-full border border-zinc-700 rounded bg-gradient-to-r from-zinc-800 to-zinc-800/0 bg-cover bg-center relative overflow-hidden"
               style={@banner_urls[product.id] && "background-image: url('#{@banner_urls[product.id]}');"}
             >
-              <div :if={@banner_urls[product.id]} class="absolute inset-0 bg-zinc-900/70"></div>
+              <div :if={@banner_urls[product.id]} class="absolute inset-0 bg-gradient-to-r from-zinc-900 to-zinc-900/0"></div>
               <div class="text-neutral-50 font-semibold text-sm relative">
                   {product.name}
               </div>

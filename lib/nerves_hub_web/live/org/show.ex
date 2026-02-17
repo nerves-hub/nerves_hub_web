@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Live.Org.Show do
       socket
       |> page_title("Products - #{socket.assigns.org.name}")
       |> assign(:products, products)
+      |> assign(:banner_urls, banner_urls(products))
       |> assign(:product_device_info, %{})
       |> sidebar_tab(:products)
 
@@ -26,6 +27,14 @@ defmodule NervesHubWeb.Live.Org.Show do
       Connections.get_connection_status_by_products(Enum.map(socket.assigns.products, & &1.id))
 
     {:noreply, assign(socket, :product_device_info, statuses)}
+  end
+
+  defp banner_urls(products) do
+    for product <- products,
+        url = Products.banner_url(product),
+        into: %{} do
+      {product.id, url}
+    end
   end
 
   def fade_in(selector) do

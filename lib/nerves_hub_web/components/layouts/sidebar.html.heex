@@ -90,9 +90,18 @@
     </div>
   </div>
 
-  <div class="h-full w-full flex flex-col">
+  <div class="h-full w-full flex flex-col relative">
+    <div
+      :if={assigns[:banner_url]}
+      class="absolute inset-x-0 top-0 h-[146px] bg-cover bg-center z-0"
+      style={"background-image: url('#{@banner_url}');"}
+    >
+      <div class="absolute inset-0 bg-gradient-to-r from-zinc-900 to-zinc-900/0"></div>
+    </div>
     <.flash_group flash={@flash} />
 
-    {@inner_content}
+    <div class={["flex flex-col flex-1 min-h-0", assigns[:banner_url] && "relative z-[1]"]}>
+      {@inner_content}
+    </div>
   </div>
 </div>
