@@ -532,23 +532,28 @@ defmodule NervesHub.Firmwares do
   @spec start_firmware_delta(non_neg_integer(), non_neg_integer()) ::
           {:ok, FirmwareDelta.t()} | {:error, Ecto.Changeset.t()}
   def start_firmware_delta(source_id, target_id, recalculate_deployment_statuses \\ true) do
-    get_firmware_delta_by_source_and_target(source_id, target_id, [:failed, :timed_out])
+    _ =
+      get_firmware_delta_by_source_and_target(source_id, target_id, [:failed, :timed_out])
+      |> case do
+        {:ok, firmware_delta} -> {:ok, _} = Repo.delete(firmware_delta)
+        {:error, _} -> :ok
+      end
+
+    %FirmwareDelta{}
+    |> FirmwareDelta.start_changeset(source_id, target_id)
+    |> Repo.insert()
+    |> notify_firmware_delta_target()
     |> case do
-      {:ok, firmware_delta} -> {:ok, _} = Repo.delete(firmware_delta)
-      {:error, _} -> :ok
+      {:ok, firmware_delta} ->
+        if recalculate_deployment_statuses do
+          :ok = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(target_id)
+        end
+
+        {:ok, firmware_delta}
+
+      passthrough ->
+        passthrough
     end
-
-    {:ok, firmware_delta} =
-      %FirmwareDelta{}
-      |> FirmwareDelta.start_changeset(source_id, target_id)
-      |> Repo.insert()
-      |> notify_firmware_delta_target()
-
-    if recalculate_deployment_statuses do
-      :ok = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(target_id)
-    end
-
-    {:ok, firmware_delta}
   end
 
   @spec fail_firmware_delta(FirmwareDelta.t()) ::
@@ -624,7 +629,7 @@ defmodule NervesHub.Firmwares do
           age :: non_neg_integer(),
           unit :: :second | :millisecond | :minute
         ) ::
-          :ok | {:error, any()}
+          :ok
   def time_out_firmware_delta_generations(age_seconds, unit) do
     cutoff = DateTime.add(DateTime.utc_now(), -age_seconds, unit)
 
@@ -635,6 +640,8 @@ defmodule NervesHub.Firmwares do
     |> Enum.each(fn firmware_delta ->
       {:ok, _firmware_delta} = time_out_firmware_delta(firmware_delta)
     end)
+
+    :ok
   end
 
   @spec build_firmware_params(Org.t(), Path.t()) :: {:ok, map()} | {:error, any()}
