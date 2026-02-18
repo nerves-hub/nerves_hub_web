@@ -52,7 +52,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
               </.link>
             </div>
           </div>
-          <div class="py-2 px-4 flex flex-col gap-1">
+          <div :if={Enum.empty?(@activity)} class="py-2 px-4 flex flex-col gap-1">
+            <div class="flex items-center justify-center p-14">
+              <span class="text-zinc-500 font-extralight">No audit logs found for the deployment group.</span>
+            </div>
+          </div>
+          <div :if={Enum.any?(@activity)} class="py-2 px-4 flex flex-col gap-1">
             <div :for={entry <- @activity} class="flex items-center gap-6 h-16 p-2">
               <div class="flex items-center h-8 py-1 px-2 bg-zinc-800 border border-zinc-700 rounded-full">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

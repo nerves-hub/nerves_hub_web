@@ -61,7 +61,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
           </div>
 
           <div :if={@releases == []} class="flex flex-col items-center justify-center p-12 gap-4">
-            <div class="text-zinc-400">No releases yet</div>
+            <div class="text-zinc-400">No releases have been created.</div>
             <div class="text-sm text-zinc-500">
               Release history will appear here when you change the firmware version above.
             </div>
@@ -142,7 +142,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
               />
             </div>
 
-            <.rollout_options />
+            <.rollout_options show_rollout_options={@show_rollout_options} myself={@myself} />
 
             <div>
               <.button style="secondary" type="submit">
@@ -152,51 +152,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
           </div>
         </.form>
       </CoreComponents.modal>
-    </div>
-    """
-  end
-
-  # keeping some code around while the feature is being developed
-  defp rollout_options(assigns) do
-    ~H"""
-    <div class="hidden w-full border-t border-zinc-700 pt-6">
-      <button
-        type="button"
-        phx-click="toggle-rollout-options"
-        phx-target={@myself}
-        class="flex items-center gap-2 text-sm font-medium text-zinc-300 hover:text-zinc-100"
-      >
-        <svg
-          class={["w-4 h-4 transition-transform", @show_rollout_options && "rotate-90"]}
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-        </svg>
-        Rollout options
-      </button>
-
-      <div :if={@show_rollout_options} class="mt-4 w-1/2">
-        <.input
-          field={@form[:release_network_interfaces]}
-          type="select"
-          options={network_interface_options()}
-          multiple
-          label="Allowed network interfaces"
-          hint="Select which network interfaces devices must be on to receive this release. Leave empty to allow all interfaces."
-        />
-
-        <div class="mt-4">
-          <.input
-            field={@form[:release_tags]}
-            value={Utils.tags_to_string(@form[:release_tags])}
-            label="Release tags"
-            placeholder="eg. batch-123, production"
-            hint="Devices must have ALL of these tags to receive this release. Leave empty to allow all devices."
-          />
-        </div>
-      </div>
     </div>
     """
   end
@@ -299,6 +254,51 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   defp firmware_display_name(%Firmware{} = f) do
     "#{f.version} - #{f.platform} - #{f.architecture} (#{String.slice(f.uuid, 0..7)})"
+  end
+
+  # keeping some code around while the feature is being developed
+  defp rollout_options(assigns) do
+    ~H"""
+    <div class="hidden w-full border-t border-zinc-700 pt-6">
+      <button
+        type="button"
+        phx-click="toggle-rollout-options"
+        phx-target={@myself}
+        class="flex items-center gap-2 text-sm font-medium text-zinc-300 hover:text-zinc-100"
+      >
+        <svg
+          class={["w-4 h-4 transition-transform", @show_rollout_options && "rotate-90"]}
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+        </svg>
+        Rollout options
+      </button>
+
+      <div :if={@show_rollout_options} class="mt-4 w-1/2">
+        <.input
+          field={@form[:release_network_interfaces]}
+          type="select"
+          options={network_interface_options()}
+          multiple
+          label="Allowed network interfaces"
+          hint="Select which network interfaces devices must be on to receive this release. Leave empty to allow all interfaces."
+        />
+
+        <div class="mt-4">
+          <.input
+            field={@form[:release_tags]}
+            value={Utils.tags_to_string(@form[:release_tags])}
+            label="Release tags"
+            placeholder="eg. batch-123, production"
+            hint="Devices must have ALL of these tags to receive this release. Leave empty to allow all devices."
+          />
+        </div>
+      </div>
+    </div>
+    """
   end
 
   defp network_interface_options() do

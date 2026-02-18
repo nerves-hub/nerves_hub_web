@@ -1,7 +1,8 @@
-defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
+defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.Show.SummaryTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
+  alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
@@ -11,17 +12,17 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
 
-  setup context do
-    %{
-      org: org,
-      org_key: org_key,
-      product: product,
-      fixture: %{firmware: source_firmware},
-      tmp_dir: tmp_dir
-    } = context
-
+  setup %{
+          conn: conn,
+          org: org,
+          product: product,
+          org_key: org_key,
+          tmp_dir: tmp_dir,
+          fixture: %{firmware: source_firmware}
+        } =
+          context do
     target_firmware =
-      Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+      Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
 
     deployment_group =
       Fixtures.deployment_group_fixture(target_firmware, %{
@@ -43,17 +44,20 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     {:ok, source_firmware_metadata} = Firmwares.metadata_from_firmware(source_firmware)
 
     conn =
-      context.conn
+      conn
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+      |> assert_has("h1", text: deployment_group.name)
+      |> assert_has("div", text: "Current Release")
+      |> assert_has("div", text: "Settings Overview")
 
-    %{
+    Map.merge(context, %{
       conn: conn,
       device: device,
       deployment_group: deployment_group,
       source_firmware: source_firmware,
       target_firmware: target_firmware,
       source_firmware_metadata: source_firmware_metadata
-    }
+    })
   end
 
   test "empty state and displaying update stats", %{
@@ -110,7 +114,6 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
     conn: conn,
     device: device,
     source_firmware_metadata: source_firmware_metadata,
-    target_firmware: target_firmware,
     org_key: org_key,
     product: product,
     deployment_group: deployment_group,
@@ -150,8 +153,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
           )
 
     conn
-    |> assert_has("option[selected]", text: target_firmware.version)
-    |> select("Version", option: "2.0.1")
+    |> assert_has("option[selected]", text: other_firmware.version)
     |> assert_has("span", text: "Update count:")
     |> assert_has("span", text: "2")
   end
@@ -256,5 +258,150 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.ShowTest do
       "a[href='/org/#{org.name}/#{product.name}/devices?deployment_id=#{deployment_group.id}']",
       text: "Devices"
     )
+  end
+
+  test "shows the deployment group", %{
+    conn: conn,
+    deployment_group: deployment_group
+  } do
+    conn
+    |> assert_has("svg[data-is-active=true]")
+    |> assert_has("span", text: "0")
+    |> then(fn conn ->
+      for tag <- deployment_group.conditions.tags do
+        assert_has(conn, "span", text: tag)
+      end
+
+      conn
+    end)
+  end
+
+  test "shows the deployment group with device count", %{
+    conn: conn,
+    org: org,
+    product: product,
+    fixture: %{firmware: firmware},
+    deployment_group: deployment_group,
+    device: device
+  } do
+    Devices.update_deployment_group(device, deployment_group)
+
+    # deleted devices shouldn't be included in the count
+    Fixtures.device_fixture(org, product, firmware, %{deleted_at: DateTime.utc_now()})
+    |> Devices.update_deployment_group(deployment_group)
+
+    assert_has(conn, "span", text: "1")
+  end
+
+  test "you can toggle the deployment group being on or off", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    conn
+    |> click_button("Pause")
+    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> then(fn conn ->
+      {:ok, reloaded_deployment_group} =
+        ManagedDeployments.get_deployment_group(deployment_group.id)
+
+      refute reloaded_deployment_group.is_active
+      assert_has(conn, "button", text: "Resume")
+
+      logs = AuditLogs.logs_for(deployment_group)
+      assert Enum.count(logs) == 2
+      assert List.first(logs).description =~ ~r/marked deployment/
+
+      conn
+    end)
+    |> click_button("Resume")
+    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> then(fn conn ->
+      {:ok, reloaded_deployment_group} =
+        ManagedDeployments.get_deployment_group(deployment_group.id)
+
+      assert reloaded_deployment_group.is_active
+      assert_has(conn, "button", text: "Pause")
+
+      logs = AuditLogs.logs_for(reloaded_deployment_group)
+      assert Enum.count(logs) == 3
+      assert List.first(logs).description =~ ~r/marked deployment/
+
+      conn
+    end)
+  end
+
+  test "displays text when every device in deployment group matches conditions", %{
+    conn: conn,
+    org: org,
+    product: product,
+    fixture: %{firmware: firmware},
+    deployment_group: deployment_group
+  } do
+    Fixtures.device_fixture(org, product, firmware, %{
+      deployment_id: deployment_group.id,
+      tags: ["beta"]
+    })
+
+    Fixtures.device_fixture(org, product, firmware, %{
+      deployment_id: deployment_group.id,
+      tags: ["beta-edge"]
+    })
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("span", text: "100% of devices in this deployment group match conditions")
+  end
+
+  test "removing device from deployment that doesn't match conditions", %{
+    conn: conn,
+    org: org,
+    product: product,
+    fixture: %{firmware: firmware},
+    deployment_group: deployment_group
+  } do
+    device1 =
+      Fixtures.device_fixture(org, product, firmware, %{
+        deployment_id: deployment_group.id,
+        tags: ["foo"]
+      })
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("span", text: "50% of devices in this deployment group match conditions")
+    |> assert_has("div", text: "1 device doesn't match inside deployment group")
+    |> click_button("Remove device")
+    |> assert_has("span",
+      text: "100% of devices in this deployment group match conditions",
+      timeout: 1
+    )
+    |> then(fn _ ->
+      refute Repo.reload(device1) |> Map.get(:deployment_id)
+    end)
+  end
+
+  test "adding devices from outside deployment that matches conditions", %{
+    conn: conn,
+    org: org,
+    product: product,
+    fixture: %{firmware: firmware}
+  } do
+    device1 =
+      Fixtures.device_fixture(org, product, firmware, %{
+        tags: ["beta"]
+      })
+
+    conn
+    |> assert_has("span", text: "100% of devices in this deployment group match conditions")
+    |> assert_has("div", text: "1 device matches outside of deployment group")
+    |> click_button("Move device")
+    |> assert_has("span",
+      text: "100% of devices in this deployment group match conditions",
+      timeout: 1
+    )
+    |> then(fn _ ->
+      assert Repo.reload(device1) |> Map.get(:deployment_id)
+    end)
   end
 end

@@ -1,15 +1,16 @@
-defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
+defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.Show.SettingsTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Fixtures
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
 
-  setup context do
+  setup %{conn: conn} = context do
     conn =
-      context.conn
+      conn
       |> visit(
         "/org/#{context.org.name}/#{context.product.name}/deployment_groups/#{context.deployment_group.name}/settings"
       )
@@ -62,19 +63,12 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
 
   test "update the chosen resource, and adds an audit log", %{
     conn: conn,
-    user: user,
     org: org,
-    org_key: org_key,
-    tmp_dir: tmp_dir
+    product: product,
+    deployment_group: deployment_group
   } do
-    product = Fixtures.product_fixture(user, org)
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(firmware)
-
     conn =
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
-      |> assert_has("div", text: "General settings")
       |> assert_has("a", text: product.name)
       |> fill_in("Name", with: "Moussaka")
       |> fill_in("Tag(s) distributed to", with: "josh, lars")
@@ -100,18 +94,11 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
 
   test "failed update shows errors", %{
     conn: conn,
-    user: user,
     org: org,
-    org_key: org_key,
-    tmp_dir: tmp_dir
+    product: product,
+    deployment_group: deployment_group
   } do
-    product = Fixtures.product_fixture(user, org)
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(firmware)
-
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
-    |> assert_has("div", text: "General settings")
     |> assert_has("a", text: product.name)
     |> fill_in("Version requirement", with: "1.2.3.4.5.6")
     |> click_button("Save changes")
@@ -121,18 +108,11 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
 
   test "can clear tags and version", %{
     conn: conn,
-    user: user,
     org: org,
-    org_key: org_key,
-    tmp_dir: tmp_dir
+    product: product,
+    deployment_group: deployment_group
   } do
-    product = Fixtures.product_fixture(user, org)
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(firmware)
-
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
-    |> assert_has("div", text: "General settings")
     |> fill_in("Tag(s) distributed to", with: "")
     |> fill_in("Version requirement", with: "")
     |> click_button("Save changes")
@@ -142,5 +122,58 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.SettingsTest do
 
     assert deployment_group.conditions.version == ""
     assert deployment_group.conditions.tags == []
+  end
+
+  test "you can delete a deployment group with no devices attached to it", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    Repo.delete_all(Device)
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
+    |> assert_has("h1", text: deployment_group.name)
+    |> click_link("Delete")
+    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
+    |> assert_has("div", text: "Deployment Group successfully deleted")
+
+    assert ManagedDeployments.get_deployment_group(deployment_group.id) ==
+             {:error, :not_found}
+
+    logs = AuditLogs.logs_for(deployment_group)
+
+    assert List.last(logs).description =~ ~r/deleted deployment/
+  end
+
+  test "you can delete a deployment group with devices attached to it", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group,
+    device: device
+  } do
+    device = Devices.update_deployment_group(device, deployment_group)
+
+    assert Enum.count(Repo.all_by(Device, deployment_id: deployment_group.id)) == 1
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
+    |> assert_has("h1", text: deployment_group.name)
+    |> click_link("Delete")
+    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
+    |> assert_has("div", text: "Deployment Group successfully deleted")
+
+    assert ManagedDeployments.get_deployment_group(deployment_group.id) ==
+             {:error, :not_found}
+
+    logs = AuditLogs.logs_for(deployment_group)
+
+    assert List.last(logs).description =~ ~r/deleted deployment/
+
+    device = Repo.reload(device)
+    assert device.deployment_id == nil
+    assert device.deleted_at == nil
   end
 end
