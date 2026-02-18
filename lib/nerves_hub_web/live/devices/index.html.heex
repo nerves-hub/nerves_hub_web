@@ -1,17 +1,4 @@
-<div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700">
-  <div class="h-full border-l flex items-center justify-center border-base-700 bg-base-900">
-    <a :if={Application.get_env(:nerves_hub, :new_ui)} href={"/ui/switch?return_to=#{@current_path}"} class="">
-      <svg class="box-content px-5 h-5 w-5 stroke-zinc-500 hover:stroke-indigo-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path
-          d="M21 14V19C21 20.1046 20.1046 21 19 21H16M3 16V19C3 20.1046 3.89543 21 5 21H16M3 16V5C3 3.89543 3.89543 3 5 3H11M3 16C4.40293 15.7662 6.63687 15.7073 8.94504 16.2427M16 21C14.2965 18.2317 11.5726 16.8522 8.94504 16.2427M8.94504 16.2427C9.87157 15.1698 11.1851 14.1585 13 13.3925M8.5 7C8 7 7 7.3 7 8.5C7 9.7 8 10 8.5 10C9 10 10 9.7 10 8.5C10 7.3 9 7 8.5 7ZM17.5 9.46262L14.7188 11L15.25 7.74377L13 5.43769L16.1094 4.96262L17.5 2L18.8906 4.96262L22 5.43769L19.75 7.74377L20.2812 11L17.5 9.46262Z"
-          stroke-width="1.2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </a>
-  </div>
-</div>
+<div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
 
 <div id="device-container" class="h-0 flex-1 overflow-y-auto" phx-hook="PageVisible">
   <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
