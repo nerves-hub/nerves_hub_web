@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Components.Icons do
 
   def icon(%{name: "close"} = assigns) do
     ~H"""
-    <svg class={["size-5", @class]} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <svg class={["size-5", @class]} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M12 12L7 7M12 12L17 17M12 12L17 7M12 12L7 17" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
     </svg>
     """

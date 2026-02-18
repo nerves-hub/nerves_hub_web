@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.CoreComponents
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -32,13 +33,86 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col p-6 gap-6">
-      <.form id="release-form" for={@form} class="w-full flex flex-col gap-4" phx-change="validate-release" phx-submit="update-release" phx-target={@myself}>
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
+      <div class="w-full">
+        <div class="flex flex-col bg-zinc-900 border border-zinc-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+            <div class="text-base text-neutral-50 font-medium">Release History</div>
+
+            <.button style="secondary" type="submit" phx-click={CoreComponents.show_modal("new-release")}>
+              <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
+                  stroke="#A1A1AA"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Create new release
+            </.button>
+          </div>
+
+          <div :if={@releases == []} class="flex flex-col items-center justify-center p-12 gap-4">
+            <div class="text-zinc-400">No releases yet</div>
+            <div class="text-sm text-zinc-500">
+              Release history will appear here when you change the firmware version above.
+            </div>
+          </div>
+
+          <div :if={@releases != []} class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="border-b border-zinc-700">
+                <tr>
+                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Released</th>
+                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Firmware Version</th>
+                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">UUID</th>
+                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Archive</th>
+                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Released By</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={release <- @releases} class="border-b border-zinc-800 hover:bg-zinc-800/50">
+                  <td class="px-4 py-3 text-sm text-zinc-300">
+                    <div class="flex flex-col">
+                      <span>{Calendar.strftime(release.inserted_at, "%B %d, %Y")}</span>
+                      <span class="text-xs text-zinc-500">{Calendar.strftime(release.inserted_at, "%I:%M %p")} UTC</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-zinc-300 font-medium">
+                    {release.firmware.version}
+                  </td>
+                  <td class="px-4 py-3 text-sm text-zinc-400 font-mono">
+                    {release.firmware.uuid}
+                  </td>
+                  <td class="px-4 py-3 text-sm text-zinc-400">
+                    <span :if={release.archive}>
+                      {release.archive.version} ({String.slice(release.archive.uuid, 0..7)})
+                    </span>
+                    <span :if={!release.archive} class="text-zinc-500 italic">
+                      None
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-zinc-400">
+                    <span :if={release.user}>
+                      {release.user.name}
+                    </span>
+                    <span :if={!release.user} class="text-zinc-500 italic">
+                      Unknown
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <CoreComponents.modal id="new-release" on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/releases")}>
+        <.form id="release-form" for={@form} phx-change="validate-release" phx-submit="update-release" phx-target={@myself}>
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
             <div class="text-base text-neutral-50 font-medium">Release settings</div>
           </div>
 
-          <div class="flex flex-col p-6 gap-6">
+          <div class="flex flex-col p-4 gap-6">
             <div class="w-1/2 flex flex-col gap-6">
               <.input
                 field={@form[:firmware_id]}
@@ -102,73 +176,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
             <div>
               <.button style="secondary" type="submit">
-                <.icon name="save" /> Save changes
+                <.icon name="save" /> Create release
               </.button>
             </div>
           </div>
-        </div>
-      </.form>
-
-      <div class="w-full">
-        <div class="flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
-            <div class="text-base text-neutral-50 font-medium">Release History</div>
-          </div>
-
-          <div :if={@releases == []} class="flex flex-col items-center justify-center p-12 gap-4">
-            <div class="text-zinc-400">No releases yet</div>
-            <div class="text-sm text-zinc-500">
-              Release history will appear here when you change the firmware version above.
-            </div>
-          </div>
-
-          <div :if={@releases != []} class="overflow-x-auto">
-            <table class="w-full">
-              <thead class="border-b border-zinc-700">
-                <tr>
-                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Released</th>
-                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Firmware Version</th>
-                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">UUID</th>
-                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Archive</th>
-                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Released By</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr :for={release <- @releases} class="border-b border-zinc-800 hover:bg-zinc-800/50">
-                  <td class="px-4 py-3 text-sm text-zinc-300">
-                    <div class="flex flex-col">
-                      <span>{Calendar.strftime(release.inserted_at, "%B %d, %Y")}</span>
-                      <span class="text-xs text-zinc-500">{Calendar.strftime(release.inserted_at, "%I:%M %p")} UTC</span>
-                    </div>
-                  </td>
-                  <td class="px-4 py-3 text-sm text-zinc-300 font-medium">
-                    {release.firmware.version}
-                  </td>
-                  <td class="px-4 py-3 text-sm text-zinc-400 font-mono">
-                    {release.firmware.uuid}
-                  </td>
-                  <td class="px-4 py-3 text-sm text-zinc-400">
-                    <span :if={release.archive}>
-                      {release.archive.version} ({String.slice(release.archive.uuid, 0..7)})
-                    </span>
-                    <span :if={!release.archive} class="text-zinc-500 italic">
-                      None
-                    </span>
-                  </td>
-                  <td class="px-4 py-3 text-sm text-zinc-400">
-                    <span :if={release.user}>
-                      {release.user.name}
-                    </span>
-                    <span :if={!release.user} class="text-zinc-500 italic">
-                      Unknown
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+        </.form>
+      </CoreComponents.modal>
     </div>
     """
   end
@@ -211,12 +224,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
         releases = ManagedDeployments.list_deployment_releases(updated)
         changeset = DeploymentGroup.update_changeset(updated, %{})
 
-        send(self(), {:flash, :info, "Release settings updated"})
+        Process.send_after(self(), {:flash, :info, "Release settings updated"}, 500)
 
         socket
         |> assign(:deployment_group, updated)
         |> assign(:releases, releases)
         |> assign(:form, to_form(changeset))
+        |> push_event("close-modal", %{id: "new-release"})
         |> noreply()
 
       {:error, changeset} ->
