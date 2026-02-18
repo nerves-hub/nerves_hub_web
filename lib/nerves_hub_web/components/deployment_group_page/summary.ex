@@ -7,9 +7,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
+  alias NervesHub.ManagedDeployments
   alias Phoenix.Naming
 
   @impl Phoenix.LiveComponent
+  def update(%{event: :update_matched_devices_count}, socket) do
+    socket
+    |> assign_matched_devices_count()
+    |> ok()
+  end
+
   def update(%{update_inflight_info: true}, socket) do
     %{deployment_group: deployment_group} = socket.assigns
 
@@ -30,7 +37,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> ok()
   end
 
-  def update(%{delta_updated: true}, socket) do
+  def update(%{event: firmware_deltas_updated}, socket) do
     socket
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(socket.assigns.deployment_group.firmware))
     |> ok()
@@ -41,18 +48,49 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
     |> assign_update_stats(deployment_group)
     |> assign_deltas_and_stats()
+    |> assign_matched_devices_count()
     |> ok()
   end
 
   def update(assigns, socket) do
     %{deployment_group: deployment_group} = assigns
 
+    inflight_updates = Devices.inflight_updates_for(deployment_group)
+    updating_count = Devices.updating_count(deployment_group)
+
     socket
     |> assign(assigns)
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(assigns.deployment_group.firmware))
     |> assign_update_stats(deployment_group)
     |> assign_deltas_and_stats()
+    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
+    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
+    |> assign(:updating_count, updating_count)
+    |> assign(:inflight_updates, inflight_updates)
+    |> assign(:firmware, deployment_group.firmware)
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
+    |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
+    |> assign_matched_devices_count()
     |> ok()
+  end
+
+  defp assign_matched_devices_count(%{assigns: %{deployment_group: deployment_group}} = socket) do
+    current_device_count = ManagedDeployments.get_device_count(deployment_group)
+
+    matched_devices_count =
+      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true)
+
+    matched_devices_outside_deployment_group_count =
+      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false)
+
+    socket
+    |> assign(:matched_device_count, matched_devices_count)
+    |> assign(:unmatched_device_count, current_device_count - matched_devices_count)
+    |> assign(
+      :matched_devices_outside_deployment_group_count,
+      matched_devices_outside_deployment_group_count
+    )
+    |> assign(:deployment_group, %{deployment_group | device_count: current_device_count})
   end
 
   @impl Phoenix.LiveComponent
@@ -67,6 +105,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     delta_to_delete = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
 
     {:ok, _} = Firmwares.delete_firmware_delta(delta_to_delete)
+
     deltas = Enum.filter(socket.assigns.deltas, &(&1.id != delta_to_delete.id))
 
     socket =

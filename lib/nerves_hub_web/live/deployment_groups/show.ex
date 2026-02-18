@@ -4,8 +4,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
-  alias NervesHub.Devices.UpdateStats
-  alias NervesHub.Firmwares
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
@@ -34,9 +32,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       |> Map.put(:links, true)
       |> Map.put(:anchor, "latest-activity")
 
-    inflight_updates = Devices.inflight_updates_for(deployment_group)
-    updating_count = Devices.updating_count(deployment_group)
-
     :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}")
 
     socket
@@ -44,16 +39,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> sidebar_tab(:deployments)
     |> selected_tab()
     |> assign(:deployment_group, deployment_group)
-    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
-    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
-    |> assign(:updating_count, updating_count)
-    |> assign(:audit_logs, logs)
-    |> assign(:audit_pager, audit_pager)
-    |> assign(:inflight_updates, inflight_updates)
-    |> assign(:firmware, deployment_group.firmware)
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
-    |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
-    |> assign_matched_devices_count()
     |> schedule_inflight_updates_updater()
     |> ok()
   end
@@ -172,23 +157,25 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
         }
       )
 
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :error,
       "#{updated_count} devices moved to #{socket.assigns.deployment_group.name}. However, we couldn't move #{ignored_count} devices. We've been notified and are looking into it."
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
   @impl Phoenix.LiveView
   def handle_async(:move_devices_to_deployment, {:ok, devices_updated_count}, socket) do
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :info,
       "#{devices_updated_count} devices moved to #{socket.assigns.deployment_group.name}"
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
@@ -197,12 +184,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{assigns: %{deployment_group: deployment_group}} = socket
     :ok = Logging.log_to_sentry(deployment_group, reason)
 
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :error,
       "There was an issue moving devices to #{deployment_group.name}. We've been notified and are looking into it."
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
@@ -221,23 +209,25 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
         }
       )
 
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :error,
       "#{updated_count} devices removed from #{socket.assigns.deployment_group.name}. However, we couldn't remove #{ignored_count} devices. We've been notified and are looking into it."
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
   @impl Phoenix.LiveView
   def handle_async(:remove_devices_from_deployment, {:ok, devices_removed_count}, socket) do
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :info,
       "#{devices_removed_count} devices removed from #{socket.assigns.deployment_group.name}"
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
@@ -246,12 +236,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{assigns: %{deployment_group: deployment_group}} = socket
     :ok = Logging.log_to_sentry(deployment_group, reason)
 
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :error,
       "There was an issue removing devices from #{deployment_group.name}. We've been notified and are looking into it."
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
@@ -278,7 +269,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     noreply(socket)
   end
 
-  def handle_info(%Broadcast{event: "status/updated"}, socket) do
+  def handle_info(%Broadcast{event: "deployments/update"}, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
     updated_deployment =
@@ -289,7 +280,19 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     socket
     |> assign(:deployment_group, updated_deployment)
     |> assign(:firmware, updated_deployment.firmware)
-    |> assign_matched_devices_count()
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{event: "status/updated"}, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    updated_deployment =
+      ManagedDeployments.get_by_product_and_name!(deployment_group.product, deployment_group.name, true)
+
+    send_update(SummaryTab, id: "deployment_group_summary", updated_deployment: updated_deployment)
+
+    socket
+    |> assign(:deployment_group, updated_deployment)
     |> noreply()
   end
 
@@ -300,7 +303,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_info(%Broadcast{topic: "firmware_delta_target:" <> _}, socket) do
-    send_update(SummaryTab, id: "deployment_group_summary", delta_updated: true)
+    send_update(SummaryTab, id: "deployment_group_summary", event: :firmware_deltas_updated)
 
     {:noreply, socket}
   end
@@ -328,24 +331,5 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     else
       "px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
     end
-  end
-
-  defp assign_matched_devices_count(%{assigns: %{deployment_group: deployment_group}} = socket) do
-    current_device_count = ManagedDeployments.get_device_count(deployment_group)
-
-    matched_devices_count =
-      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true)
-
-    matched_devices_outside_deployment_group_count =
-      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false)
-
-    socket
-    |> assign(:matched_device_count, matched_devices_count)
-    |> assign(:unmatched_device_count, current_device_count - matched_devices_count)
-    |> assign(
-      :matched_devices_outside_deployment_group_count,
-      matched_devices_outside_deployment_group_count
-    )
-    |> assign(:deployment_group, %{deployment_group | device_count: current_device_count})
   end
 end
