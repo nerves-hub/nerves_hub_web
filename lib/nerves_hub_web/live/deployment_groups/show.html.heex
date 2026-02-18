@@ -39,11 +39,17 @@
       </h1>
       <div
         :if={@deployment_group.status == :preparing}
-        phx-mounted={JS.transition({"ease-out duration-300 delay-[2s]", "opacity-0", "opacity-100"}, blocking: false)}
         phx-remove={JS.hide(transition: {"ease-in duration-1000", "opacity-100", "opacity-0"}, blocking: false)}
-        class="flex items-center gap-1 pl-2.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-amber-500 animate-delay-[2s] animate-pulse"
+        class="pulsing-div flex items-center gap-1 pl-2.5 pr-3 py-0.5 border border-zinc-700 rounded-full bg-amber-500"
       >
-        <span class="text-xs text-zinc-50 tracking-tight">Generating Deltas</span>
+        <span class="text-xs text-zinc-50">Preparing: Generating Deltas</span>
+      </div>
+
+      <div
+        :if={@deployment_group.status == :deltas_failed}
+        class="text-xs text-red-500 px-2 py-1 border border-red-500 bg-zinc-800 rounded"
+      >
+        Error: Deltas failed to generate
       </div>
     </div>
 
