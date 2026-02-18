@@ -288,7 +288,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     {:noreply, socket}
   end
 
-  def handle_info(%Broadcast{topic: "firmware_delta_target:" <> _}, socket) do
+  def handle_info(%Broadcast{topic: "firmware:" <> _, event: "delta/status_update"}, socket) do
     send_update(SummaryTab, id: "deployment_group_summary", event: :firmware_deltas_updated)
 
     {:noreply, socket}

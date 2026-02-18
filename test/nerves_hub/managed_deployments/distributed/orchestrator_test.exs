@@ -1,12 +1,12 @@
 defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   use NervesHub.DataCase, async: false
   use Mimic
+  use AssertEventually, timeout: 500, interval: 50
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Firmwares.Upload.File
   alias NervesHub.Fixtures
@@ -412,7 +412,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   end
 
   @tag :tmp_dir
-  test "triggers update and sets deployment group status to ready when delta completes", %{
+  test "triggers update and when deployment group status is updated to :ready", %{
     deployment_group: deployment_group,
     org: org,
     org_key: org_key,
@@ -449,42 +449,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     allow(Devices, self(), pid)
 
-    # add a delay to simulate deltas taking a bit more time to generate
-    # this addresses an issue where the orchestrator would determine that deltas are ready
-    # before it receives the event from the delta generation process
-    Process.sleep(100)
-
     :ok = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
 
-    assert %{deployment_group: %{status: :ready}} = :sys.get_state(pid)
+    eventually assert %{deployment_group: %{status: :ready}} = :sys.get_state(pid)
   end
 
-  test "handles delta subscriptions when firmware changes", %{
-    deployment_group: deployment_group,
-    org_key: org_key,
-    product: product,
-    user: user
-  } do
-    new_firmware = %{id: new_firmware_id} = Fixtures.firmware_fixture(org_key, product)
-    %{firmware_id: old_firmware_id} = deployment_group
-
-    {:ok, pid} =
-      start_supervised(%{
-        id: "Orchestrator##{deployment_group.id}",
-        start: {Orchestrator, :start_link, [deployment_group, false]},
-        restart: :temporary
-      })
-
-    allow(Firmwares, self(), pid)
-
-    expect(Firmwares, :unsubscribe_firmware_delta_target, fn ^old_firmware_id -> :ok end)
-    expect(Firmwares, :subscribe_firmware_delta_target, fn ^new_firmware_id -> :ok end)
-
-    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id}, user)
-    _ = :sys.get_state(pid)
-  end
-
-  test "updating deployment group to active waits for deltas to be ready", %{
+  test "updating deployment group to active waits for deployment group status to be :ready", %{
     deployment_group: deployment_group,
     org_key: org_key,
     product: product,
@@ -515,6 +485,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     allow(Devices, self(), pid)
 
     {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
+
     _ = :sys.get_state(pid)
   end
 
@@ -526,74 +497,31 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       Orchestrator.trigger_update(%{deployment_group | is_active: false})
     end
 
-    test "sets deployment group status to :ready if all associated deltas are ready", %{
-      deployment_group: deployment_group,
-      org_key: org_key,
-      org: org,
-      product: product,
-      firmware: firmware
-    } do
-      firmware2 = Fixtures.firmware_fixture(org_key, product)
-      firmware3 = Fixtures.firmware_fixture(org_key, product)
-      firmware4 = Fixtures.firmware_fixture(org_key, product)
-
-      _ =
-        Fixtures.device_fixture(org, product, firmware2)
-        |> Devices.update_deployment_group(deployment_group)
-
-      _ =
-        Fixtures.device_fixture(org, product, firmware3)
-        |> Devices.update_deployment_group(deployment_group)
-
-      _ =
-        Fixtures.device_fixture(org, product, firmware4)
-        |> Devices.update_deployment_group(deployment_group)
-
-      _ = Fixtures.firmware_delta_fixture(firmware2, firmware)
-      _ = Fixtures.firmware_delta_fixture(firmware3, firmware)
-      delta_processing = Fixtures.firmware_delta_fixture(firmware4, firmware, %{status: :processing})
-      deployment_group = Ecto.Changeset.change(deployment_group, %{status: :preparing}) |> Repo.update!()
-      assert %{status: :preparing} = Orchestrator.trigger_update(deployment_group)
-
-      _ = Ecto.Changeset.change(delta_processing, %{status: :completed}) |> Repo.update!()
-
-      assert %{status: :ready} = Orchestrator.trigger_update(deployment_group)
-    end
-
-    test "triggers delta generation and sets deployment group status to :preparing", %{
-      deployment_group: deployment_group,
-      org_key: org_key,
-      org: org,
-      product: product
-    } do
-      refute Repo.exists?(FirmwareDelta)
-      firmware2 = Fixtures.firmware_fixture(org_key, product)
-
-      _ =
-        Fixtures.device_fixture(org, product, firmware2)
-        |> Devices.update_deployment_group(deployment_group)
-
-      assert %{status: :preparing} =
-               Orchestrator.trigger_update(%{deployment_group | delta_updatable: true})
-
-      assert Repo.exists?(FirmwareDelta)
-    end
-
-    test "doesn't update deployment group status to :preparing if no deltas are generated", %{
+    test "skips scheduling firmware updates when deployment_group status is :preparing", %{
       deployment_group: deployment_group
     } do
-      assert deployment_group.status == :ready
-      refute deployment_group.delta_updatable
+      reject(&Devices.available_for_update/2)
+      reject(&Orchestrator.schedule_devices!/2)
 
-      reject(&ManagedDeployments.trigger_delta_generation_for_deployment_group/1)
-      assert %{status: :ready} = Orchestrator.trigger_update(deployment_group)
-    end
-
-    test "doesn't triggers delta generation when deployment group status is :preparing", %{
-      deployment_group: deployment_group
-    } do
       Orchestrator.trigger_update(%{deployment_group | status: :preparing})
-      refute Repo.exists?(FirmwareDelta)
+    end
+
+    test "skips scheduling firmware updates when deployment_group status is :deltas_failed", %{
+      deployment_group: deployment_group
+    } do
+      reject(&Devices.available_for_update/2)
+      reject(&Orchestrator.schedule_devices!/2)
+
+      Orchestrator.trigger_update(%{deployment_group | status: :deltas_failed})
+    end
+
+    test "skips scheduling firmware updates when deployment_group status is :unknown_error", %{
+      deployment_group: deployment_group
+    } do
+      reject(&Devices.available_for_update/2)
+      reject(&Orchestrator.schedule_devices!/2)
+
+      Orchestrator.trigger_update(%{deployment_group | status: :unknown_error})
     end
   end
 

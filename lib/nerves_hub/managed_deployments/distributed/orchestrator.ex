@@ -12,7 +12,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
-  alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias Phoenix.PubSub
@@ -59,8 +58,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
     :ok =
       PubSub.subscribe(NervesHub.PubSub, "orchestrator:deployment:#{deployment_group.id}")
-
-    :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.firmware_id)
 
     # trigger every two minutes, plus a jitter between 1 and 10 seconds, as a back up
     interval = to_timeout(second: 120 + :rand.uniform(20))
@@ -116,22 +113,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop-inactive")
   def trigger_update(%DeploymentGroup{is_active: false} = deployment_group), do: deployment_group
 
-  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#status-preparing")
-  def trigger_update(%DeploymentGroup{status: :preparing} = deployment_group) do
-    if ManagedDeployments.deltas_processing?(deployment_group) do
-      deployment_group
-    else
-      {:ok, deployment_group} = ManagedDeployments.update_deployment_group_status(deployment_group, :ready)
-
-      do_trigger_update(deployment_group)
-
-      deployment_group
-    end
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#status-failed")
+  def trigger_update(%DeploymentGroup{status: status} = deployment_group)
+      when status in [:preparing, :deltas_failed, :unknown_error] do
+    deployment_group
   end
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update")
   def trigger_update(deployment_group) do
-    deployment_group = maybe_trigger_deltas_and_set_deployment_preparing(deployment_group)
     do_trigger_update(deployment_group)
 
     deployment_group
@@ -311,15 +300,16 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployments/update")
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deployments/update"}, state) do
-    %{deployment_group: %{firmware_id: old_firmware_id}} = state
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(state.deployment_group)
-
-    if old_firmware_id != deployment_group.firmware_id do
-      :ok = Firmwares.unsubscribe_firmware_delta_target(old_firmware_id)
-      :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.firmware_id)
-    end
-
     maybe_trigger_update(%{state | deployment_group: deployment_group})
+  end
+
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployments/update")
+  def handle_info(
+        %Broadcast{topic: "deployment:" <> _, event: "status/updated", payload: payload},
+        %{deployment_group: deployment_group} = state
+      ) do
+    maybe_trigger_update(%{state | deployment_group: Map.put(deployment_group, :status, payload.to)})
   end
 
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deleted"}, state) do
@@ -332,17 +322,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   # Catch all for unknown broadcasts on a deployment_group
   def handle_info(%Broadcast{topic: "deployment:" <> _}, state) do
-    {:noreply, state}
-  end
-
-  def handle_info(
-        %Broadcast{topic: "firmware_delta_target:" <> _, event: "status_update", payload: %{status: :completed}},
-        state
-      ) do
-    maybe_trigger_update(state)
-  end
-
-  def handle_info(%Broadcast{topic: "firmware_delta_target:" <> _}, state) do
     {:noreply, state}
   end
 
@@ -373,17 +352,4 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
       !is_nil(payload.updates_blocked_until) and
       DateTime.after?(payload.updates_blocked_until, DateTime.utc_now())
   end
-
-  defp maybe_trigger_deltas_and_set_deployment_preparing(%{delta_updatable: true} = deployment_group) do
-    case ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group) do
-      {:ok, :deltas_started} ->
-        {:ok, deployment_group} = ManagedDeployments.update_deployment_group_status(deployment_group, :preparing)
-        deployment_group
-
-      _ ->
-        deployment_group
-    end
-  end
-
-  defp maybe_trigger_deltas_and_set_deployment_preparing(deployment_group), do: deployment_group
 end
