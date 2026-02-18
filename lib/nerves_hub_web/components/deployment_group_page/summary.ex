@@ -126,6 +126,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {:noreply, socket}
   end
 
+  def handle_event("generate-firmware-deltas", _params, %{assigns: %{deployment_group: deployment_group}} = socket) do
+    {:ok, :deltas_started} = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+
+    socket
+    |> put_flash(:info, "Generating firmware deltas")
+    |> noreply()
+  end
+
   @impl Phoenix.LiveComponent
   def render(assigns) do
     ~H"""
@@ -183,19 +191,19 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
           </div>
 
-          <div :if={Enum.any?(@deltas)} class="flex flex-col gap-2 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div :if={@deployment_group.delta_updatable or Enum.any?(@deltas)} class="flex flex-col gap-2 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
             <div class="p-4 h-9 flex items-start justify-between">
               <div class="text-neutral-50 font-medium leading-6">Firmware deltas</div>
             </div>
             <div class="p-4 flex flex-col gap-3">
               <div class="flex gap-4 items-center">
-                <span class="text-sm text-zinc-300">Firmware deltas provide smaller update payloads by only sending the differences between firmware versions.</span>
+                <span class="text-sm text-nerves-gray-500">Firmware deltas provide smaller update payloads by only sending the differences between firmware versions.</span>
               </div>
             </div>
-            <div class="bg-zinc-900 border-t rounded-b border-zinc-700">
+            <div :if={Enum.any?(@deltas)} class="bg-zinc-900 border-t rounded-b border-zinc-700">
               <div class="flex flex-col">
                 <div class="listing">
-                  <table class="">
+                  <table>
                     <thead>
                       <tr>
                         <th class="rounded-tl">From</th>
@@ -214,7 +222,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                         </td>
 
                         <td>
-                          <div class="flex gap-[8px] items-center">
+                          <div data-status={delta.status} class="flex gap-[8px] items-center data-[status=processing]:text-amber-500 data-[status=failed]:text-red-500 data-[status=timed_out]:text-red-500">
                             {if delta.status == :completed do
                               "Ready"
                             else
@@ -249,7 +257,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                               :if={delta.status in [:failed, :timed_out, :completed]}
                               class="text-base-300 underline cursor-pointer"
                               phx-click="delete_delta"
-                              data-confirm="Are you sure you want to delete this firmware delta?"
+                              data-confirm="Are you sure you want to delete this firmware delta? Warning: If other deployments are also using this delta, this will affect them as well."
                               phx-target={@myself}
                               phx-value-id={delta.id}
                             >
@@ -259,7 +267,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                               :if={delta.status in [:failed, :timed_out]}
                               class="text-base-300 underline cursor-pointer"
                               phx-click="retry_delta"
-                              data-confirm="Are you sure you want to retry firmware delta generation?"
+                              data-confirm="Are you sure you want to retry firmware delta generation? Warning: If other deployments are also using this delta, this will affect them as well."
                               phx-target={@myself}
                               phx-value-id={delta.id}
                             >
@@ -273,6 +281,19 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   </table>
                 </div>
               </div>
+            </div>
+            <div :if={Enum.empty?(@deltas)} class="flex p-4 gap-6 justify-between bg-zinc-900 border-t rounded-b border-zinc-700">
+              <div class="flex items-center">
+                <span class="text-sm text-nerves-gray-500">No firmware deltas are available.</span>
+              </div>
+              <.button
+                type="button"
+                aria-label="Generate firmware deltas"
+                phx-target={@myself}
+                phx-click="generate-firmware-deltas"
+              >
+                Generate firmware deltas
+              </.button>
             </div>
           </div>
 
