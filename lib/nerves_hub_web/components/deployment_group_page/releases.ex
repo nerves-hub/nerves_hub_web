@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
               />
             </div>
 
-            <div class="w-full border-t border-zinc-700 pt-6">
+            <div :if={false} class="w-full border-t border-zinc-700 pt-6">
               <button
                 type="button"
                 phx-click="toggle-rollout-options"
