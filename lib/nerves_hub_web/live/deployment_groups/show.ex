@@ -240,7 +240,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
 
-    send_update(SummaryTab, id: "deployment_group_summary", update_inflight_info: true)
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_inflight_info)
 
     socket
     |> assign(:inflight_updates, inflight_updates)
@@ -283,7 +283,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_info(%Broadcast{event: "stat:logged"}, socket) do
-    send_update(SummaryTab, id: "deployment_group_summary", stat_logged: true)
+    send_update(SummaryTab, id: "deployment_group_summary", event: :stat_logged)
 
     {:noreply, socket}
   end

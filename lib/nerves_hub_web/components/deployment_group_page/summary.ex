@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> ok()
   end
 
-  def update(%{update_inflight_info: true}, socket) do
+  def update(%{event: :update_inflight_info}, socket) do
     %{deployment_group: deployment_group} = socket.assigns
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
@@ -31,13 +31,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> ok()
   end
 
-  def update(%{stat_logged: true}, socket) do
+  def update(%{event: :stat_logged}, socket) do
     socket
     |> assign_update_stats(socket.assigns.deployment_group)
     |> ok()
   end
 
-  def update(%{event: firmware_deltas_updated}, socket) do
+  def update(%{event: :firmware_deltas_updated}, socket) do
     socket
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(socket.assigns.deployment_group.firmware))
     |> ok()
