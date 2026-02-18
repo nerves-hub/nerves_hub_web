@@ -18,7 +18,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
         page_size: page_size
       })
 
-    audit_pager = Map.from_struct(audit_pager)
+    # Use proper links since current pagination links assumes LiveView
+    audit_pager =
+      audit_pager
+      |> Map.from_struct()
+      |> Map.put(:links, true)
+      |> Map.put(:anchor, "latest-activity")
 
     socket
     |> assign(:activity, logs)

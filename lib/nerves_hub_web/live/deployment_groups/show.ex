@@ -1,7 +1,6 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
   alias NervesHub.Helpers.Logging
@@ -18,19 +17,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{product: product} = socket.assigns
 
     deployment_group = ManagedDeployments.get_by_product_and_name!(product, name, true)
-
-    {logs, audit_pager} =
-      AuditLogs.logs_for_feed(deployment_group, %{
-        page: Map.get(params, "page", 1),
-        page_size: 10
-      })
-
-    # Use proper links since current pagination links assumes LiveView
-    audit_pager =
-      audit_pager
-      |> Map.from_struct()
-      |> Map.put(:links, true)
-      |> Map.put(:anchor, "latest-activity")
 
     :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}")
 
