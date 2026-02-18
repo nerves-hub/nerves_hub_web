@@ -44,18 +44,6 @@
             </.link>
           </div>
           <div class="flex items-center gap-6 text-sm">
-            <div class="flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path
-                  d="M2.5 10.8333H17.5M2.5 10.8333V14.1666C2.5 15.0871 3.24619 15.8333 4.16667 15.8333H15.8333C16.7538 15.8333 17.5 15.0871 17.5 14.1666V10.8333M2.5 10.8333L3.85106 5.42907C4.03654 4.68712 4.70318 4.16663 5.46796 4.16663H14.532C15.2968 4.16663 15.9635 4.68712 16.1489 5.42907L17.5 10.8333M5 13.3333H15"
-                  stroke="#71717A"
-                  stroke-width="1.2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              <span class="text-zinc-400">{Enum.count(org.products)} {if Enum.count(org.products) == 1, do: "product", else: "products"}</span>
-            </div>
             <div class="flex items-center gap-4">
               <div class="flex items-center gap-1.5">
                 <div class="size-2 bg-green-500 rounded-full"></div>
@@ -90,6 +78,7 @@
             </.link>
           </div> --%>
         </div>
+        <h4 class="px-4 pt-2 text-xs font-medium text-zinc-400 uppercase tracking-wide">Products ({Enum.count(org.products)})</h4>
         <%= if Enum.empty?(org.products) do %>
           <div class="px-4 pb-4 pt-2">
             <div class="p-4 border border-zinc-700 rounded bg-zinc-800/30 text-center">
@@ -103,11 +92,13 @@
           </div>
         <% else %>
           <div class="grid grid-cols-2 px-4 pb-4 pt-2 gap-4">
-            <div :for={product <- org.products} class="flex justify-between gap-[16px] p-4 w-full border border-zinc-700 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800">
+            <.link
+              :for={product <- org.products}
+              navigate={~p"/org/#{org}/#{product}/devices"}
+              class="flex justify-between gap-[16px] p-4 w-full border border-zinc-700 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800 hover:border-zinc-500 transition-colors"
+            >
               <div class="text-neutral-50 font-semibold text-sm">
-                <.link navigate={~p"/org/#{org}/#{product}/devices"}>
-                  {product.name}
-                </.link>
+                {product.name}
               </div>
               <div class="flex gap-4 text-sm font-medium">
                 <div class="flex items-center gap-1.5">
@@ -119,7 +110,7 @@
                   <span class="text-zinc-400">{get_in(@product_device_info, [product.id, :offline]) || 0}</span>
                 </div>
               </div>
-            </div>
+            </.link>
           </div>
         <% end %>
       </div>
