@@ -110,7 +110,8 @@ RUN git clone https://github.com/fwup-home/fwup /tmp/fwup
 
 WORKDIR /tmp/fwup
 
-RUN git checkout v1.13.2 && \
+# pinning to 428350a as it fixes dependency download URL issues
+RUN git checkout 428350a && \
     ./scripts/download_deps.sh && \
     ./scripts/build_deps.sh && \
     ./autogen.sh && \
