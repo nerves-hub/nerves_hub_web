@@ -13,7 +13,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> assign(:page_title, "#{product.name} Settings")
       |> sidebar_tab(:settings)
       |> assign(:product, product)
-      |> assign(:banner_url, Products.banner_url(product))
+      |> assign(:banner_url, Products.banner_url(product, true))
       |> assign(:shared_secrets, product.shared_secret_auths)
       |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
       |> assign(:form, to_form(Ecto.Changeset.change(product)))
@@ -49,7 +49,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
             {:ok, product} ->
               socket
               |> assign(:product, product)
-              |> assign(:banner_url, Products.banner_url(product))
+              |> assign(:banner_url, Products.banner_url(product, true))
               |> put_flash(:info, "Banner image uploaded successfully.")
 
             {:error, _} ->

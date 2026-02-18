@@ -163,9 +163,13 @@ defmodule NervesHub.Products do
   @spec banner_url(Product.t()) :: String.t() | nil
   def banner_url(%Product{banner_upload_key: nil}), do: nil
 
-  def banner_url(%Product{banner_upload_key: key}) do
-    ts = System.unique_integer()
-    "#{Uploads.url(key)}?v=#{ts}"
+  def banner_url(%Product{banner_upload_key: key}, bust_cache? \\ false) do
+    if bust_cache? do
+      ts = System.unique_integer()
+      "#{Uploads.url(key)}?v=#{ts}"
+    else
+      Uploads.url(key)
+    end
   end
 
   @doc """
