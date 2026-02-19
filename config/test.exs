@@ -15,12 +15,6 @@ config :nerves_hub, NervesHub.Firmwares.Upload.File,
   local_path: System.tmp_dir(),
   public_path: "/firmware"
 
-config :nerves_hub, NervesHub.ObanRepo,
-  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
-  ssl: false,
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10
-
 config :nerves_hub, NervesHub.RateLimit, limit: 100
 
 config :nerves_hub, NervesHub.Repo,
