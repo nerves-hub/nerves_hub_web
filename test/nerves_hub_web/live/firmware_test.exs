@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Support.Fwup
 
   describe "index" do
@@ -68,6 +69,29 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> click_button("Delete")
       |> assert_path("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
       |> assert_has("div", text: "Firmware has associated deployments")
+    end
+
+    test "error deleting firmware when it has associated deployment releases", %{
+      conn: conn,
+      user: user,
+      org: org
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      firmware2 = Fixtures.firmware_fixture(org_key, product)
+
+      # Create a deployment from the firmware
+      deployment = Fixtures.deployment_group_fixture(firmware)
+
+      ManagedDeployments.update_deployment_group(deployment, %{firmware_id: firmware2.id}, user)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
+      |> assert_has("h1", text: firmware.uuid)
+      |> click_button("Delete")
+      |> assert_path("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
+      |> assert_has("p", text: "Error deleting firmware: Firmware has associated deployment releases")
     end
   end
 
