@@ -29,7 +29,7 @@ defmodule NervesHub.Fwup do
   end
 
   defp parse_metadata(metadata) do
-    Regex.scan(~r/meta-(?<key>[^\n]+)=\"(?<value>[^\n]+)\"/, metadata)
+    Regex.scan(~r/meta-(?<key>[^\n]+)=\"?(?<value>[^\"\n]+)/, metadata)
     |> Enum.reduce(%{}, fn line, acc ->
       [_, key, value] = line
 
