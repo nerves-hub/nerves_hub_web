@@ -160,10 +160,12 @@ defmodule NervesHub.Products do
     end
   end
 
-  @spec banner_url(Product.t()) :: String.t() | nil
-  def banner_url(%Product{banner_upload_key: nil}), do: nil
+  @spec banner_url(Product.t(), boolean()) :: String.t() | nil
+  def banner_url(product, bust_cache? \\ false)
 
-  def banner_url(%Product{banner_upload_key: key}, bust_cache? \\ false) do
+  def banner_url(%Product{banner_upload_key: nil}, _bust_cache?), do: nil
+
+  def banner_url(%Product{banner_upload_key: key}, bust_cache?) do
     if bust_cache? do
       ts = System.unique_integer()
       "#{Uploads.url(key)}?v=#{ts}"
