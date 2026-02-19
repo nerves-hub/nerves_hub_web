@@ -87,7 +87,7 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:id, :string, doc: "the optional id of flash container")
   attr(:flash, :map, default: %{}, doc: "the map of flash messages to display")
   attr(:title, :string, default: nil)
-  attr(:kind, :atom, values: [:info, :error], doc: "used for styling and flash lookup")
+  attr(:kind, :atom, values: [:notice, :info, :error], doc: "used for styling and flash lookup")
   attr(:rest, :global, doc: "the arbitrary HTML attributes to add to the flash container")
 
   slot(:inner_block, doc: "the optional inner block that renders the flash message")
@@ -103,6 +103,7 @@ defmodule NervesHubWeb.CoreComponents do
       role="alert"
       class={[
         "fixed bottom-4 right-2 mr-2 w-80 sm:w-96 z-50 rounded-sm p-3 ring-1",
+        @kind == :notice && "bg-indigo-50 text-indigo-800 ring-indigo-500 fill-indigo-900",
         @kind == :info && "bg-emerald-50 text-emerald-800 ring-emerald-500 fill-cyan-900",
         @kind == :error && "bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900"
       ]}
@@ -116,6 +117,7 @@ defmodule NervesHubWeb.CoreComponents do
         <.icon
           name="close"
           class={[
+            @kind == :notice && "stroke-indigo-500",
             @kind == :info && "stroke-emerald-500",
             @kind == :error && "stroke-red-500",
             "opacity-40 group-hover:opacity-70"
@@ -139,6 +141,7 @@ defmodule NervesHubWeb.CoreComponents do
   def flash_group(assigns) do
     ~H"""
     <div id={@id}>
+      <.flash kind={:notice} title={gettext("Info")} flash={@flash} phx-mounted={show("#flash-notice")} phx-hook="Flash" hidden />
       <.flash kind={:info} title={gettext("Success")} flash={@flash} phx-mounted={show("#flash-info")} phx-hook="Flash" hidden />
       <.flash kind={:error} title={gettext("Error")} flash={@flash} phx-mounted={show("#flash-error")} hidden />
 

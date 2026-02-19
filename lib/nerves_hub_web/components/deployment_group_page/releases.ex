@@ -10,6 +10,30 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveComponent
+  def update(%{event: {:firmware_created, firmware}}, socket) do
+    firmwares = Firmwares.get_firmwares_for_deployment_group(socket.assigns.deployment_group)
+
+    socket
+    |> assign(:firmwares, firmwares)
+    |> send_flash(
+      :notice,
+      "New firmware #{firmware.version} (#{String.slice(firmware.uuid, 0..7)}) is available for selection"
+    )
+    |> ok()
+  end
+
+  def update(%{event: {:firmware_deleted, firmware}}, socket) do
+    firmwares = Firmwares.get_firmwares_for_deployment_group(socket.assigns.deployment_group)
+
+    socket
+    |> assign(:firmwares, firmwares)
+    |> send_flash(
+      :notice,
+      "Firmware list has been updated. Firmware #{firmware.version} (#{String.slice(firmware.uuid, 0..7)}) has been deleted by another user."
+    )
+    |> ok()
+  end
+
   def update(assigns, socket) do
     archives = Archives.all_by_product(assigns.deployment_group.product)
     firmwares = Firmwares.get_firmwares_for_deployment_group(assigns.deployment_group)
@@ -208,17 +232,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
         releases = ManagedDeployments.list_deployment_releases(updated)
         changeset = DeploymentGroup.update_changeset(updated, %{})
 
-        send(self(), {:flash, :info, "Release settings updated"})
-
         socket
         |> assign(:deployment_group, updated)
         |> assign(:releases, releases)
         |> assign(:form, to_form(changeset))
+        |> send_flash(:info, "Release settings updated")
         |> noreply()
 
       {:error, changeset} ->
         socket
-        |> put_flash(
+        |> send_flash(
           :error,
           "An error occurred while updating the release settings. Please check the form for errors."
         )
@@ -267,6 +290,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   defp firmware_display_name(%Firmware{} = f) do
     "#{f.version} - #{f.platform} - #{f.architecture} (#{String.slice(f.uuid, 0..7)})"
+  end
+
+  defp send_flash(socket, type, message) do
+    send(self(), {:flash, type, message})
+    socket
   end
 
   defp network_interface_options() do

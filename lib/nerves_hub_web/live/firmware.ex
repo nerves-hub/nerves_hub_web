@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Firmware do
   alias NervesHub.Firmwares.Upload
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
+  alias Phoenix.Socket.Broadcast
 
   embed_templates("firmware_templates/*")
 
@@ -13,6 +14,14 @@ defmodule NervesHubWeb.Live.Firmware do
 
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
+    if connected?(socket) do
+      %{product: product, user: user} = socket.assigns
+
+      Logger.metadata(user_id: user.id, product_id: product.id)
+
+      :ok = socket.endpoint.subscribe("product:#{product.id}")
+    end
+
     {:ok, socket}
   end
 
@@ -54,7 +63,6 @@ defmodule NervesHubWeb.Live.Firmware do
   @impl Phoenix.LiveView
   def handle_event("validate-firmware", _, socket), do: {:noreply, socket}
 
-  @impl Phoenix.LiveView
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -63,7 +71,6 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -74,7 +81,6 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
-  @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
@@ -90,7 +96,6 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # User has clicked a new column to sort
-  @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, socket) do
     new_params = %{sort: value}
 
@@ -99,13 +104,11 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_event("firmware-selected", _, socket) do
     {:noreply, socket}
   end
 
   # the delete handler for the list page
-  @impl Phoenix.LiveView
   def handle_event("delete-firmware", %{"firmware_uuid" => uuid}, socket) do
     authorized!(:"firmware:delete", socket.assigns.org_user)
 
@@ -124,7 +127,6 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # the delete handler for the show page
-  @impl Phoenix.LiveView
   def handle_event("delete-firmware", _params, socket) do
     authorized!(:"firmware:delete", socket.assigns.org_user)
 
@@ -142,6 +144,42 @@ defmodule NervesHubWeb.Live.Firmware do
       {:error, changeset} ->
         error_feedback(socket, changeset, prefix: "Error deleting firmware:")
     end
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info(
+        %Broadcast{topic: "product:" <> _product_id, event: "firmware/created", payload: %{firmware: firmware}},
+        %{assigns: assigns} = socket
+      ) do
+    if viewing_first_page?(assigns) do
+      socket
+      |> assign_firmware_with_pagination()
+      |> put_flash(
+        :notice,
+        "New firmware (#{firmware.version} - #{String.slice(firmware.uuid, 0..7)}) available for selection."
+      )
+      |> noreply()
+    else
+      socket
+      |> put_flash(
+        :notice,
+        "New firmware (#{firmware.version} - #{String.slice(firmware.uuid, 0..7)}) available for selection. Please go back to page 1 to view it."
+      )
+      |> noreply()
+    end
+  end
+
+  def handle_info(
+        %Broadcast{topic: "product:" <> _product_id, event: "firmware/deleted", payload: %{firmware: firmware}},
+        socket
+      ) do
+    socket
+    |> assign_firmware_with_pagination()
+    |> put_flash(
+      :notice,
+      "Firmware #{firmware.version} (#{String.slice(firmware.uuid, 0..7)}) has been deleted by another user."
+    )
+    |> noreply()
   end
 
   def handle_progress(:firmware, entry, socket) do
@@ -206,6 +244,10 @@ defmodule NervesHubWeb.Live.Firmware do
         {key, value}
       end
     end
+  end
+
+  defp viewing_first_page?(assigns) do
+    !(assigns.params && assigns.params["page_number"] && assigns.params["page_number"] > 1)
   end
 
   defp create_firmware(socket, filepath) do
