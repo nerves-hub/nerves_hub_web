@@ -234,11 +234,19 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     # An ugly set of expectations
     # `Devices.available_for_update` should be called:
     # - once upon Orchestrator startup
+    # - once when a device is added to the deployment group
     # - once for when an out of date device comes online
+    # - once more when a device is added to the deployment group
     # - and no more times after that
     Devices
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
       []
+    end)
+    |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
+      []
+    end)
+    |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
+      [device1]
     end)
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
       [device1]
@@ -279,6 +287,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     device1 = Devices.update_deployment_group(device1, deployment_group)
 
+    assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-added"}, 500
+
     {:ok, connection} = Connections.device_connecting(device1, device1.product_id)
     :ok = Connections.device_connected(device1, connection.id)
 
@@ -294,8 +304,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     # and then a device is told to schedule an update
     assert_receive %Broadcast{topic: ^device1_topic, event: "update"}, 1_000
 
-    Mimic.reject(&Devices.available_for_update/2)
-
     # device2 is already on the latest firmware, so when it comes online
     # `Devices.available_for_update/2` won't be called and the device won't
     # be told to update
@@ -306,12 +314,73 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       Devices.update_device(device2, %{firmware_metadata: %{"uuid" => firmware.uuid}})
 
     device2 = Devices.update_deployment_group(device2, deployment_group)
+
+    assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-added"}, 500
+
+    Mimic.reject(&Devices.available_for_update/2)
+
     {:ok, connection} = Connections.device_connecting(device2, device2.product_id)
     :ok = Connections.device_connected(device2, connection.id)
     Devices.deployment_device_online(device2)
 
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-online"}, 500
     refute_receive %Broadcast{topic: ^device2_topic, event: "update"}, 500
+
+    # allows for db connections to finish and close
+    :sys.get_state(pid)
+  end
+
+  test "the orchestrator 'trigger's when a group (bulk) of devices are added to a deployment group", %{
+    deployment_group: deployment_group,
+    org_key: org_key,
+    product: product,
+    device: device1,
+    device2: device2,
+    user: user
+  } do
+    # An ugly set of expectations
+    # `Devices.available_for_update` should be called:
+    # - once upon Orchestrator startup
+    # - and once when a bulk number of devices are added to the deployment group
+    # - and no more times after that
+    Devices
+    |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
+      []
+    end)
+    |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
+      []
+    end)
+    |> reject(:available_for_update, 2)
+
+    firmware = Fixtures.firmware_fixture(org_key, product)
+
+    {:ok, deployment_group} =
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{
+          concurrent_updates: 2,
+          firmware_id: firmware.id
+        },
+        user
+      )
+
+    deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
+
+    {:ok, pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment_group.id}",
+        start: {Orchestrator, :start_link, [deployment_group, false]},
+        restart: :temporary
+      })
+
+    allow(Devices, self(), pid)
+
+    Devices.move_many_to_deployment_group([device1.id, device2.id], deployment_group)
+
+    assert_receive %Broadcast{topic: ^deployment_group_topic, event: "bulk-devices-added"}, 500
+
+    Mimic.reject(&Devices.available_for_update/2)
 
     # allows for db connections to finish and close
     :sys.get_state(pid)
@@ -374,6 +443,60 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     # and then a device is told to schedule an update
     assert_receive %Broadcast{topic: ^device1_topic, event: "update"}, 1_000
+
+    # allows for db connections to finish and close
+    :sys.get_state(pid)
+  end
+
+  test "the orchestrator is 'triggered' when a device is add to a deployment group", %{
+    user: user,
+    deployment_group: deployment_group,
+    org_key: org_key,
+    product: product,
+    device: device1
+  } do
+    firmware = Fixtures.firmware_fixture(org_key, product)
+
+    {:ok, deployment_group} =
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{
+          concurrent_updates: 2,
+          firmware_id: firmware.id
+        },
+        user
+      )
+
+    deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+
+    # An ugly set of expectations
+    # `Devices.available_for_update` should be called:
+    # - once upon Orchestrator startup
+    # - once when a device is added to it
+    # - and no more times after that
+    Devices
+    |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
+      []
+    end)
+    |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
+      []
+    end)
+    |> reject(:available_for_update, 2)
+
+    {:ok, pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment_group.id}",
+        start: {Orchestrator, :start_link, [deployment_group, false]},
+        restart: :temporary
+      })
+
+    allow(Devices, self(), pid)
+
+    _device1 = Devices.update_deployment_group(device1, deployment_group)
+
+    # the orchestrator is told that a device has just been assigned to it
+    assert_receive %Broadcast{topic: ^deployment_topic, event: "device-added"}, 500
 
     # allows for db connections to finish and close
     :sys.get_state(pid)
