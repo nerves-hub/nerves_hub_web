@@ -1,10 +1,6 @@
 defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.Show.ActivityTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
-  # alias NervesHub.AuditLogs
-  # alias NervesHub.ManagedDeployments
-  # alias NervesHub.ManagedDeployments.DeploymentGroup
-  # alias NervesHub.Repo
 
   setup context do
     conn =
