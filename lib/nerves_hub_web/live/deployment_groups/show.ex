@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     %{"name" => name} = params
-    %{product: product} = socket.assigns
+    %{product: product, user: user} = socket.assigns
 
     deployment_group = ManagedDeployments.get_by_product_and_name!(product, name, true)
 
@@ -38,7 +38,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     updating_count = Devices.updating_count(deployment_group)
     releases = ManagedDeployments.list_deployment_releases(deployment_group)
 
-    :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}:internal")
+    Logger.metadata(user_id: user.id, product_id: product.id, deployment_group_id: deployment_group.id)
+
+    if connected?(socket) do
+      :ok = socket.endpoint.subscribe("product:#{product.id}")
+      :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}:internal")
+    end
 
     socket
     |> page_title("Deployment Group - #{deployment_group.name} - #{product.name}")
@@ -281,21 +286,63 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     noreply(socket)
   end
 
-  @impl Phoenix.LiveView
+  def handle_info(%Broadcast{event: "deployments/update"}, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    updated_deployment =
+      ManagedDeployments.get_by_product_and_name!(deployment_group.product, deployment_group.name, true)
+
+    send_update(SummaryTab, id: "deployment_group_summary", updated_deployment: updated_deployment)
+
+    socket
+    |> assign(:deployment_group, updated_deployment)
+    |> assign(:firmware, updated_deployment.firmware)
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{event: "status/updated"}, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    updated_deployment =
+      ManagedDeployments.get_by_product_and_name!(deployment_group.product, deployment_group.name, true)
+
+    send_update(SummaryTab, id: "deployment_group_summary", updated_deployment: updated_deployment)
+
+    socket
+    |> assign(:deployment_group, updated_deployment)
+    |> noreply()
+  end
+
+  def handle_info(
+        %Broadcast{topic: "product:" <> _product_id, event: "firmware/created", payload: %{firmware: firmware}},
+        socket
+      ) do
+    send_update(ReleasesTab, id: "deployment_group_releases", event: {:firmware_created, firmware})
+
+    {:noreply, socket}
+  end
+
+  def handle_info(
+        %Broadcast{topic: "product:" <> _product_id, event: "firmware/deleted", payload: %{firmware: firmware}},
+        socket
+      ) do
+    send_update(ReleasesTab, id: "deployment_group_releases", event: {:firmware_deleted, firmware})
+
+    {:noreply, socket}
+  end
+
   def handle_info(%Broadcast{event: "stat:logged"}, socket) do
     send_update(SummaryTab, id: "deployment_group_summary", stat_logged: true)
 
     {:noreply, socket}
   end
 
-  @impl Phoenix.LiveView
   def handle_info(%Broadcast{topic: "firmware_delta_target:" <> _}, socket) do
     send_update(SummaryTab, id: "deployment_group_summary", delta_updated: true)
 
     {:noreply, socket}
   end
 
-  @impl Phoenix.LiveView
   def handle_info({:flash, level, message}, socket) do
     socket
     |> put_flash(level, message)

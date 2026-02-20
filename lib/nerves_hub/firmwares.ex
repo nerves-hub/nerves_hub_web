@@ -247,19 +247,33 @@ defmodule NervesHub.Firmwares do
         with {:ok, params} <- build_firmware_params(org, filepath),
              {:ok, firmware} <- insert_firmware(params),
              :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
-          _ = NervesHubWeb.Endpoint.broadcast("firmware", "created", %{firmware: firmware})
           {:ok, firmware}
-        else
-          {:error, error} ->
-            Logger.error(fn -> "Error while publishing firmware: #{inspect(error)}" end)
-            {:error, error}
         end
       end,
       timeout: 60_000
     )
+    |> case do
+      {:ok, firmware} ->
+        _ =
+          NervesHubWeb.Endpoint.broadcast_from(
+            self(),
+            "product:#{firmware.product_id}",
+            "firmware/created",
+            %{
+              firmware: firmware
+            }
+          )
+
+        {:ok, firmware}
+
+      {:error, error} ->
+        Logger.error(fn -> "Error while publishing firmware: #{inspect(error)}" end)
+        {:error, error}
+    end
   end
 
-  @spec delete_firmware(Firmware.t()) :: {:ok, Firmware.t()} | {:error, Ecto.Changeset.t()} | none()
+  @spec delete_firmware(Firmware.t()) ::
+          {:ok, Firmware.t()} | {:error, Ecto.Changeset.t()} | none()
   def delete_firmware(%Firmware{} = firmware) do
     changeset = Firmware.delete_changeset(firmware)
     delete_firmware_job = DeleteFirmware.new(firmware.upload_metadata)
@@ -270,6 +284,23 @@ defmodule NervesHub.Firmwares do
         {:ok, firmware}
       end
     end)
+    |> case do
+      {:ok, firmware} ->
+        _ =
+          NervesHubWeb.Endpoint.broadcast_from(
+            self(),
+            "product:#{firmware.product_id}",
+            "firmware/deleted",
+            %{
+              firmware: firmware
+            }
+          )
+
+        {:ok, firmware}
+
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   @spec delete_firmware_delta(FirmwareDelta.t()) ::
@@ -340,7 +371,8 @@ defmodule NervesHub.Firmwares do
     {:ok, metadata}
   end
 
-  @spec metadata_from_device(metadata :: map(), product_id :: pos_integer()) :: {:ok, FirmwareMetadata.t() | nil}
+  @spec metadata_from_device(metadata :: map(), product_id :: pos_integer()) ::
+          {:ok, FirmwareMetadata.t() | nil}
   def metadata_from_device(metadata, product_id) do
     metadata = %{
       uuid: Map.get(metadata, "nerves_fw_uuid"),
@@ -464,7 +496,8 @@ defmodule NervesHub.Firmwares do
 
     with {:ok, firmware_delta} <- Repo.update(changeset),
          {:ok, _firmware_delta} <- notify_firmware_delta_target({:ok, firmware_delta}),
-         :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata) do
+         :ok <-
+           firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata) do
       Logger.info("Created firmware delta successfully.")
 
       :ok = update_tool().cleanup_firmware_delta_files(delta_file_metadata.filepath)
@@ -498,7 +531,8 @@ defmodule NervesHub.Firmwares do
     Repo.transact(fn ->
       with {:error, :not_found} <- get_firmware_delta_by_source_and_target(source_id, target_id),
            {_, {:ok, _}} <- {:delta_insert, start_firmware_delta(source_id, target_id)},
-           {_, {:ok, _}} <- {:job, Oban.insert(FirmwareDeltaBuilder.new(%{source_id: source_id, target_id: target_id}))} do
+           {_, {:ok, _}} <-
+             {:job, Oban.insert(FirmwareDeltaBuilder.new(%{source_id: source_id, target_id: target_id}))} do
         {:ok, :started}
       else
         {:ok, %FirmwareDelta{}} ->
@@ -506,12 +540,20 @@ defmodule NervesHub.Firmwares do
 
         {:delta_insert, {:error, changeset}} ->
           Logger.warning("Failed to insert firmware delta for #{source_id} -> #{target_id}")
-          Logging.log_message_to_sentry("Failed to insert firmware delta", %{errors: changeset.errors})
+
+          Logging.log_message_to_sentry("Failed to insert firmware delta", %{
+            errors: changeset.errors
+          })
+
           {:error, :failed_to_insert_delta}
 
         {:job, {:error, changeset}} ->
           Logger.warning("Failed to insert firmware delta job for #{source_id} -> #{target_id}")
-          Logging.log_message_to_sentry("Failed to insert firmware delta job", %{errors: changeset.errors})
+
+          Logging.log_message_to_sentry("Failed to insert firmware delta job", %{
+            errors: changeset.errors
+          })
+
           {:error, :failed_to_insert_job}
       end
     end)

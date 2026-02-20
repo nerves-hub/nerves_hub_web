@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Repo
   alias NervesHub.Support.Fwup
 
   describe "index" do
@@ -23,6 +24,96 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> visit("/org/#{org.name}/#{product.name}/firmware")
       |> assert_has("h1", text: "Firmware")
       |> assert_has("a", text: firmware.uuid)
+    end
+
+    test "refreshes the list of all firmware if a new firmware is uploaded", %{
+      conn: conn,
+      user: user,
+      org: org
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      conn =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/firmware")
+        |> assert_has("h1", text: "Firmware")
+        |> assert_has("a", text: firmware.uuid)
+        |> refute_has("p",
+          text: "New firmware (#{firmware.version} - #{String.slice(firmware.uuid, 0..7)}) available for selection."
+        )
+        |> refute_has("p",
+          text:
+            "New firmware (#{firmware.version} - #{String.slice(firmware.uuid, 0..7)}) available for selection. Please go back to page 1 to view it."
+        )
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product)
+
+      conn
+      |> assert_has("p",
+        text:
+          "New firmware (#{new_firmware.version} - #{String.slice(new_firmware.uuid, 0..7)}) available for selection."
+      )
+      |> refute_has("p",
+        text:
+          "New firmware (#{new_firmware.version} - #{String.slice(new_firmware.uuid, 0..7)}) available for selection. Please go back to page 1 to view it."
+      )
+      |> assert_has("a", text: new_firmware.uuid)
+    end
+
+    test "if you are not on the first page of firmware, a flash message if a new firmware is uploaded",
+         %{
+           conn: conn,
+           user: user,
+           org: org
+         } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+
+      firmware_1 = Fixtures.firmware_fixture(org_key, product)
+
+      {:ok, firmware_2} =
+        Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0"})
+        |> Ecto.Changeset.change(%{
+          inserted_at:
+            NaiveDateTime.utc_now()
+            |> NaiveDateTime.add(1, :day)
+            |> NaiveDateTime.truncate(:second)
+        })
+        |> Repo.update()
+
+      {:ok, firmware_3} =
+        Fixtures.firmware_fixture(org_key, product, %{version: "3.0.0"})
+        |> Ecto.Changeset.change(%{
+          inserted_at:
+            NaiveDateTime.utc_now()
+            |> NaiveDateTime.add(2, :day)
+            |> NaiveDateTime.truncate(:second)
+        })
+        |> Repo.update()
+
+      conn =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/firmware")
+        |> assert_has("h1", text: "Firmware")
+        |> assert_has("a", text: firmware_3.uuid)
+        |> assert_has("a", text: firmware_2.uuid)
+        |> assert_has("a", text: firmware_1.uuid)
+        |> visit("/org/#{org.name}/#{product.name}/firmware?page_size=2&page_number=2")
+        |> refute_has("a", text: firmware_3.uuid, timeout: 100)
+        |> refute_has("a", text: firmware_2.uuid, timeout: 100)
+        |> assert_has("a", text: firmware_1.uuid)
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product)
+
+      conn
+      |> assert_has("p",
+        text:
+          "New firmware (#{new_firmware.version} - #{String.slice(new_firmware.uuid, 0..7)}) available for selection. Please go back to page 1 to view it."
+      )
+      |> refute_has("a", text: new_firmware.uuid)
     end
   end
 
@@ -91,7 +182,9 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("h1", text: firmware.uuid)
       |> click_button("Delete")
       |> assert_path("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
-      |> assert_has("p", text: "Error deleting firmware: Firmware has associated deployment releases")
+      |> assert_has("p",
+        text: "Error deleting firmware: Firmware has associated deployment releases"
+      )
     end
   end
 

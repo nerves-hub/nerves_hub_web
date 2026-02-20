@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
@@ -447,7 +448,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      session =
+      conn =
         conn
         |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
         |> assert_has("h1", text: device.identifier)
@@ -455,7 +456,41 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      assert_has(session, "option[value=\"#{new_firmware.uuid}\"]", text: new_firmware.version)
+      conn
+      |> assert_has("option[value=\"#{new_firmware.uuid}\"]", text: new_firmware.version)
+      |> assert_has("p",
+        text:
+          "New firmware #{new_firmware.version} (#{String.slice(new_firmware.uuid, 0..7)}) is available for selection"
+      )
+    end
+
+    test "updates when firmware is deleted", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      firmware_1 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      firmware_2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+        |> assert_has("h1", text: device.identifier)
+        |> assert_has("option[value=\"#{firmware_1.uuid}\"]", text: firmware_1.version)
+        |> assert_has("option[value=\"#{firmware_2.uuid}\"]", text: firmware_2.version)
+
+      Firmwares.delete_firmware(firmware_1)
+
+      conn
+      |> assert_has("option[value=\"#{firmware_2.uuid}\"]", text: firmware_2.version)
+      |> refute_has("option[value=\"#{firmware_1.uuid}\"]", text: firmware_1.version)
+      |> assert_has("p",
+        text:
+          "Firmware #{firmware_1.version} (#{String.slice(firmware_1.uuid, 0..7)}) has been deleted by another user."
+      )
     end
   end
 

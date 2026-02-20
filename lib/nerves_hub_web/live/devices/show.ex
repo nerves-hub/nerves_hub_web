@@ -35,7 +35,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       socket.endpoint.subscribe("device:console:#{device.id}:internal")
       socket.endpoint.subscribe("device:console:#{device.id}")
       socket.endpoint.subscribe("device:#{device.id}:extensions")
-      socket.endpoint.subscribe("firmware")
+      socket.endpoint.subscribe("product:#{product.id}")
     end
 
     socket
