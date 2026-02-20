@@ -68,39 +68,24 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
   def start_orchestrators() do
     ManagedDeployments.should_run_orchestrator()
     |> Enum.map(&Orchestrator.child_spec/1)
-    |> Enum.map(&await_start/1)
+    |> then(fn specs -> ProcessHub.start_children(:deployment_orchestrators, specs, awaitable: true) end)
+    |> ProcessHub.Future.await()
+    |> ProcessHub.StartResult.format()
     |> report_errors()
   end
 
-  # :already_started is an ok (good) result
-  # it's unclear which is the correct pattern matching to use
-  defp await_start(spec) do
-    ProcessHub.start_child(:deployment_orchestrators, spec, async_wait: true)
-    |> ProcessHub.await()
-    |> case do
-      {:error, {:already_started, _} = info} ->
-        {:ok, info}
-
-      {:error, {{_id, _node, {:already_started, _pid}} = info, []}} ->
-        {:ok, info}
-
-      other ->
-        other
-    end
+  defp report_errors({:ok, _started_list}) do
+    :ok
   end
 
-  defp report_errors(results) do
-    errors = Enum.filter(results, fn {status, _} -> status == :error end)
+  defp report_errors({:error, errors}) do
+    Logger.error("Orchestrators failed to start : #{inspect(errors)}")
 
     _ =
-      if Enum.any?(errors) do
-        Logger.error("Orchestrators failed to start : #{inspect(errors)}")
-
-        Sentry.capture_message("Orchestrators failed to start",
-          extra: %{results: errors},
-          result: :none
-        )
-      end
+      Sentry.capture_message("Orchestrators failed to start",
+        extra: %{results: errors},
+        result: :none
+      )
 
     :ok
   end

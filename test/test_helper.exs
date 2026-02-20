@@ -1,4 +1,5 @@
 Mimic.copy(ProcessHub)
+Mimic.copy(ProcessHub.Future)
 Mimic.copy(NervesHub.Devices)
 Mimic.copy(NervesHub.ManagedDeployments.Distributed.Orchestrator)
 Mimic.copy(NervesHub.Firmwares)
