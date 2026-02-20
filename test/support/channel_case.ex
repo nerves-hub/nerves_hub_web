@@ -20,7 +20,7 @@ defmodule NervesHubWeb.ChannelCase do
   using do
     quote do
       use DefaultMocks
-      use Oban.Testing, repo: NervesHub.ObanRepo
+      use Oban.Testing, repo: NervesHub.Repo
       use AssertEventually, timeout: 500, interval: 50
 
       import Ecto.Query
@@ -59,16 +59,13 @@ defmodule NervesHubWeb.ChannelCase do
   setup do
     # Explicitly get a connection before each test
     :ok = SQLSandbox.checkout(NervesHub.Repo)
-    :ok = SQLSandbox.checkout(NervesHub.ObanRepo)
   end
 
   setup tags do
     pid = SQLSandbox.start_owner!(NervesHub.Repo, shared: not tags[:async])
-    pid2 = SQLSandbox.start_owner!(NervesHub.ObanRepo, shared: not tags[:async])
 
     on_exit(fn ->
       SQLSandbox.stop_owner(pid)
-      SQLSandbox.stop_owner(pid2)
     end)
 
     :ok

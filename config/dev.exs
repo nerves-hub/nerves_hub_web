@@ -11,12 +11,6 @@ web_port = String.to_integer(System.get_env("WEB_PORT", "4000"))
 
 config :logger, :console, format: "[$level] $message\n"
 
-config :nerves_hub, NervesHub.ObanRepo,
-  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev"),
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10,
-  ssl: false
-
 config :nerves_hub, NervesHub.Repo,
   url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev"),
   show_sensitive_data_on_connection_error: true,

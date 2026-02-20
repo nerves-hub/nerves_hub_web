@@ -123,7 +123,7 @@ defmodule NervesHub.Application do
   end
 
   defp ecto_repos() do
-    [NervesHub.Repo, NervesHub.ObanRepo] ++
+    [NervesHub.Repo] ++
       if Application.get_env(:nerves_hub, :analytics_enabled) do
         [NervesHub.AnalyticsRepo]
       else

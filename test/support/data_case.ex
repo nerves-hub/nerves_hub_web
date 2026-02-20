@@ -19,7 +19,7 @@ defmodule NervesHub.DataCase do
   using do
     quote do
       use DefaultMocks
-      use Oban.Testing, repo: NervesHub.ObanRepo
+      use Oban.Testing, repo: NervesHub.Repo
 
       import Ecto
       import Ecto.Changeset
@@ -34,11 +34,9 @@ defmodule NervesHub.DataCase do
 
   setup tags do
     :ok = SQLSandbox.checkout(NervesHub.Repo)
-    :ok = SQLSandbox.checkout(NervesHub.ObanRepo)
 
     if !tags[:async] do
       SQLSandbox.mode(NervesHub.Repo, {:shared, self()})
-      SQLSandbox.mode(NervesHub.ObanRepo, {:shared, self()})
     end
 
     :ok
