@@ -373,7 +373,7 @@ defmodule NervesHub.Devices do
     |> Multi.delete_all(:device_certificates, device_certificates_query)
     |> Multi.delete_all(:pinned_devices, pinned_devices_query)
     |> Multi.update(:device, changeset)
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, %{device: device}} -> {:ok, device}
       error -> error
@@ -1056,7 +1056,7 @@ defmodule NervesHub.Devices do
     |> Multi.run(:audit_device, fn _, _ ->
       DeviceTemplates.audit_update_attempt(device)
     end)
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, _} ->
         :ok
@@ -1195,7 +1195,7 @@ defmodule NervesHub.Devices do
     |> Multi.run(:audit_source, fn _, _ ->
       AuditLogs.audit(user, source_product, description)
     end)
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, %{move: device}} ->
         DeviceEvents.moved_product(device)
@@ -1236,7 +1236,7 @@ defmodule NervesHub.Devices do
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, description)
     end)
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, %{update_with_audit: updated}} ->
         DeviceEvents.updated(device)
@@ -1460,7 +1460,7 @@ defmodule NervesHub.Devices do
     Multi.new()
     |> Multi.insert(:insert_health, DeviceHealth.save(device_status))
     |> Ecto.Multi.update_all(:update_device, &update_health_on_device/1, [])
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, %{insert_health: health}} ->
         {:ok, health}
@@ -1644,7 +1644,7 @@ defmodule NervesHub.Devices do
   end
 
   def update_started!(inflight_update, device, deployment) do
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       DeviceTemplates.audit_device_deployment_group_update_triggered(
         device,
         deployment

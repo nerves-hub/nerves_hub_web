@@ -21,20 +21,19 @@ defmodule NervesHub.Accounts do
           {:ok, Org.t()}
           | {:error, Changeset.t()}
   def create_org(%User{} = user, params) do
-    multi =
-      Multi.new()
-      |> Multi.insert(:org, Org.creation_changeset(%Org{}, params))
-      |> Multi.insert(:org_user, fn %{org: org} ->
-        org_user = %OrgUser{
-          org_id: org.id,
-          user_id: user.id,
-          role: :admin
-        }
+    Multi.new()
+    |> Multi.insert(:org, Org.creation_changeset(%Org{}, params))
+    |> Multi.insert(:org_user, fn %{org: org} ->
+      org_user = %OrgUser{
+        org_id: org.id,
+        user_id: user.id,
+        role: :admin
+      }
 
-        Org.add_user(org_user, %{})
-      end)
-
-    case Repo.transaction(multi) do
+      Org.add_user(org_user, %{})
+    end)
+    |> Repo.transact()
+    |> case do
       {:ok, result} ->
         {:ok, result.org}
 
@@ -50,7 +49,7 @@ defmodule NervesHub.Accounts do
     Multi.new()
     |> Multi.update_all(:soft_delete_products, Ecto.assoc(org, :products), set: [deleted_at: deleted_at])
     |> Multi.update(:soft_delete_org, Org.delete_changeset(org))
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, _result} ->
         {:ok, org}
@@ -150,7 +149,7 @@ defmodule NervesHub.Accounts do
       Multi.new()
       |> Multi.insert(:org_user, Org.add_user(org_user, params))
 
-    case Repo.transaction(multi) do
+    case Repo.transact(multi) do
       {:ok, result} ->
         {:ok, Repo.preload(result.org_user, :user)}
 
@@ -646,14 +645,11 @@ defmodule NervesHub.Accounts do
   def create_user_from_invite(invite, org, user_params) do
     user_params = Map.put(user_params, "email", invite.email)
 
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       with {:ok, user} <- create_user(user_params),
            {:ok, user} <- add_org_user(org, user, %{role: invite.role}),
            {:ok, _invite} <- set_invite_accepted(invite) do
-        # Repo.transaction will wrap this in an {:ok, user}
-        user
-      else
-        {:error, error} -> Repo.rollback(error)
+        {:ok, user}
       end
     end)
   end
@@ -894,7 +890,7 @@ defmodule NervesHub.Accounts do
   """
   def confirm_user(user) do
     confirm_user_multi(user)
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, %{user: user}} ->
         {:ok, user}
@@ -971,7 +967,7 @@ defmodule NervesHub.Accounts do
     Ecto.Multi.new()
     |> Ecto.Multi.update(:user, User.password_changeset(user, attrs))
     |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, %{user: user}} ->
         _ = UserNotifier.deliver_reset_password_confirmation(user)

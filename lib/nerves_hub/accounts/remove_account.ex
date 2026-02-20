@@ -44,7 +44,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.update_all(:nilify_script_creations, &nilify_script_creations/1, [])
     |> Multi.update_all(:nilify_script_edits, &nilify_script_edits/1, [])
     |> Multi.update(:soft_delete_user, &soft_delete_user/1)
-    |> Repo.transaction()
+    |> Repo.transact()
   end
 
   defp query_org_users() do

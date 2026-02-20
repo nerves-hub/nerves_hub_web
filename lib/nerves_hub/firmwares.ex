@@ -242,17 +242,17 @@ defmodule NervesHub.Firmwares do
   def create_firmware(org, filepath, opts \\ []) do
     upload_file_2 = opts[:upload_file_2] || (&firmware_upload_config().upload_file(&1, &2))
 
-    Repo.transaction(
+    Repo.transact(
       fn ->
         with {:ok, params} <- build_firmware_params(org, filepath),
              {:ok, firmware} <- insert_firmware(params),
              :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
           _ = NervesHubWeb.Endpoint.broadcast("firmware", "created", %{firmware: firmware})
-          firmware
+          {:ok, firmware}
         else
           {:error, error} ->
             Logger.error(fn -> "Error while publishing firmware: #{inspect(error)}" end)
-            Repo.rollback(error)
+            {:error, error}
         end
       end,
       timeout: 60_000
@@ -264,12 +264,10 @@ defmodule NervesHub.Firmwares do
     changeset = Firmware.delete_changeset(firmware)
     delete_firmware_job = DeleteFirmware.new(firmware.upload_metadata)
 
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       with {:ok, firmware} <- Repo.delete(changeset),
            {:ok, _} <- Oban.insert(delete_firmware_job) do
         {:ok, firmware}
-      else
-        {:error, error} -> Repo.rollback(error)
       end
     end)
   end
@@ -279,10 +277,12 @@ defmodule NervesHub.Firmwares do
   def delete_firmware_delta(%FirmwareDelta{} = delta) do
     delete_delta_job = DeleteFirmware.new(delta.upload_metadata)
 
-    with {:ok, firmware} <- Repo.delete(delta),
-         {:ok, _} <- Oban.insert(delete_delta_job) do
-      {:ok, firmware}
-    end
+    Repo.transact(fn ->
+      with {:ok, firmware} <- Repo.delete(delta),
+           {:ok, _} <- Oban.insert(delete_delta_job) do
+        {:ok, firmware}
+      end
+    end)
   end
 
   @spec verify_signature(String.t(), [OrgKey.t()]) ::
