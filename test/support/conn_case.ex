@@ -34,14 +34,10 @@ defmodule NervesHubWeb.ConnCase do
   setup tags do
     # credo:disable-for-next-line
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
-    # credo:disable-for-next-line
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.ObanRepo)
 
     if !tags[:async] do
       # credo:disable-for-next-line
       Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
-      # credo:disable-for-next-line
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHub.ObanRepo, {:shared, self()})
     end
 
     {:ok, conn: Phoenix.ConnTest.build_conn()}

@@ -1,5 +1,5 @@
 defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
-  use NervesHub.DataCase, async: false
+  use NervesHub.DataCase, async: true
 
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments.DeploymentGroup

@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Tabs.ReleasesTabTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures

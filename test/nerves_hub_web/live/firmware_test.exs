@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.FirmwareTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -42,8 +42,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
         |> assert_has("h1", text: "Firmware")
         |> assert_has("a", text: firmware.uuid)
         |> refute_has("p",
-          text:
-            "New firmware (#{firmware.version} - #{String.slice(firmware.uuid, 0..7)}) available for selection."
+          text: "New firmware (#{firmware.version} - #{String.slice(firmware.uuid, 0..7)}) available for selection."
         )
         |> refute_has("p",
           text:
