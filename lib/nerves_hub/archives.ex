@@ -114,12 +114,10 @@ defmodule NervesHub.Archives do
 
   @spec delete_archive(Archive.t()) :: {:ok, Archive.t()} | {:error, any()}
   def delete_archive(%Archive{} = archive) do
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       with {:ok, archive} <- Repo.delete(archive),
            {:ok, _} <- delete_artifacts(archive) do
         {:ok, archive}
-      else
-        {:error, error} -> Repo.rollback(error)
       end
     end)
   end

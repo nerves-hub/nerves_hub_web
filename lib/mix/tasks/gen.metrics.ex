@@ -51,16 +51,23 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
       "mem_used_percent" => Enum.random(0..100)
     }
 
-    Repo.transaction(fn ->
-      Enum.map(metrics, fn {key, val} ->
-        DeviceMetric.save_with_timestamp(%{
-          device_id: device_id,
-          key: key,
-          value: val,
-          inserted_at: current_timestamp
-        })
-        |> Repo.insert()
-      end)
+    Repo.transact(fn ->
+      inserted =
+        Enum.map(metrics, fn {key, val} ->
+          DeviceMetric.save_with_timestamp(%{
+            device_id: device_id,
+            key: key,
+            value: val,
+            inserted_at: current_timestamp
+          })
+          |> Repo.insert()
+        end)
+
+      if Enum.any?(inserted, fn {k, _v} -> k == :error end) do
+        raise "Failed to generate metrics"
+      else
+        {:ok, Enum.map(inserted, fn {_k, v} -> v end)}
+      end
     end)
   end
 end

@@ -197,15 +197,18 @@ defmodule NervesHub.Products do
     product = Repo.preload(product, [:org])
 
     {:ok, devices} =
-      Repo.transaction(fn ->
-        Device
-        |> where([d], d.product_id == ^product.id)
-        |> Repo.exclude_deleted()
-        |> Repo.stream(max_rows: 100)
-        |> Stream.chunk_every(100)
-        |> Stream.flat_map(&Repo.preload(&1, :device_certificates))
-        |> Stream.map(&device_csv_line(&1, product))
-        |> Enum.to_list()
+      Repo.transact(fn ->
+        devices =
+          Device
+          |> where([d], d.product_id == ^product.id)
+          |> Repo.exclude_deleted()
+          |> Repo.stream(max_rows: 100)
+          |> Stream.chunk_every(100)
+          |> Stream.flat_map(&Repo.preload(&1, :device_certificates))
+          |> Stream.map(&device_csv_line(&1, product))
+          |> Enum.to_list()
+
+        {:ok, devices}
       end)
 
     [@csv_header | devices]
