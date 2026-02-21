@@ -22,6 +22,8 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Repo
   alias NervesHub.Scripts.Script
 
+  @dialyzer {:nowarn_function, remove_account: 1}
+
   def remove_account(user_id) do
     Multi.new()
     |> Multi.run(:user_id, fn _, _ -> {:ok, user_id} end)

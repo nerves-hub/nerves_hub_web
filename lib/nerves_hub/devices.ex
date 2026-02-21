@@ -41,6 +41,9 @@ defmodule NervesHub.Devices do
 
   require Logger
 
+  @dialyzer {:nowarn_function,
+             delete_device: 1, update_attempted: 2, move: 3, update_device_with_audit: 4, save_device_health: 1}
+
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
   end
