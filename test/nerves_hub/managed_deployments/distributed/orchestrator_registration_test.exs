@@ -21,6 +21,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistrationTest 
 
     expect(ProcessHub, :start_children, fn _hub_id, _spec, _opts -> :ok end)
 
+    expect(ProcessHub, :process_list, fn _table_name, _node_context ->
+      []
+    end)
+
     expect(ProcessHub.Future, :await, fn _ ->
       %ProcessHub.StartResult{
         status: :ok,
