@@ -711,7 +711,7 @@ defmodule NervesHubWeb.WebsocketTest do
         )
 
       # This is what the orchestrator process will do
-      Orchestrator.trigger_update(deployment_group)
+      Orchestrator.trigger_update(Map.put(deployment_group, :firmware, new_firmware))
 
       message = SocketClient.wait_update(socket)
 
