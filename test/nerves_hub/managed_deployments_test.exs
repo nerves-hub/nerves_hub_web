@@ -16,19 +16,19 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias NervesHub.Workers.FirmwareDeltaBuilder
   alias Phoenix.Socket.Broadcast
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     deployment_group = Fixtures.deployment_group_fixture(firmware)
 
     user2 = Fixtures.user_fixture(%{email: "user2@test.com"})
     org2 = Fixtures.org_fixture(user2, %{name: "org2"})
     product2 = Fixtures.product_fixture(user2, org2)
-    org_key2 = Fixtures.org_key_fixture(org2, user2)
-    firmware2 = Fixtures.firmware_fixture(org_key2, product2)
+    org_key2 = Fixtures.org_key_fixture(org2, user2, tmp_dir)
+    firmware2 = Fixtures.firmware_fixture(org_key2, product2, %{dir: tmp_dir})
 
     {:ok,
      %{
@@ -41,7 +41,8 @@ defmodule NervesHub.ManagedDeploymentsTest do
        org2: org2,
        org_key2: org_key2,
        firmware2: firmware2,
-       product2: product2
+       product2: product2,
+       tmp_dir: tmp_dir
      }}
   end
 
@@ -174,9 +175,10 @@ defmodule NervesHub.ManagedDeploymentsTest do
       user: user,
       org_key: org_key,
       firmware: firmware,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
 
       Fixtures.firmware_delta_fixture(firmware, new_firmware)
 
@@ -235,7 +237,8 @@ defmodule NervesHub.ManagedDeploymentsTest do
            firmware: firmware,
            org: org,
            org_key: org_key,
-           product: product
+           product: product,
+           tmp_dir: tmp_dir
          } do
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
@@ -249,7 +252,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       assert device.deployment_id == deployment_group.id
 
-      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id}, user)
@@ -264,12 +267,13 @@ defmodule NervesHub.ManagedDeploymentsTest do
            firmware: firmware,
            org: org,
            org_key: org_key,
-           product: product
+           product: product,
+           tmp_dir: tmp_dir
          } do
       refute deployment_group.delta_updatable
       assert deployment_group.firmware_id == firmware.id
 
-      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id}, user)
@@ -316,11 +320,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
            firmware: firmware,
            org: org,
            product: product,
-           org_key: org_key
+           org_key: org_key,
+           tmp_dir: tmp_dir
          } do
-      firmware2 = Fixtures.firmware_fixture(org_key, product)
-      firmware3 = Fixtures.firmware_fixture(org_key, product)
-      firmware4 = Fixtures.firmware_fixture(org_key, product)
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      firmware3 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      firmware4 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       _ =
         Fixtures.device_fixture(org, product, firmware2)
@@ -350,8 +355,33 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware4.id, target_id: firmware.id})
     end
 
-    test "sets status to :preparing when turning on deltas", %{user: user, deployment_group: deployment_group} do
+    test "sets status to :ready when turning on deltas but no deltas need to be generated", %{
+      user: user,
+      deployment_group: deployment_group
+    } do
       assert deployment_group.status == :ready
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true, delta_updatable: true}, user)
+
+      assert deployment_group.status == :ready
+    end
+
+    test "sets status to :preparing when turning on deltas and deltas need to be generated", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      old_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1", dir: tmp_dir})
+
+      deployment_group = Fixtures.deployment_group_fixture(new_firmware, %{name: "Delta Time"})
+
+      assert deployment_group.status == :ready
+
+      _device = Fixtures.device_fixture(org, product, old_firmware, %{deployment_id: deployment_group.id})
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true, delta_updatable: true}, user)
@@ -359,13 +389,15 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert deployment_group.status == :preparing
     end
 
-    test "sets status to :preparing when deltas are enabled and a new release is created", %{
-      user: user,
-      deployment_group: deployment_group,
-      product: product,
-      org_key: org_key
-    } do
-      firmware2 = Fixtures.firmware_fixture(org_key, product)
+    test "sets status to :ready when deltas are enabled and a new release but their are no devices which require an update",
+         %{
+           user: user,
+           deployment_group: deployment_group,
+           product: product,
+           org_key: org_key,
+           tmp_dir: tmp_dir
+         } do
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, deployment_group} =
         deployment_group
@@ -378,6 +410,30 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware2.id}, user)
+
+      assert deployment_group.status == :ready
+    end
+
+    test "sets status to :preparing when deltas are enabled and a new release is created and their are devices on older firmware versions",
+         %{
+           user: user,
+           org: org,
+           org_key: org_key,
+           product: product,
+           tmp_dir: tmp_dir
+         } do
+      old_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1", dir: tmp_dir})
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(old_firmware, %{name: "Delta Time", is_active: true, delta_updatable: true})
+
+      assert deployment_group.status == :ready
+
+      _device = Fixtures.device_fixture(org, product, old_firmware, %{deployment_id: deployment_group.id})
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id}, user)
 
       assert deployment_group.status == :preparing
     end
@@ -415,13 +471,14 @@ defmodule NervesHub.ManagedDeploymentsTest do
       user: user,
       deployment_group: deployment_group,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
       # One from the initial creation
       assert length(ManagedDeployments.list_deployment_releases(deployment_group)) == 1
 
-      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "3.0.0"})
-      archive = Fixtures.archive_fixture(org_key, product, %{version: "1.0.0"})
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "3.0.0"})
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.0"})
 
       {:ok, updated_deployment_group} =
         ManagedDeployments.update_deployment_group(
@@ -473,11 +530,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
       user: user,
       deployment_group: deployment_group,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
       # Create several new releases
       Enum.each(["2.0.0", "2.1.0", "2.2.0"], fn version ->
-        firmware = Fixtures.firmware_fixture(org_key, product, %{version: version})
+        firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: version})
 
         {:ok, updated_dg} =
           ManagedDeployments.update_deployment_group(
@@ -500,11 +558,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
       user: user,
       deployment_group: deployment_group,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
       # Create some releases
-      firmware1 = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0"})
-      firmware2 = Fixtures.firmware_fixture(org_key, product, %{version: "2.1.0"})
+      firmware1 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.1.0"})
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware1.id}, user)
@@ -605,10 +664,10 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
 
     test "finds matching deployments including the platform", state do
-      %{org: org, org_key: org_key, product: product} = state
+      %{org: org, org_key: org_key, product: product, tmp_dir: tmp_dir} = state
 
-      rpi_firmware = Fixtures.firmware_fixture(org_key, product, %{platform: "rpi"})
-      rpi0_firmware = Fixtures.firmware_fixture(org_key, product, %{platform: "rpi0"})
+      rpi_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "rpi"})
+      rpi0_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "rpi0"})
 
       %{id: rpi_deployment_group_id} =
         Fixtures.deployment_group_fixture(rpi_firmware, %{
@@ -628,10 +687,10 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
 
     test "finds matching deployments including the architecture", state do
-      %{org: org, org_key: org_key, product: product} = state
+      %{org: org, org_key: org_key, product: product, tmp_dir: tmp_dir} = state
 
-      rpi_firmware = Fixtures.firmware_fixture(org_key, product, %{architecture: "rpi"})
-      rpi0_firmware = Fixtures.firmware_fixture(org_key, product, %{architecture: "rpi0"})
+      rpi_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, architecture: "rpi"})
+      rpi0_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, architecture: "rpi0"})
 
       %{id: rpi_deployment_group_id} =
         Fixtures.deployment_group_fixture(rpi_firmware, %{
@@ -671,7 +730,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
     end
 
     test "finds matching deployments including pre versions", state do
-      %{org: org, org_key: org_key, product: product, firmware: firmware} = state
+      %{org: org, org_key: org_key, product: product, firmware: firmware, tmp_dir: tmp_dir} = state
 
       %{id: low_deployment_group_id} =
         Fixtures.deployment_group_fixture(firmware, %{
@@ -684,7 +743,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
         conditions: %{"tags" => ["rpi"], "version" => "~> 2.0"}
       })
 
-      firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.2.0-pre"})
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.2.0-pre"})
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
 
@@ -697,13 +756,14 @@ defmodule NervesHub.ManagedDeploymentsTest do
         org: org,
         org_key: org_key,
         product: product,
-        firmware: %{version: "1.0.0"} = v100_firmware
+        firmware: %{version: "1.0.0"} = v100_firmware,
+        tmp_dir: tmp_dir
       } = state
 
-      v090_fw = Fixtures.firmware_fixture(org_key, product, %{version: "0.9.0"})
-      v100rc1_fw = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0-rc.1"})
-      v100rc2_fw = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0-rc.2"})
-      v101_fw = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
+      v090_fw = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "0.9.0"})
+      v100rc1_fw = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.0-rc.1"})
+      v100rc2_fw = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.0-rc.2"})
+      v101_fw = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
 
       %{id: v100_deployment_id} =
         Fixtures.deployment_group_fixture(v100_firmware, %{

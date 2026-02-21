@@ -201,18 +201,27 @@ defmodule NervesHub.ManagedDeployments do
   def update_deployment_group(deployment_group, params, user) do
     deployment_group = Repo.preload(deployment_group, :firmware)
 
-    Repo.transact(fn ->
-      changeset = DeploymentGroup.update_changeset(deployment_group, params)
+    changeset = DeploymentGroup.update_changeset(deployment_group, params)
 
+    Repo.transact(fn ->
       with {:ok, deployment_group} <- Repo.update(changeset),
            :ok <- create_audit_logs!(deployment_group, changeset),
            {:ok, _deployment_release} <- maybe_create_deployment_release(deployment_group, changeset, user.id) do
-        {:ok, {deployment_group, changeset}}
+        {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
+
+        case recalculate_deployment_group_status_by_firmware_id(deployment_group.firmware_id) do
+          {:ok, updated_deployments} ->
+            {:ok, dg} = Enum.find(updated_deployments, fn {_, dg} -> dg.id == deployment_group.id end)
+            {:ok, Map.put(deployment_group, :status, dg.status)}
+
+          {:error, message} ->
+            changeset = Ecto.Changeset.add_error(changeset, :firmware, message)
+            {:error, changeset}
+        end
       end
     end)
     |> case do
-      {:ok, {deployment_group, changeset}} ->
-        {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
+      {:ok, deployment_group} ->
         :ok = broadcast(deployment_group, "deployments/update")
 
         if Map.has_key?(changeset.changes, :is_active) do
@@ -250,12 +259,19 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   def recalculate_deployment_group_status_by_firmware_id(firmware_id) do
-    DeploymentGroup
-    |> where([d], d.firmware_id == ^firmware_id)
-    |> Repo.all()
-    |> Enum.each(fn deployment_group ->
-      recalculate_deployment_group_status(deployment_group)
-    end)
+    updated_deployment_groups =
+      DeploymentGroup
+      |> where([d], d.firmware_id == ^firmware_id)
+      |> Repo.all()
+      |> Enum.map(fn deployment_group ->
+        recalculate_deployment_group_status(deployment_group)
+      end)
+
+    if Enum.any?(updated_deployment_groups, fn {res, _} -> res == :error end) do
+      {:error, "Failed to recalculate deployment group statuses"}
+    else
+      {:ok, updated_deployment_groups}
+    end
   end
 
   def recalculate_deployment_group_status(deployment_group) do
@@ -264,25 +280,28 @@ defmodule NervesHub.ManagedDeployments do
       |> Devices.get_device_firmware_for_delta_generation_by_deployment_group()
       |> Enum.map(fn {source_id, _target_id} -> source_id end)
 
-    FirmwareDelta
-    |> where([fd], fd.source_id in ^source_ids)
-    |> where([fd], fd.target_id == ^deployment_group.firmware_id)
-    |> where([fd], fd.status != :completed)
-    |> Repo.all()
-    |> Enum.map(fn firmware_delta ->
-      firmware_delta.status
-    end)
-    |> then(fn statuses ->
-      cond do
-        Enum.all?(statuses, &(&1 == :completed)) -> :ready
-        Enum.all?(statuses, &(&1 == :failed || &1 == :timed_out)) -> :deltas_failed
-        Enum.all?(statuses, &(&1 == :processing)) -> :preparing
-        true -> :unknown_error
-      end
-    end)
-    |> then(fn status ->
-      update_deployment_group_status(deployment_group, status)
-    end)
+    if Enum.any?(source_ids) do
+      FirmwareDelta
+      |> where([fd], fd.source_id in ^source_ids)
+      |> where([fd], fd.target_id == ^deployment_group.firmware_id)
+      |> Repo.all()
+      |> Enum.map(fn firmware_delta ->
+        firmware_delta.status
+      end)
+      |> then(fn statuses ->
+        cond do
+          Enum.all?(statuses, &(&1 == :completed)) -> :ready
+          Enum.all?(statuses, &(&1 == :failed || &1 == :timed_out)) -> :deltas_failed
+          Enum.all?(statuses, &(&1 == :processing)) -> :preparing
+          true -> :unknown_error
+        end
+      end)
+      |> then(fn status ->
+        update_deployment_group_status(deployment_group, status)
+      end)
+    else
+      update_deployment_group_status(deployment_group, :ready)
+    end
   end
 
   defp create_audit_logs!(deployment_group, changeset) do
@@ -344,7 +363,7 @@ defmodule NervesHub.ManagedDeployments do
     |> Enum.any?(&match?({:ok, _}, &1))
     |> case do
       true ->
-        :ok = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(deployment_group.firmware_id)
+        {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(deployment_group.firmware_id)
         {:ok, :deltas_started}
 
       false ->

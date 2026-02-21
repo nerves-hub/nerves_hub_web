@@ -311,7 +311,7 @@ defmodule NervesHub.Firmwares do
 
     Repo.transact(fn ->
       with {:ok, firmware} <- Repo.delete(delta),
-           :ok = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(delta.target_id),
+           {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(delta.target_id),
            {:ok, _} <- Oban.insert(delete_delta_job) do
         {:ok, firmware}
       end
@@ -504,7 +504,7 @@ defmodule NervesHub.Firmwares do
     with {:ok, firmware_delta} <- Repo.update(changeset),
          :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
          {:ok, _firmware_delta} <- notify_firmware_delta_target({:ok, firmware_delta}) do
-      :ok = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
+      {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
 
       Logger.info("Created firmware delta successfully.")
 
@@ -585,9 +585,10 @@ defmodule NervesHub.Firmwares do
     |> notify_firmware_delta_target()
     |> case do
       {:ok, firmware_delta} ->
-        if recalculate_deployment_statuses do
-          :ok = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(target_id)
-        end
+        _ =
+          if recalculate_deployment_statuses do
+            {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(target_id)
+          end
 
         {:ok, firmware_delta}
 
@@ -605,7 +606,7 @@ defmodule NervesHub.Firmwares do
       |> Repo.update()
       |> notify_firmware_delta_target()
 
-    :ok = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
+    {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
 
     {:ok, firmware_delta}
   end
@@ -619,7 +620,7 @@ defmodule NervesHub.Firmwares do
       |> Repo.update()
       |> notify_firmware_delta_target()
 
-    :ok = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
+    {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
 
     {:ok, firmware_delta}
   end
