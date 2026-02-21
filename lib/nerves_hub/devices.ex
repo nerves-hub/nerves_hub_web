@@ -746,30 +746,16 @@ defmodule NervesHub.Devices do
     Device
     |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:inner, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
-    |> join(:inner, [deployment_group: dg], f in assoc(dg, :firmware),
-      on: [product_id: ^deployment_group.product_id],
-      as: :firmware
-    )
     |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
     |> where(deployment_id: ^deployment_group.id)
     |> where(updates_enabled: true)
     |> where([d], d.firmware_validation_status in [:validated, :unknown])
     |> where([latest_connection: lc], lc.status == :connected)
     |> where([d], not is_nil(d.firmware_metadata))
-    |> where([d, firmware: f], fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, f.uuid))
+    |> where([d], fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, ^deployment_group.firmware.uuid))
     |> where([inflight_update: ifu], is_nil(ifu))
     |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
-    |> then(fn query ->
-      if version_threshold do
-        where(
-          query,
-          [d],
-          fragment("semver_match(? #>> '{\"version\"}', ?)", d.firmware_metadata, ^"<= #{version_threshold}")
-        )
-      else
-        query
-      end
-    end)
+    |> maybe_version_threshold(version_threshold)
     |> then(fn query ->
       # Filter by network interface if release_network_interfaces is specified
       # Empty list means allow all interfaces
@@ -779,26 +765,33 @@ defmodule NervesHub.Devices do
         where(query, [d], d.network_interface in ^deployment_group.release_network_interfaces)
       end
     end)
-    |> then(fn query ->
-      # Filter by tags if release_tags is specified
-      # Empty list means allow all devices regardless of tags
-      # Non-empty list means device must have all matching tags
-      if deployment_group.release_tags == [] do
-        query
-      else
-        where(query, [d], fragment("? @> ?", d.tags, ^deployment_group.release_tags))
-      end
-    end)
-    |> then(fn query ->
-      case deployment_group.queue_management do
-        :FIFO ->
-          order_by(query, [latest_connection: lc], asc: lc.established_at)
-
-        :LIFO ->
-          order_by(query, [d], desc_nulls_last: d.first_seen_at)
-      end
-    end)
+    |> maybe_release_tags(deployment_group.release_tags)
+    |> order_by_queue_management(deployment_group.queue_management)
     |> limit(^count)
+  end
+
+  defp maybe_version_threshold(query, nil), do: query
+
+  defp maybe_version_threshold(query, version_threshold) do
+    where(
+      query,
+      [d],
+      fragment("semver_match(? #>> '{\"version\"}', ?)", d.firmware_metadata, ^"<= #{version_threshold}")
+    )
+  end
+
+  defp maybe_release_tags(query, release_tags) when release_tags != [] do
+    where(query, [d], fragment("? @> ?", d.tags, ^release_tags))
+  end
+
+  defp maybe_release_tags(query, _release_tags), do: query
+
+  defp order_by_queue_management(query, :FIFO) do
+    order_by(query, [latest_connection: lc], asc: lc.established_at)
+  end
+
+  defp order_by_queue_management(query, :LIFO) do
+    order_by(query, [d], desc_nulls_last: d.first_seen_at)
   end
 
   @doc """

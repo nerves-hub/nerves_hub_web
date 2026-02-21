@@ -1175,6 +1175,29 @@ defmodule NervesHub.DevicesTest do
       refute device_wifi_dev.id in device_ids
       refute device_cellular_prod.id in device_ids
     end
+
+    # a test for https://github.com/nerves-hub/nerves_hub_web/pull/2468
+    test "matches the device firmware to the deployment firmware passed in, even if the is more up to date", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      # generate new firmware and update the deployment group in the DB
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      {:ok, _} = Ecto.Changeset.change(deployment_group, %{firmware_id: new_firmware.id}) |> Repo.update()
+
+      # create a device using the firmware of the deployment group cached in the test
+      Fixtures.device_fixture(org, product, deployment_group.firmware, %{deployment_id: deployment_group.id})
+
+      # no devices should be available for update, avoiding the race condition
+      available = Devices.available_for_update(deployment_group, 10)
+
+      assert Enum.empty?(available)
+    end
   end
 
   describe "resolve_update/1" do
