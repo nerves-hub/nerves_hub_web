@@ -7,10 +7,17 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
+  alias NervesHub.ManagedDeployments
   alias Phoenix.Naming
 
   @impl Phoenix.LiveComponent
-  def update(%{update_inflight_info: true}, socket) do
+  def update(%{event: :update_matched_devices_count}, socket) do
+    socket
+    |> assign_matched_devices_count()
+    |> ok()
+  end
+
+  def update(%{event: :update_inflight_info}, socket) do
     %{deployment_group: deployment_group} = socket.assigns
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
@@ -24,27 +31,66 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> ok()
   end
 
-  def update(%{stat_logged: true}, socket) do
+  def update(%{event: :stat_logged}, socket) do
     socket
     |> assign_update_stats(socket.assigns.deployment_group)
     |> ok()
   end
 
-  def update(%{delta_updated: true}, socket) do
+  def update(%{event: :firmware_deltas_updated}, socket) do
     socket
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(socket.assigns.deployment_group.firmware))
+    |> ok()
+  end
+
+  def update(%{updated_deployment: deployment_group}, socket) do
+    socket
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
+    |> assign_update_stats(deployment_group)
+    |> assign_deltas_and_stats()
+    |> assign_matched_devices_count()
     |> ok()
   end
 
   def update(assigns, socket) do
     %{deployment_group: deployment_group} = assigns
 
+    inflight_updates = Devices.inflight_updates_for(deployment_group)
+    updating_count = Devices.updating_count(deployment_group)
+
     socket
     |> assign(assigns)
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(assigns.deployment_group.firmware))
     |> assign_update_stats(deployment_group)
     |> assign_deltas_and_stats()
+    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
+    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
+    |> assign(:updating_count, updating_count)
+    |> assign(:inflight_updates, inflight_updates)
+    |> assign(:firmware, deployment_group.firmware)
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
+    |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
+    |> assign_matched_devices_count()
     |> ok()
+  end
+
+  defp assign_matched_devices_count(%{assigns: %{deployment_group: deployment_group}} = socket) do
+    current_device_count = ManagedDeployments.get_device_count(deployment_group)
+
+    matched_devices_count =
+      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true)
+
+    matched_devices_outside_deployment_group_count =
+      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false)
+
+    socket
+    |> assign(:matched_device_count, matched_devices_count)
+    |> assign(:unmatched_device_count, current_device_count - matched_devices_count)
+    |> assign(
+      :matched_devices_outside_deployment_group_count,
+      matched_devices_outside_deployment_group_count
+    )
+    |> assign(:deployment_group, %{deployment_group | device_count: current_device_count})
   end
 
   @impl Phoenix.LiveComponent
@@ -59,6 +105,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     delta_to_delete = Enum.find(socket.assigns.deltas, &(&1.id == String.to_integer(id)))
 
     {:ok, _} = Firmwares.delete_firmware_delta(delta_to_delete)
+
     deltas = Enum.filter(socket.assigns.deltas, &(&1.id != delta_to_delete.id))
 
     socket =
@@ -77,6 +124,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
     socket = put_flash(socket, :info, "Retrying delta generation")
     {:noreply, socket}
+  end
+
+  def handle_event("generate-firmware-deltas", _params, %{assigns: %{deployment_group: deployment_group}} = socket) do
+    {:ok, _} = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+
+    socket
+    |> put_flash(:info, "Generating firmware deltas")
+    |> noreply()
   end
 
   @impl Phoenix.LiveComponent
@@ -136,19 +191,19 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
           </div>
 
-          <div :if={Enum.any?(@deltas)} class="flex flex-col gap-2 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div :if={@deployment_group.delta_updatable or Enum.any?(@deltas)} class="flex flex-col gap-2 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
             <div class="p-4 h-9 flex items-start justify-between">
               <div class="text-neutral-50 font-medium leading-6">Firmware deltas</div>
             </div>
             <div class="p-4 flex flex-col gap-3">
               <div class="flex gap-4 items-center">
-                <span class="text-sm text-zinc-300">Firmware deltas provide smaller update payloads by only sending the differences between firmware versions.</span>
+                <span class="text-sm text-nerves-gray-500">Firmware deltas provide smaller update payloads by only sending the differences between firmware versions.</span>
               </div>
             </div>
-            <div class="bg-zinc-900 border-t rounded-b border-zinc-700">
+            <div :if={Enum.any?(@deltas)} class="bg-zinc-900 border-t rounded-b border-zinc-700">
               <div class="flex flex-col">
                 <div class="listing">
-                  <table class="">
+                  <table>
                     <thead>
                       <tr>
                         <th class="rounded-tl">From</th>
@@ -167,7 +222,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                         </td>
 
                         <td>
-                          <div class="flex gap-[8px] items-center">
+                          <div data-status={delta.status} class="flex gap-[8px] items-center data-[status=processing]:text-amber-500 data-[status=failed]:text-red-500 data-[status=timed_out]:text-red-500">
                             {if delta.status == :completed do
                               "Ready"
                             else
@@ -202,7 +257,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                               :if={delta.status in [:failed, :timed_out, :completed]}
                               class="text-base-300 underline cursor-pointer"
                               phx-click="delete_delta"
-                              data-confirm="Are you sure you want to delete this firmware delta?"
+                              data-confirm="Are you sure you want to delete this firmware delta? Warning: If other deployments are also using this delta, this will affect them as well."
                               phx-target={@myself}
                               phx-value-id={delta.id}
                             >
@@ -212,7 +267,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                               :if={delta.status in [:failed, :timed_out]}
                               class="text-base-300 underline cursor-pointer"
                               phx-click="retry_delta"
-                              data-confirm="Are you sure you want to retry firmware delta generation?"
+                              data-confirm="Are you sure you want to retry firmware delta generation? Warning: If other deployments are also using this delta, this will affect them as well."
                               phx-target={@myself}
                               phx-value-id={delta.id}
                             >
@@ -226,6 +281,19 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   </table>
                 </div>
               </div>
+            </div>
+            <div :if={Enum.empty?(@deltas)} class="flex p-4 gap-6 justify-between bg-zinc-900 border-t rounded-b border-zinc-700">
+              <div class="flex items-center">
+                <span class="text-sm text-nerves-gray-500">No firmware deltas are available.</span>
+              </div>
+              <.button
+                type="button"
+                aria-label="Generate firmware deltas"
+                phx-target={@myself}
+                phx-click="generate-firmware-deltas"
+              >
+                Generate firmware deltas
+              </.button>
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-max_attempts = 5
+max_attempts = 3
 
 defmodule NervesHub.Workers.FirmwareDeltaBuilder do
   use Oban.Worker,
@@ -51,7 +51,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
             delta = Repo.reload(delta)
 
             _ =
-              if attempt == @max_attempts and delta.status != :failed do
+              if attempt >= @max_attempts and delta.status != :failed do
                 Logger.warning("Delta generation failed on final attempt, marking as failed")
                 {:ok, _} = Firmwares.fail_firmware_delta(delta)
               end

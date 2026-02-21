@@ -91,6 +91,16 @@ export default {
         "&.phx-change-loading",
         ".phx-change-loading &"
       ])
-    )
+    ),
+    plugin(function({ matchUtilities, theme }) {
+      matchUtilities(
+        {
+          "animate-delay": value => ({
+            animationDelay: value
+          })
+        },
+        { values: theme("transitionDelay") }
+      )
+    })
   ]
 }

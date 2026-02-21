@@ -64,7 +64,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     field(:delta_updatable, :boolean, default: true)
 
-    field(:status, Ecto.Enum, values: [:ready, :preparing], default: :ready)
+    field(:status, Ecto.Enum, values: [:ready, :preparing, :deltas_failed, :unknown_error], default: :ready)
 
     field(:priority_queue_enabled, :boolean, default: false)
     field(:priority_queue_concurrent_updates, :integer, default: 5)

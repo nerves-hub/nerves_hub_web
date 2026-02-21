@@ -10,6 +10,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.FirmwareDelta
+  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
@@ -200,30 +201,27 @@ defmodule NervesHub.ManagedDeployments do
   def update_deployment_group(deployment_group, params, user) do
     deployment_group = Repo.preload(deployment_group, :firmware)
 
-    result =
-      Repo.transact(fn ->
-        changeset =
-          deployment_group
-          |> DeploymentGroup.update_changeset(params)
+    changeset = DeploymentGroup.update_changeset(deployment_group, params)
 
-        create_deployment_release? =
-          Map.has_key?(changeset.changes, :firmware_id) or
-            Map.has_key?(changeset.changes, :archive_id)
-
-        with {:ok, deployment_group} <- Repo.update(changeset),
-             :ok <- create_audit_logs!(deployment_group, changeset),
-             {:ok, _deployment_group} <-
-               if(create_deployment_release?,
-                 do: create_deployment_release(deployment_group, user.id),
-                 else: {:ok, nil}
-               ) do
-          {:ok, {deployment_group, changeset}}
-        end
-      end)
-
-    case result do
-      {:ok, {deployment_group, changeset}} ->
+    Repo.transact(fn ->
+      with {:ok, deployment_group} <- Repo.update(changeset),
+           :ok <- create_audit_logs!(deployment_group, changeset),
+           {:ok, _deployment_release} <- maybe_create_deployment_release(deployment_group, changeset, user.id) do
         {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
+
+        case recalculate_deployment_group_status_by_firmware_id(deployment_group.firmware_id) do
+          {:ok, updated_deployments} ->
+            {:ok, dg} = Enum.find(updated_deployments, fn {_, dg} -> dg.id == deployment_group.id end)
+            {:ok, Map.put(deployment_group, :status, dg.status)}
+
+          {:error, message} ->
+            changeset = Ecto.Changeset.add_error(changeset, :firmware, message)
+            {:error, changeset}
+        end
+      end
+    end)
+    |> case do
+      {:ok, deployment_group} ->
         :ok = broadcast(deployment_group, "deployments/update")
 
         if Map.has_key?(changeset.changes, :is_active) do
@@ -241,15 +239,69 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  defp create_deployment_release(deployment_group, user_id) do
-    %DeploymentRelease{}
-    |> DeploymentRelease.changeset(%{
-      deployment_group_id: deployment_group.id,
-      firmware_id: deployment_group.firmware_id,
-      archive_id: deployment_group.archive_id,
-      created_by_id: user_id
-    })
-    |> Repo.insert()
+  defp maybe_create_deployment_release(deployment_group, changeset, user_id) do
+    create_deployment_release? =
+      Map.has_key?(changeset.changes, :firmware_id) or
+        Map.has_key?(changeset.changes, :archive_id)
+
+    if create_deployment_release? do
+      %DeploymentRelease{}
+      |> DeploymentRelease.changeset(%{
+        deployment_group_id: deployment_group.id,
+        firmware_id: deployment_group.firmware_id,
+        archive_id: deployment_group.archive_id,
+        created_by_id: user_id
+      })
+      |> Repo.insert()
+    else
+      {:ok, nil}
+    end
+  end
+
+  def recalculate_deployment_group_status_by_firmware_id(firmware_id) do
+    updated_deployment_groups =
+      DeploymentGroup
+      |> where([d], d.firmware_id == ^firmware_id)
+      |> Repo.all()
+      |> Enum.map(fn deployment_group ->
+        recalculate_deployment_group_status(deployment_group)
+      end)
+
+    if Enum.any?(updated_deployment_groups, fn {res, _} -> res == :error end) do
+      {:error, "Failed to recalculate deployment group statuses"}
+    else
+      {:ok, updated_deployment_groups}
+    end
+  end
+
+  def recalculate_deployment_group_status(deployment_group) do
+    source_ids =
+      deployment_group.id
+      |> Devices.get_device_firmware_for_delta_generation_by_deployment_group()
+      |> Enum.map(fn {source_id, _target_id} -> source_id end)
+
+    if Enum.any?(source_ids) do
+      FirmwareDelta
+      |> where([fd], fd.source_id in ^source_ids)
+      |> where([fd], fd.target_id == ^deployment_group.firmware_id)
+      |> Repo.all()
+      |> Enum.map(fn firmware_delta ->
+        firmware_delta.status
+      end)
+      |> then(fn statuses ->
+        cond do
+          Enum.all?(statuses, &(&1 == :completed)) -> :ready
+          Enum.all?(statuses, &(&1 == :failed || &1 == :timed_out)) -> :deltas_failed
+          Enum.all?(statuses, &(&1 == :processing)) -> :preparing
+          true -> :unknown_error
+        end
+      end)
+      |> then(fn status ->
+        update_deployment_group_status(deployment_group, status)
+      end)
+    else
+      update_deployment_group_status(deployment_group, :ready)
+    end
   end
 
   defp create_audit_logs!(deployment_group, changeset) do
@@ -306,11 +358,12 @@ defmodule NervesHub.ManagedDeployments do
   def trigger_delta_generation_for_deployment_group(deployment_group) do
     Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
     |> Enum.map(fn {source_id, target_id} ->
-      Firmwares.attempt_firmware_delta(source_id, target_id)
+      Firmwares.attempt_firmware_delta(source_id, target_id, false)
     end)
     |> Enum.any?(&match?({:ok, _}, &1))
     |> case do
       true ->
+        {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(deployment_group.firmware_id)
         {:ok, :deltas_started}
 
       false ->
@@ -338,6 +391,14 @@ defmodule NervesHub.ManagedDeployments do
     deployment_group
     |> DeploymentGroup.update_status_changeset(%{status: status})
     |> Repo.update()
+    |> case do
+      {:ok, updated_deployment_group} ->
+        :ok = broadcast(updated_deployment_group, "status/updated", %{from: deployment_group.status, to: status})
+        {:ok, updated_deployment_group}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
 
   @spec new_deployment_group() :: Changeset.t()
@@ -352,7 +413,7 @@ defmodule NervesHub.ManagedDeployments do
       changeset = DeploymentGroup.create_changeset(params, product)
 
       with {:ok, deployment_group} <- Repo.insert(changeset),
-           {:ok, _release} <- create_deployment_release(deployment_group, user.id) do
+           {:ok, _release} <- maybe_create_deployment_release(deployment_group, changeset, user.id) do
         {:ok, deployment_group}
       end
     end)

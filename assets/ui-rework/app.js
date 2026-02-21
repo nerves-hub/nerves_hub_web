@@ -129,3 +129,10 @@ window.addEventListener("ca:new:jitp", () => {
     document.getElementById("jitp_form").classList.add("hidden")
   }
 })
+
+window.addEventListener("phx:close-modal", ({ detail }) => {
+  let modal = document.getElementById(detail.id)
+  if (modal) {
+    liveSocket.execJS(modal, modal.getAttribute("data-cancel"))
+  }
+})

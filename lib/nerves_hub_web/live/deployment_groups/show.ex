@@ -1,11 +1,8 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
-  alias NervesHub.Devices.UpdateStats
-  alias NervesHub.Firmwares
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
@@ -21,28 +18,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     deployment_group = ManagedDeployments.get_by_product_and_name!(product, name, true)
 
-    {logs, audit_pager} =
-      AuditLogs.logs_for_feed(deployment_group, %{
-        page: Map.get(params, "page", 1),
-        page_size: 10
-      })
-
-    # Use proper links since current pagination links assumes LiveView
-    audit_pager =
-      audit_pager
-      |> Map.from_struct()
-      |> Map.put(:links, true)
-      |> Map.put(:anchor, "latest-activity")
-
-    inflight_updates = Devices.inflight_updates_for(deployment_group)
-    updating_count = Devices.updating_count(deployment_group)
-    releases = ManagedDeployments.list_deployment_releases(deployment_group)
-
     Logger.metadata(user_id: user.id, product_id: product.id, deployment_group_id: deployment_group.id)
 
     if connected?(socket) do
       :ok = socket.endpoint.subscribe("product:#{product.id}")
-      :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}:internal")
+      :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}")
     end
 
     socket
@@ -50,17 +30,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> sidebar_tab(:deployments)
     |> selected_tab()
     |> assign(:deployment_group, deployment_group)
-    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
-    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
-    |> assign(:updating_count, updating_count)
-    |> assign(:audit_logs, logs)
-    |> assign(:audit_pager, audit_pager)
-    |> assign(:inflight_updates, inflight_updates)
-    |> assign(:firmware, deployment_group.firmware)
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
-    |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
-    |> assign(:releases, releases)
-    |> assign_matched_devices_count()
     |> schedule_inflight_updates_updater()
     |> ok()
   end
@@ -179,23 +148,25 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
         }
       )
 
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :error,
       "#{updated_count} devices moved to #{socket.assigns.deployment_group.name}. However, we couldn't move #{ignored_count} devices. We've been notified and are looking into it."
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
   @impl Phoenix.LiveView
   def handle_async(:move_devices_to_deployment, {:ok, devices_updated_count}, socket) do
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :info,
       "#{devices_updated_count} devices moved to #{socket.assigns.deployment_group.name}"
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
@@ -204,12 +175,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{assigns: %{deployment_group: deployment_group}} = socket
     :ok = Logging.log_to_sentry(deployment_group, reason)
 
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :error,
       "There was an issue moving devices to #{deployment_group.name}. We've been notified and are looking into it."
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
@@ -228,23 +200,25 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
         }
       )
 
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :error,
       "#{updated_count} devices removed from #{socket.assigns.deployment_group.name}. However, we couldn't remove #{ignored_count} devices. We've been notified and are looking into it."
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
   @impl Phoenix.LiveView
   def handle_async(:remove_devices_from_deployment, {:ok, devices_removed_count}, socket) do
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :info,
       "#{devices_removed_count} devices removed from #{socket.assigns.deployment_group.name}"
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
@@ -253,12 +227,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{assigns: %{deployment_group: deployment_group}} = socket
     :ok = Logging.log_to_sentry(deployment_group, reason)
 
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_matched_devices_count)
+
     socket
     |> put_flash(
       :error,
       "There was an issue removing devices from #{deployment_group.name}. We've been notified and are looking into it."
     )
-    |> assign_matched_devices_count()
     |> noreply()
   end
 
@@ -270,7 +245,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
 
-    send_update(SummaryTab, id: "deployment_group_summary", update_inflight_info: true)
+    send_update(SummaryTab, id: "deployment_group_summary", event: :update_inflight_info)
 
     socket
     |> assign(:inflight_updates, inflight_updates)
@@ -280,7 +255,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_info(:update_inflight_updates, socket) do
     Process.send_after(self(), :update_inflight_updates, 5000)
     noreply(socket)
@@ -332,17 +306,22 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_info(%Broadcast{event: "stat:logged"}, socket) do
-    send_update(SummaryTab, id: "deployment_group_summary", stat_logged: true)
+    send_update(SummaryTab, id: "deployment_group_summary", event: :stat_logged)
 
     {:noreply, socket}
   end
 
-  def handle_info(%Broadcast{topic: "firmware_delta_target:" <> _}, socket) do
-    send_update(SummaryTab, id: "deployment_group_summary", delta_updated: true)
-
+  def handle_info(%Broadcast{topic: "firmware:" <> _, event: "delta/status_update"}, socket) do
+    send_update(SummaryTab, id: "deployment_group_summary", event: :firmware_deltas_updated)
     {:noreply, socket}
   end
 
+  # Ignore other broadcasts
+  def handle_info(%Broadcast{}, socket) do
+    {:noreply, socket}
+  end
+
+  @impl Phoenix.LiveView
   def handle_info({:flash, level, message}, socket) do
     socket
     |> put_flash(level, message)
@@ -360,24 +339,5 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     else
       "px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
     end
-  end
-
-  defp assign_matched_devices_count(%{assigns: %{deployment_group: deployment_group}} = socket) do
-    current_device_count = ManagedDeployments.get_device_count(deployment_group)
-
-    matched_devices_count =
-      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true)
-
-    matched_devices_outside_deployment_group_count =
-      ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false)
-
-    socket
-    |> assign(:matched_device_count, matched_devices_count)
-    |> assign(:unmatched_device_count, current_device_count - matched_devices_count)
-    |> assign(
-      :matched_devices_outside_deployment_group_count,
-      matched_devices_outside_deployment_group_count
-    )
-    |> assign(:deployment_group, %{deployment_group | device_count: current_device_count})
   end
 end

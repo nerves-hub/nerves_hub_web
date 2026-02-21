@@ -24,8 +24,9 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
     timestamps()
   end
 
-  @spec start_changeset(source_id :: integer(), target_id :: integer()) :: Ecto.Changeset.t()
-  def start_changeset(source_id, target_id) do
+  @spec start_changeset(firmware_delta :: FirmwareDelta.t(), source_id :: integer(), target_id :: integer()) ::
+          Ecto.Changeset.t()
+  def start_changeset(firmware_delta \\ %FirmwareDelta{}, source_id, target_id) do
     params = %{
       status: :processing,
       source_id: source_id,
@@ -35,7 +36,7 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
       upload_metadata: %{}
     }
 
-    %FirmwareDelta{}
+    firmware_delta
     |> cast(params, [:status, :source_id, :target_id, :tool, :tool_metadata, :upload_metadata])
     |> validate_required([
       :status,

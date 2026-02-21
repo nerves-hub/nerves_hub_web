@@ -37,6 +37,20 @@
       <h1 class="text-xl font-semibold leading-[30px] text-zinc-50">
         {@deployment_group.name}
       </h1>
+      <div
+        :if={@deployment_group.status == :preparing}
+        phx-remove={JS.hide(transition: {"ease-in duration-1000", "opacity-100", "opacity-0"}, blocking: false)}
+        class="pulsing-div flex items-center gap-1 pl-2.5 pr-3 py-0.5 border border-zinc-700 rounded-full bg-amber-500"
+      >
+        <span class="text-xs text-zinc-50">Preparing: Generating Deltas</span>
+      </div>
+
+      <div
+        :if={@deployment_group.status == :deltas_failed}
+        class="text-xs text-red-500 px-2 py-1 border border-red-500 bg-zinc-800 rounded"
+      >
+        Error: Deltas failed to generate
+      </div>
     </div>
 
     <div class="flex items-center gap-2">
@@ -90,25 +104,16 @@
     module={SummaryTab}
     id="deployment_group_summary"
     deployment_group={@deployment_group}
-    inflight_updates={@inflight_updates}
-    up_to_date_count={@up_to_date_count}
-    waiting_for_update_count={@waiting_for_update_count}
-    updating_count={@updating_count}
     product={@product}
     org={@org}
     org_user={@org_user}
     user={@user}
-    matched_device_count={@matched_device_count}
-    unmatched_device_count={@unmatched_device_count}
-    matched_devices_outside_deployment_group_count={@matched_devices_outside_deployment_group_count}
-    update_stats={@update_stats}
   />
 
   <.live_component
     :if={@tab == :releases}
     module={ReleasesTab}
     id="deployment_group_releases"
-    releases={@releases}
     deployment_group={@deployment_group}
     org={@org}
     product={@product}

@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.CoreComponents
 
   @impl Phoenix.LiveComponent
   def update(%{event: {:firmware_created, firmware}}, socket) do
@@ -40,11 +41,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
     changeset = DeploymentGroup.update_changeset(assigns.deployment_group, %{})
 
+    releases = ManagedDeployments.list_deployment_releases(assigns.deployment_group)
+
     socket
     |> assign(assigns)
     |> assign(:archives, archives)
     |> assign(:firmwares, firmwares)
     |> assign(:form, to_form(changeset))
+    |> assign(:releases, releases)
     |> assign(:show_rollout_options, false)
     |> ok()
   end
@@ -53,91 +57,27 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col p-6 gap-6">
-      <.form id="release-form" for={@form} class="w-full flex flex-col gap-4" phx-change="validate-release" phx-submit="update-release" phx-target={@myself}>
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
-            <div class="text-base text-neutral-50 font-medium">Release settings</div>
-          </div>
-
-          <div class="flex flex-col p-6 gap-6">
-            <div class="w-1/2 flex flex-col gap-6">
-              <.input
-                field={@form[:firmware_id]}
-                type="select"
-                options={firmware_dropdown_options(@firmwares)}
-                label="Firmware version"
-                hint="Firmware listed is the same platform and architecture as the currently selected firmware."
-              />
-            </div>
-
-            <div class="w-1/2 flex flex-col gap-6">
-              <.input
-                field={@form[:archive_id]}
-                type="select"
-                options={archive_dropdown_options(@archives)}
-                prompt="Select an Archive"
-                label="Additional Archive version"
-                hint="Firmware listed is the same platform and architecture as the currently selected firmware."
-              />
-            </div>
-
-            <div class="w-full border-t border-zinc-700 pt-6">
-              <button
-                type="button"
-                phx-click="toggle-rollout-options"
-                phx-target={@myself}
-                class="flex items-center gap-2 text-sm font-medium text-zinc-300 hover:text-zinc-100"
-              >
-                <svg
-                  class={["w-4 h-4 transition-transform", @show_rollout_options && "rotate-90"]}
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-                </svg>
-                Rollout options
-              </button>
-
-              <div :if={@show_rollout_options} class="mt-4 w-1/2">
-                <.input
-                  field={@form[:release_network_interfaces]}
-                  type="select"
-                  options={network_interface_options()}
-                  multiple
-                  label="Allowed network interfaces"
-                  hint="Select which network interfaces devices must be on to receive this release. Leave empty to allow all interfaces."
-                />
-
-                <div class="mt-4">
-                  <.input
-                    field={@form[:release_tags]}
-                    value={Utils.tags_to_string(@form[:release_tags])}
-                    label="Release tags"
-                    placeholder="eg. batch-123, production"
-                    hint="Devices must have ALL of these tags to receive this release. Leave empty to allow all devices."
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <.button style="secondary" type="submit">
-                <.icon name="save" /> Save changes
-              </.button>
-            </div>
-          </div>
-        </div>
-      </.form>
-
       <div class="w-full">
         <div class="flex flex-col bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
             <div class="text-base text-neutral-50 font-medium">Release History</div>
+
+            <.button style="secondary" type="submit" phx-click={CoreComponents.show_modal("new-release")}>
+              <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
+                  stroke="#A1A1AA"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Create new release
+            </.button>
           </div>
 
           <div :if={@releases == []} class="flex flex-col items-center justify-center p-12 gap-4">
-            <div class="text-zinc-400">No releases yet</div>
+            <div class="text-zinc-400">No releases have been created.</div>
             <div class="text-sm text-zinc-500">
               Release history will appear here when you change the firmware version above.
             </div>
@@ -190,6 +130,44 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
           </div>
         </div>
       </div>
+      <CoreComponents.modal id="new-release" on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/releases")}>
+        <.form id="release-form" for={@form} phx-change="validate-release" phx-submit="update-release" phx-target={@myself}>
+          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+            <div class="text-base text-neutral-50 font-medium">Release settings</div>
+          </div>
+
+          <div class="flex flex-col p-4 gap-6">
+            <div class="w-1/2 flex flex-col gap-6">
+              <.input
+                field={@form[:firmware_id]}
+                type="select"
+                options={firmware_dropdown_options(@firmwares)}
+                label="Firmware version"
+                hint="Firmware listed is the same platform and architecture as the currently selected firmware."
+              />
+            </div>
+
+            <div class="w-1/2 flex flex-col gap-6">
+              <.input
+                field={@form[:archive_id]}
+                type="select"
+                options={archive_dropdown_options(@archives)}
+                prompt="Select an Archive"
+                label="Additional Archive version"
+                hint="Firmware listed is the same platform and architecture as the currently selected firmware."
+              />
+            </div>
+
+            <.rollout_options show_rollout_options={@show_rollout_options} myself={@myself} />
+
+            <div>
+              <.button style="secondary" type="submit">
+                <.icon name="save" /> Create release
+              </.button>
+            </div>
+          </div>
+        </.form>
+      </CoreComponents.modal>
     </div>
     """
   end
@@ -236,6 +214,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
         |> assign(:deployment_group, updated)
         |> assign(:releases, releases)
         |> assign(:form, to_form(changeset))
+        |> push_event("close-modal", %{id: "new-release"})
         |> send_flash(:info, "Release settings updated")
         |> noreply()
 
@@ -290,6 +269,51 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   defp firmware_display_name(%Firmware{} = f) do
     "#{f.version} - #{f.platform} - #{f.architecture} (#{String.slice(f.uuid, 0..7)})"
+  end
+
+  # keeping some code around while the feature is being developed
+  defp rollout_options(assigns) do
+    ~H"""
+    <div class="hidden w-full border-t border-zinc-700 pt-6">
+      <button
+        type="button"
+        phx-click="toggle-rollout-options"
+        phx-target={@myself}
+        class="flex items-center gap-2 text-sm font-medium text-zinc-300 hover:text-zinc-100"
+      >
+        <svg
+          class={["w-4 h-4 transition-transform", @show_rollout_options && "rotate-90"]}
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+        </svg>
+        Rollout options
+      </button>
+
+      <div :if={@show_rollout_options} class="mt-4 w-1/2">
+        <.input
+          field={@form[:release_network_interfaces]}
+          type="select"
+          options={network_interface_options()}
+          multiple
+          label="Allowed network interfaces"
+          hint="Select which network interfaces devices must be on to receive this release. Leave empty to allow all interfaces."
+        />
+
+        <div class="mt-4">
+          <.input
+            field={@form[:release_tags]}
+            value={Utils.tags_to_string(@form[:release_tags])}
+            label="Release tags"
+            placeholder="eg. batch-123, production"
+            hint="Devices must have ALL of these tags to receive this release. Leave empty to allow all devices."
+          />
+        </div>
+      </div>
+    </div>
+    """
   end
 
   defp send_flash(socket, type, message) do
