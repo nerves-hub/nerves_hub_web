@@ -127,7 +127,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   def handle_event("generate-firmware-deltas", _params, %{assigns: %{deployment_group: deployment_group}} = socket) do
-    {:ok, :deltas_started} = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+    {:ok, _} = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
 
     socket
     |> put_flash(:info, "Generating firmware deltas")
