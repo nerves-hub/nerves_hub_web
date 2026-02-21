@@ -170,12 +170,10 @@ defmodule NervesHubWeb.Devices.HealthTest do
     {:ok, _view, html} =
       live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
 
-    organized_metrics =
-      ~s([{"y":#{value},"x":"#{now}"}])
-      |> html_escape()
-      |> safe_to_string()
-
-    assert html =~ ~s(data-metrics="#{organized_metrics}")
+    # Check that the HTML contains the expected metric data (key order may vary)
+    assert html =~ ~s(data-metrics=")
+    assert html =~ ~s(&quot;y&quot;:#{value})
+    assert html =~ ~s(&quot;x&quot;:&quot;#{now}&quot;)
   end
 
   defp save_metrics_with_timestamp(device_id, timestamp) do
