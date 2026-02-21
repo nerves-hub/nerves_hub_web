@@ -169,7 +169,6 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     {:ok, _view, html} =
       live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
 
-    # Check that the HTML contains the expected metric data (key order may vary)
     assert html =~ ~s(data-metrics=")
     assert html =~ ~s(&quot;y&quot;:#{value})
     assert html =~ ~s(&quot;x&quot;:&quot;#{now}&quot;)
