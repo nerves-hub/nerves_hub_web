@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Scripts
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.NewUI.DeviceLocation
+  alias Phoenix.Socket.Broadcast
 
   require Logger
 
@@ -739,12 +740,33 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
-  def hooked_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
+  def hooked_info(
+        %Broadcast{topic: "product:" <> _product_id, event: "firmware/created", payload: %{firmware: new_firmware}},
+        socket
+      ) do
     firmware = Firmwares.get_firmware_for_device(socket.assigns.device)
 
     socket
     |> assign(:firmwares, firmware)
-    |> put_flash(:info, "New firmware available for selection")
+    |> put_flash(
+      :notice,
+      "New firmware #{new_firmware.version} (#{String.slice(new_firmware.uuid, 0..7)}) is available for selection"
+    )
+    |> halt()
+  end
+
+  def hooked_info(
+        %Broadcast{topic: "product:" <> _product_id, event: "firmware/deleted", payload: %{firmware: deleted_firmware}},
+        socket
+      ) do
+    firmware = Firmwares.get_firmware_for_device(socket.assigns.device)
+
+    socket
+    |> assign(:firmwares, firmware)
+    |> put_flash(
+      :notice,
+      "Firmware #{deleted_firmware.version} (#{String.slice(deleted_firmware.uuid, 0..7)}) has been deleted by another user."
+    )
     |> halt()
   end
 

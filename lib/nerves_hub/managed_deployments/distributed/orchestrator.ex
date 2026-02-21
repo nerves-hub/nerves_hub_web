@@ -293,8 +293,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     end
   end
 
-  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployment/device-update")
-  def handle_info(%Broadcast{topic: "orchestrator:deployment:" <> _, event: "device-updated"}, state) do
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployment/device-added-or-updated")
+  def handle_info(%Broadcast{topic: "orchestrator:deployment:" <> _, event: event}, state)
+      when event in ["device-added", "device-updated", "bulk-devices-added"] do
     maybe_trigger_update(state)
   end
 

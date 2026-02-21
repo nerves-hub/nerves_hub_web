@@ -11,11 +11,27 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   alias NervesHubWeb.CoreComponents
 
   @impl Phoenix.LiveComponent
-  def update(%{event: "update-firmware"}, socket) do
+  def update(%{event: {:firmware_created, firmware}}, socket) do
     firmwares = Firmwares.get_firmwares_for_deployment_group(socket.assigns.deployment_group)
 
     socket
     |> assign(:firmwares, firmwares)
+    |> send_flash(
+      :notice,
+      "New firmware #{firmware.version} (#{String.slice(firmware.uuid, 0..7)}) is available for selection"
+    )
+    |> ok()
+  end
+
+  def update(%{event: {:firmware_deleted, firmware}}, socket) do
+    firmwares = Firmwares.get_firmwares_for_deployment_group(socket.assigns.deployment_group)
+
+    socket
+    |> assign(:firmwares, firmwares)
+    |> send_flash(
+      :notice,
+      "Firmware list has been updated. Firmware #{firmware.version} (#{String.slice(firmware.uuid, 0..7)}) has been deleted by another user."
+    )
     |> ok()
   end
 
@@ -194,18 +210,17 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
         releases = ManagedDeployments.list_deployment_releases(updated)
         changeset = DeploymentGroup.update_changeset(updated, %{})
 
-        Process.send_after(self(), {:flash, :info, "Release settings updated"}, 500)
-
         socket
         |> assign(:deployment_group, updated)
         |> assign(:releases, releases)
         |> assign(:form, to_form(changeset))
         |> push_event("close-modal", %{id: "new-release"})
+        |> send_flash(:info, "Release settings updated")
         |> noreply()
 
       {:error, changeset} ->
         socket
-        |> put_flash(
+        |> send_flash(
           :error,
           "An error occurred while updating the release settings. Please check the form for errors."
         )
@@ -299,6 +314,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       </div>
     </div>
     """
+  end
+
+  defp send_flash(socket, type, message) do
+    send(self(), {:flash, type, message})
+    socket
   end
 
   defp network_interface_options() do

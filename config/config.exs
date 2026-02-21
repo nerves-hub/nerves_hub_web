@@ -57,7 +57,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
 config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
 
 config :nerves_hub, Oban,
-  repo: NervesHub.ObanRepo,
+  repo: NervesHub.Repo,
   notifier: Oban.Notifiers.PG,
   log: false,
   queues: [

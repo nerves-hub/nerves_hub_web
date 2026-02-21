@@ -19,8 +19,16 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistrationTest 
       assert extra.deployment_count == 1
     end)
 
-    expect(ProcessHub, :start_child, fn _hub_id, _spec, _opts -> :ok end)
-    expect(ProcessHub, :await, fn _ -> {:ok, :fake_result} end)
+    expect(ProcessHub, :start_children, fn _hub_id, _spec, _opts -> :ok end)
+
+    expect(ProcessHub.Future, :await, fn _ ->
+      %ProcessHub.StartResult{
+        status: :ok,
+        started: [{"my_child", ["node2@127.0.0.1": "pid"]}],
+        errors: [],
+        rollback: false
+      }
+    end)
 
     OrchestratorRegistration.check_running_orchestrators()
   end

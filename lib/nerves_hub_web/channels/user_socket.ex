@@ -23,6 +23,10 @@ defmodule NervesHubWeb.UserSocket do
     end
   end
 
+  def connect(_, _socket) do
+    :error
+  end
+
   def id(%{assigns: %{user: user}}) do
     "user_socket:#{user.id}"
   end

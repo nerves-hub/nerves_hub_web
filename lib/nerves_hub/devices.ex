@@ -11,6 +11,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Certificate
+  alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
@@ -372,7 +373,7 @@ defmodule NervesHub.Devices do
     |> Multi.delete_all(:device_certificates, device_certificates_query)
     |> Multi.delete_all(:pinned_devices, pinned_devices_query)
     |> Multi.update(:device, changeset)
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, %{device: device}} -> {:ok, device}
       error -> error
@@ -938,6 +939,9 @@ defmodule NervesHub.Devices do
 
     DeviceEvents.deployment_assigned(device)
 
+    # let the orchestrator know that a device has been added to the deployment group
+    DeploymentOrchestratorEvents.device_added(device)
+
     deployment_group = Repo.preload(deployment_group, :firmware)
     Map.put(device, :deployment_group, deployment_group)
   end
@@ -1052,7 +1056,7 @@ defmodule NervesHub.Devices do
     |> Multi.run(:audit_device, fn _, _ ->
       DeviceTemplates.audit_update_attempt(device)
     end)
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, _} ->
         :ok
@@ -1088,7 +1092,7 @@ defmodule NervesHub.Devices do
         Repo.delete(inflight_update)
 
         # let the orchestrator know that an inflight update completed
-        deployment_device_updated(device)
+        DeploymentOrchestratorEvents.device_updated(device)
       end
 
     _ = UpdateStats.log_update(device, previous_metadata)
@@ -1111,29 +1115,7 @@ defmodule NervesHub.Devices do
       firmware_uuid: firmware_uuid
     }
 
-    _ =
-      ChannelServer.broadcast(
-        NervesHub.PubSub,
-        "orchestrator:deployment:#{device.deployment_id}",
-        "device-online",
-        payload
-      )
-
-    :ok
-  end
-
-  def deployment_device_updated(%Device{deployment_id: nil}) do
-    :ok
-  end
-
-  def deployment_device_updated(device) do
-    _ =
-      ChannelServer.broadcast(
-        NervesHub.PubSub,
-        "orchestrator:deployment:#{device.deployment_id}",
-        "device-updated",
-        %{}
-      )
+    DeploymentOrchestratorEvents.device_online(device, payload)
 
     :ok
   end
@@ -1213,7 +1195,7 @@ defmodule NervesHub.Devices do
     |> Multi.run(:audit_source, fn _, _ ->
       AuditLogs.audit(user, source_product, description)
     end)
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, %{move: device}} ->
         DeviceEvents.moved_product(device)
@@ -1254,7 +1236,7 @@ defmodule NervesHub.Devices do
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, description)
     end)
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, %{update_with_audit: updated}} ->
         DeviceEvents.updated(device)
@@ -1275,12 +1257,7 @@ defmodule NervesHub.Devices do
       {:ok, device} = result ->
         _ =
           if device.deployment_id do
-            ChannelServer.broadcast(
-              NervesHub.PubSub,
-              "orchestrator:deployment:#{device.deployment_id}",
-              "device-updated",
-              %{}
-            )
+            DeploymentOrchestratorEvents.device_updated(device)
           end
 
         result
@@ -1360,6 +1337,9 @@ defmodule NervesHub.Devices do
       |> Repo.update_all([set: [deployment_id: id]], timeout: to_timeout(minute: 2))
 
     :ok = Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
+
+    # let the orchestrator know that some devices have been added to the deployment group
+    DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
 
     {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
   end
@@ -1480,7 +1460,7 @@ defmodule NervesHub.Devices do
     Multi.new()
     |> Multi.insert(:insert_health, DeviceHealth.save(device_status))
     |> Ecto.Multi.update_all(:update_device, &update_health_on_device/1, [])
-    |> Repo.transaction()
+    |> Repo.transact()
     |> case do
       {:ok, %{insert_health: health}} ->
         {:ok, health}
@@ -1664,7 +1644,7 @@ defmodule NervesHub.Devices do
   end
 
   def update_started!(inflight_update, device, deployment) do
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       DeviceTemplates.audit_device_deployment_group_update_triggered(
         device,
         deployment

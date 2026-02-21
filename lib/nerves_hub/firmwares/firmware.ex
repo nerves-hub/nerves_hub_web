@@ -7,6 +7,7 @@ defmodule NervesHub.Firmwares.Firmware do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
 
   @type t :: %Firmware{
@@ -50,7 +51,9 @@ defmodule NervesHub.Firmwares.Firmware do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:org_key, OrgKey)
+
     has_many(:deployment_groups, DeploymentGroup)
+    has_many(:deployment_releases, DeploymentRelease)
 
     field(:architecture, :string)
     field(:author, :string)
@@ -97,6 +100,7 @@ defmodule NervesHub.Firmwares.Firmware do
   def delete_changeset(%Firmware{} = firmware) do
     firmware
     |> change()
+    |> no_assoc_constraint(:deployment_releases, message: "Firmware has associated deployment releases")
     |> no_assoc_constraint(:deployment_groups, message: "Firmware has associated deployments")
   end
 end
