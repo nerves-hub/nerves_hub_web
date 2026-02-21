@@ -64,11 +64,25 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
     :ok
   end
 
+  # We need to filter out already running orchestrators, otherwise ProcessHub will fail
+  # with a list of `:already_started` orchestrator ids.
+  #
+  # I've also added `check_existing: false` to avoid starting already running orchestrators, as
+  # noted in the ProcessHub documentation.
   @spec start_orchestrators() :: :ok
   def start_orchestrators() do
-    ManagedDeployments.should_run_orchestrator()
-    |> Enum.map(&Orchestrator.child_spec/1)
-    |> then(fn specs -> ProcessHub.start_children(:deployment_orchestrators, specs, awaitable: true) end)
+    should_run =
+      ManagedDeployments.should_run_orchestrator()
+      |> Enum.map(&Orchestrator.child_spec/1)
+
+    currently_running =
+      ProcessHub.process_list(:deployment_orchestrators, :global)
+      |> Enum.map(fn {key, _info} -> key end)
+
+    requires_starting =
+      Enum.reject(should_run, fn spec -> spec.id in currently_running end)
+
+    ProcessHub.start_children(:deployment_orchestrators, requires_starting, awaitable: true, check_existing: false)
     |> ProcessHub.Future.await()
     |> ProcessHub.StartResult.format()
     |> report_errors()
