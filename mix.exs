@@ -9,7 +9,7 @@ defmodule NervesHub.MixProject do
       deps: deps(),
       aliases: aliases(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixir: "~> 1.18.0",
+      elixir: "~> 1.19.0",
       listeners: listeners(Mix.env()),
       releases: [
         nerves_hub: [
