@@ -148,8 +148,7 @@ defmodule NervesHub.DeviceLink do
   end
 
   defp maybe_clear_inflight_update(_device, %{"currently_downloading_uuid" => uuid})
-       when is_binary(uuid) and byte_size(uuid) > 0,
-       do: :ok
+       when is_binary(uuid) and byte_size(uuid) > 0, do: :ok
 
   defp maybe_clear_inflight_update(device, _) do
     Devices.clear_inflight_update(device)
