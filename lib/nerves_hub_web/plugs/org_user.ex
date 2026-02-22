@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Plugs.OrgUser do
         conn
         |> put_status(:not_found)
         |> put_layout(false)
-        |> put_view(NervesHubWeb.ErrorView)
+        |> put_view(html: NervesHubWeb.ErrorHTML)
         |> render("404.html")
         |> halt()
     end
