@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.DeviceUpdateStatus
@@ -90,7 +91,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
   }
 
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
+    product = Products.load_shared_secret_auth(product)
+
     socket
+    |> assign(:product, product)
     |> page_title("Devices - #{product.name}")
     |> sidebar_tab(:devices)
     |> assign(:current_sort, "identifier")

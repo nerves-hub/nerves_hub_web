@@ -25,7 +25,7 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/confirm/#{encoded_token}")
-      |> assert_path(~p"/orgs")
+      |> assert_path(~p"/org/sgt-pepper-team/sgt-pepperifier/devices")
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
 

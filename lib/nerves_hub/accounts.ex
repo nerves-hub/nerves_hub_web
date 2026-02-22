@@ -14,6 +14,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -77,6 +78,34 @@ defmodule NervesHub.Accounts do
     %User{}
     |> User.registration_changeset(user_params)
     |> Repo.insert()
+  end
+
+  @doc """
+  Bootstraps a newly confirmed user with an org, product, and shared secret.
+
+  Slugifies the user's name to create:
+  - An org named `<slug>-team`
+  - A product named `<slug>ifier`
+  - A shared secret for the product
+  """
+  @spec bootstrap_user(User.t()) ::
+          {:ok, %{org: Org.t(), product: Product.t(), shared_secret: Products.SharedSecretAuth.t()}}
+          | {:error, term()}
+  def bootstrap_user(%User{} = user) do
+    slug = slugify_name(user.name)
+
+    with {:ok, org} <- create_org(user, %{name: "#{slug}-team"}),
+         {:ok, product} <- Products.create_product(%{name: "#{slug}ifier", org_id: org.id}),
+         {:ok, shared_secret} <- Products.create_shared_secret_auth(product) do
+      {:ok, %{org: org, product: product, shared_secret: shared_secret}}
+    end
+  end
+
+  defp slugify_name(name) do
+    case Slug.slugify(name) do
+      nil -> "user-#{:crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)}"
+      slug -> slug
+    end
   end
 
   @doc """

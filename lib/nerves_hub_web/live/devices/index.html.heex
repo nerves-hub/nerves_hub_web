@@ -112,9 +112,35 @@
     </:failed>
 
     <%= if Enum.empty?(devices) && !@currently_filtering do %>
-      <!-- TODO: Go over empty-state with new design -->
       <div class="h-full pb-16 flex items-center justify-center">
-        <span class="text-xl font-medium text-neutral-50">{@product.name} doesn't have any devices yet.</span>
+        <div class="max-w-2xl w-full px-6">
+          <h2 class="text-xl font-semibold text-neutral-50 mb-4">{@product.name} doesn't have any devices yet.</h2>
+          <p class="text-sm text-zinc-400 mb-6">Get started by adding <code class="text-zinc-300">nerves_hub_link</code> to your Nerves project.</p>
+          <% active_secret = Enum.find(@product.shared_secret_auths, &is_nil(&1.deactivated_at)) %>
+          <%= if active_secret do %>
+            <div class="bg-zinc-900 border border-zinc-700 rounded-lg p-4">
+              <h3 class="text-sm font-semibold text-zinc-300 mb-3">1. Add the dependency to your <code>mix.exs</code></h3>
+              <pre class="bg-zinc-950 rounded p-3 text-sm text-green-400 font-mono mb-4 overflow-x-auto"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
+
+              <h3 class="text-sm font-semibold text-zinc-300 mb-3">2. Add this to your <code>config/config.exs</code></h3>
+              <pre class="bg-zinc-950 rounded p-3 text-sm text-green-400 font-mono overflow-x-auto"><code>config :nerves_hub_link,
+  host: "{URI.parse(NervesHubWeb.Endpoint.url()).host}",
+  remote_iex: true,
+  shared_secret: [
+    product_key: "{active_secret.key}",
+    product_secret: "{active_secret.secret}"
+  ]</code></pre>
+
+              <p class="text-xs text-zinc-500 mt-4">
+                See the <a class="underline text-zinc-400 hover:text-zinc-300" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a> for more details.
+              </p>
+            </div>
+          <% else %>
+            <p class="text-sm text-zinc-400">
+              Create a <.link navigate={~p"/org/#{@org}/#{@product}/settings"} class="underline text-zinc-300 hover:text-zinc-200">Shared Secret</.link> to get started with device authentication.
+            </p>
+          <% end %>
+        </div>
       </div>
     <% else %>
       <div id="device-list" class="listing hidden" phx-mounted={fade_in("#device-list")}>

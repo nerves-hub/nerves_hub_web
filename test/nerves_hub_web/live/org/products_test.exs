@@ -40,7 +40,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "MyAmazingProduct")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/MyAmazingProduct/devices")
-      |> assert_has("span", text: "MyAmazingProduct doesn't have any devices yet", timeout: 1000)
+      |> assert_has("h2", text: "MyAmazingProduct doesn't have any devices yet", timeout: 1000)
     end
 
     test "product name accepts spaces", %{conn: conn, org: org} do
@@ -50,7 +50,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "My Amazing Product")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
-      |> assert_has("span",
+      |> assert_has("h2",
         text: "My Amazing Product doesn't have any devices yet",
         timeout: 1000
       )
@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "  My Amazing Product  ")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
-      |> assert_has("span",
+      |> assert_has("h2",
         text: "My Amazing Product doesn't have any devices yet",
         timeout: 1000
       )
@@ -78,7 +78,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "  My  Amazing  Product  ")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
-      |> assert_has("span",
+      |> assert_has("h2",
         text: "My Amazing Product doesn't have any devices yet",
         timeout: 1000
       )
