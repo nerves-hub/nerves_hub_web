@@ -171,7 +171,7 @@ defmodule NervesHubWeb.Devices.HealthTest do
       live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
 
     organized_metrics =
-      ~s([{"y":#{value},"x":"#{now}"}])
+      ~s([{"x":"#{now}","y":#{value}}])
       |> html_escape()
       |> safe_to_string()
 

@@ -33,7 +33,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     |> assert_has("div", text: "Health over time")
-    |> assert_has("span", text: "No metrics for the selected period")
+    |> assert_has("span", text: "No metrics for the selected period.")
   end
 
   test "Assert canvas is rendered when metrics data exists", %{
@@ -172,7 +172,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
       live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
 
     organized_metrics =
-      ~s([{"y":#{value},"x":"#{now}"}])
+      ~s([{"x":"#{now}","y":#{value}}])
       |> html_escape()
       |> safe_to_string()
 
