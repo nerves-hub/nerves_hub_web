@@ -14,11 +14,10 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> refute_has("div .firmware-key")
     end
 
-    test "1 signing key", %{conn: conn, org: org, org_key: org_key} do
+    test "available signing keys are listed", %{conn: conn, org: org, org_key: org_key} do
       conn
       |> visit("/org/#{org.name}/settings/keys")
       |> assert_has("h3", text: org_key.name)
-      |> assert_has("h3", count: 1)
     end
   end
 
@@ -33,8 +32,8 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_path("/org/#{org.name}/settings/keys")
       |> assert_has("div", text: "Signing Key created successfully.")
       |> assert_has("h3", text: "my amazing key")
-      |> assert_has(".key-value", text: "wouldn't you like to know!")
-      |> assert_has("div", text: "Created by: #{user.username}")
+      |> assert_has("div", text: "wouldn't you like to know!")
+      |> assert_has("div", text: "Created by: #{user.name} (#{user.email})")
     end
 
     test "name is trimmed if there is extra space", %{conn: conn, org: org} do
@@ -47,7 +46,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_path("/org/#{org.name}/settings/keys")
       |> assert_has("div", text: "Signing Key created successfully.")
       |> assert_has("h3", text: "my amazing key")
-      |> assert_has(".key-value", text: "wouldn't you like to know!")
+      |> assert_has("div", text: "wouldn't you like to know!")
     end
   end
 
@@ -55,15 +54,17 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
     test "removes the key", %{conn: conn, user: user} do
       org = Fixtures.org_fixture(user, %{name: "JoshCorp"})
 
-      key = Fixtures.org_key_fixture(org, user)
-      Fixtures.org_key_fixture(org, user)
+      key1 = Fixtures.org_key_fixture(org, user)
+      key2 = Fixtures.org_key_fixture(org, user)
 
       conn
       |> visit("/org/#{org.name}/settings/keys")
       |> assert_has("h1", text: "Signing Keys")
-      |> assert_has(".firmware-key div h3", count: 2)
-      |> click_button("[phx-value-signing_key_id=\"#{key.id}\"]", "Delete")
-      |> assert_has(".firmware-key div h3", count: 1)
+      |> assert_has("h3", text: key1.name)
+      |> assert_has("h3", text: key2.name)
+      |> click_button("[phx-value-signing_key_id=\"#{key1.id}\"]", "Delete")
+      |> assert_has("h3", text: key2.name)
+      |> refute_has("h3", text: key1.name)
       |> assert_has("div", text: "Signing Key deleted successfully.")
     end
 
@@ -71,12 +72,12 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       conn
       |> visit("/org/#{org.name}/settings/keys")
       |> assert_has("h1", text: "Signing Keys")
-      |> assert_has(".firmware-key div h3", count: 1)
+      |> assert_has("h3", text: key.name)
       |> click_button("[phx-value-signing_key_id=\"#{key.id}\"]", "Delete")
       |> assert_has("div",
         text: "Error deleting Signing Key : Firmware exists which uses the Signing Key"
       )
-      |> assert_has(".firmware-key div h3", count: 1)
+      |> assert_has("h3", text: key.name)
     end
   end
 end
