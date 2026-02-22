@@ -159,7 +159,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
       <div class="relative size-full flex flex-col items-center justify-center">
         <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-zinc-300">The location coordinates are not currently available.</div>
+          <div class="text-zinc-300">The location coordinates are invalid and can't be displayed.</div>
         </div>
       </div>
     </div>
