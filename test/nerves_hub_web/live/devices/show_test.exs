@@ -292,7 +292,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Location")
-      |> assert_has("div", text: "The location coordinates are not currently available.")
+      |> assert_has("div", text: "The location coordinates are invalid and can't be displayed.")
     end
 
     test "location information is blank (empty strings)", %{
