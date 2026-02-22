@@ -2,6 +2,8 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use PhoenixHTMLHelpers
 
+  import Phoenix.HTML
+
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
@@ -169,9 +171,12 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     {:ok, _view, html} =
       live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
 
-    assert html =~ ~s(data-metrics=")
-    assert html =~ ~s(&quot;y&quot;:#{value})
-    assert html =~ ~s(&quot;x&quot;:&quot;#{now}&quot;)
+    organized_metrics =
+      ~s([{"x":"#{now}","y":#{value}}])
+      |> html_escape()
+      |> safe_to_string()
+
+    assert html =~ ~s(data-metrics="#{organized_metrics}")
   end
 
   defp save_metrics_with_timestamp(device_id, timestamp) do
