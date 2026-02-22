@@ -82,7 +82,15 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
     requires_starting =
       Enum.reject(should_run, fn spec -> spec.id in currently_running end)
 
-    ProcessHub.start_children(:deployment_orchestrators, requires_starting, awaitable: true, check_existing: false)
+    maybe_start_orchestrators(requires_starting)
+  end
+
+  def maybe_start_orchestrators(to_start) when to_start == [] do
+    :ok
+  end
+
+  def maybe_start_orchestrators(to_start) do
+    ProcessHub.start_children(:deployment_orchestrators, to_start, awaitable: true, check_existing: false)
     |> ProcessHub.Future.await()
     |> ProcessHub.StartResult.format()
     |> report_errors()
