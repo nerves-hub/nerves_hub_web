@@ -150,6 +150,40 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
       assert json_response(conn, 200)["data"]["state"] == "on"
     end
 
+    test "can change firmware_id to release new firmware", %{
+      conn: conn,
+      deployment_group: deployment_group,
+      org: org,
+      org_key: org_key,
+      product: product
+    } do
+      path =
+        Routes.api_deployment_group_path(
+          conn,
+          :update,
+          org.name,
+          product.name,
+          deployment_group.name
+        )
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
+
+      conn = put(conn, path, deployment: %{"firmware_id" => new_firmware.id})
+      assert json_response(conn, 200)["data"]["firmware_uuid"] == new_firmware.uuid
+
+      path =
+        Routes.api_deployment_group_path(
+          conn,
+          :show,
+          org.name,
+          product.name,
+          deployment_group.name
+        )
+
+      conn = get(conn, path)
+      assert json_response(conn, 200)["data"]["firmware_uuid"] == new_firmware.uuid
+    end
+
     test "audits on success", %{
       conn: conn,
       deployment_group: deployment_group,
@@ -235,6 +269,6 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment_group = Fixtures.deployment_group_fixture(firmware)
-    {:ok, %{deployment_group: deployment_group}}
+    {:ok, %{deployment_group: deployment_group, org_key: org_key}}
   end
 end

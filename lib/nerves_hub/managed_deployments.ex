@@ -209,6 +209,8 @@ defmodule NervesHub.ManagedDeployments do
            {:ok, _deployment_release} <- maybe_create_deployment_release(deployment_group, changeset, user.id) do
         {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
 
+        deployment_group = Repo.preload(deployment_group, :firmware)
+
         case recalculate_deployment_group_status_by_firmware_id(deployment_group.firmware_id) do
           {:ok, updated_deployments} ->
             {:ok, dg} = Enum.find(updated_deployments, fn {_, dg} -> dg.id == deployment_group.id end)
