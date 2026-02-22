@@ -85,7 +85,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
     maybe_start_orchestrators(requires_starting)
   end
 
-  def maybe_start_orchestrators(to_start) when to_start == [] do
+  def maybe_start_orchestrators(to_start) when is_list(to_start) and to_start == [] do
     :ok
   end
 
