@@ -148,6 +148,24 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
     """
   end
 
+  def render(%{location: %{"latitude" => latitude, "longitude" => longitude}} = assigns)
+      when is_nil(latitude) or latitude == "" or is_nil(longitude) or longitude == "" do
+    ~H"""
+    <div class="flex flex-col w-full h-[450px] p-4 gap-4">
+      <div class="flex items-end justify-between">
+        <div class="text-neutral-50 font-medium leading-6">Location</div>
+      </div>
+
+      <div class="relative size-full flex flex-col items-center justify-center">
+        <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
+        <div class="z-50 flex flex-col items-center gap-4">
+          <div class="text-zinc-300">The location coordinates are not currently available.</div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   # yay, we have a location and map key, lets display a map
   def render(%{location: location} = assigns) do
     assigns = %{

@@ -278,6 +278,40 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "No location information found.")
     end
 
+    test "location information is blank (nil)", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      :ok = Connections.device_connected(device, connection.id)
+      :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{"latitude" => nil, "longitude" => nil}})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Location")
+      |> assert_has("div", text: "The location coordinates are not currently available.")
+    end
+
+    test "location information is blank (empty strings)", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      :ok = Connections.device_connected(device, connection.id)
+      :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{"latitude" => "", "longitude" => ""}})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Location")
+      |> assert_has("div", text: "The location coordinates are not currently available.")
+    end
+
     test "a location error occurred", %{conn: conn, org: org, product: product, device: device} do
       metadata = %{
         "location" => %{"error_code" => "BOOP", "error_description" => "BEEP"}
