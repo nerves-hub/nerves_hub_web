@@ -87,17 +87,27 @@ defmodule NervesHub.Accounts do
   - An org named `<slug>-team`
   - A product named `<slug>ifier`
   - A shared secret for the product
+
+  Skips bootstrapping if:
+  - The `:onboarding_seed_enabled` config is set to `false`
+  - The user is already a member of any organization
   """
   @spec bootstrap_user(User.t()) ::
           {:ok, %{org: Org.t(), product: Product.t(), shared_secret: Products.SharedSecretAuth.t()}}
           | {:error, term()}
   def bootstrap_user(%User{} = user) do
-    slug = slugify_name(user.name)
+    with true <- Application.get_env(:nerves_hub, :onboarding_seed_enabled, true),
+         [] <- get_user_orgs(user) do
+      slug = slugify_name(user.name)
 
-    with {:ok, org} <- create_org(user, %{name: "#{slug}-team"}),
-         {:ok, product} <- Products.create_product(%{name: "#{slug}ifier", org_id: org.id}),
-         {:ok, shared_secret} <- Products.create_shared_secret_auth(product) do
-      {:ok, %{org: org, product: product, shared_secret: shared_secret}}
+      with {:ok, org} <- create_org(user, %{name: "#{slug}-team"}),
+           {:ok, product} <- Products.create_product(%{name: "#{slug}ifier", org_id: org.id}),
+           {:ok, shared_secret} <- Products.create_shared_secret_auth(product) do
+        {:ok, %{org: org, product: product, shared_secret: shared_secret}}
+      end
+    else
+      false -> {:error, :onboarding_seed_disabled}
+      [_ | _] -> {:error, :user_already_has_orgs}
     end
   end
 
