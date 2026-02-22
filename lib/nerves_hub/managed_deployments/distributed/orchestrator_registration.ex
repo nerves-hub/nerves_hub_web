@@ -92,6 +92,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
     :ok
   end
 
+  defp report_errors({:error, errors, :rollback}) do
+    report_errors({:error, errors})
+  end
+
   defp report_errors({:error, errors}) do
     Logger.error("Orchestrators failed to start : #{inspect(errors)}")
 

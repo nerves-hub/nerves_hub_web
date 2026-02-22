@@ -17,8 +17,6 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
-  @dialyzer {:nowarn_function,
-             create_org: 2, soft_delete_org: 1, add_org_user: 3, confirm_user_multi: 1, reset_user_password: 2}
   @spec create_org(User.t(), map) ::
           {:ok, Org.t()}
           | {:error, Changeset.t()}

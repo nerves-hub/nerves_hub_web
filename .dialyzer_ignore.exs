@@ -1,8 +1,9 @@
 [
-  {"lib/x509/certificate.ex", "Unknown type: X509.ASN1.record/1."},
-  {"lib/x509/certificate/extension.ex", "Unknown type: X509.ASN1.record/1."},
-  {"lib/nerves_hub_web/channels/device_channel.ex", :unmatched_return, 1},
-  {"lib/nerves_hub_web/channels/device_socket.ex", :unmatched_return, 1},
-  {"lib/nerves_hub/analytics_repo.ex", :contract_supertype, 1},
-  {"lib/nerves_hub/managed_deployments/distributed/orchestrator_registration.ex", :pattern_match}
+  {"lib/x509/certificate.ex", :unknown_type},
+  {"lib/x509/certificate/extension.ex", :unknown_type},
+  {"lib/nerves_hub/analytics_repo.ex", :contract_supertype},
+  # Ecto.Multi.t() opaque type false positives — MapSet.new() returns a concrete
+  # %MapSet{map: %{}} that Dialyzer can't unify with the opaque MapSet.internal(_) type,
+  # causing spurious call_without_opaque warnings on Ecto.Multi pipe chains.
+  {"lib/nerves_hub/accounts.ex", :call_without_opaque}
 ]
