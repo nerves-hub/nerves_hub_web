@@ -77,6 +77,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     field(:release_tags, Tag, default: [])
 
+    field(:releases_count, :integer, virtual: true)
     field(:device_count, :integer, virtual: true)
 
     # TODO: (joshk) this column is unused, remove after 1st May
