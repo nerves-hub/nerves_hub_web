@@ -58,8 +58,7 @@ config :nerves_hub,
       days_to_keep: String.to_integer(System.get_env("EXTENSIONS_LOGGING_DAYS_TO_KEEP", "3"))
     ]
   ],
-  logger_exclusions: System.get_env("LOGGER_EXCLUSIONS", "") |> String.split(","),
-  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"
+  logger_exclusions: System.get_env("LOGGER_EXCLUSIONS", "") |> String.split(",")
 
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do
