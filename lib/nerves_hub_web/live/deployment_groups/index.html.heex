@@ -58,6 +58,9 @@
             <th phx-click="sort" phx-value-sort="device_count" class="cursor-pointer">
               <Sorting.sort_icon text="Devices" field="device_count" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
+            <th phx-click="sort" phx-value-sort="releases_count" class="cursor-pointer">
+              <Sorting.sort_icon text="Releases" field="releases_count" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
             <th phx-click="sort" phx-value-sort="firmware_version" class="cursor-pointer min-w-fit">
               <Sorting.sort_icon text="Firmware version" field="firmware_version" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
@@ -93,6 +96,10 @@
 
             <td>
               {deployment_group.device_count || 0}
+            </td>
+
+            <td>
+              {deployment_group.releases_count || 0}
             </td>
 
             <td class="min-w-fit">
