@@ -8,6 +8,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -410,6 +411,34 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware2.id}, user)
+
+      assert deployment_group.status == :ready
+    end
+
+    test "sets status to :ready when deltas are enabled and a new release and deltas already exist",
+         %{
+           user: user,
+           deployment_group: deployment_group,
+           org: org,
+           product: product,
+           org_key: org_key,
+           tmp_dir: tmp_dir
+         } do
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      %FirmwareDelta{} = Fixtures.firmware_delta_fixture(deployment_group.firmware, new_firmware)
+
+      %Device{} =
+        Fixtures.device_fixture(org, product, deployment_group.firmware, %{deployment_id: deployment_group.id})
+
+      {:ok, deployment_group} =
+        deployment_group
+        |> Ecto.Changeset.change(%{delta_updatable: true, is_active: true})
+        |> Repo.update()
+
+      assert deployment_group.status == :ready
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id}, user)
 
       assert deployment_group.status == :ready
     end

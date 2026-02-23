@@ -10,7 +10,6 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.FirmwareDelta
-  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
@@ -354,21 +353,20 @@ defmodule NervesHub.ManagedDeployments do
   defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: {:ok, :no_deltas_started}
 
   @spec trigger_delta_generation_for_deployment_group(DeploymentGroup.t()) ::
-          {:ok, :deltas_started | :no_deltas_started}
+          {:ok, :deltas_started | :deltas_already_generated | :some_deltas_started} | {:error, :delta_generation_failed}
   def trigger_delta_generation_for_deployment_group(deployment_group) do
     Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
     |> Enum.map(fn {source_id, target_id} ->
       Firmwares.attempt_firmware_delta(source_id, target_id, false)
     end)
-    |> Enum.any?(&match?({:ok, _}, &1))
-    |> case do
-      true ->
-        {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(deployment_group.firmware_id)
-        {:ok, :deltas_started}
-
-      false ->
-        {:ok, :no_deltas_started}
-    end
+    |> then(fn results ->
+      cond do
+        Enum.any?(results, &match?({:error, _}, &1)) -> {:error, :delta_generation_failed}
+        Enum.all?(results, &match?({:ok, :delta_already_exists}, &1)) -> {:ok, :deltas_already_generated}
+        not Enum.any?(results, &match?({:ok, :delta_already_exists}, &1)) -> {:ok, :deltas_started}
+        true -> {:ok, :some_deltas_started}
+      end
+    end)
   end
 
   @spec deltas_processing?(DeploymentGroup.t()) :: boolean()
