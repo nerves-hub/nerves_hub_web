@@ -28,21 +28,38 @@ defmodule NervesHub.ManagedDeployments do
 
   @spec filter(Product.t(), map()) :: {[DeploymentGroup.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
-    subquery =
+    device_count_subquery =
       Device
       |> select([d], %{
-        deployment_id: d.deployment_id,
         device_count: count()
       })
       |> Repo.exclude_deleted()
-      |> group_by([d], d.deployment_id)
+      |> where([d], d.deployment_id == parent_as(:deployment_group).id)
+
+    releases_count_subquery =
+      DeploymentRelease
+      |> select([d], %{
+        releases_count: count()
+      })
+      |> where([d], d.deployment_group_id == parent_as(:deployment_group).id)
 
     base_query =
       DeploymentGroup
-      |> join(:left, [d], dev in subquery(subquery), on: dev.deployment_id == d.id)
-      |> join(:left, [d], f in assoc(d, :firmware))
-      |> preload([_d, _dev, f], firmware: f)
-      |> select_merge([_f, dev], %{device_count: dev.device_count})
+      |> from(as: :deployment_group)
+      |> join(:left_lateral, [deployment_group: d], dev in subquery(device_count_subquery),
+        as: :device_count,
+        on: true
+      )
+      |> join(:left_lateral, [deployment_group: d], rel in subquery(releases_count_subquery),
+        as: :releases_count,
+        on: true
+      )
+      |> join(:left, [deployment_group: d], f in assoc(d, :firmware), as: :firmware)
+      |> preload([firmware: f], firmware: f)
+      |> select_merge([device_count: dc, releases_count: rc], %{
+        device_count: dc.device_count,
+        releases_count: rc.releases_count
+      })
 
     CommonFiltering.filter(
       base_query,
@@ -119,15 +136,12 @@ defmodule NervesHub.ManagedDeployments do
   def get_by_product_and_name!(product, name, true) do
     subquery =
       Device
-      |> select([d], %{
-        deployment_id: d.deployment_id,
-        device_count: count()
-      })
+      |> select([d], %{device_count: count()})
       |> Repo.exclude_deleted()
-      |> group_by([d], d.deployment_id)
+      |> where([d], d.deployment_id == parent_as(:deployment_group).id)
 
     get_by_product_and_name_query(product, name)
-    |> join(:left, [d], dev in subquery(subquery), on: dev.deployment_id == d.id, as: :devices)
+    |> join(:left_lateral, [d], dev in subquery(subquery), on: true, as: :devices)
     |> select_merge([_f, devices: devices], %{device_count: devices.device_count})
     |> Repo.one!()
   end
@@ -164,12 +178,17 @@ defmodule NervesHub.ManagedDeployments do
 
   defp get_by_product_and_name_query(%Product{id: product_id}, name) do
     DeploymentGroup
+    |> from(as: :deployment_group)
     |> where(name: ^name)
     |> where(product_id: ^product_id)
-    |> join(:left, [d], f in assoc(d, :firmware))
-    |> join(:left, [d], a in assoc(d, :archive))
-    |> join(:left, [d], p in assoc(d, :product))
-    |> preload([d, f, a, p], firmware: f, archive: a, product: p)
+    |> join(:left, [deployment_group: d], f in assoc(d, :firmware), as: :firmware)
+    |> join(:left, [deployment_group: d], a in assoc(d, :archive), as: :archive)
+    |> join(:left, [deployment_group: d], p in assoc(d, :product), as: :product)
+    |> preload([firmware: f, archive: a, product: p],
+      firmware: f,
+      archive: a,
+      product: p
+    )
   end
 
   @spec delete_deployment_group(DeploymentGroup.t()) ::
