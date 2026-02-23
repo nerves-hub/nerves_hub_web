@@ -5,6 +5,44 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistrationTest 
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
 
+  test "doesn't start orchestrator processes if they are already running" do
+    expect(ManagedDeployments, :should_run_orchestrator, 1, fn ->
+      [%ManagedDeployments.DeploymentGroup{id: 1}]
+    end)
+
+    expect(ProcessHub, :process_list, fn _table_name, _node_context ->
+      [distributed_orchestrator_1: ["nerves-hub@node.id": "1.2.3"]]
+    end)
+
+    reject(&ProcessHub.start_children/3)
+
+    OrchestratorRegistration.start_orchestrators()
+  end
+
+  test "starts the orchestrator process if it isn't already running" do
+    expect(ManagedDeployments, :should_run_orchestrator, 1, fn ->
+      [%ManagedDeployments.DeploymentGroup{id: 1}]
+    end)
+
+    expect(ProcessHub, :process_list, fn _table_name, _node_context ->
+      [distributed_orchestrator_2: ["nerves-hub@node.id": "1.2.3"]]
+    end)
+
+    expect(ProcessHub, :start_children, fn :deployment_orchestrators, _specs, _opts ->
+      :fake_result
+    end)
+
+    expect(ProcessHub.Future, :await, fn _result ->
+      :fake_result
+    end)
+
+    expect(ProcessHub.StartResult, :format, fn _result ->
+      {:ok, :fake_list}
+    end)
+
+    OrchestratorRegistration.start_orchestrators()
+  end
+
   test "logs to sentry and restarts orchestrator processes" do
     expect(ProcessHub, :process_list, fn _table_name, _node_context ->
       []
