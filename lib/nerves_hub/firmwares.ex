@@ -546,7 +546,7 @@ defmodule NervesHub.Firmwares do
         {:ok, :started}
       else
         {:ok, %FirmwareDelta{}} ->
-          {:error, :delta_already_exists}
+          {:ok, :delta_already_exists}
 
         {:delta_insert, {:error, changeset}} ->
           Logger.warning("Failed to insert firmware delta for #{source_id} -> #{target_id}")
