@@ -57,11 +57,6 @@ defmodule NervesHubWeb.Live.Orgs.Index do
         socket
         |> assign(:onboarding_error, changeset_error_message(changeset))
         |> noreply()
-
-      {:error, reason} ->
-        socket
-        |> assign(:onboarding_error, "Something went wrong: #{inspect(reason)}")
-        |> noreply()
     end
   end
 
