@@ -39,7 +39,10 @@ config :nerves_hub, NervesHub.Repo,
 
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   adapter: Bandit.PhoenixAdapter,
-  render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
+  render_errors: [
+    formats: [html: NervesHubWeb.ErrorHTML, json: ErrorJSON],
+    accepts: ~w(html json)
+  ],
   pubsub_server: NervesHub.PubSub
 
 config :nerves_hub, NervesHubWeb.Endpoint,
@@ -49,7 +52,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
     signing_salt: "Kct3W8U7uQ6KAczYjzNbiYS6A8Pbtk3f"
   ],
   render_errors: [
-    formats: [html: NervesHubWeb.ErrorView, json: ErrorJSON],
+    formats: [html: NervesHubWeb.ErrorHTML, json: ErrorJSON],
     accepts: ~w(html json)
   ],
   pubsub_server: NervesHub.PubSub
