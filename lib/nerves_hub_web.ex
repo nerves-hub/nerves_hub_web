@@ -83,7 +83,7 @@ defmodule NervesHubWeb do
   defp live_view_imports() do
     quote do
       import NervesHubWeb.Components.Icons
-      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
+      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1, logo: 1]
       import NervesHubWeb.Helpers.Authorization
       # HTML escaping functionality
       import Phoenix.HTML
@@ -155,7 +155,7 @@ defmodule NervesHubWeb do
       use Phoenix.LiveComponent
 
       import NervesHubWeb.Components.Icons
-      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
+      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1, logo: 1]
       import NervesHubWeb.Helpers.Authorization
 
       def ok(socket), do: {:ok, socket}
@@ -242,7 +242,7 @@ defmodule NervesHubWeb do
       use Phoenix.Component
 
       import NervesHubWeb.Components.Icons
-      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
+      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1, logo: 1]
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
@@ -271,7 +271,7 @@ defmodule NervesHubWeb do
   defp hooked_component_imports() do
     quote do
       import NervesHubWeb.Components.Icons
-      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
+      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1, logo: 1]
       import NervesHubWeb.Helpers.Authorization
 
       import Phoenix.LiveView,
