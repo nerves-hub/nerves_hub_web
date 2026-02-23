@@ -282,7 +282,18 @@ defmodule NervesHubWeb.DeviceSocket do
       identifier: device.identifier
     })
 
-    :ok = Connections.device_disconnected(device, reference_id)
+    case Connections.device_disconnected(device, reference_id) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.error(
+          "An error occurred while disconnecting device (#{device.id}), ecto update result: #{inspect(reason)}",
+          identifier: device.identifier,
+          device_id: device.id,
+          ref_id: reference_id
+        )
+    end
 
     assign(socket, :disconnection_handled?, true)
   end
