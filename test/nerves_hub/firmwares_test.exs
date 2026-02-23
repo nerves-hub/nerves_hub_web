@@ -460,7 +460,7 @@ defmodule NervesHub.FirmwaresTest do
       target = Fixtures.firmware_fixture(org_key, product)
       %FirmwareDelta{} = Fixtures.firmware_delta_fixture(source, target)
 
-      {:error, :delta_already_exists} = Firmwares.attempt_firmware_delta(source.id, target.id)
+      {:ok, :delta_already_exists} = Firmwares.attempt_firmware_delta(source.id, target.id)
     end
   end
 
