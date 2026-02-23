@@ -59,7 +59,8 @@ config :nerves_hub,
     ]
   ],
   logger_exclusions: System.get_env("LOGGER_EXCLUSIONS", "") |> String.split(","),
-  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"
+  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true",
+  logo_url: System.get_env("LOGO_URL")
 
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do
