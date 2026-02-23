@@ -1,13 +1,47 @@
-<%= if @user.orgs == [] do %>
-  <!-- TODO: Go over this empty-state with new design -->
-  <div class="no-results-blowup-wrapper">
-    <img src="/images/product.svg" alt="No organizations" />
-    <h3 style="margin-top: 2.75rem">You aren't a member of any organizations.</h3>
-    <div class="flex-row align-items-center mt-3">
-      <.link navigate={~p"/orgs/new"} class="btn btn-outline-light" aria-label="Create new organization" role="button">
-        <span class="button-icon add"></span>
-        <span class="action-text">Create your first organization!</span>
-      </.link>
+<%= if @onboarding do %>
+  <div class="flex items-center justify-center min-h-[60vh]">
+    <div class="w-full max-w-md">
+      <h1 class="text-2xl font-semibold text-neutral-50 mb-2">Get Started</h1>
+      <p class="text-sm text-zinc-400 mb-6">
+        Create your first organization and product to start managing devices.
+      </p>
+
+      <div :if={@onboarding_error} class="mb-4 p-3 bg-red-900/30 border border-red-700 rounded text-sm text-red-300">
+        {@onboarding_error}
+      </div>
+
+      <form phx-submit="save_onboarding" class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label for="org_name" class="text-sm font-medium text-zinc-300">Organization name</label>
+          <input
+            type="text"
+            name="org_name"
+            id="org_name"
+            value={@org_name}
+            required
+            class="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-neutral-50 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label for="product_name" class="text-sm font-medium text-zinc-300">Product name</label>
+          <input
+            type="text"
+            name="product_name"
+            id="product_name"
+            value={@product_name}
+            required
+            class="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-neutral-50 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+
+        <button
+          type="submit"
+          class="mt-2 w-full flex items-center justify-center px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-sm font-medium text-neutral-50 transition-colors"
+        >
+          Create & Get Started
+        </button>
+      </form>
     </div>
   </div>
 <% else %>

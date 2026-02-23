@@ -446,8 +446,7 @@ config :nerves_hub, :audit_logs,
   default_days_kept: String.to_integer(System.get_env("TRUNCATE_AUDIT_LOGS_DEFAULT_DAYS_KEPT", "30"))
 
 config :nerves_hub,
-  enable_google_auth: !is_nil(System.get_env("GOOGLE_CLIENT_ID")),
-  onboarding_seed_enabled: System.get_env("ONBOARDING_SEED_ENABLED", "true") == "true"
+  enable_google_auth: !is_nil(System.get_env("GOOGLE_CLIENT_ID"))
 
 if System.get_env("GOOGLE_CLIENT_ID") do
   config :ueberauth, OAuth,

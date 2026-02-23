@@ -45,15 +45,6 @@ defmodule NervesHubWeb.SessionController do
          {:user_confirmed, {:ok, user}, _} <-
            {:user_confirmed, Accounts.confirm_user(user), user},
          {:ok, _} <- UserNotifier.deliver_welcome_email(user) do
-      conn =
-        case Accounts.bootstrap_user(user) do
-          {:ok, %{org: org, product: product}} ->
-            put_session(conn, :login_redirect_path, ~p"/org/#{org.name}/#{product.name}/devices")
-
-          _ ->
-            conn
-        end
-
       conn
       |> put_flash(:info, "Welcome to NervesHub!")
       |> Auth.log_in_user(user)

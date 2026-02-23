@@ -146,6 +146,21 @@
                 for how to connect your first device.
               </p>
             <% end %>
+
+            <div class="mt-6 p-4 border border-zinc-700/50 rounded-lg bg-zinc-900/50">
+              <h3 class="text-sm font-semibold text-zinc-300 mb-2">Production authentication</h3>
+              <p class="text-xs text-zinc-400">
+                For production applications, we recommend mTLS authentication using a local certificate or dedicated secure hardware.
+              </p>
+              <div class="flex gap-4 mt-2">
+                <a class="text-xs underline text-zinc-400 hover:text-zinc-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.LocalCert.html" target="_blank">
+                  LocalCert configurator
+                </a>
+                <a class="text-xs underline text-zinc-400 hover:text-zinc-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.NervesKey.html" target="_blank">
+                  NervesKey configurator
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       <% true -> %>

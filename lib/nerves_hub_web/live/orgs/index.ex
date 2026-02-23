@@ -1,8 +1,10 @@
 defmodule NervesHubWeb.Live.Orgs.Index do
   use NervesHubWeb, :updated_live_view
 
+  alias NervesHub.Accounts
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Products
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.PinnedDevices
   alias Phoenix.Socket.Broadcast
@@ -27,6 +29,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
       |> assign(:pinned_devices, Devices.get_pinned_devices(user.id))
       |> assign(:device_statuses, statuses)
       |> assign(:device_limit, @pinned_devices_limit)
+      |> maybe_assign_onboarding(user)
       |> subscribe()
 
     if connected?(socket), do: send(self(), :load_extras)
@@ -38,6 +41,28 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     socket
     |> assign(:show_all_pinned?, !show_all?)
     |> noreply()
+  end
+
+  def handle_event("save_onboarding", %{"org_name" => org_name, "product_name" => product_name}, socket) do
+    user = socket.assigns.user
+
+    with {:ok, org} <- Accounts.create_org(user, %{name: org_name}),
+         {:ok, product} <- Products.create_product(%{name: product_name, org_id: org.id}),
+         {:ok, _shared_secret} <- Products.create_shared_secret_auth(product) do
+      socket
+      |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
+      |> noreply()
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        socket
+        |> assign(:onboarding_error, changeset_error_message(changeset))
+        |> noreply()
+
+      {:error, reason} ->
+        socket
+        |> assign(:onboarding_error, "Something went wrong: #{inspect(reason)}")
+        |> noreply()
+    end
   end
 
   @impl Phoenix.LiveView
@@ -92,5 +117,30 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     {limited_devices, _} = Enum.split(devices, @pinned_devices_limit)
 
     limited_devices
+  end
+
+  defp maybe_assign_onboarding(socket, user) do
+    if user.orgs == [] do
+      {org_name, product_name} = Accounts.generate_onboarding_names(user.name)
+
+      socket
+      |> assign(:onboarding, true)
+      |> assign(:org_name, org_name)
+      |> assign(:product_name, product_name)
+      |> assign(:onboarding_error, nil)
+    else
+      assign(socket, :onboarding, false)
+    end
+  end
+
+  defp changeset_error_message(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+      Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
+        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+      end)
+    end)
+    |> Enum.map_join(", ", fn {field, errors} ->
+      "#{field} #{Enum.join(errors, ", ")}"
+    end)
   end
 end

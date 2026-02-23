@@ -2,7 +2,7 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   describe "no org memberships" do
-    test "no orgs listed" do
+    test "shows onboarding form" do
       user = NervesHub.Fixtures.user_fixture()
 
       token = NervesHub.Accounts.create_user_session_token(user)
@@ -10,7 +10,8 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
       build_conn()
       |> init_test_session(%{"user_token" => token})
       |> visit("/orgs")
-      |> assert_has("h3", text: "You aren't a member of any organizations.")
+      |> assert_has("h1", text: "Get Started")
+      |> assert_has("button", text: "Create & Get Started")
     end
   end
 

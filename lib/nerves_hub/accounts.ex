@@ -14,7 +14,6 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
-  alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -81,34 +80,18 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
-  Bootstraps a newly confirmed user with an org, product, and shared secret.
+  Generates default onboarding names for a new user based on their name.
 
-  Slugifies the user's name to create:
+  Slugifies the user's name to create suggested names:
   - An org named `<slug>-team`
   - A product named `<slug>ifier`
-  - A shared secret for the product
 
-  Skips bootstrapping if:
-  - The `:onboarding_seed_enabled` config is set to `false`
-  - The user is already a member of any organization
+  Returns `{org_name, product_name}`.
   """
-  @spec bootstrap_user(User.t()) ::
-          {:ok, %{org: Org.t(), product: Product.t(), shared_secret: Products.SharedSecretAuth.t()}}
-          | {:error, term()}
-  def bootstrap_user(%User{} = user) do
-    with true <- Application.get_env(:nerves_hub, :onboarding_seed_enabled, true),
-         [] <- get_user_orgs(user) do
-      slug = slugify_name(user.name)
-
-      with {:ok, org} <- create_org(user, %{name: "#{slug}-team"}),
-           {:ok, product} <- Products.create_product(%{name: "#{slug}ifier", org_id: org.id}),
-           {:ok, shared_secret} <- Products.create_shared_secret_auth(product) do
-        {:ok, %{org: org, product: product, shared_secret: shared_secret}}
-      end
-    else
-      false -> {:error, :onboarding_seed_disabled}
-      [_ | _] -> {:error, :user_already_has_orgs}
-    end
+  @spec generate_onboarding_names(String.t()) :: {String.t(), String.t()}
+  def generate_onboarding_names(user_name) do
+    slug = slugify_name(user_name)
+    {"#{slug}-team", "#{slug}ifier"}
   end
 
   defp slugify_name(name) do
