@@ -22,15 +22,15 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupFiltering do
   end
 
   def filter(query, _filters, :name, value) do
-    where(query, [d], ilike(d.name, ^"%#{value}%"))
+    where(query, [deployment_group: dg], ilike(dg.name, ^"%#{value}%"))
   end
 
   def filter(query, _filters, :platform, value) do
-    where(query, [_d, _dev, f], f.platform == ^value)
+    where(query, [firmware: f], f.platform == ^value)
   end
 
   def filter(query, _filters, :architecture, value) do
-    where(query, [_d, _dev, f], f.architecture == ^value)
+    where(query, [firmware: f], f.architecture == ^value)
   end
 
   def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
@@ -38,11 +38,11 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupFiltering do
 
     query
     |> where(
-      [d, _dev, f],
-      ilike(d.name, ^search_term) or
+      [deployment_group: dg, firmware: f],
+      ilike(dg.name, ^search_term) or
         ilike(f.platform, ^search_term) or
         ilike(f.architecture, ^search_term) or
-        ilike(fragment(" COALESCE(?->>'tags', '')", d.conditions), ^search_term)
+        ilike(fragment(" COALESCE(?->>'tags', '')", dg.conditions), ^search_term)
     )
   end
 
@@ -54,19 +54,19 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupFiltering do
 
   @spec sort(Ecto.Query.t(), {atom(), atom()}) :: Ecto.Query.t()
   def sort(query, {direction, :platform}) do
-    order_by(query, [_d, _dev, f], {^direction, f.platform})
+    order_by(query, [firmware: f], {^direction, f.platform})
   end
 
   def sort(query, {direction, :architecture}) do
-    order_by(query, [_d, _dev, f], {^direction, f.architecture})
+    order_by(query, [firmware: f], {^direction, f.architecture})
   end
 
   def sort(query, {direction, :device_count}) do
-    order_by(query, [_d, dev], {^direction, dev.device_count})
+    order_by(query, [device_count: dev], {^direction, dev.device_count})
   end
 
   def sort(query, {direction, :firmware_version}) do
-    order_by(query, [_d, _dev, f], {^direction, f.version})
+    order_by(query, [firmware: f], {^direction, f.version})
   end
 
   def sort(query, sort), do: order_by(query, ^sort)
