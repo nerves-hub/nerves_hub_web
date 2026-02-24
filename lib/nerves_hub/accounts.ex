@@ -80,6 +80,28 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
+  Generates default onboarding names for a new user based on their name.
+
+  Slugifies the user's name to create suggested names:
+  - An org named `<slug>-team`
+  - A product named `<slug>ifier`
+
+  Returns `{org_name, product_name}`.
+  """
+  @spec generate_onboarding_names(String.t()) :: {String.t(), String.t()}
+  def generate_onboarding_names(user_name) do
+    slug = slugify_name(user_name)
+    {"#{slug}-team", "#{slug}ifier"}
+  end
+
+  defp slugify_name(name) do
+    case Slug.slugify(name) do
+      nil -> "user-#{:crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)}"
+      slug -> slug
+    end
+  end
+
+  @doc """
   Returns an `%Ecto.Changeset{}` for changing the users password.
 
   ## Examples

@@ -111,80 +111,131 @@
       </div>
     </:failed>
 
-    <%= if Enum.empty?(devices) && !@currently_filtering do %>
-      <!-- TODO: Go over empty-state with new design -->
-      <div class="h-full pb-16 flex items-center justify-center">
-        <span class="text-xl font-medium text-neutral-50">{@product.name} doesn't have any devices yet.</span>
-      </div>
-    <% else %>
-      <div id="device-list" class="listing hidden" phx-mounted={fade_in("#device-list")}>
-        <table>
-          <thead>
-            <tr>
-              <th class="checkbox">
-                <input
-                  class="checkbox"
-                  checked={Enum.any?(@selected_devices)}
-                  id="check-uncheck"
-                  title="Check/uncheck all"
-                  {[checked: Enum.count(@selected_devices) == Enum.count(devices)]}
-                  id="toggle-all"
-                  name="toggle-all"
-                  type="checkbox"
-                  phx-click="select-all"
-                />
-                <label for="check-uncheck">
-                  <span class="hidden">Select all devices</span>
-                  <svg :if={Enum.any?(@selected_devices)} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
-                    <path d="M2 6H6H10" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </label>
-              </th>
-              <th phx-click="sort" phx-value-sort="identifier" class="cursor-pointer">
-                <Sorting.sort_icon text="Identifier" field="identifier" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-              <th class="w-24">
-                <div class="flex justify-center">
-                  <span>Health</span>
-                </div>
-              </th>
-              <th>Firmware</th>
-              <th>Platform</th>
-              <th phx-click="sort" phx-value-sort="connection_established_at" class="cursor-pointer">
-                <Sorting.sort_icon text="Connected for" field="connection_established_at" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-              <th phx-click="sort" phx-value-sort="tags" class="cursor-pointer">
-                <Sorting.sort_icon text="Tags" field="tags" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={device <- devices} class={["border-b border-zinc-800 isolate clickable-table-row", device.id in @selected_devices && "selected-row"]} style={progress_style(@progress[device.id])}>
-              <td class="checkbox">
-                <input
-                  id={"checkbox-device-#{device.id}"}
-                  class="checkbox"
-                  {if device.id in @selected_devices, do: [checked: true], else: []}
-                  type="checkbox"
-                  id={"#{device.id}-select"}
-                  phx-value-id={device.id}
-                  phx-click="select"
-                />
-                <label for={"checkbox-device-#{device.id}"} class="relative z-20">
-                  <svg :if={device.id in @selected_devices} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
-                    <path d="M2.5 6.5L4.5 8.5L10 3" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </label>
-              </td>
-              <td>
-                <div class="flex gap-[8px] items-center">
-                  <span title={connection_established_at_status(device.latest_connection)}>
-                    <%= if @device_statuses.result[device.identifier] == "online" do %>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
-                        <circle cx="3" cy="3" r="3" fill="#10B981" />
-                      </svg>
-                      <!-- use this when we have connection type information -->
-                      <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <%= cond do %>
+      <% Enum.empty?(devices) && @currently_filtering -> %>
+        <div class="h-full pb-16 flex items-center justify-center">
+          <span class="text-xl font-medium text-neutral-50">No devices match the current filters.</span>
+        </div>
+      <% Enum.empty?(devices) -> %>
+        <div class="h-full pb-16 flex items-center justify-center">
+          <div class="max-w-2xl w-full px-6">
+            <h2 class="text-xl font-semibold text-neutral-50 mb-4">{@product.name} doesn't have any devices yet.</h2>
+            <p class="text-sm text-zinc-400 mb-6">Get started by adding <code class="text-zinc-300">nerves_hub_link</code> to your Nerves project.</p>
+            <% active_secret = Enum.find(@product.shared_secret_auths, &is_nil(&1.deactivated_at)) %>
+            <%= if active_secret do %>
+              <div class="bg-zinc-900 border border-zinc-700 rounded-lg p-4">
+                <h3 class="text-sm font-semibold text-zinc-300 mb-3">1. Add the dependency to your <code>mix.exs</code></h3>
+                <pre class="bg-zinc-950 rounded p-3 text-sm text-green-400 font-mono mb-4 overflow-x-auto"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
+
+                <h3 class="text-sm font-semibold text-zinc-300 mb-3">2. Add this to your <code>config/config.exs</code></h3>
+                <pre class="bg-zinc-950 rounded p-3 text-sm text-green-400 font-mono overflow-x-auto"><code>config :nerves_hub_link,
+  host: "{onboarding_nhl_host()}",
+  remote_iex: true,
+  shared_secret: [
+    product_key: "{active_secret.key}",
+    product_secret: "{active_secret.secret}"
+  ]</code></pre>
+
+                <p class="text-xs text-zinc-500 mt-4">
+                  See the <a class="underline text-zinc-400 hover:text-zinc-300" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a> for more details.
+                </p>
+              </div>
+            <% else %>
+              <p class="text-sm text-zinc-400">
+                Check the <a class="underline text-zinc-300 hover:text-zinc-200" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
+                for how to connect your first device.
+              </p>
+            <% end %>
+
+            <div class="mt-6 p-4 border border-zinc-700/50 rounded-lg bg-zinc-900/50">
+              <h3 class="text-sm font-semibold text-zinc-300 mb-2">Production authentication</h3>
+              <p class="text-xs text-zinc-400">
+                For production applications, we recommend mTLS authentication using a local certificate or dedicated secure hardware.
+              </p>
+              <div class="flex gap-4 mt-2">
+                <a class="text-xs underline text-zinc-400 hover:text-zinc-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.LocalCert.html" target="_blank">
+                  LocalCert configurator
+                </a>
+                <a class="text-xs underline text-zinc-400 hover:text-zinc-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.NervesKey.html" target="_blank">
+                  NervesKey configurator
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% true -> %>
+        <div id="device-list" class="listing hidden" phx-mounted={fade_in("#device-list")}>
+          <table>
+            <thead>
+              <tr>
+                <th class="checkbox">
+                  <input
+                    class="checkbox"
+                    checked={Enum.any?(@selected_devices)}
+                    id="check-uncheck"
+                    title="Check/uncheck all"
+                    {[checked: Enum.count(@selected_devices) == Enum.count(devices)]}
+                    id="toggle-all"
+                    name="toggle-all"
+                    type="checkbox"
+                    phx-click="select-all"
+                  />
+                  <label for="check-uncheck">
+                    <span class="hidden">Select all devices</span>
+                    <svg :if={Enum.any?(@selected_devices)} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6H6H10" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </label>
+                </th>
+                <th phx-click="sort" phx-value-sort="identifier" class="cursor-pointer">
+                  <Sorting.sort_icon text="Identifier" field="identifier" selected_field={@current_sort} selected_direction={@sort_direction} />
+                </th>
+                <th class="w-24">
+                  <div class="flex justify-center">
+                    <span>Health</span>
+                  </div>
+                </th>
+                <th>Firmware</th>
+                <th>Platform</th>
+                <th phx-click="sort" phx-value-sort="connection_established_at" class="cursor-pointer">
+                  <Sorting.sort_icon text="Connected for" field="connection_established_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+                </th>
+                <th phx-click="sort" phx-value-sort="tags" class="cursor-pointer">
+                  <Sorting.sort_icon text="Tags" field="tags" selected_field={@current_sort} selected_direction={@sort_direction} />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                :for={device <- devices}
+                class={["border-b border-zinc-800 isolate clickable-table-row", device.id in @selected_devices && "selected-row"]}
+                style={progress_style(@progress[device.id])}
+              >
+                <td class="checkbox">
+                  <input
+                    id={"checkbox-device-#{device.id}"}
+                    class="checkbox"
+                    {if device.id in @selected_devices, do: [checked: true], else: []}
+                    type="checkbox"
+                    id={"#{device.id}-select"}
+                    phx-value-id={device.id}
+                    phx-click="select"
+                  />
+                  <label for={"checkbox-device-#{device.id}"} class="relative z-20">
+                    <svg :if={device.id in @selected_devices} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2.5 6.5L4.5 8.5L10 3" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </label>
+                </td>
+                <td>
+                  <div class="flex gap-[8px] items-center">
+                    <span title={connection_established_at_status(device.latest_connection)}>
+                      <%= if @device_statuses.result[device.identifier] == "online" do %>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
+                          <circle cx="3" cy="3" r="3" fill="#10B981" />
+                        </svg>
+                        <!-- use this when we have connection type information -->
+                        <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
                           <path
                             d="M10.8573 9.17153C10.1261 8.44767 9.11595 7.99996 8.00016 7.99996C6.88438 7.99996 5.87423 8.44767 5.14302 9.17153M12.7621 7.28591C11.5434 6.07948 9.8598 5.33329 8.00016 5.33329C6.14052 5.33329 4.45694 6.07948 3.23826 7.28591M14.6668 5.4003C12.9607 3.71129 10.6037 2.66663 8.00016 2.66663C5.39667 2.66663 3.03964 3.71129 1.3335 5.4003M9.34703 12C9.34703 12.7363 8.74402 13.3333 8.00016 13.3333C7.25631 13.3333 6.65329 12.7363 6.65329 12C6.65329 11.6318 6.80405 11.2984 7.04778 11.0572C7.29152 10.8159 7.62823 10.6666 8.00016 10.6666C8.37209 10.6666 8.70881 10.8159 8.95254 11.0572C9.19628 11.2984 9.34703 11.6318 9.34703 12Z"
                             stroke="#10B981"
@@ -193,12 +244,12 @@
                             stroke-linejoin="round"
                           />
                         </svg> --%>
-                    <% else %>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
-                        <circle cx="3" cy="3" r="3" fill="#71717A" />
-                      </svg>
-                      <!-- use this when we have connection type information -->
-                      <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <% else %>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
+                          <circle cx="3" cy="3" r="3" fill="#71717A" />
+                        </svg>
+                        <!-- use this when we have connection type information -->
+                        <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
                           <path
                             d="M8.00016 5.33333C9.8598 5.33333 11.5434 6.07953 12.7621 7.28596M14.6668 5.40034C12.9607 3.71134 10.6037 2.66667 8.00016 2.66667C7.3139 2.66667 6.64477 2.73925 6.00016 2.87709M5.14302 9.17157C5.87423 8.44772 6.88438 8 8.00016 8M3.23826 7.28595C3.91937 6.61169 4.7457 6.08118 5.66683 5.74436M1.3335 5.40034C2.0158 4.72489 2.8022 4.15249 3.66683 3.70874M2.00016 2L14.0002 14M9.34703 12C9.34703 12.7364 8.74402 13.3333 8.00016 13.3333C7.25631 13.3333 6.65329 12.7364 6.65329 12C6.65329 11.6318 6.80405 11.2985 7.04778 11.0572C7.29152 10.8159 7.62823 10.6667 8.00016 10.6667C8.37209 10.6667 8.70881 10.8159 8.95254 11.0572C9.19628 11.2985 9.34703 11.6318 9.34703 12Z"
                             stroke="#EF4444"
@@ -207,71 +258,71 @@
                             stroke-linejoin="round"
                           />
                         </svg> --%>
-                    <% end %>
-                  </span>
-                  <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"} class="ff-m font-mono">
-                    {device.identifier}
-                    <div :if={device.deleted_at} class="relative inline-block align-middle z-50" id={"health-tooltip-#{device.identifier}"} phx-hook="ToolTip" data-placement="right">
-                      <.icon name="info" class="stroke-zinc-400" />
-                      <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
-                        This device has been deleted. <br /> You can destroy or restore it in the device's settings.
-                        <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+                      <% end %>
+                    </span>
+                    <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"} class="ff-m font-mono">
+                      {device.identifier}
+                      <div :if={device.deleted_at} class="relative inline-block align-middle z-50" id={"health-tooltip-#{device.identifier}"} phx-hook="ToolTip" data-placement="right">
+                        <.icon name="info" class="stroke-zinc-400" />
+                        <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+                          This device has been deleted. <br /> You can destroy or restore it in the device's settings.
+                          <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+                        </div>
                       </div>
-                    </div>
-                    <span class="clickable-table-row-mask" />
-                  </.link>
-                  <span class={["flex items-center gap-1 ml-2 pl-2.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800", !@progress[device.id] && "invisible"]}>
-                    <span class="text-xs text-zinc-300 tracking-tight">updating</span>
-                  </span>
-                </div>
-              </td>
+                      <span class="clickable-table-row-mask" />
+                    </.link>
+                    <span class={["flex items-center gap-1 ml-2 pl-2.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800", !@progress[device.id] && "invisible"]}>
+                      <span class="text-xs text-zinc-300 tracking-tight">updating</span>
+                    </span>
+                  </div>
+                </td>
 
-              <td>
-                <div class="flex gap-[8px] items-center justify-center">
-                  <HealthStatus.render device_id={device.id} health={device.latest_health} tooltip_position="top" />
-                </div>
-              </td>
+                <td>
+                  <div class="flex gap-[8px] items-center justify-center">
+                    <HealthStatus.render device_id={device.id} health={device.latest_health} tooltip_position="top" />
+                  </div>
+                </td>
 
-              <td>
-                <div class="flex gap-[8px] items-center">
-                  <span class="font-mono">
+                <td>
+                  <div class="flex gap-[8px] items-center">
+                    <span class="font-mono">
+                      <%= if is_nil(device.firmware_metadata) do %>
+                        Unknown
+                      <% else %>
+                        {device.firmware_metadata.version}
+                      <% end %>
+                    </span>
+                    <DeviceUpdateStatus.render :if={not is_nil(device.deployment_id)} device={device} />
+                  </div>
+                </td>
+
+                <td>
+                  <span>
                     <%= if is_nil(device.firmware_metadata) do %>
                       Unknown
                     <% else %>
-                      {device.firmware_metadata.version}
+                      {device.firmware_metadata.platform}
                     <% end %>
                   </span>
-                  <DeviceUpdateStatus.render :if={not is_nil(device.deployment_id)} device={device} />
-                </div>
-              </td>
+                </td>
 
-              <td>
-                <span>
-                  <%= if is_nil(device.firmware_metadata) do %>
-                    Unknown
-                  <% else %>
-                    {device.firmware_metadata.platform}
-                  <% end %>
-                </span>
-              </td>
+                <td>
+                  <div :if={device.latest_connection} title={connection_established_at(device.latest_connection)}>
+                    {connection_established_at(device.latest_connection)}
+                  </div>
+                </td>
 
-              <td>
-                <div :if={device.latest_connection} title={connection_established_at(device.latest_connection)}>
-                  {connection_established_at(device.latest_connection)}
-                </div>
-              </td>
-
-              <td>
-                <div class="flex items-center gap-[4px] text-nowrap">
-                  <%= if !is_nil(device.tags) do %>
-                    <%= for tag <- device.tags do %>
-                      <span class="tag">{tag}</span>
+                <td>
+                  <div class="flex items-center gap-[4px] text-nowrap">
+                    <%= if !is_nil(device.tags) do %>
+                      <%= for tag <- device.tags do %>
+                        <span class="tag">{tag}</span>
+                      <% end %>
                     <% end %>
-                  <% end %>
-                </div>
-              </td>
+                  </div>
+                </td>
 
-              <%!-- <td class="actions">
+                <%!-- <td class="actions">
                 <div class="">
                   <a class="" data-target="#" id={"actions-#{device.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" phx-click={show_menu("actions-menu-#{device.id}")}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -309,10 +360,10 @@
                   </div>
                 </div>
               </td> --%>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              </tr>
+            </tbody>
+          </table>
+        </div>
     <% end %>
   </.async_result>
 </div>
