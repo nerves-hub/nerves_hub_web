@@ -242,16 +242,6 @@ database_ssl_opts =
 if config_env() == :prod do
   database_socket_options = if System.get_env("DATABASE_INET6") == "true", do: [:inet6], else: []
 
-  oban_pool_size =
-    System.get_env("OBAN_DATABASE_POOL_SIZE") || System.get_env("DATABASE_POOL_SIZE", "20")
-
-  config :nerves_hub, NervesHub.ObanRepo,
-    url: System.fetch_env!("DATABASE_URL"),
-    ssl: database_ssl_opts,
-    pool_size: String.to_integer(oban_pool_size),
-    socket_options: database_socket_options,
-    queue_target: 5000
-
   config :nerves_hub, NervesHub.Repo,
     url: System.fetch_env!("DATABASE_URL"),
     ssl: database_ssl_opts,
