@@ -318,6 +318,11 @@ defmodule NervesHub.Accounts do
   @spec authenticate(String.t(), String.t()) ::
           {:ok, User.t()}
           | {:error, :authentication_failed}
+  def authenticate(_, nil) do
+    Bcrypt.no_user_verify()
+    {:error, :authentication_failed}
+  end
+
   def authenticate(email, password) do
     with {:ok, user} <- get_user_by_email(email),
          true <- Bcrypt.verify_pass(password, user.password_hash) do

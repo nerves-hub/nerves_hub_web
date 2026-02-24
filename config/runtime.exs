@@ -59,8 +59,7 @@ config :nerves_hub,
     ]
   ],
   logger_exclusions: System.get_env("LOGGER_EXCLUSIONS", "") |> String.split(","),
-  devices_websocket_url: System.get_env("DEVICES_WEBSOCKET_HOST"),
-  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"
+  devices_websocket_url: System.get_env("DEVICES_WEBSOCKET_HOST")
 
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do

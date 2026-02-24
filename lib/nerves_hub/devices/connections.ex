@@ -179,7 +179,7 @@ defmodule NervesHub.Devices.Connections do
   Updates `status` and relevant timestamps for a device connection record,
   and stores the reason for disconnection if provided.
   """
-  @spec device_disconnected(Device.t(), UUIDv7.t(), String.t() | nil) :: :ok | :error
+  @spec device_disconnected(Device.t(), UUIDv7.t(), String.t() | nil) :: :ok | {:error, any()}
   def device_disconnected(device, ref_id, reason \\ nil) do
     now = DateTime.utc_now()
 
@@ -201,8 +201,8 @@ defmodule NervesHub.Devices.Connections do
         Tracker.offline(device)
         :ok
 
-      _ ->
-        :error
+      res ->
+        {:error, res}
     end
   end
 
