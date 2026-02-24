@@ -129,7 +129,7 @@
 
                 <h3 class="text-sm font-semibold text-zinc-300 mb-3">2. Add this to your <code>config/config.exs</code></h3>
                 <pre class="bg-zinc-950 rounded p-3 text-sm text-green-400 font-mono overflow-x-auto"><code>config :nerves_hub_link,
-  host: "{URI.parse(NervesHubWeb.Endpoint.url()).host}",
+  host: "{onboarding_nhl_host()}",
   remote_iex: true,
   shared_secret: [
     product_key: "{active_secret.key}",

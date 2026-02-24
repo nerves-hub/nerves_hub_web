@@ -804,4 +804,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> assign(:live_refresh_pending?, true)
     end
   end
+
+  defp onboarding_nhl_host() do
+    Application.get_env(:nerves_hub, :devices_websocket_url) || URI.parse(NervesHubWeb.Endpoint.url()).host
+  end
 end
