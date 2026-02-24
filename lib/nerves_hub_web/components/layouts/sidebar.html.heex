@@ -43,21 +43,7 @@
           </svg>
         </div>
       </div>
-      <div :if={assigns[:org]} id="product-picker" class="hidden">
-        <div :for={org <- @user.orgs} class="p-4">
-          <.link navigate={~p"/org/#{org.name}"} class="flex items-center gap-[12px]">
-            <div class="org-avatar">
-              {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
-            </div>
-            <h3 class="subtitle ">{org.name}</h3>
-          </.link>
-          <div :for={product <- org.products} class="my-4">
-            <.link navigate={~p"/org/#{org}/#{product}/devices"} class="product-picker-product">
-              {product.name}
-            </.link>
-          </div>
-        </div>
-      </div>
+      <.live_component :if={assigns[:org]} module={NervesHubWeb.Components.ProductPicker} id="product-picker" orgs={@user.orgs} />
     </div>
 
     <div>
@@ -90,9 +76,18 @@
     </div>
   </div>
 
-  <div class="h-full w-full flex flex-col">
+  <div class="h-full w-full flex flex-col relative">
+    <div
+      :if={assigns[:banner_url]}
+      class="absolute inset-x-0 top-0 h-[146px] bg-cover bg-center z-0"
+      style={"background-image: url('#{@banner_url}');"}
+    >
+      <div class="absolute inset-0 bg-gradient-to-r from-zinc-900 to-zinc-900/0"></div>
+    </div>
     <.flash_group flash={@flash} />
 
-    {@inner_content}
+    <div class={["flex flex-col flex-1 min-h-0", assigns[:banner_url] && "relative z-[1]"]}>
+      {@inner_content}
+    </div>
   </div>
 </div>

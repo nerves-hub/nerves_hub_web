@@ -120,4 +120,67 @@ defmodule NervesHub.ProductsTest do
       end)
     end
   end
+
+  describe "product banner" do
+    setup %{tmp_dir: tmp_dir} do
+      fixture = Fixtures.standard_fixture(tmp_dir)
+      banner_path = create_test_image(tmp_dir, "banner.png")
+      Map.put(fixture, :banner_path, banner_path)
+    end
+
+    test "update_product_banner/2 uploads and sets banner_upload_key", %{product: product, banner_path: banner_path} do
+      assert is_nil(product.banner_upload_key)
+      assert {:ok, updated} = Products.update_product_banner(product, banner_path)
+      assert updated.banner_upload_key == "products/#{product.id}/banner.png"
+    end
+
+    test "update_product_banner/2 cleans up old file when extension changes", %{
+      product: product,
+      banner_path: banner_path,
+      tmp_dir: tmp_dir
+    } do
+      {:ok, product} = Products.update_product_banner(product, banner_path)
+      assert product.banner_upload_key =~ ".png"
+
+      jpg_path = create_test_image(tmp_dir, "banner.jpg")
+      {:ok, product} = Products.update_product_banner(product, jpg_path)
+      assert product.banner_upload_key =~ ".jpg"
+    end
+
+    test "remove_product_banner/1 clears banner_upload_key", %{product: product, banner_path: banner_path} do
+      {:ok, product} = Products.update_product_banner(product, banner_path)
+      assert product.banner_upload_key
+
+      {:ok, product} = Products.remove_product_banner(product)
+      assert is_nil(product.banner_upload_key)
+    end
+
+    test "remove_product_banner/1 is a no-op when no banner exists", %{product: product} do
+      assert is_nil(product.banner_upload_key)
+      assert {:ok, ^product} = Products.remove_product_banner(product)
+    end
+
+    test "banner_url/1 returns nil when no banner", %{product: product} do
+      assert is_nil(Products.banner_url(product))
+    end
+
+    test "banner_url/1 returns a URL when banner exists", %{product: product, banner_path: banner_path} do
+      {:ok, product} = Products.update_product_banner(product, banner_path)
+      url = Products.banner_url(product)
+      assert is_binary(url)
+      assert url =~ "products/#{product.id}/banner.png"
+    end
+
+    defp create_test_image(dir, filename) do
+      path = Path.join(dir, filename)
+
+      png_data =
+        <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0, 144, 119,
+          83, 222, 0, 0, 0, 12, 73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 0, 0, 0, 2, 0, 1, 226, 33, 188, 51, 0, 0, 0,
+          0, 73, 69, 78, 68, 174, 66, 96, 130>>
+
+      File.write!(path, png_data)
+      path
+    end
+  end
 end
