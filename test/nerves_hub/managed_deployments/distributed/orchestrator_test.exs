@@ -545,7 +545,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     source_firmware = Fixtures.firmware_fixture(org_key, product)
     deployment_group = Ecto.Changeset.change(deployment_group, %{status: :preparing}) |> Repo.update!()
     Fixtures.device_fixture(org, product, source_firmware, %{deployment_id: deployment_group.id})
-    delta = Fixtures.firmware_delta_fixture(source_firmware, deployment_group.firmware, %{status: :processing})
+
+    delta =
+      Fixtures.firmware_delta_fixture(
+        source_firmware,
+        deployment_group.current_release.firmware,
+        %{status: :processing}
+      )
 
     expect(Fwup, :create_firmware_delta_file, fn _, _ ->
       {:ok,
@@ -572,7 +578,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     allow(Devices, self(), pid)
 
-    :ok = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
+    :ok = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.current_release.firmware)
 
     eventually assert %{deployment_group: %{status: :ready}} = :sys.get_state(pid)
   end

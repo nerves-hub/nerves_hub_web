@@ -120,7 +120,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       refute device2.deployment_id
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/devices?platform=#{deployment_group.firmware.platform}")
+      |> visit(
+        "/org/#{org.name}/#{product.name}/devices?platform=#{deployment_group.current_release.firmware.platform}"
+      )
       |> assert_has("div", text: "2", timeout: 1000)
       |> check("Select all devices", exact: false)
       |> assert_has("div", text: "2 devices selected")

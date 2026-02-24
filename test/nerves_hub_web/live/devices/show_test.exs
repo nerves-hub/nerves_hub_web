@@ -549,6 +549,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "available update exists", %{
       conn: conn,
+      user: user,
       org: org,
       product: product,
       device: device,
@@ -568,9 +569,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       :ok = Connections.device_connected(device, connection.id)
 
-      deployment_group
-      |> Ecto.Changeset.change(%{firmware_id: firmware.id, is_active: true})
-      |> Repo.update!()
+      ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id, is_active: true}, user)
 
       NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
 

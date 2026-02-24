@@ -54,8 +54,7 @@ defmodule NervesHub.ManagedDeployments do
         as: :releases_count,
         on: true
       )
-      |> join(:left, [deployment_group: d], f in assoc(d, :firmware), as: :firmware)
-      |> preload([firmware: f], firmware: f)
+      |> join_current_release(true)
       |> select_merge([device_count: dc, releases_count: rc], %{
         device_count: dc.device_count,
         releases_count: rc.releases_count
@@ -71,9 +70,12 @@ defmodule NervesHub.ManagedDeployments do
   @spec get_deployment_groups_by_product(Product.t()) :: [DeploymentGroup.t()]
   def get_deployment_groups_by_product(%Product{id: product_id}) do
     DeploymentGroup
-    |> join(:inner, [d], f in assoc(d, :firmware), on: f.product_id == ^product_id)
-    |> preload([_d, f], firmware: f, firmware: :product)
+    |> from(as: :deployment_group)
+    |> join(:left, [deployment_group: d], p in assoc(d, :product), as: :product)
+    |> join_current_release(true)
+    |> preload([product: product], product: product)
     |> order_by(:name)
+    |> where([deployment_group: d], d.product_id == ^product_id)
     |> Repo.all()
   end
 
@@ -94,13 +96,6 @@ defmodule NervesHub.ManagedDeployments do
     |> where([d], d.deployment_id == ^id)
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
-  end
-
-  @spec get_deployment_groups_by_firmware(integer()) :: [DeploymentGroup.t()]
-  def get_deployment_groups_by_firmware(firmware_id) do
-    DeploymentGroup
-    |> where([d], d.firmware_id == ^firmware_id)
-    |> Repo.all()
   end
 
   @spec get_deployment_group(DeploymentGroup.t() | Device.t() | integer()) ::
@@ -124,10 +119,11 @@ defmodule NervesHub.ManagedDeployments do
 
   defp full_deployment_group_query() do
     DeploymentGroup
-    |> join(:left, [d], f in assoc(d, :firmware), as: :firmware)
-    |> join(:left, [d], p in assoc(d, :product), as: :product)
-    |> join(:left, [d], o in assoc(d, :org), as: :org)
-    |> preload([d, firmware: f, product: p, org: o], firmware: f, product: p, org: o)
+    |> from(as: :deployment_group)
+    |> join(:left, [deployment_group: dg], p in assoc(dg, :product), as: :product)
+    |> join(:left, [deployment_group: dg], o in assoc(dg, :org), as: :org)
+    |> join_current_release(true)
+    |> preload([product: p, org: o], product: p, org: o)
   end
 
   @spec get_by_product_and_name!(Product.t(), String.t(), boolean()) :: DeploymentGroup.t()
@@ -154,10 +150,10 @@ defmodule NervesHub.ManagedDeployments do
   @spec get_by_product_and_platform(Product.t(), binary()) :: [DeploymentGroup.t()]
   def get_by_product_and_platform(product, platform) do
     DeploymentGroup
+    |> from(as: :deployment_group)
+    |> join_current_release(true)
     |> where(product_id: ^product.id)
-    |> join(:left, [d], f in assoc(d, :firmware))
-    |> where([_d, f], f.platform == ^platform)
-    |> preload([_d, f], firmware: f)
+    |> where([firmware: f], f.platform == ^platform)
     |> order_by([d], asc: d.name)
     |> Repo.all()
   end
@@ -181,14 +177,33 @@ defmodule NervesHub.ManagedDeployments do
     |> from(as: :deployment_group)
     |> where(name: ^name)
     |> where(product_id: ^product_id)
-    |> join(:left, [deployment_group: d], f in assoc(d, :firmware), as: :firmware)
-    |> join(:left, [deployment_group: d], a in assoc(d, :archive), as: :archive)
     |> join(:left, [deployment_group: d], p in assoc(d, :product), as: :product)
-    |> preload([firmware: f, archive: a, product: p],
-      firmware: f,
-      archive: a,
-      product: p
-    )
+    |> join_current_release(true)
+    |> preload([product: p], product: p)
+  end
+
+  def join_current_release(query, preload_firmware \\ false) do
+    query
+    |> join(:left_lateral, [], dr in subquery(current_release_subquery()), on: true, as: :current_release)
+    |> then(fn query ->
+      if preload_firmware do
+        query
+        |> join(:left, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
+        |> join(:left, [current_release: cr], a in assoc(cr, :archive), as: :archive)
+        |> preload([current_release: cr, firmware: f, archive: a],
+          current_release: {cr, firmware: f, archive: a}
+        )
+      else
+        query
+      end
+    end)
+  end
+
+  defp current_release_subquery() do
+    DeploymentRelease
+    |> order_by([dr], desc: dr.number)
+    |> where([d], d.deployment_group_id == parent_as(:deployment_group).id)
+    |> limit(1)
   end
 
   @spec delete_deployment_group(DeploymentGroup.t()) ::
@@ -227,9 +242,9 @@ defmodule NervesHub.ManagedDeployments do
            {:ok, _deployment_release} <- maybe_create_deployment_release(deployment_group, changeset, user.id) do
         {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
 
-        deployment_group = Repo.preload(deployment_group, :firmware)
+        deployment_group = load_current_release(deployment_group, true)
 
-        case recalculate_deployment_group_status_by_firmware_id(deployment_group.firmware_id) do
+        case recalculate_deployment_group_status_by_firmware_id(deployment_group.current_release.firmware_id) do
           {:ok, updated_deployments} ->
             {:ok, dg} = Enum.find(updated_deployments, fn {_, dg} -> dg.id == deployment_group.id end)
             {:ok, Map.put(deployment_group, :status, dg.status)}
@@ -259,6 +274,18 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
+  def load_current_release(deployment_group, force \\ false) do
+    current_release_query =
+      DeploymentRelease
+      |> join(:left, [dr], f in assoc(dr, :firmware), as: :firmware)
+      |> join(:left, [dr], a in assoc(dr, :archive), as: :archive)
+      |> where([dr], dr.deployment_group_id == ^deployment_group.id)
+      |> order_by([dr], desc: dr.number)
+      |> limit(1)
+
+    Repo.preload(deployment_group, [current_release: {current_release_query, [:firmware, :archive]}], force: force)
+  end
+
   defp maybe_create_deployment_release(deployment_group, changeset, user_id) do
     create_deployment_release? =
       Map.has_key?(changeset.changes, :firmware_id) or
@@ -281,7 +308,9 @@ defmodule NervesHub.ManagedDeployments do
   def recalculate_deployment_group_status_by_firmware_id(firmware_id) do
     updated_deployment_groups =
       DeploymentGroup
-      |> where([d], d.firmware_id == ^firmware_id)
+      |> from(as: :deployment_group)
+      |> join_current_release(true)
+      |> where([current_release: cr], cr.firmware_id == ^firmware_id)
       |> Repo.all()
       |> Enum.map(fn deployment_group ->
         recalculate_deployment_group_status(deployment_group)
@@ -303,7 +332,7 @@ defmodule NervesHub.ManagedDeployments do
     if Enum.any?(source_ids) do
       FirmwareDelta
       |> where([fd], fd.source_id in ^source_ids)
-      |> where([fd], fd.target_id == ^deployment_group.firmware_id)
+      |> where([fd], fd.target_id == ^deployment_group.current_release.firmware_id)
       |> Repo.all()
       |> Enum.map(fn firmware_delta ->
         firmware_delta.status
@@ -431,7 +460,7 @@ defmodule NervesHub.ManagedDeployments do
 
       with {:ok, deployment_group} <- Repo.insert(changeset),
            {:ok, _release} <- maybe_create_deployment_release(deployment_group, changeset, user.id) do
-        {:ok, deployment_group}
+        {:ok, load_current_release(deployment_group)}
       end
     end)
     |> case do
@@ -543,9 +572,9 @@ defmodule NervesHub.ManagedDeployments do
       when not is_nil(deployment_id) do
     deployment_group =
       DeploymentGroup
+      |> from(as: :deployment_group)
       |> where([d], d.id == ^deployment_id)
-      |> join(:left, [d], f in assoc(d, :firmware))
-      |> preload([d, f], firmware: f)
+      |> join_current_release(true)
       |> Repo.one()
 
     bad_version =
@@ -560,10 +589,10 @@ defmodule NervesHub.ManagedDeployments do
         end
       end
 
-    bad_platform = device.firmware_metadata.platform != deployment_group.firmware.platform
+    bad_platform = device.firmware_metadata.platform != deployment_group.current_release.firmware.platform
 
     bad_architecture =
-      device.firmware_metadata.architecture != deployment_group.firmware.architecture
+      device.firmware_metadata.architecture != deployment_group.current_release.firmware.architecture
 
     reason =
       cond do
@@ -617,8 +646,8 @@ defmodule NervesHub.ManagedDeployments do
 
   def matching_deployment_groups(device, active) do
     DeploymentGroup
-    |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
-    |> preload([_, firmware: f], firmware: f)
+    |> from(as: :deployment_group)
+    |> join_current_release(true)
     |> where([d], d.product_id == ^device.product_id)
     |> where([d], d.is_active in ^active)
     |> ignore_same_deployment_group(device)
@@ -639,7 +668,7 @@ defmodule NervesHub.ManagedDeployments do
     |> Enum.sort_by(
       fn deployment_group ->
         {
-          deployment_group.firmware.version,
+          deployment_group.current_release.firmware.version,
           deployment_group.id,
           length(Enum.filter(deployment_group.conditions.tags, &(&1 in device.tags)))
         }
@@ -684,12 +713,12 @@ defmodule NervesHub.ManagedDeployments do
 
   def eligible_deployment_groups(device) do
     DeploymentGroup
-    |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
-    |> preload([_, firmware: f], firmware: f)
-    |> where([d, _], d.product_id == ^device.product_id)
-    |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
-    |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
-    |> order_by([d], asc: d.name)
+    |> from(as: :deployment_group)
+    |> join_current_release(true)
+    |> where([deployment_group: d], d.product_id == ^device.product_id)
+    |> where([deployment_group: d, firmware: f], f.platform == ^device.firmware_metadata.platform)
+    |> where([deployment_group: d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
+    |> order_by([deployment_group: d], asc: d.name)
     |> Repo.all()
   end
 
@@ -736,7 +765,8 @@ defmodule NervesHub.ManagedDeployments do
   """
   @spec matched_devices_count(DeploymentGroup.t(), in_deployment: boolean()) :: non_neg_integer()
   def matched_devices_count(deployment_group, in_deployment: in_deployment) do
-    deployment_group = Repo.preload(deployment_group, [:firmware])
+    deployment_group = load_current_release(deployment_group, true)
+
     query = matched_devices_base_query(deployment_group, in_deployment)
 
     do_matched_devices(deployment_group, query, :count)
@@ -758,10 +788,10 @@ defmodule NervesHub.ManagedDeployments do
       Device
       |> Repo.exclude_deleted()
       |> where([d], d.product_id == ^deployment_group.product_id)
-      |> where([d], d.firmware_metadata["platform"] == ^deployment_group.firmware.platform)
+      |> where([d], d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform)
       |> where(
         [d],
-        d.firmware_metadata["architecture"] == ^deployment_group.firmware.architecture
+        d.firmware_metadata["architecture"] == ^deployment_group.current_release.firmware.architecture
       )
 
     if in_deployment do

@@ -29,6 +29,9 @@ defmodule NervesHubWeb.ChannelCase do
 
       alias NervesHub.Devices.DeviceConnection
 
+      # Enable tmp_dir per test case
+      @moduletag :tmp_dir
+
       # The default endpoint for testing
       @endpoint NervesHubWeb.DeviceEndpoint
 

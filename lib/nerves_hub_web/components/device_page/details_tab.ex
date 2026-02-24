@@ -355,7 +355,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 >
                   <option value="">Select a deployment group</option>
                   <option :for={deployment_group <- @deployment_groups} value={deployment_group.id}>
-                    {deployment_group.name} - ({deployment_group.firmware.platform}, {deployment_group.firmware.architecture})
+                    {deployment_group.name} - ({deployment_group.current_release.firmware.platform}, {deployment_group.current_release.firmware.architecture})
                   </option>
                 </select>
               </div>
@@ -590,12 +590,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     %{device: device, user: user} = socket.assigns
 
-    deployment_group = NervesHub.Repo.preload(device.deployment_group, [:firmware, :org])
-
-    case Devices.told_to_update(device, deployment_group) do
+    case Devices.told_to_update(device, device.deployment_group, user: user) do
       {:ok, _inflight_update} ->
-        DeviceTemplates.audit_pushed_available_update(user, device, deployment_group)
-
         socket
         |> put_flash(:info, "Pushing available firmware update.")
         |> halt()

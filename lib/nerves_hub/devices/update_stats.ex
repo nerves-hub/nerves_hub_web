@@ -12,6 +12,7 @@ defmodule NervesHub.Devices.UpdateStats do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Helpers.Logging
+  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -230,9 +231,11 @@ defmodule NervesHub.Devices.UpdateStats do
   defp get_deployment_id(%{deployment_id: nil}), do: nil
 
   defp get_deployment_id(device) do
-    device = Repo.preload(device, deployment_group: :firmware)
+    device = Repo.preload(device, :deployment_group)
 
-    case device.deployment_group.firmware.uuid == device.firmware_metadata.uuid do
+    deployment_group = ManagedDeployments.load_current_release(device.deployment_group)
+
+    case deployment_group.current_release.firmware.uuid == device.firmware_metadata.uuid do
       true -> device.deployment_id
       false -> nil
     end

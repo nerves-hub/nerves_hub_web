@@ -68,9 +68,9 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       assert stat.device_id == device.id
       assert stat.product_id == device.product_id
       assert stat.deployment_id == deployment_group.id
-      assert stat.target_firmware_uuid == deployment_group.firmware.uuid
+      assert stat.target_firmware_uuid == deployment_group.current_release.firmware.uuid
       assert stat.target_firmware_uuid == target_firmware.uuid
-      assert stat.update_bytes == deployment_group.firmware.size
+      assert stat.update_bytes == deployment_group.current_release.firmware.size
       assert stat.saved_bytes == 0
       assert stat.type == "fwup_full"
     end
@@ -148,7 +148,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       result = UpdateStats.stats_by_device(device)
 
       # Should aggregate all updates for this device
-      expected_bytes = deployment_group.firmware.size + delta.size
+      expected_bytes = deployment_group.current_release.firmware.size + delta.size
 
       assert result.total_update_bytes == expected_bytes
       assert result.total_updates == 2
@@ -169,7 +169,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
 
       result = UpdateStats.stats_by_device(device)
 
-      assert result.total_update_bytes == deployment_group.firmware.size
+      assert result.total_update_bytes == deployment_group.current_release.firmware.size
       assert result.total_saved_bytes == 0
       assert result.total_updates == 1
     end
@@ -283,7 +283,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       result = UpdateStats.total_stats_by_product(product)
 
       expected_bytes =
-        deployment_group.firmware.size + delta.size
+        deployment_group.current_release.firmware.size + delta.size
 
       assert result.total_update_bytes == expected_bytes
       assert result.total_updates == 2

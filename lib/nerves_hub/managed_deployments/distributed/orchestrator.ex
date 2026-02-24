@@ -345,7 +345,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   end
 
   defp firmware_match?(payload, deployment_group) do
-    payload.firmware_uuid == deployment_group.firmware.uuid
+    payload.firmware_uuid == deployment_group.current_release.firmware.uuid
   end
 
   defp updates_blocked?(payload) do

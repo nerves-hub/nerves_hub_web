@@ -20,12 +20,12 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Support.Fwup
   alias Phoenix.Socket.Broadcast
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     deployment_group = Fixtures.deployment_group_fixture(firmware, %{is_active: true})
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
     device2 = Fixtures.device_fixture(org, product, firmware)
@@ -50,7 +50,8 @@ defmodule NervesHub.DevicesTest do
        device2: device2,
        device3: device3,
        deployment_group: deployment_group,
-       product: product
+       product: product,
+       tmp_dir: tmp_dir
      }}
   end
 
@@ -747,15 +748,15 @@ defmodule NervesHub.DevicesTest do
 
       device2 =
         %{id: device2_id} =
-        Fixtures.device_fixture(org, product, deployment_group.firmware)
+        Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
       device3 =
         %{id: device3_id} =
-        Fixtures.device_fixture(org, product, deployment_group.firmware)
+        Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
       device4 =
         %{id: device4_id} =
-        Fixtures.device_fixture(org, product, deployment_group.firmware)
+        Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
       Enum.with_index([device1, device2, device3, device4], fn device, index ->
         %{id: latest_connection_id} =
@@ -811,19 +812,19 @@ defmodule NervesHub.DevicesTest do
 
       device2 =
         %{id: device2_id} =
-        Fixtures.device_fixture(org, product, deployment_group.firmware, %{
+        Fixtures.device_fixture(org, product, deployment_group.current_release.firmware, %{
           first_seen_at: DateTime.utc_now() |> DateTime.add(-1, :day)
         })
 
       device3 =
         %{id: device3_id} =
-        Fixtures.device_fixture(org, product, deployment_group.firmware, %{
+        Fixtures.device_fixture(org, product, deployment_group.current_release.firmware, %{
           first_seen_at: DateTime.utc_now() |> DateTime.add(-7, :day)
         })
 
       device4 =
         %{id: device4_id} =
-        Fixtures.device_fixture(org, product, deployment_group.firmware, %{
+        Fixtures.device_fixture(org, product, deployment_group.current_release.firmware, %{
           first_seen_at: DateTime.utc_now() |> DateTime.add(-3, :day)
         })
 
@@ -875,10 +876,10 @@ defmodule NervesHub.DevicesTest do
         )
 
       # Create devices with different network interfaces
-      device_wifi = Fixtures.device_fixture(org, product, deployment_group.firmware)
-      device_ethernet = Fixtures.device_fixture(org, product, deployment_group.firmware)
-      device_cellular = Fixtures.device_fixture(org, product, deployment_group.firmware)
-      device_unknown = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_wifi = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
+      device_ethernet = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
+      device_cellular = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
+      device_unknown = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
       # Set network interfaces and prepare for updates
       {:ok, device_wifi} = Devices.update_network_interface(device_wifi, "wlan0")
@@ -936,8 +937,8 @@ defmodule NervesHub.DevicesTest do
       assert deployment_group.release_network_interfaces == []
 
       # Create devices with different network interfaces
-      device_wifi = Fixtures.device_fixture(org, product, deployment_group.firmware)
-      device_cellular = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_wifi = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
+      device_cellular = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
       {:ok, device_wifi} = Devices.update_network_interface(device_wifi, "wlan0")
       {:ok, device_cellular} = Devices.update_network_interface(device_cellular, "wwan0")
@@ -995,10 +996,10 @@ defmodule NervesHub.DevicesTest do
         )
 
       # Create devices with different tags
-      device_both = Fixtures.device_fixture(org, product, deployment_group.firmware)
-      device_prod_only = Fixtures.device_fixture(org, product, deployment_group.firmware)
-      device_beta_only = Fixtures.device_fixture(org, product, deployment_group.firmware)
-      device_no_tags = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_both = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
+      device_prod_only = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
+      device_beta_only = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
+      device_no_tags = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
       # Set tags on devices
       {:ok, device_both} = Devices.update_device(device_both, %{tags: ["production", "beta", "critical"]})
@@ -1057,8 +1058,8 @@ defmodule NervesHub.DevicesTest do
       assert deployment_group.release_tags == []
 
       # Create devices with different tags
-      device_tagged = Fixtures.device_fixture(org, product, deployment_group.firmware)
-      device_no_tags = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_tagged = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
+      device_no_tags = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
       {:ok, device_tagged} = Devices.update_device(device_tagged, %{tags: ["test"]})
 
@@ -1118,10 +1119,10 @@ defmodule NervesHub.DevicesTest do
         )
 
       # Create devices with different combinations
-      device_wifi_prod = Fixtures.device_fixture(org, product, deployment_group.firmware)
-      device_wifi_dev = Fixtures.device_fixture(org, product, deployment_group.firmware)
-      device_cellular_prod = Fixtures.device_fixture(org, product, deployment_group.firmware)
-      device_ethernet_prod = Fixtures.device_fixture(org, product, deployment_group.firmware)
+      device_wifi_prod = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
+      device_wifi_dev = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
+      device_cellular_prod = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
+      device_ethernet_prod = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
       {:ok, device_wifi_prod} = Devices.update_network_interface(device_wifi_prod, "wlan0")
       {:ok, device_wifi_prod} = Devices.update_device(device_wifi_prod, %{tags: ["production"]})
@@ -1191,7 +1192,9 @@ defmodule NervesHub.DevicesTest do
       {:ok, _} = Ecto.Changeset.change(deployment_group, %{firmware_id: new_firmware.id}) |> Repo.update()
 
       # create a device using the firmware of the deployment group cached in the test
-      Fixtures.device_fixture(org, product, deployment_group.firmware, %{deployment_id: deployment_group.id})
+      Fixtures.device_fixture(org, product, deployment_group.current_release.firmware, %{
+        deployment_id: deployment_group.id
+      })
 
       # no devices should be available for update, avoiding the race condition
       available = Devices.available_for_update(deployment_group, 10)
@@ -1378,11 +1381,12 @@ defmodule NervesHub.DevicesTest do
       product: product,
       org: org,
       deployment_group: deployment_group,
-      firmware: firmware
+      firmware: firmware,
+      tmp_dir: tmp_dir
     } do
-      firmware2 = Fixtures.firmware_fixture(org_key, product)
-      firmware3 = Fixtures.firmware_fixture(org_key, product)
-      firmware4 = Fixtures.firmware_fixture(org_key, product)
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      firmware3 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      firmware4 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       _ =
         Fixtures.device_fixture(org, product, firmware2)
@@ -1419,9 +1423,10 @@ defmodule NervesHub.DevicesTest do
       device: device,
       firmware: firmware,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      firmware2 = Fixtures.firmware_fixture(org_key, product)
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       _ = Fixtures.firmware_delta_fixture(firmware2, firmware)
 
       refute Devices.delta_ready?(device, firmware2)
@@ -1431,10 +1436,11 @@ defmodule NervesHub.DevicesTest do
       device: device,
       firmware: firmware,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      firmware2 = Fixtures.firmware_fixture(org_key, product)
-      firmware3 = Fixtures.firmware_fixture(org_key, product)
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      firmware3 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       _ = Fixtures.firmware_delta_fixture(firmware, firmware2)
 
       refute Devices.delta_ready?(device, firmware3)
@@ -1444,9 +1450,10 @@ defmodule NervesHub.DevicesTest do
       device: device,
       firmware: firmware,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      firmware2 = Fixtures.firmware_fixture(org_key, product)
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       _ = Fixtures.firmware_delta_fixture(firmware, firmware2, %{status: :processing})
 
       refute Devices.delta_ready?(device, firmware2)
@@ -1456,9 +1463,10 @@ defmodule NervesHub.DevicesTest do
       device: device,
       firmware: firmware,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      firmware2 = Fixtures.firmware_fixture(org_key, product)
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       %{status: :completed} = Fixtures.firmware_delta_fixture(firmware, firmware2)
 
       assert Devices.delta_ready?(device, firmware2)
@@ -1470,16 +1478,17 @@ defmodule NervesHub.DevicesTest do
       device: device,
       deployment_group: deployment_group,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      target_firmware = Fixtures.firmware_fixture(org_key, product)
-      _ = Fixtures.firmware_delta_fixture(deployment_group.firmware, target_firmware)
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      _ = Fixtures.firmware_delta_fixture(deployment_group.current_release.firmware, target_firmware)
       device = %{device | firmware_metadata: %{device.firmware_metadata | fwup_version: "1.13.0"}}
 
       deployment_group = %{
         deployment_group
         | delta_updatable: true,
-          firmware: %{target_firmware | delta_updatable: true}
+          current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
       {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
@@ -1532,15 +1541,16 @@ defmodule NervesHub.DevicesTest do
       device: device,
       deployment_group: deployment_group,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      target_firmware = Fixtures.firmware_fixture(org_key, product)
-      _ = Fixtures.firmware_delta_fixture(deployment_group.firmware, target_firmware)
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      _ = Fixtures.firmware_delta_fixture(deployment_group.current_release.firmware, target_firmware)
 
       deployment_group = %{
         deployment_group
         | delta_updatable: true,
-          firmware: %{target_firmware | delta_updatable: true}
+          current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
       assert {:error, :device_does_not_support_deltas} = Devices.get_delta_or_firmware_url(device, deployment_group)
@@ -1550,16 +1560,22 @@ defmodule NervesHub.DevicesTest do
       device: device,
       deployment_group: deployment_group,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      target_firmware = Fixtures.firmware_fixture(org_key, product)
-      _ = Fixtures.firmware_delta_fixture(deployment_group.firmware, target_firmware, %{status: :processing})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      _ =
+        Fixtures.firmware_delta_fixture(deployment_group.current_release.firmware, target_firmware, %{
+          status: :processing
+        })
+
       device = %{device | firmware_metadata: %{device.firmware_metadata | fwup_version: "1.13.0"}}
 
       deployment_group = %{
         deployment_group
         | delta_updatable: true,
-          firmware: %{target_firmware | delta_updatable: true}
+          current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
       assert {:error, :delta_not_completed} = Devices.get_delta_or_firmware_url(device, deployment_group)
@@ -1569,16 +1585,22 @@ defmodule NervesHub.DevicesTest do
       device: device,
       deployment_group: deployment_group,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      target_firmware = Fixtures.firmware_fixture(org_key, product)
-      _ = Fixtures.firmware_delta_fixture(deployment_group.firmware, target_firmware, %{status: :processing})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      _ =
+        Fixtures.firmware_delta_fixture(deployment_group.current_release.firmware, target_firmware, %{
+          status: :processing
+        })
+
       device = %{device | firmware_metadata: %{device.firmware_metadata | uuid: "abc123"}}
 
       deployment_group = %{
         deployment_group
         | delta_updatable: true,
-          firmware: %{target_firmware | delta_updatable: true}
+          current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
       assert {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)

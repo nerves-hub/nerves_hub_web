@@ -81,7 +81,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       product: product,
       deployment_group: deployment_group
     } do
-      platform = deployment_group.firmware.platform
+      platform = deployment_group.current_release.firmware.platform
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
@@ -102,7 +102,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       product: product,
       deployment_group: deployment_group
     } do
-      architecture = deployment_group.firmware.architecture
+      architecture = deployment_group.current_release.firmware.architecture
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
@@ -155,7 +155,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       deployment_group: deployment_group
     } do
       for i <- 1..26 do
-        Fixtures.deployment_group_fixture(deployment_group.firmware, %{
+        Fixtures.deployment_group_fixture(deployment_group.current_release.firmware, %{
           name: "Deployment-group-#{i}"
         })
       end

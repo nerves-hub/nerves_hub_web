@@ -87,11 +87,11 @@
             </td>
 
             <td>
-              {deployment_group.firmware.platform}
+              {deployment_group.current_release.firmware.platform}
             </td>
 
             <td>
-              {deployment_group.firmware.architecture}
+              {deployment_group.current_release.firmware.architecture}
             </td>
 
             <td>
@@ -104,8 +104,8 @@
 
             <td class="min-w-fit">
               <span class="inline-block h-7 py-1 px-2 items-center rounded bg-zinc-800">
-                <.link navigate={~p"/org/#{@org}/#{@product}/firmware/#{deployment_group.firmware}"} class="flex items-center">
-                  <span class="text-sm text-base-300 mr-1">{deployment_group.firmware.version} ({String.slice(deployment_group.firmware.uuid, 0..7)})</span>
+                <.link navigate={~p"/org/#{@org}/#{@product}/firmware/#{deployment_group.current_release.firmware}"} class="flex items-center">
+                  <span class="text-sm text-base-300 mr-1">{deployment_group.current_release.firmware.version} ({String.slice(deployment_group.current_release.firmware.uuid, 0..7)})</span>
                   <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                       d="M8 10V8M8 6V5.99333M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
