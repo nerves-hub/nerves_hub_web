@@ -1,8 +1,8 @@
 import { Socket } from "phoenix"
-import { Terminal } from "xterm"
-import { WebglAddon } from "xterm-addon-webgl"
-import { WebLinksAddon } from "xterm-addon-web-links"
-import { FitAddon } from "xterm-addon-fit"
+import { Terminal } from "@xterm/xterm"
+import { WebglAddon } from "@xterm/addon-webgl"
+import { WebLinksAddon } from "@xterm/addon-web-links"
+import { FitAddon } from "@xterm/addon-fit"
 import semver from "semver"
 
 const defaultTermOptions = {

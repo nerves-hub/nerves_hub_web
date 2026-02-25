@@ -19,7 +19,7 @@ config :esbuild,
   version: "0.25.2",
   default: [
     args:
-      ~w(ui-rework/app.js --bundle --target=es2021 --outdir=../priv/static/assets/ui-rework --external:/fonts/* --external:/images/* --loader:.png=file),
+      ~w(js/app.js --bundle --target=es2021 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --loader:.png=file),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
@@ -106,8 +106,8 @@ config :tailwind,
   default: [
     args: ~w(
       --config=tailwind.config.js
-      --input=ui-rework/app.css
-      --output=../priv/static/assets/ui-rework/app.css
+      --input=css/app.css
+      --output=../priv/static/assets/css/app.css
     ),
     cd: Path.expand("../assets", __DIR__)
   ]

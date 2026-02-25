@@ -1,7 +1,7 @@
 ARG ELIXIR_VERSION=1.19.5
 ARG OTP_VERSION=28.3.1
 ARG DISTRO=noble-20260210.1
-ARG NODE_VERSION=16.20.2
+ARG NODE_VERSION=24.13.1
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${DISTRO}"
 ARG RUNNER_IMAGE="ubuntu:${DISTRO}"
@@ -38,7 +38,7 @@ COPY assets assets
 WORKDIR /build/assets
 
 # RUN npm install -g npm@10.2.4
-RUN npm ci && npm cache clean --force && npm run deploy
+RUN npm ci && npm cache clean --force
 
 
 ###
