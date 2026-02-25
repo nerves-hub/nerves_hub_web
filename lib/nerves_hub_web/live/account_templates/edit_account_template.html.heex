@@ -1,4 +1,4 @@
-<div class="w-[800px]">
+<div class="w-[800px] pb-10">
   <div class="h-[88px] py-6 flex items-center justify-between">
     <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Personal Info</h1>
     <.link navigate={~p"/account/delete"} class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded border border-red-500 transition-colors">
@@ -42,7 +42,13 @@
           </div>
 
           <div class="flex justify-end pt-2">
-            {submit("Save Changes", class: "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors cursor-pointer")}
+            <.button
+              type="submit"
+              style="primary"
+              aria-label="Update password"
+            >
+              Save Changes
+            </.button>
           </div>
         </div>
       </.form>
@@ -83,10 +89,104 @@
           </div>
 
           <div class="flex justify-end pt-2">
-            {submit("Update Password", class: "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors cursor-pointer")}
+            <.button
+              type="submit"
+              style="primary"
+              aria-label="Update password"
+            >
+              Update Password
+            </.button>
           </div>
         </div>
       </.form>
     </div>
+
+    <div class="bg-zinc-900 border border-zinc-700 rounded p-6">
+      <div class="flex justify-between">
+        <h2 class="text-lg font-semibold text-neutral-50 mb-4">Access tokens</h2>
+        <div>
+          <.button
+            type="button"
+            style="secondary"
+            aria-label="Generate new access token"
+            phx-click={CoreComponents.show_modal("new-access-token")}
+          >
+            Generate Access Token
+          </.button>
+        </div>
+      </div>
+
+      <div :if={@new_token} class="flex items-start gap-4 p-4 border border-indigo-500 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800">
+        <div class="flex gap-4 min-w-0">
+          <h3 class="text-sm font-semibold text-neutral-50">
+            New Token:
+          </h3>
+          <div class="text-sm text-zinc-300">
+            <code>{@new_token}</code>
+          </div>
+        </div>
+      </div>
+
+      <div :if={@access_tokens == []} class="space-y-3 text-zinc-500">
+        No access tokens have been created
+      </div>
+
+      <div class="pt-4 space-y-3">
+        <div :for={access_token <- @access_tokens} class="flex items-start gap-4 p-4 border border-zinc-700 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800">
+          <img src="/images/icons/key.svg" alt="key" class="size-6 mt-1" />
+          <div class="flex-1 min-w-0">
+            <h3 :if={access_token.note != ""} class="text-sm font-semibold text-neutral-50 mb-2">
+              {access_token.note}
+            </h3>
+
+            <h3 :if={access_token.note == ""} class="text-sm italic text-neutral-50 mb-2">
+              Unnamed
+            </h3>
+
+            <div class="text-xs text-zinc-500">
+              Last used:
+              <%= if !is_nil(access_token.last_used) do %>
+                {DateTimeFormat.from_now(access_token.last_used)}
+              <% else %>
+                <span class="text-muted">Never</span>
+              <% end %>
+            </div>
+          </div>
+          <button
+            class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            phx-click="delete-access-token"
+            phx-value-access_token_id={access_token.id}
+            data-confirm="Are you sure?"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <CoreComponents.modal id="new-access-token" on_cancel={Phoenix.LiveView.JS.add_class("hidden")}>
+    <.form id="access-token-form" for={@access_token_form} phx-submit="generate-access-token">
+      <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="text-base text-neutral-50 font-medium">New access token</div>
+      </div>
+
+      <div class="flex flex-col p-4 gap-6">
+        <div class="w-1/2 flex flex-col gap-6">
+          <.input
+            field={@access_token_form[:note]}
+            type="text"
+            label="Note"
+            hint="eg. used for CI/CD"
+          />
+        </div>
+
+        <div>
+          <.button style="secondary" type="submit">
+            <.icon name="save" /> Create access token
+          </.button>
+        </div>
+      </div>
+    </.form>
+  </CoreComponents.modal>
 </div>
