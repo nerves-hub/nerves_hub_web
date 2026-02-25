@@ -410,11 +410,6 @@ defmodule NervesHubWeb.Components.Navigation do
         title: "Personal Info",
         active: "",
         href: ~p"/account"
-      },
-      %{
-        title: "Access Tokens",
-        active: "",
-        href: ~p"/account/tokens"
       }
     ]
     |> sidebar_active(path)
