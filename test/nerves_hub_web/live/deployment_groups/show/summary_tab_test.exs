@@ -200,7 +200,7 @@ defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.Show.SummaryTabTest do
 
     expect(File, :upload_file, fn _, _ -> :ok end)
 
-    :ok = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.firmware)
+    :ok = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.current_release.firmware)
 
     conn
     |> assert_has("div", text: "Ready", timeout: 100)

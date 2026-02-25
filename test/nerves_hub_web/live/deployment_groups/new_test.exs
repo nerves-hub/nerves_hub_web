@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.NewUI.DelploymentGroups.NewTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentGroup.Conditions
   alias NervesHub.Repo
@@ -130,8 +131,9 @@ defmodule NervesHubWeb.Live.NewUI.DelploymentGroups.NewTest do
     |> submit()
     |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/Canaries")
 
-    deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
-    assert deployment_group.firmware_id == fixture.firmware.id
+    deployment_group = ManagedDeployments.get_by_product_and_name!(product, "Canaries")
+
+    assert deployment_group.current_release.firmware_id == fixture.firmware.id
     assert deployment_group.conditions == %Conditions{version: "1.2.3", tags: ["a", "b"]}
   end
 

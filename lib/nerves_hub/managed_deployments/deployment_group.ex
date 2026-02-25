@@ -42,6 +42,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     has_many(:deployment_releases, DeploymentRelease, on_delete: :delete_all)
     has_many(:update_stats, UpdateStat, on_delete: :nilify_all, foreign_key: :deployment_id)
 
+    has_one(:current_release, DeploymentRelease)
+
     embeds_one :conditions, __MODULE__.Conditions, primary_key: false, on_replace: :update do
       field(:version, :string, default: "")
       field(:tags, Tag, default: [])
