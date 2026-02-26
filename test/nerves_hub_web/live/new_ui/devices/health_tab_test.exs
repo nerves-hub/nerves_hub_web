@@ -139,7 +139,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
       assert {7, _} = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
 
       send(view.pid, %Broadcast{
-        topic: "device:#{device.identifier}:internal",
+        topic: "device:#{device.id}:internal",
         event: "health_check_report",
         payload: %{}
       })

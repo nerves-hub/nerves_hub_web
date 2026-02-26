@@ -31,7 +31,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     if connected?(socket) do
       Logger.metadata(device_id: device.id, user_id: user.id, product_id: product.id)
-      socket.endpoint.subscribe("device:#{device.identifier}:internal")
+      socket.endpoint.subscribe("device:#{device.id}:internal")
       socket.endpoint.subscribe("device:console:#{device.id}:internal")
       socket.endpoint.subscribe("device:console:#{device.id}")
       socket.endpoint.subscribe("device:#{device.id}:extensions")

@@ -662,7 +662,7 @@ defmodule NervesHub.Devices do
     ChannelServer.broadcast_from!(
       NervesHub.PubSub,
       self(),
-      "device:#{device.identifier}:internal",
+      "device:#{device.id}:internal",
       "firmware:validated",
       %{}
     )

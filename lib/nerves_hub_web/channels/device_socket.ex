@@ -102,9 +102,10 @@ defmodule NervesHubWeb.DeviceSocket do
        %Ecto.Changeset{
          changes: %{identifier: identifier, org_id: org_id, product_id: product_id},
          errors: [
-           identifier: {_msg, [constraint: :unique, constraint_name: "devices_identifier_index"]}
+           identifier: {_msg, [constraint: :unique, constraint_name: index]}
          ]
-       }} ->
+       }}
+      when index in ["devices_identifier_org_id_index", "devices_identifier_index"] ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
           auth: :shared_secrets,
           reason: :duplicate_device_identifier,
