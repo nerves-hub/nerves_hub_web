@@ -111,7 +111,7 @@ defmodule NervesHub.Devices.Device do
     |> cast_embed(:firmware_metadata)
     |> cast_embed(:extensions)
     |> validate_required(@required_params)
-    |> unique_constraint(:identifier)
+    |> unique_identifier()
     |> then(fn changeset ->
       if device.deleted_at && !Map.has_key?(changeset.changes, :deleted_at) do
         add_error(changeset, :deleted_at, "cannot update while marked as deleted")
@@ -152,6 +152,14 @@ defmodule NervesHub.Devices.Device do
       String.starts_with?(interface, "eth") or String.starts_with?(interface, "en") -> :ethernet
       String.starts_with?(interface, "wwan") -> :cellular
       true -> :unknown
+    end
+  end
+
+  defp unique_identifier(changeset) do
+    if Application.get_env(:nerves_hub, :platform_unique_device_identifiers) do
+      unique_constraint(changeset, :identifier)
+    else
+      unique_constraint(changeset, [:identifier, :org_id])
     end
   end
 end
