@@ -543,7 +543,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     updated_device_statuses =
       Map.new(updated_devices, fn device ->
-        socket.endpoint.subscribe("device:#{device.identifier}:internal")
+        socket.endpoint.subscribe("device:#{device.id}:internal")
 
         payload =
           Enum.find(socket.assigns.received_connection_change_identifiers, fn %{

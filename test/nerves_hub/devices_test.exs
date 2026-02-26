@@ -2,6 +2,7 @@ defmodule NervesHub.DevicesTest do
   use NervesHub.DataCase, async: false
   use Mimic
 
+  alias Ecto.Adapters.SQL
   alias Ecto.Changeset
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
@@ -37,6 +38,10 @@ defmodule NervesHub.DevicesTest do
       X509.PrivateKey.new_ec(:secp256r1)
       |> X509.PublicKey.derive()
       |> X509.Certificate.new("/CN=#{device.identifier}", ca_fix.cert, ca_fix.key)
+
+    on_exit(fn ->
+      Application.put_env(:nerves_hub, :platform_unique_device_identifiers, true)
+    end)
 
     {:ok,
      %{
@@ -195,7 +200,7 @@ defmodule NervesHub.DevicesTest do
     assert {:error, %Changeset{}} = Devices.create_device(params)
   end
 
-  test "cannot create two devices with the same identifier", %{
+  test "cannot create two devices with the same identifier in the same organizations", %{
     org: org,
     product: product,
     firmware: firmware
@@ -211,6 +216,73 @@ defmodule NervesHub.DevicesTest do
 
     assert {:ok, %Devices.Device{}} = Devices.create_device(params)
     assert {:error, %Ecto.Changeset{}} = Devices.create_device(params)
+  end
+
+  test "cannot create two devices with the same identifier across different organizations", %{
+    user: user,
+    org: org,
+    product: product,
+    firmware: firmware
+  } do
+    other_org = Fixtures.org_fixture(user, %{name: "SnootsInc"})
+    other_product = Fixtures.product_fixture(user, other_org)
+
+    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+
+    params = %{
+      org_id: org.id,
+      product_id: product.id,
+      firmware_metadata: metadata,
+      identifier: "valid identifier"
+    }
+
+    assert {:ok, %Devices.Device{}} = Devices.create_device(params)
+
+    other_params = %{
+      org_id: other_org.id,
+      product_id: other_product.id,
+      firmware_metadata: metadata,
+      identifier: "valid identifier"
+    }
+
+    assert {:error, %Ecto.Changeset{}} = Devices.create_device(other_params)
+  end
+
+  test "can create two devices with the same identifier across different organizations, if enabled", %{
+    user: user,
+    org: org,
+    product: product,
+    firmware: firmware
+  } do
+    Application.put_env(:nerves_hub, :platform_unique_device_identifiers, false)
+
+    drop_query = "DROP INDEX devices_identifier_index;"
+    SQL.query!(Repo, drop_query, [])
+    add_query = "CREATE INDEX devices_identifier_org_id_index ON devices(identifier, org_id);"
+    SQL.query!(Repo, add_query, [])
+
+    other_org = Fixtures.org_fixture(user, %{name: "SnootsInc"})
+    other_product = Fixtures.product_fixture(user, other_org)
+
+    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+
+    params = %{
+      org_id: org.id,
+      product_id: product.id,
+      firmware_metadata: metadata,
+      identifier: "valid identifier"
+    }
+
+    assert {:ok, %Devices.Device{}} = Devices.create_device(params)
+
+    other_params = %{
+      org_id: other_org.id,
+      product_id: other_product.id,
+      firmware_metadata: metadata,
+      identifier: "valid identifier"
+    }
+
+    assert {:ok, %Devices.Device{}} = Devices.create_device(other_params)
   end
 
   test "create device certificate", %{device: device, cert: cert} do

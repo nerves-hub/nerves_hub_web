@@ -33,7 +33,7 @@ defmodule NervesHubWeb.ChannelCase do
       @endpoint NervesHubWeb.DeviceEndpoint
 
       def subscribe_device_internal(device) do
-        Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.identifier}:internal")
+        Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}:internal")
       end
 
       def subscribe_extensions(device) do

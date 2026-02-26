@@ -92,7 +92,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   def subscribe(%{assigns: %{pinned_devices: devices}} = socket) do
     if connected?(socket) do
       Enum.each(devices, fn device ->
-        socket.endpoint.subscribe("device:#{device.identifier}:internal")
+        socket.endpoint.subscribe("device:#{device.id}:internal")
       end)
     end
 
