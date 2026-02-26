@@ -3,7 +3,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   Phoenix Channel for external services to subscribe to device updates.
   Currently only supports firmware update progress.
 
-  External services can join device-specific channels using the topic pattern "device:\#{device_identifier}"
+  External services can join device-specific channels using the topic pattern "device:\#{device_id}"
   """
 
   use Phoenix.Channel
@@ -15,10 +15,10 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   require Logger
 
   @impl Phoenix.Channel
-  def join("device:" <> device_identifier, _params, socket) do
+  def join("device:" <> device_id, _params, socket) do
     # Socket already has authenticated user, just validate device access
-    if authorized?(socket.assigns.user, device_identifier) do
-      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device_identifier}:internal")
+    if authorized?(socket.assigns.user, device_id) do
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device_id}:internal")
 
       {:ok, socket}
     else
@@ -40,8 +40,8 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     {:noreply, socket}
   end
 
-  defp authorized?(user, device_identifier) do
-    case Accounts.find_org_user_with_device_identifier(user, device_identifier) do
+  defp authorized?(user, device_id) do
+    case Accounts.find_org_user_with_device(user, device_id) do
       nil ->
         false
 

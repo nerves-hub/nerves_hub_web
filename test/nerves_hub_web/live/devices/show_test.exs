@@ -326,7 +326,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "Update complete: The device will reboot shortly.")
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
+          topic: "device:#{device.id}:internal",
           event: "connection:change",
           payload: %{status: "offline"}
         })
@@ -336,7 +336,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "Update complete: The device will reboot shortly.")
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
+          topic: "device:#{device.id}:internal",
           event: "connection:change",
           payload: %{status: "online"}
         })

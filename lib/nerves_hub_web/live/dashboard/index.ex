@@ -72,13 +72,13 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
 
   defp subscribed?(device) do
     Registry.count_select(NervesHub.PubSub, [
-      {{"device:#{device.identifier}:internal", self(), :_}, [], [true]}
+      {{"device:#{device.id}:internal", self(), :_}, [], [true]}
     ]) > 0
   end
 
   defp maybe_subscribe(socket, device) do
     if not subscribed?(device) do
-      socket.endpoint.subscribe("device:#{device.identifier}:internal")
+      socket.endpoint.subscribe("device:#{device.id}:internal")
     end
   end
 

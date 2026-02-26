@@ -17,9 +17,9 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
       {:ok, socket} = connect(EventStreamSocket, %{"token" => user_token})
 
       {:ok, _join_reply, _channel} =
-        subscribe_and_join(socket, DeviceEventsStreamChannel, "device:#{device.identifier}")
+        subscribe_and_join(socket, DeviceEventsStreamChannel, "device:#{device.id}")
 
-      NervesHubWeb.Endpoint.broadcast("device:#{device.identifier}:internal", "fwup_progress", %{
+      NervesHubWeb.Endpoint.broadcast("device:#{device.id}:internal", "fwup_progress", %{
         percent: 50
       })
 
@@ -41,7 +41,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
                subscribe_and_join(
                  socket,
                  DeviceEventsStreamChannel,
-                 "device:#{device.identifier}"
+                 "device:#{device.id}"
                )
     end
 
@@ -60,7 +60,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
                subscribe_and_join(
                  socket,
                  DeviceEventsStreamChannel,
-                 "device:#{device.identifier}"
+                 "device:#{device.id}"
                )
     end
   end

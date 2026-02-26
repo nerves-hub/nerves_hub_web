@@ -4,6 +4,7 @@ defmodule NervesHubWeb.WebsocketTest do
   import Ecto.Query
   import TrackerHelper
 
+  alias Ecto.Adapters.SQL
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Devices
@@ -340,16 +341,83 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      subscribe_for_updates(%Device{identifier: identifier})
-
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.join_and_wait(socket, params)
 
       assert device = Repo.get_by(Device, identifier: identifier)
 
-      assert_connection_change()
       assert_online_and_available(device)
 
+      subscribe_for_updates(device)
+      close_socket_cleanly(socket)
+    end
+
+    test "can register device with product key/secret, when a duplicate identifier exists in a different org", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      Application.put_env(:nerves_hub, :platform_unique_device_identifiers, false)
+
+      on_exit(fn ->
+        Application.put_env(:nerves_hub, :platform_unique_device_identifiers, true)
+      end)
+
+      drop_query = "DROP INDEX devices_identifier_index;"
+      SQL.query!(Repo, drop_query, [])
+      add_query = "CREATE INDEX devices_identifier_org_id_index ON devices(identifier, org_id);"
+      SQL.query!(Repo, add_query, [])
+
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+
+      other_org = Fixtures.org_fixture(user, %{name: "SnootsCorp"})
+      other_product = Fixtures.product_fixture(user, other_org)
+
+      assert {:ok, auth} = Products.create_shared_secret_auth(product)
+
+      org_key = Fixtures.org_key_fixture(other_org, user, tmp_dir)
+
+      firmware =
+        Fixtures.firmware_fixture(org_key, product, %{
+          version: "0.0.1",
+          dir: tmp_dir
+        })
+
+      other_device =
+        Fixtures.device_fixture(
+          other_org,
+          other_product,
+          firmware,
+          %{}
+        )
+
+      assert Repo.aggregate(from(d in Device, where: d.identifier == ^other_device.identifier), :count) == 1
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, other_device.identifier)
+      ]
+
+      params = %{
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => product.name,
+        "nerves_fw_architecture" => "arm64",
+        "nerves_fw_version" => "0.0.0",
+        "nerves_fw_platform" => "test_host"
+      }
+
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.join_and_wait(socket, params)
+
+      assert device = Repo.get_by(Device, org_id: org.id, identifier: other_device.identifier)
+
+      assert Repo.aggregate(from(d in Device, where: d.identifier == ^device.identifier), :count) == 2
+
+      assert other_device.identifier == device.identifier
+      assert other_device.id != device.id
+
+      subscribe_for_updates(device)
       close_socket_cleanly(socket)
     end
 
@@ -375,14 +443,12 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      subscribe_for_updates(%Device{identifier: identifier})
-
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.join_and_wait(socket, params)
 
       assert device = Repo.get_by(Device, identifier: identifier)
+      subscribe_for_updates(device)
 
-      assert_connection_change()
       assert_online_and_available(device)
 
       close_socket_cleanly(socket)
@@ -535,16 +601,11 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      subscribe_for_updates(%Device{identifier: identifier})
-
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.join_and_wait(socket, params)
 
-      assert_connection_change()
-
       assert device = Repo.get_by(Device, identifier: identifier)
-
-      assert_online_and_available(device)
+      subscribe_for_updates(device)
 
       {:ok, new_connection} = SocketClient.start_link(opts)
       SocketClient.join_and_wait(new_connection, params)
@@ -590,15 +651,18 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      subscribe_for_updates(%Device{identifier: identifier})
-
       {:ok, socket} = SocketClient.start_link(opts)
 
       SocketClient.join_and_wait(socket, params)
 
-      assert_connection_change()
-
       assert device = Repo.get_by(Device, identifier: identifier)
+      subscribe_for_updates(%Device{id: device.id})
+
+      # we can't listen for this event as we can't subscribe to the topic before joining,
+      # since the topic requires the device's id, which is not known until after joining
+      # and a device being created in the DB
+      # assert_connection_change()
+
       assert device_connection = Connections.get_latest_for_device(device.id)
 
       # the connected status goes from `:connecting` to `:connected`, signifying
