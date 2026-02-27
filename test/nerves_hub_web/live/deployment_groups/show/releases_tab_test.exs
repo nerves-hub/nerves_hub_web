@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.Show.ReleasesTabTest do
+defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 

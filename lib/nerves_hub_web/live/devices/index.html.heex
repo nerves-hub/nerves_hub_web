@@ -1,4 +1,4 @@
-<div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
+<div class="h-14 flex justify-end bg-base-900 border-b border-base-700"></div>
 
 <div id="device-container" class="h-0 flex-1 overflow-y-auto" phx-hook="PageVisible">
   <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
@@ -69,7 +69,7 @@
             <tr :for={_ <- 1..25} class="border-b border-zinc-800 isolate clickable-table-row animate-pulse">
               <td class="checkbox"><input class="checkbox opacity-50" type="checkbox" /></td>
               <td>
-                <div class="flex gap-[8px] items-center">
+                <div class="flex gap-2 items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
                     <circle cx="3" cy="3" r="3" fill="#71717A" />
                   </svg>
@@ -78,25 +78,25 @@
               </td>
 
               <td>
-                <div class="flex gap-[8px] items-center justify-center">
+                <div class="flex gap-2 items-center justify-center">
                   <div class="size-4 bg-gray-200 rounded-full dark:bg-gray-700"></div>
                 </div>
               </td>
 
               <td>
-                <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-[80px]"></div>
+                <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-20"></div>
               </td>
 
               <td>
-                <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-[80px]"></div>
+                <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-20"></div>
               </td>
 
               <td>
-                <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-[80px]"></div>
+                <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-20"></div>
               </td>
 
               <td>
-                <div class="flex items-center gap-[4px]">
+                <div class="flex items-center gap-1">
                   <div class="tag h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-[30px]"></div>
                 </div>
               </td>
@@ -228,7 +228,7 @@
                   </label>
                 </td>
                 <td>
-                  <div class="flex gap-[8px] items-center">
+                  <div class="flex gap-2 items-center">
                     <span title={connection_established_at_status(device.latest_connection)}>
                       <%= if @device_statuses.result[device.identifier] == "online" do %>
                         <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
@@ -278,13 +278,13 @@
                 </td>
 
                 <td>
-                  <div class="flex gap-[8px] items-center justify-center">
+                  <div class="flex gap-2 items-center justify-center">
                     <HealthStatus.render device_id={device.id} health={device.latest_health} tooltip_position="top" />
                   </div>
                 </td>
 
                 <td>
-                  <div class="flex gap-[8px] items-center">
+                  <div class="flex gap-2 items-center">
                     <span class="font-mono">
                       <%= if is_nil(device.firmware_metadata) do %>
                         Unknown
@@ -313,7 +313,7 @@
                 </td>
 
                 <td>
-                  <div class="flex items-center gap-[4px] text-nowrap">
+                  <div class="flex items-center gap-1 text-nowrap">
                     <%= if !is_nil(device.tags) do %>
                       <%= for tag <- device.tags do %>
                         <span class="tag">{tag}</span>
@@ -335,7 +335,7 @@
                       />
                     </svg>
                   </a>
-                  <div class="hidden absolute right-[24px] menu-box" id={"actions-menu-#{device.id}"} phx-click-away={hide_menu("actions-menu-#{device.id}")} phx-key="escape" )}>
+                  <div class="hidden absolute right-6 menu-box" id={"actions-menu-#{device.id}"} phx-click-away={hide_menu("actions-menu-#{device.id}")} phx-key="escape" )}>
                     <.link phx-click="reboot-device" phx-value-device_identifier={device.identifier} class="dropdown-item">
                       Reboot
                     </.link>
