@@ -4,6 +4,7 @@ defmodule NervesHubWeb.EventStreamSocket do
   alias NervesHub.Accounts
 
   channel("device:*", NervesHubWeb.DeviceEventsStreamChannel)
+  channel("device:console:*", NervesHubWeb.DeviceEventsStreamChannel)
 
   @impl Phoenix.Socket
   def connect(params, socket, _connect_info) do
