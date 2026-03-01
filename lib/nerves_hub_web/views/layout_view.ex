@@ -252,11 +252,6 @@ defmodule NervesHubWeb.LayoutView do
         title: "Personal Info",
         active: "",
         href: ~p"/account"
-      },
-      %{
-        title: "Access Tokens",
-        active: "",
-        href: ~p"/account/tokens"
       }
     ]
     |> sidebar_active(conn)

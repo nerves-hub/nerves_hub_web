@@ -11,13 +11,6 @@ defmodule NervesHubWeb.DeviceController do
     [org: :view] when action in [:console, :download_certificate, :export_audit_logs]
   )
 
-  def console(conn, _params) do
-    conn
-    |> put_root_layout(html: {NervesHubWeb.LayoutView, :console})
-    |> put_layout(false)
-    |> render("console.html")
-  end
-
   def download_certificate(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
     case Enum.find(device.device_certificates, &(&1.serial == serial)) do
       %{der: der} ->

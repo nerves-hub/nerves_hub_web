@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
+defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use PhoenixHTMLHelpers
 
@@ -24,7 +24,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     context
   end
 
-  test "assert page render when no health exist for device", %{
+  test "tab shows message when no health exist for device", %{
     conn: conn,
     org: org,
     product: product,
@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     |> assert_has("span", text: "No metrics for the selected period.")
   end
 
-  test "Assert canvas is rendered when metrics data exists", %{
+  test "graph sections are displayed when metrics data exists", %{
     conn: conn,
     org: org,
     product: product,
@@ -61,72 +61,74 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     end)
   end
 
-  test "assert time frame shows correct metrics - within 1 day", %{
-    conn: conn,
-    org: org,
-    product: product,
-    device: device
-  } do
-    timestamp =
-      DateTime.now!("Etc/UTC")
-      |> DateTime.add(-23, :hour)
-      |> DateTime.truncate(:millisecond)
+  describe "time frame selectors" do
+    test "within 1 day", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      timestamp =
+        DateTime.now!("Etc/UTC")
+        |> DateTime.add(-23, :hour)
+        |> DateTime.truncate(:millisecond)
 
-    _ = save_metrics_with_timestamp(device.id, timestamp)
+      _ = save_metrics_with_timestamp(device.id, timestamp)
 
-    conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
-    # Default time frame is 1 hour, so no charts are expected.
-    |> refute_has("canvas")
-    |> click_button("1 day")
-    |> assert_has("canvas")
-    |> click_button("7 days")
-    |> assert_has("canvas")
-    # Makes sure "1 hour" button is working
-    |> click_button("1 hour")
-    |> refute_has("canvas")
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      # Default time frame is 1 hour, so no charts are expected.
+      |> refute_has("canvas")
+      |> click_button("1 day")
+      |> assert_has("canvas")
+      |> click_button("7 days")
+      |> assert_has("canvas")
+      # Makes sure "1 hour" button is working
+      |> click_button("1 hour")
+      |> refute_has("canvas")
+    end
+
+    test "within 7 days", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      timestamp =
+        DateTime.now!("Etc/UTC")
+        # Just outside span for 7 days
+        |> DateTime.add(-7, :day)
+        |> DateTime.truncate(:millisecond)
+
+      _ = save_metrics_with_timestamp(device.id, timestamp)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> refute_has("canvas")
+      |> click_button("1 day")
+      |> refute_has("canvas")
+      |> click_button("7 days")
+      |> refute_has("canvas")
+
+      timestamp =
+        DateTime.now!("Etc/UTC")
+        # Outside span for 1 day, but within 7 days
+        |> DateTime.add(-1, :day)
+        |> DateTime.truncate(:millisecond)
+
+      _ = save_metrics_with_timestamp(device.id, timestamp)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> refute_has("canvas")
+      |> click_button("1 day")
+      |> refute_has("canvas")
+      |> click_button("7 days")
+      |> assert_has("canvas")
+    end
   end
 
-  test "assert time frame shows correct metrics - within 7 days", %{
-    conn: conn,
-    org: org,
-    product: product,
-    device: device
-  } do
-    timestamp =
-      DateTime.now!("Etc/UTC")
-      # Just outside span for 7 days
-      |> DateTime.add(-7, :day)
-      |> DateTime.truncate(:millisecond)
-
-    _ = save_metrics_with_timestamp(device.id, timestamp)
-
-    conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
-    |> refute_has("canvas")
-    |> click_button("1 day")
-    |> refute_has("canvas")
-    |> click_button("7 days")
-    |> refute_has("canvas")
-
-    timestamp =
-      DateTime.now!("Etc/UTC")
-      # Outside span for 1 day, but within 7 days
-      |> DateTime.add(-1, :day)
-      |> DateTime.truncate(:millisecond)
-
-    _ = save_metrics_with_timestamp(device.id, timestamp)
-
-    conn
-    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
-    |> refute_has("canvas")
-    |> click_button("1 day")
-    |> refute_has("canvas")
-    |> click_button("7 days")
-    |> assert_has("canvas")
-  end
-
-  test "assert charts are updating when metrics are reported", %{
+  test "charts are updating when metrics are reported", %{
     conn: conn,
     org: org,
     product: product,
@@ -149,7 +151,7 @@ defmodule NervesHubWeb.Live.NewUi.Devices.HealthTabTest do
     |> assert_has("canvas")
   end
 
-  test "assert metrics data is correctly structured for js graphs", %{
+  test "metrics data is correctly structured for js graphs", %{
     conn: conn,
     org: org,
     product: product,

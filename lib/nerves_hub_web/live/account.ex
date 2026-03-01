@@ -2,6 +2,9 @@ defmodule NervesHubWeb.Live.Account do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.UserToken
+  alias NervesHubWeb.CoreComponents
+  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   embed_templates("account_templates/*")
 
@@ -9,6 +12,9 @@ defmodule NervesHubWeb.Live.Account do
   def mount(_params, _session, socket) do
     socket
     |> assign(:password_changeset, Accounts.change_user_password(socket.assigns.user))
+    |> assign(:access_tokens, Accounts.get_user_api_tokens(socket.assigns.user))
+    |> assign(:access_token_form, to_form(Ecto.Changeset.change(%UserToken{})))
+    |> assign(:new_token, nil)
     |> ok()
   end
 
@@ -85,6 +91,38 @@ defmodule NervesHubWeb.Live.Account do
       socket
       |> put_flash(:error, "Please type #{socket.assigns.user.email} to confirm.")
       |> noreply()
+    end
+  end
+
+  def handle_event("generate-access-token", %{"user_token" => params}, socket) do
+    user = socket.assigns.user
+
+    token = Accounts.create_user_api_token(user, params["note"])
+
+    socket
+    |> put_flash(:info, "Token created")
+    |> assign(:new_token, token)
+    |> assign(:access_tokens, Accounts.get_user_api_tokens(socket.assigns.user))
+    |> push_event("close-modal", %{id: "new-access-token"})
+    |> noreply()
+  end
+
+  def handle_event("delete-access-token", %{"access_token_id" => token_id}, socket) do
+    user = socket.assigns.user
+
+    case Accounts.delete_user_token(user, token_id) do
+      {:ok, _token} ->
+        socket
+        |> put_flash(:info, "Token deleted")
+        |> assign(:access_tokens, Accounts.get_user_api_tokens(socket.assigns.user))
+        |> assign(:new_token, nil)
+        |> noreply()
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(:error, "Could not delete token, please contact support.")
+        |> assign(:new_token, nil)
+        |> noreply()
     end
   end
 end

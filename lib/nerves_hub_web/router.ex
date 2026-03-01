@@ -285,16 +285,6 @@ defmodule NervesHubWeb.Router do
   scope "/", NervesHubWeb do
     pipe_through([:browser, :live_logged_in])
 
-    live_session :account,
-      on_mount: [
-        AccountAuth,
-        EnrichSentryContext,
-        CurrentPath
-      ] do
-      live("/account/tokens", Live.AccountTokens, :index)
-      live("/account/tokens/new", Live.AccountTokens, :new)
-    end
-
     live_session :account_refreshed,
       root_layout: {NervesHubWeb.Layouts, :root},
       layout: {NervesHubWeb.Layouts, :no_sidebar},

@@ -123,4 +123,70 @@ defmodule NervesHubWeb.Live.AccountTest do
       |> assert_has("div", text: "Your account has successfully been deleted")
     end
   end
+
+  describe "generate new access token" do
+    test "accepts a token note", %{conn: conn, user: user} do
+      conn
+      |> visit("/account")
+      |> assert_has("div", text: "No access tokens have been created")
+      # PhoenixTest doesn't work with JS commands in the phx-click
+      # |> click_button("Generate Access Token")
+      |> assert_has("div", text: "New access token")
+      |> fill_in("Note", with: "An amazing token")
+      |> click_button("Create access token")
+      |> assert_path("/account")
+      |> assert_has("div", text: "Token created")
+      |> assert_has("div", text: "New Token:")
+      |> assert_has("code", text: "nhu_")
+      |> assert_has("h3", text: "An amazing token")
+
+      assert Enum.count(Accounts.get_user_api_tokens(user)) == 1
+    end
+
+    test "token note can be blank", %{conn: conn, user: user} do
+      conn
+      |> visit("/account")
+      |> assert_has("div", text: "No access tokens have been created")
+      # PhoenixTest doesn't work with JS commands in the phx-click
+      # |> click_button("Generate Access Token")
+      |> assert_has("div", text: "New access token")
+      |> click_button("Create access token")
+      |> assert_path("/account")
+      |> assert_has("div", text: "Token created")
+      |> assert_has("div", text: "New Token:")
+      |> assert_has("code", text: "nhu_")
+      |> assert_has("h3", text: "Unnamed")
+
+      assert Enum.count(Accounts.get_user_api_tokens(user)) == 1
+    end
+
+    test "token note will be trimmed", %{conn: conn} do
+      conn
+      |> visit("/account")
+      |> assert_has("div", text: "No access tokens have been created")
+      # PhoenixTest doesn't work with JS commands in the phx-click
+      # |> click_button("Generate Access Token")
+      |> assert_has("div", text: "New access token")
+      |> fill_in("Note", with: "    An    amazing    token    ")
+      |> click_button("Create access token")
+      |> assert_path("/account")
+      |> assert_has("div", text: "Token created")
+      |> assert_has("div", text: "New Token:")
+      |> assert_has("code", text: "nhu_")
+      |> assert_has("h3", text: "An amazing token")
+    end
+  end
+
+  test "delete an access token", %{conn: conn, user: user} do
+    Accounts.create_user_api_token(user, "Boop")
+
+    conn
+    |> visit("/account")
+    |> assert_has("h3", text: "Boop")
+    |> click_button("button[phx-click=\"delete-access-token\"]", "Delete")
+    |> assert_has("div", text: "Token deleted")
+    |> refute_has("h3", text: "Boop")
+
+    assert Enum.empty?(Accounts.get_user_api_tokens(user))
+  end
 end

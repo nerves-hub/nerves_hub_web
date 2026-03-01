@@ -1,5 +1,5 @@
-defmodule NervesHubWeb.Live.Devices.SettingsTest do
-  use NervesHubWeb.ConnCase.Browser, async: true
+defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
+  use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Devices
   alias NervesHub.Repo
@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
   describe "device settings" do
     test "can change tags", %{conn: conn, org: org, product: product, device: device} do
       conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
       |> assert_has("div", text: "General settings")
       |> fill_in("Tags", with: "josh, lars")
       |> click_button("Save changes")
@@ -22,7 +22,7 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
 
     test "can add 'first connect code'", %{conn: conn, org: org, product: product, device: device} do
       conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
       |> assert_has("div", text: "General settings")
       |> fill_in("First connect code", with: "dbg(\"boo\")")
       |> click_button("Save changes")
@@ -43,7 +43,7 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
 
       conn =
         conn
-        |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+        |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
         # Device has 1 certificate as default
         |> assert_has("div", text: "Serial: #{Utils.format_serial(cert.serial)}")
         |> upload("Upload certificate", "test/fixtures/ssl/device-test-cert.pem")
@@ -65,7 +65,7 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
       cert = device.device_certificates |> List.first()
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
       # Device has 1 certificate as default
       |> assert_has("div", text: "Serial: #{Utils.format_serial(cert.serial)}")
       |> click_button("button[phx-click=\"delete-certificate\"]", "")
@@ -83,12 +83,41 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
 
       result =
         conn
-        |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+        |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
         # Device has 1 certificate as default
         |> assert_has("div", text: "Serial: #{Utils.format_serial(cert.serial)}")
         |> click_link("a[download=\"\"]", "")
 
       assert result.conn.resp_body =~ "-----BEGIN CERTIFICATE-----"
     end
+  end
+
+  test "deleting device", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    conn
+    |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+    |> click_button("Delete device")
+    |> assert_has("div", text: "Device is deleted and must be restored to use.")
+
+    assert Repo.reload(device) |> Map.get(:deleted_at)
+  end
+
+  test "destroying device", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    conn
+    |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+    |> click_button("Delete device")
+    |> click_button("Permanently delete device")
+    |> assert_has("div", text: "Device permanently destroyed successfully.")
+
+    refute Repo.reload(device)
   end
 end

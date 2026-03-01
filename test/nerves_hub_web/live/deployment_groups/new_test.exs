@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.NewUI.DelploymentGroups.NewTest do
+defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 

@@ -58,7 +58,8 @@ config :nerves_hub,
       days_to_keep: String.to_integer(System.get_env("EXTENSIONS_LOGGING_DAYS_TO_KEEP", "3"))
     ]
   ],
-  logger_exclusions: System.get_env("LOGGER_EXCLUSIONS", "") |> String.split(",")
+  logger_exclusions: System.get_env("LOGGER_EXCLUSIONS", "") |> String.split(","),
+  devices_websocket_url: System.get_env("DEVICES_WEBSOCKET_HOST")
 
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do

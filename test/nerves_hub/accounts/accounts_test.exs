@@ -151,6 +151,16 @@ defmodule NervesHub.AccountsTest do
                Accounts.authenticate(user.email, "wrong password")
     end
 
+    test "with blank password", %{user: user} do
+      assert {:error, :authentication_failed} =
+               Accounts.authenticate(user.email, "")
+    end
+
+    test "password is nil", %{user: user} do
+      assert {:error, :authentication_failed} =
+               Accounts.authenticate(user.email, nil)
+    end
+
     test "with non existent user email" do
       assert {:error, :authentication_failed} =
                Accounts.authenticate("non existent email", "wrong password")

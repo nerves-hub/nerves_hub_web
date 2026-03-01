@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.NewUI.DeploymentGroups.Show.ActivityTabTest do
+defmodule NervesHubWeb.Live.DeploymentGroups.Show.ActivityTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   setup context do

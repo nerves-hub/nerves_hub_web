@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.NewUI.Devices.LocalShellTabTest do
+defmodule NervesHubWeb.Live.Devices.Show.LocalShellTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Devices

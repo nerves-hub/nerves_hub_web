@@ -144,6 +144,7 @@ defmodule NervesHub.MixProject do
       {:req, "~> 0.5"},
       {:sentry, "~> 11.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
+      {:slugify, "~> 1.3"},
       {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},
       {:sweet_xml, "~> 0.6"},
       {:swoosh, "~> 1.12"},
