@@ -1594,7 +1594,7 @@ defmodule NervesHub.Devices do
 
   def told_to_update(device_id, deployment_group, opts) do
     deployment_group =
-      ManagedDeployments.load_current_release(deployment_group, true)
+      ManagedDeployments.load_current_release(deployment_group, force: true)
       |> Repo.preload([:org])
 
     expires_at =

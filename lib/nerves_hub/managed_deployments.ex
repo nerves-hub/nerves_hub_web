@@ -242,7 +242,7 @@ defmodule NervesHub.ManagedDeployments do
            {:ok, _deployment_release} <- maybe_create_deployment_release(deployment_group, changeset, user.id) do
         {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
 
-        deployment_group = load_current_release(deployment_group, true)
+        deployment_group = load_current_release(deployment_group, force: true)
 
         case recalculate_deployment_group_status_by_firmware_id(deployment_group.current_release.firmware_id) do
           {:ok, updated_deployments} ->
@@ -274,7 +274,9 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  def load_current_release(deployment_group, force \\ false) do
+  def load_current_release(deployment_group, opts \\ []) do
+    force = Keyword.get(opts, :force, false)
+
     current_release_query =
       DeploymentRelease
       |> join(:left, [dr], f in assoc(dr, :firmware), as: :firmware)
@@ -765,7 +767,7 @@ defmodule NervesHub.ManagedDeployments do
   """
   @spec matched_devices_count(DeploymentGroup.t(), in_deployment: boolean()) :: non_neg_integer()
   def matched_devices_count(deployment_group, in_deployment: in_deployment) do
-    deployment_group = load_current_release(deployment_group, true)
+    deployment_group = load_current_release(deployment_group, force: true)
 
     query = matched_devices_base_query(deployment_group, in_deployment)
 
