@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Firmware do
   alias NervesHub.Firmwares.Upload
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
+  alias Phoenix.LiveView.UploadConfig
   alias Phoenix.Socket.Broadcast
 
   embed_templates("firmware_templates/*")
@@ -188,16 +189,10 @@ defmodule NervesHubWeb.Live.Firmware do
     if entry.done? do
       [filepath] =
         consume_uploaded_entries(socket, :firmware, fn %{path: path}, _entry ->
-          dest = Path.join(System.tmp_dir(), Path.basename(path))
-          File.cp!(path, dest)
-          {:ok, dest}
+          {:postpone, path}
         end)
 
-      try do
-        create_firmware(socket, filepath)
-      after
-        File.rm(filepath)
-      end
+      create_firmware(socket, filepath, entry)
     else
       {:noreply, assign(socket, status: "uploading...")}
     end
@@ -250,7 +245,7 @@ defmodule NervesHubWeb.Live.Firmware do
     !(assigns.params && assigns.params["page_number"] && assigns.params["page_number"] > 1)
   end
 
-  defp create_firmware(socket, filepath) do
+  defp create_firmware(socket, filepath, entry) do
     case Firmwares.create_firmware(socket.assigns.org, filepath) do
       {:ok, _firmware} ->
         socket
@@ -271,7 +266,10 @@ defmodule NervesHubWeb.Live.Firmware do
        %Ecto.Changeset{
          errors: [product_id: {"can't be blank", [validation: :required]}]
        }} ->
-        error_feedback(socket, "No matching product could be found.")
+        error_feedback(
+          socket,
+          "No matching product could be found. Please check that your Nerves application product name (`:app` or `:name` in `mix.exs`) matches your #{Application.get_env(:nerves_hub, :web_title_suffix)} product name."
+        )
 
       {:error,
        %Ecto.Changeset{
@@ -290,6 +288,9 @@ defmodule NervesHubWeb.Live.Firmware do
       _ ->
         error_feedback(socket, "Unknown error uploading firmware. Please contact support.")
     end
+  after
+    UploadConfig.entry_pid(socket.assigns[:uploads][:firmware], entry)
+    |> GenServer.call(:consume_done, :infinity)
   end
 
   defp error_feedback(socket, changeset_or_message, opts \\ [])
