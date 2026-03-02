@@ -289,6 +289,9 @@ defmodule NervesHubWeb.Live.Firmware do
         error_feedback(socket, "Unknown error uploading firmware. Please contact support.")
     end
   after
+    # This hooks into some of the behind-the-scenes upload logic to ensure the upload is cleaned up.
+    # This is a bit hacky, but it allows us to skip having to create a new temporary file, copy
+    # the contents of the uploaded file to it, and then delete it after use.
     UploadConfig.entry_pid(socket.assigns[:uploads][:firmware], entry)
     |> GenServer.call(:consume_done, :infinity)
   end
