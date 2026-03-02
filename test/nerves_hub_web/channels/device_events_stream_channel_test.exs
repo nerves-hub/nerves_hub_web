@@ -86,10 +86,10 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
   end
 
   describe "join/3 - org scoped" do
-    test "authorized users can join the device channel using the org scoped channel" do
+    test "authorized users can join the device channel using the org scoped channel", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
 
-      device = device_fixture(user, %{identifier: "test-device-123"})
+      device = device_fixture(user, %{identifier: "test-device-123"}, tmp_dir)
 
       org = Accounts.get_org!(device.org_id)
 
@@ -105,10 +105,10 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
                )
     end
 
-    test "the org name must match the device's org name" do
+    test "the org name must match the device's org name", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
 
-      device = device_fixture(user, %{identifier: "test-device-123"})
+      device = device_fixture(user, %{identifier: "test-device-123"}, tmp_dir)
 
       user_token = Accounts.create_user_api_token(user, "test-token")
 
@@ -126,7 +126,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
       user = Fixtures.user_fixture()
       other_user = Fixtures.user_fixture()
 
-      device = device_fixture(user, %{identifier: "test-device-123"}, tmp_dir)
+      device = device_fixture(user, %{identifier: "test-device-456"}, tmp_dir)
 
       other_user_token = Accounts.create_user_api_token(other_user, "test-token")
 
