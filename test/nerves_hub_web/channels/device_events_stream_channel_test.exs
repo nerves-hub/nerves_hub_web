@@ -17,7 +17,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
       {:ok, socket} = connect(EventStreamSocket, %{"token" => user_token})
 
       {:ok, _join_reply, _channel} =
-        subscribe_and_join(socket, DeviceEventsStreamChannel, "device:#{device.id}")
+        subscribe_and_join(socket, DeviceEventsStreamChannel, "device:#{device.identifier}")
 
       NervesHubWeb.Endpoint.broadcast("device:#{device.id}:internal", "fwup_progress", %{
         percent: 50
@@ -41,7 +41,84 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
                subscribe_and_join(
                  socket,
                  DeviceEventsStreamChannel,
+                 "device:#{device.identifier}"
+               )
+    end
+
+    test "auth fails when :platform_unique_device_identifiers is false" do
+      Application.put_env(:nerves_hub, :platform_unique_device_identifiers, false)
+      on_exit(fn -> Application.put_env(:nerves_hub, :platform_unique_device_identifiers, true) end)
+
+      user = Fixtures.user_fixture()
+
+      device = device_fixture(user, %{identifier: "test-device-123"})
+
+      user_token = Accounts.create_user_api_token(user, "test-token")
+
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => user_token})
+
+      assert {:error, %{reason: "unauthorized"}} =
+               subscribe_and_join(
+                 socket,
+                 DeviceEventsStreamChannel,
+                 "device:#{device.identifier}"
+               )
+    end
+
+    test "unauthorized user cannot join the device channel" do
+      user = Fixtures.user_fixture()
+      other_user = Fixtures.user_fixture()
+
+      device = device_fixture(user, %{identifier: "test-device-456"})
+
+      other_user_token = Accounts.create_user_api_token(other_user, "test-token")
+
+      # Connect with unauthorized user's token
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => other_user_token})
+
+      assert {:error, %{reason: _reason}} =
+               subscribe_and_join(
+                 socket,
+                 DeviceEventsStreamChannel,
                  "device:#{device.id}"
+               )
+    end
+  end
+
+  describe "join/3 - org scoped" do
+    test "authorized users can join the device channel using the org scoped channel" do
+      user = Fixtures.user_fixture()
+
+      device = device_fixture(user, %{identifier: "test-device-123"})
+
+      org = Accounts.get_org!(device.org_id)
+
+      user_token = Accounts.create_user_api_token(user, "test-token")
+
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => user_token})
+
+      assert {:ok, _reply, _channel} =
+               subscribe_and_join(
+                 socket,
+                 DeviceEventsStreamChannel,
+                 "org:#{org.name}:device:#{device.identifier}"
+               )
+    end
+
+    test "the org name must match the device's org name" do
+      user = Fixtures.user_fixture()
+
+      device = device_fixture(user, %{identifier: "test-device-123"})
+
+      user_token = Accounts.create_user_api_token(user, "test-token")
+
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => user_token})
+
+      assert {:error, %{reason: "unauthorized"}} =
+               subscribe_and_join(
+                 socket,
+                 DeviceEventsStreamChannel,
+                 "org:boop:device:#{device.identifier}"
                )
     end
 

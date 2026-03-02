@@ -16,6 +16,7 @@ defmodule NervesHubWeb.Router do
   alias Live.SupportScripts.Edit
   alias NervesHubWeb.API.Plugs.AuthenticateUser
   alias NervesHubWeb.API.Plugs.Device
+  alias NervesHubWeb.API.Plugs.GlobalUniqueDeviceIdentifiersRequired
   alias NervesHubWeb.Mounts.AccountAuth
   alias NervesHubWeb.Mounts.CurrentPath
   alias NervesHubWeb.Mounts.EnrichSentryContext
@@ -92,6 +93,10 @@ defmodule NervesHubWeb.Router do
     plug(Device)
   end
 
+  pipeline :global_unique_identifiers_supported do
+    plug(GlobalUniqueDeviceIdentifiersRequired)
+  end
+
   scope "/api" do
     pipe_through(:api)
     get("/openapi", RenderSpec, [])
@@ -104,7 +109,7 @@ defmodule NervesHubWeb.Router do
     post("/users/login", UserController, :login)
 
     scope "/devices/:identifier" do
-      pipe_through([:api_require_authenticated_user, :api_device])
+      pipe_through([:global_unique_identifiers_supported, :api_require_authenticated_user, :api_device])
 
       get("/", DeviceController, :show)
 

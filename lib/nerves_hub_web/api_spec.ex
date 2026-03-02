@@ -48,56 +48,57 @@ defmodule NervesHubWeb.ApiSpec do
           "bearer" => []
         }
       ],
-      tags: [
-        %Tag{
-          name: "Auth",
-          description: "User authentication and API token creation"
-        },
-        %Tag{
-          name: "CA Certificates",
-          description: "Organization Certificate Authority management"
-        },
-        %Tag{
-          name: "Devices",
-          description: "Device management, including action requests eg. upgrade, reboot, reconnect"
-        },
-        %Tag{
-          name: "Devices (short URL)",
-          description: "Device management, including action requests eg. upgrade, reboot, reconnect"
-        },
-        %Tag{
-          name: "Device Certificates",
-          description: "Device Certificate management"
-        },
-        %Tag{
-          name: "Deployment Groups",
-          description: "Operations related to Deployment Groups"
-        },
-        %Tag{
-          name: "Firmwares",
-          description: "Firmware uploading and management"
-        },
-        %Tag{
-          name: "Organization Members",
-          description: "Organization User membership"
-        },
-        %Tag{
-          name: "Products",
-          description: "Product management"
-        },
-        %Tag{
-          name: "Signing Keys",
-          description: "Organization Signing Key management"
-        },
-        %Tag{
-          name: "Status",
-          description: "Application healthcheck"
-        },
-        %Tag{
-          name: "Support Scripts",
-          description: "Organization Support Script management"
-        }
-      ]
+      tags:
+        filter_tags([
+          %Tag{
+            name: "Auth",
+            description: "User authentication and API token creation"
+          },
+          %Tag{
+            name: "CA Certificates",
+            description: "Organization Certificate Authority management"
+          },
+          %Tag{
+            name: "Devices",
+            description: "Device management, including action requests eg. upgrade, reboot, reconnect"
+          },
+          %Tag{
+            name: "Devices (short URL)",
+            description: "Device management, including action requests eg. upgrade, reboot, reconnect"
+          },
+          %Tag{
+            name: "Device Certificates",
+            description: "Device Certificate management"
+          },
+          %Tag{
+            name: "Deployment Groups",
+            description: "Operations related to Deployment Groups"
+          },
+          %Tag{
+            name: "Firmwares",
+            description: "Firmware uploading and management"
+          },
+          %Tag{
+            name: "Organization Members",
+            description: "Organization User membership"
+          },
+          %Tag{
+            name: "Products",
+            description: "Product management"
+          },
+          %Tag{
+            name: "Signing Keys",
+            description: "Organization Signing Key management"
+          },
+          %Tag{
+            name: "Status",
+            description: "Application healthcheck"
+          },
+          %Tag{
+            name: "Support Scripts",
+            description: "Organization Support Script management"
+          }
+        ])
     }
     |> DeviceControllerSpecs.add_operations()
     # Discover request/response schemas from path specs
@@ -108,5 +109,11 @@ defmodule NervesHubWeb.ApiSpec do
     Router
     |> Paths.from_router()
     |> Map.merge(ImAlive.status_path_spec())
+  end
+
+  defp filter_tags(tags) do
+    Enum.reject(tags, fn tag ->
+      !Application.get_env(:nerves_hub, :platform_unique_device_identifiers) && tag.name == "Devices (short URL)"
+    end)
   end
 end

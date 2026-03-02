@@ -305,9 +305,11 @@ defmodule NervesHub.Accounts do
     |> join(:left, [ou], o in assoc(ou, :org))
     |> join(:left, [ou, o], p in assoc(o, :products))
     |> join(:left, [ou, o, p], d in assoc(p, :devices))
+    |> join(:left, [ou], u in assoc(ou, :user))
     |> where([_, _, _, d], d.identifier == ^device_identifier)
     |> where([ou], ou.user_id == ^user.id)
     |> where([ou], is_nil(ou.deleted_at))
+    |> preload([_, o, _, _, u], org: o, user: u)
     |> Repo.one()
   end
 
