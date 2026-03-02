@@ -9,14 +9,14 @@ defmodule NervesHub.Devices.UpdateStatsTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    source_firmware = Fixtures.firmware_fixture(org_key, product)
-    target_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0"})
-    other_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.1"})
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    target_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+    other_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.1", dir: tmp_dir})
 
     deployment_group = Fixtures.deployment_group_fixture(target_firmware, %{is_active: true})
 
@@ -233,7 +233,8 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       device2: device2,
       deployment_group: deployment_group,
       target_firmware: target_firmware,
-      source_firmware_metadata: source_firmware_metadata
+      source_firmware_metadata: source_firmware_metadata,
+      tmp_dir: tmp_dir
     } do
       device = Devices.update_deployment_group(device, deployment_group)
       :ok = UpdateStats.log_update(device, source_firmware_metadata)
@@ -241,11 +242,11 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       # create firmware from different product with same uuid
       user2 = Fixtures.user_fixture()
       org2 = Fixtures.org_fixture(user2, %{name: "foo"})
-      org_key2 = Fixtures.org_key_fixture(org2, user2)
+      org_key2 = Fixtures.org_key_fixture(org2, user2, tmp_dir)
       product2 = Fixtures.product_fixture(user2, org2)
 
       firmware2 =
-        Fixtures.firmware_fixture(org_key2, product2, %{version: "2.0.0"})
+        Fixtures.firmware_fixture(org_key2, product2, %{version: "2.0.0", dir: tmp_dir})
         |> Ecto.Changeset.change(%{uuid: target_firmware.uuid})
         |> Repo.update!()
 

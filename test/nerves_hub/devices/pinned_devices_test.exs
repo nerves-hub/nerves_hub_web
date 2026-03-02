@@ -6,15 +6,15 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Fixtures
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     user2 = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     org2 = Fixtures.org_fixture(user2, name: "org2")
     product = Fixtures.product_fixture(user, org)
     product2 = Fixtures.product_fixture(user2, org2, name: "Product2")
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware)
 
     {:ok,

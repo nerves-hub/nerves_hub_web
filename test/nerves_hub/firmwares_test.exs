@@ -16,12 +16,12 @@ defmodule NervesHub.FirmwaresTest do
   alias NervesHub.Workers.DeleteFirmware
   alias NervesHub.Workers.FirmwareDeltaBuilder
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware)
 
     {:ok,
@@ -31,7 +31,8 @@ defmodule NervesHub.FirmwaresTest do
        org_key: org_key,
        firmware: firmware,
        matching_device: device,
-       product: product
+       product: product,
+       tmp_dir: tmp_dir
      }}
   end
 
@@ -39,11 +40,12 @@ defmodule NervesHub.FirmwaresTest do
     test "remote creation failure triggers transaction rollback", %{
       org: org,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
       firmwares = Firmwares.get_firmwares_by_product(product.id)
       upload_file_2 = fn _, _ -> {:error, :nope} end
-      filepath = Fixtures.firmware_file_fixture(org_key, product)
+      filepath = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir})
 
       assert {:error, _} = Firmwares.create_firmware(org, filepath, upload_file_2: upload_file_2)
 
@@ -58,8 +60,8 @@ defmodule NervesHub.FirmwaresTest do
   end
 
   describe "delete_firmware/1" do
-    test "delete firmware", %{org: org, org_key: org_key, product: product} do
-      firmware = Fixtures.firmware_fixture(org_key, product)
+    test "delete firmware", %{org: org, org_key: org_key, product: product, tmp_dir: tmp_dir} do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       {:ok, _} = Firmwares.delete_firmware(firmware)
 
       assert_enqueued(
@@ -75,9 +77,10 @@ defmodule NervesHub.FirmwaresTest do
 
     test "cannot delete firmware when it is referenced by deployment", %{
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       assert File.exists?(firmware.upload_metadata[:local_path])
 
       Fixtures.deployment_group_fixture(firmware, %{name: "a deployment"})
@@ -86,9 +89,9 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
-  test "deletes delta firmware and enqueues job", %{org_key: org_key, product: product} do
-    firmware = Fixtures.firmware_fixture(org_key, product)
-    firmware2 = Fixtures.firmware_fixture(org_key, product)
+  test "deletes delta firmware and enqueues job", %{org_key: org_key, product: product, tmp_dir: tmp_dir} do
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     delta = Fixtures.firmware_delta_fixture(firmware2, firmware)
     {:ok, _} = Firmwares.delete_firmware_delta(delta)
 
@@ -106,9 +109,10 @@ defmodule NervesHub.FirmwaresTest do
   test "firmware stores size", %{
     org: org,
     org_key: org_key,
-    product: product
+    product: product,
+    tmp_dir: tmp_dir
   } do
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     assert File.exists?(firmware.upload_metadata[:local_path])
 
     expected_size =
@@ -125,25 +129,26 @@ defmodule NervesHub.FirmwaresTest do
     test "returns firmwares", %{
       product: product,
       org_key: org_key,
-      firmware: %{id: first2_same_ver, version: version}
+      firmware: %{id: first2_same_ver, version: version},
+      tmp_dir: tmp_dir
     } do
       product_id = product.id
 
-      %{id: oldest_ver} = Fixtures.firmware_fixture(org_key, product, %{version: "0.1.0"})
+      %{id: oldest_ver} = Fixtures.firmware_fixture(org_key, product, %{version: "0.1.0", dir: tmp_dir})
 
       %{id: middle2_same_ver, inserted_at: dt} =
-        Fixtures.firmware_fixture(org_key, product, %{version: "0.5.1"})
+        Fixtures.firmware_fixture(org_key, product, %{version: "0.5.1", dir: tmp_dir})
 
       # We need to force the inserted_at times here to be different to test
       # correct ordering with same version, different creation time
       %{id: middle1_same_ver} =
-        Fixtures.firmware_fixture(org_key, product, %{version: "0.5.1"})
+        Fixtures.firmware_fixture(org_key, product, %{version: "0.5.1", dir: tmp_dir})
         |> Firmware.update_changeset(%{})
         |> Ecto.Changeset.put_change(:inserted_at, NaiveDateTime.add(dt, 5))
         |> Repo.update!()
 
       %{id: first1_same_ver} =
-        Fixtures.firmware_fixture(org_key, product, %{version: version})
+        Fixtures.firmware_fixture(org_key, product, %{version: version, dir: tmp_dir})
         |> Firmware.update_changeset(%{})
         |> Ecto.Changeset.put_change(:inserted_at, NaiveDateTime.add(dt, 6))
         |> Repo.update!()
@@ -176,9 +181,10 @@ defmodule NervesHub.FirmwaresTest do
     test "returns {:ok, key} when signature passes", %{
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
-      {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
+      {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{dir: tmp_dir})
 
       assert Firmwares.verify_signature(signed_path, [org_key]) == {:ok, org_key}
       other_org_key = Fixtures.org_key_fixture(org, user)
@@ -200,7 +206,7 @@ defmodule NervesHub.FirmwaresTest do
       org_key: org_key,
       tmp_dir: tmp_dir
     } do
-      {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
+      {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{dir: tmp_dir})
       other_org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
       assert Firmwares.verify_signature(signed_path, [other_org_key]) ==
@@ -211,7 +217,7 @@ defmodule NervesHub.FirmwaresTest do
       org_key: org_key,
       tmp_dir: tmp_dir
     } do
-      {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
+      {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{dir: tmp_dir})
 
       {:ok, corrupt_path} = Fwup.corrupt_firmware_file(signed_path, tmp_dir)
 
@@ -236,9 +242,10 @@ defmodule NervesHub.FirmwaresTest do
     test "a firmware delta is returned for the id", %{
       firmware: firmware,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       firmware_delta = Fixtures.firmware_delta_fixture(firmware, new_firmware)
       id = firmware_delta.id
 
@@ -250,9 +257,10 @@ defmodule NervesHub.FirmwaresTest do
     test "a firmware delta is returned matching source and target", %{
       firmware: firmware,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       firmware_delta = Fixtures.firmware_delta_fixture(firmware, new_firmware)
       id = firmware_delta.id
 
@@ -263,9 +271,10 @@ defmodule NervesHub.FirmwaresTest do
     test ":not_found is returned when there is no match", %{
       firmware: firmware,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       assert {:error, :not_found} =
                Firmwares.get_firmware_delta_by_source_and_target(firmware.id, new_firmware.id)
@@ -280,7 +289,7 @@ defmodule NervesHub.FirmwaresTest do
       product: product,
       tmp_dir: tmp_dir
     } do
-      target = Fixtures.firmware_fixture(org_key, product)
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       source_url = "http://somefilestore.com/source.fw"
       target_url = "http://somefilestore.com/target.fw"
       firmware_delta_path = Path.join(tmp_dir, "firmware_delta.fw")
@@ -289,7 +298,7 @@ defmodule NervesHub.FirmwaresTest do
       expect(UploadFile, :download_file, fn ^source -> {:ok, source_url} end)
       expect(UploadFile, :download_file, fn ^target -> {:ok, target_url} end)
 
-      expect(UpdateToolDefault, :create_firmware_delta_file, fn {_, ^source_url}, {_, ^target_url} ->
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn {_, ^source_url}, {_, ^target_url}, _ ->
         {:ok,
          %{
            filepath: firmware_delta_path,
@@ -317,11 +326,12 @@ defmodule NervesHub.FirmwaresTest do
     test "new firmware delta is not created if there is an error", %{
       firmware: source,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      target = Fixtures.firmware_fixture(org_key, product)
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      expect(UpdateToolDefault, :create_firmware_delta_file, fn _s, _t ->
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn _s, _t, _wd ->
         {:ok,
          %{
            filepath: "path/to/firmware.fw",
@@ -347,9 +357,10 @@ defmodule NervesHub.FirmwaresTest do
     test "update tool errors are handled", %{
       firmware: source,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      target = Fixtures.firmware_fixture(org_key, product)
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       source_url = "http://somefilestore.com/source.fw"
       target_url = "http://somefilestore.com/target.fw"
 
@@ -357,7 +368,7 @@ defmodule NervesHub.FirmwaresTest do
       expect(UploadFile, :download_file, fn ^target -> {:ok, target_url} end)
 
       # Force error
-      expect(UpdateToolDefault, :create_firmware_delta_file, fn {_, ^source_url}, {_, ^target_url} ->
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn {_, ^source_url}, {_, ^target_url}, _ ->
         {:error, :delta_not_created}
       end)
 
@@ -375,7 +386,7 @@ defmodule NervesHub.FirmwaresTest do
       product: product,
       tmp_dir: tmp_dir
     } do
-      %{id: target_id} = target = Fixtures.firmware_fixture(org_key, product)
+      %{id: target_id} = target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       firmware_delta_path = Path.join(tmp_dir, "firmware_delta.fw")
       File.cp!("test/fixtures/fwup/mixed.conf", firmware_delta_path)
 
@@ -390,7 +401,7 @@ defmodule NervesHub.FirmwaresTest do
         queue: :firmware_delta_builder
       )
 
-      expect(UpdateToolDefault, :create_firmware_delta_file, fn _, _ ->
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn _, _, _ ->
         {:ok,
          %{
            filepath: firmware_delta_path,
@@ -414,12 +425,13 @@ defmodule NervesHub.FirmwaresTest do
     test "time out old delta generations but not new ones", %{
       firmware: source,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      t1 = Fixtures.firmware_fixture(org_key, product)
-      t2 = Fixtures.firmware_fixture(org_key, product)
-      t3 = Fixtures.firmware_fixture(org_key, product)
-      t4 = Fixtures.firmware_fixture(org_key, product)
+      t1 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      t2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      t3 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      t4 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       {:ok, %{id: d1}} = Firmwares.start_firmware_delta(source.id, t1.id)
       {:ok, %{id: d2}} = Firmwares.start_firmware_delta(source.id, t2.id)
       :timer.sleep(2000)
@@ -455,9 +467,10 @@ defmodule NervesHub.FirmwaresTest do
     test "it doesn't start delta worker if delta exists", %{
       firmware: source,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      target = Fixtures.firmware_fixture(org_key, product)
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       %FirmwareDelta{} = Fixtures.firmware_delta_fixture(source, target)
 
       {:ok, :delta_already_exists} = Firmwares.attempt_firmware_delta(source.id, target.id)

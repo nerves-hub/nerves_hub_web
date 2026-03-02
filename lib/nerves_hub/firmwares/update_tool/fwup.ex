@@ -47,41 +47,34 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   end
 
   @impl UpdateTool
-  def create_firmware_delta_file({source_uuid, source_url}, {target_uuid, target_url}) do
-    work_dir = Path.join(System.tmp_dir(), "#{source_uuid}_#{target_uuid}")
-    _ = File.mkdir_p(work_dir)
+  def create_firmware_delta_file({source_uuid, source_url}, {target_uuid, target_url}, work_dir) do
+    source_path = Path.join(work_dir, "source.fw") |> Path.expand()
+    target_path = Path.join(work_dir, "target.fw") |> Path.expand()
 
-    try do
-      source_path = Path.join(work_dir, "source.fw") |> Path.expand()
-      target_path = Path.join(work_dir, "target.fw") |> Path.expand()
+    dl!(source_url, source_path)
+    dl!(target_url, target_path)
 
-      dl!(source_url, source_path)
-      dl!(target_url, target_path)
+    case do_delta_file({source_uuid, source_path}, {target_uuid, target_path}, work_dir) do
+      {:ok, output} ->
+        {:ok, output}
 
-      case do_delta_file({source_uuid, source_path}, {target_uuid, target_path}, work_dir) do
-        {:ok, output} ->
-          {:ok, output}
-
-        {:error, reason} ->
-          Logger.warning("Firmware delta creation failed: #{inspect(reason)}",
-            source_url: source_url,
-            target_url: target_url
-          )
-
-          {:error, reason}
-      end
-    rescue
-      e ->
-        Logger.warning(
-          "Firmware delta creation failed with exception: #{inspect(e)}, stacktrace: #{inspect(__STACKTRACE__)}",
+      {:error, reason} ->
+        Logger.warning("Firmware delta creation failed: #{inspect(reason)}",
           source_url: source_url,
           target_url: target_url
         )
 
-        {:error, :download_or_delta_failed}
-    after
-      File.rm_rf(work_dir)
+        {:error, reason}
     end
+  rescue
+    e ->
+      Logger.warning(
+        "Firmware delta creation failed with exception: #{inspect(e)}, stacktrace: #{inspect(__STACKTRACE__)}",
+        source_url: source_url,
+        target_url: target_url
+      )
+
+      {:error, :download_or_delta_failed}
   end
 
   @impl UpdateTool
@@ -195,8 +188,9 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
         end
         |> Enum.reject(&is_nil/1)
 
-      {:ok, delta_zip_path} = Plug.Upload.random_file("#{source_uuid}_#{target_uuid}_delta.zip")
-      _ = File.rm(delta_zip_path)
+      delta_zip_path = Path.join(work_dir, "#{source_uuid}_#{target_uuid}_delta.zip")
+
+      _ = File.touch(delta_zip_path)
       _ = File.cp(target_path, delta_zip_path)
 
       remove_files =

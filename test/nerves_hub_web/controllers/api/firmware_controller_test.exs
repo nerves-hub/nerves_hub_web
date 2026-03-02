@@ -102,9 +102,9 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
     end
   end
 
-  defp create_firmware(%{user: user, org: org, product: product}) do
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+  defp create_firmware(%{user: user, org: org, product: product, tmp_dir: tmp_dir}) do
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     {:ok, %{firmware: firmware}}
   end
 

@@ -186,7 +186,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     |> assert_has("a", text: "Delete")
     |> assert_has("a", text: "Retry")
 
-    expect(Fwup, :create_firmware_delta_file, fn _, _ ->
+    expect(Fwup, :create_firmware_delta_file, fn _, _, _ ->
       {:ok,
        %{
          tool: "fwup",

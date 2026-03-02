@@ -6,8 +6,8 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
   alias NervesHub.Scripts.Runner
 
   setup context do
-    org_key = Fixtures.org_key_fixture(context.org, context.user)
-    firmware = Fixtures.firmware_fixture(org_key, context.product)
+    org_key = Fixtures.org_key_fixture(context.org, context.user, context.tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, context.product, %{dir: context.tmp_dir})
     device = Fixtures.device_fixture(context.org, context.product, firmware)
 
     Map.put(context, :device, device)

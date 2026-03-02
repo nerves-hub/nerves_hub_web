@@ -124,12 +124,12 @@ defmodule NervesHub.DevicesTest do
     assert Enum.all?(devices, fn device -> device.updates_enabled == false end)
   end
 
-  test "can enable updates for a devices" do
+  test "can enable updates for a devices", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
 
     :ok = Devices.update_attempted(device)
@@ -139,12 +139,12 @@ defmodule NervesHub.DevicesTest do
     assert device.update_attempts == []
   end
 
-  test "can enable updates for multiple devices" do
+  test "can enable updates for multiple devices", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
     device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
     device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
@@ -156,12 +156,12 @@ defmodule NervesHub.DevicesTest do
     assert Enum.all?(devices, fn device -> device.updates_enabled == true end)
   end
 
-  test "can clear penalty box for multiple devices" do
+  test "can clear penalty box for multiple devices", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     device =
       Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})

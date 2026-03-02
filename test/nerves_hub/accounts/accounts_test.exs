@@ -111,12 +111,12 @@ defmodule NervesHub.AccountsTest do
     assert {:error, :last_user} = Accounts.remove_org_user(org, user)
   end
 
-  test "find_org_user_with_device : fetch OrgUser for a user and device id" do
+  test "find_org_user_with_device : fetch OrgUser for a user and device id", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware)
 
     user2 = Fixtures.user_fixture()
@@ -351,11 +351,11 @@ defmodule NervesHub.AccountsTest do
     end
   end
 
-  def setup_org_metric(%{user: user}) do
+  def setup_org_metric(%{user: user, tmp_dir: tmp_dir}) do
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware)
     _ = create_firmware_transfer(org, firmware)
 

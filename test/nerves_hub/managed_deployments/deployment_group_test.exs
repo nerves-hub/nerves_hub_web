@@ -6,12 +6,12 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
   alias NervesHub.Repo
 
   describe "create_changeset/2" do
-    setup do
+    setup %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       deployment_group_params = %{
         name: "Bestest Devices",
@@ -87,8 +87,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
   end
 
   describe "update_changeset/2" do
-    setup do
-      Fixtures.standard_fixture()
+    setup %{tmp_dir: tmp_dir} do
+      Fixtures.standard_fixture(tmp_dir)
     end
 
     test "cannot clear conditions", %{deployment_group: deployment_group} do
@@ -145,9 +145,10 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
     test "current_updated_devices is reset when firmware changes", %{
       deployment_group: deployment_group,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       changeset =
         DeploymentGroup.update_changeset(deployment_group, %{
@@ -160,13 +161,14 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
     end
 
     test "firmware cannot be from a different org", %{
-      deployment_group: deployment_group
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
     } do
       new_user = Fixtures.user_fixture(%{email: "user2@test.com"})
       new_org = Fixtures.org_fixture(new_user, %{name: "org2"})
       new_product = Fixtures.product_fixture(new_user, new_org)
-      new_org_key = Fixtures.org_key_fixture(new_org, new_user)
-      new_firmware = Fixtures.firmware_fixture(new_org_key, new_product)
+      new_org_key = Fixtures.org_key_fixture(new_org, new_user, tmp_dir)
+      new_firmware = Fixtures.firmware_fixture(new_org_key, new_product, %{dir: tmp_dir})
 
       changeset =
         DeploymentGroup.update_changeset(deployment_group, %{
@@ -178,13 +180,14 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
     end
 
     test "archive cannot be from a different org", %{
-      deployment_group: deployment_group
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
     } do
       new_user = Fixtures.user_fixture(%{email: "user2@test.com"})
       new_org = Fixtures.org_fixture(new_user, %{name: "org2"})
       new_product = Fixtures.product_fixture(new_user, new_org)
-      new_org_key = Fixtures.org_key_fixture(new_org, new_user)
-      new_archive = Fixtures.archive_fixture(new_org_key, new_product)
+      new_org_key = Fixtures.org_key_fixture(new_org, new_user, tmp_dir)
+      new_archive = Fixtures.archive_fixture(new_org_key, new_product, %{dir: tmp_dir})
 
       changeset =
         DeploymentGroup.update_changeset(deployment_group, %{

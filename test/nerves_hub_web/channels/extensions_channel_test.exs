@@ -16,9 +16,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     Application.put_env(:nerves_hub, :analytics_enabled, true)
   end
 
-  test "joining device channel works without understanding extensions" do
+  test "joining device channel works without understanding extensions", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
@@ -84,9 +84,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert Repo.aggregate(Devices.DeviceHealth, :count) == 1
   end
 
-  test "joining extensions channel suggests attaching geo, health, and logging" do
+  test "joining extensions channel suggests attaching geo, health, and logging", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
@@ -114,9 +114,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert "logging" in attach_list
   end
 
-  test "joining extensions channel with unknown extensions is fine" do
+  test "joining extensions channel with unknown extensions is fine", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
@@ -185,9 +185,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert "geo" in attach_list
   end
 
-  test "product with extensions disabled does not suggest attaching anything" do
+  test "product with extensions disabled does not suggest attaching anything", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
     product = Products.get_product!(device.product_id)
     Products.disable_extension_setting(product, "health")
     Products.disable_extension_setting(product, "geo")
@@ -213,9 +213,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
              )
   end
 
-  test "product with only health suggests only health" do
+  test "product with only health suggests only health", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
     product = Products.get_product!(device.product_id)
     Products.disable_extension_setting(product, "geo")
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
@@ -240,9 +240,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
              )
   end
 
-  test "if platform analytics is disabled, the logging extension isn't attached" do
+  test "if platform analytics is disabled, the logging extension isn't attached", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
 
     Application.put_env(:nerves_hub, :analytics_enabled, false)
 
@@ -269,9 +269,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
              )
   end
 
-  test "attached health extension will receive request for health report" do
+  test "attached health extension will receive request for health report", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
@@ -294,9 +294,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert_push("health:check", _)
   end
 
-  test "attached geo extension will receive request for location update" do
+  test "attached geo extension will receive request for location update", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
@@ -319,9 +319,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert_push("geo:location:request", _)
   end
 
-  test "attached extensions will receive detach events on disabling at product level" do
+  test "attached extensions will receive detach events on disabling at product level", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
@@ -356,9 +356,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert_push("detach", %{"extensions" => ["health"]})
   end
 
-  test "disabled extensions can be re-attached" do
+  test "disabled extensions can be re-attached", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
@@ -397,14 +397,15 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert_push("attach", %{"extensions" => ["health"]})
   end
 
-  def device_fixture(user, device_params \\ %{}, org \\ nil) do
-    org = org || Fixtures.org_fixture(user)
+  def device_fixture(user, device_params \\ %{}, opts) do
+    org = Keyword.get(opts, :org) || Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
+    org_key = Fixtures.org_key_fixture(org, user, opts[:dir])
 
     firmware =
       Fixtures.firmware_fixture(org_key, product, %{
-        version: "0.0.1"
+        version: "0.0.1",
+        dir: opts[:dir]
       })
 
     deployment_group = Fixtures.deployment_group_fixture(firmware)

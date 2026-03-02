@@ -172,7 +172,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device.identifier)
     end
 
-    test "by platform", %{conn: conn, fixture: fixture} do
+    test "by platform", %{conn: conn, fixture: fixture, tmp_dir: tmp_dir} do
       %{
         device: device,
         org: org,
@@ -180,8 +180,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         user: user
       } = fixture
 
-      org_key = Fixtures.org_key_fixture(org, user)
-      foo_firmware = Fixtures.firmware_fixture(org_key, product, %{platform: "foo"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      foo_firmware = Fixtures.firmware_fixture(org_key, product, %{platform: "foo", dir: tmp_dir})
       device2 = Fixtures.device_fixture(org, product, foo_firmware)
 
       conn

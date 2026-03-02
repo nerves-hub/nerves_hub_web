@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Archives do
   alias NervesHub.Archives
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
+  alias Phoenix.LiveView.UploadConfig
 
   embed_templates("archive_templates/*")
 
@@ -150,16 +151,10 @@ defmodule NervesHubWeb.Live.Archives do
     if entry.done? do
       [filepath] =
         consume_uploaded_entries(socket, :archive, fn %{path: path}, _entry ->
-          dest = Path.join(System.tmp_dir(), Path.basename(path))
-          File.cp!(path, dest)
-          {:ok, dest}
+          {:postpone, path}
         end)
 
-      try do
-        create_archive(socket, filepath)
-      after
-        File.rm(filepath)
-      end
+      create_archive(socket, filepath, entry)
     else
       {:noreply, socket}
     end
@@ -208,7 +203,7 @@ defmodule NervesHubWeb.Live.Archives do
     end
   end
 
-  defp create_archive(socket, filepath) do
+  defp create_archive(socket, filepath, entry) do
     case Archives.create(socket.assigns.product, filepath) do
       {:ok, _firmware} ->
         socket
@@ -243,6 +238,12 @@ defmodule NervesHubWeb.Live.Archives do
           "Unknown error uploading archive. Please contact support if this happens again"
         )
     end
+  after
+    # This hooks into some of the behind-the-scenes upload logic to ensure the upload is cleaned up.
+    # This is a bit hacky, but it allows us to skip having to create a new temporary file, copy
+    # the contents of the uploaded file to it, and then delete it after use.
+    UploadConfig.entry_pid(socket.assigns[:uploads][:archive], entry)
+    |> GenServer.call(:consume_done, :infinity)
   end
 
   defp error_feedback(socket, message) do
