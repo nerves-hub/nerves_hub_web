@@ -3,7 +3,7 @@ defmodule NervesHubWeb.API.Plugs.Device do
 
   alias NervesHub.Devices
 
-  @preloads [:product, :latest_connection, :firmware]
+  @preloads [:product, :latest_connection]
 
   def init(opts) do
     opts

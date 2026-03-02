@@ -409,8 +409,8 @@ defmodule NervesHub.Fixtures do
     defaults = %{
       "device_id" => device.id,
       "deployment_id" => deployment_group.id,
-      "firmware_id" => deployment_group.firmware_id,
-      "firmware_uuid" => deployment_group.firmware.uuid,
+      "firmware_id" => deployment_group.current_release.firmware_id,
+      "firmware_uuid" => deployment_group.current_release.firmware.uuid,
       "expires_at" => expires_at
     }
 

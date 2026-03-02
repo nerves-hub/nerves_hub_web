@@ -307,7 +307,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
   defp load_device(org, identifier) do
     Devices.get_device_by_identifier!(org, identifier, [
       :product,
-      :firmware,
       :latest_connection,
       :latest_health
     ])

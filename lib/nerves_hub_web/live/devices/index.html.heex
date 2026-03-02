@@ -510,7 +510,7 @@
               <option value="">Select deployment group</option>
               <%= for deployment_group <- @available_deployment_groups_for_filtered_platform do %>
                 <option value={deployment_group.id} {if @target_deployment_group && @target_deployment_group.id == deployment_group.id, do: [selected: true], else: []}>
-                  {deployment_group.name} - {deployment_group.firmware.architecture} - {deployment_group.firmware.platform}
+                  {deployment_group.name} - {deployment_group.current_release.firmware.architecture} - {deployment_group.current_release.firmware.platform}
                 </option>
               <% end %>
             </select>

@@ -18,7 +18,6 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
   alias Phoenix.Channel.Server, as: ChannelServer
@@ -651,6 +650,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "available update exists", %{
       conn: conn,
+      user: user,
       org: org,
       product: product,
       device: device,
@@ -670,9 +670,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       :ok = Connections.device_connected(device, connection.id)
 
-      deployment_group
-      |> Ecto.Changeset.change(%{firmware_id: firmware.id, is_active: true})
-      |> Repo.update!()
+      ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id, is_active: true}, user)
 
       NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
 
@@ -925,6 +923,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   describe "skip the queue when there is an available update" do
     test "only shows the button if an update is available", %{
       conn: conn,
+      user: user,
       org: org,
       org_key: org_key,
       product: product,
@@ -945,9 +944,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      DeploymentGroup
-      |> where(id: ^deployment_group.id)
-      |> Repo.update_all(set: [is_active: true, firmware_id: new_firmware.id])
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{firmware_id: new_firmware.id, is_active: true},
+        user
+      )
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -956,6 +957,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "allows a device to be sent the available update immediately, using the default url config", %{
       conn: conn,
+      user: user,
       org: org,
       org_key: org_key,
       product: product,
@@ -972,9 +974,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      DeploymentGroup
-      |> where(id: ^deployment_group.id)
-      |> Repo.update_all(set: [is_active: true, firmware_id: new_firmware.id])
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{firmware_id: new_firmware.id, is_active: true},
+        user
+      )
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1002,6 +1006,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     test "allows a device to be sent the available update immediately, using the available Org `firmware_proxy_url` setting",
          %{
            conn: conn,
+           user: user,
            org: org,
            org_key: org_key,
            product: product,
@@ -1022,9 +1027,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      DeploymentGroup
-      |> where(id: ^deployment_group.id)
-      |> Repo.update_all(set: [is_active: true, firmware_id: new_firmware.id])
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{firmware_id: new_firmware.id, is_active: true},
+        user
+      )
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1051,6 +1058,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "allows a device to be sent the available delta update immediately, if a delta is available", %{
       conn: conn,
+      user: user,
       org: org,
       org_key: org_key,
       product: product,
@@ -1077,9 +1085,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       {:ok, firmware} = Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, device.firmware_metadata.uuid)
       _ = Fixtures.firmware_delta_fixture(firmware, new_firmware)
 
-      DeploymentGroup
-      |> where(id: ^deployment_group.id)
-      |> Repo.update_all(set: [is_active: true, firmware_id: new_firmware.id, delta_updatable: true])
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{is_active: true, firmware_id: new_firmware.id, delta_updatable: true},
+        user
+      )
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")

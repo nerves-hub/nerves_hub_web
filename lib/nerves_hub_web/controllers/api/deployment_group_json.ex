@@ -14,7 +14,7 @@ defmodule NervesHubWeb.API.DeploymentGroupJSON do
       name: deployment_group.name,
       is_active: deployment_group.is_active,
       state: if(deployment_group.is_active, do: "on", else: "off"),
-      firmware_uuid: deployment_group.firmware.uuid,
+      firmware_uuid: deployment_group.current_release.firmware.uuid,
       conditions: conditions(deployment_group.conditions),
       delta_updatable: deployment_group.delta_updatable
     }

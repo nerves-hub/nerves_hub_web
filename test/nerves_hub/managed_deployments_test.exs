@@ -245,7 +245,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
         ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
 
       assert deployment_group.delta_updatable
-      assert deployment_group.firmware_id == firmware.id
+      assert deployment_group.current_release.firmware_id == firmware.id
 
       device =
         Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
@@ -272,7 +272,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
            tmp_dir: tmp_dir
          } do
       refute deployment_group.delta_updatable
-      assert deployment_group.firmware_id == firmware.id
+      assert deployment_group.current_release.firmware_id == firmware.id
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
@@ -300,7 +300,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
            product: product
          } do
       refute deployment_group.delta_updatable
-      assert deployment_group.firmware_id == firmware.id
+      assert deployment_group.current_release.firmware_id == firmware.id
 
       device =
         Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
@@ -425,10 +425,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
            tmp_dir: tmp_dir
          } do
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      %FirmwareDelta{} = Fixtures.firmware_delta_fixture(deployment_group.firmware, new_firmware)
+      %FirmwareDelta{} = Fixtures.firmware_delta_fixture(deployment_group.current_release.firmware, new_firmware)
 
       %Device{} =
-        Fixtures.device_fixture(org, product, deployment_group.firmware, %{deployment_id: deployment_group.id})
+        Fixtures.device_fixture(org, product, deployment_group.current_release.firmware, %{
+          deployment_id: deployment_group.id
+        })
 
       {:ok, deployment_group} =
         deployment_group
@@ -580,7 +582,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
       # 4 because one is created when the deployment group is created
       assert length(releases) == 4
 
-      assert Enum.map(releases, & &1.firmware.version) == ["2.2.0", "2.1.0", "2.0.0", deployment_group.firmware.version]
+      assert Enum.map(releases, & &1.firmware.version) == [
+               "2.2.0",
+               "2.1.0",
+               "2.0.0",
+               deployment_group.current_release.firmware.version
+             ]
     end
 
     test "deployment releases are cascade deleted when deployment group is deleted", %{
@@ -1399,12 +1406,5 @@ defmodule NervesHub.ManagedDeploymentsTest do
     assert [] == ManagedDeployments.should_run_orchestrator()
     {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
     assert length(ManagedDeployments.should_run_orchestrator()) == 1
-  end
-
-  test "get_deployment_groups_by_firmware/1", %{
-    firmware: firmware
-  } do
-    assert [] == ManagedDeployments.get_deployment_groups_by_firmware(123)
-    assert length(ManagedDeployments.get_deployment_groups_by_firmware(firmware.id)) == 1
   end
 end

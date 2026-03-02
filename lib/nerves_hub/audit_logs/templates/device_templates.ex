@@ -6,6 +6,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   alias NervesHub.Accounts.User
   alias NervesHub.Archives.Archive
   alias NervesHub.AuditLogs
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -32,10 +33,15 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit(device, device, description)
   end
 
-  @spec audit_pushed_available_update(User.t(), Device.t(), DeploymentGroup.t()) :: :ok
+  @spec audit_pushed_available_update(User.t(), pos_integer | Device.t(), DeploymentGroup.t()) :: :ok
+  def audit_pushed_available_update(user, device_id, deployment_group) when is_integer(device_id) do
+    device = Devices.get_device(device_id)
+    audit_pushed_available_update(user, device, deployment_group)
+  end
+
   def audit_pushed_available_update(user, device, deployment_group) do
     description =
-      "User #{user.name} pushed available firmware update #{deployment_group.firmware.version} #{deployment_group.firmware.uuid} to device #{device.identifier}"
+      "User #{user.name} pushed available firmware update #{deployment_group.current_release.firmware.version} #{deployment_group.current_release.firmware.uuid} to device #{device.identifier}"
 
     AuditLogs.audit!(user, device, description)
   end
@@ -64,7 +70,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   def audit_firmware_upgrade_blocked(deployment_group, device) do
     description = """
     Device #{device.identifier} automatically blocked firmware upgrades for #{deployment_group.penalty_timeout_minutes} minutes.
-    Device failure rate met for firmware #{deployment_group.firmware.uuid} in deployment group #{deployment_group.name}.
+    Device failure rate met for firmware #{deployment_group.current_release.firmware.uuid} in deployment group #{deployment_group.name}.
     """
 
     AuditLogs.audit!(deployment_group, device, description)
@@ -83,7 +89,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
           DeploymentGroup.t()
         ) :: :ok
   def audit_device_deployment_group_update_triggered(device, deployment_group) do
-    firmware = deployment_group.firmware
+    firmware = deployment_group.current_release.firmware
 
     description =
       "Deployment #{deployment_group.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"

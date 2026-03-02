@@ -27,7 +27,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
     |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
     |> assign(:updating_count, Devices.updating_count(deployment_group))
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
     |> ok()
   end
 
@@ -39,13 +39,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
   def update(%{event: :firmware_deltas_updated}, socket) do
     socket
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(socket.assigns.deployment_group.firmware))
+    |> assign(
+      :deltas,
+      Firmwares.get_deltas_by_target_firmware(socket.assigns.deployment_group.current_release.firmware)
+    )
     |> ok()
   end
 
   def update(%{updated_deployment: deployment_group}, socket) do
     socket
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
     |> assign_update_stats(deployment_group)
     |> assign_deltas_and_stats()
     |> assign_matched_devices_count()
@@ -60,15 +63,15 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
     socket
     |> assign(assigns)
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(assigns.deployment_group.firmware))
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(assigns.deployment_group.current_release.firmware))
     |> assign_update_stats(deployment_group)
     |> assign_deltas_and_stats()
     |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
     |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
     |> assign(:updating_count, updating_count)
     |> assign(:inflight_updates, inflight_updates)
-    |> assign(:firmware, deployment_group.firmware)
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
+    |> assign(:firmware, deployment_group.current_release.firmware)
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
     |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
     |> assign_matched_devices_count()
     |> ok()
@@ -169,25 +172,28 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500 w-16">Firmware:</span>
 
-              <.link navigate={~p"/org/#{@org}/#{@product}/firmware/#{@deployment_group.firmware}"} class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800">
-                <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.firmware.version} ({String.slice(@deployment_group.firmware.uuid, 0..7)})</span>
+              <.link
+                navigate={~p"/org/#{@org}/#{@product}/firmware/#{@deployment_group.current_release.firmware}"}
+                class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
+              >
+                <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.current_release.firmware.version} ({String.slice(@deployment_group.current_release.firmware.uuid, 0..7)})</span>
               </.link>
             </div>
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500 w-16">Size:</span>
-              <span class="pl-1 text-xs text-nerves-gray-700">{humanize_size(@deployment_group.firmware.size)}</span>
+              <span class="pl-1 text-xs text-nerves-gray-700">{humanize_size(@deployment_group.current_release.firmware.size)}</span>
             </div>
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500 w-16">Archive:</span>
 
               <.link
-                :if={@deployment_group.archive}
-                navigate={~p"/org/#{@org}/#{@product}/archives/#{@deployment_group.archive}"}
+                :if={@deployment_group.current_release.archive}
+                navigate={~p"/org/#{@org}/#{@product}/archives/#{@deployment_group.current_release.archive}"}
                 class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
               >
-                <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.archive.version} ({String.slice(@deployment_group.archive.uuid, 0..7)})</span>
+                <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.current_release.archive.version} ({String.slice(@deployment_group.current_release.archive.uuid, 0..7)})</span>
               </.link>
-              <span :if={is_nil(@deployment_group.archive)} class="pl-1 text-xs text-nerves-gray-500">No archive configured</span>
+              <span :if={is_nil(@deployment_group.current_release.archive)} class="pl-1 text-xs text-nerves-gray-500">No archive configured</span>
             </div>
           </div>
 
@@ -473,7 +479,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <div class="text-neutral-50 font-medium leading-6">Transfer Stats</div>
             </div>
             <div :if={is_nil(@update_stat_for_current_firmware)} class="flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">No stats recorded for firmware {@deployment_group.firmware.version}</span>
+              <span class="text-sm text-nerves-gray-500">No stats recorded for firmware {@deployment_group.current_release.firmware.version}</span>
             </div>
             <div :if={@update_stat_for_current_firmware} class="flex flex-col gap-2">
               <%= with {_uuid, stats} <- @update_stat_for_current_firmware do %>
@@ -529,7 +535,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     update_stats = UpdateStats.stats_by_deployment(deployment_group)
 
     update_stat_for_current_firmware =
-      Enum.find(update_stats, fn {uuid, _stats} -> uuid == deployment_group.firmware.uuid end)
+      Enum.find(update_stats, fn {uuid, _stats} -> uuid == deployment_group.current_release.firmware.uuid end)
 
     socket
     |> assign(:update_stats, update_stats)
@@ -537,9 +543,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   defp assign_deltas_and_stats(%{assigns: %{deployment_group: deployment_group}} = socket) do
-    :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.firmware.id)
+    :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.current_release.firmware.id)
 
     socket
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
   end
 end

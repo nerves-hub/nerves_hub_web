@@ -51,7 +51,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
       deployment_groups
       |> Enum.sort_by(& &1.name)
       |> Enum.group_by(fn deployment_group ->
-        deployment_group.firmware.platform
+        deployment_group.current_release.firmware.platform
       end)
 
     socket

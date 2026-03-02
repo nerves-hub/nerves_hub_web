@@ -15,10 +15,10 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("span", text: "#{product.name} doesn’t have any firmware yet")
     end
 
-    test "lists all firmwares", %{conn: conn, user: user, org: org} do
+    test "lists all firmwares", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware")
@@ -29,12 +29,13 @@ defmodule NervesHubWeb.Live.FirmwareTest do
     test "refreshes the list of all firmware if a new firmware is uploaded", %{
       conn: conn,
       user: user,
-      org: org
+      org: org,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       conn =
         conn
@@ -49,7 +50,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
             "New firmware (#{firmware.version} - #{String.slice(firmware.uuid, 0..7)}) available for selection. Please go back to page 1 to view it."
         )
 
-      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
       |> assert_has("p",
@@ -67,15 +68,16 @@ defmodule NervesHubWeb.Live.FirmwareTest do
          %{
            conn: conn,
            user: user,
-           org: org
+           org: org,
+           tmp_dir: tmp_dir
          } do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
-      firmware_1 = Fixtures.firmware_fixture(org_key, product)
+      firmware_1 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, firmware_2} =
-        Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0"})
+        Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
         |> Ecto.Changeset.change(%{
           inserted_at:
             NaiveDateTime.utc_now()
@@ -85,7 +87,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
         |> Repo.update()
 
       {:ok, firmware_3} =
-        Fixtures.firmware_fixture(org_key, product, %{version: "3.0.0"})
+        Fixtures.firmware_fixture(org_key, product, %{version: "3.0.0", dir: tmp_dir})
         |> Ecto.Changeset.change(%{
           inserted_at:
             NaiveDateTime.utc_now()
@@ -106,7 +108,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
         |> refute_has("a", text: firmware_2.uuid, timeout: 100)
         |> assert_has("a", text: firmware_1.uuid)
 
-      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
       |> assert_has("p",
@@ -118,20 +120,20 @@ defmodule NervesHubWeb.Live.FirmwareTest do
   end
 
   describe "show" do
-    test "shows the firmware information", %{conn: conn, user: user, org: org} do
+    test "shows the firmware information", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
       |> assert_has("h1", text: firmware.uuid)
     end
 
-    test "delete firmware", %{conn: conn, user: user, org: org} do
+    test "delete firmware", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
@@ -145,11 +147,12 @@ defmodule NervesHubWeb.Live.FirmwareTest do
     test "error deleting firmware when it has associated deployments", %{
       conn: conn,
       user: user,
-      org: org
+      org: org,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       # Create a deployment from the firmware
       Fixtures.deployment_group_fixture(firmware)
@@ -165,12 +168,13 @@ defmodule NervesHubWeb.Live.FirmwareTest do
     test "error deleting firmware when it has associated deployment releases", %{
       conn: conn,
       user: user,
-      org: org
+      org: org,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      firmware2 = Fixtures.firmware_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       # Create a deployment from the firmware
       deployment = Fixtures.deployment_group_fixture(firmware)

@@ -45,8 +45,8 @@ defmodule NervesHubWeb.API.DeviceJSON do
 
   defp deployment_group(deployment_group) do
     %{
-      firmware_uuid: deployment_group.firmware.uuid,
-      firmware_version: deployment_group.firmware.version,
+      firmware_uuid: deployment_group.current_release.firmware.uuid,
+      firmware_version: deployment_group.current_release.firmware.version,
       is_active: deployment_group.is_active,
       name: deployment_group.name
     }
