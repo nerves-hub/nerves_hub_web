@@ -10,8 +10,12 @@ defmodule NervesHub.ProductsTest do
     @valid_attrs %{name: "some name"}
     @invalid_attrs %{name: nil}
 
-    setup %{tmp_dir: tmp_dir} do
-      {:ok, Fixtures.standard_fixture(tmp_dir)}
+    setup do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+
+      %{user: user, org: org, product: product}
     end
 
     test "get_products_by_user_and_org returns products for user", %{
@@ -70,11 +74,16 @@ defmodule NervesHub.ProductsTest do
     end
 
     test "create devices CSV IO", %{
-      device: device,
-      device_certificate: db_cert,
+      user: user,
       product: product,
-      org: org
+      org: org,
+      tmp_dir: tmp_dir
     } do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+      %{db_cert: db_cert} = Fixtures.device_certificate_fixture(device)
+
       ##
       # Need to create a second certificate without a DER saved to test JSON
       # TODO: Remove when DERs are saved

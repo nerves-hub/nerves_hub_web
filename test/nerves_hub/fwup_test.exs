@@ -17,7 +17,7 @@ defmodule NervesHub.FwupTest do
 
     assert "1.0.0" == metadata.version
     assert "D " == metadata.description
-    assert "valid product" == metadata.product
+    assert String.starts_with?(metadata.product, "auto_booper_")
     assert "me" == metadata.author
     assert is_binary(metadata.uuid)
     assert "x86_64" == metadata.architecture
