@@ -28,22 +28,7 @@ defmodule NervesHub.Fixtures do
 
   @uploader Application.compile_env(:nerves_hub, :firmware_upload)
 
-  @org_params %{name: "Test-Org"}
-
-  @deployment_group_params %{
-    name: "Test Deployment",
-    conditions: %{
-      "version" => "<= 1.0.0",
-      "tags" => ["beta", "beta-edge"]
-    },
-    is_active: false,
-    delta_updatable: false
-  }
   @device_params %{tags: ["beta", "beta-edge"], extensions: %{health: true, geo: true}}
-  @product_params %{
-    name: "valid product",
-    extensions: %{health: true, geo: true, logging: true}
-  }
 
   defdelegate reload(record), to: Repo
 
@@ -51,10 +36,34 @@ defmodule NervesHub.Fixtures do
 
   def user_params() do
     %{
-      org_name: "org-#{counter()}.com",
       email: "email-#{counter()}@smiths.com",
       name: "User #{counter_in_alpha()}",
       password: "test_password"
+    }
+  end
+
+  def org_params() do
+    %{
+      name: "SnootBoops-#{counter()}"
+    }
+  end
+
+  def product_params() do
+    %{
+      name: "auto_booper_#{counter()}",
+      extensions: %{health: true, geo: true, logging: true}
+    }
+  end
+
+  def deployment_group_params() do
+    %{
+      name: "Update the Boops - #{counter()}",
+      conditions: %{
+        "version" => "<= 1.0.0",
+        "tags" => ["beta", "beta-edge"]
+      },
+      is_active: false,
+      delta_updatable: false
     }
   end
 
@@ -83,7 +92,8 @@ defmodule NervesHub.Fixtures do
   end
 
   def org_fixture(user, params \\ %{}) do
-    params = Enum.into(params, @org_params)
+    params = Enum.into(params, org_params())
+
     {:ok, org} = Accounts.create_org(user, params)
 
     org
@@ -146,7 +156,7 @@ defmodule NervesHub.Fixtures do
   def product_fixture(%Accounts.User{}, %Accounts.Org{} = org, params) do
     params =
       params
-      |> Enum.into(@product_params)
+      |> Enum.into(product_params())
       |> Map.put(:org_id, org.id)
 
     {:ok, product} = Products.create_product(params)
@@ -236,7 +246,7 @@ defmodule NervesHub.Fixtures do
     {:ok, deployment_group} =
       params
       |> Map.put(:firmware_id, firmware.id)
-      |> Enum.into(@deployment_group_params)
+      |> Enum.into(deployment_group_params())
       |> ManagedDeployments.create_deployment_group(%Product{id: firmware.product_id}, user)
 
     {:ok, deployment_group} =

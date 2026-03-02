@@ -37,8 +37,9 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   end
 
   describe "index" do
-    test "lists all devices for an org", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
-      product = Fixtures.product_fixture(user, org)
+    test "lists all devices for an org", %{conn: conn, user: user, tmp_dir: tmp_dir} do
+      org = Fixtures.org_fixture(user, %{name: "AllTheBoops"})
+      product = Fixtures.product_fixture(user, org, %{name: "auto_boops"})
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
@@ -61,7 +62,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                      "id" => device.firmware_metadata.id,
                      "misc" => nil,
                      "platform" => "platform",
-                     "product" => "valid product",
+                     "product" => "auto_boops",
                      "uuid" => firmware.uuid,
                      "vcs_identifier" => nil,
                      "version" => "1.0.0"
@@ -69,8 +70,8 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                    "identifier" => device.identifier,
                    "last_communication" => "never",
                    "online" => "not_seen",
-                   "org_name" => "Test-Org",
-                   "product_name" => "valid product",
+                   "org_name" => "AllTheBoops",
+                   "product_name" => "auto_boops",
                    "tags" => ["beta", "beta-edge"],
                    "updates_blocked_until" => nil,
                    "updates_enabled" => true,
