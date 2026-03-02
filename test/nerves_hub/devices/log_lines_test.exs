@@ -1,5 +1,7 @@
 defmodule NervesHub.Devices.LogLinesTest do
-  use NervesHub.DataCase, async: true
+  # These tests are not async because they interact with the AnalyticsRepo,
+  # which is a ClickHouse database that does not support concurrent writes.
+  use NervesHub.DataCase, async: false
 
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.LogLine
