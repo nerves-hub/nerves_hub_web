@@ -554,7 +554,7 @@ defmodule NervesHub.Fixtures do
   end
 
   defp counter() do
-    System.unique_integer([:positive])
+    System.unique_integer([:positive, :monotonic])
   end
 
   defp counter_in_alpha() do
