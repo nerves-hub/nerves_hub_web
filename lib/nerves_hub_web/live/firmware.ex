@@ -6,7 +6,6 @@ defmodule NervesHubWeb.Live.Firmware do
   alias NervesHub.Firmwares.Upload
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
-  alias Phoenix.LiveView.UploadConfig
   alias Phoenix.Socket.Broadcast
 
   embed_templates("firmware_templates/*")
@@ -124,6 +123,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         error_feedback(socket, changeset)
+        |> noreply()
     end
   end
 
@@ -144,6 +144,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
       {:error, changeset} ->
         error_feedback(socket, changeset, prefix: "Error deleting firmware:")
+        |> noreply()
     end
   end
 
@@ -192,7 +193,10 @@ defmodule NervesHubWeb.Live.Firmware do
           {:postpone, path}
         end)
 
-      create_firmware(socket, filepath, entry)
+      socket
+      |> create_firmware(filepath)
+      |> cancel_upload(:firmware, entry.ref)
+      |> noreply()
     else
       {:noreply, assign(socket, status: "uploading...")}
     end
@@ -245,13 +249,12 @@ defmodule NervesHubWeb.Live.Firmware do
     !(assigns.params && assigns.params["page_number"] && assigns.params["page_number"] > 1)
   end
 
-  defp create_firmware(socket, filepath, entry) do
+  defp create_firmware(socket, filepath) do
     case Firmwares.create_firmware(socket.assigns.org, filepath) do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Firmware uploaded successfully")
         |> push_patch(to: ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/firmware")
-        |> noreply()
 
       {:error, :no_public_keys} ->
         error_feedback(
@@ -288,12 +291,6 @@ defmodule NervesHubWeb.Live.Firmware do
       _ ->
         error_feedback(socket, "Unknown error uploading firmware. Please contact support.")
     end
-  after
-    # This hooks into some of the behind-the-scenes upload logic to ensure the upload is cleaned up.
-    # This is a bit hacky, but it allows us to skip having to create a new temporary file, copy
-    # the contents of the uploaded file to it, and then delete it after use.
-    UploadConfig.entry_pid(socket.assigns[:uploads][:firmware], entry)
-    |> GenServer.call(:consume_done, :infinity)
   end
 
   defp error_feedback(socket, changeset_or_message, opts \\ [])
@@ -307,13 +304,11 @@ defmodule NervesHubWeb.Live.Firmware do
 
     socket
     |> put_flash(:error, error_message)
-    |> noreply()
   end
 
   defp error_feedback(socket, message, _opts) do
     socket
     |> put_flash(:error, message)
-    |> noreply()
   end
 
   defp format_file_size(size) do

@@ -5,7 +5,6 @@ defmodule NervesHubWeb.Live.Archives do
   alias NervesHub.Archives
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
-  alias Phoenix.LiveView.UploadConfig
 
   embed_templates("archive_templates/*")
 
@@ -119,6 +118,7 @@ defmodule NervesHubWeb.Live.Archives do
 
       {:error, changeset} ->
         error_feedback(socket, changeset)
+        |> noreply()
     end
   end
 
@@ -142,6 +142,7 @@ defmodule NervesHubWeb.Live.Archives do
           |> Enum.map_join(", ", fn {_field, {message, _info}} -> message end)
 
         error_feedback(socket, "The archive couldn't be deleted: #{message}.")
+        |> noreply()
     end
   end
 
@@ -154,7 +155,10 @@ defmodule NervesHubWeb.Live.Archives do
           {:postpone, path}
         end)
 
-      create_archive(socket, filepath, entry)
+      socket
+      |> create_archive(filepath)
+      |> cancel_upload(:archive, entry.ref)
+      |> noreply()
     else
       {:noreply, socket}
     end
@@ -203,13 +207,12 @@ defmodule NervesHubWeb.Live.Archives do
     end
   end
 
-  defp create_archive(socket, filepath, entry) do
+  defp create_archive(socket, filepath) do
     case Archives.create(socket.assigns.product, filepath) do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Archive uploaded successfully.")
         |> push_patch(to: ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/archives")
-        |> noreply()
 
       {:error, :no_public_keys} ->
         error_feedback(
@@ -238,18 +241,10 @@ defmodule NervesHubWeb.Live.Archives do
           "Unknown error uploading archive. Please contact support if this happens again"
         )
     end
-  after
-    # This hooks into some of the behind-the-scenes upload logic to ensure the upload is cleaned up.
-    # This is a bit hacky, but it allows us to skip having to create a new temporary file, copy
-    # the contents of the uploaded file to it, and then delete it after use.
-    UploadConfig.entry_pid(socket.assigns[:uploads][:archive], entry)
-    |> GenServer.call(:consume_done, :infinity)
   end
 
   defp error_feedback(socket, message) do
-    socket
-    |> put_flash(:error, message)
-    |> noreply()
+    put_flash(socket, :error, message)
   end
 
   defp format_signed(%{org_key_id: org_key_id}, org_keys) do
