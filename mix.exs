@@ -129,7 +129,7 @@ defmodule NervesHub.MixProject do
        branch: "update-obans-semantic-conventions", subdir: "instrumentation/opentelemetry_oban"},
       {:opentelemetry_bandit, "~> 0.3.0"},
       {:open_telemetry_decorator, "~> 1.5"},
-      {:phoenix, "~> 1.8.1"},
+      {:phoenix, "1.8.2"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 4.0"},
       {:phoenix_html_helpers, "~> 1.0"},
