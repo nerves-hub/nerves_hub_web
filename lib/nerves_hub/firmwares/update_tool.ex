@@ -91,7 +91,8 @@ defmodule NervesHub.Firmwares.UpdateTool do
   """
   @callback create_firmware_delta_file(
               {source_id :: String.t(), source_url :: String.t()},
-              {target_id :: String.t(), target_url :: String.t()}
+              {target_id :: String.t(), target_url :: String.t()},
+              work_dir :: String.t()
             ) ::
               {:ok, delta_file_metadata()} | {:error, term()}
 

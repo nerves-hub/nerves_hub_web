@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.AuditLogs
   alias NervesHub.Devices

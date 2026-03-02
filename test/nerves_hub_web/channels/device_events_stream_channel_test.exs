@@ -7,10 +7,10 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
   alias NervesHubWeb.EventStreamSocket
 
   describe "handle_info/2" do
-    test "handles fwup_progress messages" do
+    test "handles fwup_progress messages", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
 
-      device = device_fixture(user, %{identifier: "test-device-123"})
+      device = device_fixture(user, %{identifier: "test-device-123"}, tmp_dir)
 
       user_token = Accounts.create_user_api_token(user, "test-token")
 
@@ -28,10 +28,10 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
   end
 
   describe "join/3" do
-    test "authorized users can join the device channel" do
+    test "authorized users can join the device channel", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
 
-      device = device_fixture(user, %{identifier: "test-device-123"})
+      device = device_fixture(user, %{identifier: "test-device-123"}, tmp_dir)
 
       user_token = Accounts.create_user_api_token(user, "test-token")
 
@@ -45,11 +45,11 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
                )
     end
 
-    test "unauthorized user cannot join the device channel" do
+    test "unauthorized user cannot join the device channel", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
       other_user = Fixtures.user_fixture()
 
-      device = device_fixture(user, %{identifier: "test-device-456"})
+      device = device_fixture(user, %{identifier: "test-device-123"}, tmp_dir)
 
       other_user_token = Accounts.create_user_api_token(other_user, "test-token")
 
@@ -65,7 +65,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
     end
   end
 
-  defp device_fixture(user, device_params) do
+  defp device_fixture(user, device_params, tmp_dir) do
     org = Fixtures.org_fixture(user)
     {:ok, org_user} = Accounts.get_org_user(org, user)
 
@@ -73,11 +73,12 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
     {:ok, _updated_org_user} = Accounts.change_org_user_role(org_user, :view)
 
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
     firmware =
       Fixtures.firmware_fixture(org_key, product, %{
-        version: "0.0.1"
+        version: "0.0.1",
+        dir: tmp_dir
       })
 
     Fixtures.device_fixture(

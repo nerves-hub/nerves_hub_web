@@ -6,12 +6,12 @@ defmodule NervesHub.DeviceLinkTest do
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     deployment_group = Fixtures.deployment_group_fixture(firmware, %{is_active: true})
     device = Fixtures.device_fixture(org, product, firmware)
 

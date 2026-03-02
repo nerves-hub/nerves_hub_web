@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.FirmwareTest do
-  use NervesHubWeb.ConnCase.Browser, async: true
+  use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments

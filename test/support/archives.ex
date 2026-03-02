@@ -67,8 +67,9 @@ defmodule NervesHub.Support.Archives do
     {:ok, output_path}
   end
 
-  def make_conf(metadata) do
-    path = Path.join([System.tmp_dir(), "#{Ecto.UUID.generate()}.conf"])
+  def make_conf(metadata, opts \\ []) do
+    dir = Keyword.get(opts, :dir, System.tmp_dir())
+    path = Path.join([dir, "#{Ecto.UUID.generate()}.conf"])
     File.write!(path, build_conf(metadata))
     path
   end

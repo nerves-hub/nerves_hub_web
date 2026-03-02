@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.OAuthControllerTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
 
   import Swoosh.TestAssertions

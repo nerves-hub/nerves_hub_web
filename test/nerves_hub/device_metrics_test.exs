@@ -1,17 +1,17 @@
 defmodule NervesHub.DeviceMetricsTest do
-  use NervesHub.DataCase, async: false
+  use NervesHub.DataCase, async: true
 
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
     product2 = Fixtures.product_fixture(user, org, %{name: "Second product"})
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware)
     device2 = Fixtures.device_fixture(org, product2, firmware)
 

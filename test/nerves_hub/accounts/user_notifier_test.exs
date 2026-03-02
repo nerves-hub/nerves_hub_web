@@ -1,5 +1,5 @@
 defmodule NervesHub.Accounts.UserNotifierTest do
-  use NervesHub.DataCase
+  use NervesHub.DataCase, async: true
 
   import Swoosh.X.TestAssertions
 

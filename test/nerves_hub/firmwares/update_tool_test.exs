@@ -775,12 +775,12 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
   end
 
   describe "update tool types" do
-    setup do
+    setup %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok,
        %{
@@ -796,10 +796,11 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       firmware: firmware,
       org: org,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
       device = Fixtures.device_fixture(org, product, firmware)
-      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       _firmware_delta = Fixtures.firmware_delta_fixture(firmware, new_firmware)
       assert :full = Fwup.device_update_type(device, new_firmware)
     end
@@ -808,10 +809,11 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       firmware: firmware,
       org: org,
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
       device = Fixtures.device_fixture(org, product, firmware, %{fwup_version: "1.13.0"})
-      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       _firmware_delta = Fixtures.firmware_delta_fixture(firmware, new_firmware)
       assert :delta = Fwup.device_update_type(device, new_firmware)
     end

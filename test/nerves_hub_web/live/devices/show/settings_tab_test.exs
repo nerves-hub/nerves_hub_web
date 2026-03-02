@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Devices
   alias NervesHub.Repo

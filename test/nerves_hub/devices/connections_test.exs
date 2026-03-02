@@ -6,12 +6,12 @@ defmodule NervesHub.Devices.ConnectionsTest do
   alias NervesHub.Fixtures
   alias Phoenix.Socket.Broadcast
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware)
 
     {:ok, %{device: device, product: product}}

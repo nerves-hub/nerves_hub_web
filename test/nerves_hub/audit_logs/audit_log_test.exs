@@ -1,11 +1,11 @@
 defmodule NervesHub.AuditLogs.AuditLogTest do
-  use NervesHub.DataCase
+  use NervesHub.DataCase, async: true
 
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Fixtures
 
-  setup do
-    Fixtures.standard_fixture()
+  setup %{tmp_dir: tmp_dir} do
+    Fixtures.standard_fixture(tmp_dir)
   end
 
   describe "build" do

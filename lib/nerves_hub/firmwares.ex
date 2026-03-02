@@ -456,6 +456,8 @@ defmodule NervesHub.Firmwares do
           :ok
           | {:error, Ecto.Changeset.t() | :no_delta_support_in_firmware}
   def generate_firmware_delta(firmware_delta, source_firmware, target_firmware) do
+    {:ok, work_dir} = Briefly.create(type: :directory)
+
     Logger.info("Creating firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}.")
 
     {:ok, source_url} = firmware_upload_config().download_file(source_firmware)
@@ -463,7 +465,8 @@ defmodule NervesHub.Firmwares do
 
     case update_tool().create_firmware_delta_file(
            {source_firmware.uuid, source_url},
-           {target_firmware.uuid, target_url}
+           {target_firmware.uuid, target_url},
+           work_dir
          ) do
       {:ok, delta_file_metadata} ->
         case finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
@@ -478,6 +481,8 @@ defmodule NervesHub.Firmwares do
       {:error, _} = error ->
         error
     end
+  after
+    Briefly.cleanup()
   end
 
   defp finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do

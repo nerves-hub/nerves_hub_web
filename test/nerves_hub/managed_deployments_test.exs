@@ -1,5 +1,5 @@
 defmodule NervesHub.ManagedDeploymentsTest do
-  use NervesHub.DataCase, async: false
+  use NervesHub.DataCase, async: true
   use Mimic
 
   import Phoenix.ChannelTest

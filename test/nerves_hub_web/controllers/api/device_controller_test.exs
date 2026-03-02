@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.API.DeviceControllerTest do
-  use NervesHubWeb.APIConnCase, async: false
+  use NervesHubWeb.APIConnCase, async: true
   use Mimic
 
   import Phoenix.ChannelTest

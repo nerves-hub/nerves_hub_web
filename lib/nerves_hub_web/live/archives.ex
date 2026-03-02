@@ -118,6 +118,7 @@ defmodule NervesHubWeb.Live.Archives do
 
       {:error, changeset} ->
         error_feedback(socket, changeset)
+        |> noreply()
     end
   end
 
@@ -141,6 +142,7 @@ defmodule NervesHubWeb.Live.Archives do
           |> Enum.map_join(", ", fn {_field, {message, _info}} -> message end)
 
         error_feedback(socket, "The archive couldn't be deleted: #{message}.")
+        |> noreply()
     end
   end
 
@@ -150,16 +152,13 @@ defmodule NervesHubWeb.Live.Archives do
     if entry.done? do
       [filepath] =
         consume_uploaded_entries(socket, :archive, fn %{path: path}, _entry ->
-          dest = Path.join(System.tmp_dir(), Path.basename(path))
-          File.cp!(path, dest)
-          {:ok, dest}
+          {:postpone, path}
         end)
 
-      try do
-        create_archive(socket, filepath)
-      after
-        File.rm(filepath)
-      end
+      socket
+      |> create_archive(filepath)
+      |> cancel_upload(:archive, entry.ref)
+      |> noreply()
     else
       {:noreply, socket}
     end
@@ -214,7 +213,6 @@ defmodule NervesHubWeb.Live.Archives do
         socket
         |> put_flash(:info, "Archive uploaded successfully.")
         |> push_patch(to: ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/archives")
-        |> noreply()
 
       {:error, :no_public_keys} ->
         error_feedback(
@@ -246,9 +244,7 @@ defmodule NervesHubWeb.Live.Archives do
   end
 
   defp error_feedback(socket, message) do
-    socket
-    |> put_flash(:error, message)
-    |> noreply()
+    put_flash(socket, :error, message)
   end
 
   defp format_signed(%{org_key_id: org_key_id}, org_keys) do

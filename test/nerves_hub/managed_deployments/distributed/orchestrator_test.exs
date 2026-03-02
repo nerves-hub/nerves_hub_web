@@ -15,12 +15,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, deployment_group} =
       Fixtures.deployment_group_fixture(firmware, %{is_active: true})
@@ -51,10 +51,11 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     device: device1,
     device2: device2,
     device3: device3,
-    user: user
+    user: user,
+    tmp_dir: tmp_dir
   } do
     # setup deployment group, listen for broadcasts, and start the orchestrator
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(
@@ -119,7 +120,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     org_key: org_key,
     device: device,
     device2: device2,
-    user: user
+    user: user,
+    tmp_dir: tmp_dir
   } do
     # only allow for 1 update at a time
     {:ok, deployment_group} =
@@ -150,7 +152,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       })
 
     # create new firmware and update the deployment group with it
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, _deployment_group} =
       ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id}, user)
@@ -189,7 +191,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     deployment_group: deployment_group,
     org_key: org_key,
     device: device,
-    user: user
+    user: user,
+    tmp_dir: tmp_dir
   } do
     # only allow for 1 update at a time
     {:ok, deployment_group} =
@@ -214,7 +217,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       })
 
     # create new firmware and update the deployment group with it
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, _deployment_group} =
       ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id}, user)
@@ -229,7 +232,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     product: product,
     device: device1,
     device2: device2,
-    user: user
+    user: user,
+    tmp_dir: tmp_dir
   } do
     # An ugly set of expectations
     # `Devices.available_for_update` should be called:
@@ -253,7 +257,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     end)
     |> reject(:available_for_update, 2)
 
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(
@@ -336,7 +340,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     product: product,
     device: device1,
     device2: device2,
-    user: user
+    user: user,
+    tmp_dir: tmp_dir
   } do
     # An ugly set of expectations
     # `Devices.available_for_update` should be called:
@@ -352,7 +357,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     end)
     |> reject(:available_for_update, 2)
 
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(
@@ -391,9 +396,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     deployment_group: deployment_group,
     org_key: org_key,
     product: product,
-    device: device1
+    device: device1,
+    tmp_dir: tmp_dir
   } do
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(
@@ -453,9 +459,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     deployment_group: deployment_group,
     org_key: org_key,
     product: product,
-    device: device1
+    device: device1,
+    tmp_dir: tmp_dir
   } do
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(
@@ -542,7 +549,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     product: product,
     tmp_dir: tmp_dir
   } do
-    source_firmware = Fixtures.firmware_fixture(org_key, product)
+    source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     deployment_group = Ecto.Changeset.change(deployment_group, %{status: :preparing}) |> Repo.update!()
     Fixtures.device_fixture(org, product, source_firmware, %{deployment_id: deployment_group.id})
 
@@ -553,7 +560,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         %{status: :processing}
       )
 
-    expect(Fwup, :create_firmware_delta_file, fn _, _ ->
+    expect(Fwup, :create_firmware_delta_file, fn _, _, _ ->
       {:ok,
        %{
          tool: "fwup",
@@ -588,9 +595,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     org_key: org_key,
     product: product,
     org: org,
-    user: user
+    user: user,
+    tmp_dir: tmp_dir
   } do
-    other_firmware = Fixtures.firmware_fixture(org_key, product)
+    other_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     device =
       Fixtures.device_fixture(org, product, other_firmware)

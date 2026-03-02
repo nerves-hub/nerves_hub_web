@@ -8,11 +8,11 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
   alias NervesHub.Repo
   alias NervesHub.Workers.FirmwareDeltaBuilder
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
     %{user: user, org: org, product: product, org_key: org_key}
   end
@@ -20,7 +20,8 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
   describe "perform/1 - real integration tests" do
     test "successfully generates real delta firmware end-to-end", %{
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
       # Set up Req.Test to intercept HTTP requests
       # (plug is configured in config/test.exs)
@@ -55,7 +56,8 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
         Fixtures.firmware_fixture(org_key, product, %{
           version: "1.0.0",
           resource_name: shared_resource,
-          resource_contents: String.duplicate("source file contents ", 100)
+          resource_contents: String.duplicate("source file contents ", 100),
+          dir: tmp_dir
         })
         |> Ecto.Changeset.change(delta_updatable: true)
         |> Repo.update!()
@@ -64,7 +66,8 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
         Fixtures.firmware_fixture(org_key, product, %{
           version: "2.0.0",
           resource_name: shared_resource,
-          resource_contents: String.duplicate("target file contents with extra data ", 100)
+          resource_contents: String.duplicate("target file contents with extra data ", 100),
+          dir: tmp_dir
         })
         |> Ecto.Changeset.change(delta_updatable: true)
         |> Repo.update!()
@@ -86,27 +89,24 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
       assert delta.status == :completed
       assert delta.size > 0
 
-      # Verify cleanup - work directory should no longer exist
-      work_dir =
-        Path.join(System.tmp_dir(), "#{source_firmware.uuid}_#{target_firmware.uuid}")
-
-      refute File.exists?(work_dir),
+      assert Enum.empty?(:ets.tab2list(Briefly.Entry.Path)),
              "Work directory should be cleaned up after delta generation"
     end
 
     test "marks delta as failed on final attempt", %{
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      stub(Fwup, :create_firmware_delta_file, fn _, _ -> {:error, :test_failure} end)
+      stub(Fwup, :create_firmware_delta_file, fn _, _, _ -> {:error, :test_failure} end)
 
       source_firmware =
-        Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0"})
+        Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
         |> Ecto.Changeset.change(delta_updatable: true)
         |> Repo.update!()
 
       target_firmware =
-        Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0"})
+        Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
         |> Ecto.Changeset.change(delta_updatable: true)
         |> Repo.update!()
 
@@ -133,17 +133,18 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
 
     test "retries without marking failed on non-final attempts", %{
       org_key: org_key,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      stub(Fwup, :create_firmware_delta_file, fn _, _ -> {:error, :test_failure} end)
+      stub(Fwup, :create_firmware_delta_file, fn _, _, _ -> {:error, :test_failure} end)
 
       source_firmware =
-        Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0"})
+        Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
         |> Ecto.Changeset.change(delta_updatable: true)
         |> Repo.update!()
 
       target_firmware =
-        Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0"})
+        Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
         |> Ecto.Changeset.change(delta_updatable: true)
         |> Repo.update!()
 

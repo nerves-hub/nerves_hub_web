@@ -1,4 +1,6 @@
 defmodule NervesHub.Devices.LogLinesTest do
+  # These tests are not async because they interact with the AnalyticsRepo,
+  # which is a ClickHouse database that does not support concurrent writes.
   use NervesHub.DataCase, async: false
 
   alias NervesHub.AnalyticsRepo
@@ -6,12 +8,12 @@ defmodule NervesHub.Devices.LogLinesTest do
   alias NervesHub.Devices.LogLines
   alias NervesHub.Fixtures
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
     device2 = Fixtures.device_fixture(org, product, firmware)
     device3 = Fixtures.device_fixture(org, product, firmware)

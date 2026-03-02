@@ -6,9 +6,9 @@ defmodule NervesHub.Workers.ScheduleOrgAuditLogTruncationTest do
   alias NervesHub.Workers.OrgAuditLogTruncation
   alias NervesHub.Workers.ScheduleOrgAuditLogTruncation
 
-  setup do
+  setup %{tmp_dir: tmp_dir} do
     Application.put_env(:nerves_hub, :audit_logs, enabled: true)
-    Fixtures.standard_fixture()
+    {:ok, Fixtures.standard_fixture(tmp_dir)}
   end
 
   describe "audit log truncation disabled" do

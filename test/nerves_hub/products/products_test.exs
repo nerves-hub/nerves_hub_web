@@ -10,8 +10,8 @@ defmodule NervesHub.ProductsTest do
     @valid_attrs %{name: "some name"}
     @invalid_attrs %{name: nil}
 
-    setup do
-      {:ok, Fixtures.standard_fixture()}
+    setup %{tmp_dir: tmp_dir} do
+      {:ok, Fixtures.standard_fixture(tmp_dir)}
     end
 
     test "get_products_by_user_and_org returns products for user", %{

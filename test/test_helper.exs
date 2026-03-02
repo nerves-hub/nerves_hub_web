@@ -17,6 +17,14 @@ Mimic.copy(Oban)
 Mimic.copy(Sentry)
 Mimic.copy(Ueberauth)
 
-ExUnit.start(capture_log: true, exclude: [:pending])
+[capture_log: true, exclude: [:pending]]
+|> then(fn opts ->
+  if System.get_env("CI") do
+    opts
+  else
+    Keyword.put(opts, :max_cases, 10)
+  end
+end)
+|> ExUnit.start()
 
 Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, :manual)

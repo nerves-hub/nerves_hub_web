@@ -1,5 +1,5 @@
 defmodule NervesHub.ScriptsTest do
-  use NervesHub.DataCase
+  use NervesHub.DataCase, async: true
 
   alias NervesHub.Accounts
   alias NervesHub.Fixtures
