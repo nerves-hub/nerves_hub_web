@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.ShowTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
 
   import Ecto.Query, only: [where: 2]

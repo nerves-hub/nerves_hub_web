@@ -1,6 +1,6 @@
 defmodule NervesHubWeb.API.Plugs.UserTest do
-  use ExUnit.Case, async: false
   use NervesHubWeb.APIConnCase
+  use ExUnit.Case, async: true
 
   alias NervesHub.Accounts
   alias NervesHub.Repo

@@ -1,5 +1,5 @@
 defmodule NervesHub.DevicesTest do
-  use NervesHub.DataCase, async: false
+  use NervesHub.DataCase, async: true
   use Mimic
 
   alias Ecto.Changeset

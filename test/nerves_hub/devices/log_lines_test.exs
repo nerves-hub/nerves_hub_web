@@ -1,5 +1,5 @@
 defmodule NervesHub.Devices.LogLinesTest do
-  use NervesHub.DataCase, async: false
+  use NervesHub.DataCase, async: true
 
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.LogLine

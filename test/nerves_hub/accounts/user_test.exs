@@ -1,5 +1,5 @@
 defmodule NervesHub.Accounts.UserTest do
-  use NervesHub.DataCase
+  use NervesHub.DataCase, async: true
 
   alias Ecto.Changeset
   alias NervesHub.Accounts.User

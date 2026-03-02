@@ -1,5 +1,5 @@
 defmodule NervesHub.AuditLogs.AuditLogTest do
-  use NervesHub.DataCase
+  use NervesHub.DataCase, async: true
 
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Fixtures

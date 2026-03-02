@@ -1,5 +1,5 @@
 defmodule NervesHub.DeviceMetricsTest do
-  use NervesHub.DataCase, async: false
+  use NervesHub.DataCase, async: true
 
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.Metrics

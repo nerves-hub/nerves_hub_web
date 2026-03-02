@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
 
   alias NervesHub.AuditLogs

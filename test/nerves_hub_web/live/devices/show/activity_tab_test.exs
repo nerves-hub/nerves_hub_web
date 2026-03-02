@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.Show.ActivityTabTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.AuditLogs.DeviceTemplates
 

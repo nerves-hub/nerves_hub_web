@@ -1,5 +1,5 @@
 defmodule NervesHub.Devices.HealthStatusTest do
-  use NervesHub.DataCase, async: false
+  use NervesHub.DataCase, async: true
 
   alias NervesHub.Devices.HealthStatus
 
