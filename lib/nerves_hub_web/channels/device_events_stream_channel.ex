@@ -3,7 +3,12 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   Phoenix Channel for external services to subscribe to device updates.
   Currently only supports firmware update progress.
 
-  External services can join device-specific channels using the topic pattern "device:\#{device_id}"
+  If the running platform has the application config `:platform_unique_device_identifiers`
+  set to true (the default), external services can join device-specific channels
+  using the topic pattern "device:\#{device_id}".
+
+  And if the running platform has the application config is set to false, external services
+  can join device-specific channels using the topic pattern "org:\#{org_name}:device:\#{device_id}".
   """
 
   use Phoenix.Channel
