@@ -63,6 +63,7 @@
                 <th>Firmware</th>
                 <th>Platform</th>
                 <th>Uptime</th>
+                <th>Deployment Group</th>
                 <th>Tags</th>
               </tr>
             </thead>
@@ -86,6 +87,10 @@
 
                 <td>
                   <div class="h-2.5 w-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                </td>
+
+                <td>
+                  <div class="h-2.5 max-w-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
                 </td>
 
                 <td>
@@ -175,7 +180,6 @@
                       id="toggle-all"
                       title="Select/unselect all"
                       checked={Enum.any?(devices) && Enum.count(@selected_devices) == Enum.count(devices)}
-                      id="toggle-all"
                       name="toggle-all"
                       type="checkbox"
                       phx-click="select-all"
@@ -201,6 +205,7 @@
                   <th phx-click="sort" phx-value-sort="connection_established_at" class="cursor-pointer">
                     <Sorting.sort_icon text="Connected for" field="connection_established_at" selected_field={@current_sort} selected_direction={@sort_direction} />
                   </th>
+                  <th>Deployment Group</th>
                   <th phx-click="sort" phx-value-sort="tags" class="cursor-pointer">
                     <Sorting.sort_icon text="Tags" field="tags" selected_field={@current_sort} selected_direction={@sort_direction} />
                   </th>
@@ -312,6 +317,15 @@
                     <div :if={device.latest_connection} title={connection_established_at(device.latest_connection)}>
                       {connection_established_at(device.latest_connection)}
                     </div>
+                  </td>
+
+                  <td>
+                    <span :if={device.deployment_id} class="bg-base-800 border-base-700 flex w-fit items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5">
+                      <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="3" cy="3" r="3" fill="#10B981" />
+                      </svg>
+                      <span class="text-base-300 text-xs tracking-tight">{device.deployment_group.name}</span>
+                    </span>
                   </td>
 
                   <td>
@@ -458,33 +472,67 @@
             </div>
           </form>
 
+          <div :if={@selected_have_deployment_groups} class="flex flex-col gap-2">
+            <label class="sidebar-label">Remove from deployment group</label>
+            <div class="flex items-center gap-2">
+              <span :if={@selected_shared_deployment_group} class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5">
+                <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="3" cy="3" r="3" fill="#10B981" />
+                </svg>
+                <span class="text-base-300 text-xs tracking-tight">{@selected_shared_deployment_group.name}</span>
+              </span>
+              <button
+                class="bg-base-800 rounded-full border border-red-500 p-1"
+                data-confirm="This will remove all selected devices from their deployment groups. Would you like to continue?"
+                aria-label="Remove selected devices from deployment group"
+                type="button"
+                phx-click="remove-devices-from-deployment-group"
+              >
+                <svg class="size-3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
+                    stroke="#EF4444"
+                    stroke-width="1.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
           <form
-            :if={Enum.any?(@available_deployment_groups_for_filtered_platform)}
-            id="deployment-move"
+            id="deployment-set"
             class="flex flex-col gap-2"
             phx-change="target-deployment-group"
             phx-submit="move-devices-deployment-group"
           >
-            <label class="sidebar-label">Move device(s) to deployment group filtered by platform:</label>
+            <label class="sidebar-label">Set deployment group</label>
 
             <div class="flex gap-2">
-              <label for="deployment_group" class="hidden">Deployment Group</label>
-              <select name="deployment_group" id="deployment_group" class="sidebar-select" phx-update="ignore">
-                <option value="">Select deployment group</option>
-                <%= for deployment_group <- @available_deployment_groups_for_filtered_platform do %>
-                  <option value={deployment_group.id} {if @target_deployment_group && @target_deployment_group.id == deployment_group.id, do: [selected: true], else: []}>
-                    {deployment_group.name} - {deployment_group.current_release.firmware.architecture} - {deployment_group.current_release.firmware.platform}
-                  </option>
-                <% end %>
-              </select>
+              <label for="set_deployment_group" class="hidden">Set deployment group</label>
+              <%= if Enum.any?(@valid_deployment_groups_for_selected) do %>
+                <select name="deployment_group" id="set_deployment_group" class="sidebar-select">
+                  <option value="">Select deployment group</option>
+                  <%= for deployment_group <- @valid_deployment_groups_for_selected do %>
+                    <option value={deployment_group.id} {if @target_deployment_group && @target_deployment_group.id == deployment_group.id, do: [selected: true], else: []}>
+                      {deployment_group.name} - {deployment_group.current_release.firmware.architecture} - {deployment_group.current_release.firmware.platform}
+                    </option>
+                  <% end %>
+                </select>
+              <% else %>
+                <select name="deployment_group" id="set_deployment_group" class="sidebar-select" disabled>
+                  <option value="">(no valid choices)</option>
+                </select>
+              <% end %>
 
               <.button
                 style="primary"
                 type="submit"
-                data-confirm={"This will move all selected devices to #{@target_deployment_group && @target_deployment_group.name}. Would you like to continue?"}
+                data-confirm={"This will set all selected devices to #{@target_deployment_group && @target_deployment_group.name}. Would you like to continue?"}
                 {unless @target_deployment_group, do: [disabled: true], else: []}
               >
-                Move
+                Set
               </.button>
             </div>
           </form>
@@ -499,6 +547,37 @@
               </.button>
             </div>
             <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
+          </form>
+
+          <form
+            :if={Enum.any?(@available_firmwares_for_filtered_platform)}
+            id="push-firmware"
+            class="flex flex-col gap-2"
+            phx-change="target-firmware"
+            phx-submit="push-firmware-to-devices"
+          >
+            <label class="sidebar-label">Send firmware update (filtered by platform):</label>
+
+            <div class="flex gap-2">
+              <label for="firmware_select" class="hidden">Firmware</label>
+              <select name="firmware" id="firmware_select" class="sidebar-select" phx-update="ignore">
+                <option value="">Select firmware</option>
+                <%= for firmware <- @available_firmwares_for_filtered_platform do %>
+                  <option value={firmware.uuid} {if @target_firmware && @target_firmware.uuid == firmware.uuid, do: [selected: true], else: []}>
+                    {firmware.version} ({String.slice(firmware.uuid, 0..7)})
+                  </option>
+                <% end %>
+              </select>
+
+              <.button
+                style="primary"
+                type="submit"
+                data-confirm="This will send the selected firmware to all selected devices. Would you like to continue?"
+                {unless @target_firmware, do: [disabled: true], else: []}
+              >
+                Send
+              </.button>
+            </div>
           </form>
 
           <div class="flex flex-col gap-2">

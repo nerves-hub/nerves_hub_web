@@ -1444,6 +1444,53 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "tag management" do
+    test "adds a tag to the device", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "beta")
+      |> fill_in("Add tag", with: "new-tag")
+      |> click_button("Add")
+      |> assert_has("div", text: "Tag \"new-tag\" added.", timeout: 1_000)
+      |> assert_has("span", text: "new-tag")
+      |> assert_has("span", text: "beta")
+    end
+
+    test "removes a tag from the device", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "beta")
+      |> assert_has("span", text: "beta-edge")
+      |> unwrap(fn view ->
+        render_click(view, "remove-tag", %{"tag" => "beta"})
+      end)
+      |> assert_has("div", text: "Tag \"beta\" removed.", timeout: 1_000)
+      |> refute_has("span", text: "beta", exact: true)
+      |> assert_has("span", text: "beta-edge")
+    end
+
+    test "rejects tags with spaces", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> fill_in("Add tag", with: "bad tag")
+      |> click_button("Add")
+      |> assert_has("div", text: "Tags cannot be empty or contain spaces.", timeout: 1_000)
+    end
+
+    test "rejects duplicate tags", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "beta")
+      |> fill_in("Add tag", with: "beta")
+      |> click_button("Add")
+      |> assert_has("div", text: "Tag \"beta\" already exists on this device.", timeout: 1_000)
+    end
+  end
+
   def device_show_path(%{device: device, org: org, product: product}) do
     ~p"/org/#{org}/#{product}/devices/#{device}"
   end

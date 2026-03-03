@@ -97,6 +97,16 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
+  @spec get_firmwares_by_product_and_platform(Product.t(), String.t()) :: [Firmware.t()]
+  def get_firmwares_by_product_and_platform(product, platform) do
+    Firmware
+    |> where([f], f.product_id == ^product.id)
+    |> where([f], f.platform == ^platform)
+    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> limit(25)
+    |> Repo.all()
+  end
+
   @spec get_firmwares(Product.t(), String.t(), String.t()) :: [Firmware.t()]
   def get_firmwares(product, platform, architecture) do
     Firmware
@@ -348,7 +358,8 @@ defmodule NervesHub.Firmwares do
 
     Repo.transact(fn ->
       with {:ok, firmware} <- Repo.delete(delta),
-           {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(delta.target_id),
+           {:ok, _} =
+             ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(delta.target_id),
            {:ok, _} <- Oban.insert(delete_delta_job) do
         {:ok, firmware}
       end
@@ -544,9 +555,11 @@ defmodule NervesHub.Firmwares do
       )
 
     with {:ok, firmware_delta} <- Repo.update(changeset),
-         :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
+         :ok <-
+           firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
          {:ok, _firmware_delta} <- notify_firmware_delta_target({:ok, firmware_delta}) do
-      {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
+      {:ok, _} =
+        ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
 
       Logger.info("Created firmware delta successfully.")
 
@@ -581,10 +594,14 @@ defmodule NervesHub.Firmwares do
   def attempt_firmware_delta(source_id, target_id, recalculate_deployment_statuses \\ true) do
     Repo.transact(fn ->
       with {:error, :not_found} <-
-             get_firmware_delta_by_source_and_target(source_id, target_id, [:processing, :completed]),
+             get_firmware_delta_by_source_and_target(source_id, target_id, [
+               :processing,
+               :completed
+             ]),
            {_, {:ok, _}} <-
              {:delta_insert, start_firmware_delta(source_id, target_id, recalculate_deployment_statuses)},
-           {_, {:ok, _}} <- {:job, Oban.insert(FirmwareDeltaBuilder.new(%{source_id: source_id, target_id: target_id}))} do
+           {_, {:ok, _}} <-
+             {:job, Oban.insert(FirmwareDeltaBuilder.new(%{source_id: source_id, target_id: target_id}))} do
         {:ok, :started}
       else
         {:ok, %FirmwareDelta{}} ->
@@ -629,7 +646,8 @@ defmodule NervesHub.Firmwares do
       {:ok, firmware_delta} ->
         _ =
           if recalculate_deployment_statuses do
-            {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(target_id)
+            {:ok, _} =
+              ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(target_id)
           end
 
         {:ok, firmware_delta}
@@ -648,7 +666,8 @@ defmodule NervesHub.Firmwares do
       |> Repo.update()
       |> notify_firmware_delta_target()
 
-    {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
+    {:ok, _} =
+      ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
 
     {:ok, firmware_delta}
   end
@@ -662,7 +681,8 @@ defmodule NervesHub.Firmwares do
       |> Repo.update()
       |> notify_firmware_delta_target()
 
-    {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
+    {:ok, _} =
+      ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
 
     {:ok, firmware_delta}
   end
