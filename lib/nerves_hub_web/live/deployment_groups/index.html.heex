@@ -103,7 +103,7 @@
             </td>
 
             <td class="min-w-fit">
-              <span class="inline-block h-7 py-1 px-2 items-center rounded bg-zinc-800">
+              <span class="inline-block py-1 px-2 items-center rounded bg-zinc-800 whitespace-nowrap">
                 <.link navigate={~p"/org/#{@org}/#{@product}/firmware/#{deployment_group.current_release.firmware}"} class="flex items-center">
                   <span class="text-sm text-base-300 mr-1">{deployment_group.current_release.firmware.version} ({String.slice(deployment_group.current_release.firmware.uuid, 0..7)})</span>
                   <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
