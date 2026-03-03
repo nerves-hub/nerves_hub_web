@@ -272,13 +272,39 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <span class="text-sm text-zinc-300">{@device.inserted_at |> NaiveDateTime.to_date() |> Date.to_string()}</span>
             </div>
 
-            <div class="min-h-7 flex px-4 gap-4 items-center relative">
-              <span class="text-sm text-nerves-gray-500">Tags:</span>
-              <span :if={is_nil(@device.tags)} class="text-sm text-nerves-gray-500">No Tags</span>
-              <span class="device-show-tag-gradient-mask" />
-              <span :if={@device.tags} class="flex gap-1 max-w-full text-nowrap relative scrollable-inner">
-                <span :for={tag <- @device.tags || []} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">{tag}</span>
-              </span>
+            <div class="min-h-7 flex px-4 gap-4 items-start relative">
+              <span class="text-sm text-nerves-gray-500 pt-1">Tags:</span>
+              <div class="flex gap-1 flex-wrap items-center">
+                <span :if={is_nil(@device.tags) || Enum.empty?(@device.tags)} class="text-sm text-nerves-gray-500 pt-1">No Tags</span>
+                <span :for={tag <- @device.tags || []} class="flex items-center gap-1 text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">
+                  {tag}
+                  <button
+                    type="button"
+                    phx-click="remove-tag"
+                    phx-value-tag={tag}
+                    aria-label={"Remove tag #{tag}"}
+                    class="ml-1 text-zinc-500 hover:text-red-400"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 20 20" fill="none">
+                      <path d="M10 10L6 6M10 10L14 14M10 10L14 6M10 10L6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                </span>
+                <form id="add-tag-form" phx-submit="add-tag" class="inline-flex gap-1 items-center">
+                  <label for="add_tag_input" class="hidden">Add tag</label>
+                  <input
+                    type="text"
+                    id="add_tag_input"
+                    name="tag"
+                    placeholder="Add tag..."
+                    class="text-xs border rounded border-zinc-600 bg-zinc-900 py-1 px-2 text-zinc-400 focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-indigo-500 w-24"
+                    phx-debounce="300"
+                  />
+                  <button type="submit" aria-label="Add tag" class="text-xs px-2 py-1 border border-zinc-700 rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700">
+                    Add
+                  </button>
+                </form>
+              </div>
             </div>
 
             <div :if={!Enum.empty?(@metadata)} class="min-h-7 flex px-4 gap-4">
@@ -726,6 +752,46 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     socket
     |> assign(:support_scripts, update_script(scripts, id, %{output: nil, running?: false}))
+    |> halt()
+  end
+
+  def hooked_event("add-tag", %{"tag" => tag}, socket) do
+    tag = String.trim(tag)
+
+    if tag == "" or String.contains?(tag, " ") do
+      socket
+      |> put_flash(:error, "Tags cannot be empty or contain spaces.")
+      |> halt()
+    else
+      %{device: device, user: user} = socket.assigns
+      current_tags = device.tags || []
+
+      if tag in current_tags do
+        socket
+        |> put_flash(:info, "Tag \"#{tag}\" already exists on this device.")
+        |> halt()
+      else
+        new_tags = current_tags ++ [tag]
+        {:ok, device} = Devices.tag_device(device, user, new_tags)
+
+        socket
+        |> assign(:device, device)
+        |> put_flash(:info, "Tag \"#{tag}\" added.")
+        |> halt()
+      end
+    end
+  end
+
+  def hooked_event("remove-tag", %{"tag" => tag}, socket) do
+    %{device: device, user: user} = socket.assigns
+    current_tags = device.tags || []
+    new_tags = List.delete(current_tags, tag)
+
+    {:ok, device} = Devices.tag_device(device, user, new_tags)
+
+    socket
+    |> assign(:device, device)
+    |> put_flash(:info, "Tag \"#{tag}\" removed.")
     |> halt()
   end
 

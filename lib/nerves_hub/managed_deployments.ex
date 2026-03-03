@@ -147,6 +147,19 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.one!()
   end
 
+  @spec get_by_product_and_platforms(Product.t(), [binary()]) :: [DeploymentGroup.t()]
+  def get_by_product_and_platforms(_product, []), do: []
+
+  def get_by_product_and_platforms(product, platforms) when is_list(platforms) do
+    DeploymentGroup
+    |> where(product_id: ^product.id)
+    |> join(:left, [d], f in assoc(d, :firmware))
+    |> where([_d, f], f.platform in ^platforms)
+    |> preload([_d, f], firmware: f)
+    |> order_by([d], asc: d.name)
+    |> Repo.all()
+  end
+
   @spec get_by_product_and_platform(Product.t(), binary()) :: [DeploymentGroup.t()]
   def get_by_product_and_platform(product, platform) do
     DeploymentGroup

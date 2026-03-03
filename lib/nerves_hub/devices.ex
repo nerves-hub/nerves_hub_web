@@ -142,8 +142,10 @@ defmodule NervesHub.Devices do
         on: pd.device_id == d.id and pd.user_id == ^user.id,
         as: :pinned
       )
+      |> join(:left, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
       |> preload([latest_connection: lc], latest_connection: lc)
       |> preload([latest_health: lh], latest_health: lh)
+      |> preload([deployment_group: dg], deployment_group: dg)
 
     CommonFiltering.filter(
       base_query,
@@ -957,6 +959,25 @@ defmodule NervesHub.Devices do
     DeviceEvents.deployment_cleared(device)
 
     Map.put(device, :deployment_group, nil)
+  end
+
+  @doc """
+  Remove multiple devices from their deployment groups.
+
+  Returns `{:ok, count}` with the number of devices updated.
+  """
+  @spec remove_many_from_deployment_group([non_neg_integer()]) :: {:ok, non_neg_integer()}
+  def remove_many_from_deployment_group(device_ids) when is_list(device_ids) do
+    {count, _} =
+      Device
+      |> Repo.exclude_deleted()
+      |> where([d], d.id in ^device_ids)
+      |> where([d], not is_nil(d.deployment_id))
+      |> Repo.update_all(set: [deployment_id: nil])
+
+    Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
+
+    {:ok, count}
   end
 
   @spec failure_threshold_met?(Device.t(), DeploymentGroup.t()) :: boolean()

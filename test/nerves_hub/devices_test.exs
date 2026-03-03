@@ -1635,4 +1635,43 @@ defmodule NervesHub.DevicesTest do
       {"cannot be set to nil", []} = changeset.errors[:network_interface]
     end
   end
+
+  describe "remove_many_from_deployment_group/1" do
+    test "removes deployment group from devices that have one", %{
+      device: device,
+      device2: device2,
+      deployment_group: deployment_group
+    } do
+      Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
+      Repo.update!(Changeset.change(device2, deployment_id: deployment_group.id))
+
+      {:ok, count} = Devices.remove_many_from_deployment_group([device.id, device2.id])
+
+      assert count == 2
+
+      assert Repo.get!(Device, device.id).deployment_id == nil
+      assert Repo.get!(Device, device2.id).deployment_id == nil
+    end
+
+    test "only counts devices that had a deployment group", %{
+      device: device,
+      device2: device2,
+      deployment_group: deployment_group
+    } do
+      Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
+      # device2 has no deployment group
+
+      {:ok, count} = Devices.remove_many_from_deployment_group([device.id, device2.id])
+
+      assert count == 1
+    end
+
+    test "returns zero when no devices have a deployment group", %{device: device} do
+      refute device.deployment_id
+
+      {:ok, count} = Devices.remove_many_from_deployment_group([device.id])
+
+      assert count == 0
+    end
+  end
 end
