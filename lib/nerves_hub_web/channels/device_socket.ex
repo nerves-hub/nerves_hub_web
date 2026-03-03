@@ -37,7 +37,33 @@ defmodule NervesHubWeb.DeviceSocket do
   @impl Transport
   def handle_in(msg, {state, socket}) do
     socket = heartbeat(socket)
-    super(msg, {state, socket})
+    {msg, state_and_socket} = maybe_fix_join_ref(msg, {state, socket})
+    super(msg, state_and_socket)
+  end
+
+  defp maybe_fix_join_ref(msg, {state, socket}) when state.channels == [] do
+    {msg, {state, socket}}
+  end
+
+  defp maybe_fix_join_ref(msg, {state, socket}) do
+    {payload, opts} = msg
+    message = socket.serializer.decode!(payload, opts)
+
+    channel_info =
+      state.channels_inverse
+      |> Enum.find(fn {_pid, {topic, _join_ref}} -> message.topic == topic end)
+
+    with {_pid, {_topic, join_ref}} <- channel_info,
+         true <- is_nil(message.join_ref) do
+      message = put_in(message.join_ref, join_ref)
+      data = [message.join_ref, message.ref, message.topic, message.event, message.payload]
+      encoded = Phoenix.json_library().encode_to_iodata!(data)
+
+      {{encoded, opts}, {state, socket}}
+    else
+      _ ->
+        {msg, {state, socket}}
+    end
   end
 
   @decorate with_span("Channels.DeviceSocket.heartbeat")
