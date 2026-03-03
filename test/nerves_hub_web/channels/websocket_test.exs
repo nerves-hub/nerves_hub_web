@@ -375,10 +375,10 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert {:ok, auth} = Products.create_shared_secret_auth(product)
 
-      org_key = Fixtures.org_key_fixture(other_org, user, tmp_dir)
+      other_org_key = Fixtures.org_key_fixture(other_org, user, tmp_dir)
 
       firmware =
-        Fixtures.firmware_fixture(org_key, product, %{
+        Fixtures.firmware_fixture(other_org_key, other_product, %{
           version: "0.0.1",
           dir: tmp_dir
         })

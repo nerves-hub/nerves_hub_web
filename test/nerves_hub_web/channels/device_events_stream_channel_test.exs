@@ -45,13 +45,13 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
                )
     end
 
-    test "auth fails when :platform_unique_device_identifiers is false" do
+    test "auth fails when :platform_unique_device_identifiers is false", %{tmp_dir: tmp_dir} do
       Application.put_env(:nerves_hub, :platform_unique_device_identifiers, false)
       on_exit(fn -> Application.put_env(:nerves_hub, :platform_unique_device_identifiers, true) end)
 
       user = Fixtures.user_fixture()
 
-      device = device_fixture(user, %{identifier: "test-device-123"})
+      device = device_fixture(user, %{identifier: "test-device-123"}, tmp_dir)
 
       user_token = Accounts.create_user_api_token(user, "test-token")
 
@@ -65,11 +65,11 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
                )
     end
 
-    test "unauthorized user cannot join the device channel" do
+    test "unauthorized user cannot join the device channel", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
       other_user = Fixtures.user_fixture()
 
-      device = device_fixture(user, %{identifier: "test-device-456"})
+      device = device_fixture(user, %{identifier: "test-device-456"}, tmp_dir)
 
       other_user_token = Accounts.create_user_api_token(other_user, "test-token")
 
