@@ -195,7 +195,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
       socket
       |> create_firmware(filepath)
-      |> cancel_upload(:firmware, entry.ref)
+      |> clear_completed_upload(:firmware, entry)
       |> noreply()
     else
       {:noreply, assign(socket, status: "uploading...")}
@@ -309,6 +309,10 @@ defmodule NervesHubWeb.Live.Firmware do
   defp error_feedback(socket, message, _opts) do
     socket
     |> put_flash(:error, message)
+  end
+
+  defp clear_completed_upload(socket, upload_name, entry) do
+    Phoenix.LiveView.Upload.unregister_completed_entry_upload(socket, socket.assigns[:uploads][upload_name], entry.ref)
   end
 
   defp format_file_size(size) do

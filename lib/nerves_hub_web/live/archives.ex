@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Archives do
   alias NervesHub.Archives
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
+  alias Phoenix.LiveView.Upload
 
   embed_templates("archive_templates/*")
 
@@ -157,7 +158,7 @@ defmodule NervesHubWeb.Live.Archives do
 
       socket
       |> create_archive(filepath)
-      |> cancel_upload(:archive, entry.ref)
+      |> clear_completed_upload(:archive, entry)
       |> noreply()
     else
       {:noreply, socket}
@@ -245,6 +246,10 @@ defmodule NervesHubWeb.Live.Archives do
 
   defp error_feedback(socket, message) do
     put_flash(socket, :error, message)
+  end
+
+  defp clear_completed_upload(socket, upload_name, entry) do
+    Upload.unregister_completed_entry_upload(socket, socket.assigns[:uploads][upload_name], entry.ref)
   end
 
   defp format_signed(%{org_key_id: org_key_id}, org_keys) do
