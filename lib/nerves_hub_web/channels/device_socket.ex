@@ -41,6 +41,10 @@ defmodule NervesHubWeb.DeviceSocket do
     super(msg, state_and_socket)
   end
 
+  # Due to Slipstream not sending `join_ref`s with every message (CuatroElixir/slipstream#84),
+  # and Phoenix tightening up their Channel implementation (phoenixframework/phoenix@c73bbfc),
+  # and we aren't able to force devices to upgrade to the most recent Slipstream version,
+  # we need to add the `join_ref` to Channel messages (a bandaid) or be stuck on Phoenix 1.8.2
   defp maybe_fix_join_ref(msg, {state, socket}) when state.channels == [] do
     {msg, {state, socket}}
   end
