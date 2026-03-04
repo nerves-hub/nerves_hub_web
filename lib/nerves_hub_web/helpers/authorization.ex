@@ -2,8 +2,8 @@ defmodule NervesHubWeb.Helpers.Authorization do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
 
-  def authorized!(org_user, permission) do
-    authorized?(org_user, permission) || raise NervesHubWeb.UnauthorizedError
+  def authorized!(permission, org_user) do
+    authorized?(permission, org_user) || raise NervesHubWeb.UnauthorizedError
   end
 
   def authorized?(:"organization:update", %OrgUser{role: ur}), do: role_check(:admin, ur)

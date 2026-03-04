@@ -74,9 +74,8 @@ defmodule NervesHubWeb do
         layout: {NervesHubWeb.LayoutView, :live},
         container: {:div, class: "h-screen"}
 
+      use NervesHubWeb.Helpers.AuthorizedLiveView
       use Gettext, backend: NervesHubWeb.Gettext
-
-      on_mount(Sentry.LiveViewHook)
     end
   end
 
