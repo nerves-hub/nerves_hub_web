@@ -21,7 +21,16 @@ defmodule NervesHubWeb.Mounts.RequireAuthorization do
       |> put_private(:authorization_applied?, false)
       |> put_private(:authorization_granted?, false)
       |> attach_hook(:require_authorization, :handle_event, &event/3)
-      |> attach_hook(:require_authorization, :handle_params, &params/3)
+
+    # handle_params hooks can only be attached to router-mounted views.
+    # For non-router views (e.g. live_isolated in tests), handle_params
+    # is never called so the hook isn't needed.
+    socket =
+      try do
+        attach_hook(socket, :require_authorization, :handle_params, &params/3)
+      rescue
+        RuntimeError -> socket
+      end
 
     {:cont, socket}
   end
