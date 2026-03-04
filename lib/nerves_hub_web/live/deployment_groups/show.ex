@@ -12,12 +12,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias Phoenix.Socket.Broadcast
 
   @impl Phoenix.LiveView
-  @decorate requires_permission(:"deployment_group:view")
   def mount(params, _session, socket) do
     %{"name" => name} = params
     %{product: product, user: user} = socket.assigns
 
     deployment_group = ManagedDeployments.get_by_product_and_name!(product, name, true)
+    socket = authorize!(socket, :"deployment_group:view", deployment_group)
 
     Logger.metadata(user_id: user.id, product_id: product.id, deployment_group_id: deployment_group.id)
 
@@ -36,8 +36,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
-  @decorate requires_permission(:"deployment_group:view")
   def handle_params(_params, _uri, socket) do
+    socket = authorize!(socket, :"deployment_group:view", socket.assigns.deployment_group)
+
     socket
     |> selected_tab()
     |> noreply()
@@ -53,8 +54,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
-  @decorate requires_permission(:"deployment_group:toggle")
   def handle_event("toggle", _params, socket) do
+    socket = authorize!(socket, :"deployment_group:toggle", socket.assigns.deployment_group)
     %{deployment_group: deployment_group, user: user} = socket.assigns
 
     value = !deployment_group.is_active
@@ -71,8 +72,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
-  @decorate requires_permission(:"deployment_group:delete")
   def handle_event("delete", _params, socket) do
+    socket = authorize!(socket, :"deployment_group:delete", socket.assigns.deployment_group)
     %{deployment_group: deployment_group, org: org, product: product, user: user} = socket.assigns
 
     {:ok, _} = ManagedDeployments.delete_deployment_group(deployment_group)
@@ -85,8 +86,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
-  @decorate requires_permission(:"deployment_group:update")
   def handle_event("move-matched-devices-to-deployment-group", _params, socket) do
+    socket = authorize!(socket, :"deployment_group:update", socket.assigns.deployment_group)
     %{assigns: %{deployment_group: deployment_group}} = socket
 
     move_devices = fn ->
@@ -108,8 +109,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
-  @decorate requires_permission(:"deployment_group:update")
   def handle_event("remove-unmatched-devices-from-deployment-group", _params, socket) do
+    socket = authorize!(socket, :"deployment_group:update", socket.assigns.deployment_group)
     %{assigns: %{deployment_group: deployment_group}} = socket
 
     matched_device_ids =

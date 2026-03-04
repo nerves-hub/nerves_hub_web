@@ -31,12 +31,12 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
     def render(assigns), do: ~H"<div>test</div>"
   end
 
-  # A LiveView with requires_permission on mount (device:view allows :view role)
+  # A LiveView with requires_permission on mount (device:list allows :view role, takes Product)
   defmodule PermissionMountLive do
     use Phoenix.LiveView
     use NervesHubWeb.Access.AuthorizedLiveView
 
-    @decorate requires_permission(:"device:view")
+    @decorate requires_permission(:"device:list")
     def mount(_params, _session, socket) do
       {:ok, socket}
     end
@@ -44,12 +44,12 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
     def render(assigns), do: ~H"<div>test</div>"
   end
 
-  # A LiveView with requires_permission that needs :manage role (device:delete)
+  # A LiveView with requires_permission that needs :manage role (device:create)
   defmodule ManagePermissionMountLive do
     use Phoenix.LiveView
     use NervesHubWeb.Access.AuthorizedLiveView
 
-    @decorate requires_permission(:"device:delete")
+    @decorate requires_permission(:"device:create")
     def mount(_params, _session, socket) do
       {:ok, socket}
     end
@@ -86,6 +86,41 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
 
     @decorate requires_no_permission()
     def handle_event("click", _params, socket) do
+      {:noreply, socket}
+    end
+
+    def render(assigns), do: ~H"<div>test</div>"
+  end
+
+  # A LiveView that uses explicit authorize! instead of decorators for entity-specific permission
+  defmodule ExplicitAuthorizeMountLive do
+    use Phoenix.LiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
+
+    import NervesHubWeb.Mounts.RequireAuthorization, only: [authorize!: 3]
+
+    def mount(_params, _session, socket) do
+      socket = authorize!(socket, :"device:view", socket.assigns.device)
+      {:ok, socket}
+    end
+
+    def render(assigns), do: ~H"<div>test</div>"
+  end
+
+  # A LiveView that uses explicit authorize! in handle_event for entity-specific permission
+  defmodule ExplicitAuthorizeEventLive do
+    use Phoenix.LiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
+
+    import NervesHubWeb.Mounts.RequireAuthorization, only: [authorize!: 3]
+
+    @decorate requires_no_permission()
+    def mount(_params, _session, socket) do
+      {:ok, socket}
+    end
+
+    def handle_event("delete", _params, socket) do
+      socket = authorize!(socket, :"device:delete", socket.assigns.device)
       {:noreply, socket}
     end
 
@@ -134,23 +169,58 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
       assert {:ok, _socket} = DecoratedMountLive.mount(%{}, %{}, socket)
     end
 
-    test "passes when mount uses requires_permission with sufficient role", %{user: user, org: org} do
+    test "passes when mount uses requires_permission with sufficient role", %{user: user, org: org, product: product} do
       org_user = Accounts.get_org_user!(org, user)
-      socket = build_socket(%{org_user: org_user})
+      socket = build_socket(%{org_user: org_user, product: product})
 
       assert {:ok, _socket} = PermissionMountLive.mount(%{}, %{}, socket)
     end
 
-    test "catches authorization failure when role is insufficient", %{user: user, org: org} do
+    test "catches authorization failure when role is insufficient", %{user: user, org: org, product: product} do
       org_user = Accounts.get_org_user!(org, user)
       {:ok, _org_user} = Accounts.change_org_user_role(org_user, :view)
       org_user = Accounts.get_org_user!(org, user)
-      socket = build_socket(%{org_user: org_user})
+      socket = build_socket(%{org_user: org_user, product: product})
 
-      # device:delete requires :manage, but user has :view role
+      # device:create requires :manage, but user has :view role
       assert_raise AuthorizationFailed, fn ->
         ManagePermissionMountLive.mount(%{}, %{}, socket)
       end
+    end
+  end
+
+  describe "explicit authorize! with entity-specific permissions" do
+    test "passes when using authorize! with entity and sufficient role", %{user: user, org: org, device: device} do
+      org_user = Accounts.get_org_user!(org, user)
+      socket = build_socket(%{org_user: org_user, device: device})
+
+      assert {:ok, _socket} = ExplicitAuthorizeMountLive.mount(%{}, %{}, socket)
+    end
+
+    test "raises AuthorizationFailed when role is insufficient for entity permission", %{
+      user: user,
+      org: org,
+      device: device
+    } do
+      org_user = Accounts.get_org_user!(org, user)
+      {:ok, _org_user} = Accounts.change_org_user_role(org_user, :view)
+      org_user = Accounts.get_org_user!(org, user)
+      socket = build_socket(%{org_user: org_user, device: device})
+
+      # device:delete requires :manage, but user has :view role
+      assert_raise AuthorizationFailed, fn ->
+        ExplicitAuthorizeEventLive.handle_event("delete", %{}, socket)
+      end
+    end
+
+    test "passes authorize! in handle_event with sufficient role", %{user: user, org: org, device: device} do
+      org_user = Accounts.get_org_user!(org, user)
+      socket = build_socket(%{org_user: org_user, device: device})
+      {:ok, socket} = DecoratedMountLive.mount(%{}, %{}, socket)
+      socket = reset_authorization(socket)
+      socket = %{socket | assigns: Map.put(socket.assigns, :device, device)}
+
+      assert {:noreply, _socket} = ExplicitAuthorizeEventLive.handle_event("delete", %{}, socket)
     end
   end
 

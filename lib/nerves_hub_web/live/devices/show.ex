@@ -24,11 +24,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   @tab_components [ActivityTab, ConsoleTab, DetailsTab, HealthTab, LocalShellTab, LogsTab, SettingsTab]
 
-  @decorate requires_permission(:"device:view")
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product, user: user} = socket.assigns
 
     device = load_device(org, device_identifier)
+    socket = authorize!(socket, :"device:view", device)
 
     if connected?(socket) do
       Logger.metadata(device_id: device.id, user_id: user.id, product_id: product.id)
@@ -52,8 +52,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> ok()
   end
 
-  @decorate requires_permission(:"device:view")
   def handle_params(_params, _uri, socket) do
+    socket = authorize!(socket, :"device:view", socket.assigns.device)
+
     socket
     |> update_tab_component_hooks()
     |> noreply()
@@ -175,8 +176,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   # Ignore unknown messages
   def handle_info(_unknown, socket), do: {:noreply, socket}
 
-  @decorate requires_permission(:"device:view")
   def handle_event("pin", _value, %{assigns: %{user: user, device: device}} = socket) do
+    socket = authorize!(socket, :"device:view", socket.assigns.device)
+
     case Devices.pin_device(user.id, device.id) do
       {:ok, _} ->
         socket
@@ -192,8 +194,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  @decorate requires_permission(:"device:view")
   def handle_event("unpin", _value, %{assigns: %{user: user, device: device}} = socket) do
+    socket = authorize!(socket, :"device:view", socket.assigns.device)
+
     case Devices.unpin_device(user.id, device.id) do
       {:ok, _} ->
         socket
@@ -209,8 +212,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  @decorate requires_permission(:"device:reboot")
   def handle_event("reboot", _value, socket) do
+    socket = authorize!(socket, :"device:reboot", socket.assigns.device)
     %{user: user, device: device} = socket.assigns
 
     DeviceEvents.reboot(device, user)
@@ -218,8 +221,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, put_flash(socket, :info, "Device reboot requested")}
   end
 
-  @decorate requires_permission(:"device:reconnect")
   def handle_event("reconnect", _value, socket) do
+    socket = authorize!(socket, :"device:reconnect", socket.assigns.device)
     %{user: user, device: device} = socket.assigns
 
     DeviceTemplates.audit_request_action(user, device, "reconnect")
@@ -229,8 +232,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, put_flash(socket, :info, "Device reconnection requested")}
   end
 
-  @decorate requires_permission(:"device:identify")
   def handle_event("identify", _value, socket) do
+    socket = authorize!(socket, :"device:identify", socket.assigns.device)
     %{user: user, device: device} = socket.assigns
 
     DeviceEvents.identify(device, user)
@@ -238,8 +241,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, put_flash(socket, :info, "Device identification requested")}
   end
 
-  @decorate requires_permission(:"device:clear-penalty-box")
   def handle_event("clear-penalty-box", _params, socket) do
+    socket = authorize!(socket, :"device:clear-penalty-box", socket.assigns.device)
     %{user: user, device: device} = socket.assigns
 
     {:ok, updated_device} = Devices.clear_penalty_box(device, user)
@@ -250,8 +253,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:toggle-updates")
   def handle_event("toggle-deployment-firmware-updates", _params, socket) do
+    socket = authorize!(socket, :"device:toggle-updates", socket.assigns.device)
     %{user: user, device: device} = socket.assigns
 
     {:ok, updated_device} = Devices.toggle_automatic_updates(device, user)
@@ -268,15 +271,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:restore")
   def handle_event("restore", _, socket) do
+    socket = authorize!(socket, :"device:restore", socket.assigns.device)
+
     {:ok, device} = Devices.restore_device(socket.assigns.device)
 
     {:noreply, assign(socket, :device, device)}
   end
 
-  @decorate requires_permission(:"device:destroy")
   def handle_event("destroy", _, socket) do
+    socket = authorize!(socket, :"device:destroy", socket.assigns.device)
     %{org: org, product: product, device: device} = socket.assigns
 
     {:ok, _device} = Devices.destroy_device(device)
@@ -287,15 +291,17 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:delete")
   def handle_event("delete", _, socket) do
+    socket = authorize!(socket, :"device:delete", socket.assigns.device)
+
     {:ok, device} = Devices.delete_device(socket.assigns.device)
 
     {:noreply, assign(socket, :device, device)}
   end
 
-  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event("set-deployment-group", %{"deployment_id" => ""}, socket) do
+    socket = authorize!(socket, :"device:set-deployment-group", socket.assigns.device)
+
     socket
     |> put_flash(:error, "Please select a deployment group.")
     |> noreply()

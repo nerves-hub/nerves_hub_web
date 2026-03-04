@@ -9,6 +9,7 @@ defmodule NervesHub.AccountsTest do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.Support.Utils
   alias NervesHub.Utils.Base62
@@ -121,7 +122,7 @@ defmodule NervesHub.AccountsTest do
 
     user2 = Fixtures.user_fixture()
 
-    assert %OrgUser{} = Accounts.find_org_user_with_device(user, device.id)
+    assert {%OrgUser{}, %Device{}} = Accounts.find_org_user_with_device(user, device.id)
     assert nil == Accounts.find_org_user_with_device(user2, device.id)
   end
 

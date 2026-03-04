@@ -485,7 +485,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   def hooked_event("toggle-deployment-firmware-updates", _params, socket) do
     %{org_user: org_user, user: user, device: device} = socket.assigns
 
-    authorized!(:"device:toggle-updates", org_user)
+    socket = authorize!(socket, :"device:toggle-updates", device)
 
     {:ok, updated_device} = Devices.toggle_automatic_updates(device, user)
 
@@ -571,7 +571,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   def hooked_event("set-deployment-group", %{"deployment_id" => deployment_id}, socket) do
     %{user: user, device: device, deployment_groups: deployment_groups} = socket.assigns
 
-    authorized!(:"device:set-deployment-group", socket.assigns.org_user)
+    socket = authorize!(socket, :"device:set-deployment-group", socket.assigns.device)
 
     deployment = Enum.find(deployment_groups, &(&1.id == String.to_integer(deployment_id)))
     device = Devices.update_deployment_group(device, deployment)
@@ -586,7 +586,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("push-available-update", _, socket) do
-    authorized!(:"device:push-update", socket.assigns.org_user)
+    socket = authorize!(socket, :"device:push-update", socket.assigns.device)
 
     %{device: device, user: user} = socket.assigns
 
@@ -636,7 +636,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("push-update", %{"uuid" => uuid}, socket) do
-    authorized!(:"device:push-update", socket.assigns.org_user)
+    socket = authorize!(socket, :"device:push-update", socket.assigns.device)
 
     %{product: product, device: device, user: user, org: org} = socket.assigns
 
@@ -669,7 +669,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("push-delta", %{"uuid" => uuid}, socket) do
-    authorized!(:"device:push-update", socket.assigns.org_user)
+    socket = authorize!(socket, :"device:push-update", socket.assigns.device)
 
     %{product: product, device: device, user: user, org: org} = socket.assigns
 
@@ -709,11 +709,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("run-script", %{"id" => id}, socket) do
-    %{assigns: %{device: device, support_scripts: scripts, org_user: org_user}} = socket
-
-    authorized!(:"support_script:run", org_user)
+    %{assigns: %{device: device, support_scripts: scripts}} = socket
 
     script = Enum.find(scripts, fn script -> script.id == String.to_integer(id) end)
+
+    socket = authorize!(socket, :"support_script:run", script)
 
     socket
     |> start_async({:run_script, id}, fn -> Scripts.Runner.send(device, script) end)

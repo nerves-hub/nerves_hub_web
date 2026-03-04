@@ -44,8 +44,8 @@ defmodule NervesHubWeb.UserLocalShellChannel do
       nil ->
         false
 
-      org_user ->
-        Authorization.authorized?(:"device:extensions:local_shell", org_user)
+      {org_user, device} ->
+        Authorization.authorized?(:"device:extensions:local_shell", org_user, device)
     end
   end
 end

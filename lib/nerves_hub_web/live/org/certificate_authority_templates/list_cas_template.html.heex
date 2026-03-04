@@ -59,7 +59,7 @@
             <td>
               <CAHelpers.certificate_status not_after={cert.not_after} />
             </td>
-            <td :if={authorized?(:"certificate_authority:update", @org_user)} class="text-right">
+            <td :if={authorized?(:"certificate_authority:update", @org_user, @org)} class="text-right">
               <div class="flex gap-2 justify-end">
                 <.link navigate={~p"/org/#{@org}/settings/certificates/#{cert}/edit"} class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700">
                   Edit

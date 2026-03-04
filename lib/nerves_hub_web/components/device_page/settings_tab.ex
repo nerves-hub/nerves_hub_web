@@ -38,7 +38,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
             <div class="text-base text-neutral-50 font-medium">General settings</div>
-            <%= if authorized?(:"device:update", @org_user) do %>
+            <%= if authorized?(:"device:update", @org_user, @device) do %>
               <.button style="secondary" type="submit">
                 <.icon name="save" /> Save changes
               </.button>
@@ -95,7 +95,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                 phx-click="update-extension"
                 phx-value-extension={key}
                 checked={@device.extensions[key]}
-                disabled={not @device.product.extensions[key] or !authorized?(:"device:update", @org_user)}
+                disabled={not @device.product.extensions[key] or !authorized?(:"device:update", @org_user, @device)}
               />
             </div>
             <div class="flex flex-col">
@@ -209,7 +209,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div :if={@device.deleted_at && authorized?(:"device:update", @org_user)} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+      <div :if={@device.deleted_at && authorized?(:"device:update", @org_user, @device)} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
         <div class="text-zinc-300 p-6 pb-0">
           The device has been disabled. Attempts to connect to NervesHub will be blocked.
         </div>
@@ -252,7 +252,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div :if={!@device.deleted_at && authorized?(:"device:update", @org_user)} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+      <div :if={!@device.deleted_at && authorized?(:"device:update", @org_user, @device)} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
         <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
           <div>
             <button
@@ -290,9 +290,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   end
 
   def hooked_event("update-device-settings", %{"device" => device_params}, socket) do
-    authorized!(:"device:update", socket.assigns.org_user)
-
     %{device: device, user: user} = socket.assigns
+
+    socket = authorize!(socket, :"device:update", device)
 
     message = "User #{user.name} updated device #{device.identifier}"
 
@@ -324,7 +324,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   end
 
   def hooked_event("delete-device", _, socket) do
-    authorized!(:"device:delete", socket.assigns.org_user)
+    socket = authorize!(socket, :"device:delete", socket.assigns.device)
 
     {:ok, device} = Devices.delete_device(socket.assigns.device)
 
@@ -337,7 +337,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   end
 
   def hooked_event("restore-device", _, socket) do
-    authorized!(:"device:restore", socket.assigns.org_user)
+    socket = authorize!(socket, :"device:restore", socket.assigns.device)
 
     {:ok, device} = Devices.restore_device(socket.assigns.device)
 
@@ -350,9 +350,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   end
 
   def hooked_event("destroy-device", _, socket) do
-    %{org: org, org_user: org_user, product: product, device: device} = socket.assigns
+    %{org: org, product: product, device: device} = socket.assigns
 
-    authorized!(:"device:destroy", org_user)
+    socket = authorize!(socket, :"device:destroy", device)
 
     {:ok, _device} = Devices.destroy_device(device)
 

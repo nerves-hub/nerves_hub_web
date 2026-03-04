@@ -197,7 +197,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     } =
       socket.assigns
 
-    authorized!(:"deployment_group:update", org_user)
+    authorized!(:"deployment_group:update", org_user, deployment_group)
 
     case ManagedDeployments.update_deployment_group(deployment_group, params, user) do
       {:ok, updated} ->

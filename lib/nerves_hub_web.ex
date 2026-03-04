@@ -81,9 +81,9 @@ defmodule NervesHubWeb do
 
   defp live_view_imports() do
     quote do
+      import NervesHubWeb.Access.Authorization
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
-      import NervesHubWeb.Access.Authorization
       # HTML escaping functionality
       import Phoenix.HTML
 
@@ -153,9 +153,9 @@ defmodule NervesHubWeb do
     quote do
       use Phoenix.LiveComponent
 
+      import NervesHubWeb.Access.Authorization
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
-      import NervesHubWeb.Access.Authorization
 
       def ok(socket), do: {:ok, socket}
 
@@ -269,9 +269,10 @@ defmodule NervesHubWeb do
 
   defp hooked_component_imports() do
     quote do
+      import NervesHubWeb.Access.Authorization
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
-      import NervesHubWeb.Access.Authorization
+      import NervesHubWeb.Mounts.RequireAuthorization, only: [authorize!: 3]
 
       import Phoenix.LiveView,
         only: [

@@ -3,8 +3,8 @@ defmodule NervesHub.Access do
 
   alias NervesHub.Archives.Archive
   alias NervesHub.Products.Product
-  alias NervesHub.Scripts.Script
   alias NervesHub.Repo
+  alias NervesHub.Scripts.Script
 
   @doc """
   Check if an org owns an Archive by joining through Product.

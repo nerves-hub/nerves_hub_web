@@ -11,7 +11,7 @@
   </div>
   <div class="flex items-center gap-2 ml-auto mr-6">
     <.button
-      :if={authorized?(:"deployment_group:toggle", @org_user)}
+      :if={authorized?(:"deployment_group:toggle", @org_user, @deployment_group)}
       aria-label={"#{(@deployment_group.is_active && "Pause") || "Resume"} deployment"}
       type="button"
       phx-click="toggle"

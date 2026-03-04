@@ -27,7 +27,7 @@
               <td class="text-base-400">
                 <code class="text-xs text-zinc-400 bg-zinc-900 px-2 py-1 rounded">{Routes.account_url(@socket, :invite, invite.token)}</code>
               </td>
-              <td :if={authorized?(:"org_user:invite:rescind", @org_user)} class="text-base-400">
+              <td :if={authorized?(:"org_user:invite:rescind", @org_user, @org)} class="text-base-400">
                 <button
                   class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700"
                   phx-click="rescind_invite"
@@ -68,7 +68,7 @@
             <td class="text-base-400">
               <div phx-hook="SimpleDate" id={"user-#{org_user.id}-date"} class="date-time">{org_user.user.inserted_at}</div>
             </td>
-            <td :if={authorized?(:"org_user:delete", @org_user) && org_user.user.id != assigns.user.id} class="text-right">
+            <td :if={authorized?(:"org_user:delete", @org_user, @org) && org_user.user.id != assigns.user.id} class="text-right">
               <div class="flex gap-2 justify-end">
                 <.link
                   navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"}
@@ -77,7 +77,7 @@
                   Edit
                 </.link>
                 <button
-                  :if={authorized?(:"org_user:delete", @org_user)}
+                  :if={authorized?(:"org_user:delete", @org_user, @org)}
                   type="link"
                   class="px-3 py-1.5 text-sm font-medium text-red-500 bg-zinc-800 border border-red-500 rounded hover:bg-zinc-700"
                   phx-click="delete_org_user"

@@ -297,6 +297,7 @@ defmodule NervesHub.Accounts do
     |> where([_, _, _, d], d.id == ^device_id)
     |> where([ou], ou.user_id == ^user.id)
     |> where([ou], is_nil(ou.deleted_at))
+    |> select([ou, _o, _p, d], {ou, d})
     |> Repo.one()
   end
 
@@ -308,6 +309,7 @@ defmodule NervesHub.Accounts do
     |> where([_, _, _, d], d.identifier == ^device_identifier)
     |> where([ou], ou.user_id == ^user.id)
     |> where([ou], is_nil(ou.deleted_at))
+    |> select([ou, _o, _p, d], {ou, d})
     |> Repo.one()
   end
 

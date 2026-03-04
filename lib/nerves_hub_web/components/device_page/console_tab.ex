@@ -89,7 +89,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
         <.async_result :let={online?} assign={@console_active?}>
           <:loading>
             <div class="size-full flex bg-black" style="background-color: rgb(14, 16, 25);">
-              <div :if={authorized?(:"device:console", @org_user)} class="grow flex justify-center items-center p-6 gap-6 text-medium font-mono">
+              <div :if={authorized?(:"device:console", @org_user, @device)} class="grow flex justify-center items-center p-6 gap-6 text-medium font-mono">
                 Checking if the device is online...
               </div>
             </div>
@@ -102,7 +102,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
             </div>
           </:failed>
           <div id="console-and-chat" class="size-full flex bg-black" phx-update="ignore" style="background-color: rgb(14, 16, 25);">
-            <div :if={authorized?(:"device:console", @org_user) && online?} id="dropzone" class="grow flex p-12 gap-6 relative" style="background-color: rgb(14, 16, 25);">
+            <div :if={authorized?(:"device:console", @org_user, @device) && online?} id="dropzone" class="grow flex p-12 gap-6 relative" style="background-color: rgb(14, 16, 25);">
               <div id="console" phx-hook="Console" data-user-token={@user_token} data-device-id={@device.id} class="w-full h-full z-10"></div>
               <div id="immersive-device" class="absolute top-4 left-6 z-20 text-neutral-800 pointer-events-none hidden">
                 <div class="flex gap-3 items-center">
@@ -129,10 +129,10 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
                 </svg>
               </button>
             </div>
-            <div :if={authorized?(:"device:console", @org_user) && !online?} class="grow flex justify-center items-center p-6 gap-6 text-medium font-mono">
+            <div :if={authorized?(:"device:console", @org_user, @device) && !online?} class="grow flex justify-center items-center p-6 gap-6 text-medium font-mono">
               The device console isn't currently available.
             </div>
-            <div :if={!authorized?(:"device:console", @org_user)} class="grow flex justify-center items-center p-6 gap-6 text-medium text-red-500 font-mono">
+            <div :if={!authorized?(:"device:console", @org_user, @device)} class="grow flex justify-center items-center p-6 gap-6 text-medium text-red-500 font-mono">
               You don't have the required permissions to access a Device console.
             </div>
           </div>
