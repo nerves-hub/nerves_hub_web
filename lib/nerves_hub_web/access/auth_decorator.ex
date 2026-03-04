@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Helpers.AuthDecorator do
+defmodule NervesHubWeb.Access.AuthDecorator do
   use Decorator.Define, requires_permission: 1, requires_no_permission: 0, special_permission: 1
 
   alias NervesHubWeb.Mounts.RequireAuthorization

@@ -2,7 +2,7 @@ defmodule NervesHubWeb.Mounts.RequireAuthorization do
   import Phoenix.LiveView
 
   alias NervesHub.Accounts.OrgUser
-  alias NervesHubWeb.Helpers.Authorization
+  alias NervesHubWeb.Access.Authorization
 
   defmodule AuthorizationNotApplied do
     defexception [:message]

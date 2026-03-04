@@ -3,7 +3,7 @@ defmodule NervesHubWeb.UserLocalShellChannel do
 
   alias NervesHub.Accounts
   alias NervesHub.Extensions.LocalShell
-  alias NervesHubWeb.Helpers.Authorization
+  alias NervesHubWeb.Access.Authorization
 
   def join("user:local_shell:" <> device_id, _, socket) do
     if authorized?(socket.assigns.user, device_id) do

@@ -9,7 +9,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   use Phoenix.Channel
 
   alias NervesHub.Accounts
-  alias NervesHubWeb.Helpers.Authorization
+  alias NervesHubWeb.Access.Authorization
   alias Phoenix.Socket.Broadcast
 
   require Logger

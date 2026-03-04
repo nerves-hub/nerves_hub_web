@@ -74,7 +74,7 @@ defmodule NervesHubWeb do
         layout: {NervesHubWeb.LayoutView, :live},
         container: {:div, class: "h-screen"}
 
-      use NervesHubWeb.Helpers.AuthorizedLiveView
+      use NervesHubWeb.Access.AuthorizedLiveView
       use Gettext, backend: NervesHubWeb.Gettext
     end
   end
@@ -83,7 +83,7 @@ defmodule NervesHubWeb do
     quote do
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
-      import NervesHubWeb.Helpers.Authorization
+      import NervesHubWeb.Access.Authorization
       # HTML escaping functionality
       import Phoenix.HTML
 
@@ -155,7 +155,7 @@ defmodule NervesHubWeb do
 
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
-      import NervesHubWeb.Helpers.Authorization
+      import NervesHubWeb.Access.Authorization
 
       def ok(socket), do: {:ok, socket}
 
@@ -271,7 +271,7 @@ defmodule NervesHubWeb do
     quote do
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
-      import NervesHubWeb.Helpers.Authorization
+      import NervesHubWeb.Access.Authorization
 
       import Phoenix.LiveView,
         only: [

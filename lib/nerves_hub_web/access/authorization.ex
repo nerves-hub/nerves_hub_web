@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Helpers.Authorization do
+defmodule NervesHubWeb.Access.Authorization do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
 

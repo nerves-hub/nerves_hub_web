@@ -2,7 +2,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
   use NervesHubWeb, :channel
 
   alias NervesHub.Accounts
-  alias NervesHubWeb.Helpers.Authorization
+  alias NervesHubWeb.Access.Authorization
   alias Phoenix.Socket.Broadcast
 
   def join("user:console:" <> device_id, _, socket) do

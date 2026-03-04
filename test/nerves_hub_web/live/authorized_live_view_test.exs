@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Helpers.AuthorizedLiveViewTest do
+defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Accounts
@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveViewTest do
   # A LiveView with NO authorization decorator on mount
   defmodule UndecoratedMountLive do
     use Phoenix.LiveView
-    use NervesHubWeb.Helpers.AuthorizedLiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
 
     def mount(_params, _session, socket) do
       {:ok, socket}
@@ -21,7 +21,7 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveViewTest do
   # A LiveView with requires_no_permission on mount
   defmodule DecoratedMountLive do
     use Phoenix.LiveView
-    use NervesHubWeb.Helpers.AuthorizedLiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
 
     @decorate requires_no_permission()
     def mount(_params, _session, socket) do
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveViewTest do
   # A LiveView with requires_permission on mount (device:view allows :view role)
   defmodule PermissionMountLive do
     use Phoenix.LiveView
-    use NervesHubWeb.Helpers.AuthorizedLiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
 
     @decorate requires_permission(:"device:view")
     def mount(_params, _session, socket) do
@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveViewTest do
   # A LiveView with requires_permission that needs :manage role (device:delete)
   defmodule ManagePermissionMountLive do
     use Phoenix.LiveView
-    use NervesHubWeb.Helpers.AuthorizedLiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
 
     @decorate requires_permission(:"device:delete")
     def mount(_params, _session, socket) do
@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveViewTest do
   # A LiveView where mount is decorated but an event is NOT
   defmodule UndecoratedEventLive do
     use Phoenix.LiveView
-    use NervesHubWeb.Helpers.AuthorizedLiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
 
     @decorate requires_no_permission()
     def mount(_params, _session, socket) do
@@ -77,7 +77,7 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveViewTest do
   # A LiveView where both mount and event are decorated
   defmodule DecoratedEventLive do
     use Phoenix.LiveView
-    use NervesHubWeb.Helpers.AuthorizedLiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
 
     @decorate requires_no_permission()
     def mount(_params, _session, socket) do
