@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Org.Show do
   alias NervesHub.Products
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def mount(_params, _session, socket) do
     products = Products.get_products_by_user_and_org(socket.assigns.user, socket.assigns.org)
 

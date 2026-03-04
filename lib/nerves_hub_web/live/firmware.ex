@@ -13,6 +13,7 @@ defmodule NervesHubWeb.Live.Firmware do
   @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"firmware:view")
   def mount(_params, _session, socket) do
     if connected?(socket) do
       %{product: product, user: user} = socket.assigns
@@ -26,6 +27,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"firmware:view")
   def handle_params(params, _url, socket) do
     socket
     |> apply_action(socket.assigns.live_action, params)
@@ -61,8 +63,10 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # A phx-change handler is required when using live uploads.
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"firmware:view")
   def handle_event("validate-firmware", _, socket), do: {:noreply, socket}
 
+  @decorate requires_permission(:"firmware:view")
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -71,6 +75,7 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
+  @decorate requires_permission(:"firmware:view")
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -81,6 +86,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
+  @decorate requires_permission(:"firmware:view")
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
@@ -96,6 +102,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # User has clicked a new column to sort
+  @decorate requires_permission(:"firmware:view")
   def handle_event("sort", %{"sort" => value}, socket) do
     new_params = %{sort: value}
 
@@ -104,14 +111,14 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
+  @decorate requires_permission(:"firmware:view")
   def handle_event("firmware-selected", _, socket) do
     {:noreply, socket}
   end
 
   # the delete handler for the list page
+  @decorate requires_permission(:"firmware:delete")
   def handle_event("delete-firmware", %{"firmware_uuid" => uuid}, socket) do
-    authorized!(:"firmware:delete", socket.assigns.org_user)
-
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(socket.assigns.product, uuid)
 
     case Firmwares.delete_firmware(firmware) do
@@ -128,9 +135,8 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # the delete handler for the show page
+  @decorate requires_permission(:"firmware:delete")
   def handle_event("delete-firmware", _params, socket) do
-    authorized!(:"firmware:delete", socket.assigns.org_user)
-
     %{org: org, product: product, firmware: firmware} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, firmware.uuid)

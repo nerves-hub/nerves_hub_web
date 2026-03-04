@@ -176,6 +176,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
+  @decorate requires_permission(:"device:view")
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
@@ -190,6 +191,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   # User has clicked a new column to sort
+  @decorate requires_permission(:"device:view")
   def handle_event("sort", %{"sort" => value}, socket) do
     params = %{sort_direction: "asc", sort: value}
 
@@ -198,6 +200,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -206,6 +209,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -214,10 +218,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
     {:noreply, assign(socket, :show_filters, toggle != "true")}
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
@@ -227,6 +233,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("reset-filters", _, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
@@ -236,6 +243,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("select", %{"id" => id_str}, socket) do
     id = String.to_integer(id_str)
     selected_devices = socket.assigns.selected_devices
@@ -254,6 +262,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("select-all", _, socket) do
     selected_devices = socket.assigns.selected_devices
 
@@ -269,10 +278,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("deselect-all", _, socket) do
     {:noreply, assign(socket, %{selected_devices: [], available_deployment_groups_for_filtered_platform: []})}
   end
 
+  @decorate requires_permission(:"device:update")
   def handle_event("validate-tags", %{"tags" => tags}, socket) do
     if String.contains?(tags, " ") do
       {:noreply, assign(socket, valid_tags: false, device_tags: tags)}
@@ -281,6 +292,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_permission(:"device:update")
   def handle_event("tag-devices", %{"tags" => tags}, socket) do
     %{ok: _successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
@@ -296,6 +308,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("target-product", %{"product" => attrs}, socket) do
     target =
       case String.split(attrs, ":") do
@@ -314,10 +327,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, target_product: target)}
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("target-deployment-group", %{"deployment_group" => ""}, socket) do
     {:noreply, assign(socket, target_deployment_group: nil)}
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("target-deployment-group", %{"deployment_group" => deployment_id}, socket) do
     deployment_group =
       Enum.find(
@@ -328,6 +343,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, target_deployment_group: deployment_group)}
   end
 
+  @decorate requires_permission(:"device:update")
   def handle_event("move-devices-product", _, socket) do
     %{ok: successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
@@ -345,6 +361,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:set-deployment-group")
   def handle_event(
         "move-devices-deployment-group",
         _,
@@ -360,6 +377,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:toggle-updates")
   def handle_event("disable-updates-for-devices", _, socket) do
     %{ok: successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
@@ -372,6 +390,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:toggle-updates")
   def handle_event("enable-updates-for-devices", _, socket) do
     %{ok: successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
@@ -384,6 +403,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:clear-penalty-box")
   def handle_event("clear-penalty-box-for-devices", _, socket) do
     %{ok: successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
@@ -399,10 +419,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:reboot")
   def handle_event("reboot-device", %{"device_identifier" => device_identifier}, socket) do
-    %{org: org, org_user: org_user, user: user} = socket.assigns
-
-    authorized!(:"device:reboot", org_user)
+    %{org: org, user: user} = socket.assigns
 
     {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
 
@@ -411,10 +430,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, put_flash(socket, :info, "Device Reboot Requested")}
   end
 
+  @decorate requires_permission(:"device:toggle-updates")
   def handle_event("toggle-device-updates", %{"device_identifier" => device_identifier}, socket) do
-    %{org: org, org_user: org_user, user: user} = socket.assigns
-
-    authorized!(:"device:toggle-updates", org_user)
+    %{org: org, user: user} = socket.assigns
 
     {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
     {:ok, device} = Devices.toggle_automatic_updates(device, user)
@@ -425,6 +443,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_event("page_visibility_change", %{"visible" => visible?}, socket) do
     socket
     |> then(fn socket ->

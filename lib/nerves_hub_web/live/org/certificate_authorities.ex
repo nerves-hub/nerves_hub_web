@@ -13,11 +13,13 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   embed_templates("certificate_authority_templates/*")
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def mount(_params, _session, socket) do
     {:ok, socket}
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def handle_params(params, _url, socket) do
     socket
     |> apply_action(socket.assigns.live_action, params)
@@ -71,9 +73,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"certificate_authority:delete")
   def handle_event("delete-certificate-authority", %{"certificate_serial" => serial}, socket) do
-    authorized!(:"certificate_authority:delete", socket.assigns.org_user)
-
     with {:ok, ca_certificate} <-
            Devices.get_ca_certificate_by_org_and_serial(socket.assigns.org, serial),
          {:ok, _ca_certificate} <- Devices.delete_ca_certificate(ca_certificate) do
@@ -92,9 +93,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     end
   end
 
+  @decorate requires_permission(:"certificate_authority:update")
   def handle_event("update_certificate_authority", %{"ca_certificate" => ca_certificate}, socket) do
-    authorized!(:"certificate_authority:update", socket.assigns.org_user)
-
     with {:ok, cert} <- Devices.get_ca_certificate_by_serial(socket.assigns.serial),
          {:ok, params} <- maybe_delete_jitp(ca_certificate),
          {:ok, _cert} <- Devices.update_ca_certificate(cert, params) do
@@ -117,13 +117,13 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     end
   end
 
+  @decorate requires_permission(:"organization:view")
   def handle_event("validate_new_certificate_authority", _params, socket) do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"certificate_authority:create")
   def handle_event("add_certificate_authority", %{"ca_certificate" => params}, socket) do
-    authorized!(:"certificate_authority:create", socket.assigns.org_user)
-
     socket = set_show_jitp_form(socket, params)
 
     with {:ok, cert} <- uploaded_cert(socket),

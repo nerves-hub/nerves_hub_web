@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Org.Delete do
   alias NervesHub.Accounts
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:delete")
   def mount(_params, _session, socket) do
     socket
     |> page_title("Delete Organization - #{socket.assigns.org.name}")
@@ -13,9 +14,8 @@ defmodule NervesHubWeb.Live.Org.Delete do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:delete")
   def handle_event("delete", params, socket) do
-    authorized!(:"organization:delete", socket.assigns.org_user)
-
     if params["confirm_name"] == socket.assigns.org.name do
       case Accounts.soft_delete_org(socket.assigns.org) do
         {:ok, _org} ->

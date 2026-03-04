@@ -27,6 +27,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   @sort_types %{sort_direction: :string, sort: :string}
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:view")
   def mount(_params, _session, socket) do
     socket
     |> page_title("Support Scripts - #{socket.assigns.product.name}")
@@ -38,6 +39,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:view")
   def handle_params(params, _uri, socket) do
     pagination_changes = pagination_changes(params)
     pagination_opts = Map.merge(@default_pagination, pagination_changes)
@@ -52,6 +54,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:view")
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -61,6 +64,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:view")
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -72,6 +76,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:view")
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
@@ -87,6 +92,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
 
   # User has clicked a new column to sort
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:view")
   def handle_event("sort", %{"sort" => value}, socket) do
     new_params = %{sort_direction: "asc", sort: value}
 
@@ -96,9 +102,8 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:delete")
   def handle_event("delete-support-script", %{"script_id" => script_id}, socket) do
-    authorized!(:"support_script:delete", socket.assigns.org_user)
-
     %{product: product} = socket.assigns
 
     {:ok, script} = Scripts.get(product, script_id)

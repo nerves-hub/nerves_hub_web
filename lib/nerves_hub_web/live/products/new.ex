@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Products.New do
   alias NervesHub.Products.Product
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:create")
   def mount(_params, _session, socket) do
     products = Products.get_products_by_user_and_org(socket.assigns.user, socket.assigns.org)
 
@@ -20,9 +21,8 @@ defmodule NervesHubWeb.Live.Products.New do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:create")
   def handle_event("create_product", %{"product" => product_params}, socket) do
-    authorized!(:"product:create", socket.assigns.org_user)
-
     params = Enum.into(product_params, %{"org_id" => socket.assigns.org.id})
 
     case Products.create_product(params) do

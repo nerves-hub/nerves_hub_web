@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Org.Settings do
   alias NervesHub.Accounts.Org
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:update")
   def mount(_params, _session, socket) do
     socket =
       socket
@@ -16,9 +17,8 @@ defmodule NervesHubWeb.Live.Org.Settings do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:update")
   def handle_event("update", %{"org" => org_params}, socket) do
-    authorized!(:"organization:update", socket.assigns.org_user)
-
     case Accounts.update_org(socket.assigns.org, org_params) do
       {:ok, org} ->
         socket

@@ -11,11 +11,13 @@ defmodule NervesHubWeb.Live.Org.Users do
   embed_templates("user_templates/*")
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def mount(_params, _session, socket) do
     {:ok, socket}
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def handle_params(params, _url, socket) do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
@@ -50,9 +52,8 @@ defmodule NervesHubWeb.Live.Org.Users do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"org_user:invite")
   def handle_event("send_invite", %{"invite" => invite_params}, socket) do
-    authorized!(:"org_user:invite", socket.assigns.org_user)
-
     %{org: org, user: invited_by} = socket.assigns
 
     case Accounts.add_or_invite_to_org(invite_params, org, invited_by) do
@@ -81,9 +82,8 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
+  @decorate requires_permission(:"org_user:invite:rescind")
   def handle_event("rescind_invite", %{"invite_token" => invite_token}, socket) do
-    authorized!(:"org_user:invite:rescind", socket.assigns.org_user)
-
     case Accounts.delete_invite(socket.assigns.org, invite_token) do
       {:ok, _} ->
         {:noreply,
@@ -102,9 +102,8 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
+  @decorate requires_permission(:"org_user:update")
   def handle_event("update-org-user", %{"org_user" => params}, socket) do
-    authorized!(:"org_user:update", socket.assigns.org_user)
-
     {:ok, role} = Map.fetch(params, "role")
 
     case Accounts.change_org_user_role(socket.assigns.membership, role) do
@@ -119,9 +118,8 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
+  @decorate requires_permission(:"org_user:delete")
   def handle_event("delete_org_user", %{"user_id" => user_id}, socket) do
-    authorized!(:"org_user:delete", socket.assigns.org_user)
-
     %{org: org, user: user} = socket.assigns
 
     {:ok, user_to_remove} = Accounts.get_user(user_id)

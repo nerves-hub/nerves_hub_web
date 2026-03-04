@@ -4,11 +4,13 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
   alias NervesHub.Accounts
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def mount(_params, _session, socket) do
     {:ok, socket}
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def handle_params(params, _url, socket) do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
@@ -28,9 +30,8 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"signing_key:create")
   def handle_event("save", %{"org_key" => key_params}, socket) do
-    authorized!(:"signing_key:create", socket.assigns.org_user)
-
     params =
       key_params
       |> Enum.into(%{"org_id" => socket.assigns.org.id})
@@ -48,9 +49,8 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
     end
   end
 
+  @decorate requires_permission(:"signing_key:delete")
   def handle_event("delete", %{"signing_key_id" => signing_key_id}, socket) do
-    authorized!(:"signing_key:delete", socket.assigns.org_user)
-
     {:ok, signing_key} = Accounts.get_org_key(socket.assigns.org, signing_key_id)
 
     case Accounts.delete_org_key(signing_key) do

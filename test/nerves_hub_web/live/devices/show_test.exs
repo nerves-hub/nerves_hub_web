@@ -20,6 +20,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
+  alias NervesHubWeb.Mounts.RequireAuthorization.AuthorizationFailed
   alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
@@ -178,7 +179,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       Process.flag(:trap_exit, true)
 
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+      assert {{%AuthorizationFailed{}, _}, _} =
                catch_exit(render_change(view, :reboot, %{}))
     end
   end

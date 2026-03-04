@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias Phoenix.Socket.Broadcast
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"deployment_group:view")
   def mount(params, _session, socket) do
     %{"name" => name} = params
     %{product: product, user: user} = socket.assigns
@@ -35,6 +36,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"deployment_group:view")
   def handle_params(_params, _uri, socket) do
     socket
     |> selected_tab()
@@ -51,9 +53,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"deployment_group:toggle")
   def handle_event("toggle", _params, socket) do
-    authorized!(:"deployment_group:toggle", socket.assigns.org_user)
-
     %{deployment_group: deployment_group, user: user} = socket.assigns
 
     value = !deployment_group.is_active
@@ -70,9 +71,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:delete")
   def handle_event("delete", _params, socket) do
-    authorized!(:"deployment_group:delete", socket.assigns.org_user)
-
     %{deployment_group: deployment_group, org: org, product: product, user: user} = socket.assigns
 
     {:ok, _} = ManagedDeployments.delete_deployment_group(deployment_group)
@@ -85,6 +85,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:update")
   def handle_event("move-matched-devices-to-deployment-group", _params, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
@@ -107,6 +108,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:update")
   def handle_event("remove-unmatched-devices-from-deployment-group", _params, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
