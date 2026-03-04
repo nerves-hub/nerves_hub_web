@@ -304,6 +304,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
+  # Ignore handle_async results that have come from other tabs
+  # This can happen when a support script is run from the details tab, only for the user
+  # to navigate to a different tab before the result arrives.
+  def handle_async(_unknown, socket), do: {:noreply, socket}
+
   defp load_device(org, identifier) do
     Devices.get_device_by_identifier!(org, identifier, [
       :product,
