@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Firmware do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
   alias NervesHub.Firmwares

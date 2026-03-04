@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.Index do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
@@ -94,6 +94,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     product = Products.load_shared_secret_auth(product)
 
     socket
+    |> authorize!(:"device:view")
     |> assign(:product, product)
     |> page_title("Devices - #{product.name}")
     |> sidebar_tab(:devices)

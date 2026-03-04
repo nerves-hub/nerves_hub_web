@@ -60,7 +60,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  def updated_live_view() do
+  def live_view() do
     quote do
       unquote(live_view_setup())
       unquote(live_view_imports())
