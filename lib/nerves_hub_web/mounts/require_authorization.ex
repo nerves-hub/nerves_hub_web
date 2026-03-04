@@ -57,20 +57,10 @@ defmodule NervesHubWeb.Mounts.RequireAuthorization do
 
   def wrap(socket), do: put_private(socket, :wrapped_in_authorization?, true)
 
-  def authorize!(%{assigns: %{org_user: org_user}} = socket, permission) do
-    if Authorization.authorized?(permission, org_user) do
-      socket
-      |> put_private(:authorization_granted?, true)
-      |> annotate_authorization(permission, org_user)
-    else
-      raise AuthorizationFailed,
-        message:
-          "Authorization failed in #{__MODULE__}.\n\nAuthorization false for:\nRole:#{org_user.role}\nPermission: #{permission}"
-    end
-  end
+  def authorize!(socket, permission, subject) do
+    %{assigns: %{org_user: org_user}} = socket
 
-  def authorize!(socket, permission, org_user) do
-    if Authorization.authorized?(permission, org_user) do
+    if Authorization.authorized?(permission, org_user, subject) do
       socket
       |> put_private(:authorization_granted?, true)
       |> annotate_authorization(permission, org_user)
