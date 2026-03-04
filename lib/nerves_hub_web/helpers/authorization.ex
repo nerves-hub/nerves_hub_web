@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Helpers.Authorization do
     authorized?(permission, org_user) || raise NervesHubWeb.UnauthorizedError
   end
 
+  def authorized?(:"organization:view", %OrgUser{role: ur}), do: role_check(:view, ur)
   def authorized?(:"organization:update", %OrgUser{role: ur}), do: role_check(:admin, ur)
   def authorized?(:"organization:delete", %OrgUser{role: ur}), do: role_check(:admin, ur)
 
@@ -22,6 +23,7 @@ defmodule NervesHubWeb.Helpers.Authorization do
   def authorized?(:"certificate_authority:update", %OrgUser{role: ur}), do: role_check(:admin, ur)
   def authorized?(:"certificate_authority:delete", %OrgUser{role: ur}), do: role_check(:admin, ur)
 
+  def authorized?(:"product:view", %OrgUser{role: ur}), do: role_check(:view, ur)
   def authorized?(:"product:create", %OrgUser{role: ur}), do: role_check(:manage, ur)
   def authorized?(:"product:update", %OrgUser{role: ur}), do: role_check(:manage, ur)
   def authorized?(:"product:delete", %OrgUser{role: ur}), do: role_check(:manage, ur)
@@ -46,12 +48,15 @@ defmodule NervesHubWeb.Helpers.Authorization do
 
   def authorized?(:"device:extensions:local_shell", %OrgUser{role: role}), do: role_check(:manage, role)
 
+  def authorized?(:"firmware:view", %OrgUser{role: role}), do: role_check(:view, role)
   def authorized?(:"firmware:upload", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"firmware:delete", %OrgUser{role: role}), do: role_check(:manage, role)
 
+  def authorized?(:"archive:view", %OrgUser{role: role}), do: role_check(:view, role)
   def authorized?(:"archive:upload", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"archive:delete", %OrgUser{role: role}), do: role_check(:manage, role)
 
+  def authorized?(:"deployment_group:view", %OrgUser{role: role}), do: role_check(:view, role)
   def authorized?(:"deployment_group:create", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"deployment_group:update", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"deployment_group:toggle", %OrgUser{role: role}), do: role_check(:manage, role)
@@ -60,6 +65,7 @@ defmodule NervesHubWeb.Helpers.Authorization do
 
   def authorized?(:"deployment_group:delete", %OrgUser{role: role}), do: role_check(:manage, role)
 
+  def authorized?(:"support_script:view", %OrgUser{role: role}), do: role_check(:view, role)
   def authorized?(:"support_script:create", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"support_script:update", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"support_script:delete", %OrgUser{role: role}), do: role_check(:manage, role)

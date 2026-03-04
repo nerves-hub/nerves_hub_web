@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveView do
       use NervesHubWeb.Helpers.AuthDecorator
 
       import NervesHubWeb.Helpers.AuthorizedLiveView
+      import NervesHubWeb.Mounts.RequireAuthorization
 
       on_mount(RequireAuthorization)
       on_mount(Sentry.LiveViewHook)
