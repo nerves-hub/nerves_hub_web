@@ -29,6 +29,7 @@ defmodule NervesHub.Accounts.OrgKey do
     |> cast(params, @required_params ++ @optional_params)
     |> update_change(:name, &trim/1)
     |> validate_required(@required_params)
+    |> validate_change(:key, &key_format_check/2)
     |> unique_constraint(:name, name: :org_keys_org_id_name_index)
     |> unique_constraint(:key, name: :org_keys_org_id_key_index)
   end
@@ -38,6 +39,7 @@ defmodule NervesHub.Accounts.OrgKey do
     org_key
     |> cast(params, @required_params -- [:org_id])
     |> validate_required(@required_params)
+    |> validate_change(:key, &key_format_check/2)
     |> unique_constraint(:name, name: :org_keys_org_id_name_index)
     |> unique_constraint(:key, name: :org_keys_org_id_key_index)
   end
@@ -49,6 +51,16 @@ defmodule NervesHub.Accounts.OrgKey do
       name: :firmwares_tenant_key_id_fkey,
       message: "Firmware exists which uses the Signing Key"
     )
+  end
+
+  defp key_format_check(:key, encoded_key) do
+    with {:ok, pub_key} <- Base.decode64(encoded_key),
+         32 <- byte_size(pub_key) do
+      []
+    else
+      _ ->
+        [key: "invalid key, please check this is a valid Ed25519 public key"]
+    end
   end
 
   defp trim(string) do
