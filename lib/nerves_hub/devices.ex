@@ -1446,6 +1446,12 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
+  @spec get_devices_by_id([non_neg_integer()], Product.t()) :: [Device.t()]
+  def get_devices_by_id(ids, %Product{id: product_id}) when is_list(ids) do
+    from(d in Device, where: d.id in ^ids and d.product_id == ^product_id)
+    |> Repo.all()
+  end
+
   defp maybe_broadcast_updated(device, opts) do
     if Keyword.get(opts, :broadcast, true) do
       DeviceEvents.updated(device)

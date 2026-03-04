@@ -69,6 +69,20 @@ defmodule NervesHubWeb.Access.Authorization do
   def authorized?(:"device:extensions:local_shell", %OrgUser{} = ou, %Device{} = subject),
     do: role_check(:manage, ou, subject)
 
+  # Device permissions — subject: list of device IDs (bulk operations)
+  def authorized?(:"device:update", %OrgUser{role: role, org_id: org_id}, device_ids) when is_list(device_ids),
+    do: role_sufficient?(:manage, role) and Access.org_owns_devices?(org_id, device_ids)
+
+  def authorized?(:"device:toggle-updates", %OrgUser{role: role, org_id: org_id}, device_ids) when is_list(device_ids),
+    do: role_sufficient?(:manage, role) and Access.org_owns_devices?(org_id, device_ids)
+
+  def authorized?(:"device:clear-penalty-box", %OrgUser{role: role, org_id: org_id}, device_ids) when is_list(device_ids),
+    do: role_sufficient?(:manage, role) and Access.org_owns_devices?(org_id, device_ids)
+
+  def authorized?(:"device:set-deployment-group", %OrgUser{role: role, org_id: org_id}, device_ids)
+      when is_list(device_ids),
+      do: role_sufficient?(:manage, role) and Access.org_owns_devices?(org_id, device_ids)
+
   # Firmware permissions — subject: %Firmware{} (or %Product{} for upload/list)
   def authorized?(:"firmware:list", %OrgUser{} = ou, %Product{} = subject), do: role_check(:view, ou, subject)
   def authorized?(:"firmware:view", %OrgUser{} = ou, %Firmware{} = subject), do: role_check(:view, ou, subject)

@@ -291,11 +291,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:list")
   def handle_event("tag-devices", %{"tags" => tags}, socket) do
-    %{ok: _successfuls} =
-      Devices.get_devices_by_id(socket.assigns.selected_devices)
-      |> Devices.tag_devices(socket.assigns.user, tags)
+    socket = authorize!(socket, :"device:update", socket.assigns.selected_devices)
+
+    devices = Devices.get_devices_by_id(socket.assigns.selected_devices, socket.assigns.product)
+    %{ok: _successfuls} = Devices.tag_devices(devices, socket.assigns.user, tags)
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
@@ -342,11 +342,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, target_deployment_group: deployment_group)}
   end
 
-  @decorate requires_permission(:"device:list")
   def handle_event("move-devices-product", _, socket) do
-    %{ok: successfuls} =
-      Devices.get_devices_by_id(socket.assigns.selected_devices)
-      |> Devices.move_many(socket.assigns.target_product, socket.assigns.user)
+    socket = authorize!(socket, :"device:update", socket.assigns.selected_devices)
+    socket = authorize!(socket, :"product:update", socket.assigns.target_product)
+
+    devices = Devices.get_devices_by_id(socket.assigns.selected_devices, socket.assigns.product)
+    %{ok: successfuls} = Devices.move_many(devices, socket.assigns.target_product, socket.assigns.user)
 
     success_ids = Enum.map(successfuls, & &1.id)
 
@@ -365,7 +366,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
         _,
         %{assigns: %{selected_devices: selected_devices, target_deployment_group: target_deployment_group}} = socket
       ) do
-    socket = authorize!(socket, :"device:list", socket.assigns.product)
+    socket = authorize!(socket, :"device:set-deployment-group", selected_devices)
+    socket = authorize!(socket, :"deployment_group:update", target_deployment_group)
 
     {:ok, %{updated: updated, ignored: ignored}} =
       Devices.move_many_to_deployment_group(selected_devices, target_deployment_group.id)
@@ -377,11 +379,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:list")
   def handle_event("disable-updates-for-devices", _, socket) do
-    %{ok: successfuls} =
-      Devices.get_devices_by_id(socket.assigns.selected_devices)
-      |> Devices.disable_updates_for_devices(socket.assigns.user)
+    socket = authorize!(socket, :"device:toggle-updates", socket.assigns.selected_devices)
+
+    devices = Devices.get_devices_by_id(socket.assigns.selected_devices, socket.assigns.product)
+    %{ok: successfuls} = Devices.disable_updates_for_devices(devices, socket.assigns.user)
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
@@ -390,11 +392,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:list")
   def handle_event("enable-updates-for-devices", _, socket) do
-    %{ok: successfuls} =
-      Devices.get_devices_by_id(socket.assigns.selected_devices)
-      |> Devices.enable_updates_for_devices(socket.assigns.user)
+    socket = authorize!(socket, :"device:toggle-updates", socket.assigns.selected_devices)
+
+    devices = Devices.get_devices_by_id(socket.assigns.selected_devices, socket.assigns.product)
+    %{ok: successfuls} = Devices.enable_updates_for_devices(devices, socket.assigns.user)
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
@@ -403,11 +405,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:list")
   def handle_event("clear-penalty-box-for-devices", _, socket) do
-    %{ok: successfuls} =
-      Devices.get_devices_by_id(socket.assigns.selected_devices)
-      |> Devices.clear_penalty_box_for_devices(socket.assigns.user)
+    socket = authorize!(socket, :"device:clear-penalty-box", socket.assigns.selected_devices)
+
+    devices = Devices.get_devices_by_id(socket.assigns.selected_devices, socket.assigns.product)
+    %{ok: successfuls} = Devices.clear_penalty_box_for_devices(devices, socket.assigns.user)
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)

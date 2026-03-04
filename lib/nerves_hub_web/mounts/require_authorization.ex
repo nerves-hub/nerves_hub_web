@@ -59,7 +59,7 @@ defmodule NervesHubWeb.Mounts.RequireAuthorization do
   @spec wrap(Socket.t()) :: Socket.t()
   def wrap(socket), do: put_private(socket, :wrapped_in_authorization?, true)
 
-  @spec authorize!(Socket.t(), atom(), struct()) :: Socket.t()
+  @spec authorize!(Socket.t(), atom(), struct() | [non_neg_integer()]) :: Socket.t()
   def authorize!(socket, permission, subject) do
     %{assigns: %{org_user: org_user}} = socket
 
