@@ -12,6 +12,12 @@ defmodule NervesHubWeb.Access.AuthorizedLiveView do
       import NervesHubWeb.Access.AuthorizedLiveView
       import NervesHubWeb.Mounts.RequireAuthorization
 
+      # The authorization wrapper macro handles all possible LiveView callback
+      # return types ({:ok, socket}, {:ok, socket, opts}, {:reply, reply, socket})
+      # but individual modules typically only use a subset, causing dialyzer
+      # pattern_match warnings.
+      @dialyzer [:no_match]
+
       on_mount(RequireAuthorization)
       on_mount(Sentry.LiveViewHook)
 
@@ -53,7 +59,7 @@ defmodule NervesHubWeb.Access.AuthorizedLiveView do
       rescue
         e ->
           # Capture auth failures for reasonable communication to end user
-          handle_auth_failure(socket, e)
+          socket = handle_auth_failure(socket, e)
           {:ok, socket}
       end
 
@@ -91,7 +97,7 @@ defmodule NervesHubWeb.Access.AuthorizedLiveView do
       rescue
         e ->
           # Capture auth failures for reasonable communication to end user
-          handle_auth_failure(socket, e)
+          socket = handle_auth_failure(socket, e)
           {:noreply, socket}
       end
 
@@ -133,7 +139,7 @@ defmodule NervesHubWeb.Access.AuthorizedLiveView do
       rescue
         e ->
           # Capture auth failures for reasonable communication to end user
-          handle_auth_failure(socket, e)
+          socket = handle_auth_failure(socket, e)
           {:noreply, socket}
       end
     end
