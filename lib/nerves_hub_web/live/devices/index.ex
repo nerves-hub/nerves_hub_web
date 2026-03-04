@@ -90,11 +90,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     total_pages: :integer
   }
 
+  @decorate requires_permission(:"device:view")
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
     product = Products.load_shared_secret_auth(product)
 
     socket
-    |> authorize!(:"device:view")
     |> assign(:product, product)
     |> page_title("Devices - #{product.name}")
     |> sidebar_tab(:devices)
@@ -130,6 +130,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> ok()
   end
 
+  @decorate requires_permission(:"device:view")
   def handle_params(unsigned_params, _uri, socket) do
     filters = Map.merge(@default_filters, filter_changes(unsigned_params))
     changes = pagination_changes(unsigned_params)
