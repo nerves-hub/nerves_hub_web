@@ -67,7 +67,6 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveView do
             e ->
               case e do
                 %FunctionClauseError{module: __MODULE__, function: :handle_params, arity: 3} ->
-                  IO.inspect(e, label: "error")
                   {:noreply, RequireAuthorization.authorization_not_needed(socket)}
 
                 e ->
