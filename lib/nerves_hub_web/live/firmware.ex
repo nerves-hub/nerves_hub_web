@@ -85,15 +85,12 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # Handles event of user clicking the same field that is already sorted
-  # For this case, we switch the sorting direction of same field
-  @decorate requires_permission(:"firmware:list")
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
+    socket = authorize!(socket, :"firmware:list", socket.assigns.product)
     %{sort_direction: sort_direction} = socket.assigns
 
-    # switch sort direction for column because
     sort_direction = if sort_direction == "asc", do: "desc", else: "asc"
-
     params = %{sort_direction: sort_direction, sort: value}
 
     socket
@@ -102,12 +99,12 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   # User has clicked a new column to sort
-  @decorate requires_permission(:"firmware:list")
   def handle_event("sort", %{"sort" => value}, socket) do
-    new_params = %{sort: value}
+    socket = authorize!(socket, :"firmware:list", socket.assigns.product)
+    params = %{sort: value}
 
     socket
-    |> push_patch(to: self_path(socket, new_params))
+    |> push_patch(to: self_path(socket, params))
     |> noreply()
   end
 

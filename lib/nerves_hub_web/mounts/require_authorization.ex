@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Mounts.RequireAuthorization do
 
   alias NervesHub.Accounts.OrgUser
   alias NervesHubWeb.Access.Authorization
+  alias Phoenix.LiveView.Socket
 
   defmodule AuthorizationNotApplied do
     defexception [:message]
@@ -55,8 +56,10 @@ defmodule NervesHubWeb.Mounts.RequireAuthorization do
     {:cont, socket}
   end
 
+  @spec wrap(Socket.t()) :: Socket.t()
   def wrap(socket), do: put_private(socket, :wrapped_in_authorization?, true)
 
+  @spec authorize!(Socket.t(), atom(), struct()) :: Socket.t()
   def authorize!(socket, permission, subject) do
     %{assigns: %{org_user: org_user}} = socket
 
@@ -74,11 +77,13 @@ defmodule NervesHubWeb.Mounts.RequireAuthorization do
   @doc """
   #This function explicitly marks an event as not needing authorization. Which just marks it as authorized.
   """
+  @spec authorization_not_needed(Socket.t()) :: Socket.t()
   def authorization_not_needed(socket), do: socket |> confirm_user_is_authorized(:not_needed)
 
   @doc """
   This function explicitly marks an event as authorized.
   """
+  @spec confirm_user_is_authorized(Socket.t(), term()) :: Socket.t()
   def confirm_user_is_authorized(socket, annotation),
     do: socket |> put_private(:authorization_granted?, true) |> annotate_authorization(annotation)
 

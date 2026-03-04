@@ -43,8 +43,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   @sort_types %{sort_direction: :string, sort: :string}
 
   @impl Phoenix.LiveView
-  @decorate requires_permission(:"deployment_group:list")
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
+    socket = authorize!(socket, :"deployment_group:list", product)
     deployment_groups = ManagedDeployments.get_deployment_groups_by_product(product)
     counts = ManagedDeployments.get_device_counts_by_product(product)
 
@@ -135,14 +135,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   # Handles event of user clicking the same field that is already sorted
-  # For this case, we switch the sorting direction of same field
   @impl Phoenix.LiveView
-  @decorate requires_permission(:"deployment_group:list")
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
+    socket = authorize!(socket, :"deployment_group:list", socket.assigns.product)
     %{sort_direction: sort_direction} = socket.assigns
 
-    # switch sort direction for column because
     sort_direction = if sort_direction == "desc", do: "asc", else: "desc"
     params = %{sort_direction: sort_direction, sort: value}
 
@@ -152,13 +150,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   # User has clicked a new column to sort
-  @impl Phoenix.LiveView
-  @decorate requires_permission(:"deployment_group:list")
   def handle_event("sort", %{"sort" => value}, socket) do
-    new_params = %{sort_direction: "asc", sort: value}
+    socket = authorize!(socket, :"deployment_group:list", socket.assigns.product)
+    params = %{sort_direction: "asc", sort: value}
 
     socket
-    |> push_patch(to: self_path(socket, new_params))
+    |> push_patch(to: self_path(socket, params))
     |> noreply()
   end
 

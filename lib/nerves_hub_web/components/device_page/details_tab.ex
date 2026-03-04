@@ -483,7 +483,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("toggle-deployment-firmware-updates", _params, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{user: user, device: device} = socket.assigns
 
     socket = authorize!(socket, :"device:toggle-updates", device)
 

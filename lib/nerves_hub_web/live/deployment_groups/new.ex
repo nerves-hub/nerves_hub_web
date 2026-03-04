@@ -7,8 +7,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
   alias NervesHub.ManagedDeployments
 
   @impl Phoenix.LiveView
-  @decorate requires_permission(:"deployment_group:create")
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
+    socket = authorize!(socket, :"deployment_group:create", product)
+
     if Firmwares.count(product) == 0 do
       socket
       |> assign(:firmware_required, true)
