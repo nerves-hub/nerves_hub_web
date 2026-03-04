@@ -27,12 +27,12 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> visit("/org/#{org.name}/settings/keys/new")
       |> assert_has("h1", text: "New Signing Key")
       |> fill_in("Name", with: "my amazing key")
-      |> fill_in("Key", with: "wouldn't you like to know!")
+      |> fill_in("Key", with: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
       |> click_button("Create Key")
       |> assert_path("/org/#{org.name}/settings/keys")
       |> assert_has("div", text: "Signing Key created successfully.")
       |> assert_has("h3", text: "my amazing key")
-      |> assert_has("div", text: "wouldn't you like to know!")
+      |> assert_has("div", text: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
       |> assert_has("div", text: "Created by: #{user.name} (#{user.email})")
     end
 
@@ -41,12 +41,12 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> visit("/org/#{org.name}/settings/keys/new")
       |> assert_has("h1", text: "New Signing Key")
       |> fill_in("Name", with: "    my    amazing     key    ")
-      |> fill_in("Key", with: "wouldn't you like to know!")
+      |> fill_in("Key", with: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
       |> click_button("Create Key")
       |> assert_path("/org/#{org.name}/settings/keys")
       |> assert_has("div", text: "Signing Key created successfully.")
       |> assert_has("h3", text: "my amazing key")
-      |> assert_has("div", text: "wouldn't you like to know!")
+      |> assert_has("div", text: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
     end
   end
 

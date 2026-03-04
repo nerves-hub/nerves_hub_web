@@ -34,6 +34,16 @@ defmodule NervesHubWeb.API.KeyControllerTest do
       assert json_response(conn, 200)["data"]["name"] == name
     end
 
+    test "invalid keys aren't allowed", %{conn: conn, org: org} do
+      key = %{name: "Snoot", key: "Boop", org_id: org.id}
+
+      conn = post(conn, Routes.api_key_path(conn, :create, org.name), key)
+
+      assert json_response(conn, 422) == %{
+               "errors" => %{"key" => ["invalid key, please check this is a valid Ed25519 public key"]}
+             }
+    end
+
     test "renders errors when data is invalid", %{conn: conn, org: org} do
       conn = post(conn, Routes.api_key_path(conn, :create, org.name))
       assert json_response(conn, 422)["errors"] != %{}
