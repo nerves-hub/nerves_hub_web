@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveView do
   import Phoenix.LiveView
 
   alias NervesHubWeb.Mounts.RequireAuthorization
+
   require Logger
 
   defmacro __using__(_) do
@@ -57,7 +58,21 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveView do
 
       @impl Phoenix.LiveView
       def handle_params(unsigned_params, uri, %{private: %{wrapped_in_authorization?: false}} = socket) do
-        {:noreply, socket} = handle_params(unsigned_params, uri, RequireAuthorization.wrap(socket))
+        {:noreply, socket} =
+          try do
+            handle_params(unsigned_params, uri, RequireAuthorization.wrap(socket))
+          rescue
+            # If not defined, pass through
+            e ->
+              case e do
+                %FunctionClauseError{module: __MODULE__, function: :handle_params, arity: 3} ->
+                  IO.inspect(e, label: "error")
+                  {:noreply, RequireAuthorization.authorization_not_needed(socket)}
+
+                e ->
+                  reraise e, __STACKTRACE__
+              end
+          end
 
         case check_socket_authorized(socket) do
           {:ok, socket} ->
@@ -115,7 +130,6 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveView do
                     "No authorization applied in `handle_event/3` for event \"#{event}\" on #{__MODULE__}.\n\nUse `@decorate` and `requires_permission/1`, `requires_no_permission/0` or `special_permission/1` to ensure authorization or use the functions in `RequireAuthorization` on the socket."
             end
         end
-
       rescue
         e ->
           # Capture auth failures for reasonable communication to end user
@@ -146,6 +160,7 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveView do
   else
     def handle_auth_failure(socket, e) do
       Logger.error("Auth failure caught: #{inspect(e)}")
+
       socket
       |> put_flash(:error, "Sorry. You were denied access. Please check your role or contact your support.")
     end
