@@ -106,12 +106,12 @@ defmodule NervesHubWeb.Helpers.AuthorizedLiveView do
               {:error, RequireAuthorization.AuthorizationFailed = e} ->
                 raise e,
                   message:
-                    "Authorization failed in `handle_params/3` on #{__MODULE__}.\n\nAnnotation: #{inspect(socket.private.authorization_info)}"
+                    "Authorization failed in `handle_event/3` on #{__MODULE__}.\n\nAnnotation: #{inspect(socket.private.authorization_info)}"
 
               {:error, RequireAuthorization.AuthorizationNotApplied = e} ->
                 raise e,
                   message:
-                    "No authorization applied in `handle_params/3` on #{__MODULE__}.\n\nUse `@decorate` and `requires_permission/1`, `requires_no_permission/0` or `special_permission/1` to ensure authorization or use the functions in `RequireAuthorization` on the socket."
+                    "No authorization applied in `handle_event/3` on #{__MODULE__}.\n\nUse `@decorate` and `requires_permission/1`, `requires_no_permission/0` or `special_permission/1` to ensure authorization or use the functions in `RequireAuthorization` on the socket."
             end
 
           {:reply, reply, socket} ->
