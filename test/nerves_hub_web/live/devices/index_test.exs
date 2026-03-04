@@ -571,6 +571,71 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("span", text: "moussaka", timeout: 1_000)
     end
 
+    test "disable updates for selected devices", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product, firmware: firmware} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => device.id})
+        render_change(view, "select", %{"id" => device2.id})
+        render(view)
+      end)
+      |> assert_has("h4", text: "2 devices selected")
+      |> unwrap(fn view ->
+        render_submit(view, "disable-updates-for-devices", %{})
+      end)
+      |> assert_has("p", text: "Disabled updates for 2 selected device(s).")
+
+      refute Repo.reload(device).updates_enabled
+      refute Repo.reload(device2).updates_enabled
+    end
+
+    test "enable updates for selected devices", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product, firmware: firmware} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+      Devices.disable_updates(device, fixture.user)
+      Devices.disable_updates(device2, fixture.user)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => device.id})
+        render_change(view, "select", %{"id" => device2.id})
+        render(view)
+      end)
+      |> assert_has("h4", text: "2 devices selected")
+      |> unwrap(fn view ->
+        render_submit(view, "enable-updates-for-devices", %{})
+      end)
+      |> assert_has("p", text: "Enabled updates for 2 selected device(s).")
+
+      assert Repo.reload(device).updates_enabled
+      assert Repo.reload(device2).updates_enabled
+    end
+
+    test "clear penalty box for selected devices", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => device.id})
+        render(view)
+      end)
+      |> assert_has("h4", text: "1 device selected")
+      |> unwrap(fn view ->
+        render_submit(view, "clear-penalty-box-for-devices", %{})
+      end)
+      |> assert_has("p", text: "1 selected device(s) cleared from the penalty box.")
+    end
+
     test "add multiple devices to deployment in new UI",
          %{conn: conn, fixture: fixture} do
       %{
@@ -610,6 +675,36 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       assert Repo.reload(device) |> Map.get(:deployment_id)
       assert Repo.reload(device2) |> Map.get(:deployment_id)
+    end
+
+    test "rejects bulk action with foreign device IDs", %{conn: conn, fixture: fixture, tmp_dir: tmp_dir} do
+      %{org: org, product: product} = fixture
+
+      # Create a second org with its own device that our user should NOT be able to act on
+      other_user = Fixtures.user_fixture(%{name: "Attacker Target", email: "other@test.com"})
+      other_org = Fixtures.org_fixture(other_user, %{name: "OtherOrg"})
+      other_org_key = Fixtures.org_key_fixture(other_org, other_user, tmp_dir)
+      other_product = Fixtures.product_fixture(other_user, other_org, %{name: "OtherProduct"})
+      other_firmware = Fixtures.firmware_fixture(other_org_key, other_product, %{dir: tmp_dir})
+      foreign_device = Fixtures.device_fixture(other_org, other_product, other_firmware)
+
+      assert foreign_device.org_id != org.id
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+      render_async(view)
+
+      # Simulate a malicious client injecting a foreign device ID into selected_devices
+      render_change(view, "select", %{"id" => foreign_device.id})
+
+      # The authorization failure raises in test mode, crashing the LiveView process
+      Process.flag(:trap_exit, true)
+
+      catch_exit do
+        render_submit(view, "disable-updates-for-devices", %{})
+      end
+
+      # Verify the foreign device was not modified
+      assert Repo.reload(foreign_device).updates_enabled
     end
   end
 
