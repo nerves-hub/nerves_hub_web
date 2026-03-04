@@ -738,7 +738,8 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec update_network_interface(Device.t(), binary()) :: {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
+  @spec update_network_interface(Device.t(), binary()) ::
+          {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def update_network_interface(device, network_interface) do
     device
     |> Device.update_network_interface_changeset(network_interface)
@@ -805,7 +806,11 @@ defmodule NervesHub.Devices do
     |> where([d], not is_nil(d.firmware_metadata))
     |> where(
       [d],
-      fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, ^deployment_group.current_release.firmware.uuid)
+      fragment(
+        "(? #>> '{\"uuid\"}') != ?",
+        d.firmware_metadata,
+        ^deployment_group.current_release.firmware.uuid
+      )
     )
     |> where([inflight_update: ifu], is_nil(ifu))
     |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
@@ -830,7 +835,11 @@ defmodule NervesHub.Devices do
     where(
       query,
       [d],
-      fragment("semver_match(? #>> '{\"version\"}', ?)", d.firmware_metadata, ^"<= #{version_threshold}")
+      fragment(
+        "semver_match(? #>> '{\"version\"}', ?)",
+        d.firmware_metadata,
+        ^"<= #{version_threshold}"
+      )
     )
   end
 
@@ -875,7 +884,8 @@ defmodule NervesHub.Devices do
       {:ok, _device} ->
         case get_delta_or_firmware_url(device, deployment_group) do
           {:ok, url} ->
-            {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.current_release.firmware)
+            {:ok, meta} =
+              Firmwares.metadata_from_firmware(deployment_group.current_release.firmware)
 
             firmware_url =
               if opts[:firmware_proxy_url] do
@@ -989,7 +999,30 @@ defmodule NervesHub.Devices do
     # let the orchestrator know that a device has been added to the deployment group
     DeploymentOrchestratorEvents.device_added(device)
 
+    deployment_group = Repo.preload(deployment_group, [:firmware, current_release: :firmware])
+
+    # Trigger delta generation if appropriate
+    maybe_trigger_delta_for_device(device, deployment_group)
+
     Map.put(device, :deployment_group, deployment_group)
+  end
+
+  # Triggers delta generation when a device is added to a deployment group that has delta updates enabled
+  defp maybe_trigger_delta_for_device(device, deployment_group) do
+    with true <- deployment_group.delta_updatable,
+         true <- deployment_group.is_active,
+         %{current_release: %{firmware: target_firmware}} when not is_nil(target_firmware) <-
+           deployment_group,
+         %{firmware_metadata: %{uuid: source_uuid}, product_id: product_id} <- device,
+         {:ok, source_firmware} <-
+           Firmwares.get_firmware_by_product_id_and_uuid(product_id, source_uuid),
+         false <- source_firmware.id == target_firmware.id do
+      # Don't recalculate deployment statuses since we're just adding one device
+      _ = Firmwares.attempt_firmware_delta(source_firmware.id, target_firmware.id, false)
+      :ok
+    else
+      _ -> :ok
+    end
   end
 
   @spec clear_deployment_group(Device.t()) :: Device.t()
@@ -1438,8 +1471,15 @@ defmodule NervesHub.Devices do
       |> where([users: users], users.id == ^scope.user.id)
       |> Repo.exclude_deleted()
       |> where([d], d.id in ^device_ids)
-      |> where([d], d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform)
-      |> where([d], d.firmware_metadata["architecture"] == ^deployment_group.current_release.firmware.architecture)
+      |> where(
+        [d],
+        d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform
+      )
+      |> where(
+        [d],
+        d.firmware_metadata["architecture"] ==
+          ^deployment_group.current_release.firmware.architecture
+      )
       |> Repo.update_all([set: [deployment_id: deployment_id]], timeout: to_timeout(minute: 2))
 
     :ok = Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
@@ -1739,6 +1779,7 @@ defmodule NervesHub.Devices do
         case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment_group.id) do
           nil ->
             Logger.error("An inflight update could not be created or found for the device (#{device_id})")
+
             :error
 
           inflight_update ->
