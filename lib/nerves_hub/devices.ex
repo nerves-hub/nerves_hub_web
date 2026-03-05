@@ -1020,10 +1020,7 @@ defmodule NervesHub.Devices do
     # let the orchestrator know that a device has been added to the deployment group
     DeploymentOrchestratorEvents.device_added(device)
 
-    deployment_group = Repo.preload(deployment_group, [:firmware, current_release: :firmware])
-
-    # Trigger delta generation if appropriate
-    maybe_trigger_delta_for_device(device, deployment_group)
+    deployment_group = Repo.preload(deployment_group, :firmware)
 
     Map.put(device, :deployment_group, deployment_group)
   end
