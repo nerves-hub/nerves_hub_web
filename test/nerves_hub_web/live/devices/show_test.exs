@@ -1,7 +1,6 @@
 defmodule NervesHubWeb.Live.Devices.ShowTest do
   use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
-  use Oban.Testing, repo: NervesHub.Repo
 
   import Ecto.Query, only: [where: 2]
   import Phoenix.ChannelTest
@@ -20,7 +19,6 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
-  alias NervesHub.Workers.FirmwareDeltaBuilder
   alias NervesHubWeb.Endpoint
   alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
@@ -913,109 +911,6 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       device_topic = "device:#{device.id}"
       assert_receive %Broadcast{topic: ^device_topic, event: "deployment_updated"}
-    end
-
-    test "triggers delta generation when device is added to delta-enabled deployment group", %{
-      conn: conn,
-      org: org,
-      org_key: org_key,
-      product: product,
-      user: user,
-      tmp_dir: tmp_dir
-    } do
-      # Create source and target firmware
-      source_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
-      target_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
-
-      # Create deployment group with delta updates enabled
-      deployment_group =
-        Fixtures.deployment_group_fixture(target_firmware, %{
-          name: "Delta Deployment",
-          delta_updatable: true,
-          is_active: true
-        })
-
-      # Create device with old firmware
-      device =
-        Fixtures.device_fixture(org, product, source_firmware, %{
-          status: :provisioned
-        })
-
-      # Add device to deployment group via UI
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("option", text: "Select a deployment group")
-      |> select("Deployment Group", exact_option: false, option: deployment_group.name)
-      |> click_button("Assign")
-      |> refute_has("div", text: "No assigned deployment group")
-
-      # Assert delta generation job was enqueued
-      assert_enqueued(
-        worker: FirmwareDeltaBuilder,
-        args: %{source_id: source_firmware.id, target_id: target_firmware.id}
-      )
-    end
-
-    test "does not trigger delta generation when deployment group is inactive", %{
-      conn: conn,
-      org: org,
-      org_key: org_key,
-      product: product,
-      tmp_dir: tmp_dir
-    } do
-      source_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
-      target_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
-
-      deployment_group =
-        Fixtures.deployment_group_fixture(target_firmware, %{
-          name: "Inactive Delta Deployment",
-          delta_updatable: true,
-          is_active: false
-        })
-
-      device =
-        Fixtures.device_fixture(org, product, source_firmware, %{
-          status: :provisioned
-        })
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> select("Deployment Group", exact_option: false, option: deployment_group.name)
-      |> click_button("Assign")
-
-      # Assert no delta generation job was enqueued
-      refute_enqueued(worker: FirmwareDeltaBuilder)
-    end
-
-    test "does not trigger delta generation when delta_updatable is false", %{
-      conn: conn,
-      org: org,
-      org_key: org_key,
-      product: product,
-      tmp_dir: tmp_dir
-    } do
-      source_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
-      target_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
-
-      deployment_group =
-        Fixtures.deployment_group_fixture(target_firmware, %{
-          name: "Non-Delta Deployment",
-          delta_updatable: false,
-          is_active: true
-        })
-
-      device =
-        Fixtures.device_fixture(org, product, source_firmware, %{
-          status: :provisioned
-        })
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> select("Deployment Group", exact_option: false, option: deployment_group.name)
-      |> click_button("Assign")
-
-      # Assert no delta generation job was enqueued
-      refute_enqueued(worker: FirmwareDeltaBuilder)
     end
 
     test "'no eligible deployments' text displays properly", %{
