@@ -14,6 +14,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
   alias NervesHub.Repo
+  alias NervesHub.Workers.FirmwareDeltaBuilder
   alias Phoenix.Socket.Broadcast
 
   setup %{tmp_dir: tmp_dir} do
@@ -358,14 +359,20 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     end)
     |> reject(:available_for_update, 2)
 
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    # Create new device firmware and target firmware to ensure delta doesn't already exist
+    device_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+    # Update devices to use the new device firmware
+    {:ok, device1} = Devices.update_firmware_metadata(device1, %{"uuid" => device_firmware.uuid}, :unknown, false)
+    {:ok, device2} = Devices.update_firmware_metadata(device2, %{"uuid" => device_firmware.uuid}, :unknown, false)
 
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(
         deployment_group,
         %{
           concurrent_updates: 2,
-          firmware_id: firmware.id
+          firmware_id: target_firmware.id
         },
         user
       )
@@ -385,6 +392,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Devices.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
 
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "bulk-devices-added"}, 500
+    # Give orchestrator time to process the event and enqueue jobs
+    Process.sleep(50)
+
+    # Assert that delta generation job was enqueued for the new firmware pair
+    assert_enqueued(
+      worker: FirmwareDeltaBuilder,
+      args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
+    )
 
     Mimic.reject(&Devices.available_for_update/2)
 
@@ -463,14 +478,19 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     device: device1,
     tmp_dir: tmp_dir
   } do
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    # Create new device firmware and target firmware to ensure delta doesn't already exist
+    device_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+    # Update device to use the new device firmware
+    {:ok, device1} = Devices.update_firmware_metadata(device1, %{"uuid" => device_firmware.uuid}, :unknown, false)
 
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(
         deployment_group,
         %{
           concurrent_updates: 2,
-          firmware_id: firmware.id
+          firmware_id: target_firmware.id
         },
         user
       )
@@ -505,6 +525,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     # the orchestrator is told that a device has just been assigned to it
     assert_receive %Broadcast{topic: ^deployment_topic, event: "device-added"}, 500
+    # Give orchestrator time to process the event and enqueue jobs
+    Process.sleep(50)
+
+    # Assert that delta generation job was enqueued for the new firmware pair
+    assert_enqueued(
+      worker: FirmwareDeltaBuilder,
+      args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
+    )
 
     # allows for db connections to finish and close
     :sys.get_state(pid)

@@ -984,28 +984,9 @@ defmodule NervesHub.Devices do
     # let the orchestrator know that a device has been added to the deployment group
     DeploymentOrchestratorEvents.device_added(device)
 
-    deployment_group = Repo.preload(deployment_group, [:firmware, current_release: :firmware])
-
-    # Trigger delta generation if appropriate
-    maybe_trigger_delta_for_device(device, deployment_group)
+    deployment_group = Repo.preload(deployment_group, :firmware)
 
     Map.put(device, :deployment_group, deployment_group)
-  end
-
-  # Triggers delta generation when a device is added to a deployment group that has delta updates enabled
-  defp maybe_trigger_delta_for_device(device, deployment_group) do
-    with true <- deployment_group.delta_updatable,
-         true <- deployment_group.is_active,
-         %{current_release: %{firmware: target_firmware}} when not is_nil(target_firmware) <- deployment_group,
-         %{firmware_metadata: %{uuid: source_uuid}, product_id: product_id} <- device,
-         {:ok, source_firmware} <- Firmwares.get_firmware_by_product_id_and_uuid(product_id, source_uuid),
-         false <- source_firmware.id == target_firmware.id do
-      # Don't recalculate deployment statuses since we're just adding one device
-      _ = Firmwares.attempt_firmware_delta(source_firmware.id, target_firmware.id, false)
-      :ok
-    else
-      _ -> :ok
-    end
   end
 
   @spec clear_deployment_group(Device.t()) :: Device.t()
