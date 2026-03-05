@@ -103,16 +103,17 @@ defmodule NervesHub.Devices do
     |> join(:left, [d], o in assoc(d, :org))
     |> join(:left, [d, o], p in assoc(d, :product))
     |> join(:left, [d, o, p], dg in assoc(d, :deployment_group))
-    |> join(:left, [d, o, p, dg], f in assoc(dg, :firmware))
-    |> join(:left, [d, o, p, dg, f], lc in assoc(d, :latest_connection), as: :latest_connection)
-    |> join(:left, [d, o, p, dg, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
+    |> join(:left, [d, o, p, dg], cr in assoc(dg, :current_release))
+    |> join(:left, [d, o, p, dg, cr], f in assoc(cr, :firmware))
+    |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, o, p, dg, cr, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
     |> Repo.exclude_deleted()
     |> DeviceFiltering.sort(sorting)
     |> DeviceFiltering.build_filters(filters)
-    |> preload([d, o, p, dg, f, latest_connection: lc, latest_health: lh],
+    |> preload([d, o, p, dg, cr, f, latest_connection: lc, latest_health: lh],
       org: o,
       product: p,
-      deployment_group: {dg, firmware: f},
+      deployment_group: {dg, current_release: {cr, firmware: f}},
       latest_connection: lc,
       latest_health: lh
     )

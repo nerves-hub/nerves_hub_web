@@ -91,6 +91,25 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
              end)
     end
 
+    test "lists devices with a deployment group", %{conn: conn, user: user, tmp_dir: tmp_dir} do
+      org = Fixtures.org_fixture(user, %{name: "DeployedOrg"})
+      product = Fixtures.product_fixture(user, org, %{name: "deployed_product"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      device = Fixtures.device_fixture(org, product, firmware)
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+      {:ok, _device} =
+        Devices.update_device(device, %{deployment_id: deployment_group.id})
+
+      conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
+
+      assert %{"data" => [device_data]} = json_response(conn, 200)
+      assert device_data["identifier"] == device.identifier
+      assert device_data["deployment_group"]["name"] == deployment_group.name
+    end
+
     test "does not return soft-deleted devices", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
