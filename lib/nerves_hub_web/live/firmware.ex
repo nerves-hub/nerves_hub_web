@@ -152,7 +152,8 @@ defmodule NervesHubWeb.Live.Firmware do
   def handle_info(
         %Broadcast{topic: "product:" <> _product_id, event: "firmware/created", payload: %{firmware: firmware}},
         %{assigns: assigns} = socket
-      ) do
+      )
+      when assigns.live_action == :index do
     if viewing_first_page?(assigns) do
       socket
       |> assign_firmware_with_pagination()
@@ -174,7 +175,8 @@ defmodule NervesHubWeb.Live.Firmware do
   def handle_info(
         %Broadcast{topic: "product:" <> _product_id, event: "firmware/deleted", payload: %{firmware: firmware}},
         socket
-      ) do
+      )
+      when socket.assigns.live_action == :index do
     socket
     |> assign_firmware_with_pagination()
     |> put_flash(
@@ -182,6 +184,11 @@ defmodule NervesHubWeb.Live.Firmware do
       "Firmware #{firmware.version} (#{String.slice(firmware.uuid, 0..7)}) has been deleted by another user."
     )
     |> noreply()
+  end
+
+  # Ignore all other broadcasts
+  def handle_info(_broadcast, socket) do
+    {:noreply, socket}
   end
 
   def handle_progress(:firmware, entry, socket) do
@@ -246,7 +253,10 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp viewing_first_page?(assigns) do
-    !(assigns.params && assigns.params["page_number"] && assigns.params["page_number"] > 1)
+    case get_in(assigns, [:params, "page_number"]) do
+      nil -> true
+      page_number -> String.to_integer(page_number) == 1
+    end
   end
 
   defp create_firmware(socket, filepath) do
