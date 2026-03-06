@@ -1,10 +1,12 @@
 <div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
 
-<div class="h-0 flex-1 overflow-y-auto" phx-drop-target={@uploads.archive.ref}>
-  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
-    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Archives</h1>
-    <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">
-      {@pager_meta.total_count}
+<div class="h-0 flex-1" phx-drop-target={@uploads.archive.ref}>
+  <div class="flex items-center flex-wrap gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <div class="flex items-center mr-auto gap-4">
+      <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Archives</h1>
+      <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5">
+        {@pager_meta.total_count}
+      </div>
     </div>
 
     <div :for={entry <- @uploads.archive.entries} class="w-2/5 pl-4 pr-2 flex flex-col items-center">
@@ -28,7 +30,7 @@
     </form>
   </div>
   <%= if Enum.any?(@archives) do %>
-    <div class="listing">
+    <div class="listing overflow-x-auto">
       <table>
         <thead>
           <tr>
@@ -126,7 +128,7 @@
     </div>
   <% else %>
     <div class="h-full pb-16 flex items-center justify-center">
-      <span class="text-xl font-medium text-neutral-50">{@product.name} doesn't have any available archives.</span>
+      <span class="text-xl font-medium text-neutral-50 text-center">{@product.name} doesn't have any available archives.</span>
     </div>
   <% end %>
 </div>
