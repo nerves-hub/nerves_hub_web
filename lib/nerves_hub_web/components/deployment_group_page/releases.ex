@@ -130,7 +130,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
           </div>
         </div>
       </div>
-      <CoreComponents.modal id="new-release" on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/releases")}>
+      <CoreComponents.modal id="new-release" on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/releases")}>
         <.form id="release-form" for={@form} phx-change="validate-release" phx-submit="update-release" phx-target={@myself}>
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
             <div class="text-base text-neutral-50 font-medium">Release settings</div>
@@ -191,20 +191,19 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   def handle_event("update-release", %{"deployment_group" => params}, socket) do
     %{
-      org_user: org_user,
-      user: user,
+      current_release: scope,
       deployment_group: deployment_group
     } =
       socket.assigns
 
-    authorized!(:"deployment_group:update", org_user)
+    authorized!(:"deployment_group:update", scope)
 
-    case ManagedDeployments.update_deployment_group(deployment_group, params, user) do
+    case ManagedDeployments.update_deployment_group(deployment_group, params, scope.user) do
       {:ok, updated} ->
         AuditLogs.audit!(
-          user,
+          scope.user,
           updated,
-          "User #{user.name} updated deployment group #{updated.name}"
+          "User #{scope.user.name} updated deployment group #{updated.name}"
         )
 
         releases = ManagedDeployments.list_deployment_releases(updated)

@@ -38,7 +38,7 @@
     <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export"} download>
       <.icon name="export" /> Export
     </.button>
-    <.button type="link" navigate={~p"/org/#{@org}/#{@product}/devices/new"} aria-label="Add new device">
+    <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
       <.icon name="add" /> Add Device
     </.button>
     <.button :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist} type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
@@ -480,7 +480,7 @@
           <div class="flex gap-2">
             <select name="product" id="move_to" class="sidebar-select" phx-update="ignore">
               <option value="">Select product</option>
-              <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
+              <%= for org <- @current_scope.user.orgs, products = org.products, length(products) > 0 do %>
                 <optgroup label={org.name}>
                   <%= for product <- products, product.id != @product.id do %>
                     <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}>{product.name}</option>

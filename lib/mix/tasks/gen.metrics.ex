@@ -11,7 +11,6 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
 
   use Mix.Task
 
-  alias NervesHub.Devices
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Repo
 
@@ -20,7 +19,7 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
 
   @impl Mix.Task
   def run([device_identifier | _]) do
-    {:ok, %{id: device_id}} = Devices.get_by_identifier(device_identifier)
+    %{id: device_id} = Repo.get_by(Device, identifier: device_identifier)
     now = DateTime.now!("Etc/UTC") |> DateTime.truncate(:millisecond)
     a_week_ago = DateTime.add(now, -7, :day) |> DateTime.truncate(:millisecond)
 

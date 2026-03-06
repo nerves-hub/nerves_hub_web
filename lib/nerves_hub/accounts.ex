@@ -9,6 +9,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.OrgMetric
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.RemoveAccount
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
@@ -212,13 +213,18 @@ defmodule NervesHub.Accounts do
     |> Repo.update()
   end
 
+  def get_org_user!(%Scope{org: org}, user_id) do
+    get_org_user_query(org, user_id)
+    |> Repo.one!()
+  end
+
   def get_org_user!(org, user) do
     get_org_user_query(org, user)
     |> Repo.one!()
   end
 
   def get_org_user(org, user) do
-    get_org_user_query(org, user)
+    get_org_user_query(org, user.id)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -226,10 +232,10 @@ defmodule NervesHub.Accounts do
     end
   end
 
-  defp get_org_user_query(org, user) do
+  defp get_org_user_query(org, user_id) do
     OrgUser
     |> where([ou], ou.org_id == ^org.id)
-    |> where([ou], ou.user_id == ^user.id)
+    |> where([ou], ou.user_id == ^user_id)
     |> join(:inner, [ou], u in assoc(ou, :user), as: :user)
     |> preload([ou, user: user], user: user)
     |> Repo.exclude_deleted()
@@ -262,29 +268,23 @@ defmodule NervesHub.Accounts do
   end
 
   def has_org_role?(org, user, role) do
-    from(
-      ou in OrgUser,
-      where: ou.org_id == ^org.id,
-      where: ou.user_id == ^user.id,
-      where: ou.role in ^User.role_or_higher(role),
-      where: is_nil(ou.deleted_at),
-      select: count(ou.id) >= 1
-    )
-    |> Repo.one()
+    OrgUser
+    |> where(org_id: ^org.id)
+    |> where(user_id: ^user.id)
+    |> where([ou], ou.role in ^User.role_or_higher(role))
+    |> where([ou], is_nil(ou.deleted_at))
+    |> Repo.exists?()
   end
 
   def get_user_orgs(%User{} = user) do
-    query =
-      from(
-        o in Org,
-        full_join: ou in OrgUser,
-        on: ou.org_id == o.id,
-        where: ou.user_id == ^user.id,
-        where: is_nil(ou.deleted_at),
-        group_by: o.id
-      )
-
-    query
+    from(
+      o in Org,
+      full_join: ou in OrgUser,
+      on: ou.org_id == o.id,
+      where: ou.user_id == ^user.id,
+      where: is_nil(ou.deleted_at),
+      group_by: o.id
+    )
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
@@ -396,11 +396,7 @@ defmodule NervesHub.Accounts do
     |> join(:left, [d], o in assoc(d, :orgs))
     |> join(:left, [d, o], p in subquery(products), on: o.id == p.org_id)
     |> preload([d, o, p], orgs: {o, products: p})
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      user -> {:ok, user}
-    end
+    |> Repo.one!()
   end
 
   def get_user_by_email(email) do
@@ -459,6 +455,18 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  def get_membership_by_org_name!(%Scope{} = current_scope, org_name) do
+    OrgUser
+    |> join(:left, [ou], u in assoc(ou, :user))
+    |> join(:left, [ou], o in assoc(ou, :org))
+    |> where([ou, _, _], is_nil(ou.deleted_at))
+    |> where([_, _, o], is_nil(o.deleted_at))
+    |> where([_, _, o], o.name == ^org_name)
+    |> where([_, u], u.id == ^current_scope.user.id)
+    |> preload([_, u, o], org: o, user: u)
+    |> Repo.one!()
+  end
+
   def get_org_by_name_and_user!(org_name, %User{id: user_id}) do
     Org
     |> join(:left, [o], u in assoc(o, :users))
@@ -486,10 +494,11 @@ defmodule NervesHub.Accounts do
     |> Repo.insert()
   end
 
-  def list_org_keys(org_or_org_id, load_created_by \\ true)
+  @spec list_org_keys(Scope.t() | pos_integer(), boolean()) :: [OrgKey.t()]
+  def list_org_keys(scope_or_org_id, load_created_by \\ true)
 
-  def list_org_keys(%Org{id: org_id}, load_created_by) do
-    list_org_keys(org_id, load_created_by)
+  def list_org_keys(%Scope{org: org}, load_created_by) do
+    list_org_keys(org.id, load_created_by)
   end
 
   def list_org_keys(org_id, load_created_by) do
@@ -504,6 +513,15 @@ defmodule NervesHub.Accounts do
     end)
     |> order_by(:id)
     |> Repo.all()
+  end
+
+  def get_org_key(%Scope{org: org}, tk_id) do
+    get_org_key_query(org.id, tk_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      key -> {:ok, key}
+    end
   end
 
   def get_org_key(%Org{id: org_id}, tk_id) do

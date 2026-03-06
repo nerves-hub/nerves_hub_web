@@ -8,7 +8,7 @@ defmodule NervesHubWeb.API.Plugs.Product do
   end
 
   def call(%{params: %{"product_name" => product_name}} = conn, _opts) do
-    product = Products.get_product_by_org_id_and_name!(conn.assigns.org.id, product_name)
+    product = Products.get_product_by_name!(conn.assigns.current_scope, product_name)
 
     assign(conn, :product, product)
   end

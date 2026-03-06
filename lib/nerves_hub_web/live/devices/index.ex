@@ -90,10 +90,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     total_pages: :integer
   }
 
-  def mount(_params, _session, %{assigns: %{product: product}} = socket) do
-    product = Products.load_shared_secret_auth(product)
+  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+    product = Products.load_shared_secret_auth(scope.product)
 
     socket
+    |> assign(:org, scope.org)
     |> assign(:product, product)
     |> page_title("Devices - #{product.name}")
     |> sidebar_tab(:devices)
@@ -148,7 +149,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  defp self_path(socket, extra) do
+  defp self_path(%{assigns: %{current_scope: scope}} = socket, extra) do
     params = Enum.into(stringify_keys(extra), socket.assigns.params)
     pagination = pagination_changes(params)
     filter = filter_changes(params)
@@ -159,12 +160,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> Map.merge(pagination)
       |> Map.merge(sort)
 
-    ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices?#{query}"
+    ~p"/org/#{scope.org}/#{scope.product}/devices?#{query}"
   end
 
   defp subscribe_and_refresh_device_list_timer(socket) do
     if connected?(socket) do
-      socket.endpoint.subscribe("product:#{socket.assigns.product.id}:devices")
+      socket.endpoint.subscribe("product:#{socket.assigns.current_scope.product.id}:devices")
       Process.send_after(self(), :refresh_device_list, @list_refresh_time)
       socket
     else
@@ -245,11 +246,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
         [id | selected_devices]
       end
 
-    socket =
-      socket
-      |> assign(:selected_devices, selected_devices)
-
-    {:noreply, socket}
+    {:noreply, assign(socket, :selected_devices, selected_devices)}
   end
 
   def handle_event("select-all", _, socket) do
@@ -262,9 +259,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
         Enum.map(socket.assigns.devices.result, & &1.id)
       end
 
-    socket
-    |> assign(:selected_devices, selected_devices)
-    |> noreply()
+    {:noreply, assign(socket, :selected_devices, selected_devices)}
   end
 
   def handle_event("deselect-all", _, socket) do
@@ -282,7 +277,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def handle_event("tag-devices", %{"tags" => tags}, socket) do
     %{ok: _successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
-      |> Devices.tag_devices(socket.assigns.user, tags)
+      |> Devices.tag_devices(socket.assigns.current_scope.user, tags)
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
@@ -397,25 +392,25 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_event("reboot-device", %{"device_identifier" => device_identifier}, socket) do
-    %{org: org, org_user: org_user, user: user} = socket.assigns
+  def handle_event("reboot-device", %{"device_identifier" => device_identifier}, %{current_scope: scope} = socket) do
+    authorized!(:"device:reboot", scope)
 
-    authorized!(:"device:reboot", org_user)
+    {:ok, device} = Devices.get_by_identifier(scope, device_identifier)
 
-    {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
-
-    DeviceEvents.reboot(device, user)
+    DeviceEvents.reboot(device, scope.user)
 
     {:noreply, put_flash(socket, :info, "Device Reboot Requested")}
   end
 
-  def handle_event("toggle-device-updates", %{"device_identifier" => device_identifier}, socket) do
-    %{org: org, org_user: org_user, user: user} = socket.assigns
+  def handle_event(
+        "toggle-device-updates",
+        %{"device_identifier" => device_identifier},
+        %{current_scope: scope} = socket
+      ) do
+    authorized!(:"device:toggle-updates", scope)
 
-    authorized!(:"device:toggle-updates", org_user)
-
-    {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
-    {:ok, device} = Devices.toggle_automatic_updates(device, user)
+    {:ok, device} = Devices.get_by_identifier(scope, device_identifier)
+    {:ok, device} = Devices.toggle_automatic_updates(device, scope.user)
 
     socket
     |> put_flash(:info, "Toggled device firmware updates")
@@ -508,7 +503,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  defp assign_filter_data(%{assigns: %{product: product}} = socket) do
+  defp assign_filter_data(%{assigns: %{current_scope: %{product: product}}} = socket) do
     socket
     |> start_async(:update_filter_data, fn ->
       [
@@ -520,7 +515,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end)
   end
 
-  defp assign_display_devices(%{assigns: %{product: product, paginate_opts: paginate_opts, user: user}} = socket) do
+  defp assign_display_devices(%{assigns: %{current_scope: scope, paginate_opts: paginate_opts}} = socket) do
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
       sort: {String.to_existing_atom(socket.assigns.sort_direction), String.to_atom(socket.assigns.current_sort)},
@@ -534,7 +529,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> assign(:devices, AsyncResult.loading())
       |> assign(:device_statuses, AsyncResult.loading())
     end
-    |> start_async(:update_device_list, fn -> Devices.filter(product, user, opts) end)
+    |> start_async(:update_device_list, fn -> Devices.filter(scope.product, scope.user, opts) end)
   end
 
   def handle_async(:update_device_list, {:ok, {updated_devices, pager}}, socket) do
@@ -775,13 +770,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp maybe_assign_available_deployment_groups_for_filtered_platform(
-         %{assigns: %{product: product, current_filters: %{platform: platform}}} = socket
+         %{assigns: %{current_scope: scope, current_filters: %{platform: platform}}} = socket
        )
        when platform != "" do
     assign(
       socket,
       :available_deployment_groups_for_filtered_platform,
-      ManagedDeployments.get_by_product_and_platform(product, platform)
+      ManagedDeployments.get_by_product_and_platform(scope.product, platform)
     )
   end
 

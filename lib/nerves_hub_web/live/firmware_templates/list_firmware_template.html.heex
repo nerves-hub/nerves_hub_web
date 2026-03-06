@@ -51,7 +51,7 @@
           <tr :for={firmware <- @firmware} class="border-b border-zinc-800">
             <td>
               <div class="flex gap-[8px] items-center">
-                <.link navigate={~p"/org/#{@org}/#{@product}/firmware/#{firmware}"}>
+                <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{firmware}"}>
                   {firmware.uuid}
                 </.link>
               </div>

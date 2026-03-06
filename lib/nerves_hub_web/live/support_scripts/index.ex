@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     socket
-    |> page_title("Support Scripts - #{socket.assigns.product.name}")
+    |> page_title("Support Scripts - #{socket.assigns.current_scope.product.name}")
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:sort_direction, @default_sorting.sort_direction)
     |> assign(:current_sort, @default_sorting.sort)
@@ -97,7 +97,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
 
   @impl Phoenix.LiveView
   def handle_event("delete-support-script", %{"script_id" => script_id}, socket) do
-    authorized!(:"support_script:delete", socket.assigns.org_user)
+    authorized!(:"support_script:delete", socket.assigns.current_scope)
 
     %{product: product} = socket.assigns
 
@@ -114,7 +114,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   defp assign_scripts_with_pagination(socket) do
     %{
       assigns: %{
-        product: product,
+        current_scope: scope,
         paginate_opts: paginate_opts,
         sort_direction: sort_direction,
         current_sort: current_sort
@@ -126,7 +126,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
       sort: {String.to_existing_atom(sort_direction), String.to_atom(current_sort)}
     }
 
-    {entries, pager_meta} = Scripts.filter(product, opts)
+    {entries, pager_meta} = Scripts.filter(scope, opts)
 
     socket
     |> assign(:scripts, entries)
@@ -141,7 +141,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
     query =
       Map.merge(pagination, sort)
 
-    ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/scripts?#{query}"
+    ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.current_scope.product}/scripts?#{query}"
   end
 
   defp pagination_changes(params) do

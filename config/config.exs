@@ -1,5 +1,6 @@
 import Config
 
+alias NervesHub.Accounts.Scope
 alias NervesHub.Workers.CleanStaleDeviceConnections
 alias NervesHub.Workers.DeleteOldDeviceConnections
 alias NervesHub.Workers.DeviceHealthTruncation
@@ -86,6 +87,43 @@ config :nerves_hub, Oban,
        {"*/5 * * * *", ExpireInflightUpdates},
        {"*/15 * * * *", DeviceHealthTruncation}
      ]}
+  ]
+
+config :nerves_hub, :scopes,
+  user: [
+    default: true,
+    module: Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :id,
+    schema_table: :users
+    # test_data_fixture: MyApp.AccountsFixtures,
+    # test_setup_helper: :register_and_log_in_user
+  ],
+  org: [
+    module: Scope,
+    assign_key: :current_scope,
+    access_path: [:org, :id],
+    route_prefix: "/org/:org",
+    route_access_path: [:org, :name],
+    schema_key: :org_id,
+    schema_type: :id,
+    schema_table: :orgs
+    # test_data_fixture: MyApp.AccountsFixtures,
+    # test_setup_helper: :register_and_log_in_user_with_org
+  ],
+  product: [
+    module: Scope,
+    assign_key: :current_scope,
+    access_path: [:product, :id],
+    route_prefix: "/product/:product",
+    route_access_path: [:product, :name],
+    schema_key: :product_id,
+    schema_type: :id,
+    schema_table: :products
+    # test_data_fixture: MyApp.AccountsFixtures,
+    # test_setup_helper: :register_and_log_in_user_with_org
   ]
 
 config :nerves_hub,

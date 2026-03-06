@@ -7,7 +7,7 @@
       {@pager_meta.total_count}
     </div>
 
-    <.button type="link" navigate={~p"/org/#{@org}/#{@product}/scripts/new"} aria-label="Add a support script">
+    <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/new"} aria-label="Add a support script">
       <.icon name="add" />Add Support Script
     </.button>
   </div>
@@ -30,7 +30,7 @@
       <tbody>
         <tr :for={script <- @scripts} class="border-b border-zinc-800">
           <td class="h-[52px]">
-            <.link class="size-full flex items-center" navigate={~p"/org/#{@org}/#{@product}/scripts/#{script}/edit"}>
+            <.link class="size-full flex items-center" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/#{script}/edit"}>
               {script.name}
             </.link>
           </td>
@@ -52,7 +52,7 @@
   </div>
 
   <div :if={Enum.empty?(@scripts)} class="h-full pb-16 flex items-center justify-center">
-    <span class="text-xl font-medium text-neutral-50">{@product.name} doesn’t have any Support Scripts.</span>
+    <span class="text-xl font-medium text-neutral-50">{@current_scope.product.name} doesn’t have any Support Scripts.</span>
   </div>
 </div>
 

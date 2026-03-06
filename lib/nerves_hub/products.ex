@@ -7,6 +7,7 @@ defmodule NervesHub.Products do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
   alias NervesHub.Extensions
@@ -19,6 +20,34 @@ defmodule NervesHub.Products do
   @csv_header ["identifier", "description", "tags", "product", "org", "certificates"]
 
   def __csv_header__(), do: @csv_header
+
+  def get_by_name!(%Scope{} = current_scope, product_name) do
+    Product
+    |> join(:left, [p], o in assoc(p, :org))
+    |> join(:left, [p, o], ou in assoc(o, :org_users))
+    |> where([p], is_nil(p.deleted_at))
+    |> where([_, o], is_nil(o.deleted_at))
+    |> where([_, _, ou], is_nil(ou.deleted_at))
+    |> where([p], p.name == ^product_name)
+    |> where([_, o], o.id == ^current_scope.org.id)
+    |> where([_, _, ou], ou.user_id == ^current_scope.user.id)
+    |> Repo.one!()
+  end
+
+  @spec get_products(Scope.t()) :: [Product.t()]
+  def get_products(%Scope{user: user, org: org}) do
+    from(
+      p in Product,
+      full_join: ou in OrgUser,
+      on: p.org_id == ou.org_id,
+      where:
+        p.org_id == ^org.id and ou.user_id == ^user.id and
+          ou.role in ^User.role_or_higher(:view),
+      group_by: p.id
+    )
+    |> Repo.exclude_deleted()
+    |> Repo.all()
+  end
 
   @spec get_products_by_user_and_org(User.t(), Org.t()) :: [Product.t()]
   def get_products_by_user_and_org(%User{id: user_id}, %Org{id: org_id}) do
@@ -68,6 +97,12 @@ defmodule NervesHub.Products do
       nil -> {:error, :not_found}
       product -> {:ok, product}
     end
+  end
+
+  @spec get_product_by_name!(Scope.t(), String.t()) :: Product.t()
+  def get_product_by_name!(%Scope{org: org}, name) do
+    get_product_by_org_id_and_name_query(org.id, name)
+    |> Repo.one!()
   end
 
   @spec get_product_by_org_id_and_name!(pos_integer(), String.t()) :: Product.t()

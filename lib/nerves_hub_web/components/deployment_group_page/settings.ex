@@ -279,15 +279,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
   def handle_event("update-deployment-group", %{"deployment_group" => params}, socket) do
     %{
-      org_user: org_user,
-      org: org,
-      product: product,
-      user: user,
+      current_scope: %{org: org, product: product, user: user},
       deployment_group: deployment_group
     } =
       socket.assigns
 
-    authorized!(:"deployment_group:update", org_user)
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
 
     case ManagedDeployments.update_deployment_group(deployment_group, params, user) do
       {:ok, updated} ->
@@ -316,7 +313,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   end
 
   def handle_event("delete-deployment-group", _params, socket) do
-    authorized!(:"deployment_group:delete", socket.assigns.org_user)
+    authorized!(:"deployment_group:delete", socket.assigns.current_scope)
 
     %{deployment_group: deployment_group, org: org, product: product, user: user} = socket.assigns
 

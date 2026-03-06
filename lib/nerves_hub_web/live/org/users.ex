@@ -12,7 +12,7 @@ defmodule NervesHubWeb.Live.Org.Users do
 
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
-    {:ok, socket}
+    {:ok, assign(socket, :org, socket.assigns.current_scope.org)}
   end
 
   @impl Phoenix.LiveView
@@ -38,22 +38,21 @@ defmodule NervesHubWeb.Live.Org.Users do
   end
 
   defp apply_action(socket, :edit, %{"user_id" => user_id}) do
-    {:ok, user} = Accounts.get_user(user_id)
-    {:ok, org_user} = Accounts.get_org_user(socket.assigns.org, user)
+    org_user = Accounts.get_org_user!(socket.assigns.current_scope, user_id)
 
     socket
     |> page_title("Edit User - #{socket.assigns.org.name}")
     |> assign(:membership, org_user)
-    |> assign(:form, to_form(Org.change_user_role(org_user, %{})))
+    |> assign(:form, to_form(Org.change_user_role(org_user)))
     |> sidebar_tab(:users)
     |> render_with(&edit_user_template/1)
   end
 
   @impl Phoenix.LiveView
   def handle_event("send_invite", %{"invite" => invite_params}, socket) do
-    authorized!(:"org_user:invite", socket.assigns.org_user)
+    %{org: org, current_scope: %{user: invited_by} = scope} = socket.assigns
 
-    %{org: org, user: invited_by} = socket.assigns
+    authorized!(:"org_user:invite", scope)
 
     case Accounts.add_or_invite_to_org(invite_params, org, invited_by) do
       {:ok, %Invite{} = invite} ->
@@ -82,7 +81,7 @@ defmodule NervesHubWeb.Live.Org.Users do
   end
 
   def handle_event("rescind_invite", %{"invite_token" => invite_token}, socket) do
-    authorized!(:"org_user:invite:rescind", socket.assigns.org_user)
+    authorized!(:"org_user:invite:rescind", socket.assigns.current_scope)
 
     case Accounts.delete_invite(socket.assigns.org, invite_token) do
       {:ok, _} ->
@@ -103,7 +102,7 @@ defmodule NervesHubWeb.Live.Org.Users do
   end
 
   def handle_event("update-org-user", %{"org_user" => params}, socket) do
-    authorized!(:"org_user:update", socket.assigns.org_user)
+    authorized!(:"org_user:update", socket.assigns.current_scope)
 
     {:ok, role} = Map.fetch(params, "role")
 
@@ -119,16 +118,14 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
-  def handle_event("delete_org_user", %{"user_id" => user_id}, socket) do
-    authorized!(:"org_user:delete", socket.assigns.org_user)
-
-    %{org: org, user: user} = socket.assigns
+  def handle_event("delete_org_user", %{"user_id" => user_id}, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"org_user:delete", scope)
 
     {:ok, user_to_remove} = Accounts.get_user(user_id)
 
-    case Accounts.remove_org_user(org, user_to_remove) do
+    case Accounts.remove_org_user(scope.org, user_to_remove) do
       :ok ->
-        _ = UserNotifier.deliver_all_tell_org_user_removed(org, user, user_to_remove)
+        _ = UserNotifier.deliver_all_tell_org_user_removed(scope.org, scope.user, user_to_remove)
 
         {:noreply,
          socket

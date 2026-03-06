@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Auth do
   import Plug.Conn
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
 
   # Make the remember me cookie valid for 60 days.
@@ -76,22 +77,141 @@ defmodule NervesHubWeb.Auth do
   Authenticates the User by looking into the session and remember me token.
   """
   def fetch_current_user(conn, _opts) do
-    {user_token, conn} = ensure_user_token(conn)
-
-    with user_token when is_binary(user_token) <- user_token,
+    with {user_token, conn} <- ensure_user_token(conn),
+         user_token when is_binary(user_token) <- user_token,
          %User{} = user <- Accounts.get_user_by_session_token(user_token) do
       # Preload orgs and products for the navigation bar
       # Since we've loaded everything then we can reuse it for plugs
       # further down the pipeline
-      {:ok, user} = Accounts.get_user_with_all_orgs_and_products(user.id)
+      user = Accounts.get_user_with_all_orgs_and_products(user.id)
 
       conn
-      |> assign(:user, user)
-      |> assign(:orgs, user.orgs)
+      |> assign(:current_scope, Scope.for_user(user))
       |> assign(:user_token, Phoenix.Token.sign(conn, "user salt", user.id))
     else
       nil ->
-        conn
+        assign(conn, :current_scope, Scope.for_user(nil))
+    end
+  end
+
+  def assign_org_to_scope(conn, _opts) do
+    current_scope = conn.assigns.current_scope
+
+    if name = conn.params["org_name"] do
+      membership = NervesHub.Accounts.get_membership_by_org_name!(current_scope, name)
+
+      current_scope
+      |> Scope.put_org(membership.org)
+      |> Scope.put_role(membership.role)
+      |> then(fn scope ->
+        assign(conn, :current_scope, scope)
+      end)
+    else
+      conn
+    end
+  end
+
+  def assign_product_to_scope(conn, _opts) do
+    current_scope = conn.assigns.current_scope
+
+    if name = conn.params["product_name"] do
+      product = NervesHub.Products.get_by_name!(current_scope, name)
+
+      assign(conn, :current_scope, Scope.put_product(current_scope, product))
+    else
+      conn
+    end
+  end
+
+  def on_mount(:assign_org_to_scope, %{"org_name" => org_name}, _session, socket) do
+    socket =
+      case socket.assigns.current_scope do
+        %{org: nil} = scope ->
+          membership = NervesHub.Accounts.get_membership_by_org_name!(scope, org_name)
+
+          scope
+          |> Scope.put_org(membership.org)
+          |> Scope.put_role(membership.role)
+          |> then(fn scope ->
+            Phoenix.Component.assign(socket, :current_scope, scope)
+          end)
+
+        _ ->
+          socket
+      end
+
+    {:cont, socket}
+  end
+
+  def on_mount(:assign_org_to_scope, _params, _session, socket), do: {:cont, socket}
+
+  def on_mount(:assign_product_to_scope, %{"product_name" => product_name}, _session, socket) do
+    socket =
+      case socket.assigns.current_scope do
+        %{product: nil} = scope ->
+          product = NervesHub.Products.get_by_name!(scope, product_name)
+
+          Phoenix.Component.assign(socket, :current_scope, Scope.put_product(scope, product))
+
+        _ ->
+          socket
+      end
+
+    {:cont, socket}
+  end
+
+  def on_mount(:assign_product_to_scope, _params, _session, socket), do: {:cont, socket}
+
+  def on_mount(:require_authenticated, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    if socket.assigns.current_scope && socket.assigns.current_scope.user do
+      {:cont, socket}
+    else
+      socket =
+        socket
+        |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
+        |> Phoenix.LiveView.redirect(to: ~p"/login")
+
+      {:halt, socket}
+    end
+  end
+
+  def on_mount(:mount_current_scope, _params, session, socket) do
+    {:cont, mount_current_scope(socket, session)}
+  end
+
+  defp mount_current_scope(socket, %{"user_token" => user_token} = _session) do
+    Phoenix.Component.assign_new(socket, :current_scope, fn ->
+      with user_token when is_binary(user_token) <- user_token,
+           %User{} = user <- Accounts.get_user_by_session_token(user_token),
+           %User{} = user <- Accounts.get_user_with_all_orgs_and_products(user.id) do
+        Scope.for_user(user)
+      else
+        nil ->
+          Scope.for_user(nil)
+      end
+    end)
+  end
+
+  defp mount_current_scope(socket, _session), do: socket
+
+  @doc """
+  Used for routes that require the user to be authenticated.
+
+  If you want to enforce the user email is confirmed before
+  they use the application at all, here would be a good place.
+  """
+  def require_authenticated_user(conn, _opts) do
+    if conn.assigns.current_scope && conn.assigns.current_scope.user do
+      conn
+    else
+      conn
+      |> put_session("login_redirect_path", conn.request_path)
+      |> put_flash(:error, "You must login to access this page.")
+      |> maybe_store_return_to()
+      |> redirect(to: ~p"/login")
+      |> halt()
     end
   end
 
@@ -119,24 +239,6 @@ defmodule NervesHubWeb.Auth do
       |> halt()
     else
       conn
-    end
-  end
-
-  @doc """
-  Used for routes that require the user to be authenticated.
-
-  If you want to enforce the user email is confirmed before
-  they use the application at all, here would be a good place.
-  """
-  def require_authenticated_user(conn, _opts) do
-    if conn.assigns[:user] do
-      conn
-    else
-      conn
-      |> put_flash(:error, "You must log in to access this page.")
-      |> maybe_store_return_to()
-      |> redirect(to: ~p"/login")
-      |> halt()
     end
   end
 

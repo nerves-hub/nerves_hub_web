@@ -2,6 +2,7 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
   use NervesHub.DataCase, async: true
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Fixtures
@@ -49,7 +50,10 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
     {:ok, _} =
       Devices.pin_device(user.id, device.id)
 
-    devices = Devices.get_pinned_devices(user.id)
+    devices =
+      Scope.for_user(user)
+      |> Devices.get_pinned_devices()
+
     assert length(devices) == 1
   end
 
@@ -68,14 +72,19 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
     assert {:ok, _} =
              Devices.pin_device(user.id, device.id)
 
-    pinned_devices = Devices.get_pinned_devices(user.id)
+    pinned_devices =
+      Scope.for_user(user)
+      |> Devices.get_pinned_devices()
+
     assert length(pinned_devices) == 1
 
     # Move device to product2, which belongs to other org
     Devices.move(device, product2, user)
 
     # Assert device is unpinned for unauthorized user
-    assert [] == Devices.get_pinned_devices(user.id)
+    assert [] ==
+             Scope.for_user(user)
+             |> Devices.get_pinned_devices()
   end
 
   test "Unpin devices when org access for user is revoked", %{
@@ -89,26 +98,37 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
     assert {:ok, _} =
              Devices.pin_device(user2.id, device.id)
 
-    pinned_devices = Devices.get_pinned_devices(user2.id)
+    pinned_devices =
+      Scope.for_user(user2)
+      |> Devices.get_pinned_devices()
+
     assert length(pinned_devices) == 1
 
     # Remove org access for user
     :ok = Accounts.remove_org_user(org, user2)
 
     # Assert user has no pinned devices
-    assert [] = Devices.get_pinned_devices(user2.id)
+    assert [] =
+             Scope.for_user(user2)
+             |> Devices.get_pinned_devices()
   end
 
   test "Remove entries when user is soft-deleted", %{user: user, device: device} do
     assert {:ok, _} =
              Devices.pin_device(user.id, device.id)
 
-    pinned_devices = Devices.get_pinned_devices(user.id)
+    pinned_devices =
+      Scope.for_user(user)
+      |> Devices.get_pinned_devices()
+
     assert length(pinned_devices) == 1
 
     # Soft Delete user
     Accounts.remove_account(user.id)
-    assert [] = Devices.get_pinned_devices(user.id)
+
+    assert [] =
+             Scope.for_user(user)
+             |> Devices.get_pinned_devices()
   end
 
   test "Remove entries when device is (soft)deleted", %{user: user, device: device} do
@@ -116,6 +136,9 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
              Devices.pin_device(user.id, device.id)
 
     Devices.delete_device(device)
-    assert [] = Devices.get_pinned_devices(user.id)
+
+    assert [] =
+             Scope.for_user(user)
+             |> Devices.get_pinned_devices()
   end
 end

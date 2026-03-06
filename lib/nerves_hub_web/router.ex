@@ -14,18 +14,12 @@ defmodule NervesHubWeb.Router do
   alias Live.Orgs.Index
   alias Live.Orgs.New
   alias Live.SupportScripts.Edit
-  alias NervesHubWeb.API.Plugs.AuthenticateUser
   alias NervesHubWeb.API.Plugs.Device
-  alias NervesHubWeb.Mounts.AccountAuth
+  alias NervesHubWeb.API.Plugs.FetchCurrentUser
+  alias NervesHubWeb.API.Plugs.Product
+  alias NervesHubWeb.API.Plugs.RequireAuthenticatedUser
   alias NervesHubWeb.Mounts.CurrentPath
   alias NervesHubWeb.Mounts.EnrichSentryContext
-  alias NervesHubWeb.Mounts.FetchOrg
-  alias NervesHubWeb.Mounts.FetchOrgUser
-  alias NervesHubWeb.Mounts.FetchProduct
-  alias NervesHubWeb.Plugs.EnsureAuthenticated
-  alias NervesHubWeb.Plugs.EnsureLoggedIn
-  alias NervesHubWeb.Plugs.Org
-  alias NervesHubWeb.Plugs.Product
   alias NervesHubWeb.Plugs.ServerAuth
   alias NervesHubWeb.Plugs.SetLocale
   alias OpenApiSpex.Plug.PutApiSpec
@@ -42,6 +36,8 @@ defmodule NervesHubWeb.Router do
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
     plug(:fetch_current_user)
+    plug(:assign_org_to_scope)
+    plug(:assign_product_to_scope)
     plug(SetLocale)
   end
 
@@ -55,37 +51,20 @@ defmodule NervesHubWeb.Router do
     |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
   end
 
-  pipeline :logged_in do
-    plug(EnsureLoggedIn)
-  end
-
-  pipeline :live_logged_in do
-    plug(EnsureAuthenticated)
-  end
-
-  pipeline :org do
-    plug(Org)
-  end
-
-  pipeline :product do
-    plug(Product)
-  end
-
   pipeline :api do
     plug(:accepts, ["json"])
     plug(PutApiSpec, module: NervesHubWeb.ApiSpec)
+    plug(FetchCurrentUser)
+    plug(:assign_org_to_scope)
+    plug(:assign_product_to_scope)
   end
 
   pipeline :api_require_authenticated_user do
-    plug(AuthenticateUser)
-  end
-
-  pipeline :api_org do
-    plug(NervesHubWeb.API.Plugs.Org)
+    plug(RequireAuthenticatedUser)
   end
 
   pipeline :api_product do
-    plug(NervesHubWeb.API.Plugs.Product)
+    plug(Product)
   end
 
   pipeline :api_device do
@@ -126,8 +105,6 @@ defmodule NervesHubWeb.Router do
 
       scope "/orgs" do
         scope "/:org_name" do
-          pipe_through([:api_org])
-
           scope "/users" do
             get("/", OrgUserController, :index)
             post("/", OrgUserController, :add)
@@ -263,7 +240,7 @@ defmodule NervesHubWeb.Router do
   end
 
   scope "/org/:org_name/:product_name", NervesHubWeb do
-    pipe_through([:browser, :logged_in, :org, :product])
+    pipe_through([:browser, :require_authenticated_user])
 
     get("/devices/export", ProductController, :devices_export)
 
@@ -283,13 +260,14 @@ defmodule NervesHubWeb.Router do
   end
 
   scope "/", NervesHubWeb do
-    pipe_through([:browser, :live_logged_in])
+    pipe_through([:browser, :require_authenticated_user])
 
-    live_session :account_refreshed,
+    live_session :account,
       root_layout: {NervesHubWeb.Layouts, :root},
       layout: {NervesHubWeb.Layouts, :no_sidebar},
       on_mount: [
-        AccountAuth,
+        {NervesHubWeb.Auth, :mount_current_scope},
+        {NervesHubWeb.Auth, :require_authenticated},
         EnrichSentryContext,
         CurrentPath
       ] do
@@ -300,24 +278,14 @@ defmodule NervesHubWeb.Router do
     end
 
     live_session :org,
-      on_mount: [
-        AccountAuth,
-        EnrichSentryContext,
-        CurrentPath,
-        FetchOrg,
-        FetchOrgUser
-      ] do
-    end
-
-    live_session :org_refreshed,
       root_layout: {NervesHubWeb.Layouts, :root},
       layout: {NervesHubWeb.Layouts, :sidebar},
       on_mount: [
-        AccountAuth,
+        {NervesHubWeb.Auth, :mount_current_scope},
+        {NervesHubWeb.Auth, :assign_org_to_scope},
+        {NervesHubWeb.Auth, :require_authenticated},
         EnrichSentryContext,
-        CurrentPath,
-        FetchOrg,
-        FetchOrgUser
+        CurrentPath
       ] do
       live("/org/:org_name", Show)
       live("/org/:org_name/new", Live.Products.New)
@@ -342,12 +310,12 @@ defmodule NervesHubWeb.Router do
       root_layout: {NervesHubWeb.Layouts, :root},
       layout: {NervesHubWeb.Layouts, :sidebar},
       on_mount: [
-        AccountAuth,
+        {NervesHubWeb.Auth, :mount_current_scope},
+        {NervesHubWeb.Auth, :assign_org_to_scope},
+        {NervesHubWeb.Auth, :assign_product_to_scope},
+        {NervesHubWeb.Auth, :require_authenticated},
         EnrichSentryContext,
-        CurrentPath,
-        FetchOrg,
-        FetchOrgUser,
-        FetchProduct
+        CurrentPath
       ] do
       live("/org/:org_name/:product_name/dashboard", Live.Dashboard.Index)
 
@@ -435,7 +403,7 @@ defmodule NervesHubWeb.Router do
   end
 
   scope "/" do
-    pipe_through([:browser, :logged_in, ServerAuth])
+    pipe_through([:browser, :require_authenticated_user, ServerAuth])
     live_dashboard("/status/dashboard", metrics: NervesHub.StatsdMetricsReporter)
     oban_dashboard("/status/oban", resolver: ServerAuth)
   end

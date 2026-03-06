@@ -15,7 +15,7 @@ defmodule NervesHubWeb.Live.Orgs.New do
   end
 
   def handle_event("save_org", %{"org" => org_params}, socket) do
-    socket.assigns.user
+    socket.assigns.current_scope.user
     |> Accounts.create_org(org_params)
     |> case do
       {:ok, org} ->
