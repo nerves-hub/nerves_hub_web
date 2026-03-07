@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.New do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -10,7 +10,7 @@ defmodule NervesHubWeb.Live.Devices.New do
 
     socket
     |> page_title("New Device - #{socket.assigns.current_scope.product.name}")
-    |> assign(:tab_hint, :devices)
+    |> sidebar_tab(:devices)
     |> assign(:form, to_form(changeset))
     |> ok()
   end

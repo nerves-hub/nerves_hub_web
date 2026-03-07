@@ -166,7 +166,7 @@ defmodule NervesHubWeb.Components.Navigation do
                 <div class="dropdown-divider"></div>
                 <%= for org <- @user.orgs do %>
                   <div class="dropdown-submenu">
-                    <.link href={~p"/org/#{org.name}"} class={"dropdown-item org #{org_classes(@current_path, org.name)}"}>
+                    <.link navigate={~p"/org/#{org.name}"} class={"dropdown-item org #{org_classes(@current_path, org.name)}"}>
                       {org.name}
                       <div class="active-checkmark"></div>
                     </.link>
@@ -176,7 +176,7 @@ defmodule NervesHubWeb.Components.Navigation do
                       <%= unless Enum.empty?(org.products) do %>
                         <%= for product <- org.products do %>
                           <li>
-                            <.link href={~p"/org/#{org}/#{product}/devices"} class={"dropdown-item product #{product_classes(@current_path, product.name)}"}>
+                            <.link navigate={~p"/org/#{org}/#{product}/devices"} class={"dropdown-item product #{product_classes(@current_path, product.name)}"}>
                               {product.name}
                               <div class="active-checkmark"></div>
                             </.link>
@@ -213,7 +213,7 @@ defmodule NervesHubWeb.Components.Navigation do
                 <img src="/images/icons/settings.svg" alt="settings" />
               </a>
               <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">
-                <.simple_active_link href={~p"/account"} current_path={@current_path} class="dropdown-item user">
+                <.simple_active_link navigate={~p"/account"} current_path={@current_path} class="dropdown-item user">
                   My Account
                 </.simple_active_link>
                 <div class="dropdown-divider"></div>
