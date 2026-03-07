@@ -790,9 +790,30 @@ defmodule NervesHub.Devices do
     version_threshold = Keyword.get(opts, :version_threshold)
 
     Device
+    |> from(as: :device)
     |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:inner, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
     |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
+    |> join(
+      :left,
+      [d],
+      fd in FirmwareDelta,
+      on:
+        fragment(
+          """
+          ? = (
+            SELECT f.id FROM firmwares f
+            WHERE f.product_id = ? AND f.uuid::text = ? #>> '{\"uuid\"}'
+          ) AND ? = ?
+          """,
+          fd.source_id,
+          d.product_id,
+          d.firmware_metadata,
+          fd.target_id,
+          ^deployment_group.current_release.firmware_id
+        ),
+      as: :firmware_delta
+    )
     |> where(deployment_id: ^deployment_group.id)
     |> where(updates_enabled: true)
     |> where([d], d.firmware_validation_status in [:validated, :unknown])
@@ -800,10 +821,16 @@ defmodule NervesHub.Devices do
     |> where([d], not is_nil(d.firmware_metadata))
     |> where(
       [d],
-      fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, ^deployment_group.current_release.firmware.uuid)
+      fragment(
+        "(? #>> '{\"uuid\"}') != ?",
+        d.firmware_metadata,
+        ^deployment_group.current_release.firmware.uuid
+      )
     )
     |> where([inflight_update: ifu], is_nil(ifu))
     |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
+    # Only include devices where: delta is completed OR no delta row exists
+    |> where([firmware_delta: fd], is_nil(fd.id) or fd.status == :completed)
     |> maybe_version_threshold(version_threshold)
     |> then(fn query ->
       # Filter by network interface if release_network_interfaces is specified
@@ -825,7 +852,11 @@ defmodule NervesHub.Devices do
     where(
       query,
       [d],
-      fragment("semver_match(? #>> '{\"version\"}', ?)", d.firmware_metadata, ^"<= #{version_threshold}")
+      fragment(
+        "semver_match(? #>> '{\"version\"}', ?)",
+        d.firmware_metadata,
+        ^"<= #{version_threshold}"
+      )
     )
   end
 
@@ -973,20 +1004,55 @@ defmodule NervesHub.Devices do
 
   @spec update_deployment_group(Device.t(), DeploymentGroup.t()) :: Device.t()
   def update_deployment_group(device, deployment_group) do
-    device =
-      device
-      |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
-      |> Repo.update!()
+    deployment_group = ManagedDeployments.load_current_release(deployment_group, force: true)
 
-    DeviceEvents.deployment_assigned(device)
+    Repo.transact(fn ->
+      # Update the device's deployment group
+      device =
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
+        |> Repo.update!()
 
-    # let the orchestrator know that a device has been added to the deployment group
-    DeploymentOrchestratorEvents.device_added(device)
+      # Queue delta generation if needed
+      _ = maybe_queue_delta_for_device(device, deployment_group)
 
-    deployment_group = Repo.preload(deployment_group, :firmware)
+      {:ok, device}
+    end)
+    |> case do
+      {:ok, device} ->
+        DeviceEvents.deployment_assigned(device)
+        DeploymentOrchestratorEvents.device_added(device)
+        Map.put(device, :deployment_group, deployment_group)
 
-    Map.put(device, :deployment_group, deployment_group)
+      {:error, reason} ->
+        Logger.error("Failed to add device to deployment group: #{inspect(reason)}")
+        device
+    end
+  end
+
+  # Check if device needs a delta and queue generation if one does not exist
+  defp maybe_queue_delta_for_device(device, deployment_group) do
+    _ =
+      with true <- delta_updatable?(device, deployment_group),
+           {:ok, source_firmware} <-
+             Firmwares.get_firmware_by_product_id_and_uuid(
+               device.product_id,
+               device.firmware_metadata.uuid
+             ) do
+        # Attempt to create firmware delta - this will create a firmware_deltas row in the
+        # :processing state and queue a job to generate the delta itself.
+        case Firmwares.attempt_firmware_delta(source_firmware.id, deployment_group.current_release.id, false) do
+          {:error, reason} ->
+            Logger.warning("Failed to queue delta for device #{device.id}: #{inspect(reason)}")
+            :ok
+
+          _ ->
+            :ok
+        end
+      end
+
+    :ok
   end
 
   @spec clear_deployment_group(Device.t()) :: Device.t()
