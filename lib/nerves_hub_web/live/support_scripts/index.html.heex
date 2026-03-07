@@ -1,10 +1,12 @@
 <div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
 
-<div class="h-0 flex-1 overflow-y-auto">
-  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
-    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Support Scripts</h1>
-    <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">
-      {@pager_meta.total_count}
+<div class="h-0 flex-1">
+  <div class="flex items-center flex-wrap gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <div class="flex items-center mr-auto gap-4">
+      <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Support Scripts</h1>
+      <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5">
+        {@pager_meta.total_count}
+      </div>
     </div>
 
     <.button type="link" navigate={~p"/org/#{@org}/#{@product}/scripts/new"} aria-label="Add a support script">
@@ -12,7 +14,7 @@
     </.button>
   </div>
 
-  <div :if={Enum.any?(@scripts)} class="listing">
+  <div :if={Enum.any?(@scripts)} class="listing overflow-x-auto">
     <table>
       <thead>
         <tr>
