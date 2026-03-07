@@ -1207,6 +1207,315 @@ defmodule NervesHub.DevicesTest do
 
       assert Enum.empty?(available)
     end
+
+    test "excludes devices when firmware_delta exists with status :processing", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      org_key: org_key,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      # Create source and target firmwares
+      source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Update deployment group to target firmware
+      {:ok, deployment_group} =
+        Ecto.Changeset.change(deployment_group, %{firmware_id: target_firmware.id})
+        |> Repo.update()
+
+      # Create a new deployment release for the target firmware
+      {:ok, _release} =
+        %DeploymentRelease{}
+        |> DeploymentRelease.changeset(%{
+          deployment_group_id: deployment_group.id,
+          firmware_id: target_firmware.id,
+          created_by_id: user.id
+        })
+        |> Repo.insert()
+
+      deployment_group = ManagedDeployments.load_current_release(deployment_group, force: true)
+
+      # Create device with source firmware
+      device =
+        Fixtures.device_fixture(org, product, source_firmware, %{
+          deployment_id: deployment_group.id
+        })
+
+      # Explicitly set device firmware metadata to match source firmware UUID
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          Map.from_struct(%{device.firmware_metadata | uuid: source_firmware.uuid}),
+          :unknown,
+          false
+        )
+
+      # Set up device connection
+      %{id: latest_connection_id} =
+        DeviceConnection.create_changeset(%{
+          product_id: product.id,
+          device_id: device.id,
+          established_at: DateTime.utc_now(),
+          last_seen_at: DateTime.utc_now(),
+          status: :connected
+        })
+        |> Repo.insert!()
+
+      Device
+      |> where(id: ^device.id)
+      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+      # Create firmware_delta with status :processing
+      delta =
+        Fixtures.firmware_delta_fixture(source_firmware, target_firmware, %{status: :processing})
+
+      # Verify the delta was created correctly
+      assert delta.source_id == source_firmware.id
+      assert delta.target_id == target_firmware.id
+      assert delta.status == :processing
+
+      # Device should NOT be available because delta is still processing
+      available = Devices.available_for_update(deployment_group, 10)
+      assert Enum.empty?(available)
+    end
+
+    test "excludes devices when firmware_delta exists with status :failed", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      org_key: org_key,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      # Create source and target firmwares
+      source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Update deployment group to target firmware
+      {:ok, deployment_group} =
+        Ecto.Changeset.change(deployment_group, %{firmware_id: target_firmware.id})
+        |> Repo.update()
+
+      # Create a new deployment release for the target firmware
+      {:ok, _release} =
+        %DeploymentRelease{}
+        |> DeploymentRelease.changeset(%{
+          deployment_group_id: deployment_group.id,
+          firmware_id: target_firmware.id,
+          created_by_id: user.id
+        })
+        |> Repo.insert()
+
+      deployment_group = ManagedDeployments.load_current_release(deployment_group, force: true)
+
+      # Create device with source firmware
+      device =
+        Fixtures.device_fixture(org, product, source_firmware, %{
+          deployment_id: deployment_group.id
+        })
+
+      # Explicitly set device firmware metadata to match source firmware UUID
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          Map.from_struct(%{device.firmware_metadata | uuid: source_firmware.uuid}),
+          :unknown,
+          false
+        )
+
+      # Set up device connection
+      %{id: latest_connection_id} =
+        DeviceConnection.create_changeset(%{
+          product_id: product.id,
+          device_id: device.id,
+          established_at: DateTime.utc_now(),
+          last_seen_at: DateTime.utc_now(),
+          status: :connected
+        })
+        |> Repo.insert!()
+
+      Device
+      |> where(id: ^device.id)
+      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+      # Create firmware_delta with status :failed
+      _delta =
+        Fixtures.firmware_delta_fixture(source_firmware, target_firmware, %{status: :failed})
+
+      # Device should NOT be available because delta failed
+      available = Devices.available_for_update(deployment_group, 10)
+      assert Enum.empty?(available)
+    end
+
+    test "includes devices when firmware_delta exists with status :completed", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      # Create source and target firmwares
+      source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Update deployment group to target firmware
+      {:ok, deployment_group} =
+        Ecto.Changeset.change(deployment_group, %{firmware_id: target_firmware.id})
+        |> Repo.update()
+
+      deployment_group = Repo.preload(deployment_group, [current_release: :firmware], force: true)
+
+      # Create device with source firmware
+      device =
+        Fixtures.device_fixture(org, product, source_firmware, %{
+          deployment_id: deployment_group.id
+        })
+
+      # Explicitly set device firmware metadata to match source firmware UUID
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          Map.from_struct(%{device.firmware_metadata | uuid: source_firmware.uuid}),
+          :unknown,
+          false
+        )
+
+      # Set up device connection
+      %{id: latest_connection_id} =
+        DeviceConnection.create_changeset(%{
+          product_id: product.id,
+          device_id: device.id,
+          established_at: DateTime.utc_now(),
+          last_seen_at: DateTime.utc_now(),
+          status: :connected
+        })
+        |> Repo.insert!()
+
+      Device
+      |> where(id: ^device.id)
+      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+      # Create firmware_delta with status :completed
+      _delta =
+        Fixtures.firmware_delta_fixture(source_firmware, target_firmware, %{status: :completed})
+
+      # Device SHOULD be available because delta is completed
+      available = Devices.available_for_update(deployment_group, 10)
+      assert length(available) == 1
+      assert hd(available).id == device.id
+    end
+
+    test "includes devices when no firmware_delta exists", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      # Create source and target firmwares
+      source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Update deployment group to target firmware
+      {:ok, deployment_group} =
+        Ecto.Changeset.change(deployment_group, %{firmware_id: target_firmware.id})
+        |> Repo.update()
+
+      deployment_group = Repo.preload(deployment_group, [current_release: :firmware], force: true)
+
+      # Create device with source firmware
+      device =
+        Fixtures.device_fixture(org, product, source_firmware, %{
+          deployment_id: deployment_group.id
+        })
+
+      # Explicitly set device firmware metadata to match source firmware UUID
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          Map.from_struct(%{device.firmware_metadata | uuid: source_firmware.uuid}),
+          :unknown,
+          false
+        )
+
+      # Set up device connection
+      %{id: latest_connection_id} =
+        DeviceConnection.create_changeset(%{
+          product_id: product.id,
+          device_id: device.id,
+          established_at: DateTime.utc_now(),
+          last_seen_at: DateTime.utc_now(),
+          status: :connected
+        })
+        |> Repo.insert!()
+
+      Device
+      |> where(id: ^device.id)
+      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+      # No firmware_delta created - device will use full firmware
+
+      # Device SHOULD be available because no delta exists (will use full firmware)
+      available = Devices.available_for_update(deployment_group, 10)
+      assert length(available) == 1
+      assert hd(available).id == device.id
+    end
+
+    test "includes devices when no matching firmware found for the device UUID", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      # Create target firmware for deployment group
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Update deployment group to target firmware
+      {:ok, deployment_group} =
+        Ecto.Changeset.change(deployment_group, %{firmware_id: target_firmware.id})
+        |> Repo.update()
+
+      deployment_group = Repo.preload(deployment_group, [current_release: :firmware], force: true)
+
+      # Create device with deployment_id
+      device =
+        Fixtures.device_fixture(org, product, target_firmware, %{
+          deployment_id: deployment_group.id
+        })
+
+      # Set up device connection
+      %{id: latest_connection_id} =
+        DeviceConnection.create_changeset(%{
+          product_id: product.id,
+          device_id: device.id,
+          established_at: DateTime.utc_now(),
+          last_seen_at: DateTime.utc_now(),
+          status: :connected
+        })
+        |> Repo.insert!()
+
+      Device
+      |> where(id: ^device.id)
+      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+      # Update device firmware_metadata to a UUID that doesn't exist in the firmwares table
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          %{"uuid" => UUIDv7.autogenerate()},
+          :unknown,
+          false
+        )
+
+      # Device SHOULD be available even though source firmware UUID doesn't exist
+      # (subquery will return nil, LEFT JOIN will have no firmware_delta match)
+      available = Devices.available_for_update(deployment_group, 10)
+      assert length(available) == 1
+      assert hd(available).id == device.id
+    end
   end
 
   describe "resolve_update/1" do
