@@ -52,12 +52,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
     deployment_count = ManagedDeployments.should_run_orchestrator() |> Enum.count()
 
     if process_count != deployment_count do
-      _ =
-        Sentry.capture_message("Not enough Orchestrator processes are running",
-          extra: %{process_count: process_count, deployment_count: deployment_count},
-          result: :none
-        )
-
+      report_mismatch(process_count, deployment_count)
       start_orchestrators()
     end
 
@@ -85,23 +80,52 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
     maybe_start_orchestrators(requires_starting)
   end
 
-  def maybe_start_orchestrators(to_start) when is_list(to_start) and to_start == [] do
+  defp maybe_start_orchestrators(to_start) when is_list(to_start) and to_start == [] do
     :ok
   end
 
-  def maybe_start_orchestrators(to_start) do
+  defp maybe_start_orchestrators(to_start) do
     ProcessHub.start_children(:deployment_orchestrators, to_start, awaitable: true, check_existing: false)
     |> ProcessHub.Future.await()
     |> ProcessHub.StartResult.format()
+    |> filter_already_started_errors()
     |> report_errors()
+  end
+
+  defp report_mismatch(process_count, deployment_count) do
+    _ =
+      Sentry.capture_message("Not enough Orchestrator processes are running",
+        extra: %{process_count: process_count, deployment_count: deployment_count},
+        result: :none
+      )
+
+    :ok
+  end
+
+  defp filter_already_started_errors({:error, errors, :rollback}) do
+    filter_already_started_errors({:error, errors})
+  end
+
+  defp filter_already_started_errors({:error, {errors, started}}) do
+    Enum.filter(errors, fn
+      {_name, {:already_started, _pid}} -> false
+      _ -> true
+    end)
+    |> case do
+      [] ->
+        {:ok, started}
+
+      filtered ->
+        {:error, {filtered, started}}
+    end
+  end
+
+  defp filter_already_started_errors(result) do
+    result
   end
 
   defp report_errors({:ok, _started_list}) do
     :ok
-  end
-
-  defp report_errors({:error, errors, :rollback}) do
-    report_errors({:error, errors})
   end
 
   defp report_errors({:error, errors}) do
