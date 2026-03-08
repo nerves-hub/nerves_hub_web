@@ -41,7 +41,7 @@ config :nerves_hub, NervesHub.Repo,
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: NervesHubWeb.ErrorHTML, json: ErrorJSON],
+    formats: [html: NervesHubWeb.ErrorDeviceHTML, json: ErrorJSON],
     accepts: ~w(html json)
   ],
   pubsub_server: NervesHub.PubSub

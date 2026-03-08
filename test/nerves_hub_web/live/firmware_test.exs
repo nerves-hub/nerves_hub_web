@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.FirmwareTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
+  alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
@@ -189,6 +190,64 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("p",
         text: "Error deleting firmware: Firmware has associated deployment releases"
       )
+    end
+
+    test "no flash is shown when new firmware is uploaded",
+         %{
+           conn: conn,
+           user: user,
+           org: org,
+           tmp_dir: tmp_dir
+         } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
+        |> assert_has("h1", text: firmware.uuid)
+        |> refute_has("p",
+          text: "New firmware (#{firmware.version} - #{String.slice(firmware.uuid, 0..7)}) available for selection."
+        )
+        |> refute_has("p",
+          text:
+            "New firmware (#{firmware.version} - #{String.slice(firmware.uuid, 0..7)}) available for selection. Please go back to page 1 to view it."
+        )
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn
+      |> refute_has("p",
+        text:
+          "New firmware (#{new_firmware.version} - #{String.slice(new_firmware.uuid, 0..7)}) available for selection."
+      )
+      |> refute_has("p",
+        text:
+          "New firmware (#{new_firmware.version} - #{String.slice(new_firmware.uuid, 0..7)}) available for selection. Please go back to page 1 to view it."
+      )
+    end
+
+    test "no flash is show when other firmware is deleted",
+         %{
+           conn: conn,
+           user: user,
+           org: org,
+           tmp_dir: tmp_dir
+         } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      other_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
+      |> assert_has("h1", text: firmware.uuid)
+      |> refute_has("p", text: "has been deleted by another user.")
+      |> tap(fn _ -> Firmwares.delete_firmware(other_firmware) end)
+      |> refute_has("p", text: "has been deleted by another user.")
     end
   end
 

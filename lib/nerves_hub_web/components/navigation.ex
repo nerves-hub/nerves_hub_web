@@ -125,12 +125,12 @@ defmodule NervesHubWeb.Components.Navigation do
 
   def nav_link(assigns) do
     ~H"""
-    <li class={["h-11 flex items-center px-4 hover:bg-sidebar-item-hover", @selected && "bg-sidebar-item-selected border-r-2 border-indigo-500"]}>
-      <.link class="group flex items-center gap-x-3 text-sm tracking-wide leading-[19px] text-[#D4D4D8] font-light w-full h-full" navigate={@path}>
-        <svg class={"w-5 h-5" <> active_icon(@selected)} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <li class={["h-11 flex items-center justify-center lg:justify-start lg:px-4 hover:bg-sidebar-item-hover", @selected && "bg-sidebar-item-selected border-r-2 border-indigo-500"]}>
+      <.link class="group flex items-center gap-x-3 text-sm tracking-wide leading-[19px] text-[#D4D4D8] font-light w-full h-full justify-center lg:justify-start" navigate={@path}>
+        <svg class={"w-5 h-5 shrink-0" <> active_icon(@selected)} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
           {render_slot(@inner_block)}
         </svg>
-        <span class={[@selected && "font-semibold text-zinc-50"]}>{@label}</span>
+        <span class={["hidden lg:inline", @selected && "font-semibold text-zinc-50"]}>{@label}</span>
       </.link>
     </li>
     """
