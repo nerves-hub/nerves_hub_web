@@ -59,6 +59,7 @@
   "libcluster_postgres": {:hex, :libcluster_postgres, "0.2.0", "14a5064b78f891c46935a66489454814d949a52b447fc1daff5d4a440e6f5847", [:mix], [{:libcluster, "~> 3.3", [hex: :libcluster, repo: "hexpm", optional: false]}, {:postgrex, ">= 0.0.0", [hex: :postgrex, repo: "hexpm", optional: false]}], "hexpm", "ab2e952371c5a0a0fcb263216c7eae2a2267977b3bb3236650daed3054a93edd"},
   "libgraph": {:hex, :libgraph, "0.16.0", "3936f3eca6ef826e08880230f806bfea13193e49bf153f93edcf0239d4fd1d07", [:mix], [], "hexpm", "41ca92240e8a4138c30a7e06466acc709b0cbb795c643e9e17174a178982d6bf"},
   "logfmt_ex": {:hex, :logfmt_ex, "0.4.2", "e337b6072bd21ad61d8bbe38d9c591b5a8e4869ceba4967699d027baedf2eec8", [:mix], [], "hexpm", "7fad3704383d4595adf0da873e72c8b393120e67b1257f9102da881fde9d4249"},
+  "lucide": {:git, "https://github.com/lucide-icons/lucide.git", "0ea8780434e2b4527dc860b18ff94883d080b59c", [tag: "0.577.0", sparse: "icons", depth: 1]},
   "metrics": {:hex, :metrics, "1.0.1", "25f094dea2cda98213cecc3aeff09e940299d950904393b2a29d191c346a8486", [:rebar3], [], "hexpm", "69b09adddc4f74a40716ae54d140f93beb0fb8978d8636eaded0c31b6f099f16"},
   "mime": {:hex, :mime, "2.0.7", "b8d739037be7cd402aee1ba0306edfdef982687ee7e9859bee6198c1e7e2f128", [:mix], [], "hexpm", "6171188e399ee16023ffc5b76ce445eb6d9672e2e241d2df6050f3c771e80ccd"},
   "mimerl": {:hex, :mimerl, "1.4.0", "3882a5ca67fbbe7117ba8947f27643557adec38fa2307490c4c4207624cb213b", [:rebar3], [], "hexpm", "13af15f9f68c65884ecca3a3891d50a7b57d82152792f3e19d88650aa126b144"},

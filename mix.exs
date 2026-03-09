@@ -112,6 +112,10 @@ defmodule NervesHub.MixProject do
       {:lazy_html, ">= 0.0.0", only: :test},
       {:libcluster_postgres, "~> 0.2.0"},
       {:logfmt_ex, "~> 0.4"},
+      {
+        :lucide,
+        github: "lucide-icons/lucide", tag: "0.577.0", sparse: "icons", app: false, compile: false, depth: 1
+      },
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.12.0"},
