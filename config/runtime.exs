@@ -3,6 +3,8 @@ import Config
 alias NervesHub.Firmwares.Upload
 alias NervesHub.Firmwares.Upload.S3
 alias NervesHub.Telemetry.FilteredSampler
+alias Sentry.OpenTelemetry.Sampler
+alias Sentry.OpenTelemetry.SpanProcessor
 alias Swoosh.Adapters.SMTP
 alias Ueberauth.Strategy.Google.OAuth
 
@@ -413,21 +415,30 @@ config :sentry,
     ]
   ]
 
-if otlp_endpoint = System.get_env("OTLP_ENDPOINT") do
-  otlp_sampler_ratio =
-    if ratio = System.get_env("OTLP_SAMPLER_RATIO") do
-      String.to_float(ratio)
-    end
+cond do
+  System.get_env("SENTRY_ENABLE_TRACING", "false") == "true" ->
+    config :opentelemetry, sampler: {Sampler, []}
+    config :opentelemetry, span_processor: {SpanProcessor, []}
 
-  config :opentelemetry,
-    sampler: {:parent_based, %{root: {FilteredSampler, otlp_sampler_ratio}}}
+    config :sentry,
+      traces_sample_rate: 0.1
 
-  config :opentelemetry_exporter,
-    otlp_protocol: :http_protobuf,
-    otlp_endpoint: otlp_endpoint,
-    otlp_headers: [{System.get_env("OTLP_AUTH_HEADER"), System.get_env("OTLP_AUTH_HEADER_VALUE")}]
-else
-  config :opentelemetry, traces_exporter: :none
+  otlp_endpoint = System.get_env("OTLP_ENDPOINT") ->
+    otlp_sampler_ratio =
+      if ratio = System.get_env("OTLP_SAMPLER_RATIO") do
+        String.to_float(ratio)
+      end
+
+    config :opentelemetry,
+      sampler: {:parent_based, %{root: {FilteredSampler, otlp_sampler_ratio}}}
+
+    config :opentelemetry_exporter,
+      otlp_protocol: :http_protobuf,
+      otlp_endpoint: otlp_endpoint,
+      otlp_headers: [{System.get_env("OTLP_AUTH_HEADER"), System.get_env("OTLP_AUTH_HEADER_VALUE")}]
+
+  true ->
+    config :opentelemetry, traces_exporter: :none
 end
 
 if host = System.get_env("STATSD_HOST") do
