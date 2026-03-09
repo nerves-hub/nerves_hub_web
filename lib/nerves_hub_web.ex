@@ -60,7 +60,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  def updated_live_view() do
+  def live_view() do
     quote do
       unquote(live_view_setup())
       unquote(live_view_imports())
@@ -71,7 +71,6 @@ defmodule NervesHubWeb do
   defp live_view_setup() do
     quote do
       use Phoenix.LiveView,
-        layout: {NervesHubWeb.LayoutView, :live},
         container: {:div, class: "h-screen"}
 
       use Gettext, backend: NervesHubWeb.Gettext

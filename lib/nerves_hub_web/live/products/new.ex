@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Products.New do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Extensions
   alias NervesHub.Products
@@ -9,14 +9,13 @@ defmodule NervesHubWeb.Live.Products.New do
   def mount(_params, _session, socket) do
     products = Products.get_products(socket.assigns.current_scope)
 
-    socket =
-      socket
-      |> page_title("New Product - #{socket.assigns.current_scope.org.name}")
-      |> assign(:form, to_form(Products.change_product(%Product{})))
-      |> assign(:products, products)
-      |> assign(:available_extensions, extensions())
-
-    {:ok, socket}
+    socket
+    |> page_title("New Product - #{socket.assigns.current_scope.org.name}")
+    |> sidebar_tab(:products)
+    |> assign(:form, to_form(Products.change_product(%Product{})))
+    |> assign(:products, products)
+    |> assign(:available_extensions, extensions())
+    |> ok()
   end
 
   @impl Phoenix.LiveView

@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Firmware do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
   alias NervesHub.Firmwares
@@ -56,6 +56,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
     socket
     |> page_title("Firmware #{firmware_uuid} - #{product.name}")
+    |> sidebar_tab(:firmware)
     |> assign(:firmware, firmware)
     |> assign(:org_keys, Accounts.list_org_keys(scope))
     |> render_with(&show_firmware_template/1)

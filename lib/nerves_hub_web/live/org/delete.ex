@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Org.Delete do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
 

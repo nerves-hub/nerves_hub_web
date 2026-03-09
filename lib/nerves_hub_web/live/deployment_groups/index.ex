@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Index do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
@@ -56,10 +56,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
 
     socket
     |> page_title("Deployments - #{scope.product.name}")
+    |> sidebar_tab(:deployments)
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:sort_direction, @default_sorting.sort_direction)
     |> assign(:current_sort, @default_sorting.sort)
-    |> sidebar_tab(:deployments)
     |> assign(:deployment_groups, deployment_groups)
     |> assign(:platforms, Firmwares.get_unique_platforms(scope.product))
     |> assign(:architectures, Firmwares.get_unique_architectures(scope.product))

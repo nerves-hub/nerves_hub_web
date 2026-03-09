@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.SupportScripts.Index do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Repo
   alias NervesHub.Scripts

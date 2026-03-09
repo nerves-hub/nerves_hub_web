@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Archives do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
   alias NervesHub.Archives
@@ -48,6 +48,7 @@ defmodule NervesHubWeb.Live.Archives do
 
     socket
     |> page_title("Archive #{archive_uuid} - #{product.name}")
+    |> sidebar_tab(:archives)
     |> assign(:archive, archive)
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.current_scope))
     |> render_with(&show_archive_template/1)

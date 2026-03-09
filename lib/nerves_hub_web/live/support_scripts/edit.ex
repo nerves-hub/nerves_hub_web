@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.SupportScripts.Edit do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Scripts
   alias NervesHub.Scripts.Script

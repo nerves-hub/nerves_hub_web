@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.New do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Firmwares
@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
     if Firmwares.count(scope.product) == 0 do
       socket
       |> assign(:firmware_required, true)
+      |> sidebar_tab(:deployments)
       |> ok()
     else
       platforms = Firmwares.get_unique_platforms(scope.product)
