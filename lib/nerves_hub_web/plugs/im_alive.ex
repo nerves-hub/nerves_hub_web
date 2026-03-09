@@ -9,10 +9,18 @@ defmodule NervesHubWeb.Plugs.ImAlive do
 
   alias Ecto.Adapters.SQL
 
-  @status_path "/status/alive"
+  @default_status_path "/status/alive"
+
+  @status_paths [
+    @default_status_path,
+    "/status/_health",
+    "/status/health",
+    "/status/healthy"
+  ]
+
   def init(config), do: config
 
-  def call(%{request_path: @status_path} = conn, _) do
+  def call(%{request_path: path} = conn, _) when path in @status_paths do
     case SQL.query(NervesHub.Repo, "SELECT true", []) do
       {:ok, _} -> send_result(conn, 200, "Hello, Friend!")
       _result -> send_result(conn, 500, "Sorry, Friend :(")
@@ -23,7 +31,7 @@ defmodule NervesHubWeb.Plugs.ImAlive do
 
   def status_path_spec() do
     %{
-      @status_path => %OpenApiSpex.PathItem{
+      @default_status_path => %OpenApiSpex.PathItem{
         get: %OpenApiSpex.Operation{
           summary: "Check application status",
           description:
