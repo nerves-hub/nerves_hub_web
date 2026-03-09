@@ -477,6 +477,25 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
+  describe "get_firmwares_by_product_and_platform/2" do
+    test "returns firmwares matching product and platform", %{product: product, firmware: firmware} do
+      result = Firmwares.get_firmwares_by_product_and_platform(product, firmware.platform)
+
+      assert length(result) == 1
+      assert hd(result).id == firmware.id
+    end
+
+    test "returns empty list for non-matching platform", %{product: product} do
+      assert [] == Firmwares.get_firmwares_by_product_and_platform(product, "nonexistent")
+    end
+
+    test "does not return firmwares from other products", %{firmware: firmware, user: user, org: org} do
+      other_product = Fixtures.product_fixture(user, org, %{name: "OtherProduct"})
+
+      assert [] == Firmwares.get_firmwares_by_product_and_platform(other_product, firmware.platform)
+    end
+  end
+
   defp get_deltas_by_source_firmware(firmware) do
     FirmwareDelta
     |> where([fd], fd.source_id == ^firmware.id)

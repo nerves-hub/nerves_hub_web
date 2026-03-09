@@ -1407,4 +1407,49 @@ defmodule NervesHub.ManagedDeploymentsTest do
     {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
     assert length(ManagedDeployments.should_run_orchestrator()) == 1
   end
+
+  describe "get_by_product_and_platforms/2" do
+    test "returns deployment groups matching any of the given platforms", %{
+      product: product,
+      deployment_group: deployment_group,
+      firmware: firmware
+    } do
+      result = ManagedDeployments.get_by_product_and_platforms(product, [firmware.platform])
+
+      assert length(result) == 1
+      assert hd(result).id == deployment_group.id
+    end
+
+    test "returns empty list when no platforms match", %{product: product} do
+      assert [] == ManagedDeployments.get_by_product_and_platforms(product, ["nonexistent"])
+    end
+
+    test "returns empty list for empty platforms list", %{product: product} do
+      assert [] == ManagedDeployments.get_by_product_and_platforms(product, [])
+    end
+
+    test "does not return deployment groups from other products", %{
+      firmware: firmware,
+      product2: product2
+    } do
+      assert [] == ManagedDeployments.get_by_product_and_platforms(product2, [firmware.platform])
+    end
+
+    test "returns deployment groups for multiple platforms", %{
+      product: product,
+      org_key: org_key,
+      deployment_group: deployment_group,
+      firmware: firmware,
+      tmp_dir: tmp_dir
+    } do
+      other_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "rpi0"})
+      other_dg = Fixtures.deployment_group_fixture(other_firmware, %{name: "RPi0 Deployment"})
+
+      result = ManagedDeployments.get_by_product_and_platforms(product, [firmware.platform, "rpi0"])
+
+      ids = Enum.map(result, & &1.id)
+      assert deployment_group.id in ids
+      assert other_dg.id in ids
+    end
+  end
 end
