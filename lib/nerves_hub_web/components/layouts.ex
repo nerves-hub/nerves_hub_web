@@ -130,8 +130,7 @@ defmodule NervesHubWeb.Layouts do
 
         <div>
           <nav id="navigation" class="flex grow flex-col">
-            <Navigation.updated_sidebar :if={not is_nil(@current_scope.product)} org={@current_scope.org} product={@current_scope.product} selected_tab={@sidebar_tab} />
-            <Navigation.updated_sidebar :if={is_nil(@current_scope.product)} org={@current_scope.org} selected_tab={@sidebar_tab} />
+            <Navigation.sidebar scope={@current_scope} selected_tab={@sidebar_tab} />
           </nav>
         </div>
 
