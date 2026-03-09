@@ -164,7 +164,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
 
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
-      sort: {String.to_existing_atom(socket.assigns.sort_direction), String.to_atom(socket.assigns.current_sort)},
+      sort:
+        {String.to_existing_atom(socket.assigns.sort_direction),
+         String.to_atom(socket.assigns.current_sort)},
       filters: filters
     }
 
@@ -204,7 +206,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   defp filter_changes(params) do
-    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters), empty_values: []).changes
+    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
+      empty_values: []
+    ).changes
   end
 
   defp pagination_changes(params) do

@@ -4,7 +4,7 @@ defmodule NervesHubWeb.API.Plugs.RequireAuthenticatedUser do
   end
 
   def call(conn, _opts) do
-    if conn.assigns.current_scope && conn.assigns.current_scope.user do
+    if get_in(conn.assigns.current_scope.user) do
       conn
     else
       raise NervesHubWeb.UnauthorizedError

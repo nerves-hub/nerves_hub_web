@@ -74,4 +74,32 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistrationTest 
 
     OrchestratorRegistration.check_running_orchestrators()
   end
+
+  # There is a possible race condition where multiple orchestrators are started simultaneously (eg. a deploy),
+  # but one node is already starting an orchestrator, while the other is about to, and thus it
+  # gets an error saying that its already started
+  test "doesn't log to sentry if all errors are :already_started errors" do
+    expect(ManagedDeployments, :should_run_orchestrator, 1, fn ->
+      [%ManagedDeployments.DeploymentGroup{id: 1}]
+    end)
+
+    expect(ProcessHub, :process_list, fn _table_name, _node_context ->
+      [distributed_orchestrator_2: ["nerves-hub@node.id": "1.2.3"]]
+    end)
+
+    expect(ProcessHub, :start_children, fn _hub_id, _spec, _opts -> :ok end)
+
+    expect(ProcessHub.Future, :await, fn _ ->
+      %ProcessHub.StartResult{
+        status: :ok,
+        started: [],
+        errors: [{:distributed_orchestrator_1, [already_started: "pid"]}],
+        rollback: false
+      }
+    end)
+
+    reject(&Sentry.capture_message/2)
+
+    OrchestratorRegistration.start_orchestrators()
+  end
 end

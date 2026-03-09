@@ -263,6 +263,7 @@ defmodule NervesHubWeb.Router do
       ] do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
+
       live("/orgs", Index)
       live("/orgs/new", New)
 

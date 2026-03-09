@@ -24,6 +24,7 @@
     "Dockerfile",
     "config",
     "assets/{node_modules,static}",
+    "assets/tailwind.config.js",
     "mix.exs",
     "priv",
     "rel",

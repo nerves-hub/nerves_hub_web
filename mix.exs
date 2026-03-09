@@ -100,7 +100,7 @@ defmodule NervesHub.MixProject do
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
       {:excoveralls, "~> 0.18", only: :test},
-      {:finch, "~> 0.20.0"},
+      {:finch, "~> 0.21.0"},
       {:floki, "~> 0.38.0"},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
@@ -112,6 +112,10 @@ defmodule NervesHub.MixProject do
       {:lazy_html, ">= 0.0.0", only: :test},
       {:libcluster_postgres, "~> 0.2.0"},
       {:logfmt_ex, "~> 0.4"},
+      {
+        :lucide,
+        github: "lucide-icons/lucide", tag: "0.577.0", sparse: "icons", app: false, compile: false, depth: 1
+      },
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.12.0"},
@@ -143,7 +147,7 @@ defmodule NervesHub.MixProject do
       {:postgrex, "~> 0.14"},
       {:quokka, "~> 2.11.2", only: [:dev, :test]},
       {:req, "~> 0.5"},
-      {:sentry, "~> 11.0"},
+      {:sentry, "~> 12.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:slugify, "~> 1.3"},
       {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},

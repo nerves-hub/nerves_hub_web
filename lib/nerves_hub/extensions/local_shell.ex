@@ -3,6 +3,8 @@ defmodule NervesHub.Extensions.LocalShell do
 
   import Phoenix.Socket, only: [assign: 3]
 
+  require Logger
+
   @impl NervesHub.Extensions
   def description() do
     """
@@ -56,6 +58,14 @@ defmodule NervesHub.Extensions.LocalShell do
     topic = "user:local_shell:#{socket.assigns.device.id}"
 
     socket.endpoint.broadcast!(topic, "output", %{data: data})
+
+    {:noreply, socket}
+  end
+
+  def handle_in(event, params, socket) do
+    Logger.warning(
+      "[Extensions.LocalShell] unknown message received for device: #{inspect(socket.assigns.device.id)} / #{inspect(event)} / #{inspect(params)}"
+    )
 
     {:noreply, socket}
   end
