@@ -11,7 +11,7 @@
   </div>
   <div class="flex items-center gap-2 ml-auto mr-6">
     <.button
-      :if={authorized?(:"deployment_group:toggle", @org_user)}
+      :if={authorized?(:"deployment_group:toggle", @current_scope)}
       aria-label={"#{(@deployment_group.is_active && "Pause") || "Resume"} deployment"}
       type="button"
       phx-click="toggle"
@@ -104,10 +104,7 @@
     module={SummaryTab}
     id="deployment_group_summary"
     deployment_group={@deployment_group}
-    product={@product}
-    org={@org}
-    org_user={@org_user}
-    user={@user}
+    current_scope={@current_scope}
   />
 
   <.live_component
@@ -115,13 +112,10 @@
     module={ReleasesTab}
     id="deployment_group_releases"
     deployment_group={@deployment_group}
-    org={@org}
-    product={@product}
-    user={@user}
-    org_user={@org_user}
+    current_scope={@current_scope}
   />
 
-  <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_group_activity" deployment_group={@deployment_group} org={@org} product={@product} user={@user} />
+  <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_group_activity" deployment_group={@deployment_group} current_scope={@current_scope} />
 
-  <.live_component :if={@tab == :settings} module={SettingsTab} id="deployment_group_settings" deployment_group={@deployment_group} org={@org} product={@product} user={@user} org_user={@org_user} />
+  <.live_component :if={@tab == :settings} module={SettingsTab} id="deployment_group_settings" deployment_group={@deployment_group} current_scope={@current_scope} />
 </div>

@@ -741,8 +741,7 @@ defmodule NervesHubWeb.WebsocketTest do
       device = Repo.preload(device, :org)
 
       updated_device =
-        Devices.get_device_by_identifier(device.org, device.identifier)
-        |> elem(1)
+        Repo.get_by(Device, identifier: device.identifier)
         |> Repo.preload(:org)
 
       assert updated_device.firmware_metadata.uuid == query_uuid

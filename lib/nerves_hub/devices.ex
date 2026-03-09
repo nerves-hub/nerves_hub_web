@@ -7,6 +7,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
@@ -208,25 +209,21 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def get_by_identifier(identifier) do
-    case Repo.get_by(Device, identifier: identifier) do
-      nil ->
-        {:error, :not_found}
-
-      device ->
-        {:ok, Repo.preload(device, [:org, :product, :latest_connection, deployment_group: [:firmware]])}
-    end
+  @spec get_by_identifier!(String.t()) :: Device.t()
+  def get_by_identifier!(identifier) when is_binary(identifier) do
+    Device
+    |> join(:left, [d], o in assoc(d, :org), as: :org)
+    |> where(identifier: ^identifier)
+    |> preload([org: o], org: o)
+    |> join_and_preload_deployment_group_and_current_release()
+    |> join_and_preload([:product, :latest_connection])
+    |> Repo.one!()
   end
 
-  def get_by_identifier!(identifier) do
-    device = Repo.get_by!(Device, identifier: identifier)
-    Repo.preload(device, [:org, :product, :latest_connection, deployment_group: [:firmware]])
-  end
-
-  @spec get_device_by_identifier(Org.t(), String.t(), atom() | list(atom()) | nil) ::
+  @spec get_by_identifier(Scope.t(), String.t(), atom() | list(atom()) | nil) ::
           {:ok, Device.t()} | {:error, :not_found}
-  def get_device_by_identifier(org, identifier, preload_assoc \\ nil) when is_binary(identifier) do
-    get_device_by_identifier_query(org, identifier, preload_assoc)
+  def get_by_identifier(%Scope{} = scope, identifier, preload_assoc \\ nil) when is_binary(identifier) do
+    get_by_identifier_query(scope, identifier, preload_assoc)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -234,17 +231,28 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec get_device_by_identifier!(Org.t(), String.t(), list(atom()) | nil) :: Device.t()
-  def get_device_by_identifier!(org, identifier, preload_assoc \\ nil) when is_binary(identifier) do
-    get_device_by_identifier_query(org, identifier, preload_assoc)
+  @spec get_by_identifier!(Scope.t(), String.t(), list(atom()) | nil) :: Device.t()
+  def get_by_identifier!(%Scope{} = scope, identifier, preload_assoc \\ nil) when is_binary(identifier) do
+    get_by_identifier_query(scope, identifier, preload_assoc)
     |> Repo.one!()
   end
 
-  defp get_device_by_identifier_query(%Org{id: org_id}, identifier, preload_assoc) do
+  defp get_by_identifier_query(%Scope{org: org}, identifier, preload_assoc) when not is_nil(org) do
     Device
-    |> where(identifier: ^identifier)
-    |> where(org_id: ^org_id)
     |> join(:left, [d], o in assoc(d, :org), as: :org)
+    |> where(identifier: ^identifier)
+    |> where(org_id: ^org.id)
+    |> preload([org: o], org: o)
+    |> join_and_preload_deployment_group_and_current_release()
+    |> join_and_preload(preload_assoc)
+  end
+
+  defp get_by_identifier_query(%Scope{user: user}, identifier, preload_assoc) when not is_nil(user) do
+    Device
+    |> join(:left, [d], o in assoc(d, :org), as: :org)
+    |> join(:left, [d, o], u in assoc(o, :users), as: :users)
+    |> where(identifier: ^identifier)
+    |> where([users: u], u.id == ^user.id)
     |> preload([org: o], org: o)
     |> join_and_preload_deployment_group_and_current_release()
     |> join_and_preload(preload_assoc)
@@ -1746,11 +1754,11 @@ defmodule NervesHub.Devices do
     DeviceEvents.schedule_update(device, inflight_update, update_payload)
   end
 
-  @spec get_pinned_devices(non_neg_integer()) :: [Device.t()]
-  def get_pinned_devices(user_id) do
+  @spec get_pinned_devices(Scope.t()) :: [Device.t()]
+  def get_pinned_devices(%Scope{user: user}) when not is_nil(user) do
     query =
       PinnedDevice
-      |> where(user_id: ^user_id)
+      |> where(user_id: ^user.id)
       |> select([:device_id])
 
     Device

@@ -8,7 +8,7 @@ defmodule NervesHubWeb.DeviceController do
 
   plug(
     :validate_role,
-    [org: :view] when action in [:console, :download_certificate, :export_audit_logs]
+    [org: :view] when action in [:download_certificate, :export_audit_logs]
   )
 
   def download_certificate(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do

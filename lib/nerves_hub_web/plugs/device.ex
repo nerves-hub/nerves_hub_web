@@ -7,8 +7,8 @@ defmodule NervesHubWeb.Plugs.Device do
     opts
   end
 
-  def call(%{params: %{"identifier" => device_identifier}, assigns: %{org: org}} = conn, _opts) do
-    case Devices.get_device_by_identifier(org, device_identifier, :device_certificates) do
+  def call(%{params: %{"identifier" => device_identifier}, assigns: %{current_scope: scope}} = conn, _opts) do
+    case Devices.get_by_identifier(scope, device_identifier, :device_certificates) do
       {:ok, device} ->
         assign(conn, :device, device)
 

@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     %{"name" => name} = params
-    %{product: product, user: user} = socket.assigns
+    %{current_scope: %{org: org, product: product, user: user}} = socket.assigns
 
     deployment_group = ManagedDeployments.get_by_product_and_name!(product, name, true)
 
@@ -26,6 +26,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     end
 
     socket
+    |> assign(%{org: org, product: product, user: user})
     |> page_title("Deployment Group - #{deployment_group.name} - #{product.name}")
     |> sidebar_tab(:deployments)
     |> selected_tab()
@@ -52,7 +53,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   @impl Phoenix.LiveView
   def handle_event("toggle", _params, socket) do
-    authorized!(:"deployment_group:toggle", socket.assigns.org_user)
+    authorized!(:"deployment_group:toggle", socket.assigns.current_scope)
 
     %{deployment_group: deployment_group, user: user} = socket.assigns
 
@@ -71,7 +72,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_event("delete", _params, socket) do
-    authorized!(:"deployment_group:delete", socket.assigns.org_user)
+    authorized!(:"deployment_group:delete", socket.assigns.current_scope)
 
     %{deployment_group: deployment_group, org: org, product: product, user: user} = socket.assigns
 

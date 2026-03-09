@@ -5,11 +5,11 @@ defmodule NervesHubWeb.Helpers.RoleValidateHelpers do
 
   def call(conn, opts), do: validate_role(conn, opts)
 
-  def validate_role(%{assigns: %{org: org, user: user}} = conn, org: role) do
+  def validate_role(%{assigns: %{current_scope: %{org: org, user: user}}} = conn, org: role) when not is_nil(org) do
     validate_org_user_role(conn, org, user, role)
   end
 
-  def validate_role(%{assigns: %{device: device, user: user}} = conn, org: role) do
+  def validate_role(%{assigns: %{current_scope: %{user: user}, device: device}} = conn, org: role) do
     validate_org_user_role(conn, device.org, user, role)
   end
 

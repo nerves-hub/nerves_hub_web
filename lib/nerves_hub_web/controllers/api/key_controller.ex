@@ -13,14 +13,14 @@ defmodule NervesHubWeb.API.KeyController do
 
   operation(:index, summary: "List all Firmware and Archive Signing Keys for an Organization")
 
-  def index(%{assigns: %{org: org}} = conn, _params) do
-    keys = Accounts.list_org_keys(org)
+  def index(%{assigns: %{current_scope: scope}} = conn, _params) do
+    keys = Accounts.list_org_keys(scope)
     render(conn, :index, keys: keys)
   end
 
   operation(:create, summary: "Create a new Signing Key for an Organization")
 
-  def create(%{assigns: %{user: user, org: org}} = conn, params) do
+  def create(%{assigns: %{current_scope: %{user: user, org: org}}} = conn, params) do
     params =
       Map.take(params, ["name", "key"])
       |> Map.put("org_id", org.id)
@@ -35,7 +35,7 @@ defmodule NervesHubWeb.API.KeyController do
 
   operation(:show, summary: "Show a Signing Key for an Organization")
 
-  def show(%{assigns: %{org: org}} = conn, %{"name" => name}) do
+  def show(%{assigns: %{current_scope: %{org: org}}} = conn, %{"name" => name}) do
     with {:ok, key} <- Accounts.get_org_key_by_name(org, name) do
       render(conn, :show, key: key)
     end
@@ -43,7 +43,7 @@ defmodule NervesHubWeb.API.KeyController do
 
   operation(:delete, summary: "Delete a Signing Key for an Organization")
 
-  def delete(%{assigns: %{org: org}} = conn, %{"name" => name}) do
+  def delete(%{assigns: %{current_scope: %{org: org}}} = conn, %{"name" => name}) do
     with {:ok, key} <- Accounts.get_org_key_by_name(org, name),
          {:ok, %OrgKey{}} <- Accounts.delete_org_key(key) do
       send_resp(conn, :no_content, "")

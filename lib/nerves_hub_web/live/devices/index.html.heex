@@ -25,7 +25,6 @@
             value={@current_filters[:search]}
             phx-debounce="500"
           />
-
           <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path
               d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
@@ -37,10 +36,10 @@
           </svg>
         </div>
       </form>
-      <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export"} download>
+      <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/export"} download>
         <.icon name="export" /> Export
       </.button>
-      <.button type="link" navigate={~p"/org/#{@org}/#{@product}/devices/new"} aria-label="Add new device">
+      <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
         <.icon name="add" /> Add Device
       </.button>
       <.button :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist} type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
@@ -483,7 +482,7 @@
           <div class="flex gap-2">
             <select name="product" id="move_to" class="sidebar-select" phx-update="ignore">
               <option value="">Select product</option>
-              <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
+              <%= for org <- @current_scope.user.orgs, products = org.products, length(products) > 0 do %>
                 <optgroup label={org.name}>
                   <%= for product <- products, product.id != @product.id do %>
                     <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}>{product.name}</option>

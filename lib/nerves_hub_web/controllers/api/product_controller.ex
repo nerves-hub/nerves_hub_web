@@ -27,8 +27,8 @@ defmodule NervesHubWeb.API.ProductController do
     ]
   )
 
-  def index(%{assigns: %{user: user, org: org}} = conn, _params) do
-    products = Products.get_products_by_user_and_org(user, org)
+  def index(%{assigns: %{current_scope: scope}} = conn, _params) do
+    products = Products.get_products(scope)
     render(conn, :index, products: products)
   end
 
@@ -53,7 +53,7 @@ defmodule NervesHubWeb.API.ProductController do
     ]
   )
 
-  def create(%{assigns: %{org: org}} = conn, params) do
+  def create(%{assigns: %{current_scope: %{org: org}}} = conn, params) do
     params =
       params
       |> Map.take(["name"])

@@ -50,7 +50,7 @@
           <tr :for={archive <- @archives} class="border-b border-zinc-800">
             <td>
               <div class="flex gap-[8px] items-center">
-                <.link navigate={~p"/org/#{@org}/#{@product}/archives/#{archive}"}>
+                <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/archives/#{archive}"}>
                   {archive.uuid}
                 </.link>
               </div>

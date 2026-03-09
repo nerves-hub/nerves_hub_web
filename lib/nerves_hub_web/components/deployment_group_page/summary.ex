@@ -173,7 +173,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span class="text-sm text-nerves-gray-500 w-16">Firmware:</span>
 
               <.link
-                navigate={~p"/org/#{@org}/#{@product}/firmware/#{@deployment_group.current_release.firmware}"}
+                navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware/#{@deployment_group.current_release.firmware}"}
                 class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
               >
                 <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.current_release.firmware.version} ({String.slice(@deployment_group.current_release.firmware.uuid, 0..7)})</span>
@@ -188,7 +188,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
               <.link
                 :if={@deployment_group.current_release.archive}
-                navigate={~p"/org/#{@org}/#{@product}/archives/#{@deployment_group.current_release.archive}"}
+                navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/archives/#{@deployment_group.current_release.archive}"}
                 class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
               >
                 <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.current_release.archive.version} ({String.slice(@deployment_group.current_release.archive.uuid, 0..7)})</span>
@@ -315,14 +315,17 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 <span class="text-sm text-nerves-gray-500">
                   <span class="font-semibold">{Enum.count(@inflight_updates)}</span>
                   device(s) are currently updating.
-                  <.link class="text-base-300 underline" navigate={~p"/org/#{@org}/#{@product}/devices?#{[only_updating: true, sort: "connection_established_at", sort_direction: "desc"]}"}>
+                  <.link
+                    class="text-base-300 underline"
+                    navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?#{[only_updating: true, sort: "connection_established_at", sort_direction: "desc"]}"}
+                  >
                     View details
                   </.link>
                 </span>
               </div>
               <div :for={inflight_update <- @inflight_updates} :if={@inflight_updates != []} class="flex gap-4 items-center">
                 <span class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800 text-base-300">
-                  <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{inflight_update.device}"}>
+                  <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{inflight_update.device}"}>
                     {inflight_update.device.identifier}
                   </.link>
                 </span>

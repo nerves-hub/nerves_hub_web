@@ -9,16 +9,16 @@ defmodule NervesHubWeb.Live.Devices.New do
     changeset = Ecto.Changeset.change(%Device{})
 
     socket
-    |> page_title("New Device - #{socket.assigns.product.name}")
+    |> page_title("New Device - #{socket.assigns.current_scope.product.name}")
     |> assign(:tab_hint, :devices)
     |> assign(:form, to_form(changeset))
     |> ok()
   end
 
   def handle_event("save-device", %{"device" => device_params}, socket) do
-    authorized!(:"device:create", socket.assigns.org_user)
+    authorized!(:"device:create", socket.assigns.current_scope)
 
-    %{org: org, product: product} = socket.assigns
+    %{current_scope: %{org: org, product: product}} = socket.assigns
 
     device_params
     |> Map.put("org_id", org.id)

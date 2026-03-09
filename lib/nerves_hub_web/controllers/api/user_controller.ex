@@ -17,8 +17,8 @@ defmodule NervesHubWeb.API.UserController do
     security: [%{}, %{"bearer_auth" => []}]
   )
 
-  def me(%{assigns: %{user: user}} = conn, _params) do
-    render(conn, :show, user: user)
+  def me(%{assigns: %{current_scope: scope}} = conn, _params) do
+    render(conn, :show, user: scope.user)
   end
 
   operation(:auth,

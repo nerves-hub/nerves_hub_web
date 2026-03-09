@@ -69,7 +69,7 @@
       </.link>
     </div>
     <div class="flex flex-col gap-4">
-      <div :for={org <- @user.orgs} class="bg-zinc-900 border border-zinc-700 rounded">
+      <div :for={org <- @current_scope.user.orgs} class="bg-zinc-900 border border-zinc-700 rounded">
         <div class="h-[56px] px-4 flex items-center justify-between">
           <div class="flex items-center gap-[12px]">
             <.link navigate={~p"/org/#{org}"} class="contents">

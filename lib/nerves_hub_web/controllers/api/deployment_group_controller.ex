@@ -14,14 +14,14 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   operation(:index, summary: "List all Deployment Groups for a Product")
 
-  def index(%{assigns: %{product: product}} = conn, _params) do
+  def index(%{assigns: %{current_scope: %{product: product}}} = conn, _params) do
     deployment_groups = ManagedDeployments.get_deployment_groups_by_product(product)
     render(conn, :index, deployment_groups: deployment_groups)
   end
 
   operation(:create, summary: "Create a new Deployment Group for a Product")
 
-  def create(%{assigns: %{org: org, product: product, user: user}} = conn, params) do
+  def create(%{assigns: %{current_scope: %{org: org, product: product, user: user}}} = conn, params) do
     case Map.get(params, "firmware") do
       nil ->
         {:error, {:no_firmware_uuid, "No firmware UUID provided"}}
@@ -51,7 +51,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   operation(:show, summary: "Show a Deployment Group")
 
-  def show(%{assigns: %{org: _org, product: product}} = conn, %{"name" => name}) do
+  def show(%{assigns: %{current_scope: %{product: product}}} = conn, %{"name" => name}) do
     with {:ok, deployment_group} <- ManagedDeployments.get_deployment_group_by_name(product, name) do
       render(conn, :show, deployment_group: deployment_group)
     end
@@ -59,7 +59,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   operation(:update, summary: "Update a Deployment Group")
 
-  def update(%{assigns: %{product: product, user: user}} = conn, %{
+  def update(%{assigns: %{current_scope: %{product: product, user: user}}} = conn, %{
         "name" => name,
         "deployment" => deployment_group_params
       }) do
@@ -76,7 +76,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   operation(:delete, summary: "Delete a Product's Deployment Group")
 
-  def delete(%{assigns: %{product: product}} = conn, %{"name" => name}) do
+  def delete(%{assigns: %{current_scope: %{product: product}}} = conn, %{"name" => name}) do
     with {:ok, deployment_group} <-
            ManagedDeployments.get_deployment_group_by_name(product, name),
          {:ok, _deployment_group} <- ManagedDeployments.delete_deployment_group(deployment_group) do

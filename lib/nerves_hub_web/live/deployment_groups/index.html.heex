@@ -20,7 +20,6 @@
             value={@current_filters[:search]}
             phx-debounce="500"
           />
-
           <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path
               d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
@@ -32,7 +31,7 @@
           </svg>
         </div>
       </form>
-      <.button type="link" navigate={~p"/org/#{@org}/#{@product}/deployment_groups/new"} aria-label="Add a new deployment group">
+      <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/new"} aria-label="Add a new deployment group">
         <.icon name="add" /> Create Deployment Group
       </.button>
       <.button type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
@@ -44,7 +43,7 @@
   <%= if Enum.empty?(@entries) do %>
     <!-- TODO: Go over empty-state with new design -->
     <div class="h-full pb-16 flex items-center justify-center">
-      <span class="text-xl font-medium text-neutral-50">{@product.name} doesn’t have any deployment groups configured.</span>
+      <span class="text-xl font-medium text-neutral-50">{@current_scope.product.name} doesn’t have any deployment groups configured.</span>
     </div>
   <% else %>
     <div class="listing">
@@ -80,7 +79,7 @@
         <tbody>
           <tr :for={deployment_group <- @entries} class={["border-b border-zinc-800"]}>
             <td>
-              <.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{deployment_group}"}>
+              <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{deployment_group}"}>
                 <div class="h-[40px] w-full flex gap-[8px] items-center">
                   <svg class={["size-1.5", (deployment_group.is_active && "fill-emerald-500") || "fill-zinc-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
                     <circle cx="3" cy="3" r="3" />
@@ -109,7 +108,7 @@
 
             <td class="min-w-fit">
               <span class="inline-block py-1 px-2 items-center rounded bg-zinc-800 whitespace-nowrap">
-                <.link navigate={~p"/org/#{@org}/#{@product}/firmware/#{deployment_group.current_release.firmware}"} class="flex items-center">
+                <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware/#{deployment_group.current_release.firmware}"} class="flex items-center">
                   <span class="text-sm text-base-300 mr-1">{deployment_group.current_release.firmware.version} ({String.slice(deployment_group.current_release.firmware.uuid, 0..7)})</span>
                   <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path

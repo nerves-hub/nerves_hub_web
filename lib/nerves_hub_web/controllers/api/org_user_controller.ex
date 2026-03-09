@@ -26,7 +26,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     ]
   )
 
-  def index(%{assigns: %{org: org}} = conn, _params) do
+  def index(%{assigns: %{current_scope: %{org: org}}} = conn, _params) do
     org_users = Accounts.get_org_users(org)
     render(conn, :index, org_users: org_users)
   end
@@ -52,14 +52,11 @@ defmodule NervesHubWeb.API.OrgUserController do
     ]
   )
 
-  def add(%{assigns: %{org: org}} = conn, %{"email" => email} = params) do
+  def add(%{assigns: %{current_scope: %{org: org, user: invited_by}}} = conn, %{"email" => email} = params) do
     with {:ok, role} <- Map.fetch(params, "role"),
          {:user, {:ok, user}} <- {:user, Accounts.get_user_by_email(email)},
          {:ok, org_user} <- Accounts.add_org_user(org, user, %{role: role}) do
-      # Let every other admin in the organization know about this new user.
-      instigator = conn.assigns.user
-
-      _ = UserNotifier.deliver_all_tell_org_user_added(org, instigator, user)
+      _ = UserNotifier.deliver_all_tell_org_user_added(org, invited_by, user)
 
       conn
       |> put_status(:created)
@@ -102,7 +99,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     ]
   )
 
-  def invite(%{assigns: %{org: org, user: invited_by}} = conn, %{"email" => email} = params) do
+  def invite(%{assigns: %{current_scope: %{user: invited_by, org: org}}} = conn, %{"email" => email} = params) do
     with {:ok, role} <- Map.fetch(params, "role"),
          {:user, {:error, :not_found}} <- {:user, Accounts.get_user_by_email(email)},
          {:ok, invite} <- Accounts.invite(%{"email" => email, "role" => role}, org, invited_by) do
@@ -150,7 +147,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     ]
   )
 
-  def show(%{assigns: %{org: org}} = conn, %{"user_email" => user_email}) do
+  def show(%{assigns: %{current_scope: %{org: org}}} = conn, %{"user_email" => user_email}) do
     with {:ok, user} <- Accounts.get_user_by_email(user_email),
          {:ok, org_user} <- Accounts.get_org_user(org, user) do
       render(conn, :show, org_user: org_user)
@@ -178,7 +175,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     ]
   )
 
-  def remove(%{assigns: %{org: org, user: user}} = conn, %{"user_email" => user_email}) do
+  def remove(%{assigns: %{current_scope: %{user: user, org: org}}} = conn, %{"user_email" => user_email}) do
     with {:ok, user_to_remove} <- Accounts.get_user_by_email(user_email),
          {:ok, _org_user} <- Accounts.get_org_user(org, user_to_remove),
          :ok <- Accounts.remove_org_user(org, user_to_remove) do
@@ -217,7 +214,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     ]
   )
 
-  def update(%{assigns: %{org: org}} = conn, %{"user_email" => user_email} = params) do
+  def update(%{assigns: %{current_scope: %{org: org}}} = conn, %{"user_email" => user_email} = params) do
     with {:ok, user} <- Accounts.get_user_by_email(user_email),
          {:ok, org_user} <- Accounts.get_org_user(org, user),
          {:ok, role} <- Map.fetch(params, "role"),

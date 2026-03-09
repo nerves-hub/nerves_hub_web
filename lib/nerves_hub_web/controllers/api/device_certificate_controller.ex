@@ -13,8 +13,8 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
 
   operation(:index, summary: "List all Certificates for a Device")
 
-  def index(%{assigns: %{org: org}} = conn, %{"identifier" => identifier}) do
-    with {:ok, device} <- Devices.get_device_by_identifier(org, identifier) do
+  def index(%{assigns: %{current_scope: scope}} = conn, %{"identifier" => identifier}) do
+    with {:ok, device} <- Devices.get_by_identifier(scope, identifier) do
       device_certificates = Devices.get_device_certificates(device)
       render(conn, :index, device_certificates: device_certificates)
     end
@@ -31,7 +31,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
 
   operation(:create, summary: "Create a Certificate for a Device")
 
-  def create(%{assigns: %{org: org, product: product, device: device}} = conn, %{"cert" => cert64}) do
+  def create(%{assigns: %{current_scope: %{org: org, product: product}, device: device}} = conn, %{"cert" => cert64}) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
          {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
          serial = Certificate.get_serial_number(cert),

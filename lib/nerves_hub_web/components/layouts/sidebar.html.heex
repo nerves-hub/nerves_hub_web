@@ -58,7 +58,7 @@
         </div>
       </div>
       <div :if={assigns[:org]} id="product-picker" class="hidden">
-        <div :for={org <- @user.orgs} class="p-4">
+        <div :for={org <- @current_scope.user.orgs} class="p-4">
           <.link navigate={~p"/org/#{org.name}"} class="flex items-center gap-[12px]">
             <div class="org-avatar">
               {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
@@ -76,7 +76,8 @@
 
     <div>
       <nav id="navigation" class="flex grow flex-col">
-        <Navigation.sidebar org={@org} product={assigns[:product]} selected_tab={assigns[:sidebar_tab]} />
+        <Navigation.sidebar :if={@current_scope.product} org={@current_scope.org} product={@current_scope.product} selected_tab={assigns[:sidebar_tab]} />
+        <Navigation.sidebar :if={is_nil(@current_scope.product)} org={@current_scope.org} selected_tab={assigns[:sidebar_tab]} />
       </nav>
     </div>
 
@@ -86,23 +87,18 @@
         <a href={~p"/account"} class="block p-2 hover:bg-base-700">Account</a>
         <a href={~p"/logout"} class="block p-2 hover:bg-base-700">Log out</a>
       </div>
-      <a
-        id="user-menu-toggle"
-        href="#"
-        class="flex items-center justify-center lg:justify-start lg:gap-x-4 lg:px-6 py-3 text-sm font-semibold leading-6 text-white hover:bg-indigo-700"
-        phx-click={toggle_user_menu()}
-      >
-        <div :if={!@user.profile_picture_url} class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
-          <span class="font-medium text-gray-600 dark:text-gray-300">{String.split(@user.name) |> Enum.map(fn w -> String.at(w, 0) end)}</span>
+      <a id="user-menu-toggle" href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-white hover:bg-indigo-700" phx-click={toggle_user_menu()}>
+        <div :if={!@current_scope.user.profile_picture_url} class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
+          <span class="font-medium text-gray-600 dark:text-gray-300">{String.split(@current_scope.user.name) |> Enum.map(fn w -> String.at(w, 0) end)}</span>
         </div>
-        <div :if={@user.profile_picture_url} class="relative inline-flex items-center justify-center w-8 h-8 overflow-hidden">
-          <img src={@user.profile_picture_url} alt="User Profile Picture" class="w-full h-full object-cover rounded-full" />
+        <div :if={@current_scope.user.profile_picture_url} class="relative inline-flex items-center justify-center w-8 h-8 overflow-hidden">
+          <img src={@current_scope.user.profile_picture_url} alt="User Profile Picture" class="w-full h-full object-cover rounded-full" />
         </div>
 
         <div class="hidden lg:block">
           <div class="sr-only">Your profile</div>
-          <div aria-hidden="true" class="text-sm font-light">{@user.name}</div>
-          <div aria-hidden="true" class="text-xs font-light text-[#A1A1AA]">{@user.email}</div>
+          <div aria-hidden="true" class="text-sm font-light">{@current_scope.user.name}</div>
+          <div aria-hidden="true" class="text-xs font-light text-[#A1A1AA]">{@current_scope.user.email}</div>
         </div>
       </a>
     </div>

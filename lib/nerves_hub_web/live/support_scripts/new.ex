@@ -7,7 +7,7 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     socket
-    |> page_title("New Support Script - #{socket.assigns.org.name}")
+    |> page_title("New Support Script - #{socket.assigns.current_scope.org.name}")
     |> sidebar_tab(:support_scripts)
     |> assign(:form, to_form(Ecto.Changeset.change(%Script{})))
     |> ok()
@@ -22,18 +22,14 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
     |> noreply()
   end
 
-  def handle_event(
-        "create-script",
-        %{"script" => script_params},
-        %{assigns: %{org_user: org_user, org: org, product: product}} = socket
-      ) do
-    authorized!(:"support_script:create", org_user)
+  def handle_event("create-script", %{"script" => script_params}, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"support_script:create", scope)
 
-    case Scripts.create(product, org_user.user, script_params) do
+    case Scripts.create(scope.product, scope.user, script_params) do
       {:ok, _script} ->
         socket
         |> put_flash(:info, "Support Script created successfully.")
-        |> push_navigate(to: ~p"/org/#{org}/#{product}/scripts")
+        |> push_navigate(to: ~p"/org/#{scope.org}/#{scope.product}/scripts")
         |> noreply()
 
       {:error, changeset} ->
