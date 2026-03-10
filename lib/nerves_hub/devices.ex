@@ -220,7 +220,11 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
-  @spec get_by_identifier!(scope :: Scope.t(), identifier :: String.t(), preload_assocs :: atom() | list(atom()) | nil) ::
+  @spec get_by_identifier!(
+          scope :: Scope.t(),
+          identifier :: String.t(),
+          preload_assocs :: atom() | list(atom()) | nil
+        ) ::
           Device.t()
   def get_by_identifier!(scope, identifier, preload_assoc \\ [:product, :latest_connection])
 
@@ -229,7 +233,11 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
-  @spec get_by_identifier(scope :: Scope.t(), identifier :: String.t(), preload_assocs :: atom() | list(atom()) | nil) ::
+  @spec get_by_identifier(
+          scope :: Scope.t(),
+          identifier :: String.t(),
+          preload_assocs :: atom() | list(atom()) | nil
+        ) ::
           {:ok, Device.t()} | {:error, :not_found}
   def get_by_identifier(%Scope{} = scope, identifier, preload_assoc \\ [:product, :latest_connection])
       when is_binary(identifier) do
@@ -1403,7 +1411,7 @@ defmodule NervesHub.Devices do
      }}
   end
 
-  @spec move_many(%Scope{}, [Device.t()], Product.t()) :: %{
+  @spec move_many(Scope.t(), [Device.t()], Product.t()) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]
         }
