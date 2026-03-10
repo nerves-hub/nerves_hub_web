@@ -182,6 +182,14 @@ defmodule NervesHub.ManagedDeployments do
     |> preload([product: p], product: p)
   end
 
+  def preload_current_release_for_deployment_group!(deployment_group_id, preload_firmware \\ false) do
+    DeploymentGroup
+    |> from(as: :deployment_group)
+    |> where([d], d.id == ^deployment_group_id)
+    |> join_current_release(preload_firmware)
+    |> Repo.one!()
+  end
+
   def join_current_release(query, preload_firmware \\ false) do
     query
     |> join(:left_lateral, [], dr in subquery(current_release_subquery()), on: true, as: :current_release)

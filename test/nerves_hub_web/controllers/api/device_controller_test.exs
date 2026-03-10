@@ -6,6 +6,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
   alias NervesHub.Devices
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Repo
   alias NervesHub.Scripts.Runner
 
@@ -42,8 +43,34 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       product = Fixtures.product_fixture(user, org, %{name: "auto_boops"})
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      firmware_2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      firmware_3 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       deployment_group = Fixtures.deployment_group_fixture(firmware) |> Repo.preload(current_release: :firmware)
+
+      # first current release is created when a deployment group is created
+      _deployment_release_2 =
+        %DeploymentRelease{}
+        |> DeploymentRelease.changeset(%{
+          deployment_group_id: deployment_group.id,
+          firmware_id: firmware_2.id,
+          archive_id: nil,
+          created_by_id: user.id
+        })
+        |> Repo.insert!()
+
+      # Ensure the most recent created release is returned in the response
+      current_release =
+        %DeploymentRelease{}
+        |> DeploymentRelease.changeset(%{
+          deployment_group_id: deployment_group.id,
+          firmware_id: firmware_3.id,
+          archive_id: nil,
+          created_by_id: user.id
+        })
+        |> Repo.insert!()
+        |> Repo.preload(:firmware)
+
       device = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
 
       conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
@@ -54,8 +81,8 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                    "connection_status" => "not_seen",
                    "deleted" => false,
                    "deployment_group" => %{
-                     "firmware_uuid" => deployment_group.current_release.firmware.uuid,
-                     "firmware_version" => deployment_group.current_release.firmware.version,
+                     "firmware_uuid" => current_release.firmware.uuid,
+                     "firmware_version" => current_release.firmware.version,
                      "is_active" => deployment_group.is_active,
                      "name" => deployment_group.name
                    },
