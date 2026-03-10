@@ -5,6 +5,10 @@ defmodule NervesHubWeb.API.ErrorJSON do
     %{errors: %{detail: "Resource Not Found or Authorization Insufficient"}}
   end
 
+  def render("403.json", %{message: message}) do
+    %{errors: %{detail: message}}
+  end
+
   def render("404.json", _) do
     %{errors: %{detail: "Resource Not Found or Authorization Insufficient"}}
   end
@@ -24,8 +28,8 @@ defmodule NervesHubWeb.API.ErrorJSON do
     %{errors: %{detail: reason}}
   end
 
-  def render("500.json", %{reason: reason}) do
-    %{errors: %{detail: reason}}
+  def render("500.json", _) do
+    %{errors: %{detail: "Sorry, an unexpected error occurred. The masters of the web have been notified."}}
   end
 
   # By default, Phoenix returns the status message from
