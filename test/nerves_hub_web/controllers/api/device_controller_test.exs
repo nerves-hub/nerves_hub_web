@@ -576,6 +576,46 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert response(conn, 204)
     end
 
+    test "support `code` being used instead of `body`", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      conn =
+        post(
+          conn,
+          Routes.api_device_path(conn, :code, org.name, product.name, device.identifier),
+          %{code: "boop"}
+        )
+
+      assert response(conn, 204)
+    end
+
+    test "400 error returned when `code` or `body` are not present", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      response =
+        assert_error_sent(400, fn ->
+          post(
+            conn,
+            Routes.api_device_path(conn, :code, org.name, product.name, device.identifier),
+            %{snoot: "boop"}
+          )
+        end)
+
+      assert {400, [_h | _t], message} = response
+      assert message =~ "code or body parameter required"
+    end
+
     test "auth failure, with nested url", %{conn2: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)

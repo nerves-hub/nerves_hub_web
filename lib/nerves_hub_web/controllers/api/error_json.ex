@@ -10,7 +10,14 @@ defmodule NervesHubWeb.API.ErrorJSON do
   end
 
   def render("400.json", %{reason: reason}) do
-    %{errors: %{detail: reason}}
+    message =
+      cond do
+        is_binary(reason) -> reason
+        is_map(reason) && Map.has_key?(reason, :message) -> Map.get(reason, :message)
+        true -> "Invalid request"
+      end
+
+    %{errors: %{detail: message}}
   end
 
   def render("422.json", %{reason: reason}) do
