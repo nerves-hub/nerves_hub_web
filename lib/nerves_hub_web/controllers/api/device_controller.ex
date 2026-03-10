@@ -116,8 +116,12 @@ defmodule NervesHubWeb.API.DeviceController do
     send_resp(conn, :no_content, "")
   end
 
-  def code(%{assigns: %{device: device}} = conn, %{"body" => body}) do
-    body
+  def code(%{assigns: %{device: device}} = conn, params)
+      when is_map_key(params, "code")
+      when is_map_key(params, "body") do
+    code = params["code"] || params["body"]
+
+    code
     |> String.graphemes()
     |> Enum.each(fn character ->
       Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{
@@ -128,6 +132,10 @@ defmodule NervesHubWeb.API.DeviceController do
     Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{"data" => "\r"})
 
     send_resp(conn, :no_content, "")
+  end
+
+  def code(_conn, _params) do
+    raise NervesHubWeb.InvalidRequestError, info: "code or body parameter required"
   end
 
   def upgrade(%{assigns: %{device: device, current_scope: %{user: user}}} = conn, %{"uuid" => uuid}) do

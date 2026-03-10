@@ -17,6 +17,6 @@ defmodule NervesHubWeb.API.ErrorJSONTest do
 
   test "renders 500.json" do
     assert ErrorJSON.render("500.json", %{}) ==
-             %{errors: %{detail: "Internal Server Error"}}
+             %{errors: %{detail: "Sorry, an unexpected error occurred. The masters of the web have been notified."}}
   end
 end
