@@ -42,7 +42,7 @@
       </div>
       <div :if={@current_scope.org} id="product-picker" class="w-[264px] absolute top-0 left-[265px] hidden">
         <div class="relative">
-          <div class="relative p-3 border-r border-b border-zinc-700 bg-base-900 z-50 max-h-[612px] overflow-y-scroll overscroll-none">
+          <div class="relative p-3 border-r border-b border-zinc-700 bg-base-900 z-50 max-h-[612px] overflow-y-scroll overscroll-none scrollbar-thin scrollbar-track-base-900 scrollbar-thumb-base-800">
             <div :for={org <- @current_scope.user.orgs} class="flex flex-col gap-2 p-4">
               <.link navigate={~p"/org/#{org.name}"} class="flex items-center gap-3 group">
                 <div class="org-avatar">

@@ -4,6 +4,7 @@
 import plugin from "tailwindcss/plugin"
 import defaultTheme from "tailwindcss/defaultTheme"
 import tailWindForms from "@tailwindcss/forms"
+import tailWindScrollbar from "tailwind-scrollbar"
 
 const fs = require("fs")
 const path = require("path")
@@ -74,6 +75,7 @@ export default {
   },
   plugins: [
     tailWindForms,
+    tailWindScrollbar,
     plugin(({ addVariant }) =>
       addVariant("phx-no-feedback", ["&.phx-no-feedback", ".phx-no-feedback &"])
     ),
