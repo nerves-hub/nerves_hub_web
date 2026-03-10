@@ -97,8 +97,8 @@ defmodule NervesHubWeb.Auth do
   def assign_org_to_scope(conn, _opts) do
     current_scope = conn.assigns.current_scope
 
-    if name = conn.params["org_name"] do
-      membership = NervesHub.Accounts.get_membership_by_org_name!(current_scope, name)
+    if current_scope && conn.params["org_name"] do
+      membership = NervesHub.Accounts.get_membership_by_org_name!(current_scope, conn.params["org_name"])
 
       current_scope
       |> Scope.put_org(membership.org)
@@ -114,8 +114,8 @@ defmodule NervesHubWeb.Auth do
   def assign_product_to_scope(conn, _opts) do
     current_scope = conn.assigns.current_scope
 
-    if name = conn.params["product_name"] do
-      product = NervesHub.Products.get_by_name!(current_scope, name)
+    if current_scope && conn.params["product_name"] do
+      product = NervesHub.Products.get_by_name!(current_scope, conn.params["product_name"])
 
       assign(conn, :current_scope, Scope.put_product(current_scope, product))
     else

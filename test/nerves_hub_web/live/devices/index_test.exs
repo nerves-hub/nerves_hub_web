@@ -11,6 +11,13 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     Endpoint.subscribe("device:#{device.id}")
   end
 
+  test "user is redirected to login when trying to access a products device list, but the user isn't logged in" do
+    build_conn()
+    |> visit("/org/snoot/boop/devices")
+    |> assert_path("/login")
+    |> assert_has("div", text: "You must login to access this page.")
+  end
+
   test "shows a loading message (async loading)", %{conn: conn, fixture: fixture} do
     %{device: device, org: org, product: product} = fixture
 
