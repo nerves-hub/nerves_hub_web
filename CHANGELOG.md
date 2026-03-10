@@ -2,7 +2,7 @@
 
 ## v2.4.0
 
-This release comes with the discover of CVE-2026-28806. During routine development we noticed lacking authorization checks for device bulk actions. Investigating it we found that it did allow a user to take actions on devices outside of their organization by manipulating the client-side of the application. As part of this we also discovered an API endpoint that exposed an equivalent privilege escalation and ability to escape the scope.
+This release comes with the discovery of CVE-2026-28806. During routine development we noticed lacking authorization checks for device bulk actions. Investigating it we found that it did allow a user to take actions on devices outside of their organization by manipulating the client-side of the application. As part of this we also discovered an API endpoint that exposed an equivalent privilege escalation and ability to escape the scope.
 
 If you run NervesHub for only your organization this issue may not affect you at all or would likely have low impact. It is privilege escalation and a tenancy violation. This is significantly more important to a multi-organization system such as NervesCloud. You should still update immediately since this may give unintended access to people in your organization.
 
@@ -16,7 +16,6 @@ We take security very seriously. Finding a serious problem is never fun. Not fin
 
 - **New UI Completion**: Removed old UI entirely, implemented remaining pages in the new design
 - **Deployment Releases**: Improved release management significantly with new releases concept
-- **Rollout Options**: Configurable deployment rollout strategies
 - **Sentry Improvements**: Upgraded to Sentry 12, added opt-in logging and tracing support
 - **Lucide Icons**: Added support for Lucide icon set
 - **Device Network Info**: Store and display device network interface data, still needs work in `nerves_hub_link`
