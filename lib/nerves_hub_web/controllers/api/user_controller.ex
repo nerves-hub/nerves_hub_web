@@ -30,8 +30,8 @@ defmodule NervesHubWeb.API.UserController do
     security: []
   )
 
-  def auth(conn, %{"email" => email, "password" => password}) do
-    with {:ok, user} <- Accounts.authenticate(email, password) do
+  def auth(conn, assigns) do
+    with {:ok, user} <- Accounts.authenticate(assigns["email"], assigns["password"]) do
       render(conn, :show, user: user)
     end
   end
@@ -45,9 +45,9 @@ defmodule NervesHubWeb.API.UserController do
     security: []
   )
 
-  def login(conn, %{"email" => email, "password" => password, "note" => note}) do
-    with {:ok, user} <- Accounts.authenticate(email, password) do
-      token = Accounts.create_user_api_token(user, note)
+  def login(conn, assigns) do
+    with {:ok, user} <- Accounts.authenticate(assigns["email"], assigns["password"]) do
+      token = Accounts.create_user_api_token(user, assigns["note"])
       render(conn, :show, user: user, token: token)
     end
   end

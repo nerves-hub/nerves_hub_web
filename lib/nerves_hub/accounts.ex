@@ -330,6 +330,7 @@ defmodule NervesHub.Accounts do
 
   def authenticate(email, password) do
     with {:ok, user} <- get_user_by_email(email),
+         true <- is_binary(user.password_hash),
          true <- Bcrypt.verify_pass(password, user.password_hash) do
       {:ok, user}
     else
