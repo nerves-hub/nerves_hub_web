@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.API.DeviceJSON do
   @moduledoc false
 
+  alias NervesHub.Repo
+
   @doc """
   Renders a list of devices.
   """
@@ -44,6 +46,8 @@ defmodule NervesHubWeb.API.DeviceJSON do
   defp deployment_group(nil), do: nil
 
   defp deployment_group(deployment_group) do
+    deployment_group = Repo.preload(deployment_group, current_release: :firmware)
+
     %{
       firmware_uuid: deployment_group.current_release.firmware.uuid,
       firmware_version: deployment_group.current_release.firmware.version,

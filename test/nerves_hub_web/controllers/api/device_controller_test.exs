@@ -43,7 +43,8 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      device = Fixtures.device_fixture(org, product, firmware)
+      deployment_group = Fixtures.deployment_group_fixture(firmware)
+      device = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
 
       conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
 
