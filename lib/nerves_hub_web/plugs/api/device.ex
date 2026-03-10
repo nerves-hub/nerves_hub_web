@@ -16,8 +16,9 @@ defmodule NervesHubWeb.API.Plugs.Device do
     assign(conn, :device, device)
   end
 
-  def call(%{params: %{"identifier" => identifier}} = conn, _opts) do
-    device = Devices.get_by_identifier!(identifier)
+  def call(%{assigns: %{current_scope: scope}, params: %{"identifier" => identifier}} = conn, _opts) do
+    device = Devices.get_by_identifier!(scope, identifier, @preloads)
+
     assign(conn, :device, device)
   end
 end

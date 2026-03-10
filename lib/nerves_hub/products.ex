@@ -129,6 +129,27 @@ defmodule NervesHub.Products do
   end
 
   @doc """
+  Gets a single product that a user has access to.
+
+  If the product is not found or the user does not have access, returns `{:error, :not_found}`.
+  """
+  @spec get_by_id(Scope.t(), pos_integer) :: {:ok, Product.t()} | {:error, :not_found}
+  def get_by_id(%Scope{user: user}, id) do
+    Product
+    |> join(:inner, [p], o in assoc(p, :org))
+    |> join(:inner, [_, o], ou in assoc(o, :org_users))
+    |> where([p], is_nil(p.deleted_at))
+    |> where([_, o], is_nil(o.deleted_at))
+    |> where(id: ^id)
+    |> where([_, _, ou], ou.user_id == ^user.id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      product -> {:ok, product}
+    end
+  end
+
+  @doc """
   Creates a product.
   """
   @spec create_product(map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}

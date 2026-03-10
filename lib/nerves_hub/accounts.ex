@@ -213,6 +213,11 @@ defmodule NervesHub.Accounts do
     |> Repo.update()
   end
 
+  def get_org_user!(%Scope{org: org}, %User{} = user) do
+    get_org_user_query(org, user.id)
+    |> Repo.one!()
+  end
+
   def get_org_user!(%Scope{org: org}, user_id) do
     get_org_user_query(org, user_id)
     |> Repo.one!()

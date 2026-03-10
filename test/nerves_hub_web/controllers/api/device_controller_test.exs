@@ -433,13 +433,13 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       {:ok, device} = Devices.update_device(device, %{updates_blocked_until: DateTime.utc_now()})
 
-      assert_error_sent(401, fn ->
+      assert_error_sent(404, fn ->
         delete(
           conn,
           Routes.api_device_path(conn, :penalty, device.identifier)
         )
       end)
-      |> assert_authorization_error(401)
+      |> assert_authorization_error(404)
     end
   end
 
@@ -491,13 +491,13 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       device = Fixtures.device_fixture(org, product, firmware)
 
-      assert_error_sent(401, fn ->
+      assert_error_sent(404, fn ->
         post(
           conn,
           Routes.api_device_path(conn, :reconnect, device.identifier)
         )
       end)
-      |> assert_authorization_error(401)
+      |> assert_authorization_error(404)
     end
   end
 
@@ -549,13 +549,13 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       device = Fixtures.device_fixture(org, product, firmware)
 
-      assert_error_sent(401, fn ->
+      assert_error_sent(404, fn ->
         post(
           conn,
           Routes.api_device_path(conn, :reconnect, device.identifier)
         )
       end)
-      |> assert_authorization_error(401)
+      |> assert_authorization_error(404)
     end
   end
 
@@ -649,14 +649,14 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       device = Fixtures.device_fixture(org, product, firmware)
 
-      assert_error_sent(401, fn ->
+      assert_error_sent(404, fn ->
         post(
           conn,
           Routes.api_device_path(conn, :code, device.identifier),
           %{body: "boop"}
         )
       end)
-      |> assert_authorization_error(401)
+      |> assert_authorization_error(404)
     end
   end
 
@@ -713,14 +713,14 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       device = Fixtures.device_fixture(org, product, firmware)
 
-      assert_error_sent(401, fn ->
+      assert_error_sent(404, fn ->
         post(
           conn,
           Routes.api_device_path(conn, :upgrade, device.identifier),
           %{uuid: firmware.uuid}
         )
       end)
-      |> assert_authorization_error(401)
+      |> assert_authorization_error(404)
     end
   end
 
@@ -846,7 +846,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       {:ok, device} = Devices.update_device(device, %{updates_blocked_until: DateTime.utc_now()})
 
-      assert_error_sent(401, fn ->
+      assert_error_sent(404, fn ->
         post(
           conn,
           Routes.api_device_path(conn, :move, device.identifier),
@@ -856,7 +856,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           }
         )
       end)
-      |> assert_authorization_error(401)
+      |> assert_authorization_error(404)
 
       device = Repo.reload(device)
       assert device.org_id == org.id
@@ -1047,7 +1047,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       device = Fixtures.device_fixture(org, product, firmware)
       script = Fixtures.support_script_fixture(product, user)
 
-      assert_error_sent(401, fn ->
+      assert_error_sent(404, fn ->
         post(
           conn,
           Routes.api_script_path(
@@ -1058,7 +1058,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           )
         )
       end)
-      |> assert_authorization_error(401)
+      |> assert_authorization_error(404)
     end
   end
 end

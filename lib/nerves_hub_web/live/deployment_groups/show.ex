@@ -87,12 +87,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_event("move-matched-devices-to-deployment-group", _params, socket) do
-    %{assigns: %{deployment_group: deployment_group}} = socket
+    %{assigns: %{current_scope: scope, deployment_group: deployment_group}} = socket
 
     move_devices = fn ->
-      deployment_group
-      |> ManagedDeployments.matched_device_ids(in_deployment: false)
-      |> Devices.move_many_to_deployment_group(deployment_group)
+      devices = ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false)
+
+      Devices.move_many_to_deployment_group(scope, devices, deployment_group)
       |> then(fn {:ok, %{updated: updated_count, ignored: ignored_count}} ->
         if ignored_count > 0 do
           {:error, updated_count, ignored_count}

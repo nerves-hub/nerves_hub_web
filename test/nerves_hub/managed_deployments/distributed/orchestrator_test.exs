@@ -3,6 +3,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   use Mimic
   use AssertEventually, timeout: 500, interval: 50
 
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.InflightUpdate
@@ -381,7 +382,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     allow(Devices, self(), pid)
 
-    Devices.move_many_to_deployment_group([device1.id, device2.id], deployment_group)
+    Devices.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
 
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "bulk-devices-added"}, 500
 
