@@ -36,7 +36,7 @@
   }
 
   .listing {
-    @apply w-full border-base-700 grow;
+    @apply border-base-700 w-full grow;
     font-size: 14px;
     font-style: normal;
     font-weight: 400;
@@ -56,7 +56,7 @@
   }
 
   .listing th {
-    @apply bg-base-900 py-1.5 px-4 text-base-400 font-medium text-sm text-left;
+    @apply bg-base-900 text-base-400 px-4 py-1.5 text-left text-sm font-medium;
   }
 
   .listing tr th:first-child {
@@ -76,11 +76,11 @@
   }
 
   .listing .checkbox {
-    @apply h-11 w-16 py-3 px-6;
+    @apply h-11 w-16 px-6 py-3;
   }
 
   .listing .checkbox label {
-    @apply border border-base-600 bg-base-800;
+    @apply border-base-600 bg-base-800 border;
     display: flex;
     width: 16px;
     height: 16px;
@@ -120,7 +120,7 @@
   }
 
   .tag {
-    @apply rounded-md bg-base-800;
+    @apply bg-base-800 rounded-md;
     display: flex;
     padding: 2px 4px;
     align-items: center;
@@ -147,7 +147,7 @@
   }
 
   .badge {
-    @apply rounded-sm bg-base-800 text-base-300 px-[4px] py-[2px];
+    @apply bg-base-800 text-base-300 rounded-sm px-[4px] py-[2px];
     font-size: 12px;
   }
 
@@ -181,21 +181,21 @@
   }
 
   .sidebar-select {
-    @apply w-full bg-base-900 text-base-400 rounded-[4px] text-sm px-2 py-[6px];
+    @apply bg-base-900 text-base-400 w-full rounded-[4px] px-2 py-[6px] text-sm;
   }
 
   .sidebar-text-input {
-    @apply w-full bg-base-900 text-base-400 rounded-[4px] text-sm px-2 py-[6px];
+    @apply bg-base-900 text-base-400 w-full rounded-[4px] px-2 py-[6px] text-sm;
   }
 
   .sidebar-search {
-    @apply flex items-center bg-base-900 text-base-400 border border-base-600 rounded-[4px] text-sm px-2 py-[6px];
+    @apply bg-base-900 text-base-400 border-base-600 flex items-center rounded-[4px] border px-2 py-[6px] text-sm;
     gap: 8px;
     padding: 8px 12px;
   }
 
   .sidebar-search input {
-    @apply bg-transparent border-transparent text-base-400;
+    @apply text-base-400 border-transparent bg-transparent;
     font-size: 14px;
     font-weight: 400;
     line-height: 20px;
@@ -204,7 +204,7 @@
   }
 
   .sidebar-apply {
-    @apply bg-purple-600 text-base-50 hover:scale-110;
+    @apply text-base-50 bg-purple-600 hover:scale-110;
     display: flex;
     padding: 6px 12px;
     justify-content: center;
@@ -217,7 +217,7 @@
   }
 
   .sidebar-button {
-    @apply bg-base-800 border border-base-600 text-base-50 hover:border-base-400;
+    @apply bg-base-800 border-base-600 text-base-50 hover:border-base-400 border;
     display: flex;
     gap: 8px;
     padding: 6px 12px;
@@ -242,7 +242,7 @@
   }
 
   .menu-box {
-    @apply bg-base-900 border border-base-700 py-[12px] px-[16px] rounded-md;
+    @apply bg-base-900 border-base-700 rounded-md border px-[16px] py-[12px];
   }
 
   .org-selector-title {
@@ -266,7 +266,7 @@
 
   .product-picker-product,
   .product-picker-product:link {
-    @apply block text-base-300 py-[6px] px-4 bg-base-800 rounded;
+    @apply text-base-300 hover:bg-base-800 block rounded px-4 py-[6px] ml-7;
     font-size: 14px;
     font-style: normal;
     font-weight: 500;
@@ -332,9 +332,58 @@
   }
 
   .pulsing-div {
-    animation: fadeIn 1s ease-out 2s forwards, pulse 2s ease-in-out 3s infinite;
+    animation:
+      fadeIn 1s ease-out 2s forwards,
+      pulse 2s ease-in-out 3s infinite;
 
     opacity: 0;
+  }
+
+  .hover-underline-animation {
+    display: inline-block;
+    position: relative;
+  }
+
+  .hover-underline-animation::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 2px;
+    bottom: 0;
+    left: 0;
+    background-color: rgb(99 102 241);
+    transform-origin: bottom right;
+    transition: transform 0.25s ease-out;
+  }
+
+  .hover-underline-animation:hover::after {
+    transform: scaleX(1);
+    transform-origin: bottom left;
+  }
+
+  .hover-underline-animation.left::after {
+    transform-origin: bottom right;
+  }
+
+  .hover-underline-animation.left:hover::after {
+    transform-origin: bottom left;
+  }
+
+  .hover-underline-animation.center::after {
+    transform-origin: bottom center;
+  }
+
+  .hover-underline-animation.center:hover::after {
+    transform-origin: bottom center;
+  }
+
+  .hover-underline-animation.right::after {
+    transform-origin: bottom left;
+  }
+
+  .hover-underline-animation.right:hover::after {
+    transform-origin: bottom right;
   }
 }
 
