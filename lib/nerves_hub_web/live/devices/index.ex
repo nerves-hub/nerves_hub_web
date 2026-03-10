@@ -20,7 +20,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
 
-  require Logger
   require OpenTelemetry.Tracer, as: Tracer
 
   @list_refresh_time 10_000

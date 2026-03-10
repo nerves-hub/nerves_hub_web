@@ -17,8 +17,6 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
 
-  require Logger
-
   @spec should_run_orchestrator() :: [DeploymentGroup.t()]
   def should_run_orchestrator() do
     full_deployment_group_query()
