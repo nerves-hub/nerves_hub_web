@@ -421,7 +421,18 @@ cond do
     config :opentelemetry, span_processor: {SpanProcessor, []}
 
     config :sentry,
-      traces_sample_rate: 0.1
+      traces_sampler: fn sampling_context ->
+        if sampling_context.transaction_context.name in [
+             "nerves_hub.repo.query:oban_jobs",
+             "nerves_hub.repo.query:oban_peers"
+           ] do
+          0.01
+        else
+          rate = System.get_env("SENTRY_TRACING_RATE", "0.05")
+          {parsed, _} = Float.parse(rate)
+          parsed
+        end
+      end
 
   otlp_endpoint = System.get_env("OTLP_ENDPOINT") ->
     otlp_sampler_ratio =
