@@ -3,6 +3,13 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
 
   alias NervesHub.Fixtures
 
+  test "user is redirected to login when trying to list their orgs, but the user isn't logged in" do
+    build_conn()
+    |> visit("/orgs")
+    |> assert_path("/login")
+    |> assert_has("div", text: "You must login to access this page.")
+  end
+
   describe "onboarding" do
     test "provides a simple way for users to create their first organization and product" do
       user = Fixtures.user_fixture(%{name: "Waffles"})
