@@ -1,5 +1,5 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
+  <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
@@ -27,7 +27,7 @@
         </thead>
         <tbody>
           <%= for cert <- @certificates do %>
-            <tr class="border-b border-zinc-800 isolate">
+            <tr class="border-b border-base-800 isolate">
               <td>
                 <code class="text-xs text-base-300 bg-base-800 px-2 py-1 rounded font-mono break-all">{Utils.format_serial(cert.serial)}</code>
               </td>
@@ -64,12 +64,12 @@
                 <div class="flex gap-2 justify-end">
                   <.link
                     navigate={~p"/org/#{@org}/settings/certificates/#{cert}/edit"}
-                    class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700"
+                    class="px-3 py-1.5 text-sm font-medium text-base-300 bg-base-800 border border-base-700 rounded hover:bg-base-700"
                   >
                     Edit
                   </.link>
                   <button
-                    class="px-3 py-1.5 text-sm font-medium text-red-500 bg-zinc-800 border border-red-500 rounded hover:bg-zinc-700"
+                    class="px-3 py-1.5 text-sm font-medium text-alert bg-base-800 border border-alert rounded hover:bg-base-700"
                     phx-click="delete-certificate-authority"
                     phx-value-certificate_serial={cert.serial}
                     data-confirm="Are you sure you want to delete this certificate? This can not be undone."

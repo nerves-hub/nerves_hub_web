@@ -1,6 +1,6 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <%= if @live_action == :index do %>
-    <div class="h-14 flex justify-end bg-base-900 border-b border-base-700"></div>
+    <div class="h-14 flex justify-end bg-surface-muted border-b border-base-700"></div>
 
     <div class="h-0 flex-1 overflow-y-auto">
       <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
@@ -12,23 +12,23 @@
       </div>
 
       <div class="px-6 py-4">
-        <p class="text-sm text-zinc-400 mb-4">Signing Keys are used to sign uploaded firmware, and verify the firmware on the device before the device is updated.</p>
+        <p class="text-sm text-base-400 mb-4">Signing Keys are used to sign uploaded firmware, and verify the firmware on the device before the device is updated.</p>
 
         <div class="space-y-3">
           <%= for signing_key <- @signing_keys do %>
-            <div class="flex items-start gap-4 p-4 border border-zinc-700 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800">
+            <div class="flex items-start gap-4 p-4 border border-base-700 rounded bg-gradient-to-r from-base-800/50 to-base-800">
               <img src="/images/icons/key.svg" alt="key" class="size-6 mt-1" />
               <div class="flex-1 min-w-0">
                 <h3 class="text-sm font-semibold text-neutral-50 mb-2">
                   {signing_key.name}
                 </h3>
-                <div class="text-xs text-zinc-400 break-all mb-1">{signing_key.key}</div>
-                <div :if={signing_key.created_by} class="text-xs text-zinc-500">
+                <div class="text-xs text-base-400 break-all mb-1">{signing_key.key}</div>
+                <div :if={signing_key.created_by} class="text-xs text-base-500">
                   Created by: {signing_key.created_by.name} ({signing_key.created_by.email})
                 </div>
               </div>
               <button
-                class="px-3 py-1.5 text-sm font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-3 py-1.5 text-sm font-medium text-base-300 bg-base-800 border border-base-700 rounded hover:bg-base-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 phx-click="delete"
                 phx-value-signing_key_id={signing_key.id}
                 disabled={!authorized?(:"signing_key:delete", @current_scope)}
@@ -48,7 +48,7 @@
   <% end %>
 
   <%= if @live_action == :new do %>
-    <div class="h-14 flex justify-end bg-base-900 border-b border-base-700"></div>
+    <div class="h-14 flex justify-end bg-surface-muted border-b border-base-700"></div>
 
     <div class="h-0 flex-1 overflow-y-auto">
       <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
@@ -64,14 +64,14 @@
           <% end %>
 
           <div class="mb-4">
-            {label(f, :name, for: "name_input", class: "block text-sm font-medium text-zinc-300 mb-2")}
-            {text_input(f, :name, class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "name_input")}
+            {label(f, :name, for: "name_input", class: "block text-sm font-medium text-base-300 mb-2")}
+            {text_input(f, :name, class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "name_input")}
             <div class="text-sm text-red-400 mt-1">{error_tag(f, :name)}</div>
           </div>
 
           <div class="mb-6">
-            {label(f, :key, for: "key_input", class: "block text-sm font-medium text-zinc-300 mb-2")}
-            {text_input(f, :key, class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "key_input")}
+            {label(f, :key, for: "key_input", class: "block text-sm font-medium text-base-300 mb-2")}
+            {text_input(f, :key, class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "key_input")}
             <div class="text-sm text-red-400 mt-1">{error_tag(f, :key)}</div>
           </div>
 

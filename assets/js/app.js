@@ -31,7 +31,7 @@ TimeAgo.addDefaultLocale(en)
 let execJS = (selector, attr) => {
   document
     .querySelectorAll(selector)
-    .forEach(el => liveSocket.execJS(el, el.getAttribute(attr)))
+    .forEach((el) => liveSocket.execJS(el, el.getAttribute(attr)))
 }
 
 let csrfToken = document
@@ -55,26 +55,26 @@ let liveSocket = new LiveSocket("/live", Socket, {
     SupportScriptOutput,
     ToolTip,
     UpdatingTimeAgo,
-    WorldMap
-  }
+    WorldMap,
+  },
 })
 
 // Show progress bar on live navigation and form submits
 topbar.config({
   barColors: { 0: "#6366F1" },
   barThickness: 5,
-  shadowColor: "rgba(0, 0, 0, .3)"
+  shadowColor: "rgba(0, 0, 0, .3)",
 })
 
-window.addEventListener("phx:page-loading-start", info => {
+window.addEventListener("phx:page-loading-start", (info) => {
   if (info.detail.kind == "initial") {
-    document.querySelectorAll(".tab-content").forEach(el => {
+    document.querySelectorAll(".tab-content").forEach((el) => {
       el.classList.remove("opacity-0")
     })
   }
 
   if (info.detail.kind == "patch") {
-    document.querySelectorAll(".tab-content").forEach(el => {
+    document.querySelectorAll(".tab-content").forEach((el) => {
       el.classList.add("phx-click-loading")
     })
   }
@@ -82,7 +82,7 @@ window.addEventListener("phx:page-loading-start", info => {
   topbar.show(300)
 })
 window.addEventListener("phx:page-loading-stop", () => {
-  document.querySelectorAll(".tab-content").forEach(el => {
+  document.querySelectorAll(".tab-content").forEach((el) => {
     el.classList.remove("phx-click-loading")
   })
 
@@ -92,9 +92,21 @@ window.addEventListener("phx:page-loading-stop", () => {
 // borrowed from https://github.com/fly-apps/live_beats/blob/master/assets/js/app.js#L330
 // this guards against the flash not hiding after reconnection, possibly due to the browser
 // not passing along js events.
-liveSocket.getSocket().onOpen(() => execJS("#connection-status", "js-hide"))
-liveSocket.getSocket().onError(() => execJS("#connection-status", "js-show"))
+liveSocket.getSocket().onOpen(() => {
+  clearTimeout(connectionClosedTimer)
+  execJS("#connection-status", "js-hide")
+})
+liveSocket.getSocket().onError(() => delayedConnectionClosedAlert())
+liveSocket.getSocket().onClose(() => delayedConnectionClosedAlert())
 liveSocket.connect()
+
+let connectionClosedTimer
+const delayedConnectionClosedAlert = () => {
+  connectionClosedTimer = setTimeout(
+    () => execJS("#connection-status", "js-show"),
+    1500,
+  )
+}
 
 // expose liveSocket on window for web console debug logs and latency simulation:
 // >> liveSocket.enableDebug()
@@ -102,7 +114,7 @@ liveSocket.connect()
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
 
-document.querySelectorAll(".date-time").forEach(d => {
+document.querySelectorAll(".date-time").forEach((d) => {
   d.innerHTML = dates.formatDateTime(d.innerHTML)
 })
 

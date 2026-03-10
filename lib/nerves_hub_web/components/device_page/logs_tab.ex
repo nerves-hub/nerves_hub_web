@@ -129,16 +129,16 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
         <div>No logs have been received yet.</div>
       </div>
       <div :if={@has_logs} class="size-full">
-        <div class="flex flex-row items-center justify-between h-11 border-b border-zinc-700 px-12">
+        <div class="flex flex-row items-center justify-between h-11 border-b border-base-700 px-12">
           <div>
-            <span class="text-sm text-zinc-400">Live log streaming :</span>
+            <span class="text-sm text-base-400">Live log streaming :</span>
             <button
               id="toggle-log-streaming"
               type="button"
               phx-click="toggle-log-streaming"
               class={[
                 "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
-                (@streaming_enabled && "bg-emerald-500") || "bg-red-500"
+                (@streaming_enabled && "bg-success") || "bg-alert"
               ]}
               role="switch"
               aria-checked="false"
@@ -154,7 +154,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
               </span>
             </button>
           </div>
-          <span class="text-sm text-zinc-400 font-extralight">Showing the last 25 log lines.</span>
+          <span class="text-sm text-base-400 font-extralight">Showing the last 25 log lines.</span>
         </div>
         <div :if={@has_logs} class="size-full relative pb-10">
           <div id="log_lines" phx-update="stream" class="scrollable-inner flex flex-col overflow-y-visible overflow-x-auto h-full max-w-0 min-w-full items-start gap-3 px-12 pt-10">
@@ -164,7 +164,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
               </div>
               <div
                 data-log-level={line.level}
-                class="data-[log-level=emergency]:text-red-500 data-[log-level=alert]:text-red-500 data-[log-level=critical]:text-red-500 data-[log-level=error]:text-red-500 data-[log-level=warn]:text-orange-500 data-[log-level=warning]:text-orange-500 data-[log-level=debug]:text-blue-500"
+                class="data-[log-level=emergency]:text-alert data-[log-level=alert]:text-alert data-[log-level=critical]:text-alert data-[log-level=error]:text-alert data-[log-level=warn]:text-orange-500 data-[log-level=warning]:text-orange-500 data-[log-level=debug]:text-blue-500"
               >
                 [{line.level}]
               </div>

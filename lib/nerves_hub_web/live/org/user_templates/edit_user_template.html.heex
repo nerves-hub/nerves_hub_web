@@ -1,5 +1,5 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
+  <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
@@ -9,9 +9,9 @@
     <div class="px-6 py-4 max-w-[650px]">
       <.form :let={f} for={@form} phx-submit="update-org-user">
         <div class="mb-6">
-          <label for="role_input" class="block text-sm font-medium text-zinc-300 mb-2">Role</label>
+          <label for="role_input" class="block text-sm font-medium text-base-300 mb-2">Role</label>
           {select(f, :role, Utils.role_options(),
-            class: "w-full px-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+            class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
             id: "role_input"
           )}
           <div class="text-sm text-red-400 mt-1">{error_tag(f, :role)}</div>

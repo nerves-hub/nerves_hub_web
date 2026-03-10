@@ -23,7 +23,7 @@ defmodule NervesHubWeb.Components.FwupProgress do
         <div class="animate-pulse bg-progress-glow w-full h-16" />
       </div>
       <div class="z-50 absolute w-full flex justify-center">
-        <div class="mt-1 py-1 px-2 bg-base-900/20 rounded-full text-sm font-medium">Updating firmware {@fwup_progress}%</div>
+        <div class="mt-1 py-1 px-2 bg-surface-muted/20 rounded-full text-sm font-medium">Updating firmware {@fwup_progress}%</div>
       </div>
     </div>
     """

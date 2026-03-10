@@ -28,8 +28,8 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
       <div class="relative size-full flex flex-col items-center justify-center">
         <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-zinc-300">Device maps haven't been enabled on your platform.</div>
-          <div class="text-zinc-300">Please contact your platform admin.</div>
+          <div class="text-base-300">Device maps haven't been enabled on your platform.</div>
+          <div class="text-base-300">Please contact your platform admin.</div>
         </div>
       </div>
     </div>
@@ -47,8 +47,8 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
       <div class="relative size-full flex flex-col items-center justify-center">
         <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-zinc-300">Device maps have been disabled in your product settings.</div>
-          <div class="text-zinc-300">To enable this feature, please contact your product admin.</div>
+          <div class="text-base-300">Device maps have been disabled in your product settings.</div>
+          <div class="text-base-300">To enable this feature, please contact your product admin.</div>
         </div>
       </div>
     </div>
@@ -66,8 +66,8 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
       <div class="relative size-full flex flex-col items-center justify-center">
         <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-zinc-300">Device maps have been disabled for this device.</div>
-          <div class="text-zinc-300">To enable this feature, please contact your product admin.</div>
+          <div class="text-base-300">Device maps have been disabled for this device.</div>
+          <div class="text-base-300">To enable this feature, please contact your product admin.</div>
         </div>
       </div>
     </div>
@@ -80,7 +80,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
     <div class="flex flex-col w-full h-[450px] p-4 gap-4">
       <div class="flex items-end justify-between">
         <div class="text-neutral-50 font-medium leading-6">Location</div>
-        <div class="text-xs font-normal text-zinc-400">
+        <div class="text-xs font-normal text-base-400">
           Please select the devices location.
         </div>
       </div>
@@ -109,14 +109,14 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
     <div class="flex flex-col w-full h-[450px] p-4 gap-4">
       <div class="flex items-end justify-between">
         <div class="text-neutral-50 font-medium leading-6">Location</div>
-        <div class="text-xs font-normal text-zinc-400">The devices location is announced by the device after it connects.</div>
+        <div class="text-xs font-normal text-base-400">The devices location is announced by the device after it connects.</div>
       </div>
 
       <div class="relative size-full flex flex-col items-center justify-center">
         <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-zinc-300">No location information found.</div>
-          <div class="text-zinc-300">Please check if the Geo extension has been included in your firmware.</div>
+          <div class="text-base-300">No location information found.</div>
+          <div class="text-base-300">Please check if the Geo extension has been included in your firmware.</div>
           <div>
             <.button phx-click="enable-location-editor">Manually set the location</.button>
           </div>
@@ -134,14 +134,14 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
     <div class="flex flex-col w-full h-[450px] p-4 gap-4">
       <div class="flex items-end justify-between">
         <div class="text-neutral-50 font-medium leading-6">Location</div>
-        <div class="text-xs font-normal text-zinc-400">The devices location is announced by the device after it connects.</div>
+        <div class="text-xs font-normal text-base-400">The devices location is announced by the device after it connects.</div>
       </div>
 
       <div class="relative size-full flex flex-col items-center justify-center">
         <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-zinc-300">An error occurred during location resolution : {@location["error_code"]}</div>
-          <div :if={@location["error_description"]} class="text-zinc-300">{@location["error_description"]}</div>
+          <div class="text-base-300">An error occurred during location resolution : {@location["error_code"]}</div>
+          <div :if={@location["error_description"]} class="text-base-300">{@location["error_description"]}</div>
         </div>
       </div>
     </div>
@@ -159,7 +159,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
       <div class="relative size-full flex flex-col items-center justify-center">
         <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-zinc-300">The location coordinates are invalid and can't be displayed.</div>
+          <div class="text-base-300">The location coordinates are invalid and can't be displayed.</div>
         </div>
       </div>
     </div>
@@ -189,12 +189,12 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
     <div class="flex flex-col w-full h-[450px] p-4 gap-4">
       <div class="flex items-end justify-between gap-2">
         <div class="text-neutral-50 font-medium leading-6">Location</div>
-        <div class="text-xs font-normal text-zinc-400 ml-auto">
+        <div class="text-xs font-normal text-base-400 ml-auto">
           {@source_information}
         </div>
         <div class="relative flex justify-end">
           <button
-            class="border rounded-sm border-zinc-600 bg-zinc-800 hover:bg-zinc-700 active:bg-indigo-500 disabled:bg-zinc-800 p-0.5"
+            class="border rounded-sm border-base-600 bg-base-800 hover:bg-base-700 active:bg-indigo-500 disabled:bg-base-800 p-0.5"
             id="location-settings-button"
             aria-expanded="true"
             aria-haspopup="true"
@@ -219,12 +219,12 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
             }
             phx-key="Escape"
           >
-            <.icon name="settings" class="size-3 fill-zinc-400" />
+            <.icon name="settings" class="size-3 fill-base-400" />
           </button>
 
           <div
             id="location-settings-menu"
-            class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded bg-zinc-900 border border-zinc-700 shadow-lg ring-1 ring-black/5 focus:outline-none"
+            class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded bg-base-900 border border-base-700 shadow-lg ring-1 ring-black/5 focus:outline-none"
             role="menu"
             hidden="true"
             aria-orientation="vertical"
@@ -232,13 +232,13 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
             tabindex="-1"
           >
             <div role="none">
-              <button phx-click="enable-location-editor" class="block w-full text-left px-4 pt-2 pb-3 text-xs text-zinc-300 hover:bg-zinc-700" role="menuitem" tabindex="-1">
+              <button phx-click="enable-location-editor" class="block w-full text-left px-4 pt-2 pb-3 text-xs text-base-300 hover:bg-base-700" role="menuitem" tabindex="-1">
                 Manually update location
               </button>
               <button
                 :if={@source == "manual"}
                 phx-click="clear-manual-location-information"
-                class="block w-full text-left px-4 pt-2 pb-3 text-xs text-zinc-300 hover:bg-zinc-700"
+                class="block w-full text-left px-4 pt-2 pb-3 text-xs text-base-300 hover:bg-base-700"
                 role="menuitem"
                 tabindex="-1"
               >

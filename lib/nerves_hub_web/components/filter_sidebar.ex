@@ -26,12 +26,12 @@ defmodule NervesHubWeb.Components.FilterSidebar do
     ~H"""
     <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 sm:pl-16 z-40">
       <div class={[
-        "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-t border-l border-zinc-700 bg-base-900 shadow-filter-slider transition-transform",
+        "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-t border-l border-base-700 bg-surface-muted shadow-filter-slider transition-transform",
         !@show && "translate-x-full",
         !@show && "invisible"
       ]}>
         <div class="h-0 flex-1 overflow-y-auto">
-          <div class="flex items-center h-14 px-4 py-3 border-b border-zinc-700">
+          <div class="flex items-center h-14 px-4 py-3 border-b border-base-700">
             <h4 class="text-base font-semibold">Filters</h4>
 
             <button class="ml-auto p-1.5" type="button" phx-click={@on_toggle} phx-value-toggle={to_string(@show)}>
@@ -68,7 +68,7 @@ defmodule NervesHubWeb.Components.FilterSidebar do
           </div>
         </div>
 
-        <div class="flex shrink-0 justify-end h-16 px-4 py-4 mb-14 border-t border-zinc-700">
+        <div class="flex shrink-0 justify-end h-16 px-4 py-4 mb-14 border-t border-base-700">
           <button class="sidebar-button" type="button" phx-click={@on_reset}>Reset Filters</button>
         </div>
       </div>
