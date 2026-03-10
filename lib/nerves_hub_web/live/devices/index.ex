@@ -311,9 +311,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
         |> assign(selected_devices: Enum.map(result[:ok], & &1.id))
         |> assign_display_devices()
         |> noreply()
-
-      _ ->
-        {:noreply, put_flash(socket, :error, "Invalid device selection")}
     end
   end
 
