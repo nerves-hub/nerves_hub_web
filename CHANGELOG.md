@@ -1,5 +1,156 @@
 # Changelog
 
+## v2.4.0
+
+This release comes with the discover of CVE-2026-28806. During routine development we noticed lacking authorization checks for device bulk actions. Investigating it we found that it did allow a user to take actions on devices outside of their organization by manipulating the client-side of the application. As part of this we also discovered an API endpoint that exposed an equivalent privilege escalation and ability to escape the scope.
+
+If you run NervesHub for only your organization this issue may not affect you at all or would likely have low impact. It is privilege escalation and a tenancy violation. This is significantly more important to a multi-organization system such as NervesCloud. You should still update immediately since this may give unintended access to people in your organization.
+
+The bulk action issue goes back to 2021 and is present in NervesHub 1.x as far back as bulk actions have existed. The API issue is more recent during a rework of the API endpoints. Details are in the CVE references.
+
+Of course this has made us look very carefully at the structure of authorization and access in NervesHub. What we found was a lack of structure which increases the risk of introducing issues like this. In preparation for the CVE fixes we introduced a scoping mechanism to have a consistent way of passing around authorization scopes. This makes it more obvious when authorization is being checked and reduces the risk of introducing new issues. We have branches and PRs in the wings for enforcing authorization checks in LiveViews and API endpoints. Those should land shortly as well.
+
+We take security very seriously. Finding a serious problem is never fun. Not finding it is significantly worse. This was discovered by us, fixed by us and released by us. We are thankful to the Erlang Ecosystem Foundation's CNA for their great help in the CVE process. If you discover flaws in your Elixir project we highly encourage you to learn the correct process and the EEF CNA will help you through it.
+
+### Themes
+
+- **New UI Completion**: Removed old UI entirely, implemented remaining pages in the new design
+- **Deployment Releases**: Improved release management significantly with new releases concept
+- **Rollout Options**: Configurable deployment rollout strategies
+- **Sentry Improvements**: Upgraded to Sentry 12, added opt-in logging and tracing support
+- **Lucide Icons**: Added support for Lucide icon set
+- **Device Network Info**: Store and display device network interface data, still needs work in `nerves_hub_link`
+- **Code Quality**: Enforced Credo in CI, consolidated tests, removed dead code
+
+### Added
+
+- Add support for Lucide icons (#2524)
+- Allow for Sentry tracing to be enabled, disabled by default (#2525)
+- Support Sentry Logging as opt-in (#2522)
+- Rollout options for deployments (#2441)
+- Store device network interface data (#2437)
+- Add default org and product when user registers (#2475)
+- Add support for a 400 HTTP error page (#2471)
+- Add a Signing Key format validation (#2511)
+- Basic responsive web UI (#2517)
+
+### Changed
+
+- Move to using a `current_release` association on `DeploymentGroup` (#2490)
+- Implement the rest of the new UI, basic edition (#2439)
+- Move Account Tokens to `/account` and to the new UI (#2493)
+- Remove new_ui config and ui switcher (#2488)
+- Remove JS and CSS used by the old UI (#2494)
+- Remove UI switch from the bad old days (#2456)
+- Consolidate and remove duplicated UI tests (#2497)
+- Firmware connected to Releases can't be deleted (#2462)
+- Deployment Release improvements (#2453)
+- Speed up Deployment Group queries which include device and release counts (#2485)
+- When matching deployment groups with a device, prioritize matching tags (#2435)
+- Filter out already running Orchestrators (#2470)
+- Address an issue where all Orchestrators might be already running (#2474)
+- Don't report Orchestrator `:already_started` errors (#2520)
+- After updating a Deployment Group, preload the Firmware for later use (#2472)
+- Update the various Firmware lists and drop downs when new Firmware is available (#2463)
+- Stream firmware to file when updating (#2450)
+- Reuse the tmp firmware file created by LiveView.Upload (#2500)
+- Clean up after creating firmware deltas (#2442)
+- Remove unused files in delta generation (#2446)
+- Return `{:ok, delta}` if a delta already exists (#2481)
+- Change orgs view to make it more obvious that products are shown (#2455)
+- Only show Firmware flashes when viewing the Firmware list page (#2519)
+- Move to using Phoenix Scopes for better auth organization (#2515)
+- Fully embrace Phoenix layouts (#2521)
+- Move the sidebar/no-sidebar layouts to their own heex files (#2526)
+- Support alternative 'alive' http paths (#2527)
+- Removed some unused code (thanks new Elixir compiler!) (#2530)
+- Only fetch Org and Product if the user is logged in (#2531)
+- Remove `handle_events` we don't use in the UI
+- Disable the bulk action checkboxes if not authorized for `device:update`
+- Use a decorator to reuse authorization logic
+- Use the `current_scope` in all bulk action context calls
+- Its better to unregister completed uploads vs cancelling (#2508)
+- Switch to `Repo.transact` (#2467)
+- Oban doesn't need its own Repo (#2464)
+- Remove one last `ObanRepo` reference (#2503)
+- Use more tmp dirs in tests, and use Briefly for delta generation (#2502)
+- Use `:monotonic` with the unique integers we generate in our fixtures (#2504)
+- Enforce Credo code quality (#2443)
+- Make user auth play nice with Credo update (#2448)
+- Use `get_field` when updating a deployment's status (#2452)
+- Use updated Phoenix error page configs (#2478)
+- Relax the regex for FWUP metadata parsing (#2459)
+- Make sure the Orchestrator is notified when devices are added to it (#2461)
+- Handle `UserSocket` auth token missing user cases (#2465)
+- Show an error message if the location data sent by a device is invalid (#2473)
+- Log when an empty message is received by `Extensions.LocalShell` (#2518)
+- Log an error if `Connections.device_disconnected` returns an error (#2484)
+- Add `join_ref`s to Channel messages missing a `join_ref` (#2506)
+- Pin Phoenix to 1.8.2 to allow console channel to work (#2505)
+- Update all Node deps, resolves a security warning with semver (#2510)
+- Add `deployment_group_id` index to `deployment_releases` (#2483)
+- Add some extra tests for Orchestrator Registration (#2479)
+- Bump Elixir to 1.19.5 and OTP 28 (#2469)
+
+### Fixed
+
+- Fix CVE-2026-28806 by introducing scoped authorization for device bulk actions and API endpoints.
+- Add access and permission checks to Device list bulk actions
+- Address an issue with the Device API plug not scoping to the user
+- Empty form recovery shouldn't show an error message
+- Fix issue where device API listing failed due to missing preload (#2514)
+- The Devices endpoint doesn't have access to verified routes (#2523)
+- Fix 400 API errors, and improve the Device code API action (#2529)
+- Use the correct error HTML view for the Devices endpoint (#2516)
+- Fix a very hidden race condition related to finding devices to be updated (#2468)
+- Fix matching device to deployment groups under specific conditions (#2436)
+- Fix a pill overflow in deployment group firmware version (#2507)
+- Fix clickable area of product in orgs list (#2454)
+- Fix edit user button and a couple inefficient page-refresh nav links (#2451)
+- Fix an error related to a password being nil (#2489)
+- Fix a little Elixir warning with an old migration (#2492)
+- Fixed the naming of the signing key tests file (#2477)
+- Ignore `handle_async` result calls that bubble up to the live view (#2512)
+- Update FWUP due to a broken zlib download (#2460)
+- Update package.lock from recent asset changes (#2501)
+
+### Dependencies
+
+- **bandit**: 1.8.0 -> 1.10.3
+- **briefly**: 0.5.1 (new)
+- **castore**: 1.0.15 -> 1.0.17
+- **ch**: 0.5.6 -> 0.7.1
+- **confuse**: 0.2.1 -> 0.3.1
+- **credo**: 1.7.13 -> 1.7.16
+- **ecto**: 3.13.3 -> 3.13.5
+- **ecto_ch**: 0.8.2 -> 0.8.6
+- **ecto_sql**: 3.13.2 -> 3.13.4
+- **ex_aws**: 2.5.11 -> 2.6.1
+- **ex_aws_s3**: 2.5.8 -> 2.5.9
+- **expo**: 1.1.0 -> 1.1.1
+- **finch**: 0.20.0 -> 0.21.0
+- **lucide**: 0.577.0 (new)
+- **oban**: 2.20.1 -> 2.20.3
+- **oban_met**: 1.0.3 -> 1.0.6
+- **oban_web**: 2.11.4 -> 2.11.8
+- **open_api_spex**: 3.22.0 -> 3.22.2
+- **opentelemetry**: 1.6.0 -> 1.7.0
+- **opentelemetry_api**: 1.4.1 -> 1.5.0
+- **opentelemetry_exporter**: 1.9.0 -> 1.10.0
+- **phoenix**: 1.8.1 -> 1.8.5
+- **phoenix_ecto**: 4.6.5 -> 4.7.0
+- **phoenix_live_view**: 1.1.13 -> 1.1.26
+- **phoenix_test**: 0.8.1 -> 0.9.1
+- **postgrex**: 0.21.1 -> 0.22.0
+- **process_hub**: 0.3.3-alpha -> 0.5.0-beta
+- **req**: 0.5.17 (new)
+- **sentry**: 11.0.4 -> 12.0.2
+- **slipstream**: 1.2.0 -> 1.2.2
+- **slugify**: 1.3.1 (new)
+- **swoosh**: 1.19.8 -> 1.22.1
+- **tesla**: 1.14.1 -> 1.16.0
+- **unzip**: 0.12.0 -> 0.13.0
+
 ## v2.3.0
 
 ### Themes
@@ -76,7 +227,7 @@
 
 ### Changed
 
-- Change device field Uptime to Connected For (#2415) 
+- Change device field Uptime to Connected For (#2415)
 - Don't retry delta generation that will always fail (#2414)
 - Replace Scrivener with Flop for pagination (#1656)
 - Improve pagers (#1664)
