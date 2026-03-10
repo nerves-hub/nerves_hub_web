@@ -5,9 +5,6 @@ defmodule NervesHub.Telemetry.FilteredSampler do
 
   alias OpenTelemetry.Tracer
 
-  require Logger
-  require OpenTelemetry.Tracer, as: Tracer
-
   @ignored_static_paths ~r/^\/(assets|fonts|images|css)\/.*/
 
   @ignored_url_paths [
