@@ -96,7 +96,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
-  @decorate with_span("Channels.DeviceSocket.connect")
+  @decorate with_span("Channels.DeviceSocket.connect:cert_auth")
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
     |> Devices.get_device_by_x509()
@@ -115,7 +115,7 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
-  @decorate with_span("Channels.DeviceSocket.connect")
+  @decorate with_span("Channels.DeviceSocket.connect:shared_secrets")
   def connect(_params, socket, %{x_headers: x_headers})
       when is_list(x_headers) and (is_list(x_headers) and x_headers != []) do
     headers = Map.new(x_headers)

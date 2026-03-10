@@ -61,6 +61,7 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:after_join")
   def handle_info({:after_join, params}, socket) do
     %{device: device, reference_id: reference_id} = socket.assigns
 
@@ -110,6 +111,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:run_script")
   def handle_info({:run_script, pid, text}, socket) do
     if safe_to_run_scripts?(socket) do
       ref = Base.encode64(:crypto.strong_rand_bytes(4), padding: false)
@@ -155,6 +157,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # Update local state and tell the various servers of the new information
+  @decorate with_span("Channels.DeviceChannel.handle_out:updated")
   def handle_out("updated", _, %{assigns: %{device: device}} = socket) do
     device = Repo.reload(device)
 
@@ -164,6 +167,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, update_device(socket, device)}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_out:deployment_updated")
   def handle_out("deployment_updated", payload, socket) do
     device = %{socket.assigns.device | deployment_id: payload.deployment_id}
 
@@ -173,18 +177,21 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, update_device(socket, device)}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_in:firmware_validated")
   def handle_in("firmware_validated", _, %{assigns: %{device: device}} = socket) do
     {:ok, device} = Devices.firmware_validated(device)
 
     {:noreply, assign(socket, :device, device)}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_in:fwup_progress")
   def handle_in("fwup_progress", %{"value" => percent}, %{assigns: %{device: device}} = socket) do
     DeviceLink.firmware_update_progress(device, percent)
 
     {:noreply, maybe_update_update_attempts(socket)}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_in:connection_types")
   def handle_in("connection_types", %{"values" => types}, socket) do
     DeviceLink.update_connection_metadata(socket.assigns.reference_id, %{
       "connection_types" => types
@@ -193,6 +200,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_in:status_update")
   def handle_in("status_update", %{"status" => status}, socket) do
     DeviceLink.status_update(socket.assigns.device, status, socket.assigns.update_started?)
 
@@ -203,6 +211,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_in:scripts/run")
   def handle_in(
         "scripts/run",
         %{"ref" => "connecting_code", "result" => result, "return" => return, "output" => output},
