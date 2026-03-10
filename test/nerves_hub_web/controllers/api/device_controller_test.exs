@@ -43,7 +43,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      deployment_group = Fixtures.deployment_group_fixture(firmware)
+      deployment_group = Fixtures.deployment_group_fixture(firmware) |> Repo.preload(current_release: :firmware)
       device = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
 
       conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
@@ -53,7 +53,12 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                  %{
                    "connection_status" => "not_seen",
                    "deleted" => false,
-                   "deployment_group" => nil,
+                   "deployment_group" => %{
+                     "firmware_uuid" => deployment_group.current_release.firmware.uuid,
+                     "firmware_version" => deployment_group.current_release.firmware.version,
+                     "is_active" => deployment_group.is_active,
+                     "name" => deployment_group.name
+                   },
                    "description" => nil,
                    "firmware_metadata" => %{
                      "architecture" => "x86_64",
