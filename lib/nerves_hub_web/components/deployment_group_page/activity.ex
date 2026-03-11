@@ -34,11 +34,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
     ~H"""
     <div class="h-full flex flex-col items-start justify-between gap-4">
       <div class="p-6 w-full">
-        <div class="w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="w-full flex flex-col bg-base-900 border border-base-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
             <div class="text-base text-neutral-50 font-medium">Latest activity</div>
 
-            <div class="p-1.5 rounded bg-zinc-800 border border-zinc-600">
+            <div class="p-1.5 rounded bg-base-800 border border-base-600">
               <.link href={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/audit_logs/download"}>
                 <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
@@ -54,12 +54,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
           </div>
           <div :if={Enum.empty?(@activity)} class="py-2 px-4 flex flex-col gap-1">
             <div class="flex items-center justify-center p-14">
-              <span class="text-zinc-500 font-extralight">No audit logs found for the deployment group.</span>
+              <span class="text-base-500 font-extralight">No audit logs found for the deployment group.</span>
             </div>
           </div>
           <div :if={Enum.any?(@activity)} class="py-2 px-4 flex flex-col gap-1">
             <div :for={entry <- @activity} class="flex items-center gap-6 h-16 p-2">
-              <div class="flex items-center h-8 py-1 px-2 bg-zinc-800 border border-zinc-700 rounded-full">
+              <div class="flex items-center h-8 py-1 px-2 bg-base-800 border border-base-700 rounded-full">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M8.66663 4.66661L10.1952 3.13801C10.4556 2.87766 10.8777 2.87766 11.138 3.13801L12.8619 4.86187C13.1222 5.12222 13.1222 5.54433 12.8619 5.80468L11.3333 7.33327M8.66663 4.66661L2.86189 10.4713C2.73686 10.5964 2.66663 10.7659 2.66663 10.9427V12.6666C2.66663 13.0348 2.9651 13.3333 3.33329 13.3333H5.05715C5.23396 13.3333 5.40353 13.263 5.52855 13.138L11.3333 7.33327M8.66663 4.66661L11.3333 7.33327M8.66663 13.3333H13.3333"
@@ -71,9 +71,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
                 </svg>
               </div>
               <div class="grow">
-                <div class="text-zinc-300">{entry.description}</div>
+                <div class="text-base-300">{entry.description}</div>
                 <div class="flex gap-2">
-                  <div class="text-xs text-zinc-400 tracking-wide">
+                  <div class="text-xs text-base-400 tracking-wide">
                     {Timex.from_now(entry.inserted_at)}
                   </div>
                   <div class="flex items-center">
@@ -81,7 +81,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
                       <circle cx="1" cy="1" r="1" fill="#71717A" />
                     </svg>
                   </div>
-                  <div class="text-xs text-zinc-400 tracking-wide">
+                  <div class="text-xs text-base-400 tracking-wide">
                     {Calendar.strftime(entry.inserted_at, "%Y-%m-%d at %I:%M:%S %p UTC")}
                   </div>
                 </div>

@@ -84,13 +84,18 @@ defmodule NervesHubWeb.Components.Navigation do
 
   def nav_link(assigns) do
     ~H"""
-    <li class={["h-11 flex items-center justify-center lg:justify-start lg:px-4 hover:bg-sidebar-item-hover", @selected && "bg-sidebar-item-selected border-r-2 border-indigo-500"]}>
-      <.link class="group flex items-center gap-x-3 text-sm tracking-wide leading-[19px] text-[#D4D4D8] font-light w-full h-full justify-center lg:justify-start" navigate={@path}>
+    <li
+      data-selected={"#{@selected}"}
+      class={[
+        "h-11 flex items-center justify-center lg:justify-start lg:px-4 hover:sidebar-item-hover data-[selected=true]:sidebar-item-selected data-[selected=true]:border-r-2 data-[selected=true]:border-primary"
+      ]}
+    >
+      <.link class="group flex items-center gap-x-3 text-sm tracking-wide leading-[19px] text-base-300 font-light w-full h-full justify-center lg:justify-start" navigate={@path}>
         <span
           data-selected={"#{@selected}"}
-          class={"size-5 #{@icon} data-[selected=false]:text-zinc-500 data-[selected=true]:text-indigo-500"}
+          class={"size-5 #{@icon} data-[selected=false]:text-base-500 data-[selected=true]:text-primary"}
         />
-        <span class={["hidden lg:inline", @selected && "font-semibold text-zinc-50"]}>{@label}</span>
+        <span class={["hidden lg:inline", @selected && "font-semibold text-base-50"]}>{@label}</span>
       </.link>
     </li>
     """

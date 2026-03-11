@@ -78,7 +78,7 @@ defmodule NervesHubWeb do
   defp live_view_setup() do
     quote do
       use Phoenix.LiveView,
-        container: {:div, class: "h-screen"}
+        container: {:div, class: "h-full"}
 
       use Gettext, backend: NervesHubWeb.Gettext
 

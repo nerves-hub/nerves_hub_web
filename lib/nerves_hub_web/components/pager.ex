@@ -40,7 +40,7 @@ defmodule NervesHubWeb.Components.Pager do
 
   def render_with_page_sizes(assigns) do
     ~H"""
-    <div class="sticky bottom-0 h-16 w-full shrink-0 flex flex-row border-0 bg-base-950 border-t border-t-base-700 px-6 py-4 z-10">
+    <div class="sticky bottom-0 h-16 w-full shrink-0 flex flex-row border-0 bg-surface border-t border-t-base-700 px-6 py-4 z-10">
       <%= for {size, index} <- Enum.with_index(@page_sizes) do %>
         <button
           :if={(index == 0 && @pager.total_count > size) || @pager.total_count > Enum.at(@page_sizes, index - 1)}

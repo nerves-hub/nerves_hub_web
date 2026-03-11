@@ -1,5 +1,5 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-14 flex justify-end bg-base-900 border-b border-base-700"></div>
+  <div class="h-14 flex justify-end bg-surface-muted border-b border-base-700"></div>
 
   <div id="device-container" class="h-0 flex-1 overflow-y-auto" phx-hook="PageVisible">
     <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
@@ -8,7 +8,7 @@
         All Devices
       </h1>
       <div class="mr-auto">
-        <div :if={@devices.ok?} id="device-count" class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto hidden" phx-mounted={fade_in("#device-count")}>
+        <div :if={@devices.ok?} id="device-count" class="rounded-sm bg-base-800 text-xs text-base-300 px-1.5 py-0.5 mr-auto hidden" phx-mounted={fade_in("#device-count")}>
           {@total_entries}
         </div>
       </div>
@@ -16,7 +16,7 @@
         <div class="grid grid-cols-1 h-full">
           <input
             type="text"
-            class="col-start-1 row-start-1 block h-full w-full bg-base-900 text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
+            class="col-start-1 row-start-1 block h-full w-full bg-surface-muted text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
             name="search"
             id="device_search_top"
             placeholder="Search..."
@@ -67,7 +67,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr :for={_ <- 1..25} class="border-b border-zinc-800 isolate clickable-table-row animate-pulse">
+              <tr :for={_ <- 1..25} class="border-b border-base-800 isolate clickable-table-row animate-pulse">
                 <td class="checkbox"><input class="checkbox opacity-50" type="checkbox" /></td>
                 <td>
                   <div class="flex gap-2 items-center">
@@ -121,15 +121,15 @@
           <div class="h-full pb-16 flex items-center justify-center">
             <div class="max-w-2xl w-full px-6">
               <h2 class="text-xl font-semibold text-neutral-50 mb-4">{@product.name} doesn't have any devices yet.</h2>
-              <p class="text-sm text-zinc-400 mb-6">Get started by adding <code class="text-zinc-300">nerves_hub_link</code> to your Nerves project.</p>
+              <p class="text-sm text-base-400 mb-6">Get started by adding <code class="text-base-300">nerves_hub_link</code> to your Nerves project.</p>
               <% active_secret = Enum.find(@product.shared_secret_auths, &is_nil(&1.deactivated_at)) %>
               <%= if active_secret do %>
-                <div class="bg-zinc-900 border border-zinc-700 rounded-lg p-4">
-                  <h3 class="text-sm font-semibold text-zinc-300 mb-3">1. Add the dependency to your <code>mix.exs</code></h3>
-                  <pre class="bg-zinc-950 rounded p-3 text-sm text-green-400 font-mono mb-4 overflow-x-auto"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
+                <div class="bg-base-900 border border-base-700 rounded-lg p-4">
+                  <h3 class="text-sm font-semibold text-base-300 mb-3">1. Add the dependency to your <code>mix.exs</code></h3>
+                  <pre class="bg-base-950 rounded p-3 text-sm text-green-400 font-mono mb-4 overflow-x-auto"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
 
-                  <h3 class="text-sm font-semibold text-zinc-300 mb-3">2. Add this to your <code>config/config.exs</code></h3>
-                  <pre class="bg-zinc-950 rounded p-3 text-sm text-green-400 font-mono overflow-x-auto"><code>config :nerves_hub_link,
+                  <h3 class="text-sm font-semibold text-base-300 mb-3">2. Add this to your <code>config/config.exs</code></h3>
+                  <pre class="bg-base-950 rounded p-3 text-sm text-green-400 font-mono overflow-x-auto"><code>config :nerves_hub_link,
   host: "{onboarding_nhl_host()}",
   remote_iex: true,
   shared_secret: [
@@ -137,27 +137,27 @@
     product_secret: "{active_secret.secret}"
   ]</code></pre>
 
-                  <p class="text-xs text-zinc-500 mt-4">
-                    See the <a class="underline text-zinc-400 hover:text-zinc-300" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a> for more details.
+                  <p class="text-xs text-base-500 mt-4">
+                    See the <a class="underline text-base-400 hover:text-base-300" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a> for more details.
                   </p>
                 </div>
               <% else %>
-                <p class="text-sm text-zinc-400">
-                  Check the <a class="underline text-zinc-300 hover:text-zinc-200" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
+                <p class="text-sm text-base-400">
+                  Check the <a class="underline text-base-300 hover:text-base-200" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
                   for how to connect your first device.
                 </p>
               <% end %>
 
-              <div class="mt-6 p-4 border border-zinc-700/50 rounded-lg bg-zinc-900/50">
-                <h3 class="text-sm font-semibold text-zinc-300 mb-2">Production authentication</h3>
-                <p class="text-xs text-zinc-400">
+              <div class="mt-6 p-4 border border-base-700/50 rounded-lg bg-base-900/50">
+                <h3 class="text-sm font-semibold text-base-300 mb-2">Production authentication</h3>
+                <p class="text-xs text-base-400">
                   For production applications, we recommend mTLS authentication using a local certificate or dedicated secure hardware.
                 </p>
                 <div class="flex gap-4 mt-2">
-                  <a class="text-xs underline text-zinc-400 hover:text-zinc-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.LocalCert.html" target="_blank">
+                  <a class="text-xs underline text-base-400 hover:text-base-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.LocalCert.html" target="_blank">
                     LocalCert configurator
                   </a>
-                  <a class="text-xs underline text-zinc-400 hover:text-zinc-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.NervesKey.html" target="_blank">
+                  <a class="text-xs underline text-base-400 hover:text-base-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.NervesKey.html" target="_blank">
                     NervesKey configurator
                   </a>
                 </div>
@@ -209,7 +209,7 @@
               <tbody>
                 <tr
                   :for={device <- devices}
-                  class={["border-b border-zinc-800 isolate clickable-table-row", device.id in @selected_devices && "selected-row"]}
+                  class={["border-b border-base-800 isolate clickable-table-row", device.id in @selected_devices && "selected-row"]}
                   style={progress_style(@progress[device.id])}
                 >
                   <td class="checkbox">
@@ -265,16 +265,16 @@
                       <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"} class="ff-m font-mono">
                         {device.identifier}
                         <div :if={device.deleted_at} class="relative inline-block align-middle z-50" id={"health-tooltip-#{device.identifier}"} phx-hook="ToolTip" data-placement="right">
-                          <.icon name="info" class="stroke-zinc-400" />
-                          <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+                          <.icon name="info" class="stroke-base-400" />
+                          <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-surface-muted flex">
                             This device has been deleted. <br /> You can destroy or restore it in the device's settings.
-                            <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+                            <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-surface-muted origin-center rotate-45"></div>
                           </div>
                         </div>
                         <span class="clickable-table-row-mask" />
                       </.link>
-                      <span class={["flex items-center gap-1 ml-2 pl-2.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800", !@progress[device.id] && "invisible"]}>
-                        <span class="text-xs text-zinc-300 tracking-tight">updating</span>
+                      <span class={["flex items-center gap-1 ml-2 pl-2.5 pr-2.5 py-0.5 border border-base-700 rounded-full bg-base-800", !@progress[device.id] && "invisible"]}>
+                        <span class="text-xs text-base-300 tracking-tight">updating</span>
                       </span>
                     </div>
                   </td>
@@ -414,12 +414,12 @@
 
   <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 mb-[119px] sm:pl-16 z-40">
     <div class={[
-      "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-y border-l border-zinc-700 bg-base-900 shadow-filter-slider transition-transform",
+      "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-y border-l border-base-700 bg-surface-muted shadow-filter-slider transition-transform",
       Enum.empty?(@selected_devices) && "translate-x-full",
       Enum.empty?(@selected_devices) && "invisible"
     ]}>
       <div class="h-0 flex-1 overflow-y-auto">
-        <div class="flex items-center h-14 px-4 py-3 border-b border-zinc-700">
+        <div class="flex items-center h-14 px-4 py-3 border-b border-base-700">
           <h4 :if={length(@selected_devices) == 1} class="text-base font-semibold">{length(@selected_devices)} device selected</h4>
           <h4 :if={length(@selected_devices) > 1} class="text-base font-semibold">{length(@selected_devices)} devices selected</h4>
 

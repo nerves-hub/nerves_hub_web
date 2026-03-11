@@ -1,15 +1,15 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
+  <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Deployment Groups</h1>
-      <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">{@pager_meta.total_count}</div>
+      <div class="rounded-sm bg-base-800 text-xs text-base-300 px-1.5 py-0.5 mr-auto">{@pager_meta.total_count}</div>
       <form :if={Enum.any?(@entries) || @currently_filtering} class="flex items-center h-full" phx-change="update-filters">
         <div class="grid grid-cols-1 h-full">
           <input
             type="text"
-            class="col-start-1 row-start-1 block h-full w-full bg-base-900 text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
+            class="col-start-1 row-start-1 block h-full w-full bg-surface-muted text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
             name="search"
             id="deployment_group_search_top"
             placeholder="Search..."
@@ -74,11 +74,11 @@
             </tr>
           </thead>
           <tbody>
-            <tr :for={deployment_group <- @entries} class={["border-b border-zinc-800"]}>
+            <tr :for={deployment_group <- @entries} class={["border-b border-base-800"]}>
               <td>
                 <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{deployment_group}"}>
                   <div class="h-[40px] w-full flex gap-[8px] items-center">
-                    <svg class={["size-1.5", (deployment_group.is_active && "fill-emerald-500") || "fill-zinc-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
+                    <svg class={["size-1.5", (deployment_group.is_active && "fill-success") || "fill-base-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
                       <circle cx="3" cy="3" r="3" />
                     </svg>
 
@@ -104,7 +104,7 @@
               </td>
 
               <td class="min-w-fit">
-                <span class="inline-block py-1 px-2 items-center rounded bg-zinc-800 whitespace-nowrap">
+                <span class="inline-block py-1 px-2 items-center rounded bg-base-800 whitespace-nowrap">
                   <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware/#{deployment_group.current_release.firmware}"} class="flex items-center">
                     <span class="text-sm text-base-300 mr-1">{deployment_group.current_release.firmware.version} ({String.slice(deployment_group.current_release.firmware.uuid, 0..7)})</span>
                     <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

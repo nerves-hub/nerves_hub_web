@@ -80,7 +80,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       class="transition-all duration-500 opacity-0 tab-content phx-click-loading:opacity-50 flex items-start justify-between gap-4 p-6"
     >
       <div class="w-1/2 flex flex-col gap-4">
-        <div :if={!@product.extensions.health || !@device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div :if={!@product.extensions.health || !@device.extensions.health} class="flex flex-col rounded border border-base-700 bg-base-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="text-neutral-50 font-medium leading-6">Health and Alerting</div>
           </div>
@@ -88,13 +88,13 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             Reporting is not enabled {if(!@product.extensions.health, do: "for your product", else: "for your device")}.
           </div>
           <div class="px-4 pb-4">
-            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+            <.link class="text-xs font-normal text-base-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
               Learn more about device health and alert reporting.
             </.link>
           </div>
         </div>
 
-        <div :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-base-700 bg-base-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="text-neutral-50 font-medium leading-6">Health</div>
@@ -107,7 +107,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   {Timex.from_now(@latest_metrics["timestamp"])}
                 </time>
               </div>
-              <div class="text-xs text-zinc-300 tracking-wide">Auto refresh</div>
+              <div class="text-xs text-base-300 tracking-wide">Auto refresh</div>
               <div>
                 <button
                   type="button"
@@ -134,11 +134,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             </div>
           </div>
           <div class="flex pt-2 px-4 pb-4 gap-2 items-center justify-items-stretch flex-wrap">
-            <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-emerald-500 bg-health-good">
-              <span class="text-xs text-zinc-400 tracking-wide">CPU</span>
+            <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-success bg-health-good">
+              <span class="text-xs text-base-400 tracking-wide">CPU</span>
               <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex justify-between items-end">
                 <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
-                <span class="text-base text-emerald-500">{round(@latest_metrics["cpu_temp"])}°</span>
+                <span class="text-base text-success">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
               <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="flex justify-between items-end">
                 <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
@@ -148,25 +148,25 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </div>
               <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
             </div>
-            <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-amber-500 bg-health-warning">
-              <span class="text-xs text-zinc-400 tracking-wide">Memory used</span>
+            <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-warning bg-health-warning">
+              <span class="text-xs text-base-400 tracking-wide">Memory used</span>
               <div :if={@latest_metrics["mem_used_mb"]} class="flex justify-between items-end">
                 <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["mem_used_mb"])}MB</span>
-                <span class="text-base text-amber-500">{round(@latest_metrics["mem_used_percent"])}%</span>
+                <span class="text-base text-warning">{round(@latest_metrics["mem_used_percent"])}%</span>
               </div>
               <div :if={!@latest_metrics["mem_used_mb"]} class="flex justify-between items-end">
                 <span class="text-xl leading-[30px] text-nerves-gray-500">Not reported</span>
               </div>
             </div>
             <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-indigo-500 bg-health-neutral">
-              <span class="text-xs text-zinc-400 tracking-wide">Load avg</span>
+              <span class="text-xs text-base-400 tracking-wide">Load avg</span>
               <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex justify-between items-center">
                 <span :if={@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_1min"]}</span>
                 <span :if={!@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
-                <span class="w-px h-4 bg-zinc-700"></span>
+                <span class="w-px h-4 bg-base-700"></span>
                 <span :if={@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_5min"]}</span>
                 <span :if={!@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
-                <span class="w-px h-4 bg-zinc-700"></span>
+                <span class="w-px h-4 bg-base-700"></span>
                 <span :if={@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_15min"]}</span>
                 <span :if={!@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
               </div>
@@ -175,7 +175,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </div>
             </div>
           </div>
-          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+          <div class="px-4 pb-4 text-xs font-normal text-base-400 ">
             Learn more about
             <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
               device health reporting.
@@ -183,14 +183,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
         </div>
 
-        <div :if={Enum.empty?(@latest_metrics) && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div :if={Enum.empty?(@latest_metrics) && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-base-700 bg-base-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="text-neutral-50 font-medium leading-6">Health</div>
           </div>
           <div class="flex pt-2 px-4 pb-4 gap-2 items-center text-nerves-gray-500">
             No device health information has been received.
           </div>
-          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+          <div class="px-4 pb-4 text-xs font-normal text-base-400 ">
             Learn more about
             <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
               device health reporting.
@@ -198,20 +198,20 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
         </div>
 
-        <div :if={@alarms && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div :if={@alarms && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-base-700 bg-base-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="text-neutral-50 font-medium leading-6">Alarms</div>
           </div>
 
           <div class="flex flex-col pt-2 px-4 pb-4 gap-2">
             <div :for={{alarm, description} <- @alarms} class="flex gap-3 items-center">
-              <code class="text-sm text-red-500 px-2 py-1 border border-red-500 bg-zinc-800 rounded">{alarm}</code>
+              <code class="text-sm text-alert px-2 py-1 border border-alert bg-base-800 rounded">{alarm}</code>
               <code :if={has_description?(description)}>{description}</code>
               <span :if={!has_description?(description)} class="text-nerves-gray-500">No description</span>
             </div>
           </div>
 
-          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+          <div class="px-4 pb-4 text-xs font-normal text-base-400 ">
             Learn more about
             <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
               alarm reporting
@@ -219,11 +219,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
         </div>
 
-        <div :if={!@alarms && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div :if={!@alarms && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-base-700 bg-base-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="text-neutral-50 font-medium leading-6">No Alarms Received</div>
           </div>
-          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+          <div class="px-4 pb-4 text-xs font-normal text-base-400 ">
             Learn more about
             <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
               alarm reporting
@@ -231,19 +231,19 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
         </div>
 
-        <div class="flex flex-col pb-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div class="flex flex-col pb-4 rounded border border-base-700 bg-base-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center text-neutral-50 font-medium leading-6">
             General Info
           </div>
           <div class="flex flex-col gap-3">
             <div :if={not is_nil(@device.description) && @device.description != ""} class="min-h-7 px-4 flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Description:</span>
-              <span class="text-sm text-zinc-300">{@device.description}</span>
+              <span class="text-sm text-base-300">{@device.description}</span>
             </div>
 
             <div :if={@device.latest_connection && @device.latest_connection.status == :disconnected} class="min-h-7 px-4 flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Last Seen:</span>
-              <span class="text-sm text-zinc-300">
+              <span class="text-sm text-base-300">
                 <time
                   id="connection-established-at"
                   phx-hook="UpdatingTimeAgo"
@@ -256,7 +256,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
             <div :if={@device.latest_connection && @device.latest_connection.status != :disconnected} class="min-h-7 px-4 flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Connected:</span>
-              <span class="text-sm text-zinc-300">
+              <span class="text-sm text-base-300">
                 <time
                   id="connection-established-at"
                   phx-hook="UpdatingTimeAgo"
@@ -269,7 +269,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
             <div class="min-h-7 px-4 flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Added:</span>
-              <span class="text-sm text-zinc-300">{@device.inserted_at |> NaiveDateTime.to_date() |> Date.to_string()}</span>
+              <span class="text-sm text-base-300">{@device.inserted_at |> NaiveDateTime.to_date() |> Date.to_string()}</span>
             </div>
 
             <div class="min-h-7 flex px-4 gap-4 items-center relative">
@@ -277,14 +277,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <span :if={is_nil(@device.tags)} class="text-sm text-nerves-gray-500">No Tags</span>
               <span class="device-show-tag-gradient-mask" />
               <span :if={@device.tags} class="flex gap-1 max-w-full text-nowrap relative scrollable-inner">
-                <span :for={tag <- @device.tags || []} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">{tag}</span>
+                <span :for={tag <- @device.tags || []} class="text-sm text-base-300 px-2 py-1 border border-base-800 bg-base-800 rounded">{tag}</span>
               </span>
             </div>
 
             <div :if={!Enum.empty?(@metadata)} class="min-h-7 flex px-4 gap-4">
               <span class="pt-1 text-sm text-nerves-gray-500">Metadata:</span>
               <span class="flex flex-col gap-1">
-                <span :for={{key, value} <- Map.filter(@metadata, fn {_key, val} -> val != "" end)} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">
+                <span :for={{key, value} <- Map.filter(@metadata, fn {_key, val} -> val != "" end)} class="text-sm text-base-300 px-2 py-1 border border-base-800 bg-base-800 rounded">
                   <span>{key |> String.replace("_", " ") |> String.capitalize()}: {value}</span>
                 </span>
               </span>
@@ -293,13 +293,13 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <div :if={@extension_overrides != []} class="flex min-h-7 px-4 gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Disabled extensions:</span>
               <span class="flex gap-1">
-                <span :for={extension <- @extension_overrides} class="text-sm text-red-500 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded" class="">{extension}</span>
+                <span :for={extension <- @extension_overrides} class="text-sm text-alert px-2 py-1 border border-base-800 bg-base-800 rounded" class="">{extension}</span>
               </span>
             </div>
           </div>
         </div>
 
-        <div class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div class="flex flex-col rounded border border-base-700 bg-base-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center text-neutral-50 font-medium leading-6">
             Deployment Groups
           </div>
@@ -313,15 +313,15 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <span class="text-sm text-nerves-gray-500">Assigned deployment group:</span>
               <.link
                 navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@device.deployment_group}"}
-                class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
+                class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-base-700 rounded-full bg-base-800"
               >
                 <svg class="w-1.5 h-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <circle cx="3" cy="3" r="3" fill="#10B981" />
                 </svg>
-                <span class="text-xs text-zinc-300 tracking-tight" class="">{@device.deployment_group.name}</span>
+                <span class="text-xs text-base-300 tracking-tight" class="">{@device.deployment_group.name}</span>
               </.link>
               <button
-                class="p-1 border border-red-500 rounded-full bg-zinc-800"
+                class="p-1 border border-alert rounded-full bg-base-800"
                 data-confirm="Are you sure you want to remove the device from the deployment?"
                 aria-label="Remove device from the assigned deployment group"
                 type="button"
@@ -344,14 +344,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <span class="text-sm text-nerves-gray-500">Please note: The device will be removed from the deployment group upon connection if the arch and platform don't match.</span>
           </div>
 
-          <div :if={is_nil(@device.deployment_group) && Enum.any?(@deployment_groups)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
+          <div :if={is_nil(@device.deployment_group) && Enum.any?(@deployment_groups)} class="flex p-4 gap-4 items-center border-t border-base-700">
             <form id="set-deployment-group-form" phx-update="ignore" phx-submit="set-deployment-group" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <label for="deployment_group" class="hidden">Deployment Group</label>
                 <select
                   id="deployment_group"
                   name="deployment_id"
-                  class="col-start-1 row-start-1 appearance-none border rounded border-zinc-600 bg-zinc-900 py-1.5 pl-3 pr-8 text-sm text-zinc-400 focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-indigo-500"
+                  class="col-start-1 row-start-1 appearance-none border rounded border-base-600 bg-base-900 py-1.5 pl-3 pr-8 text-sm text-base-400 focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-indigo-500"
                 >
                   <option value="">Select a deployment group</option>
                   <option :for={deployment_group <- @deployment_groups} value={deployment_group.id}>
@@ -365,7 +365,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             </form>
           </div>
 
-          <div :if={@update_information.update_available && @device.deployment_id} class="flex p-4 gap-4 items-center justify-between border-t border-zinc-700">
+          <div :if={@update_information.update_available && @device.deployment_id} class="flex p-4 gap-4 items-center justify-between border-t border-base-700">
             <div class="flex flex-col">
               <span>Update available</span>
               <span class="text-sm text-nerves-gray-500">An update is available in the assigned deployment group.</span>
@@ -376,14 +376,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             </.button>
           </div>
 
-          <div :if={Enum.any?(@firmwares)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
+          <div :if={Enum.any?(@firmwares)} class="flex p-4 gap-4 items-center border-t border-base-700">
             <form id="push-update-form" phx-change="select-firmware-version" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <label for="firmware" class="hidden">Firmware</label>
                 <select
                   id="firmware"
                   name="uuid"
-                  class="col-start-1 row-start-1 appearance-none border rounded border-zinc-600 bg-zinc-900 py-1.5 pl-3 pr-8 text-sm text-zinc-400 focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-indigo-500"
+                  class="col-start-1 row-start-1 appearance-none border rounded border-base-600 bg-base-900 py-1.5 pl-3 pr-8 text-sm text-base-400 focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-indigo-500"
                 >
                   <option value="">Select a version</option>
                   <option :for={firmware <- @firmwares} value={firmware.uuid} selected={@selected_firmware && firmware.uuid == @selected_firmware}>
@@ -419,7 +419,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       </div>
 
       <div class="w-1/2 flex flex-col gap-4">
-        <div class="flex flex-col items-start rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div class="flex flex-col items-start rounded border border-base-700 bg-base-900 shadow-device-details-content">
           <DeviceLocation.render
             enabled_product={@product.extensions.geo}
             enabled_device={@device.extensions.geo}
@@ -428,7 +428,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           />
         </div>
 
-        <div class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div class="flex flex-col rounded border border-base-700 bg-base-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center text-neutral-50 font-medium leading-6">
             Support Scripts
           </div>
@@ -440,9 +440,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           <div :if={Enum.any?(@support_scripts)} class="flex flex-col pt-2 px-4 pb-6 gap-2">
             <div :for={script <- @support_scripts} class="flex flex-col gap-2">
               <div class="flex items-center gap-4">
-                <span class="text-base text-zinc-300">{script.name}</span>
+                <span class="text-base text-base-300">{script.name}</span>
 
-                <button :if={!script.running?} class="p-1 border border-green-500 rounded-full bg-zinc-800" type="button" phx-click="run-script" phx-value-id={script.id}>
+                <button :if={!script.running?} class="p-1 border border-green-500 rounded-full bg-base-800" type="button" phx-click="run-script" phx-value-id={script.id}>
                   <svg class="w-3 h-3 stroke-green-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M8 19V5L18 12L8 19Z" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
@@ -453,8 +453,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
 
-                <button :if={script.output} class="p-1 border border-red-500 rounded-full bg-zinc-800" type="button" phx-click="clear-script-output" phx-value-id={script.id}>
-                  <svg class="size-3 stroke-red-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <button :if={script.output} class="p-1 border border-alert rounded-full bg-base-800" type="button" phx-click="clear-script-output" phx-value-id={script.id}>
+                  <svg class="size-3 stroke-alert" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                       d="M8 8H16M16 12H8M8 16H12M20 13V6C20 4.89543 19.1046 4 18 4H6C4.89543 4 4 4.89543 4 6V18C4 19.1046 4.89543 20 6 20H13M19 19L21 17M19 19L17 17M19 19L21 21M19 19L17 21"
                       stroke-width="1.2"
@@ -464,14 +464,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   </svg>
                 </button>
               </div>
-              <div :if={script.output} class="mt-2 bg-[#0e1019] rounded border border-zinc-700 p-2">
+              <div :if={script.output} class="mt-2 bg-[#0e1019] rounded border border-base-700 p-2">
                 <div id="support-script" phx-hook="SupportScriptOutput" class="overflow-x-scroll"></div>
                 <div id="support-script-output" class="hidden" phx-no-format>{script.output}</div>
               </div>
             </div>
           </div>
 
-          <div class="flex p-4 gap-4 items-center border-t border-zinc-700">
+          <div class="flex p-4 gap-4 items-center border-t border-base-700">
             <.button type="link" navigate={~p"/org/#{@org}/#{@product}/scripts/new"} aria-label="Add a support script">
               <.icon name="add" />Add a support script
             </.button>

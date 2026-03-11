@@ -115,7 +115,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
                       <circle cx="3" cy="3" r="3" fill="#71717A" />
                     </svg>
                   <% end %>
-                  <h1 class="text-xl font-semibold leading-[30px] text-zinc-50 font-mono">
+                  <h1 class="text-xl font-semibold leading-[30px] text-base-50 font-mono">
                     {@device.identifier}
                   </h1>
                 </div>
@@ -132,7 +132,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
             <div :if={authorized?(:"device:console", @current_scope) && !online?} class="grow flex justify-center items-center p-6 gap-6 text-medium font-mono">
               The device console isn't currently available.
             </div>
-            <div :if={!authorized?(:"device:console", @current_scope)} class="grow flex justify-center items-center p-6 gap-6 text-medium text-red-500 font-mono">
+            <div :if={!authorized?(:"device:console", @current_scope)} class="grow flex justify-center items-center p-6 gap-6 text-medium text-alert font-mono">
               You don't have the required permissions to access a Device console.
             </div>
           </div>

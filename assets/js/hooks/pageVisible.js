@@ -4,9 +4,11 @@ export default {
   },
   init() {
     document.addEventListener("visibilitychange", () => {
-      this.pushEvent("page_visibility_change", {
-        visible: document.visibilityState === "visible"
-      })
+      if (this.liveSocket.isConnected()) {
+        this.pushEvent("page_visibility_change", {
+          visible: document.visibilityState === "visible",
+        })
+      }
     })
-  }
+  },
 }

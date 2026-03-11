@@ -47,8 +47,8 @@ defmodule Mix.Tasks.NervesHub.Gen.Devices do
 
       %DeviceConnection{
         device_id: device.id,
-        established_at: DateTime.utc_now(:millisecond),
-        last_seen_at: DateTime.utc_now(:millisecond),
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
         metadata: %{
           "location" => %{
             "longitude" => lng,
