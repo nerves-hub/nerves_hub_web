@@ -191,7 +191,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   def handle_event("update-release", %{"deployment_group" => params}, socket) do
     %{
-      current_release: scope,
+      current_scope: scope,
       deployment_group: deployment_group
     } =
       socket.assigns

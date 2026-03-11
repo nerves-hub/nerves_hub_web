@@ -20,6 +20,29 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     %{context | conn: conn}
   end
 
+  test "successfully creates a new release", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
+
+    new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> assert_has("h1", text: deployment_group.name)
+    |> assert_has("div", text: "Release settings")
+    |> select("Firmware version", option: "#{new_firmware.version}", exact_option: false)
+    |> submit()
+    |> assert_has("td", text: "#{new_firmware.uuid}")
+    |> assert_has("div", text: "Release settings updated")
+  end
+
   test "updates the available firmware list when new firmware is uploaded", %{
     conn: conn,
     user: user,
