@@ -61,7 +61,10 @@ config :nerves_hub,
     ]
   ],
   logger_exclusions: System.get_env("LOGGER_EXCLUSIONS", "") |> String.split(","),
-  devices_websocket_url: System.get_env("DEVICES_WEBSOCKET_HOST")
+  devices_websocket_url:
+    System.get_env("DEVICES_WEBSOCKET_HOST") || System.get_env("DEVICE_HOST") || System.get_env("WEB_HOST") ||
+      System.get_env("HOST"),
+  clean_up_soft_deleted_devices: System.get_env("CLEAN_UP_SOFT_DELETED_DEVICES", "false") == "true"
 
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do

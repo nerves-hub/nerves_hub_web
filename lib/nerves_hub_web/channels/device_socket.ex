@@ -5,6 +5,7 @@ defmodule NervesHubWeb.DeviceSocket do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.ProductNotifications
   alias NervesHub.Products
   alias Phoenix.Socket.Transport
   alias Plug.Crypto
@@ -135,6 +136,13 @@ defmodule NervesHubWeb.DeviceSocket do
            identifier: {_msg, [constraint: :unique, constraint_name: "devices_identifier_index"]}
          ]
        }} ->
+        _ =
+          ProductNotifications.create_duplicate_device_identifier_notification!(
+            product_id,
+            identifier,
+            :shared_secret
+          )
+
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
           auth: :shared_secrets,
           reason: :duplicate_device_identifier,

@@ -280,7 +280,7 @@ defmodule NervesHubWeb.CoreComponents do
     <button
       type={@type}
       class={[
-        "phx-submit-loading:opacity-75 flex px-3 py-1.5 gap-2 rounded",
+        "phx-submit-loading:opacity-75 flex px-3 py-1.5 gap-2 rounded hover:cursor-pointer",
         "bg-base-800 hover:bg-base-700 active:bg-indigo-500 disabled:bg-base-800",
         "border rounded border-base-600 active:border-indigo-500",
         "stroke-base-400 active:stroke-base-100 disabled:stroke-base-600",
