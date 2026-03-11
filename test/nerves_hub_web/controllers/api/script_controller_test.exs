@@ -178,9 +178,9 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
       resp =
         conn
         |> post(path)
-        |> json_response(503)
+        |> json_response(404)
 
-      assert resp == %{"errors" => %{"detail" => "not_found"}}
+      assert resp == %{"errors" => %{"detail" => "Resource Not Found or Authorization Insufficient"}}
     end
 
     test "returns error when script not found by id", %{conn: conn, device: device} do
@@ -189,9 +189,9 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
       resp =
         conn
         |> post(path)
-        |> json_response(503)
+        |> json_response(404)
 
-      assert resp == %{"errors" => %{"detail" => "not_found"}}
+      assert resp == %{"errors" => %{"detail" => "Resource Not Found or Authorization Insufficient"}}
     end
   end
 end

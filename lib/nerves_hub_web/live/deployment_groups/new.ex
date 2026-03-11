@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.New do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Firmwares
@@ -7,16 +7,17 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
   alias NervesHub.ManagedDeployments
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, %{assigns: %{product: product}} = socket) do
-    if Firmwares.count(product) == 0 do
+  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+    if Firmwares.count(scope.product) == 0 do
       socket
       |> assign(:firmware_required, true)
+      |> sidebar_tab(:deployments)
       |> ok()
     else
-      platforms = Firmwares.get_unique_platforms(product)
+      platforms = Firmwares.get_unique_platforms(scope.product)
 
       socket
-      |> page_title("New Deployment - #{socket.assigns.product.name}")
+      |> page_title("New Deployment - #{scope.product.name}")
       |> sidebar_tab(:deployments)
       |> assign(:firmware_required, false)
       |> assign(:platforms, platforms)
@@ -35,11 +36,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
         %{"_target" => ["deployment_group", "platform"], "deployment_group" => %{"platform" => platform}},
         socket
       ) do
-    authorized!(:"deployment_group:create", socket.assigns.org_user)
+    authorized!(:"deployment_group:create", socket.assigns.current_scope)
 
-    %{product: product} = socket.assigns
-
-    architectures = Firmwares.get_unique_architectures(product)
+    architectures = Firmwares.get_unique_architectures(socket.assigns.current_scope.product)
 
     socket
     |> assign(:platform, platform)
@@ -54,12 +53,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
         %{"_target" => ["deployment_group", "architecture"], "deployment_group" => %{"architecture" => architecture}},
         socket
       ) do
-    authorized!(:"deployment_group:create", socket.assigns.org_user)
-
-    %{product: product} = socket.assigns
+    authorized!(:"deployment_group:create", socket.assigns.current_scope)
 
     firmwares =
-      Firmwares.get_firmwares(product, socket.assigns.platform, architecture)
+      Firmwares.get_firmwares(socket.assigns.current_scope.product, socket.assigns.platform, architecture)
 
     socket
     |> assign(:firmwares, firmwares)
@@ -77,7 +74,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
     |> assign(:form, to_form(params, as: :deployment_group))
     |> then(fn socket ->
       if platform = socket.assigns.form["platform"].value do
-        architectures = Firmwares.get_unique_architectures(socket.assigns.product)
+        architectures = Firmwares.get_unique_architectures(socket.assigns.current_scope.product)
 
         socket
         |> assign(:platform, platform)
@@ -88,10 +85,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
     end)
     |> then(fn socket ->
       if architecture = socket.assigns.form["architecture"].value do
-        %{product: product} = socket.assigns
+        %{current_scope: scope} = socket.assigns
 
         firmwares =
-          Firmwares.get_firmwares(product, socket.assigns.platform, architecture)
+          Firmwares.get_firmwares(scope.product, socket.assigns.platform, architecture)
 
         socket
         |> assign(:firmwares, firmwares)
@@ -104,7 +101,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
   end
 
   # def handle_event("platform-selected", %{"deployment_group" => %{"platform" => platform}}, socket) do
-  #   authorized!(:"deployment_group:create", socket.assigns.org_user)
+  #   authorized!(:"deployment_group:create", socket.assigns.current_scope)
 
   #   %{product: product} = socket.assigns
 
@@ -123,7 +120,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
   # end
 
   # def handle_event("architecture-selected", %{"deployment_group" => %{"architecture" => architecture}}, socket) do
-  #   authorized!(:"deployment_group:create", socket.assigns.org_user)
+  #   authorized!(:"deployment_group:create", socket.assigns.current_scope)
 
   #   dbg("here: #{architecture}")
 
@@ -139,9 +136,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
   # end
 
   def handle_event("create-deployment-group", %{"deployment_group" => params}, socket) do
-    authorized!(:"deployment_group:create", socket.assigns.org_user)
+    authorized!(:"deployment_group:create", socket.assigns.current_scope)
 
-    %{user: user, org: org, product: product} = socket.assigns
+    %{user: user, org: org, product: product} = socket.assigns.current_scope
 
     ManagedDeployments.create_deployment_group(params, product, user)
     |> case do

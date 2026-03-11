@@ -6,14 +6,14 @@ defmodule NervesHubWeb.DownloadController do
 
   plug(:validate_role, org: :view)
 
-  def archive(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
-    {:ok, archive} = Archives.get(product, uuid)
+  def archive(%{assigns: %{current_scope: scope}} = conn, %{"uuid" => uuid}) do
+    {:ok, archive} = Archives.get(scope.product, uuid)
 
     redirect(conn, external: Archives.url(archive))
   end
 
-  def firmware(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
-    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
+  def firmware(%{assigns: %{current_scope: scope}} = conn, %{"uuid" => uuid}) do
+    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(scope.product, uuid)
 
     {:ok, url} = firmware_uploader().download_file(firmware)
 

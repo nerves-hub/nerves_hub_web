@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.ExtensionsChannel do
   use Phoenix.Channel
+  use OpenTelemetryDecorator
 
   alias NervesHub.Extensions
   alias NervesHub.Helpers.Logging
@@ -10,6 +11,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   require Logger
 
   @impl Phoenix.Channel
+  @decorate with_span("Channels.ExtensionsChannel.join")
   def join("extensions", extension_versions, socket) do
     # the assigns are not shared between channels, so if we don't
     # reload the device we are likely to have incorrect data, especially
@@ -69,6 +71,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   end
 
   @impl Phoenix.Channel
+  @decorate with_span("Channels.ExtensionsChannel.handle_in")
   def handle_in(scoped_event, payload, socket) do
     with [key, event] <- String.split(scoped_event, ":", parts: 2),
          %{attach?: true, module: mod} <- socket.assigns.extensions[key] do
@@ -113,11 +116,13 @@ defmodule NervesHubWeb.ExtensionsChannel do
     {:noreply, socket}
   end
 
+  @decorate with_span("Channels.ExtensionsChannel.handle_info[Broadcast]")
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
     push(socket, event, payload)
     {:noreply, socket}
   end
 
+  @decorate with_span("Channels.ExtensionsChannel.handle_info[Broadcast]")
   def handle_info({mod, msg}, socket) do
     mod.handle_info(msg, socket)
   rescue

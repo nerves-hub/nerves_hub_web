@@ -58,8 +58,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     ~H"""
     <div class="flex flex-col p-6 gap-6">
       <div class="w-full">
-        <div class="flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="flex flex-col bg-base-900 border border-base-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
             <div class="text-base text-neutral-50 font-medium">Release History</div>
 
             <.button style="secondary" type="submit" phx-click={CoreComponents.show_modal("new-release")}>
@@ -77,50 +77,50 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
           </div>
 
           <div :if={@releases == []} class="flex flex-col items-center justify-center p-12 gap-4">
-            <div class="text-zinc-400">No releases have been created.</div>
-            <div class="text-sm text-zinc-500">
+            <div class="text-base-400">No releases have been created.</div>
+            <div class="text-sm text-base-500">
               Release history will appear here when you change the firmware version above.
             </div>
           </div>
 
           <div :if={@releases != []} class="overflow-x-auto">
             <table class="w-full">
-              <thead class="border-b border-zinc-700">
+              <thead class="border-b border-base-700">
                 <tr>
-                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Released</th>
-                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Firmware Version</th>
-                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">UUID</th>
-                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Archive</th>
-                  <th class="text-left px-4 py-3 text-sm font-medium text-zinc-400">Released By</th>
+                  <th class="text-left px-4 py-3 text-sm font-medium text-base-400">Released</th>
+                  <th class="text-left px-4 py-3 text-sm font-medium text-base-400">Firmware Version</th>
+                  <th class="text-left px-4 py-3 text-sm font-medium text-base-400">UUID</th>
+                  <th class="text-left px-4 py-3 text-sm font-medium text-base-400">Archive</th>
+                  <th class="text-left px-4 py-3 text-sm font-medium text-base-400">Released By</th>
                 </tr>
               </thead>
               <tbody>
-                <tr :for={release <- @releases} class="border-b border-zinc-800 hover:bg-zinc-800/50">
-                  <td class="px-4 py-3 text-sm text-zinc-300">
+                <tr :for={release <- @releases} class="border-b border-base-800 hover:bg-base-800/50">
+                  <td class="px-4 py-3 text-sm text-base-300">
                     <div class="flex flex-col">
                       <span>{Calendar.strftime(release.inserted_at, "%B %d, %Y")}</span>
-                      <span class="text-xs text-zinc-500">{Calendar.strftime(release.inserted_at, "%I:%M %p")} UTC</span>
+                      <span class="text-xs text-base-500">{Calendar.strftime(release.inserted_at, "%I:%M %p")} UTC</span>
                     </div>
                   </td>
-                  <td class="px-4 py-3 text-sm text-zinc-300 font-medium">
+                  <td class="px-4 py-3 text-sm text-base-300 font-medium">
                     {release.firmware.version}
                   </td>
-                  <td class="px-4 py-3 text-sm text-zinc-400 font-mono">
+                  <td class="px-4 py-3 text-sm text-base-400 font-mono">
                     {release.firmware.uuid}
                   </td>
-                  <td class="px-4 py-3 text-sm text-zinc-400">
+                  <td class="px-4 py-3 text-sm text-base-400">
                     <span :if={release.archive}>
                       {release.archive.version} ({String.slice(release.archive.uuid, 0..7)})
                     </span>
-                    <span :if={!release.archive} class="text-zinc-500 italic">
+                    <span :if={!release.archive} class="text-base-500 italic">
                       None
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-sm text-zinc-400">
+                  <td class="px-4 py-3 text-sm text-base-400">
                     <span :if={release.user}>
                       {release.user.name}
                     </span>
-                    <span :if={!release.user} class="text-zinc-500 italic">
+                    <span :if={!release.user} class="text-base-500 italic">
                       Unknown
                     </span>
                   </td>
@@ -130,9 +130,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
           </div>
         </div>
       </div>
-      <CoreComponents.modal id="new-release" on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/releases")}>
+      <CoreComponents.modal id="new-release" on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/releases")}>
         <.form id="release-form" for={@form} phx-change="validate-release" phx-submit="update-release" phx-target={@myself}>
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
             <div class="text-base text-neutral-50 font-medium">Release settings</div>
           </div>
 
@@ -191,20 +191,19 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   def handle_event("update-release", %{"deployment_group" => params}, socket) do
     %{
-      org_user: org_user,
-      user: user,
+      current_scope: scope,
       deployment_group: deployment_group
     } =
       socket.assigns
 
-    authorized!(:"deployment_group:update", org_user)
+    authorized!(:"deployment_group:update", scope)
 
-    case ManagedDeployments.update_deployment_group(deployment_group, params, user) do
+    case ManagedDeployments.update_deployment_group(deployment_group, params, scope.user) do
       {:ok, updated} ->
         AuditLogs.audit!(
-          user,
+          scope.user,
           updated,
-          "User #{user.name} updated deployment group #{updated.name}"
+          "User #{scope.user.name} updated deployment group #{updated.name}"
         )
 
         releases = ManagedDeployments.list_deployment_releases(updated)
@@ -274,12 +273,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   # keeping some code around while the feature is being developed
   defp rollout_options(assigns) do
     ~H"""
-    <div class="hidden w-full border-t border-zinc-700 pt-6">
+    <div class="hidden w-full border-t border-base-700 pt-6">
       <button
         type="button"
         phx-click="toggle-rollout-options"
         phx-target={@myself}
-        class="flex items-center gap-2 text-sm font-medium text-zinc-300 hover:text-zinc-100"
+        class="flex items-center gap-2 text-sm font-medium text-base-300 hover:text-base-100"
       >
         <svg
           class={["w-4 h-4 transition-transform", @show_rollout_options && "rotate-90"]}

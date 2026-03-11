@@ -4,6 +4,7 @@ defmodule NervesHubWeb.RoleValidateHelpersTest do
   import Plug.Conn
   import Plug.Test
 
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Fixtures
   alias NervesHubWeb.Helpers.RoleValidateHelpers, as: Validator
 
@@ -12,10 +13,13 @@ defmodule NervesHubWeb.RoleValidateHelpersTest do
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
 
+    scope =
+      Scope.for_user(user)
+      |> Scope.put_org(org)
+
     conn =
       conn(:get, "/")
-      |> assign(:user, user)
-      |> assign(:org, org)
+      |> assign(:current_scope, scope)
       |> assign(:product, product)
 
     %{conn: conn, user: user, org: org, product: product}
@@ -29,8 +33,10 @@ defmodule NervesHubWeb.RoleValidateHelpersTest do
     user = Fixtures.user_fixture()
 
     assert_raise(NervesHubWeb.UnauthorizedError, fn ->
+      scope = Scope.for_user(user)
+
       conn
-      |> Plug.Conn.assign(:user, user)
+      |> Plug.Conn.assign(:current_scope, scope)
       |> Validator.validate_role(org: :admin)
     end)
   end

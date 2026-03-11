@@ -60,19 +60,25 @@ defmodule NervesHubWeb do
     end
   end
 
-  def updated_live_view() do
+  def live_view() do
     quote do
       unquote(live_view_setup())
       unquote(live_view_imports())
       unquote(live_view_helper_functions())
+      unquote(auth_decorator())
+    end
+  end
+
+  defp auth_decorator() do
+    quote do
+      use NervesHubWeb.AuthDecorator
     end
   end
 
   defp live_view_setup() do
     quote do
       use Phoenix.LiveView,
-        layout: {NervesHubWeb.LayoutView, :live},
-        container: {:div, class: "h-screen"}
+        container: {:div, class: "h-full"}
 
       use Gettext, backend: NervesHubWeb.Gettext
 

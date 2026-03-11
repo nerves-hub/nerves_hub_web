@@ -12,4 +12,9 @@ defmodule NervesHubWeb.SentryEventFilter do
         event
     end
   end
+
+  # let traces through
+  def filter_non_500(%Sentry.Transaction{} = trace) do
+    trace
+  end
 end

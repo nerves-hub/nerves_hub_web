@@ -32,7 +32,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
   plug(:validate_role, [org: :view] when action in [:index, :show, :auth])
 
-  def index(%{assigns: %{org: org, product: product}} = conn, params) do
+  def index(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     opts = %{
       pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
       filters: Map.get(params, "filters", %{})
@@ -47,7 +47,7 @@ defmodule NervesHubWeb.API.DeviceController do
     |> render(:index)
   end
 
-  def create(%{assigns: %{org: org, product: product}} = conn, params) do
+  def create(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     params =
       params
       |> Map.put("org_id", org.id)
@@ -70,7 +70,7 @@ defmodule NervesHubWeb.API.DeviceController do
     render(conn, :show)
   end
 
-  def delete(%{assigns: %{org: _org, device: device}} = conn, _params) do
+  def delete(%{assigns: %{device: device}} = conn, _params) do
     {:ok, _device} = Devices.delete_device(device)
 
     send_resp(conn, :no_content, "")
@@ -86,7 +86,7 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  def auth(%{assigns: %{org: org}} = conn, %{"certificate" => cert64}) do
+  def auth(%{assigns: %{current_scope: %{org: org}}} = conn, %{"certificate" => cert64}) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
          {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
          {:ok, %DeviceCertificate{device_id: device_id}} <-
@@ -104,7 +104,7 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  def reboot(%{assigns: %{user: user, device: device}} = conn, _params) do
+  def reboot(%{assigns: %{current_scope: %{user: user}, device: device}} = conn, _params) do
     DeviceEvents.reboot(device, user)
 
     send_resp(conn, :no_content, "")
@@ -116,8 +116,12 @@ defmodule NervesHubWeb.API.DeviceController do
     send_resp(conn, :no_content, "")
   end
 
-  def code(%{assigns: %{device: device}} = conn, %{"body" => body}) do
-    body
+  def code(%{assigns: %{device: device}} = conn, params)
+      when is_map_key(params, "code")
+      when is_map_key(params, "body") do
+    code = params["code"] || params["body"]
+
+    code
     |> String.graphemes()
     |> Enum.each(fn character ->
       Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{
@@ -130,7 +134,11 @@ defmodule NervesHubWeb.API.DeviceController do
     send_resp(conn, :no_content, "")
   end
 
-  def upgrade(%{assigns: %{device: device, user: user}} = conn, %{"uuid" => uuid}) do
+  def code(_conn, _params) do
+    raise NervesHubWeb.InvalidRequestError, info: "code or body parameter required"
+  end
+
+  def upgrade(%{assigns: %{device: device, current_scope: %{user: user}}} = conn, %{"uuid" => uuid}) do
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(device.product, uuid)
 
     {:ok, url} = Firmwares.get_firmware_url(firmware)
@@ -157,7 +165,7 @@ defmodule NervesHubWeb.API.DeviceController do
     send_resp(conn, :no_content, "")
   end
 
-  def penalty(%{assigns: %{device: device, user: user}} = conn, _params) do
+  def penalty(%{assigns: %{device: device, current_scope: %{user: user}}} = conn, _params) do
     case Devices.clear_penalty_box(device, user) do
       {:ok, _device} ->
         send_resp(conn, :no_content, "")
@@ -167,7 +175,7 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  def move(%{assigns: %{device: device, user: user}} = conn, %{
+  def move(%{assigns: %{device: device, current_scope: %{user: user}}} = conn, %{
         "new_org_name" => org_name,
         "new_product_name" => product_name
       }) do

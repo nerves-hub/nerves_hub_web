@@ -21,22 +21,35 @@ defmodule NervesHubWeb.API.ScriptController do
   # but for now we support both.
   def index(%{assigns: %{device: device}} = conn, params), do: get_and_render_scripts(conn, device.product, params)
 
-  def index(%{assigns: %{product: product}} = conn, params), do: get_and_render_scripts(conn, product, params)
+  def index(%{assigns: %{current_scope: scope}} = conn, params), do: get_and_render_scripts(conn, scope.product, params)
 
   # This operation is defined in `NervesHubWeb.API.OpenAPI.DeviceControllerSpecs`
   operation(:send, false)
 
   def send(%{assigns: %{device: device}} = conn, %{"name_or_id" => name_or_id} = params) do
-    with {:ok, command} <- Scripts.get_by_product_and_name_with_id_fallback(device.product, name_or_id),
+    with {:script, {:ok, command}} <-
+           {:script, Scripts.get_by_product_and_name_with_id_fallback(device.product, name_or_id)},
          {:ok, timeout} <- get_timeout_param(params),
-         {:ok, io} <- Scripts.Runner.send(device, command, timeout) do
+         {:runner, {:ok, io}} <- {:runner, Scripts.Runner.send(device, command, timeout)} do
       text(conn, io)
     else
-      {:error, reason} ->
+      {:script, {:error, _}} ->
         conn
-        |> put_status(:service_unavailable)
-        |> put_view(ErrorJSON)
-        |> render(:"500", %{reason: reason})
+        |> put_status(:not_found)
+        |> put_view(json: ErrorJSON)
+        |> render(:"404")
+
+      {:runner, _} ->
+        conn
+        |> put_status(:forbidden)
+        |> put_view(json: ErrorJSON)
+        |> render(:"403", message: "device not available or responding")
+
+      _ ->
+        conn
+        |> put_status(:internal_server_error)
+        |> put_view(json: ErrorJSON)
+        |> render(:"500")
     end
   end
 

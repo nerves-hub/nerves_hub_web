@@ -27,6 +27,13 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     Endpoint.subscribe("device:#{device.id}")
   end
 
+  test "user is redirected to login when trying to view a device, but the user isn't logged in" do
+    build_conn()
+    |> visit("/org/snoot/boop/devices/toot")
+    |> assert_path("/login")
+    |> assert_has("div", text: "You must login to access this page.")
+  end
+
   describe "shows device" do
     test "when device has no firmware", %{
       conn: conn,

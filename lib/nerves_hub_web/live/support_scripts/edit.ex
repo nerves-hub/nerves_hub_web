@@ -1,16 +1,16 @@
 defmodule NervesHubWeb.Live.SupportScripts.Edit do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Scripts
   alias NervesHub.Scripts.Script
   alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveView
-  def mount(%{"script_id" => script_id}, _session, %{assigns: %{org: org, product: product}} = socket) do
-    script = Scripts.get_by_product_and_id!(product, script_id)
+  def mount(%{"script_id" => script_id}, _session, %{assigns: %{current_scope: scope}} = socket) do
+    script = Scripts.get_by_id!(scope, script_id)
 
     socket
-    |> page_title("Edit Support Script - #{org.name}")
+    |> page_title("Edit Support Script - #{scope.org.name}")
     |> sidebar_tab(:support_scripts)
     |> assign(:form, to_form(Ecto.Changeset.change(script)))
     |> assign(:script, script)
@@ -29,15 +29,15 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   def handle_event(
         "update-script",
         %{"script" => script_params},
-        %{assigns: %{org: org, product: product, script: script, org_user: org_user}} = socket
+        %{assigns: %{current_scope: scope, script: script}} = socket
       ) do
-    authorized!(:"support_script:update", org_user)
+    authorized!(:"support_script:update", scope)
 
-    case Scripts.update(script, org_user.user, script_params) do
+    case Scripts.update(script, scope.user, script_params) do
       {:ok, _script} ->
         socket
         |> put_flash(:info, "Support Script updated successfully.")
-        |> push_navigate(to: ~p"/org/#{org}/#{product}/scripts")
+        |> push_navigate(to: ~p"/org/#{scope.org}/#{scope.product}/scripts")
         |> noreply()
 
       {:error, changeset} ->
@@ -49,18 +49,14 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   end
 
   @impl Phoenix.LiveView
-  def handle_event(
-        "delete-script",
-        %{"id" => id},
-        %{assigns: %{org: org, org_user: org_user, product: product}} = socket
-      ) do
-    authorized!(:"support_script:delete", org_user)
+  def handle_event("delete-script", %{"id" => id}, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"support_script:delete", scope)
 
-    case Scripts.delete(id, product, org_user.user) do
+    case Scripts.delete(id, scope.product, scope.user) do
       {:ok, _} ->
         socket
         |> put_flash(:info, "Support Script deleted successfully.")
-        |> push_navigate(to: ~p"/org/#{org}/#{product}/scripts")
+        |> push_navigate(to: ~p"/org/#{scope.org}/#{scope.product}/scripts")
         |> noreply()
 
       {:error, _} ->

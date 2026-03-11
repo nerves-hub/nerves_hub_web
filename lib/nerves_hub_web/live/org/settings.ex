@@ -1,25 +1,24 @@
 defmodule NervesHubWeb.Live.Org.Settings do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, socket) do
-    socket =
-      socket
-      |> page_title("Settings - #{socket.assigns.org.name}")
-      |> assign(:form, to_form(Org.changeset(socket.assigns.org, %{})))
-      |> sidebar_tab(:settings)
-
-    {:ok, socket}
+  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+    socket
+    |> page_title("Settings - #{scope.org.name}")
+    |> assign(:org, scope.org)
+    |> assign(:form, to_form(Org.changeset(scope.org)))
+    |> sidebar_tab(:settings)
+    |> ok()
   end
 
   @impl Phoenix.LiveView
-  def handle_event("update", %{"org" => org_params}, socket) do
-    authorized!(:"organization:update", socket.assigns.org_user)
+  def handle_event("update", %{"org" => org_params}, %{assigns: %{current_scope: scope}} = socket) do
+    authorized!(:"organization:update", scope)
 
-    case Accounts.update_org(socket.assigns.org, org_params) do
+    case Accounts.update_org(scope.org, org_params) do
       {:ok, org} ->
         socket
         |> put_flash(:info, "Organization updated")

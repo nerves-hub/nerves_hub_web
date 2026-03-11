@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Index do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
@@ -43,9 +43,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   @sort_types %{sort_direction: :string, sort: :string}
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, %{assigns: %{product: product}} = socket) do
-    deployment_groups = ManagedDeployments.get_deployment_groups_by_product(product)
-    counts = ManagedDeployments.get_device_counts_by_product(product)
+  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+    deployment_groups = ManagedDeployments.get_deployment_groups_by_product(scope.product)
+    counts = ManagedDeployments.get_device_counts_by_product(scope.product)
 
     deployment_groups =
       deployment_groups
@@ -55,14 +55,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
       end)
 
     socket
-    |> page_title("Deployments - #{product.name}")
+    |> page_title("Deployments - #{scope.product.name}")
+    |> sidebar_tab(:deployments)
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:sort_direction, @default_sorting.sort_direction)
     |> assign(:current_sort, @default_sorting.sort)
-    |> sidebar_tab(:deployments)
     |> assign(:deployment_groups, deployment_groups)
-    |> assign(:platforms, Firmwares.get_unique_platforms(product))
-    |> assign(:architectures, Firmwares.get_unique_architectures(product))
+    |> assign(:platforms, Firmwares.get_unique_platforms(scope.product))
+    |> assign(:architectures, Firmwares.get_unique_architectures(scope.product))
     |> assign(:counts, counts)
     |> assign(:current_filters, @default_filters)
     |> assign(:currently_filtering, false)
@@ -156,7 +156,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   defp assign_deployment_groups_with_pagination(socket) do
     %{
       assigns: %{
-        product: product,
+        current_scope: scope,
         current_filters: filters,
         paginate_opts: paginate_opts
       }
@@ -168,14 +168,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
       filters: filters
     }
 
-    {entries, pager_meta} = ManagedDeployments.filter(product, opts)
+    {entries, pager_meta} = ManagedDeployments.filter(scope.product, opts)
 
     socket
     |> assign(:entries, entries)
     |> assign(:pager_meta, pager_meta)
   end
 
-  defp self_path(socket, new_params) do
+  defp self_path(%{assigns: %{current_scope: scope}} = socket, new_params) do
     params = Enum.into(stringify_keys(new_params), socket.assigns.params)
     pagination = pagination_changes(params)
     filter = filter_changes(params)
@@ -186,7 +186,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
       |> Map.merge(pagination)
       |> Map.merge(sort)
 
-    ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/deployment_groups?#{query}"
+    ~p"/org/#{scope.org}/#{scope.product}/deployment_groups?#{query}"
   end
 
   defp stringify_keys(params) do

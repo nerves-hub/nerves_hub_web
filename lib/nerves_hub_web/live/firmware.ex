@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Firmware do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
   alias NervesHub.Firmwares
@@ -13,16 +13,16 @@ defmodule NervesHubWeb.Live.Firmware do
   @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, socket) do
+  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     if connected?(socket) do
-      %{product: product, user: user} = socket.assigns
+      Logger.metadata(user_id: scope.user.id, product_id: scope.product.id)
 
-      Logger.metadata(user_id: user.id, product_id: product.id)
-
-      :ok = socket.endpoint.subscribe("product:#{product.id}")
+      :ok = socket.endpoint.subscribe("product:#{scope.product.id}")
     end
 
-    {:ok, socket}
+    socket
+    |> assign(:product, scope.product)
+    |> ok()
   end
 
   @impl Phoenix.LiveView
@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Live.Firmware do
     socket
     |> page_title("Firmware - #{product.name}")
     |> sidebar_tab(:firmware)
-    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
+    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.current_scope))
     |> assign(:params, unsigned_params)
     |> allow_upload(:firmware,
       accept: ~w(.fw),
@@ -49,13 +49,16 @@ defmodule NervesHubWeb.Live.Firmware do
     |> render_with(&list_firmware_template/1)
   end
 
-  defp apply_action(%{assigns: %{product: product}} = socket, :show, %{"firmware_uuid" => firmware_uuid}) do
-    firmware = Firmwares.get_firmware_by_product_and_uuid!(product, firmware_uuid)
+  defp apply_action(%{assigns: %{current_scope: scope, product: product}} = socket, :show, %{
+         "firmware_uuid" => firmware_uuid
+       }) do
+    firmware = Firmwares.get_firmware_by_uuid!(scope, firmware_uuid)
 
     socket
     |> page_title("Firmware #{firmware_uuid} - #{product.name}")
+    |> sidebar_tab(:firmware)
     |> assign(:firmware, firmware)
-    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
+    |> assign(:org_keys, Accounts.list_org_keys(scope))
     |> render_with(&show_firmware_template/1)
   end
 
@@ -110,9 +113,9 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # the delete handler for the list page
   def handle_event("delete-firmware", %{"firmware_uuid" => uuid}, socket) do
-    authorized!(:"firmware:delete", socket.assigns.org_user)
+    authorized!(:"firmware:delete", socket.assigns.current_scope)
 
-    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(socket.assigns.product, uuid)
+    {:ok, firmware} = Firmwares.get_firmware_by_uuid(socket.assigns.current_scope, uuid)
 
     case Firmwares.delete_firmware(firmware) do
       {:ok, _} ->
@@ -129,17 +132,17 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # the delete handler for the show page
   def handle_event("delete-firmware", _params, socket) do
-    authorized!(:"firmware:delete", socket.assigns.org_user)
+    authorized!(:"firmware:delete", socket.assigns.current_scope)
 
-    %{org: org, product: product, firmware: firmware} = socket.assigns
+    %{current_scope: scope, firmware: firmware} = socket.assigns
 
-    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, firmware.uuid)
+    {:ok, firmware} = Firmwares.get_firmware_by_uuid(scope, firmware.uuid)
 
     case Firmwares.delete_firmware(firmware) do
       {:ok, _} ->
         socket
         |> put_flash(:info, "Firmware successfully deleted")
-        |> push_patch(to: ~p"/org/#{org}/#{product}/firmware")
+        |> push_patch(to: ~p"/org/#{scope.org}/#{scope.product}/firmware")
         |> noreply()
 
       {:error, changeset} ->
@@ -152,7 +155,8 @@ defmodule NervesHubWeb.Live.Firmware do
   def handle_info(
         %Broadcast{topic: "product:" <> _product_id, event: "firmware/created", payload: %{firmware: firmware}},
         %{assigns: assigns} = socket
-      ) do
+      )
+      when assigns.live_action == :index do
     if viewing_first_page?(assigns) do
       socket
       |> assign_firmware_with_pagination()
@@ -174,7 +178,8 @@ defmodule NervesHubWeb.Live.Firmware do
   def handle_info(
         %Broadcast{topic: "product:" <> _product_id, event: "firmware/deleted", payload: %{firmware: firmware}},
         socket
-      ) do
+      )
+      when socket.assigns.live_action == :index do
     socket
     |> assign_firmware_with_pagination()
     |> put_flash(
@@ -184,8 +189,13 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
+  # Ignore all other broadcasts
+  def handle_info(_broadcast, socket) do
+    {:noreply, socket}
+  end
+
   def handle_progress(:firmware, entry, socket) do
-    authorized!(:"firmware:upload", socket.assigns.org_user)
+    authorized!(:"firmware:upload", socket.assigns.current_scope)
 
     if entry.done? do
       [filepath] =
@@ -232,7 +242,7 @@ defmodule NervesHubWeb.Live.Firmware do
       stringify_keys(new_params)
       |> Enum.into(current_params)
 
-    ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/firmware?#{params}"
+    ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.product}/firmware?#{params}"
   end
 
   defp stringify_keys(params) do
@@ -246,15 +256,18 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp viewing_first_page?(assigns) do
-    !(assigns.params && assigns.params["page_number"] && assigns.params["page_number"] > 1)
+    case get_in(assigns, [:params, "page_number"]) do
+      nil -> true
+      page_number -> String.to_integer(page_number) == 1
+    end
   end
 
   defp create_firmware(socket, filepath) do
-    case Firmwares.create_firmware(socket.assigns.org, filepath) do
+    case Firmwares.create_firmware(socket.assigns.current_scope.org, filepath) do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Firmware uploaded successfully")
-        |> push_patch(to: ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/firmware")
+        |> push_patch(to: ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.product}/firmware")
 
       {:error, :no_public_keys} ->
         error_feedback(

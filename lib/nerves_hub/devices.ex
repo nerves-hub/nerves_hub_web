@@ -7,6 +7,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
@@ -33,6 +34,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ProductNotifications
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -103,16 +105,17 @@ defmodule NervesHub.Devices do
     |> join(:left, [d], o in assoc(d, :org))
     |> join(:left, [d, o], p in assoc(d, :product))
     |> join(:left, [d, o, p], dg in assoc(d, :deployment_group))
-    |> join(:left, [d, o, p, dg], f in assoc(dg, :firmware))
-    |> join(:left, [d, o, p, dg, f], lc in assoc(d, :latest_connection), as: :latest_connection)
-    |> join(:left, [d, o, p, dg, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
+    |> join(:left, [d, o, p, dg], cr in assoc(dg, :current_release))
+    |> join(:left, [d, o, p, dg, cr], f in assoc(cr, :firmware))
+    |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, o, p, dg, cr, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
     |> Repo.exclude_deleted()
     |> DeviceFiltering.sort(sorting)
     |> DeviceFiltering.build_filters(filters)
-    |> preload([d, o, p, dg, f, latest_connection: lc, latest_health: lh],
+    |> preload([d, o, p, dg, cr, f, latest_connection: lc, latest_health: lh],
       org: o,
       product: p,
-      deployment_group: {dg, firmware: f},
+      deployment_group: {dg, current_release: {cr, firmware: f}},
       latest_connection: lc,
       latest_health: lh
     )
@@ -207,25 +210,39 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def get_by_identifier(identifier) do
-    case Repo.get_by(Device, identifier: identifier) do
-      nil ->
-        {:error, :not_found}
-
-      device ->
-        {:ok, Repo.preload(device, [:org, :product, :latest_connection, deployment_group: [:firmware]])}
-    end
+  @spec get_by_identifier!(String.t()) :: Device.t()
+  def get_by_identifier!(identifier) when is_binary(identifier) do
+    Device
+    |> join(:left, [d], o in assoc(d, :org), as: :org)
+    |> where(identifier: ^identifier)
+    |> preload([org: o], org: o)
+    |> join_and_preload_deployment_group_and_current_release()
+    |> join_and_preload([:product, :latest_connection])
+    |> Repo.one!()
   end
 
-  def get_by_identifier!(identifier) do
-    device = Repo.get_by!(Device, identifier: identifier)
-    Repo.preload(device, [:org, :product, :latest_connection, deployment_group: [:firmware]])
+  @spec get_by_identifier!(
+          scope :: Scope.t(),
+          identifier :: String.t(),
+          preload_assocs :: atom() | list(atom()) | nil
+        ) ::
+          Device.t()
+  def get_by_identifier!(scope, identifier, preload_assoc \\ [:product, :latest_connection])
+
+  def get_by_identifier!(%Scope{} = scope, identifier, preload_assoc) when is_binary(identifier) do
+    get_by_identifier_query(scope, identifier, preload_assoc)
+    |> Repo.one!()
   end
 
-  @spec get_device_by_identifier(Org.t(), String.t(), atom() | list(atom()) | nil) ::
+  @spec get_by_identifier(
+          scope :: Scope.t(),
+          identifier :: String.t(),
+          preload_assocs :: atom() | list(atom()) | nil
+        ) ::
           {:ok, Device.t()} | {:error, :not_found}
-  def get_device_by_identifier(org, identifier, preload_assoc \\ nil) when is_binary(identifier) do
-    get_device_by_identifier_query(org, identifier, preload_assoc)
+  def get_by_identifier(%Scope{} = scope, identifier, preload_assoc \\ [:product, :latest_connection])
+      when is_binary(identifier) do
+    get_by_identifier_query(scope, identifier, preload_assoc)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -233,17 +250,22 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec get_device_by_identifier!(Org.t(), String.t(), list(atom()) | nil) :: Device.t()
-  def get_device_by_identifier!(org, identifier, preload_assoc \\ nil) when is_binary(identifier) do
-    get_device_by_identifier_query(org, identifier, preload_assoc)
-    |> Repo.one!()
+  defp get_by_identifier_query(%Scope{org: org}, identifier, preload_assoc) when not is_nil(org) do
+    Device
+    |> join(:left, [d], o in assoc(d, :org), as: :org)
+    |> where(identifier: ^identifier)
+    |> where(org_id: ^org.id)
+    |> preload([org: o], org: o)
+    |> join_and_preload_deployment_group_and_current_release()
+    |> join_and_preload(preload_assoc)
   end
 
-  defp get_device_by_identifier_query(%Org{id: org_id}, identifier, preload_assoc) do
+  defp get_by_identifier_query(%Scope{user: user}, identifier, preload_assoc) when not is_nil(user) do
     Device
-    |> where(identifier: ^identifier)
-    |> where(org_id: ^org_id)
     |> join(:left, [d], o in assoc(d, :org), as: :org)
+    |> join(:left, [d, o], u in assoc(o, :users), as: :users)
+    |> where(identifier: ^identifier)
+    |> where([users: u], u.id == ^user.id)
     |> preload([org: o], org: o)
     |> join_and_preload_deployment_group_and_current_release()
     |> join_and_preload(preload_assoc)
@@ -615,6 +637,26 @@ defmodule NervesHub.Devices do
 
   def delete_ca_certificate(%CACertificate{} = ca_certificate) do
     Repo.delete(ca_certificate)
+  end
+
+  def clean_up_soft_deleted_devices() do
+    two_weeks_ago = NaiveDateTime.add(NaiveDateTime.utc_now(), -12, :day)
+
+    Device
+    |> where([d], d.deleted_at < ^two_weeks_ago)
+    |> Repo.all()
+    |> Enum.each(fn device ->
+      Repo.transact(fn ->
+        case destroy_device(device) do
+          {:ok, device} ->
+            _ = ProductNotifications.create_soft_deleted_device_removed!(device)
+            {:ok, device}
+
+          error ->
+            {:error, "Error removing soft-deleted device: #{inspect(error)}"}
+        end
+      end)
+    end)
   end
 
   @type firmware_id :: binary()
@@ -1314,27 +1356,40 @@ defmodule NervesHub.Devices do
   > {:ok, %{updated: 3, ignored: 0}}
   """
   @spec move_many_to_deployment_group(
+          Scope.t(),
           [non_neg_integer()],
           DeploymentGroup.t() | non_neg_integer()
         ) ::
           {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
-  def move_many_to_deployment_group(device_ids, deployment_id) when is_number(deployment_id) do
-    deployment_group =
-      DeploymentGroup |> where(id: ^deployment_id) |> preload(:firmware) |> Repo.one()
-
-    move_many_to_deployment_group(device_ids, deployment_group)
+  def move_many_to_deployment_group(%Scope{} = scope, device_ids, %DeploymentGroup{id: deployment_id}) do
+    move_many_to_deployment_group(scope, device_ids, deployment_id)
   end
 
-  def move_many_to_deployment_group(device_ids, %DeploymentGroup{id: id} = deployment_group) do
-    %{firmware: firmware} = Repo.preload(deployment_group, :firmware)
+  def move_many_to_deployment_group(%Scope{} = scope, device_ids, deployment_id) when is_number(deployment_id) do
+    deployment_group =
+      DeploymentGroup
+      |> from(as: :deployment_group)
+      |> join(:inner, [deployment_group: dg], o in assoc(dg, :org), as: :org)
+      |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
+      |> ManagedDeployments.join_current_release()
+      |> join(:inner, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
+      |> where([deployment_group: dg], dg.id == ^deployment_id)
+      |> where([users: users], users.id == ^scope.user.id)
+      |> preload([firmware: f, current_release: cr],
+        current_release: {cr, firmware: f}
+      )
+      |> Repo.one!()
 
     {devices_updated_count, _} =
       Device
+      |> join(:inner, [d], o in assoc(d, :org), as: :org)
+      |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
+      |> where([users: users], users.id == ^scope.user.id)
       |> Repo.exclude_deleted()
       |> where([d], d.id in ^device_ids)
-      |> where([d], d.firmware_metadata["platform"] == ^firmware.platform)
-      |> where([d], d.firmware_metadata["architecture"] == ^firmware.architecture)
-      |> Repo.update_all([set: [deployment_id: id]], timeout: to_timeout(minute: 2))
+      |> where([d], d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform)
+      |> where([d], d.firmware_metadata["architecture"] == ^deployment_group.current_release.firmware.architecture)
+      |> Repo.update_all([set: [deployment_id: deployment_id]], timeout: to_timeout(minute: 2))
 
     :ok = Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
 
@@ -1377,11 +1432,11 @@ defmodule NervesHub.Devices do
      }}
   end
 
-  @spec move_many([Device.t()], Product.t(), User.t()) :: %{
+  @spec move_many(Scope.t(), [Device.t()], Product.t()) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]
         }
-  def move_many(devices, product, user) do
+  def move_many(%Scope{user: user}, devices, product) do
     product = Repo.preload(product, :org)
 
     Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :move, [&1, product, user]))
@@ -1440,9 +1495,13 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  @spec get_devices_by_id([non_neg_integer()]) :: [Device.t()]
-  def get_devices_by_id(ids) when is_list(ids) do
-    from(d in Device, where: d.id in ^ids)
+  @spec get_devices_by_id(Scope.t(), [non_neg_integer()]) :: [Device.t()]
+  def get_devices_by_id(%Scope{user: user}, ids) when is_list(ids) do
+    Device
+    |> join(:left, [d], o in assoc(d, :org), as: :org)
+    |> join(:left, [d, o], u in assoc(o, :users), as: :users)
+    |> where([d], d.id in ^ids)
+    |> where([users: u], u.id == ^user.id)
     |> Repo.all()
   end
 
@@ -1745,11 +1804,11 @@ defmodule NervesHub.Devices do
     DeviceEvents.schedule_update(device, inflight_update, update_payload)
   end
 
-  @spec get_pinned_devices(non_neg_integer()) :: [Device.t()]
-  def get_pinned_devices(user_id) do
+  @spec get_pinned_devices(Scope.t()) :: [Device.t()]
+  def get_pinned_devices(%Scope{user: user}) when not is_nil(user) do
     query =
       PinnedDevice
-      |> where(user_id: ^user_id)
+      |> where(user_id: ^user.id)
       |> select([:device_id])
 
     Device

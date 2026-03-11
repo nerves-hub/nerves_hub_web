@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Show do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     %{"name" => name} = params
-    %{product: product, user: user} = socket.assigns
+    %{current_scope: %{org: org, product: product, user: user}} = socket.assigns
 
     deployment_group = ManagedDeployments.get_by_product_and_name!(product, name, true)
 
@@ -26,6 +26,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     end
 
     socket
+    |> assign(%{org: org, product: product, user: user})
     |> page_title("Deployment Group - #{deployment_group.name} - #{product.name}")
     |> sidebar_tab(:deployments)
     |> selected_tab()
@@ -52,7 +53,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   @impl Phoenix.LiveView
   def handle_event("toggle", _params, socket) do
-    authorized!(:"deployment_group:toggle", socket.assigns.org_user)
+    authorized!(:"deployment_group:toggle", socket.assigns.current_scope)
 
     %{deployment_group: deployment_group, user: user} = socket.assigns
 
@@ -71,7 +72,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_event("delete", _params, socket) do
-    authorized!(:"deployment_group:delete", socket.assigns.org_user)
+    authorized!(:"deployment_group:delete", socket.assigns.current_scope)
 
     %{deployment_group: deployment_group, org: org, product: product, user: user} = socket.assigns
 
@@ -86,12 +87,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   def handle_event("move-matched-devices-to-deployment-group", _params, socket) do
-    %{assigns: %{deployment_group: deployment_group}} = socket
+    %{assigns: %{current_scope: scope, deployment_group: deployment_group}} = socket
 
     move_devices = fn ->
-      deployment_group
-      |> ManagedDeployments.matched_device_ids(in_deployment: false)
-      |> Devices.move_many_to_deployment_group(deployment_group)
+      devices = ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false)
+
+      Devices.move_many_to_deployment_group(scope, devices, deployment_group)
       |> then(fn {:ok, %{updated: updated_count, ignored: ignored_count}} ->
         if ignored_count > 0 do
           {:error, updated_count, ignored_count}
@@ -337,7 +338,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     if tab_selected == tab do
       "px-6 py-2 h-11 font-normal text-sm text-neutral-50 border-b border-indigo-500 bg-tab-selected relative -bottom-px"
     else
-      "px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
+      "px-6 py-2 h-11 font-normal text-sm text-base-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
     end
   end
 end

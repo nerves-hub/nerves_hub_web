@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Archives do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
   alias NervesHub.Archives
@@ -13,7 +13,9 @@ defmodule NervesHubWeb.Live.Archives do
 
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
-    {:ok, socket}
+    socket
+    |> assign(:product, socket.assigns.current_scope.product)
+    |> ok()
   end
 
   @impl Phoenix.LiveView
@@ -28,7 +30,7 @@ defmodule NervesHubWeb.Live.Archives do
     |> page_title("Archives - #{product.name}")
     |> sidebar_tab(:archives)
     |> assign(:archives, Archives.all_by_product(product))
-    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
+    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.current_scope))
     |> assign(:params, unsigned_params)
     |> allow_upload(:archive,
       accept: ~w(.fw),
@@ -46,8 +48,9 @@ defmodule NervesHubWeb.Live.Archives do
 
     socket
     |> page_title("Archive #{archive_uuid} - #{product.name}")
+    |> sidebar_tab(:archives)
     |> assign(:archive, archive)
-    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
+    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.current_scope))
     |> render_with(&show_archive_template/1)
   end
 
@@ -106,7 +109,7 @@ defmodule NervesHubWeb.Live.Archives do
 
   # the delete handler for the list page
   def handle_event("delete-archive", %{"archive_uuid" => uuid}, socket) do
-    authorized!(:"archive:delete", socket.assigns.org_user)
+    authorized!(:"archive:delete", socket.assigns.current_scope)
 
     {:ok, archive} = Archives.get(socket.assigns.product, uuid)
 
@@ -124,9 +127,9 @@ defmodule NervesHubWeb.Live.Archives do
   end
 
   def handle_event("delete-archive", _params, socket) do
-    authorized!(:"archive:delete", socket.assigns.org_user)
+    authorized!(:"archive:delete", socket.assigns.current_scope)
 
-    %{org: org, product: product, archive: archive} = socket.assigns
+    %{current_scope: %{org: org}, product: product, archive: archive} = socket.assigns
 
     {:ok, archive} = Archives.get(socket.assigns.product, archive.uuid)
 
@@ -148,7 +151,7 @@ defmodule NervesHubWeb.Live.Archives do
   end
 
   def handle_progress(:archive, entry, socket) do
-    authorized!(:"archive:upload", socket.assigns.org_user)
+    authorized!(:"archive:upload", socket.assigns.current_scope)
 
     if entry.done? do
       [filepath] =
@@ -195,7 +198,7 @@ defmodule NervesHubWeb.Live.Archives do
       stringify_keys(new_params)
       |> Enum.into(current_params)
 
-    ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/archives?#{params}"
+    ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.product}/archives?#{params}"
   end
 
   defp stringify_keys(params) do
@@ -213,7 +216,7 @@ defmodule NervesHubWeb.Live.Archives do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Archive uploaded successfully.")
-        |> push_patch(to: ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/archives")
+        |> push_patch(to: ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.product}/archives")
 
       {:error, :no_public_keys} ->
         error_feedback(

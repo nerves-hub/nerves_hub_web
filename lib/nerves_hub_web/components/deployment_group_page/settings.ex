@@ -22,8 +22,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     ~H"""
     <div class="flex flex-col items-start justify-between gap-4 p-6">
       <.form id="deployment-form" for={@form} class="w-full flex flex-col gap-4" phx-change="validate-deployment-group" phx-submit="update-deployment-group" phx-target={@myself}>
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="w-2/3 flex flex-col bg-base-900 border border-base-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
             <div class="text-base text-neutral-50 font-medium">General settings</div>
           </div>
 
@@ -41,17 +41,17 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="w-2/3 flex flex-col bg-base-900 border border-base-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
             <div class="text-base text-neutral-50 font-medium">Device matching conditions</div>
           </div>
 
           <div class="flex flex-col p-6 gap-6">
             <div class="flex flex-col gap-3">
-              <p class="text-sm text-zinc-400 w-2/3">
+              <p class="text-sm text-base-400 w-2/3">
                 These conditions are used for matching devices which don't have a configured deployment group.
               </p>
-              <p class="text-sm text-zinc-400 w-2/3">
+              <p class="text-sm text-base-400 w-2/3">
                 The matching is undertaken when a device connects to the platform.
               </p>
             </div>
@@ -67,8 +67,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="w-2/3 flex flex-col bg-base-900 border border-base-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
             <div class="text-base text-neutral-50 font-medium">Device queue settings</div>
           </div>
 
@@ -85,8 +85,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="w-2/3 flex flex-col bg-base-900 border border-base-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
             <div class="text-base text-neutral-50 font-medium">Rolling updates</div>
           </div>
 
@@ -111,14 +111,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="w-2/3 flex flex-col bg-base-900 border border-base-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
             <div class="text-base text-neutral-50 font-medium">Priority queue</div>
           </div>
 
           <div class="flex flex-col p-6 gap-6">
             <div class="flex flex-col gap-3">
-              <p class="text-sm text-zinc-400 w-2/3">
+              <p class="text-sm text-base-400 w-2/3">
                 Enable priority queue to fast-track devices with older firmware versions (e.g., fresh from factory) for immediate updates, bypassing the normal rolling update queue.
               </p>
             </div>
@@ -152,16 +152,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="w-2/3 flex flex-col bg-base-900 border border-base-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
             <div class="text-base text-neutral-50 font-medium">Device penalty box logic</div>
           </div>
-          <div class="flex flex-col p-6 gap-8 border-t border-zinc-700">
+          <div class="flex flex-col p-6 gap-8 border-t border-base-700">
             <div>
-              <p class="text-sm text-zinc-400 w-2/3 mb-4">
+              <p class="text-sm text-base-400 w-2/3 mb-4">
                 When device update attempts fail consistently, the device is placed in the penalty box. It will not attempt to update until it's removed from the penalty box.
               </p>
-              <p class="text-sm text-zinc-400 w-2/3">
+              <p class="text-sm text-base-400 w-2/3">
                 There are two ways a device can be removed from the penalty box: after "Device penalty box timeout minutes" have passed or viewing the device and re-enabling "Firmware updates" in the top right of UI. In both cases, device update attempts will resume again.
               </p>
             </div>
@@ -178,10 +178,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                       id={@form[:device_failure_rate_amount].id}
                       value={Phoenix.HTML.Form.normalize_value("number", @form[:device_failure_rate_amount].value)}
                       class={[
-                        "mt-2 py-1.5 px-2 block w-20 rounded text-zinc-400 bg-zinc-900 focus:ring-0 sm:text-sm",
-                        "phx-no-feedback:border-zinc-600 phx-no-feedback:focus:border-zinc-700",
-                        @form[:device_failure_rate_amount].errors == [] && "border-zinc-600 focus:border-zinc-700",
-                        @form[:device_failure_rate_amount].errors != [] && "border-red-500 focus:border-red-500"
+                        "mt-2 py-1.5 px-2 block w-20 rounded text-base-400 bg-base-900 focus:ring-0 sm:text-sm",
+                        "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
+                        @form[:device_failure_rate_amount].errors == [] && "border-base-600 focus:border-base-700",
+                        @form[:device_failure_rate_amount].errors != [] && "border-alert focus:border-alert"
                       ]}
                     />
                     <div class="text-sm mt-2">failures per</div>
@@ -191,15 +191,15 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                       id={@form[:device_failure_rate_seconds].id}
                       value={Phoenix.HTML.Form.normalize_value("number", @form[:device_failure_rate_seconds].value)}
                       class={[
-                        "mt-2 py-1.5 px-2 block w-20 rounded text-zinc-400 bg-zinc-900 focus:ring-0 sm:text-sm",
-                        "phx-no-feedback:border-zinc-600 phx-no-feedback:focus:border-zinc-700",
-                        @form[:device_failure_rate_seconds].errors == [] && "border-zinc-600 focus:border-zinc-700",
-                        @form[:device_failure_rate_seconds].errors != [] && "border-red-500 focus:border-red-500"
+                        "mt-2 py-1.5 px-2 block w-20 rounded text-base-400 bg-base-900 focus:ring-0 sm:text-sm",
+                        "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
+                        @form[:device_failure_rate_seconds].errors == [] && "border-base-600 focus:border-base-700",
+                        @form[:device_failure_rate_seconds].errors != [] && "border-alert focus:border-alert"
                       ]}
                     />
                     <div class="text-sm mt-2">sec</div>
                   </div>
-                  <div class="flex flex-col gap-1 text-xs text-zinc-400 pt-1">
+                  <div class="flex flex-col gap-1 text-xs text-base-400 pt-1">
                     {help_message_for(:device_failure_rate)}
                   </div>
                   <.error :for={msg <- Enum.map(@form[:device_failure_rate_amount].errors ++ @form[:device_failure_rate_seconds].errors, &NervesHubWeb.CoreComponents.translate_error(&1))}>
@@ -219,8 +219,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+        <div class="w-2/3 flex flex-col bg-base-900 border border-base-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
             <div class="text-base text-neutral-50 font-medium">First Connect Code</div>
           </div>
 
@@ -240,8 +240,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex items-center justify-between p-6 gap-6 border-t border-zinc-700">
+        <div class="w-2/3 flex flex-col bg-base-900 border border-base-700 rounded">
+          <div class="flex items-center justify-between p-6 gap-6 border-t border-base-700">
             <.button style="secondary" type="submit">
               <.icon name="save" /> Save changes
             </.button>
@@ -279,15 +279,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
   def handle_event("update-deployment-group", %{"deployment_group" => params}, socket) do
     %{
-      org_user: org_user,
-      org: org,
-      product: product,
-      user: user,
+      current_scope: %{org: org, product: product, user: user},
       deployment_group: deployment_group
     } =
       socket.assigns
 
-    authorized!(:"deployment_group:update", org_user)
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
 
     case ManagedDeployments.update_deployment_group(deployment_group, params, user) do
       {:ok, updated} ->
@@ -316,7 +313,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   end
 
   def handle_event("delete-deployment-group", _params, socket) do
-    authorized!(:"deployment_group:delete", socket.assigns.org_user)
+    authorized!(:"deployment_group:delete", socket.assigns.current_scope)
 
     %{deployment_group: deployment_group, org: org, product: product, user: user} = socket.assigns
 

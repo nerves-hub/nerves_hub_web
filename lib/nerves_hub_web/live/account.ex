@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Account do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.UserToken
@@ -9,11 +9,12 @@ defmodule NervesHubWeb.Live.Account do
   embed_templates("account_templates/*")
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, socket) do
+  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     socket
-    |> assign(:password_changeset, Accounts.change_user_password(socket.assigns.user))
-    |> assign(:access_tokens, Accounts.get_user_api_tokens(socket.assigns.user))
+    |> assign(:password_changeset, Accounts.change_user_password(scope.user))
+    |> assign(:access_tokens, Accounts.get_user_api_tokens(scope.user))
     |> assign(:access_token_form, to_form(Ecto.Changeset.change(%UserToken{})))
+    |> assign(:user, scope.user)
     |> assign(:new_token, nil)
     |> ok()
   end
@@ -28,7 +29,7 @@ defmodule NervesHubWeb.Live.Account do
   defp apply_action(socket, :edit, _params) do
     socket
     |> page_title("Account Settings")
-    |> assign(:form, to_form(Ecto.Changeset.change(socket.assigns.user)))
+    |> assign(:form, to_form(Ecto.Changeset.change(socket.assigns.current_scope.user)))
     |> render_with(&edit_account_template/1)
   end
 
@@ -41,7 +42,7 @@ defmodule NervesHubWeb.Live.Account do
 
   @impl Phoenix.LiveView
   def handle_event("update-details", %{"user" => params}, socket) do
-    socket.assigns.user
+    socket.assigns.current_scope.user
     |> Accounts.update_user(params)
     |> case do
       {:ok, user} ->
@@ -63,7 +64,7 @@ defmodule NervesHubWeb.Live.Account do
 
     reset_url = &url(~p"/password-reset/#{&1}")
 
-    socket.assigns.user
+    socket.assigns.current_scope.user
     |> Accounts.update_user_password(password, user_params, reset_url)
     |> case do
       {:ok, user} ->
@@ -79,9 +80,9 @@ defmodule NervesHubWeb.Live.Account do
     end
   end
 
-  def handle_event("delete", params, socket) do
-    if params["confirm_email"] == socket.assigns.user.email do
-      {:ok, _} = Accounts.remove_account(socket.assigns.user.id)
+  def handle_event("delete", params, %{assigns: %{current_scope: scope}} = socket) do
+    if params["confirm_email"] == scope.user.email do
+      {:ok, _} = Accounts.remove_account(scope.user.id)
 
       socket
       |> redirect(to: ~p"/login")
@@ -89,32 +90,32 @@ defmodule NervesHubWeb.Live.Account do
       |> noreply()
     else
       socket
-      |> put_flash(:error, "Please type #{socket.assigns.user.email} to confirm.")
+      |> put_flash(:error, "Please type #{scope.user.email} to confirm.")
       |> noreply()
     end
   end
 
   def handle_event("generate-access-token", %{"user_token" => params}, socket) do
-    user = socket.assigns.user
+    %{assigns: %{current_scope: %{user: user}}} = socket
 
     token = Accounts.create_user_api_token(user, params["note"])
 
     socket
     |> put_flash(:info, "Token created")
     |> assign(:new_token, token)
-    |> assign(:access_tokens, Accounts.get_user_api_tokens(socket.assigns.user))
+    |> assign(:access_tokens, Accounts.get_user_api_tokens(user))
     |> push_event("close-modal", %{id: "new-access-token"})
     |> noreply()
   end
 
   def handle_event("delete-access-token", %{"access_token_id" => token_id}, socket) do
-    user = socket.assigns.user
+    %{assigns: %{current_scope: %{user: user}}} = socket
 
     case Accounts.delete_user_token(user, token_id) do
       {:ok, _token} ->
         socket
         |> put_flash(:info, "Token deleted")
-        |> assign(:access_tokens, Accounts.get_user_api_tokens(socket.assigns.user))
+        |> assign(:access_tokens, Accounts.get_user_api_tokens(user))
         |> assign(:new_token, nil)
         |> noreply()
 

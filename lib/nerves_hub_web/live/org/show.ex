@@ -1,29 +1,30 @@
 defmodule NervesHubWeb.Live.Org.Show do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Devices.Connections
   alias NervesHub.Products
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, socket) do
-    products = Products.get_products_by_user_and_org(socket.assigns.user, socket.assigns.org)
-
-    socket =
-      socket
-      |> page_title("Products - #{socket.assigns.org.name}")
-      |> assign(:products, products)
-      |> assign(:product_device_info, %{})
-      |> sidebar_tab(:products)
+  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+    products = Products.get_products(scope)
 
     if connected?(socket), do: send(self(), :load_extras)
 
-    {:ok, socket}
+    socket
+    |> page_title("Products - #{scope.org.name}")
+    |> assign(:org, scope.org)
+    |> assign(:products, products)
+    |> assign(:product_device_info, %{})
+    |> sidebar_tab(:products)
+    |> ok()
   end
 
   @impl Phoenix.LiveView
   def handle_info(:load_extras, socket) do
     statuses =
-      Connections.get_connection_status_by_products(Enum.map(socket.assigns.products, & &1.id))
+      socket.assigns.products
+      |> Enum.map(& &1.id)
+      |> Connections.get_connection_status_by_products()
 
     {:noreply, assign(socket, :product_device_info, statuses)}
   end

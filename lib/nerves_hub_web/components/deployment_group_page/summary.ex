@@ -141,11 +141,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def render(assigns) do
     ~H"""
     <div class="h-full flex flex-col items-start gap-4 p-6">
-      <div :if={@waiting_for_update_count == 0} class="w-full p-4 items-center justify-center rounded border border-zinc-700 bg-zinc-900">
+      <div :if={@waiting_for_update_count == 0} class="w-full p-4 items-center justify-center rounded border border-base-700 bg-base-900">
         <div class="flex text-xl text-neutral-50 font-medium leading-6 h-10 justify-center items-center">All devices are up to date!</div>
       </div>
 
-      <div :if={@waiting_for_update_count > 0} class="w-full h-24 box-content flex items-center justify-center rounded border border-zinc-700 bg-zinc-900">
+      <div :if={@waiting_for_update_count > 0} class="w-full h-24 box-content flex items-center justify-center rounded border border-base-700 bg-base-900">
         <div class="relative top-0 w-full items-center justify-center rounded overflow-visible z-20">
           <div
             :if={@deployment_group.is_active}
@@ -156,7 +156,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             <div class="animate-pulse bg-progress-glow w-full h-16" />
           </div>
 
-          <div class="flex flex-col gap-1 items-center justify-center my-1 py-2 px-2 bg-base-900/20 text-sm font-medium">
+          <div class="flex flex-col gap-1 items-center justify-center my-1 py-2 px-2 bg-surface-muted/20 text-sm font-medium">
             <div class="text-base">{deployment_group_percentage(@up_to_date_count, @deployment_group)}% of devices updated</div>
             <div>{@updating_count} device(s) updating - {@waiting_for_update_count} device(s) waiting</div>
           </div>
@@ -165,7 +165,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
       <div class="size-full flex gap-4">
         <div class="w-1/2 flex flex-col gap-4">
-          <div class="flex flex-col gap-2 p-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div class="flex flex-col gap-2 p-4 rounded border border-base-700 bg-base-900 shadow-device-details-content">
             <div class="h-9 flex items-start justify-between">
               <div class="text-neutral-50 font-medium leading-6">Current Release</div>
             </div>
@@ -173,10 +173,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span class="text-sm text-nerves-gray-500 w-16">Firmware:</span>
 
               <.link
-                navigate={~p"/org/#{@org}/#{@product}/firmware/#{@deployment_group.current_release.firmware}"}
-                class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
+                navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware/#{@deployment_group.current_release.firmware}"}
+                class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-base-700 rounded-full bg-base-800"
               >
-                <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.current_release.firmware.version} ({String.slice(@deployment_group.current_release.firmware.uuid, 0..7)})</span>
+                <span class="text-xs text-base-300 tracking-tight">{@deployment_group.current_release.firmware.version} ({String.slice(@deployment_group.current_release.firmware.uuid, 0..7)})</span>
               </.link>
             </div>
             <div class="flex gap-4 items-center">
@@ -188,16 +188,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
               <.link
                 :if={@deployment_group.current_release.archive}
-                navigate={~p"/org/#{@org}/#{@product}/archives/#{@deployment_group.current_release.archive}"}
-                class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
+                navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/archives/#{@deployment_group.current_release.archive}"}
+                class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-base-700 rounded-full bg-base-800"
               >
-                <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.current_release.archive.version} ({String.slice(@deployment_group.current_release.archive.uuid, 0..7)})</span>
+                <span class="text-xs text-base-300 tracking-tight">{@deployment_group.current_release.archive.version} ({String.slice(@deployment_group.current_release.archive.uuid, 0..7)})</span>
               </.link>
               <span :if={is_nil(@deployment_group.current_release.archive)} class="pl-1 text-xs text-nerves-gray-500">No archive configured</span>
             </div>
           </div>
 
-          <div :if={@deployment_group.delta_updatable or Enum.any?(@deltas)} class="flex flex-col gap-2 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div :if={@deployment_group.delta_updatable or Enum.any?(@deltas)} class="flex flex-col gap-2 rounded border border-base-700 bg-base-900 shadow-device-details-content">
             <div class="p-4 h-9 flex items-start justify-between">
               <div class="text-neutral-50 font-medium leading-6">Firmware deltas</div>
             </div>
@@ -206,7 +206,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 <span class="text-sm text-nerves-gray-500">Firmware deltas provide smaller update payloads by only sending the differences between firmware versions.</span>
               </div>
             </div>
-            <div :if={Enum.any?(@deltas)} class="bg-zinc-900 border-t rounded-b border-zinc-700">
+            <div :if={Enum.any?(@deltas)} class="bg-base-900 border-t rounded-b border-base-700">
               <div class="flex flex-col">
                 <div class="listing">
                   <table>
@@ -220,7 +220,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                       </tr>
                     </thead>
                     <tbody>
-                      <tr :for={delta <- @deltas} class="border-b last:border-0 border-zinc-800 relative last:rounded-b">
+                      <tr :for={delta <- @deltas} class="border-b last:border-0 border-base-800 relative last:rounded-b">
                         <td>
                           <div class="flex gap-[8px] items-center">
                             {delta.source.version}
@@ -228,7 +228,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                         </td>
 
                         <td>
-                          <div data-status={delta.status} class="flex gap-[8px] items-center data-[status=processing]:text-amber-500 data-[status=failed]:text-red-500 data-[status=timed_out]:text-red-500">
+                          <div data-status={delta.status} class="flex gap-[8px] items-center data-[status=processing]:text-warning data-[status=failed]:text-alert data-[status=timed_out]:text-alert">
                             {if delta.status == :completed do
                               "Ready"
                             else
@@ -288,7 +288,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
               </div>
             </div>
-            <div :if={Enum.empty?(@deltas)} class="flex p-4 gap-6 justify-between bg-zinc-900 border-t rounded-b border-zinc-700">
+            <div :if={Enum.empty?(@deltas)} class="flex p-4 gap-6 justify-between bg-base-900 border-t rounded-b border-base-700">
               <div class="flex items-center">
                 <span class="text-sm text-nerves-gray-500">No firmware deltas are available.</span>
               </div>
@@ -303,7 +303,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
           </div>
 
-          <div class="flex flex-col gap-2 p-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div class="flex flex-col gap-2 p-4 rounded border border-base-700 bg-base-900 shadow-device-details-content">
             <div class="h-9 flex items-start justify-between">
               <div class="text-neutral-50 font-medium leading-6">Inflight updates</div>
             </div>
@@ -315,14 +315,17 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 <span class="text-sm text-nerves-gray-500">
                   <span class="font-semibold">{Enum.count(@inflight_updates)}</span>
                   device(s) are currently updating.
-                  <.link class="text-base-300 underline" navigate={~p"/org/#{@org}/#{@product}/devices?#{[only_updating: true, sort: "connection_established_at", sort_direction: "desc"]}"}>
+                  <.link
+                    class="text-base-300 underline"
+                    navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?#{[only_updating: true, sort: "connection_established_at", sort_direction: "desc"]}"}
+                  >
                     View details
                   </.link>
                 </span>
               </div>
               <div :for={inflight_update <- @inflight_updates} :if={@inflight_updates != []} class="flex gap-4 items-center">
-                <span class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800 text-base-300">
-                  <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{inflight_update.device}"}>
+                <span class="flex h-7 py-1 px-2 items-center rounded bg-base-800 text-base-300">
+                  <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{inflight_update.device}"}>
                     {inflight_update.device.identifier}
                   </.link>
                 </span>
@@ -331,65 +334,65 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
           </div>
         </div>
         <div class="w-1/2 flex flex-col gap-4">
-          <div class="flex flex-col gap-2 p-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div class="flex flex-col gap-2 p-4 rounded border border-base-700 bg-base-900 shadow-device-details-content">
             <div class="h-9 flex items-start justify-between">
               <div class="text-neutral-50 font-medium leading-6">Settings Overview</div>
             </div>
 
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Concurrent device updates:</span>
-              <span class="text-sm text-zinc-300">{@deployment_group.concurrent_updates}</span>
+              <span class="text-sm text-base-300">{@deployment_group.concurrent_updates}</span>
             </div>
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Minutes before expiring updates:</span>
-              <span class="text-sm text-zinc-300">{@deployment_group.inflight_update_expiration_minutes}</span>
+              <span class="text-sm text-base-300">{@deployment_group.inflight_update_expiration_minutes}</span>
             </div>
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Device failure rate:</span>
-              <span class="text-sm text-zinc-300">
+              <span class="text-sm text-base-300">
                 <span class="font-bold">{@deployment_group.device_failure_rate_amount}</span> failures per <span class="font-bold">{@deployment_group.device_failure_rate_seconds}</span> seconds
               </span>
             </div>
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500 w-40">Device failure threshold:</span>
-              <span class="text-sm text-zinc-300">{@deployment_group.device_failure_threshold}</span>
+              <span class="text-sm text-base-300">{@deployment_group.device_failure_threshold}</span>
             </div>
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Device penalty box timeout:</span>
-              <span class="text-sm text-zinc-300">{@deployment_group.penalty_timeout_minutes}</span>
+              <span class="text-sm text-base-300">{@deployment_group.penalty_timeout_minutes}</span>
             </div>
 
             <div class="flex gap-4 items-center pb-6">
               <span class="text-sm text-nerves-gray-500">Queue management:</span>
-              <span class="text-sm text-zinc-300">{@deployment_group.queue_management}</span>
+              <span class="text-sm text-base-300">{@deployment_group.queue_management}</span>
             </div>
 
-            <div :if={@deployment_group.priority_queue_enabled} class="flex gap-4 items-center border-t border-zinc-700 pt-4">
+            <div :if={@deployment_group.priority_queue_enabled} class="flex gap-4 items-center border-t border-base-700 pt-4">
               <span class="text-sm text-nerves-gray-500">Priority queue enabled:</span>
-              <span class="text-sm text-emerald-400">Yes</span>
+              <span class="text-sm text-success">Yes</span>
             </div>
             <div :if={@deployment_group.priority_queue_enabled} class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Priority queue concurrent:</span>
-              <span class="text-sm text-zinc-300">{@deployment_group.priority_queue_concurrent_updates}</span>
+              <span class="text-sm text-base-300">{@deployment_group.priority_queue_concurrent_updates}</span>
             </div>
             <div :if={@deployment_group.priority_queue_enabled} class="flex gap-4 items-center pb-6">
               <span class="text-sm text-nerves-gray-500">Priority version threshold:</span>
-              <span class="text-sm text-zinc-300">{@deployment_group.priority_queue_firmware_version_threshold || "Not set"}</span>
+              <span class="text-sm text-base-300">{@deployment_group.priority_queue_firmware_version_threshold || "Not set"}</span>
             </div>
 
             <div :if={!@deployment_group.connecting_code} class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Code sent on device connection:</span>
-              <span class="text-sm text-zinc-300">No code configured</span>
+              <span class="text-sm text-base-300">No code configured</span>
             </div>
             <div :if={@deployment_group.connecting_code} class="flex gap-2 items-start">
               <span class="text-sm text-nerves-gray-500">Code sent on device connection:</span>
-              <pre :if={!@deployment_group.connecting_code} class="text-sm text-zinc-300">
+              <pre :if={!@deployment_group.connecting_code} class="text-sm text-base-300">
     {@deployment_group.connecting_code}
               </pre>
             </div>
           </div>
 
-          <div class="flex flex-col gap-2 p-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div class="flex flex-col gap-2 p-4 rounded border border-base-700 bg-base-900 shadow-device-details-content">
             <div class="h-9 flex items-start justify-between">
               <div class="text-neutral-50 font-medium leading-6">Device Matching Conditions</div>
             </div>
@@ -397,62 +400,62 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span class="text-sm text-nerves-gray-500 w-36">Tag selection:</span>
               <span :if={Enum.empty?(@deployment_group.conditions.tags || [])} class="text-sm text-nerves-gray-500">No tags configured</span>
               <span :if={Enum.any?(@deployment_group.conditions.tags || [])} class="flex gap-1">
-                <span :for={tag <- @deployment_group.conditions.tags} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">{tag}</span>
+                <span :for={tag <- @deployment_group.conditions.tags} class="text-sm text-base-300 px-2 py-1 border border-base-800 bg-base-800 rounded">{tag}</span>
               </span>
             </div>
             <div class="flex gap-4 items-center pb-2">
               <span class="text-sm text-nerves-gray-500 w-36">Version requirement:</span>
-              <code class="text-sm text-zinc-300">{@deployment_group.conditions.version}</code>
+              <code class="text-sm text-base-300">{@deployment_group.conditions.version}</code>
             </div>
             <div
               :if={@deployment_group.device_count > 0 || @unmatched_device_count > 0 || @matched_devices_outside_deployment_group_count > 0}
-              class="flex flex-col justify-between pt-3 gap-2 border-t border-zinc-700"
+              class="flex flex-col justify-between pt-3 gap-2 border-t border-base-700"
             >
               <div :if={@deployment_group.device_count > 0 && @matched_device_count == @deployment_group.device_count} class="flex gap-4 pt-2 items-center">
-                <span class="text-sm text-zinc-300">100% of devices in this deployment group match conditions</span>
+                <span class="text-sm text-base-300">100% of devices in this deployment group match conditions</span>
               </div>
               <div :if={@matched_device_count != @deployment_group.device_count} class="flex gap-4 items-center">
-                <span class="text-sm text-zinc-300">{round(@matched_device_count / @deployment_group.device_count * 100)}% of devices in this deployment group match conditions</span>
+                <span class="text-sm text-base-300">{round(@matched_device_count / @deployment_group.device_count * 100)}% of devices in this deployment group match conditions</span>
               </div>
               <div :if={@unmatched_device_count > 0} class="flex py-2 gap-2 items-center">
-                <div class="text-sm text-zinc-300">
+                <div class="text-sm text-base-300">
                   {@unmatched_device_count} {if @unmatched_device_count == 1, do: "device", else: "devices"}
                   <span class="text-sm text-nerves-gray-500">{if @unmatched_device_count == 1, do: "doesn't", else: "don't"} match inside deployment group</span>
                 </div>
                 <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
-                <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
-                  <.icon name="open" class="stroke-zinc-400" />
+                <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-base-800 border border-base-700 rounded-full">
+                  <.icon name="open" class="stroke-base-400" />
                 </.link> --%>
                 <button
-                  class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-zinc-800 border border-zinc-700 rounded-full"
+                  class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-base-800 border border-base-700 rounded-full"
                   phx-click="remove-unmatched-devices-from-deployment-group"
                   data-confirm={"This will remove #{@unmatched_device_count} #{if @unmatched_device_count == 1, do: "device", else: "devices"} from #{@deployment_group.name}. Continue?"}
                 >
-                  <.icon name="trash" class="mr-1 stroke-zinc-400" /> Remove {if @unmatched_device_count == 1, do: "device", else: "devices"}
+                  <.icon name="trash" class="mr-1 stroke-base-400" /> Remove {if @unmatched_device_count == 1, do: "device", else: "devices"}
                 </button>
                 <div id="remove-devices-from-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
-                  <.icon name="info" class="stroke-zinc-400" />
-                  <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+                  <.icon name="info" class="stroke-base-400" />
+                  <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-base-700 bg-surface-muted flex">
                     This action will remove {@unmatched_device_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
-                    <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+                    <div class="tooltip-arrow absolute w-2 h-2 border-base-700 bg-surface-muted origin-center rotate-45"></div>
                   </div>
                 </div>
               </div>
               <div :if={@matched_devices_outside_deployment_group_count > 0} class="flex gap-2 items-center">
-                <div class="text-sm text-zinc-300">
+                <div class="text-sm text-base-300">
                   {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
                   <span class="text-sm text-nerves-gray-500">{if @matched_devices_outside_deployment_group_count == 1, do: "matches", else: "match"} outside of deployment group</span>
                 </div>
                 <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
-                <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
-                  <.icon name="open" class="stroke-zinc-400" />
+                <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-base-800 border border-base-700 rounded-full">
+                  <.icon name="open" class="stroke-base-400" />
                 </.link> --%>
                 <button
-                  class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-zinc-800 border border-zinc-700 rounded-full"
+                  class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-base-800 border border-base-700 rounded-full"
                   phx-click="move-matched-devices-to-deployment-group"
                   data-confirm={"This will move #{@matched_devices_outside_deployment_group_count} #{if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} into #{@deployment_group.name}. Continue?"}
                 >
-                  <.icon name="folder-move" class="mr-1 stroke-zinc-400" /> Move {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
+                  <.icon name="folder-move" class="mr-1 stroke-base-400" /> Move {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
                 </button>
                 <div id="move-devices-to-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
                   <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -464,17 +467,17 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                       stroke-linejoin="round"
                     />
                   </svg>
-                  <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+                  <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-base-700 bg-surface-muted flex">
                     This action will move {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}<br />
                     that do not belong to a deployment <br />group into {@deployment_group.name}
-                    <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+                    <div class="tooltip-arrow absolute w-2 h-2 border-base-700 bg-surface-muted origin-center rotate-45"></div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="flex flex-col gap-2 p-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div class="flex flex-col gap-2 p-4 rounded border border-base-700 bg-base-900 shadow-device-details-content">
             <div class="flex items-start justify-between">
               <div class="text-neutral-50 font-medium leading-6">Transfer Stats</div>
             </div>
@@ -498,23 +501,23 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
                 <div class="flex gap-4 items-center">
                   <span class="text-sm text-nerves-gray-500">Update count:</span>
-                  <span class="text-sm text-zinc-300">{stats.total_updates}</span>
+                  <span class="text-sm text-base-300">{stats.total_updates}</span>
                 </div>
                 <div class="flex gap-4 items-center">
                   <span class="text-sm text-nerves-gray-500">Total updates size:</span>
-                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stats.total_update_bytes)}</span>
+                  <span class="text-sm text-base-300">{Sizeable.filesize(stats.total_update_bytes)}</span>
                 </div>
                 <div class="flex gap-4 items-center">
                   <span class="text-sm text-nerves-gray-500">Delta update savings:</span>
-                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stats.total_saved_bytes)}</span>
+                  <span class="text-sm text-base-300">{Sizeable.filesize(stats.total_saved_bytes)}</span>
                 </div>
                 <div class="flex gap-4 items-center">
                   <span class="text-sm text-nerves-gray-500">Average size per device:</span>
-                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stats.total_update_bytes / stats.total_updates)}</span>
+                  <span class="text-sm text-base-300">{Sizeable.filesize(stats.total_update_bytes / stats.total_updates)}</span>
                 </div>
                 <div class="flex gap-4 items-center">
                   <span class="text-sm text-nerves-gray-500">Average saved per device:</span>
-                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stats.total_saved_bytes / stats.total_updates)}</span>
+                  <span class="text-sm text-base-300">{Sizeable.filesize(stats.total_saved_bytes / stats.total_updates)}</span>
                 </div>
               <% end %>
             </div>

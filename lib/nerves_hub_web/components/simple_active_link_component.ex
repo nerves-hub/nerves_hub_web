@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Components.SimpleActiveLink do
     assigns = Map.put(assigns, :class, classes)
 
     ~H"""
-    <.link href={@href} class={@class}>
+    <.link navigate={@href} class={@class}>
       {render_slot(@inner_block)}
     </.link>
     """

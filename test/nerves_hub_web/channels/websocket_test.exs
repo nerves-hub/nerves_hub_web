@@ -16,6 +16,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
   alias NervesHub.Products
+  alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias NervesHub.Support.EctoTelemetryHandler
   alias NervesHub.Support.Utils
@@ -566,6 +567,35 @@ defmodule NervesHubWeb.WebsocketTest do
 
       refute SocketClient.connected?(socket)
     end
+
+    test "rejects a device connection, and creates a product notification, if a device identifier is already taken", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _fw} = device_fixture(tmp_dir, user)
+
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      assert {:ok, auth} = Products.create_shared_secret_auth(product)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      {:ok, socket} = SocketClient.start_link(opts)
+
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
+
+      notifications = Repo.all(Notification)
+      assert length(notifications) == 1
+
+      assert notifications |> hd() |> Map.get(:title) ==
+               "A device failed connecting as the identifier '#{device.identifier}' already exists."
+    end
   end
 
   describe "duplicate connections using the same device id" do
@@ -805,8 +835,7 @@ defmodule NervesHubWeb.WebsocketTest do
       device = Repo.preload(device, :org)
 
       updated_device =
-        Devices.get_device_by_identifier(device.org, device.identifier)
-        |> elem(1)
+        Repo.get_by(Device, identifier: device.identifier)
         |> Repo.preload(:org)
 
       assert updated_device.firmware_metadata.uuid == query_uuid

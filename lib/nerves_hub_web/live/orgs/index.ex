@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Orgs.Index do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
   alias NervesHub.Devices
@@ -12,8 +12,8 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   @pinned_devices_limit 5
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, %{assigns: %{user: user}} = socket) do
-    pinned_devices = Devices.get_pinned_devices(user.id)
+  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+    pinned_devices = Devices.get_pinned_devices(scope)
 
     statuses =
       Map.new(pinned_devices, fn device ->
@@ -26,10 +26,10 @@ defmodule NervesHubWeb.Live.Orgs.Index do
       |> assign(:show_all_pinned?, false)
       |> assign(:device_info, %{})
       |> assign(:product_device_info, %{})
-      |> assign(:pinned_devices, Devices.get_pinned_devices(user.id))
+      |> assign(:pinned_devices, pinned_devices)
       |> assign(:device_statuses, statuses)
       |> assign(:device_limit, @pinned_devices_limit)
-      |> maybe_assign_onboarding(user)
+      |> maybe_assign_onboarding()
       |> subscribe()
 
     if connected?(socket), do: send(self(), :load_extras)
@@ -44,7 +44,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   end
 
   def handle_event("save_onboarding", %{"org_name" => org_name, "product_name" => product_name}, socket) do
-    user = socket.assigns.user
+    user = socket.assigns.current_scope.user
 
     with {:ok, org} <- Accounts.create_org(user, %{name: org_name}),
          {:ok, product} <- Products.create_product(%{name: product_name, org_id: org.id}),
@@ -63,10 +63,12 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   @impl Phoenix.LiveView
   def handle_info(:load_extras, socket) do
     org_statuses =
-      Connections.get_connection_status_by_orgs(Enum.map(socket.assigns.user.orgs, & &1.id))
+      socket.assigns.current_scope.user.orgs
+      |> Enum.map(& &1.id)
+      |> Connections.get_connection_status_by_orgs()
 
     product_ids =
-      socket.assigns.user.orgs
+      socket.assigns.current_scope.user.orgs
       |> Enum.flat_map(& &1.products)
       |> Enum.map(& &1.id)
 
@@ -114,9 +116,9 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     limited_devices
   end
 
-  defp maybe_assign_onboarding(socket, user) do
-    if user.orgs == [] do
-      {org_name, product_name} = Accounts.generate_onboarding_names(user.name)
+  defp maybe_assign_onboarding(%{assigns: %{current_scope: scope}} = socket) do
+    if scope.user.orgs == [] do
+      {org_name, product_name} = Accounts.generate_onboarding_names(scope.user.name)
 
       socket
       |> assign(:onboarding, true)

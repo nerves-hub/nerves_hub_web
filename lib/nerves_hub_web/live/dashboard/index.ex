@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Dashboard.Index do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Devices
   alias NervesHub.ManagedDeployments

@@ -1,6 +1,8 @@
 import Config
 
+alias NervesHub.Accounts.Scope
 alias NervesHub.Workers.CleanStaleDeviceConnections
+alias NervesHub.Workers.CleanUpSoftDeletedDevices
 alias NervesHub.Workers.DeleteOldDeviceConnections
 alias NervesHub.Workers.DeviceHealthTruncation
 alias NervesHub.Workers.ExpireInflightUpdates
@@ -40,7 +42,7 @@ config :nerves_hub, NervesHub.Repo,
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: NervesHubWeb.ErrorHTML, json: ErrorJSON],
+    formats: [html: NervesHubWeb.ErrorDeviceHTML, json: ErrorJSON],
     accepts: ~w(html json)
   ],
   pubsub_server: NervesHub.PubSub
@@ -84,8 +86,46 @@ config :nerves_hub, Oban,
        {"* * * * *", FirmwareDeltaTimeout},
        {"1,16,31,46 * * * *", DeleteOldDeviceConnections},
        {"*/5 * * * *", ExpireInflightUpdates},
-       {"*/15 * * * *", DeviceHealthTruncation}
+       {"*/15 * * * *", DeviceHealthTruncation},
+       {"*/15 * * * *", CleanUpSoftDeletedDevices}
      ]}
+  ]
+
+config :nerves_hub, :scopes,
+  user: [
+    default: true,
+    module: Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :id,
+    schema_table: :users
+    # test_data_fixture: MyApp.AccountsFixtures,
+    # test_setup_helper: :register_and_log_in_user
+  ],
+  org: [
+    module: Scope,
+    assign_key: :current_scope,
+    access_path: [:org, :id],
+    route_prefix: "/org/:org",
+    route_access_path: [:org, :name],
+    schema_key: :org_id,
+    schema_type: :id,
+    schema_table: :orgs
+    # test_data_fixture: MyApp.AccountsFixtures,
+    # test_setup_helper: :register_and_log_in_user_with_org
+  ],
+  product: [
+    module: Scope,
+    assign_key: :current_scope,
+    access_path: [:product, :id],
+    route_prefix: "/product/:product",
+    route_access_path: [:product, :name],
+    schema_key: :product_id,
+    schema_type: :id,
+    schema_table: :products
+    # test_data_fixture: MyApp.AccountsFixtures,
+    # test_setup_helper: :register_and_log_in_user_with_org
   ]
 
 config :nerves_hub,
@@ -102,14 +142,13 @@ config :phoenix,
 config :swoosh, :api_client, Finch
 
 config :tailwind,
-  version: "3.4.3",
+  version: "4.2.1",
   default: [
     args: ~w(
-      --config=tailwind.config.js
-      --input=css/app.css
-      --output=../priv/static/assets/css/app.css
+      --input=assets/css/app.css
+      --output=priv/static/assets/css/app.css
     ),
-    cd: Path.expand("../assets", __DIR__)
+    cd: Path.expand("..", __DIR__)
   ]
 
 config :ueberauth, Ueberauth,

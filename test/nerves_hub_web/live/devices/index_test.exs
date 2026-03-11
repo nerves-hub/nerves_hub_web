@@ -1,7 +1,12 @@
 defmodule NervesHubWeb.Live.Devices.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  import Ecto.Query, only: [where: 2]
+
+  alias NervesHub.Accounts
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
+  alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
@@ -9,6 +14,13 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
   setup %{fixture: %{device: device}} do
     Endpoint.subscribe("device:#{device.id}")
+  end
+
+  test "user is redirected to login when trying to access a products device list, but the user isn't logged in" do
+    build_conn()
+    |> visit("/org/snoot/boop/devices")
+    |> assert_path("/login")
+    |> assert_has("div", text: "You must login to access this page.")
   end
 
   test "shows a loading message (async loading)", %{conn: conn, fixture: fixture} do
@@ -555,6 +567,147 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   end
 
   describe "bulk actions" do
+    test "only devices in the product can be selected", %{conn: conn, fixture: fixture, tmp_dir: tmp_dir} do
+      %{org: org, product: product} = fixture
+
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+      other_product = Fixtures.product_fixture(other_user, other_org)
+      other_org_key = Fixtures.org_key_fixture(other_org, other_user, tmp_dir)
+      other_firmware = Fixtures.firmware_fixture(other_org_key, other_product, %{dir: tmp_dir})
+      other_device = Fixtures.device_fixture(other_org, other_product, other_firmware)
+
+      assert length(NervesHub.Repo.all(Device)) == 2
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      render_async(view, 300)
+
+      state = :sys.get_state(view.pid)
+      assert length(state.socket.assigns.devices.result) == 1
+      assert Enum.empty?(state.socket.assigns.selected_devices)
+
+      assert render_click(view, :select, %{id: "#{other_device.id}"}) =~ "Invalid device selection"
+
+      state = :sys.get_state(view.pid)
+      assert Enum.empty?(state.socket.assigns.selected_devices)
+    end
+
+    test "users with the :view role cannot select devices", %{
+      conn: conn,
+      fixture: fixture
+    } do
+      %{org: org, product: product, device: device, user: user} = fixture
+
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      org_user = Accounts.get_org_user!(scope, user)
+      Accounts.change_org_user_role(org_user, :view)
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      render_async(view, 300)
+
+      state = :sys.get_state(view.pid)
+      assert length(state.socket.assigns.devices.result) == 1
+      assert Enum.empty?(state.socket.assigns.selected_devices)
+
+      assert render_click(view, :select, %{id: "#{device.id}"}) =~
+               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+
+      state = :sys.get_state(view.pid)
+      assert Enum.empty?(state.socket.assigns.selected_devices)
+    end
+
+    test "users with the :view role cannot select all devices", %{
+      conn: conn,
+      fixture: fixture
+    } do
+      %{org: org, product: product, user: user} = fixture
+
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      org_user = Accounts.get_org_user!(scope, user)
+      Accounts.change_org_user_role(org_user, :view)
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      render_async(view, 300)
+
+      state = :sys.get_state(view.pid)
+      assert length(state.socket.assigns.devices.result) == 1
+      assert Enum.empty?(state.socket.assigns.selected_devices)
+
+      assert render_click(view, "select-all") =~
+               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+
+      state = :sys.get_state(view.pid)
+      assert Enum.empty?(state.socket.assigns.selected_devices)
+    end
+
+    test "users with the :view role have the select checkboxs disabled", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, user: user, device: device} = fixture
+
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      org_user = Accounts.get_org_user!(scope, user)
+      Accounts.change_org_user_role(org_user, :view)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("span", text: "beta")
+      |> assert_has("span", text: "beta-edge")
+      |> assert_has("#toggle-all[disabled]", timeout: 1_000)
+      |> assert_has("#checkbox-device-#{device.id}:disabled")
+    end
+
+    test "only products that a user has access to can be selected", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product} = fixture
+
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user)
+      other_product = Fixtures.product_fixture(other_user, other_org)
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      render_async(view, 300)
+
+      state = :sys.get_state(view.pid)
+      assert is_nil(state.socket.assigns.target_product)
+
+      assert render_click(view, "target-product", %{
+               "product_id" => "#{other_product.id}"
+             }) =~ "Invalid product selection"
+
+      state = :sys.get_state(view.pid)
+      assert is_nil(state.socket.assigns.target_product)
+    end
+
+    test "users with the :view role cannot select products", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, user: user} = fixture
+
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      org_user = Accounts.get_org_user!(scope, user)
+      Accounts.change_org_user_role(org_user, :view)
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      render_async(view, 300)
+
+      state = :sys.get_state(view.pid)
+      assert is_nil(state.socket.assigns.target_product)
+
+      assert render_click(view, "target-product", %{
+               "product_id" => "#{product.id}"
+             }) =~
+               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+
+      state = :sys.get_state(view.pid)
+      assert is_nil(state.socket.assigns.target_product)
+    end
+
     test "changes tags", %{conn: conn, fixture: fixture} do
       %{device: device, org: org, product: product} = fixture
 
@@ -571,7 +724,55 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("span", text: "moussaka", timeout: 1_000)
     end
 
-    test "add multiple devices to deployment in new UI",
+    test "users with the :view role cannot change tags", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, user: user} = fixture
+
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      org_user = Accounts.get_org_user!(scope, user)
+      Accounts.change_org_user_role(org_user, :view)
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      render_async(view, 300)
+
+      assert render_click(view, "tag-devices", %{"tags" => ["Boop"]}) =~
+               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+    end
+
+    test "users with the :view role cannot select a deployment group", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, user: user} = fixture
+
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      org_user = Accounts.get_org_user!(scope, user)
+      Accounts.change_org_user_role(org_user, :view)
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      render_async(view, 300)
+
+      assert render_click(view, "target-deployment-group", %{"deployment_group" => ["1"]}) =~
+               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+    end
+
+    test "users with the :view role cannot move devices to another product", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, user: user} = fixture
+
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      org_user = Accounts.get_org_user!(scope, user)
+      Accounts.change_org_user_role(org_user, :view)
+
+      {:ok, view, _html} = live(conn, ~p"/org/#{org}/#{product}/devices")
+
+      render_async(view, 300)
+
+      assert render_click(view, "move-devices-product", %{"deployment_group" => ["1"]}) =~
+               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+    end
+
+    test "add multiple devices to deployment",
          %{conn: conn, fixture: fixture} do
       %{
         device: device,
@@ -603,13 +804,112 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         )
         |> submit()
       end)
-      |> assert_has("div", text: "2 devices added to deployment")
+      |> assert_has("div", text: "All selected devices were added to deployment #{deployment_group.name}")
 
       assert_receive %{event: "updated"}
       assert_receive %{event: "updated"}
 
       assert Repo.reload(device) |> Map.get(:deployment_id)
       assert Repo.reload(device2) |> Map.get(:deployment_id)
+    end
+
+    test "move multiple devices to a different product",
+         %{conn: conn, fixture: fixture} do
+      %{
+        device: device,
+        user: user,
+        org: org,
+        product: product,
+        firmware: firmware
+      } = fixture
+
+      second_device = Fixtures.device_fixture(org, product, firmware)
+
+      other_product = Fixtures.product_fixture(user, org)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("div", text: "2", timeout: 1000)
+      |> check("Select all devices", exact: false)
+      |> assert_has("div", text: "2 devices selected")
+      |> within("form#product-move", fn session ->
+        session
+        |> select("Move device(s) to product:",
+          option: other_product.name,
+          exact_option: false
+        )
+        |> submit()
+      end)
+      |> assert_has("div", text: "All selected devices successfully moved moved to #{other_product.name}")
+      |> visit("/org/#{org.name}/#{other_product.name}/devices")
+      |> assert_has("div", text: "2", timeout: 1000)
+
+      assert Repo.reload(device) |> Map.get(:product_id) == other_product.id
+      assert Repo.reload(second_device) |> Map.get(:product_id) == other_product.id
+    end
+
+    test "disable updates for multiple devices",
+         %{conn: conn, fixture: fixture} do
+      %{
+        device: device,
+        org: org,
+        product: product,
+        firmware: firmware
+      } = fixture
+
+      second_device = Fixtures.device_fixture(org, product, firmware)
+
+      assert device.updates_enabled
+      assert second_device.updates_enabled
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("div", text: "2", timeout: 1000)
+      |> check("Select all devices", exact: false)
+      |> assert_has("div", text: "2 devices selected")
+      |> click_button("Disable")
+      |> assert_has("div", text: "Disabled updates for 2 selected device(s).")
+      |> tap(fn _ ->
+        refute Repo.reload(device).updates_enabled
+        refute Repo.reload(second_device).updates_enabled
+      end)
+      |> assert_has("div", text: "2 devices selected")
+      |> click_button("Enable")
+      |> assert_has("div", text: "Enabled updates for 2 selected device(s).")
+      |> tap(fn _ ->
+        assert Repo.reload(device).updates_enabled
+        assert Repo.reload(second_device).updates_enabled
+      end)
+    end
+
+    test "remove multiple devices from the penalty box",
+         %{conn: conn, fixture: fixture} do
+      %{
+        device: device,
+        org: org,
+        product: product,
+        firmware: firmware
+      } = fixture
+
+      second_device = Fixtures.device_fixture(org, product, firmware)
+
+      assert is_nil(device.updates_blocked_until)
+      assert is_nil(second_device.updates_blocked_until)
+
+      Device
+      |> where(product_id: ^product.id)
+      |> Repo.update_all(set: [updates_blocked_until: DateTime.utc_now()])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("div", text: "2", timeout: 1000)
+      |> check("Select all devices", exact: false)
+      |> assert_has("div", text: "2 devices selected")
+      |> click_button("Clear penalty box")
+      |> assert_has("div", text: "2 selected device(s) cleared from the penalty box.")
+
+      assert Repo.reload(device).updates_blocked_until |> is_nil()
+      assert Repo.reload(second_device).updates_blocked_until |> is_nil()
     end
   end
 

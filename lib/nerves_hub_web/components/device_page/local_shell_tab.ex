@@ -74,7 +74,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
         <.async_result :let={online?} assign={@local_shell_active?}>
           <:loading>
             <div class="size-full flex bg-black" style="background-color: rgb(14, 16, 25);">
-              <div :if={authorized?(:"device:extensions:local_shell", @org_user)} class="grow flex justify-center items-center p-6 gap-6 text-medium font-mono">
+              <div :if={authorized?(:"device:extensions:local_shell", @current_scope)} class="grow flex justify-center items-center p-6 gap-6 text-medium font-mono">
                 Checking if the device's local shell is available...
               </div>
             </div>
@@ -88,7 +88,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
           </:failed>
           <div id="local-shell-wrapper" class="size-full flex bg-black" phx-update="ignore" style="background-color: rgb(14, 16, 25);">
             <div
-              :if={@shell_enabled? and authorized?(:"device:extensions:local_shell", @org_user) and online?}
+              :if={@shell_enabled? and authorized?(:"device:extensions:local_shell", @current_scope) and online?}
               id="dropzone"
               class="grow flex p-12 gap-6 relative"
               style="background-color: rgb(14, 16, 25);"
@@ -100,12 +100,12 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 6 6"
                     fill="currentColor"
-                    class="size-3 data-[connection-status=connecting]:fill-indigo-500 data-[connection-status=connecting]:animate-pulse data-[connection-status=connected]:fill-emerald-500 data-[connection-status=disconnected]:fill-zinc-500 data-[connection-status=unknown]:fill-zinc-500"
+                    class="size-3 data-[connection-status=connecting]:fill-alert data-[connection-status=connecting]:animate-pulse data-[connection-status=connected]:fill-success data-[connection-status=disconnected]:fill-base-500 data-[connection-status=unknown]:fill-base-500"
                     data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
                   >
                     <circle cx="3" cy="3" r="3" />
                   </svg>
-                  <h1 class="text-xl font-semibold leading-[30px] text-zinc-50 font-mono">
+                  <h1 class="text-xl font-semibold leading-[30px] text-base-50 font-mono">
                     System Shell : {@device.identifier}
                   </h1>
                 </div>
@@ -123,10 +123,10 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
               <p>The device local shell isn't currently enabled.</p>
               <p>Please check your device and product settings to ensure that the local shell is enabled.</p>
             </div>
-            <div :if={@shell_enabled? and authorized?(:"device:extensions:local_shell", @org_user) and not online?} class="grow flex justify-center items-center p-6 gap-6 text-medium font-mono">
+            <div :if={@shell_enabled? and authorized?(:"device:extensions:local_shell", @current_scope) and not online?} class="grow flex justify-center items-center p-6 gap-6 text-medium font-mono">
               The device's local shell isn't currently available.
             </div>
-            <div :if={not authorized?(:"device:extensions:local_shell", @org_user)} class="grow flex justify-center items-center p-6 gap-6 text-medium text-red-500 font-mono">
+            <div :if={not authorized?(:"device:extensions:local_shell", @current_scope)} class="grow flex justify-center items-center p-6 gap-6 text-medium text-alert font-mono">
               You don't have the required permissions to access a local shell on the Device.
             </div>
           </div>

@@ -1,12 +1,12 @@
 defmodule NervesHubWeb.Live.Product.Settings do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Extensions
   alias NervesHub.Products
   alias NervesHubWeb.DeviceSocket
 
   def mount(_params, _session, socket) do
-    product = Products.load_shared_secret_auth(socket.assigns.product)
+    product = Products.load_shared_secret_auth(socket.assigns.current_scope.product)
 
     socket =
       socket
@@ -22,7 +22,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
   end
 
   def handle_event("add-shared-secret", _params, socket) do
-    authorized!(:"product:update", socket.assigns.org_user)
+    authorized!(:"product:update", socket.assigns.current_scope)
 
     {:ok, _} = Products.create_shared_secret_auth(socket.assigns.product)
 
@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
   end
 
   def handle_event("deactivate-shared-secret", %{"shared_secret_id" => shared_secret_id}, socket) do
-    authorized!(:"product:update", socket.assigns.org_user)
+    authorized!(:"product:update", socket.assigns.current_scope)
 
     product = socket.assigns.product
 
@@ -51,13 +51,13 @@ defmodule NervesHubWeb.Live.Product.Settings do
   end
 
   def handle_event("delete-product", _params, socket) do
-    authorized!(:"product:delete", socket.assigns.org_user)
+    authorized!(:"product:delete", socket.assigns.current_scope)
 
     case Products.delete_product(socket.assigns.product) do
       {:ok, _product} ->
         socket
         |> put_flash(:info, "Product deleted successfully.")
-        |> push_navigate(to: ~p"/org/#{socket.assigns.org}")
+        |> push_navigate(to: ~p"/org/#{socket.assigns.current_scope.org}")
         |> noreply()
 
       {:error, _changeset} ->

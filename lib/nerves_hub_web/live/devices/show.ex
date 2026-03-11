@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.Show do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
@@ -25,9 +25,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   @tab_components [ActivityTab, ConsoleTab, DetailsTab, HealthTab, LocalShellTab, LogsTab, SettingsTab]
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
-    %{org: org, product: product, user: user} = socket.assigns
+    %{current_scope: %{org: org, product: product, user: user} = scope} = socket.assigns
 
-    device = load_device(org, device_identifier)
+    device = load_device(scope, device_identifier)
 
     if connected?(socket) do
       Logger.metadata(device_id: device.id, user_id: user.id, product_id: product.id)
@@ -39,6 +39,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
 
     socket
+    |> assign(%{org: org, product: product, user: user})
     |> page_title("Device #{device.identifier} - #{product.name}")
     |> sidebar_tab(:devices)
     |> selected_tab()
@@ -58,9 +59,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(:reload_device, socket) do
-    %{org: org, device: device} = socket.assigns
+    %{current_scope: scope, device: device} = socket.assigns
 
-    device = load_device(org, device.identifier)
+    device = load_device(scope, device.identifier)
 
     socket
     |> assign(:device, device)
@@ -87,9 +88,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   def handle_info(
         %Broadcast{event: "connection:status", payload: %{status: "online"}},
-        %{assigns: %{device: device, org: org}} = socket
+        %{assigns: %{device: device, current_scope: scope}} = socket
       ) do
-    device = load_device(org, device.identifier)
+    device = load_device(scope, device.identifier)
 
     socket
     |> general_assigns(device)
@@ -105,9 +106,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
-    %{device: previous_device, org: org} = socket.assigns
+    %{device: previous_device, current_scope: scope} = socket.assigns
 
-    device = load_device(org, previous_device.identifier)
+    device = load_device(scope, previous_device.identifier)
 
     socket
     |> assign(:device, device)
@@ -152,17 +153,17 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(%Broadcast{event: "location:updated"}, socket) do
-    %{device: device, org: org} = socket.assigns
+    %{device: device, current_scope: scope} = socket.assigns
 
-    device = load_device(org, device.identifier)
+    device = load_device(scope, device.identifier)
 
     {:noreply, assign(socket, :device, device)}
   end
 
   def handle_info(%Broadcast{event: "firmware:validated"}, socket) do
-    %{device: device, org: org} = socket.assigns
+    %{device: device, current_scope: scope} = socket.assigns
 
-    device = load_device(org, device.identifier)
+    device = load_device(scope, device.identifier)
 
     socket
     |> assign(:device, device)
@@ -206,9 +207,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("reboot", _value, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{current_scope: current_scope, user: user, device: device} = socket.assigns
 
-    authorized!(:"device:reboot", org_user)
+    authorized!(:"device:reboot", current_scope)
 
     DeviceEvents.reboot(device, user)
 
@@ -216,9 +217,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("reconnect", _value, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{current_scope: current_scope, user: user, device: device} = socket.assigns
 
-    authorized!(:"device:reconnect", org_user)
+    authorized!(:"device:reconnect", current_scope)
 
     DeviceTemplates.audit_request_action(user, device, "reconnect")
 
@@ -228,9 +229,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("identify", _value, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{current_scope: current_scope, user: user, device: device} = socket.assigns
 
-    authorized!(:"device:identify", org_user)
+    authorized!(:"device:identify", current_scope)
 
     DeviceEvents.identify(device, user)
 
@@ -238,9 +239,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("clear-penalty-box", _params, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{current_scope: current_scope, user: user, device: device} = socket.assigns
 
-    authorized!(:"device:clear-penalty-box", org_user)
+    authorized!(:"device:clear-penalty-box", current_scope)
 
     {:ok, updated_device} = Devices.clear_penalty_box(device, user)
 
@@ -251,9 +252,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("toggle-deployment-firmware-updates", _params, socket) do
-    %{org_user: org_user, user: user, device: device} = socket.assigns
+    %{current_scope: current_scope, user: user, device: device} = socket.assigns
 
-    authorized!(:"device:toggle-updates", org_user)
+    authorized!(:"device:toggle-updates", current_scope)
 
     {:ok, updated_device} = Devices.toggle_automatic_updates(device, user)
 
@@ -270,7 +271,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("restore", _, socket) do
-    authorized!(:"device:restore", socket.assigns.org_user)
+    authorized!(:"device:restore", socket.assigns.current_scope)
 
     {:ok, device} = Devices.restore_device(socket.assigns.device)
 
@@ -278,9 +279,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("destroy", _, socket) do
-    %{org: org, org_user: org_user, product: product, device: device} = socket.assigns
+    %{org: org, current_scope: current_scope, product: product, device: device} = socket.assigns
 
-    authorized!(:"device:destroy", org_user)
+    authorized!(:"device:destroy", current_scope)
 
     {:ok, _device} = Devices.destroy_device(device)
 
@@ -291,7 +292,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("delete", _, socket) do
-    authorized!(:"device:delete", socket.assigns.org_user)
+    authorized!(:"device:delete", socket.assigns.current_scope)
 
     {:ok, device} = Devices.delete_device(socket.assigns.device)
 
@@ -304,8 +305,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  defp load_device(org, identifier) do
-    Devices.get_device_by_identifier!(org, identifier, [
+  # Ignore handle_async results that have come from other tabs
+  # This can happen when a support script is run from the details tab, only for the user
+  # to navigate to a different tab before the result arrives.
+  def handle_async(_unknown, socket), do: {:noreply, socket}
+
+  defp load_device(scope, identifier) do
+    Devices.get_by_identifier!(scope, identifier, [
       :product,
       :latest_connection,
       :latest_health
@@ -392,7 +398,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     ~H"""
     <.link
       data-selected={"#{@selected}"}
-      class="px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 data-[selected=true]:text-neutral-50 data-[selected=true]:border-b data-[selected=true]:border-indigo-500 relative -bottom-px"
+      class="px-6 py-2 h-11 font-normal text-sm text-base-300 hover:border-b hover:border-indigo-500 data-[selected=true]:text-neutral-50 data-[selected=true]:border-b data-[selected=true]:border-indigo-500 relative -bottom-px"
       phx-click={JS.set_attribute({"data-selected", "false"}, to: "#tabs a") |> JS.set_attribute({"data-selected", "true"})}
       patch={@path}
     >

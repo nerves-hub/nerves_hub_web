@@ -1,127 +1,123 @@
-<div class="h-[56px] shrink-0 flex justify-end bg-base-900 border-b border-base-700 pl-6 items-center">
-  <div class="flex gap-2.5">
-    <.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups"} class="back-link flex gap-2.5 items-center">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      <span class="text-base-400">All Deployment Groups</span>
-    </.link>
-    <span class="text-base-400">/</span>
-    <span class="text-zinc-50 font-semibold">{@deployment_group.name}</span>
-  </div>
-  <div class="flex items-center gap-2 ml-auto mr-6">
-    <.button
-      :if={authorized?(:"deployment_group:toggle", @org_user)}
-      aria-label={"#{(@deployment_group.is_active && "Pause") || "Resume"} deployment"}
-      type="button"
-      phx-click="toggle"
-      data-confirm={"Are you sure you want to #{(@deployment_group.is_active && "pause") || "resume"} the deployment?"}
-    >
-      <.icon name="power" />{(@deployment_group.is_active && "Pause") || "Resume"}
-    </.button>
-  </div>
-</div>
-
-<div class="h-0 flex-1 overflow-y-auto flex flex-col">
-  <div class="h-[90px] shrink-0 flex justify-between p-6">
-    <div class="flex gap-3 items-center">
-      <svg
-        data-is-active={(@deployment_group.is_active && "true") || "false"}
-        class="size-3 data-[is-active=true]:fill-emerald-500 data-[is-active=false]:fill-zinc-500"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 6 6"
-        fill="currentColor"
-      >
-        <circle cx="3" cy="3" r="3" />
-      </svg>
-      <h1 class="text-xl font-semibold leading-[30px] text-zinc-50">
-        {@deployment_group.name}
-      </h1>
-      <div
-        :if={@deployment_group.status == :preparing}
-        phx-remove={JS.hide(transition: {"ease-in duration-1000", "opacity-100", "opacity-0"}, blocking: false)}
-        class="pulsing-div flex items-center gap-1 pl-2.5 pr-3 py-0.5 border border-zinc-700 rounded-full bg-amber-500"
-      >
-        <span class="text-xs text-zinc-50">Preparing: Generating Deltas</span>
-      </div>
-
-      <div
-        :if={@deployment_group.status == :deltas_failed}
-        class="text-xs text-red-500 px-2 py-1 border border-red-500 bg-zinc-800 rounded"
-      >
-        Error: Deltas failed to generate
-      </div>
-    </div>
-
-    <div class="flex items-center gap-2">
-      <.link
-        navigate={~p"/org/#{@org}/#{@product}/devices?deployment_id=#{@deployment_group.id}"}
-        class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800 hover:bg-zinc-700 transition-colors cursor-pointer"
-      >
-        <span class="text-sm text-zinc-400 mr-1">Devices:</span>
-
-        <div class="flex items-center">
-          <span class="text-sm text-base-300 mr-1">{@deployment_group.device_count || 0}</span>
-        </div>
+<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
+  <div class="h-[56px] shrink-0 flex justify-end bg-surface-muted border-b border-base-700 pl-6 items-center">
+    <div class="flex gap-2.5">
+      <.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups"} class="back-link flex gap-2.5 items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="text-base-400">All Deployment Groups</span>
       </.link>
-      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
-        <span class="text-sm text-zinc-400 mr-1">Arch:</span>
-
-        <div class="flex items-center">
-          <span class="text-sm text-base-300 mr-1">{@deployment_group.current_release.firmware.architecture}</span>
-        </div>
-      </div>
-
-      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
-        <span class="text-sm text-zinc-400 mr-1">Platform:</span>
-
-        <div class="flex items-center">
-          <span class="text-sm text-base-300 mr-1">{@deployment_group.current_release.firmware.platform}</span>
-        </div>
-      </div>
+      <span class="text-base-400">/</span>
+      <span class="text-base-50 font-semibold">{@deployment_group.name}</span>
+    </div>
+    <div class="flex items-center gap-2 ml-auto mr-6">
+      <.button
+        :if={authorized?(:"deployment_group:toggle", @current_scope)}
+        aria-label={"#{(@deployment_group.is_active && "Pause") || "Resume"} deployment"}
+        type="button"
+        phx-click="toggle"
+        data-confirm={"Are you sure you want to #{(@deployment_group.is_active && "pause") || "resume"} the deployment?"}
+      >
+        <.icon name="power" />{(@deployment_group.is_active && "Pause") || "Resume"}
+      </.button>
     </div>
   </div>
 
-  <div class="flex w-full justify-between px-6 border-b border-zinc-700">
-    <div class="flex">
-      <.link class={tab_classes(@tab, :summary)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}"}>
-        Summary
-      </.link>
-      <.link class={tab_classes(@tab, :releases)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/releases"}>
-        Releases
-      </.link>
-      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/activity"}>
-        Activity
-      </.link>
-      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/settings"}>
-        Settings
-      </.link>
+  <div class="h-0 flex-1 overflow-y-auto flex flex-col">
+    <div class="h-[90px] shrink-0 flex justify-between p-6">
+      <div class="flex gap-3 items-center">
+        <svg
+          data-is-active={(@deployment_group.is_active && "true") || "false"}
+          class="size-3 data-[is-active=true]:fill-success data-[is-active=false]:fill-base-500"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 6 6"
+          fill="currentColor"
+        >
+          <circle cx="3" cy="3" r="3" />
+        </svg>
+        <h1 class="text-xl font-semibold leading-[30px] text-base-50">
+          {@deployment_group.name}
+        </h1>
+        <div
+          :if={@deployment_group.status == :preparing}
+          phx-remove={JS.hide(transition: {"ease-in duration-1000", "opacity-100", "opacity-0"}, blocking: false)}
+          class="pulsing-div flex items-center gap-1 pl-2.5 pr-3 py-0.5 border border-base-700 rounded-full bg-warning"
+        >
+          <span class="text-xs text-base-50">Preparing: Generating Deltas</span>
+        </div>
+
+        <div
+          :if={@deployment_group.status == :deltas_failed}
+          class="text-xs text-alert px-2 py-1 border border-alert bg-base-800 rounded"
+        >
+          Error: Deltas failed to generate
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <.link
+          navigate={~p"/org/#{@org}/#{@product}/devices?deployment_id=#{@deployment_group.id}"}
+          class="flex h-7 py-1 px-2 items-center rounded bg-base-800 hover:bg-base-700 transition-colors cursor-pointer"
+        >
+          <span class="text-sm text-base-400 mr-1">Devices:</span>
+
+          <div class="flex items-center">
+            <span class="text-sm text-base-300 mr-1">{@deployment_group.device_count || 0}</span>
+          </div>
+        </.link>
+        <div class="flex h-7 py-1 px-2 items-center rounded bg-base-800">
+          <span class="text-sm text-base-400 mr-1">Arch:</span>
+
+          <div class="flex items-center">
+            <span class="text-sm text-base-300 mr-1">{@deployment_group.current_release.firmware.architecture}</span>
+          </div>
+        </div>
+
+        <div class="flex h-7 py-1 px-2 items-center rounded bg-base-800">
+          <span class="text-sm text-base-400 mr-1">Platform:</span>
+
+          <div class="flex items-center">
+            <span class="text-sm text-base-300 mr-1">{@deployment_group.current_release.firmware.platform}</span>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <div class="flex w-full justify-between px-6 border-b border-base-700">
+      <div class="flex">
+        <.link class={tab_classes(@tab, :summary)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}"}>
+          Summary
+        </.link>
+        <.link class={tab_classes(@tab, :releases)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/releases"}>
+          Releases
+        </.link>
+        <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/activity"}>
+          Activity
+        </.link>
+        <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/settings"}>
+          Settings
+        </.link>
+      </div>
+    </div>
+
+    <.live_component
+      :if={@tab == :summary}
+      module={SummaryTab}
+      id="deployment_group_summary"
+      deployment_group={@deployment_group}
+      current_scope={@current_scope}
+    />
+
+    <.live_component
+      :if={@tab == :releases}
+      module={ReleasesTab}
+      id="deployment_group_releases"
+      deployment_group={@deployment_group}
+      current_scope={@current_scope}
+    />
+
+    <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_group_activity" deployment_group={@deployment_group} current_scope={@current_scope} />
+
+    <.live_component :if={@tab == :settings} module={SettingsTab} id="deployment_group_settings" deployment_group={@deployment_group} current_scope={@current_scope} />
   </div>
-
-  <.live_component
-    :if={@tab == :summary}
-    module={SummaryTab}
-    id="deployment_group_summary"
-    deployment_group={@deployment_group}
-    product={@product}
-    org={@org}
-    org_user={@org_user}
-    user={@user}
-  />
-
-  <.live_component
-    :if={@tab == :releases}
-    module={ReleasesTab}
-    id="deployment_group_releases"
-    deployment_group={@deployment_group}
-    org={@org}
-    product={@product}
-    user={@user}
-    org_user={@org_user}
-  />
-
-  <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_group_activity" deployment_group={@deployment_group} org={@org} product={@product} user={@user} />
-
-  <.live_component :if={@tab == :settings} module={SettingsTab} id="deployment_group_settings" deployment_group={@deployment_group} org={@org} product={@product} user={@user} org_user={@org_user} />
-</div>
+</NervesHubWeb.Layouts.sidebar>

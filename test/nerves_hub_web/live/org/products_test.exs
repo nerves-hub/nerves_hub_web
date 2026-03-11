@@ -3,6 +3,13 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
 
   alias NervesHub.Fixtures
 
+  test "user is redirected to login when trying to access an org, but the user isn't logged in" do
+    build_conn()
+    |> visit("/org/snoot")
+    |> assert_path("/login")
+    |> assert_has("div", text: "You must login to access this page.")
+  end
+
   describe "onboarding" do
     test "shows a friendly onboarding page if no devices are registered" do
       user_name = "Waffles"

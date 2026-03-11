@@ -4,6 +4,7 @@ defmodule NervesHub.Firmwares do
   alias Ecto.Changeset
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
@@ -212,10 +213,21 @@ defmodule NervesHub.Firmwares do
     |> Repo.one!()
   end
 
+  @spec get_firmware_by_uuid(Scope.t(), String.t()) :: {:ok, Firmware.t()} | {:error, :not_found}
+  def get_firmware_by_uuid(%Scope{} = scope, uuid) do
+    get_firmware_by_product_and_uuid(scope.product, uuid)
+  end
+
+  @spec get_firmware_by_uuid!(Scope.t(), String.t()) :: Firmware.t()
+  def get_firmware_by_uuid!(%Scope{} = scope, uuid) do
+    get_firmware_by_product_and_uuid_query(scope.product, uuid)
+    |> Repo.one!()
+  end
+
   @spec get_firmware_by_product_and_uuid(Product.t(), String.t()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
-  def get_firmware_by_product_and_uuid(product, uuid) do
+  def get_firmware_by_product_and_uuid(%Product{} = product, uuid) do
     get_firmware_by_product_and_uuid_query(product, uuid)
     |> Repo.one()
     |> case do

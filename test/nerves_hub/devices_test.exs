@@ -6,6 +6,7 @@ defmodule NervesHub.DevicesTest do
   alias Ecto.Changeset
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate
@@ -440,16 +441,19 @@ defmodule NervesHub.DevicesTest do
     assert {:ok, %CACertificate{serial: ^serial}} = Devices.get_ca_certificate_by_aki(aki)
   end
 
-  test "get_device_by_identifier with existing device", %{org: org, device: target_device} do
-    assert {:ok, result} = Devices.get_device_by_identifier(org, target_device.identifier)
+  test "get_device_by_identifier with existing device", %{user: user, org: org, device: target_device} do
+    scope = Scope.for_user(user) |> Scope.put_org(org)
+
+    assert {:ok, result} = Devices.get_by_identifier(scope, target_device.identifier)
 
     for key <- [:org_id, :deployment_id, :device_identifier] do
       assert Map.get(target_device, key) == Map.get(result, key)
     end
   end
 
-  test "get_device_by_identifier without existing device", %{org: org} do
-    assert {:error, :not_found} = Devices.get_device_by_identifier(org, "non existing identifier")
+  test "get_device_by_identifier without existing device", %{user: user, org: org} do
+    scope = Scope.for_user(user) |> Scope.put_org(org)
+    assert {:error, :not_found} = Devices.get_by_identifier(scope, "non existing identifier")
   end
 
   test "matches_deployment_group? works when device and/or deployment tags are nil", %{

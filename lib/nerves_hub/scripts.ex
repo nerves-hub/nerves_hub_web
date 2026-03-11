@@ -2,6 +2,7 @@ defmodule NervesHub.Scripts do
   import Ecto.Query
 
   alias Ecto.Changeset
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.Filtering, as: CommonFiltering
@@ -10,8 +11,14 @@ defmodule NervesHub.Scripts do
   alias NervesHub.Repo
   alias NervesHub.Scripts.Script
 
-  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
-  def filter(product, opts \\ %{}) do
+  @spec filter(Scope.t() | Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  def filter(scope_or_product, opts \\ %{})
+
+  def filter(%Scope{product: product}, opts) do
+    filter(product, opts)
+  end
+
+  def filter(%Product{} = product, opts) do
     Script
     |> from()
     |> CommonFiltering.filter(
@@ -29,6 +36,10 @@ defmodule NervesHub.Scripts do
 
   def get!(id) do
     Repo.get!(Script, id)
+  end
+
+  def get_by_id!(%Scope{product: product}, id) do
+    Repo.get_by!(Script, id: id, product_id: product.id)
   end
 
   def get_by_product_and_id!(product, id) do

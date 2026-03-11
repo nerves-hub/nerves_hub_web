@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.New do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb, :live_view
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -9,16 +9,16 @@ defmodule NervesHubWeb.Live.Devices.New do
     changeset = Ecto.Changeset.change(%Device{})
 
     socket
-    |> page_title("New Device - #{socket.assigns.product.name}")
-    |> assign(:tab_hint, :devices)
+    |> page_title("New Device - #{socket.assigns.current_scope.product.name}")
+    |> sidebar_tab(:devices)
     |> assign(:form, to_form(changeset))
     |> ok()
   end
 
   def handle_event("save-device", %{"device" => device_params}, socket) do
-    authorized!(:"device:create", socket.assigns.org_user)
+    authorized!(:"device:create", socket.assigns.current_scope)
 
-    %{org: org, product: product} = socket.assigns
+    %{current_scope: %{org: org, product: product}} = socket.assigns
 
     device_params
     |> Map.put("org_id", org.id)

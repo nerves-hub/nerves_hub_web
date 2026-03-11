@@ -38,7 +38,7 @@ defmodule NervesHub.Accounts.Org do
     timestamps()
   end
 
-  def changeset(%Org{} = org, params) do
+  def changeset(%Org{} = org, params \\ %{}) do
     org
     |> cast(params, @params)
     |> validate_required(@params)
@@ -56,7 +56,7 @@ defmodule NervesHub.Accounts.Org do
     )
   end
 
-  def change_user_role(struct, params) do
+  def change_user_role(struct, params \\ %{}) do
     cast(struct, params, ~w(role)a)
     |> validate_required(~w(role)a)
   end

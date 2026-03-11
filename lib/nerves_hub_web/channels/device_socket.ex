@@ -5,6 +5,7 @@ defmodule NervesHubWeb.DeviceSocket do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.ProductNotifications
   alias NervesHub.Products
   alias Phoenix.Socket.Transport
   alias Plug.Crypto
@@ -96,7 +97,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
-  @decorate with_span("Channels.DeviceSocket.connect")
+  @decorate with_span("Channels.DeviceSocket.connect:cert_auth")
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
     |> Devices.get_device_by_x509()
@@ -115,7 +116,7 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
-  @decorate with_span("Channels.DeviceSocket.connect")
+  @decorate with_span("Channels.DeviceSocket.connect:shared_secrets")
   def connect(_params, socket, %{x_headers: x_headers})
       when is_list(x_headers) and (is_list(x_headers) and x_headers != []) do
     headers = Map.new(x_headers)
@@ -136,6 +137,13 @@ defmodule NervesHubWeb.DeviceSocket do
          ]
        }}
       when index in ["devices_identifier_org_id_index", "devices_identifier_index"] ->
+        _ =
+          ProductNotifications.create_duplicate_device_identifier_notification!(
+            product_id,
+            identifier,
+            :shared_secret
+          )
+
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
           auth: :shared_secrets,
           reason: :duplicate_device_identifier,

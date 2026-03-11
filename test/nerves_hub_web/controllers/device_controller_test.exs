@@ -16,12 +16,9 @@ defmodule NervesHubWeb.DeviceControllerTest do
     } do
       [cert | _] = NervesHub.Devices.get_device_certificates(device)
 
-      conn =
-        conn
-        |> get("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/certificate/#{cert.serial}/download")
+      conn = get(conn, ~p"/org/#{org}/#{product}/devices/#{device}/certificate/#{cert.serial}/download")
 
-      [str] =
-        Plug.Conn.get_resp_header(conn, "content-disposition")
+      [str] = Plug.Conn.get_resp_header(conn, "content-disposition")
 
       assert str =~ "attachment; filename"
       assert conn.resp_body =~ "-----BEGIN CERTIFICATE-----"

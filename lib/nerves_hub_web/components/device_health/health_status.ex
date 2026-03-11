@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Components.HealthStatus do
     ~H"""
     <div class="relative z-20" id={"health-tooltip-#{@device_id}"} phx-hook="ToolTip" data-placement={@tooltip_position}>
       <.icon name={icon_name(@health)} />
-      <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+      <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-base-700 bg-surface-muted flex">
         <%= if @health && @health.status_reasons do %>
           <div :for={{status, reasons} <- @health.status_reasons}>
             {format_health_status_reason(status, reasons)}
@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Components.HealthStatus do
         <% else %>
           <div>{no_reasons(@health)}</div>
         <% end %>
-        <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+        <div class="tooltip-arrow absolute w-2 h-2 border-base-700 bg-surface-muted origin-center rotate-45"></div>
       </div>
     </div>
     """

@@ -185,50 +185,65 @@ defmodule NervesHub.AccountsTest do
              Accounts.authenticate(user.email, "test_password")
   end
 
-  test "org_key name must be unique", %{user: user} do
-    {:ok, org} = Accounts.create_org(user, @required_org_params)
+  describe "org_key" do
+    test "name must be unique", %{user: user} do
+      {:ok, org} = Accounts.create_org(user, @required_org_params)
 
-    {:ok, _} =
-      Accounts.create_org_key(%{
-        name: "org's key",
-        org_id: org.id,
-        key: "foo",
-        created_by_id: user.id
-      })
+      {:ok, _} =
+        Accounts.create_org_key(%{
+          name: "org's key",
+          org_id: org.id,
+          key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=",
+          created_by_id: user.id
+        })
 
-    assert {:error, %Ecto.Changeset{errors: [name: {"has already been taken", [_ | _]}]}} =
-             Accounts.create_org_key(%{
-               name: "org's key",
-               org_id: org.id,
-               key: "foobar",
-               created_by_id: user.id
-             })
-  end
+      assert {:error, %Ecto.Changeset{errors: [name: {"has already been taken", [_ | _]}]}} =
+               Accounts.create_org_key(%{
+                 name: "org's key",
+                 org_id: org.id,
+                 key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=",
+                 created_by_id: user.id
+               })
+    end
 
-  test "org_key key must be unique", %{user: user} do
-    {:ok, org} = Accounts.create_org(user, @required_org_params)
+    test "key must be unique", %{user: user} do
+      {:ok, org} = Accounts.create_org(user, @required_org_params)
 
-    {:ok, _} =
-      Accounts.create_org_key(%{
-        name: "org's key",
-        org_id: org.id,
-        key: "foo",
-        created_by_id: user.id
-      })
+      {:ok, _} =
+        Accounts.create_org_key(%{
+          name: "org's key",
+          org_id: org.id,
+          key: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=",
+          created_by_id: user.id
+        })
 
-    {:error, %Ecto.Changeset{}} =
-      Accounts.create_org_key(%{name: "org's second key", org_id: org.id, key: "foo"})
-  end
+      {:error, %Ecto.Changeset{}} =
+        Accounts.create_org_key(%{name: "org's second key", org_id: org.id, key: "foo"})
+    end
 
-  test "cannot change org_id of a org_key once created", %{user: user} do
-    org = Fixtures.org_fixture(user)
-    first_id = org.id
-    org_key = Fixtures.org_key_fixture(org, user)
+    test "cannot change org_id once created", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      first_id = org.id
+      org_key = Fixtures.org_key_fixture(org, user)
 
-    other_org = Fixtures.org_fixture(user, %{name: "another_org"})
+      other_org = Fixtures.org_fixture(user, %{name: "another_org"})
 
-    assert {:ok, %OrgKey{org_id: ^first_id}} =
-             Accounts.update_org_key(org_key, %{org_id: other_org.id})
+      assert {:ok, %OrgKey{org_id: ^first_id}} =
+               Accounts.update_org_key(org_key, %{org_id: other_org.id})
+    end
+
+    test "key must be valid", %{user: user} do
+      {:ok, org} = Accounts.create_org(user, @required_org_params)
+
+      assert {:error,
+              %Ecto.Changeset{errors: [key: {"invalid key, please check this is a valid Ed25519 public key", []}]}} =
+               Accounts.create_org_key(%{
+                 name: "org's key",
+                 org_id: org.id,
+                 key: "foobar",
+                 created_by_id: user.id
+               })
+    end
   end
 
   describe "org_metrics" do

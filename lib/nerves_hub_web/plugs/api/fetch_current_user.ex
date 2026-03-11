@@ -1,7 +1,8 @@
-defmodule NervesHubWeb.API.Plugs.AuthenticateUser do
+defmodule NervesHubWeb.API.Plugs.FetchCurrentUser do
   import Plug.Conn
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Scope
 
   def init(opts) do
     opts
@@ -11,10 +12,10 @@ defmodule NervesHubWeb.API.Plugs.AuthenticateUser do
     with {:ok, token} <- get_req_token(conn),
          {:ok, user, user_token} <- Accounts.fetch_user_by_api_token(token),
          :ok <- Accounts.mark_last_used(user_token) do
-      assign(conn, :user, user)
+      assign(conn, :current_scope, Scope.for_user(user))
     else
       _ ->
-        raise NervesHubWeb.UnauthorizedError
+        assign(conn, :current_scope, Scope.for_user(nil))
     end
   end
 

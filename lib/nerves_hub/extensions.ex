@@ -24,8 +24,6 @@ defmodule NervesHub.Extensions do
   alias NervesHub.Products.Product
   alias Phoenix.Channel.Server, as: ChannelServer
 
-  require Logger
-
   @callback handle_in(event :: String.t(), Phoenix.Channel.payload(), Phoenix.Socket.t()) ::
               {:noreply, Phoenix.Socket.t()}
               | {:noreply, Phoenix.Socket.t(), timeout() | :hibernate}

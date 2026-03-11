@@ -1,6 +1,7 @@
 defmodule NervesHub.SSLTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate.JITP
@@ -92,9 +93,14 @@ defmodule NervesHub.SSLTest do
       |> Ecto.Changeset.change(%{jitp_id: jitp.id})
       |> NervesHub.Repo.update!()
 
-      assert Devices.get_device_by_identifier(org, identifier) == {:error, :not_found}
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      assert Devices.get_by_identifier(scope, identifier) == {:error, :not_found}
       assert {:valid, _state} = run_verify(otp_cert, {:bad_cert, :unknown_ca})
-      assert {:ok, device} = Devices.get_device_by_identifier(org, identifier)
+
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+
+      assert {:ok, device} = Devices.get_by_identifier(scope, identifier)
       assert device.identifier == identifier
       assert device.description == "jitp"
       assert device.product_id == product.id
