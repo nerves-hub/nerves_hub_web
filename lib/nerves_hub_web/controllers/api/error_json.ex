@@ -1,7 +1,11 @@
 defmodule NervesHubWeb.API.ErrorJSON do
   @moduledoc false
 
-  def render("401.json", _) do
+  def render("401.json", %{reason: reason}) when is_binary(reason) do
+    %{errors: %{detail: reason}}
+  end
+
+  def render("401.json", _assigns) do
     %{errors: %{detail: "Resource Not Found or Authorization Insufficient"}}
   end
 

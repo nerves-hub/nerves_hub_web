@@ -49,6 +49,13 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :authentication_failed}) do
+    conn
+    |> put_status(401)
+    |> put_view(ErrorJSON)
+    |> render(:"401", %{reason: "Authentication failed, please check your username and password and try again."})
+  end
+
   def call(conn, {:error, reason}) when is_binary(reason) or is_atom(reason) do
     conn
     |> put_status(500)
