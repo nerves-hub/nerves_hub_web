@@ -435,9 +435,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </button>
                 <div id="remove-devices-from-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
                   <.icon name="info" class="stroke-base-400" />
-                  <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-surface-muted flex">
+                  <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-base-700 bg-surface-muted flex">
                     This action will remove {@unmatched_device_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
-                    <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-surface-muted origin-center rotate-45"></div>
+                    <div class="tooltip-arrow absolute w-2 h-2 border-base-700 bg-surface-muted origin-center rotate-45"></div>
                   </div>
                 </div>
               </div>
@@ -467,10 +467,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                       stroke-linejoin="round"
                     />
                   </svg>
-                  <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-surface-muted flex">
+                  <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-base-700 bg-surface-muted flex">
                     This action will move {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}<br />
                     that do not belong to a deployment <br />group into {@deployment_group.name}
-                    <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-surface-muted origin-center rotate-45"></div>
+                    <div class="tooltip-arrow absolute w-2 h-2 border-base-700 bg-surface-muted origin-center rotate-45"></div>
                   </div>
                 </div>
               </div>

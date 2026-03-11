@@ -464,7 +464,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   </svg>
                 </button>
               </div>
-              <div :if={script.output} class="mt-2 bg-[#0e1019] rounded border border-base-700 p-2">
+              <div :if={script.output} class="mt-2 bg-base-950 rounded border border-base-700 p-2">
                 <div id="support-script" phx-hook="SupportScriptOutput" class="overflow-x-scroll"></div>
                 <div id="support-script-output" class="hidden" phx-no-format>{script.output}</div>
               </div>

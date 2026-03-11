@@ -16,9 +16,9 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
               stroke-linejoin="round"
             />
           </svg>
-          <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-surface-muted flex">
+          <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-base-700 bg-surface-muted flex">
             Updates blocked {friendly_blocked_until(@device.updates_blocked_until)}
-            <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-surface-muted origin-center rotate-45"></div>
+            <div class="tooltip-arrow absolute w-2 h-2 border-base-700 bg-surface-muted origin-center rotate-45"></div>
           </div>
         </div>
         """
@@ -46,9 +46,9 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
               stroke-linejoin="round"
             />
           </svg>
-          <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-surface-muted flex">
+          <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-base-700 bg-surface-muted flex">
             Updates disabled
-            <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-surface-muted origin-center rotate-45"></div>
+            <div class="tooltip-arrow absolute w-2 h-2 border-base-700 bg-surface-muted origin-center rotate-45"></div>
           </div>
         </div>
         """
