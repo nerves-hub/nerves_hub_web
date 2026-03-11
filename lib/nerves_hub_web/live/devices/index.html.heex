@@ -2,7 +2,7 @@
   <div class="h-14 flex justify-end bg-surface-muted border-b border-base-700"></div>
 
   <div id="device-container" class="h-0 flex-1 overflow-y-auto" phx-hook="PageVisible">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
       <h1 :if={!@devices.ok?} class="text-xl leading-[30px] font-semibold text-neutral-50">Loading...</h1>
       <h1 :if={@devices.ok?} id="devices-header" class="text-xl leading-[30px] font-semibold text-neutral-50 hidden" phx-mounted={fade_in("#devices-header")}>
         All Devices
@@ -266,9 +266,9 @@
                         {device.identifier}
                         <div :if={device.deleted_at} class="relative inline-block align-middle z-50" id={"health-tooltip-#{device.identifier}"} phx-hook="ToolTip" data-placement="right">
                           <.icon name="info" class="stroke-base-400" />
-                          <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-surface-muted flex">
+                          <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-base-700 bg-surface-muted flex">
                             This device has been deleted. <br /> You can destroy or restore it in the device's settings.
-                            <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-surface-muted origin-center rotate-45"></div>
+                            <div class="tooltip-arrow absolute w-2 h-2 border-base-700 bg-surface-muted origin-center rotate-45"></div>
                           </div>
                         </div>
                         <span class="clickable-table-row-mask" />
