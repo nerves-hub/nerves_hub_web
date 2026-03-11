@@ -46,6 +46,12 @@ defmodule NervesHubWeb.Components.Navigation do
         icon="data-[selected=false]:lucide-file-code-corner--light data-[selected=true]:lucide-file-code-corner"
       />
       <.nav_link
+        label="Notifications"
+        path={~p"/org/#{@scope.org}/#{@scope.product}/notifications"}
+        selected={:notifications == @selected_tab}
+        icon="data-[selected=false]:lucide-bell--light data-[selected=true]:lucide-bell"
+      />
+      <.nav_link
         label="Settings"
         path={~p"/org/#{@scope.org}/#{@scope.product}/settings"}
         selected={:settings == @selected_tab}

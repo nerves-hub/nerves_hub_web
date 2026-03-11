@@ -34,6 +34,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ProductNotifications
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -636,6 +637,26 @@ defmodule NervesHub.Devices do
 
   def delete_ca_certificate(%CACertificate{} = ca_certificate) do
     Repo.delete(ca_certificate)
+  end
+
+  def clean_up_soft_deleted_devices() do
+    two_weeks_ago = NaiveDateTime.add(NaiveDateTime.utc_now(), -12, :day)
+
+    Device
+    |> where([d], d.deleted_at < ^two_weeks_ago)
+    |> Repo.all()
+    |> Enum.each(fn device ->
+      Repo.transact(fn ->
+        case destroy_device(device) do
+          {:ok, device} ->
+            _ = ProductNotifications.create_soft_deleted_device_removed!(device)
+            {:ok, device}
+
+          error ->
+            {:error, "Error removing soft-deleted device: #{inspect(error)}"}
+        end
+      end)
+    end)
   end
 
   @type firmware_id :: binary()

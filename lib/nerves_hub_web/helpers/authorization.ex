@@ -27,8 +27,9 @@ defmodule NervesHubWeb.Helpers.Authorization do
   def authorized?(:"product:update", role), do: role_check(:manage, role)
   def authorized?(:"product:delete", role), do: role_check(:manage, role)
 
-  def authorized?(:"device:console", role), do: role_check(:manage, role)
+  def authorized?(:"product:notifications:dismiss", role), do: role_check(:manage, role)
 
+  def authorized?(:"device:console", role), do: role_check(:manage, role)
   def authorized?(:"device:create", role), do: role_check(:manage, role)
   def authorized?(:"device:update", role), do: role_check(:manage, role)
   def authorized?(:"device:view", role), do: role_check(:view, role)

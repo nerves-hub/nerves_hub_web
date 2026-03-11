@@ -13,6 +13,7 @@ defmodule NervesHubWeb.Router do
   alias Live.Org.Users
   alias Live.Orgs.Index
   alias Live.Orgs.New
+  alias Live.Product.Notifications
   alias Live.SupportScripts.Edit
   alias NervesHubWeb.API.Plugs.Device
   alias NervesHubWeb.API.Plugs.FetchCurrentUser
@@ -365,6 +366,8 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)
       live("/org/:org_name/:product_name/scripts/new", Live.SupportScripts.New)
       live("/org/:org_name/:product_name/scripts/:script_id/edit", Edit)
+
+      live("/org/:org_name/:product_name/notifications", Notifications)
 
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
     end
