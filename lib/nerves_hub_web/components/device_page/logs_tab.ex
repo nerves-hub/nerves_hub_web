@@ -123,7 +123,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
     <div
       id="logs-tab"
       phx-mounted={JS.remove_class("opacity-0")}
-      class="transition-all duration-500 opacity-0 tab-content phx-click-loading:opacity-50 size-full bg-[#0e1019] pb-10"
+      class="transition-all duration-500 opacity-0 tab-content phx-click-loading:opacity-50 size-full bg-base-950 pb-10"
     >
       <div :if={!@has_logs} class="size-full flex justify-center items-center p-6 gap-6 text-medium font-mono">
         <div>No logs have been received yet.</div>

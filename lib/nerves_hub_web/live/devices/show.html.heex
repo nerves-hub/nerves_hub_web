@@ -18,9 +18,9 @@
             {String.split(user.name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}
           </span>
           <img :if={@user.profile_picture_url} src={@user.profile_picture_url} alt="User Profile Picture" class="w-full h-full object-cover rounded-full" />
-          <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-surface-muted flex">
+          <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-base-700 bg-surface-muted flex">
             {user.name}
-            <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-surface-muted origin-center rotate-45"></div>
+            <div class="tooltip-arrow absolute w-2 h-2 border-base-700 bg-surface-muted origin-center rotate-45"></div>
           </div>
         </div>
       </div>
@@ -114,9 +114,9 @@
                     stroke-linejoin="round"
                   />
                 </svg>
-                <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-surface-muted">
+                <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-base-700 bg-surface-muted">
                   Updates blocked {DeviceUpdateStatus.friendly_blocked_until(@device.updates_blocked_until)}
-                  <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-surface-muted origin-center rotate-45"></div>
+                  <div class="tooltip-arrow absolute w-2 h-2 border-base-700 bg-surface-muted origin-center rotate-45"></div>
                 </div>
               </div>
 
