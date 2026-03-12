@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
   alias NervesHub.Scripts.Script
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:create")
   def mount(_params, _session, socket) do
     socket
     |> page_title("New Support Script - #{socket.assigns.current_scope.org.name}")
@@ -14,6 +15,7 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:create")
   def handle_event("validate", %{"script" => script_params}, socket) do
     changeset = Script.validate_changeset(script_params)
 
@@ -22,7 +24,9 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
     |> noreply()
   end
 
-  def handle_event("create-script", %{"script" => script_params}, %{assigns: %{current_scope: scope}} = socket) do
+  @decorate requires_permission(:"support_script:create")
+  def handle_event("create-script", %{"script" => script_params}, socket) do
+    scope = socket.assigns.current_scope
     authorized!(:"support_script:create", scope)
 
     case Scripts.create(scope.product, scope.user, script_params) do

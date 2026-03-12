@@ -13,11 +13,13 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   embed_templates("certificate_authority_templates/*")
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def mount(_params, _session, socket) do
     {:ok, socket}
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def handle_params(params, _url, socket) do
     socket
     |> assign(:org, socket.assigns.current_scope.org)
@@ -72,6 +74,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"certificate_authority:delete")
   def handle_event("delete-certificate-authority", %{"certificate_serial" => serial}, socket) do
     authorized!(:"certificate_authority:delete", socket.assigns.current_scope)
 
@@ -93,6 +96,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     end
   end
 
+  @decorate requires_permission(:"certificate_authority:update")
   def handle_event("update_certificate_authority", %{"ca_certificate" => ca_certificate}, socket) do
     authorized!(:"certificate_authority:update", socket.assigns.current_scope)
 
@@ -118,10 +122,12 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     end
   end
 
+  @decorate requires_permission(:"organization:view")
   def handle_event("validate_new_certificate_authority", _params, socket) do
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"certificate_authority:create")
   def handle_event("add_certificate_authority", %{"ca_certificate" => params}, socket) do
     authorized!(:"certificate_authority:create", socket.assigns.current_scope)
 

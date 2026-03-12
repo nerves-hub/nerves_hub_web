@@ -4,7 +4,9 @@ defmodule NervesHubWeb.Live.Org.Show do
   alias NervesHub.Products
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+  @decorate requires_permission(:"organization:view")
+  def mount(_params, _session, socket) do
+    scope = socket.assigns.current_scope
     products = Products.get_products(scope, with_counts: true)
 
     socket
