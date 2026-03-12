@@ -372,7 +372,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         deployment_group,
         %{
           concurrent_updates: 2,
-          firmware_id: target_firmware.id
+          firmware_id: target_firmware.id,
+          delta_updatable: true
         },
         user
       )
@@ -490,7 +491,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         deployment_group,
         %{
           concurrent_updates: 2,
-          firmware_id: target_firmware.id
+          firmware_id: target_firmware.id,
+          delta_updatable: true
         },
         user
       )

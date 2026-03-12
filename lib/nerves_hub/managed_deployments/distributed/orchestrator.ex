@@ -297,7 +297,11 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   def handle_info(%Broadcast{topic: "orchestrator:deployment:" <> _, event: event}, state)
       when event in ["device-added", "bulk-devices-added"] do
     # Trigger delta generation when devices are added to a delta-enabled deployment group
-    _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(state.deployment_group)
+    _ =
+      if state.deployment_group.delta_updatable do
+        ManagedDeployments.trigger_delta_generation_for_deployment_group(state.deployment_group)
+      end
+
     maybe_trigger_update(state)
   end
 
