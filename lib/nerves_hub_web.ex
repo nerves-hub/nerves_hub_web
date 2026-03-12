@@ -62,16 +62,11 @@ defmodule NervesHubWeb do
 
   def live_view() do
     quote do
+      use NervesHubWeb.Access.AuthorizedLiveView
+
       unquote(live_view_setup())
       unquote(live_view_imports())
       unquote(live_view_helper_functions())
-      unquote(auth_decorator())
-    end
-  end
-
-  defp auth_decorator() do
-    quote do
-      use NervesHubWeb.AuthDecorator
     end
   end
 

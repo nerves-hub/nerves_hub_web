@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   @pinned_devices_limit 5
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     pinned_devices = Devices.get_pinned_devices(scope)
 
@@ -37,12 +38,14 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def handle_event("toggle-expand-devices", _, %{assigns: %{show_all_pinned?: show_all?}} = socket) do
     socket
     |> assign(:show_all_pinned?, !show_all?)
     |> noreply()
   end
 
+  @decorate requires_no_permission()
   def handle_event("save_onboarding", %{"org_name" => org_name, "product_name" => product_name}, socket) do
     user = socket.assigns.current_scope.user
 
