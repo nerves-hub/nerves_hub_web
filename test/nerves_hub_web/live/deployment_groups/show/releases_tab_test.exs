@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
 
     new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
 
@@ -52,7 +52,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
   } do
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
 
     conn =
       conn
@@ -80,7 +80,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     product = Fixtures.product_fixture(user, org)
     firmware_1 = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
     firmware_2 = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(firmware_1)
+    deployment_group = Fixtures.deployment_group_fixture(firmware_1, %{user: user})
 
     conn =
       conn

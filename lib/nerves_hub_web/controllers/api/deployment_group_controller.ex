@@ -44,7 +44,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
               deployment_group.name
             )
           )
-          |> render(:show, deployment_group: %{deployment_group | firmware: firmware})
+          |> render(:show, deployment_group: deployment_group)
         end
     end
   end
@@ -58,6 +58,21 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   end
 
   operation(:update, summary: "Update a Deployment Group")
+
+  def update(%{assigns: %{current_scope: %{product: product, user: user}}} = conn, %{
+        "name" => name,
+        "deployment" => deployment_group_params
+      })
+      when is_map_key(deployment_group_params, "firmware_id") or is_map_key(deployment_group_params, "archive_id") do
+    with {:ok, deployment_group} <-
+           ManagedDeployments.get_deployment_group_by_name(product, name),
+         {:ok, {_deployment_release, updated_deployment_group}} <-
+           ManagedDeployments.create_deployment_release(deployment_group, deployment_group_params, user) do
+      DeploymentGroupTemplates.audit_new_deployment_release(user, deployment_group)
+
+      render(conn, :show, deployment_group: updated_deployment_group)
+    end
+  end
 
   def update(%{assigns: %{current_scope: %{product: product, user: user}}} = conn, %{
         "name" => name,

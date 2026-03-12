@@ -13,6 +13,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -24,6 +25,20 @@ defmodule NervesHub.Firmwares do
   @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
 
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
+
+  @spec get_by_id(DeploymentGroup.t(), pos_integer()) :: term()
+  def get_by_id(deployment_group, firmware_id) do
+    Firmware
+    |> where([f], f.platform == ^deployment_group.platform)
+    |> where([f], f.architecture == ^deployment_group.architecture)
+    |> where([f], f.product_id == ^deployment_group.product_id)
+    |> where([f], f.id == ^firmware_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      firmware -> {:ok, firmware}
+    end
+  end
 
   @spec get_deltas_by_target_firmware(firmware :: Firmware.t()) :: [FirmwareDelta.t()]
   def get_deltas_by_target_firmware(%Firmware{id: firmware_id}) do
@@ -123,8 +138,8 @@ defmodule NervesHub.Firmwares do
   def get_firmwares_for_deployment_group(deployment_group) do
     Firmware
     |> where([f], f.product_id == ^deployment_group.product_id)
-    |> where([f], f.platform == ^deployment_group.current_release.firmware.platform)
-    |> where([f], f.architecture == ^deployment_group.current_release.firmware.architecture)
+    |> where([f], f.platform == ^deployment_group.platform)
+    |> where([f], f.architecture == ^deployment_group.architecture)
     |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
     |> with_product()
     |> Repo.all()

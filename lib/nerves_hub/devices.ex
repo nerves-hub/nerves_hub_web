@@ -34,6 +34,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
   alias NervesHub.Products.Product
@@ -53,13 +54,14 @@ defmodule NervesHub.Devices do
     |> join(:left, [d], o in assoc(d, :org))
     |> join(:left, [d, o], p in assoc(d, :product))
     |> join(:left, [d, o, p], dg in assoc(d, :deployment_group))
-    |> join(:left, [d, o, p, dg], f in assoc(dg, :firmware))
-    |> join(:left, [d, o, p, dg, f], lc in assoc(d, :latest_connection), as: :latest_connection)
-    |> join(:left, [d, o, p, dg, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
-    |> preload([d, o, p, dg, f, latest_connection: lc, latest_health: lh],
+    |> join(:left, [d, o, p, dg], cr in assoc(dg, :current_release))
+    |> join(:left, [d, o, p, dg, cr], f in assoc(cr, :firmware))
+    |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, o, p, dg, cr, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
+    |> preload([d, o, p, dg, cr, f, latest_connection: lc, latest_health: lh],
       org: o,
       product: p,
-      deployment_group: {dg, firmware: f},
+      deployment_group: {dg, current_release: {cr, firmware: f}},
       latest_connection: lc,
       latest_health: lh
     )
@@ -274,7 +276,7 @@ defmodule NervesHub.Devices do
   defp join_and_preload_deployment_group_and_current_release(query) do
     query
     |> join(:left, [d], dp in assoc(d, :deployment_group), as: :deployment_group)
-    |> ManagedDeployments.join_current_release()
+    |> join(:left, [deployment_group: dg], cr in assoc(dg, :current_release), as: :current_release)
     |> join(:left, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
     |> preload([deployment_group: dg, firmware: f, current_release: cr],
       deployment_group: {dg, current_release: {cr, firmware: f}}
@@ -669,10 +671,11 @@ defmodule NervesHub.Devices do
     DeploymentGroup
     |> where([dep], dep.id == ^deployment_id)
     |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
-    |> join(:inner, [dep, dev], f in Firmware, on: f.uuid == fragment("d1.firmware_metadata->>'uuid'"))
+    |> join(:inner, [dep], cr in assoc(dep, :current_release))
+    |> join(:inner, [_, dev], f in Firmware, on: f.uuid == fragment("?.firmware_metadata->>'uuid'", dev))
     # Exclude the current firmware, we don't need to generate that one
-    |> where([dep, dev, f], f.id != dep.firmware_id)
-    |> select([dep, dev, f], {f.id, dep.firmware_id})
+    |> where([_, _, cr, f], f.id != cr.firmware_id)
+    |> select([_, _, cr, f], {f.id, cr.firmware_id})
     |> distinct(true)
     |> Repo.all()
   end
@@ -984,7 +987,6 @@ defmodule NervesHub.Devices do
     # let the orchestrator know that a device has been added to the deployment group
     DeploymentOrchestratorEvents.device_added(device)
 
-    deployment_group = Repo.preload(deployment_group, :firmware)
     Map.put(device, :deployment_group, deployment_group)
   end
 
@@ -1871,7 +1873,7 @@ defmodule NervesHub.Devices do
           | {:error, :delta_not_found}
   def get_delta_or_firmware_url(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
         delta_updatable: true,
-        current_release: %{firmware: %Firmware{delta_updatable: true} = target_firmware}
+        current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
       }) do
     case Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, source_uuid) do
       {:ok, source_firmware} ->
