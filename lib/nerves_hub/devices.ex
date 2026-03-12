@@ -818,56 +818,63 @@ defmodule NervesHub.Devices do
     |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:inner, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
     |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
+    |> ManagedDeployments.join_current_release()
     |> join(
-      :left,
-      [d],
-      fd in FirmwareDelta,
-      on:
-        fragment(
-          """
-          ? = (
-            SELECT f.id FROM firmwares f
-            WHERE f.product_id = ? AND f.uuid::text = ? #>> '{\"uuid\"}'
-          ) AND ? = ?
-          """,
-          fd.source_id,
-          d.product_id,
-          d.firmware_metadata,
-          fd.target_id,
-          ^deployment_group.current_release.firmware_id
-        ),
+      :left_lateral,
+      [],
+      f in subquery(
+        from(f in Firmware,
+          where: f.product_id == parent_as(:device).product_id,
+          where:
+            fragment(
+              "(? #>> '{\"uuid\"}') = ?",
+              parent_as(:device).firmware_metadata,
+              f.uuid
+            )
+        )
+      ),
+      on: true,
+      as: :firmware
+    )
+    |> join(
+      :left_lateral,
+      [],
+      fd in subquery(
+        from(fd in FirmwareDelta,
+          where: fd.source_id == parent_as(:firmware).id,
+          where: fd.target_id == parent_as(:current_release).firmware_id
+        )
+      ),
+      on: true,
       as: :firmware_delta
     )
-    |> where(deployment_id: ^deployment_group.id)
-    |> where(updates_enabled: true)
-    |> where([d], d.firmware_validation_status in [:validated, :unknown])
+    |> where([device: d], d.deployment_id == ^deployment_group.id)
+    |> where([device: d], d.updates_enabled == true)
+    |> where([device: d], not is_nil(d.firmware_metadata))
+    |> where([device: d], d.firmware_validation_status in [:validated, :unknown])
+    |> where([device: d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
+    |> where([deployment_group: dg], dg.is_active == true)
+    |> where([deployment_group: dg], dg.status == :ready)
     |> where([latest_connection: lc], lc.status == :connected)
-    |> where([d], not is_nil(d.firmware_metadata))
-    |> where(
-      [d],
-      fragment(
-        "(? #>> '{\"uuid\"}') != ?",
-        d.firmware_metadata,
-        ^deployment_group.current_release.firmware.uuid
-      )
-    )
+    |> where([firmware: f, current_release: cr], is_nil(f.id) or f.id != cr.firmware_id)
     |> where([inflight_update: ifu], is_nil(ifu))
-    |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
     # Only include devices where: delta is completed OR no delta row exists
     |> where([firmware_delta: fd], is_nil(fd.id) or fd.status == :completed)
     |> maybe_version_threshold(version_threshold)
-    |> then(fn query ->
-      # Filter by network interface if release_network_interfaces is specified
-      # Empty list means allow all interfaces
-      if deployment_group.release_network_interfaces == [] do
-        query
-      else
-        where(query, [d], d.network_interface in ^deployment_group.release_network_interfaces)
-      end
-    end)
+    |> maybe_filter_by_network_interfaces(deployment_group.release_network_interfaces)
     |> maybe_release_tags(deployment_group.release_tags)
     |> order_by_queue_management(deployment_group.queue_management)
     |> limit(^count)
+  end
+
+  # Filter by network interface if release_network_interfaces is specified
+  # Empty list means allow all interfaces
+  defp maybe_filter_by_network_interfaces(query, []) do
+    query
+  end
+
+  defp maybe_filter_by_network_interfaces(query, interfaces) do
+    where(query, [d], d.network_interface in ^interfaces)
   end
 
   defp maybe_version_threshold(query, nil), do: query
@@ -1042,9 +1049,6 @@ defmodule NervesHub.Devices do
         |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
         |> Repo.update!()
 
-      # Queue delta generation if needed
-      _ = maybe_queue_delta_for_device(device, deployment_group)
-
       {:ok, device}
     end)
     |> case do
@@ -1070,7 +1074,11 @@ defmodule NervesHub.Devices do
              ) do
         # Attempt to create firmware delta - this will create a firmware_deltas row in the
         # :processing state and queue a job to generate the delta itself.
-        case Firmwares.attempt_firmware_delta(source_firmware.id, deployment_group.current_release.id, false) do
+        case Firmwares.attempt_firmware_delta(
+               source_firmware.id,
+               deployment_group.current_release.id,
+               false
+             ) do
           {:error, reason} ->
             Logger.warning("Failed to queue delta for device #{device.id}: #{inspect(reason)}")
             :ok
