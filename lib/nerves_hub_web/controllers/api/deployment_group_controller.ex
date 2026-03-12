@@ -5,6 +5,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
+  alias NervesHubWeb.API.Schemas.DeploymentGroupSchemas
 
   security([%{}, %{"bearer_auth" => []}])
   tags(["Deployment Groups"])
@@ -12,7 +13,12 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
-  operation(:index, summary: "List all Deployment Groups for a Product")
+  operation(:index,
+    summary: "List all Deployment Groups for a Product",
+    responses: [
+      ok: {"Deployment Group list response", "application/json", DeploymentGroupSchemas.DeploymentGroupListResponse}
+    ]
+  )
 
   def index(%{assigns: %{current_scope: %{product: product}}} = conn, _params) do
     deployment_groups = ManagedDeployments.get_deployment_groups_by_product(product)
@@ -49,7 +55,12 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
     end
   end
 
-  operation(:show, summary: "Show a Deployment Group")
+  operation(:show,
+    summary: "Show a Deployment Group",
+    responses: [
+      ok: {"Deployment Group response", "application/json", DeploymentGroupSchemas.DeploymentGroupResponse}
+    ]
+  )
 
   def show(%{assigns: %{current_scope: %{product: product}}} = conn, %{"name" => name}) do
     with {:ok, deployment_group} <- ManagedDeployments.get_deployment_group_by_name(product, name) do
