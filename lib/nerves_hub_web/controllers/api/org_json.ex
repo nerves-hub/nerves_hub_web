@@ -14,8 +14,7 @@ defmodule NervesHubWeb.API.OrgJSON do
       updated_at: org.updated_at
     }
 
-    base
-    |> maybe_include(:products, org)
+    maybe_include(base, :products, org)
   end
 
   defp maybe_include(map, :products, %{products: products}) when is_list(products) do
