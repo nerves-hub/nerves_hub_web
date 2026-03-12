@@ -63,7 +63,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
     socket
     |> assign(assigns)
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(assigns.deployment_group.current_release.firmware))
+    |> assign(
+      :deltas,
+      Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware)
+    )
     |> assign_update_stats(deployment_group)
     |> assign_deltas_and_stats()
     |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
@@ -176,7 +179,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware/#{@deployment_group.current_release.firmware}"}
                 class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-base-700 rounded-full bg-base-800"
               >
-                <span class="text-xs text-base-300 tracking-tight">{@deployment_group.current_release.firmware.version} ({String.slice(@deployment_group.current_release.firmware.uuid, 0..7)})</span>
+                <span class="text-xs text-base-300 tracking-tight">
+                  {@deployment_group.current_release.firmware.version} ({String.slice(@deployment_group.current_release.firmware.uuid, 0..7)})
+                </span>
               </.link>
             </div>
             <div class="flex gap-4 items-center">
@@ -191,7 +196,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/archives/#{@deployment_group.current_release.archive}"}
                 class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-base-700 rounded-full bg-base-800"
               >
-                <span class="text-xs text-base-300 tracking-tight">{@deployment_group.current_release.archive.version} ({String.slice(@deployment_group.current_release.archive.uuid, 0..7)})</span>
+                <span class="text-xs text-base-300 tracking-tight">
+                  {@deployment_group.current_release.archive.version} ({String.slice(@deployment_group.current_release.archive.uuid, 0..7)})
+                </span>
               </.link>
               <span :if={is_nil(@deployment_group.current_release.archive)} class="pl-1 text-xs text-nerves-gray-500">No archive configured</span>
             </div>

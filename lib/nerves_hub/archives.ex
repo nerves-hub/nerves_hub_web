@@ -8,11 +8,22 @@ defmodule NervesHub.Archives do
   alias NervesHub.Archives.Archive
   alias NervesHub.Fwup
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteArchive
 
   require Logger
+
+  @spec get_by_id(Product.t(), pos_integer()) :: Archive.t() | nil
+  def get_by_id(_product, archive_id) when archive_id in [nil, ""], do: nil
+
+  def get_by_id(%Product{} = product, archive_id) do
+    Archive
+    |> where([f], f.product_id == ^product.id)
+    |> where([f], f.id == ^archive_id)
+    |> Repo.one()
+  end
 
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
@@ -56,17 +67,6 @@ defmodule NervesHub.Archives do
     end
   end
 
-  def get_by_product_and_id(%Product{id: product_id}, id) do
-    Archive
-    |> where([a], a.id == ^id)
-    |> where([a], a.product_id == ^product_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
-  end
-
   @spec get_by_product_and_uuid!(Product.t(), String.t()) :: Archive.t()
   def get_by_product_and_uuid!(product, uuid) do
     Archive
@@ -83,8 +83,9 @@ defmodule NervesHub.Archives do
 
   def archive_for_deployment_group(deployment_id) do
     Archive
-    |> join(:inner, [a], d in DeploymentGroup, on: d.archive_id == a.id)
-    |> where([a, d], d.id == ^deployment_id)
+    |> join(:inner, [a], dr in DeploymentRelease, on: dr.archive_id == a.id)
+    |> join(:inner, [a, dr], dg in DeploymentGroup, on: dr.id == dg.current_deployment_release_id)
+    |> where([a, d, dg], dg.id == ^deployment_id)
     |> Repo.one()
   end
 

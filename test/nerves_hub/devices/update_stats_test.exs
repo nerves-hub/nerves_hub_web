@@ -18,7 +18,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
     target_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
     other_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.1", dir: tmp_dir})
 
-    deployment_group = Fixtures.deployment_group_fixture(target_firmware, %{is_active: true})
+    deployment_group = Fixtures.deployment_group_fixture(target_firmware, %{user: user, is_active: true})
 
     device = Fixtures.device_fixture(org, product, source_firmware, %{status: :provisioned})
 
@@ -193,14 +193,8 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       _ = Fixtures.firmware_delta_fixture(source_firmware, target_firmware)
       :ok = UpdateStats.log_update(device, source_firmware_metadata)
 
-      {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(
-          deployment_group,
-          %{
-            firmware_id: other_firmware.id
-          },
-          user
-        )
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, other_firmware, nil, user)
 
       # deployment group needs to be explicitly passed in because association
       # is already preloaded from fixtures, causing the preload in log_update/2

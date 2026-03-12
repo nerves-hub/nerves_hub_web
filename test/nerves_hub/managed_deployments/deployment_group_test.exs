@@ -18,55 +18,65 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
         conditions: %{
           tags: ["foo"],
           version: "1.2.3"
-        },
-        firmware_id: firmware.id
+        }
       }
 
-      %{deployment_group_params: deployment_group_params, product: product}
+      %{deployment_group_params: deployment_group_params, product: product, user: user, firmware: firmware}
     end
 
     test "conditions are required", %{
       deployment_group_params: deployment_group_params,
-      product: product
+      product: product,
+      user: user,
+      firmware: firmware
     } do
       changeset =
         deployment_group_params
         |> Map.put(:conditions, nil)
-        |> DeploymentGroup.create_changeset(product)
+        |> DeploymentGroup.create_changeset(product, firmware, user)
 
       refute changeset.valid?
       refute Enum.empty?(errors_on(changeset).conditions)
     end
 
-    test "tags can be empty", %{deployment_group_params: deployment_group_params, product: product} do
+    test "tags can be empty", %{
+      deployment_group_params: deployment_group_params,
+      product: product,
+      user: user,
+      firmware: firmware
+    } do
       changeset =
         deployment_group_params
         |> Map.put(:conditions, %{"version" => "1.2.0", "tags" => []})
-        |> DeploymentGroup.create_changeset(product)
+        |> DeploymentGroup.create_changeset(product, firmware, user)
 
       assert changeset.valid?
     end
 
     test "version can be an empty string", %{
       deployment_group_params: deployment_group_params,
-      product: product
+      product: product,
+      user: user,
+      firmware: firmware
     } do
       changeset =
         deployment_group_params
         |> Map.put(:conditions, %{"version" => "", "tags" => []})
-        |> DeploymentGroup.create_changeset(product)
+        |> DeploymentGroup.create_changeset(product, firmware, user)
 
       assert changeset.valid?
     end
 
     test "a nil version is modified to be blank", %{
       deployment_group_params: deployment_group_params,
-      product: product
+      product: product,
+      user: user,
+      firmware: firmware
     } do
       changeset =
         deployment_group_params
         |> Map.put(:conditions, %{version: nil, tags: []})
-        |> DeploymentGroup.create_changeset(product)
+        |> DeploymentGroup.create_changeset(product, firmware, user)
 
       assert changeset.valid?
       assert Enum.empty?(changeset.changes.conditions.changes)
@@ -74,12 +84,14 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
 
     test "version must be a valid Elixir.Version", %{
       deployment_group_params: deployment_group_params,
-      product: product
+      product: product,
+      user: user,
+      firmware: firmware
     } do
       changeset =
         deployment_group_params
         |> Map.put(:conditions, %{"version" => "1.2.3.5.6", "tags" => []})
-        |> DeploymentGroup.create_changeset(product)
+        |> DeploymentGroup.create_changeset(product, firmware, user)
 
       refute changeset.valid?
       assert errors_on(changeset).conditions.version == ["must be valid Elixir version requirement string"]
@@ -158,44 +170,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
       assert changeset.valid?
       deployment_group = Repo.update!(changeset)
       assert deployment_group.current_updated_devices == 0
-    end
-
-    test "firmware cannot be from a different org", %{
-      deployment_group: deployment_group,
-      tmp_dir: tmp_dir
-    } do
-      new_user = Fixtures.user_fixture(%{email: "user2@test.com"})
-      new_org = Fixtures.org_fixture(new_user, %{name: "org2"})
-      new_product = Fixtures.product_fixture(new_user, new_org)
-      new_org_key = Fixtures.org_key_fixture(new_org, new_user, tmp_dir)
-      new_firmware = Fixtures.firmware_fixture(new_org_key, new_product, %{dir: tmp_dir})
-
-      changeset =
-        DeploymentGroup.update_changeset(deployment_group, %{
-          "firmware_id" => new_firmware.id
-        })
-
-      refute changeset.valid?
-      assert errors_on(changeset) == %{firmware_id: ["does not exist"]}
-    end
-
-    test "archive cannot be from a different org", %{
-      deployment_group: deployment_group,
-      tmp_dir: tmp_dir
-    } do
-      new_user = Fixtures.user_fixture(%{email: "user2@test.com"})
-      new_org = Fixtures.org_fixture(new_user, %{name: "org2"})
-      new_product = Fixtures.product_fixture(new_user, new_org)
-      new_org_key = Fixtures.org_key_fixture(new_org, new_user, tmp_dir)
-      new_archive = Fixtures.archive_fixture(new_org_key, new_product, %{dir: tmp_dir})
-
-      changeset =
-        DeploymentGroup.update_changeset(deployment_group, %{
-          "archive_id" => new_archive.id
-        })
-
-      refute changeset.valid?
-      assert errors_on(changeset) == %{archive_id: ["invalid archive"]}
     end
   end
 

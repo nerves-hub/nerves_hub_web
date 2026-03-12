@@ -150,13 +150,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
 
     test "pagination with more than 25 deployment groups", %{
       conn: conn,
+      user: user,
       org: org,
       product: product,
       deployment_group: deployment_group
     } do
       for i <- 1..26 do
         Fixtures.deployment_group_fixture(deployment_group.current_release.firmware, %{
-          name: "Deployment-group-#{i}"
+          name: "Deployment-group-#{i}",
+          user: user
         })
       end
 

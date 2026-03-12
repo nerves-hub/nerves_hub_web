@@ -76,6 +76,7 @@ defmodule NervesHub.FirmwaresTest do
     end
 
     test "cannot delete firmware when it is referenced by deployment", %{
+      user: user,
       org_key: org_key,
       product: product,
       tmp_dir: tmp_dir
@@ -83,7 +84,7 @@ defmodule NervesHub.FirmwaresTest do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       assert File.exists?(firmware.upload_metadata[:local_path])
 
-      Fixtures.deployment_group_fixture(firmware, %{name: "a deployment"})
+      Fixtures.deployment_group_fixture(firmware, %{name: "a deployment", user: user})
 
       assert {:error, %Changeset{}} = Firmwares.delete_firmware(firmware)
     end
