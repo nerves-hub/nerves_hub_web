@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.OrgController do
 
   alias NervesHub.Accounts
   alias NervesHub.Repo
+  alias NervesHubWeb.API.Schemas.OrgSchemas.OrgListResponse
 
   @valid_includes ~w(products)
 
@@ -21,7 +22,7 @@ defmodule NervesHubWeb.API.OrgController do
       ]
     ],
     responses: [
-      ok: {"Organization list response", "application/json", NervesHubWeb.API.Schemas.OrgSchemas.OrgListResponse}
+      ok: {"Organization list response", "application/json", OrgListResponse}
     ]
   )
 
