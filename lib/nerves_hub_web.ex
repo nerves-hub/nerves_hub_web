@@ -62,11 +62,17 @@ defmodule NervesHubWeb do
 
   def live_view() do
     quote do
-      use NervesHubWeb.Access.AuthorizedLiveView
-
       unquote(live_view_setup())
       unquote(live_view_imports())
       unquote(live_view_helper_functions())
+      # Must come after live_view_setup() so Phoenix.LiveView is loaded first
+      unquote(authorized_live_view())
+    end
+  end
+
+  defp authorized_live_view() do
+    quote do
+      use NervesHubWeb.Access.AuthorizedLiveView
     end
   end
 
