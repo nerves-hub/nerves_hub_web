@@ -22,7 +22,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
   end
 
   test "device connecting -> connected -> disconnected", %{device: device} do
-    topic = "device:#{device.identifier}:internal"
+    topic = "device:#{device.id}:internal"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
     assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
@@ -45,7 +45,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
   end
 
   test "device heartbeat", %{device: device} do
-    topic = "device:#{device.identifier}:internal"
+    topic = "device:#{device.id}:internal"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
     assert {:ok, %DeviceConnection{id: connection_id, last_seen_at: first_seen_at} = connection} =

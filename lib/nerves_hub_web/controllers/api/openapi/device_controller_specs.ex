@@ -67,15 +67,21 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   def add_operations(openapi) do
     openapi
     # short urls
-    |> general_actions(:short)
-    |> code_action(:short)
-    |> move_action(:short)
-    |> reboot_action(:short)
-    |> reconnect_action(:short)
-    |> upgrade_action(:short)
-    |> penalty_action(:short)
-    |> send_script_action(:short)
-
+    |> then(fn openapi ->
+      if Application.get_env(:nerves_hub, :platform_unique_device_identifiers) do
+        openapi
+        |> general_actions(:short)
+        |> code_action(:short)
+        |> move_action(:short)
+        |> reboot_action(:short)
+        |> reconnect_action(:short)
+        |> upgrade_action(:short)
+        |> penalty_action(:short)
+        |> send_script_action(:short)
+      else
+        openapi
+      end
+    end)
     # full urls
     |> list_action()
     |> certificate_auth_action()

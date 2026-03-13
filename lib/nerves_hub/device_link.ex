@@ -71,7 +71,7 @@ defmodule NervesHub.DeviceLink do
 
   @spec firmware_update_progress(device :: Device.t(), percent :: integer()) :: :ok
   def firmware_update_progress(device, percent) do
-    topic = "device:#{device.identifier}:internal"
+    topic = "device:#{device.id}:internal"
 
     :ok =
       ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, "fwup_progress", %{
