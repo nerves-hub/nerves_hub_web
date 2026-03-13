@@ -54,6 +54,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                    "deleted" => false,
                    "deployment_group" => nil,
                    "description" => nil,
+                   "id" => device.id,
                    "firmware_metadata" => %{
                      "architecture" => "x86_64",
                      "author" => "me",
