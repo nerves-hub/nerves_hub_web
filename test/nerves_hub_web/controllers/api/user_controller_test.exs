@@ -96,8 +96,10 @@ defmodule NervesHubWeb.API.UserControllerTest do
 
   test "console_token requires authentication" do
     conn = build_conn()
-    conn = post(conn, Routes.api_user_path(conn, :console_token))
-    assert json_response(conn, 401)
+
+    assert_raise NervesHubWeb.UnauthorizedError, fn ->
+      post(conn, Routes.api_user_path(conn, :console_token))
+    end
   end
 
   test "create token for existing account when authenticated" do
