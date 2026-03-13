@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
   @delay 500
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"device:list")
   def mount(_params, _session, socket) do
     %{product: product} = socket.assigns
 
@@ -53,11 +54,13 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
   def handle_info(_unknown, socket), do: {:noreply, socket}
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"device:list")
   def handle_event("map_ready", _params, socket) do
     socket = update_devices_and_markers(socket)
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("filter-change", %{"mode" => mode}, socket) do
     {:noreply, assign(socket, mode: mode)}
   end
