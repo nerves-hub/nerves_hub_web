@@ -799,8 +799,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
-  def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
-
   defp schedule_health_check_timer(socket) do
     %{device: device, product: product} = socket.assigns
 

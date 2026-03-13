@@ -101,6 +101,8 @@ defmodule NervesHubWeb.Router do
       get("/users/me", UserController, :me)
 
       scope "/orgs" do
+        get("/", OrgController, :index)
+
         scope "/:org_name" do
           scope "/users" do
             get("/", OrgUserController, :index)
