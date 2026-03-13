@@ -15,6 +15,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHubWeb.Helpers.Authorization
   alias Phoenix.Socket.Broadcast
@@ -26,7 +27,12 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     # Socket already has authenticated user, just validate device access
     case authorized?(socket.assigns.user, device_identifier) do
       %OrgUser{} = org_user ->
-        {:ok, device} = Devices.get_device_by_identifier(org_user.org, device_identifier)
+        scope =
+          socket.assigns.user
+          |> Scope.for_user()
+          |> Scope.put_org(org_user.org)
+
+        {:ok, device} = Devices.get_by_identifier(scope, device_identifier)
 
         :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}:internal")
 
@@ -43,7 +49,12 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     # Socket already has authenticated user, just validate device access
     case authorized?(socket.assigns.user, org_name, device_identifier) do
       %OrgUser{} = org_user ->
-        {:ok, device} = Devices.get_device_by_identifier(org_user.org, device_identifier)
+        scope =
+          socket.assigns.user
+          |> Scope.for_user()
+          |> Scope.put_org(org_user.org)
+
+        {:ok, device} = Devices.get_by_identifier(scope, device_identifier)
 
         :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}:internal")
 

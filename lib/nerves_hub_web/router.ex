@@ -20,7 +20,6 @@ defmodule NervesHubWeb.Router do
   alias NervesHubWeb.API.Plugs.GlobalUniqueDeviceIdentifiersRequired
   alias NervesHubWeb.API.Plugs.Product
   alias NervesHubWeb.API.Plugs.RequireAuthenticatedUser
-  alias NervesHubWeb.Mounts.AccountAuth
   alias NervesHubWeb.Mounts.CurrentPath
   alias NervesHubWeb.Mounts.EnrichSentryContext
   alias NervesHubWeb.Plugs.ServerAuth
