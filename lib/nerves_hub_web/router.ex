@@ -232,6 +232,10 @@ defmodule NervesHubWeb.Router do
     end
   end
 
+  scope "/", NervesHubWeb, host: "livebook." do
+    get("/:encoded_params/nerves.livemd", LivebookTemplateController, :generate)
+  end
+
   scope "/org/:org_name/:product_name", NervesHubWeb do
     pipe_through([:browser, :require_authenticated_user])
 
