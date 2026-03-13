@@ -198,19 +198,19 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
     authorized!(:"deployment_group:update", scope)
 
-    case ManagedDeployments.update_deployment_group(deployment_group, params, scope.user) do
-      {:ok, updated} ->
+    case ManagedDeployments.create_deployment_release(deployment_group, params, scope.user) do
+      {:ok, {_release, deployment_group}} ->
         AuditLogs.audit!(
           scope.user,
-          updated,
-          "User #{scope.user.name} updated deployment group #{updated.name}"
+          deployment_group,
+          "User #{scope.user.name} updated deployment group #{deployment_group.name}"
         )
 
-        releases = ManagedDeployments.list_deployment_releases(updated)
-        changeset = DeploymentGroup.update_changeset(updated, %{})
+        releases = ManagedDeployments.list_deployment_releases(deployment_group)
+        changeset = DeploymentGroup.update_changeset(deployment_group, %{})
 
         socket
-        |> assign(:deployment_group, updated)
+        |> assign(:deployment_group, deployment_group)
         |> assign(:releases, releases)
         |> assign(:form, to_form(changeset))
         |> push_event("close-modal", %{id: "new-release"})

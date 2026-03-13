@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
   setup %{
           conn: conn,
+          user: user,
           org: org,
           product: product,
           org_key: org_key,
@@ -27,7 +28,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     deployment_group =
       Fixtures.deployment_group_fixture(target_firmware, %{
         is_active: true,
-        name: "Coolest Deployment"
+        name: "Coolest Deployment",
+        user: user
       })
 
     device =
@@ -127,12 +129,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
     {:ok, other_firmware_metadata} = Firmwares.metadata_from_firmware(other_firmware)
 
-    {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(
+    {:ok, {_release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(
         deployment_group,
-        %{
-          firmware_id: other_firmware.id
-        },
+        %{firmware_id: other_firmware.id},
         user
       )
 

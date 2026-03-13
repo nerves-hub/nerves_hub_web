@@ -13,6 +13,12 @@ defmodule NervesHub.AuditLogs.DeploymentGroupTemplates do
     AuditLogs.audit!(user, deployment_group, description)
   end
 
+  @spec audit_new_deployment_release(User.t(), DeploymentGroup.t()) :: :ok
+  def audit_new_deployment_release(user, deployment_group) do
+    description = "User #{user.name} created a new release for deployment group #{deployment_group.name}"
+    AuditLogs.audit!(user, deployment_group, description)
+  end
+
   @spec audit_deployment_updated(User.t(), DeploymentGroup.t()) :: :ok
   def audit_deployment_updated(user, deployment_group) do
     description = "User #{user.name} updated deployment group #{deployment_group.name}"

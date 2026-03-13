@@ -86,11 +86,12 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
 
     test "firmware delete with associated deployment", %{
       conn: conn,
+      user: user,
       org: org,
       product: product,
       firmware: firmware
     } do
-      Fixtures.deployment_group_fixture(firmware)
+      Fixtures.deployment_group_fixture(firmware, %{user: user})
 
       conn =
         delete(
@@ -98,7 +99,7 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
           Routes.api_firmware_path(conn, :delete, org.name, product.name, firmware.uuid)
         )
 
-      assert response(conn, 409)
+      assert response(conn, 422)
     end
   end
 

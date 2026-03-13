@@ -70,7 +70,7 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
         |> render_submit(%{deployment_group: %{"firmware_id" => -1}})
       end)
       |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/new")
-      |> assert_has("p", text: "does not exist")
+      |> assert_has("span", text: "invalid firmware selection")
     end
 
     test "redirects to firmware upload firmware_id is passed and no firmwares are found" do
@@ -99,7 +99,7 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
     |> select("Architecture", option: "x86_64")
     |> select("Firmware", option: "1.0.0", exact_option: false)
     |> submit()
-    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/Canaries")
+    |> assert_path(~p"/org/#{org}/#{product}/deployment_groups/Canaries")
 
     deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
     assert deployment_group.delta_updatable

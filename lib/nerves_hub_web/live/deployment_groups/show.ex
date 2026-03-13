@@ -271,7 +271,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     socket
     |> assign(:deployment_group, updated_deployment)
-    |> assign(:firmware, updated_deployment.firmware)
+    |> assign(:firmware, updated_deployment.current_release.firmware)
     |> noreply()
   end
 

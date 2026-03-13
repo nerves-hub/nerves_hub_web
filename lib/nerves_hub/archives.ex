@@ -8,6 +8,7 @@ defmodule NervesHub.Archives do
   alias NervesHub.Archives.Archive
   alias NervesHub.Fwup
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteArchive
@@ -83,8 +84,9 @@ defmodule NervesHub.Archives do
 
   def archive_for_deployment_group(deployment_id) do
     Archive
-    |> join(:inner, [a], d in DeploymentGroup, on: d.archive_id == a.id)
-    |> where([a, d], d.id == ^deployment_id)
+    |> join(:inner, [a], dr in DeploymentRelease, on: dr.archive_id == a.id)
+    |> join(:inner, [a, dr], dg in DeploymentGroup, on: dr.id == dg.current_deployment_release_id)
+    |> where([a, d, dg], dg.id == ^deployment_id)
     |> Repo.one()
   end
 
