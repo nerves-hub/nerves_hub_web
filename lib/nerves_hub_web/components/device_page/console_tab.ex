@@ -75,7 +75,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   end
 
   def render(assigns) do
-    token = Phoenix.Token.sign(NervesHubWeb.Endpoint, "user salt", assigns.user.id)
+    token = Phoenix.Token.sign(NervesHubWeb.Endpoint, NervesHubWeb.user_salt(), assigns.user.id)
 
     assigns = Map.put(assigns, :user_token, token)
 
