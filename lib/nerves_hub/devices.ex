@@ -790,33 +790,67 @@ defmodule NervesHub.Devices do
     version_threshold = Keyword.get(opts, :version_threshold)
 
     Device
+    |> from(as: :device)
     |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:inner, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
     |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
-    |> where(deployment_id: ^deployment_group.id)
-    |> where(updates_enabled: true)
-    |> where([d], d.firmware_validation_status in [:validated, :unknown])
-    |> where([latest_connection: lc], lc.status == :connected)
-    |> where([d], not is_nil(d.firmware_metadata))
-    |> where(
-      [d],
-      fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, ^deployment_group.current_release.firmware.uuid)
+    |> ManagedDeployments.join_current_release()
+    |> join(
+      :left_lateral,
+      [],
+      f in subquery(
+        from(f in Firmware,
+          where: f.product_id == parent_as(:device).product_id,
+          where:
+            fragment(
+              "(? #>> '{\"uuid\"}') = ?",
+              parent_as(:device).firmware_metadata,
+              f.uuid
+            )
+        )
+      ),
+      on: true,
+      as: :firmware
     )
+    |> join(
+      :left_lateral,
+      [],
+      fd in subquery(
+        from(fd in FirmwareDelta,
+          where: fd.source_id == parent_as(:firmware).id,
+          where: fd.target_id == parent_as(:current_release).firmware_id
+        )
+      ),
+      on: true,
+      as: :firmware_delta
+    )
+    |> where([device: d], d.deployment_id == ^deployment_group.id)
+    |> where([device: d], d.updates_enabled == true)
+    |> where([device: d], not is_nil(d.firmware_metadata))
+    |> where([device: d], d.firmware_validation_status in [:validated, :unknown])
+    |> where([device: d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
+    |> where([deployment_group: dg], dg.is_active == true)
+    |> where([deployment_group: dg], dg.status == :ready)
+    |> where([latest_connection: lc], lc.status == :connected)
+    |> where([firmware: f, current_release: cr], is_nil(f.id) or f.id != cr.firmware_id)
     |> where([inflight_update: ifu], is_nil(ifu))
-    |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
+    # Only include devices where: delta is completed OR no delta row exists
+    |> where([firmware_delta: fd], is_nil(fd.id) or fd.status == :completed)
     |> maybe_version_threshold(version_threshold)
-    |> then(fn query ->
-      # Filter by network interface if release_network_interfaces is specified
-      # Empty list means allow all interfaces
-      if deployment_group.release_network_interfaces == [] do
-        query
-      else
-        where(query, [d], d.network_interface in ^deployment_group.release_network_interfaces)
-      end
-    end)
+    |> maybe_filter_by_network_interfaces(deployment_group.release_network_interfaces)
     |> maybe_release_tags(deployment_group.release_tags)
     |> order_by_queue_management(deployment_group.queue_management)
     |> limit(^count)
+  end
+
+  # Filter by network interface if release_network_interfaces is specified
+  # Empty list means allow all interfaces
+  defp maybe_filter_by_network_interfaces(query, []) do
+    query
+  end
+
+  defp maybe_filter_by_network_interfaces(query, interfaces) do
+    where(query, [d], d.network_interface in ^interfaces)
   end
 
   defp maybe_version_threshold(query, nil), do: query
@@ -825,7 +859,11 @@ defmodule NervesHub.Devices do
     where(
       query,
       [d],
-      fragment("semver_match(? #>> '{\"version\"}', ?)", d.firmware_metadata, ^"<= #{version_threshold}")
+      fragment(
+        "semver_match(? #>> '{\"version\"}', ?)",
+        d.firmware_metadata,
+        ^"<= #{version_threshold}"
+      )
     )
   end
 
@@ -973,19 +1011,28 @@ defmodule NervesHub.Devices do
 
   @spec update_deployment_group(Device.t(), DeploymentGroup.t()) :: Device.t()
   def update_deployment_group(device, deployment_group) do
-    device =
-      device
-      |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
-      |> Repo.update!()
+    deployment_group = ManagedDeployments.load_current_release(deployment_group, force: true)
 
-    DeviceEvents.deployment_assigned(device)
+    Repo.transact(fn ->
+      # Update the device's deployment group
+      device =
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
+        |> Repo.update!()
 
-    # let the orchestrator know that a device has been added to the deployment group
-    DeploymentOrchestratorEvents.device_added(device)
+      {:ok, device}
+    end)
+    |> case do
+      {:ok, device} ->
+        DeviceEvents.deployment_assigned(device)
+        DeploymentOrchestratorEvents.device_added(device)
+        Map.put(device, :deployment_group, deployment_group)
 
-    deployment_group = Repo.preload(deployment_group, :firmware)
-    Map.put(device, :deployment_group, deployment_group)
+      {:error, reason} ->
+        Logger.error("Failed to add device to deployment group: #{inspect(reason)}")
+        device
+    end
   end
 
   @spec clear_deployment_group(Device.t()) :: Device.t()
