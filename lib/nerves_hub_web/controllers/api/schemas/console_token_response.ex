@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.API.Schemas.ConsoleTokenResponse do
-  require OpenApiSpex
   alias OpenApiSpex.Schema
+
+  require OpenApiSpex
 
   OpenApiSpex.schema(%{
     title: "ConsoleTokenResponse",

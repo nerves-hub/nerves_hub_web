@@ -100,7 +100,6 @@ defmodule NervesHubWeb.API.UserControllerTest do
     assert json_response(conn, 401)
   end
 
-
   test "create token for existing account when authenticated" do
     password = "1234567891011"
 
