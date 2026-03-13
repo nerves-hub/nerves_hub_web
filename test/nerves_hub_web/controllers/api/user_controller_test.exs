@@ -82,6 +82,25 @@ defmodule NervesHubWeb.API.UserControllerTest do
            }
   end
 
+  test "console_token returns a valid Phoenix.Token", %{conn: conn, user: user} do
+    conn = post(conn, Routes.api_user_path(conn, :console_token))
+    resp = json_response(conn, 200)
+
+    assert token = resp["data"]["token"]
+
+    user_id = user.id
+
+    assert {:ok, ^user_id} =
+             Phoenix.Token.verify(NervesHubWeb.Endpoint, NervesHubWeb.user_salt(), token, max_age: 86_400)
+  end
+
+  test "console_token requires authentication" do
+    conn = build_conn()
+    conn = post(conn, Routes.api_user_path(conn, :console_token))
+    assert json_response(conn, 401)
+  end
+
+
   test "create token for existing account when authenticated" do
     password = "1234567891011"
 
