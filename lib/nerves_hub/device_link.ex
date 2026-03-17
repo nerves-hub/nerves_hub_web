@@ -35,11 +35,8 @@ defmodule NervesHub.DeviceLink do
   def after_join(device, reference_id, params) do
     with :ok <- maybe_send_public_keys(device, params),
          :ok <- maybe_send_archive(device, params["device_api_version"], reference_id),
-         :ok <- maybe_request_extensions(device, params["device_api_version"]),
-         {:ok, device} <- maybe_update_device_network_interface(device, params["network_interface"]) do
-      :ok = announce_online(device, reference_id)
-
-      {:ok, device}
+         :ok <- maybe_request_extensions(device, params["device_api_version"]) do
+      announce_online(device, reference_id)
     end
   rescue
     err -> {:error, err}
@@ -52,6 +49,8 @@ defmodule NervesHub.DeviceLink do
 
   @spec status_update(device :: Device.t(), status :: map(), update_started? :: boolean()) ::
           :ok
+  def status_update(%{network_interface: nil}, _, _), do: :ok
+
   def status_update(
         device,
         %{"status" => "started", "downloader_network_interface" => downloader_network_interface},
@@ -64,6 +63,8 @@ defmodule NervesHub.DeviceLink do
         downloader_network_interface: downloader_network_interface,
         device_network_interface: device.network_interface
       })
+
+      :ok
     end
   end
 
@@ -177,26 +178,6 @@ defmodule NervesHub.DeviceLink do
       do: broadcast(device, "extensions:get", %{})
 
     :ok
-  end
-
-  defp maybe_update_device_network_interface(device, nil), do: {:ok, device}
-
-  defp maybe_update_device_network_interface(device, network_interface) do
-    if Device.humanized_network_interface_name(network_interface) == device.network_interface do
-      :ok
-    else
-      case Devices.update_network_interface(device, network_interface) do
-        {:ok, device} ->
-          {:ok, device}
-
-        {:error, changeset} ->
-          Logger.warning(
-            "[DeviceChannel] could not update device network interface because: #{inspect(changeset.errors)}"
-          )
-
-          {:ok, device}
-      end
-    end
   end
 
   # The reported firmware is the same as what we already know about

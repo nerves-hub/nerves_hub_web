@@ -24,6 +24,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   alias NervesHub.DeviceLink
   alias NervesHub.Devices
+  alias NervesHub.Devices.Device
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
@@ -92,9 +93,9 @@ defmodule NervesHubWeb.DeviceChannel do
         :ok
     end
 
-    {:ok, device} = DeviceLink.after_join(device, reference_id, params)
+    :ok = DeviceLink.after_join(device, reference_id, params)
 
-    {:noreply, assign(socket, :device, device)}
+    {:noreply, socket}
   end
 
   # we can ignore this message
@@ -240,6 +241,24 @@ defmodule NervesHubWeb.DeviceChannel do
     end
 
     {:noreply, socket}
+  end
+
+  def handle_in("set_network_interface", %{"interface" => interface}, %{assigns: %{device: device}} = socket) do
+    if Device.humanized_network_interface_name(interface) == device.network_interface do
+      {:noreply, socket}
+    else
+      case Devices.update_network_interface(device, interface) do
+        {:ok, device} ->
+          {:noreply, assign(socket, :device, device)}
+
+        {:error, changeset} ->
+          Logger.warning(
+            "[DeviceChannel] could not update device network interface because: #{inspect(changeset.errors)}"
+          )
+
+          {:noreply, socket}
+      end
+    end
   end
 
   def handle_in(msg, params, %{assigns: %{device: device}} = socket) do

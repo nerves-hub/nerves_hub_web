@@ -1,7 +1,9 @@
 defmodule NervesHub.DeviceLinkTest do
   use NervesHub.DataCase, async: true
+  use Mimic
 
   alias NervesHub.DeviceLink
+  alias NervesHub.Devices
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -101,6 +103,17 @@ defmodule NervesHub.DeviceLinkTest do
                |> Repo.all()
                |> Repo.preload([:device])
                |> Enum.filter(&(&1.device_id == device.id))
+    end
+
+    test "'started' messages from device execute telemetry when there's a network interface mismatch", %{device: device} do
+      {:ok, device} = Devices.update_network_interface(device, "wlan0")
+
+      expect(:telemetry, :execute, fn _event, _measurements, metadata ->
+        assert metadata.downloader_network_interface == "eth0"
+        assert metadata.device_network_interface == :wifi
+      end)
+
+      :ok = DeviceLink.status_update(device, %{"status" => "started", "downloader_network_interface" => "eth0"}, false)
     end
   end
 end
