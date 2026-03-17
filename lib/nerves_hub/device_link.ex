@@ -36,8 +36,10 @@ defmodule NervesHub.DeviceLink do
     with :ok <- maybe_send_public_keys(device, params),
          :ok <- maybe_send_archive(device, params["device_api_version"], reference_id),
          :ok <- maybe_request_extensions(device, params["device_api_version"]),
-         :ok <- maybe_update_device_network_interface(device, params["network_interface"]) do
-      announce_online(device, reference_id)
+         {:ok, device} <- maybe_update_device_network_interface(device, params["network_interface"]) do
+      :ok = announce_online(device, reference_id)
+
+      {:ok, device}
     end
   rescue
     err -> {:error, err}
@@ -48,9 +50,24 @@ defmodule NervesHub.DeviceLink do
     :ok = Connections.merge_update_metadata(reference_id, metadata)
   end
 
-  @spec status_update(device :: Device.t(), status :: String.t(), update_started? :: boolean()) ::
+  @spec status_update(device :: Device.t(), status :: map(), update_started? :: boolean()) ::
           :ok
-  def status_update(device, status, update_started?) do
+  def status_update(
+        device,
+        %{"status" => "started", "downloader_network_interface" => downloader_network_interface},
+        _update_started?
+      ) do
+    if device.network_interface == Device.humanized_network_interface_name(downloader_network_interface) do
+      :ok
+    else
+      :telemetry.execute([:nerves_hub, :devices, :network_interface_mismatch], %{count: 1}, %{
+        downloader_network_interface: downloader_network_interface,
+        device_network_interface: device.network_interface
+      })
+    end
+  end
+
+  def status_update(device, %{"status" => status}, update_started?) do
     # a temporary hook into failed updates
     if String.contains?(String.downcase(status), "fwup error") do
       # if there was an error during updating
@@ -162,22 +179,22 @@ defmodule NervesHub.DeviceLink do
     :ok
   end
 
-  defp maybe_update_device_network_interface(_device, nil), do: :ok
+  defp maybe_update_device_network_interface(device, nil), do: {:ok, device}
 
   defp maybe_update_device_network_interface(device, network_interface) do
     if Device.humanized_network_interface_name(network_interface) == device.network_interface do
       :ok
     else
       case Devices.update_network_interface(device, network_interface) do
-        {:ok, _device} ->
-          :ok
+        {:ok, device} ->
+          {:ok, device}
 
         {:error, changeset} ->
           Logger.warning(
             "[DeviceChannel] could not update device network interface because: #{inspect(changeset.errors)}"
           )
 
-          :ok
+          {:ok, device}
       end
     end
   end

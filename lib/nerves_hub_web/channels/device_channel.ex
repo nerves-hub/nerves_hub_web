@@ -78,7 +78,7 @@ defmodule NervesHubWeb.DeviceChannel do
     case [safe_to_run_scripts?(socket), Enum.empty?(connecting_codes)] do
       [true, false] ->
         connecting_code = Enum.join(connecting_codes, "\n")
-        # connecting code first incase it attempts to change things before the other messages
+        # connecting code first in the case it attempts to change things before the other messages
         push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
 
       [false, false] ->
@@ -92,9 +92,9 @@ defmodule NervesHubWeb.DeviceChannel do
         :ok
     end
 
-    :ok = DeviceLink.after_join(device, reference_id, params)
+    {:ok, device} = DeviceLink.after_join(device, reference_id, params)
 
-    {:noreply, socket}
+    {:noreply, assign(socket, :device, device)}
   end
 
   # we can ignore this message
@@ -201,8 +201,8 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_in:status_update")
-  def handle_in("status_update", %{"status" => status}, socket) do
-    DeviceLink.status_update(socket.assigns.device, status, socket.assigns.update_started?)
+  def handle_in("status_update", params, socket) do
+    DeviceLink.status_update(socket.assigns.device, params, socket.assigns.update_started?)
 
     {:noreply, socket}
   end
@@ -238,12 +238,6 @@ defmodule NervesHubWeb.DeviceChannel do
       output = String.trim(output)
       send(pid, {:output, output})
     end
-
-    {:noreply, socket}
-  end
-
-  def handle_in("network_interface_mismatch", params, socket) do
-    :telemetry.execute([:nerves_hub, :devices, :network_interface_mismatch], %{count: 1}, %{params: params})
 
     {:noreply, socket}
   end
