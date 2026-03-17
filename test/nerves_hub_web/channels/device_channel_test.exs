@@ -574,7 +574,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
       assert_online_and_available(device)
 
-      push(device_channel, "set_network_interface", %{"interface" => "eth0"})
+      push(device_channel, "report_network_interface", %{"interface" => "eth0"})
       _socket = :sys.get_state(device_channel.channel_pid)
 
       assert Repo.reload(device) |> Map.get(:network_interface) == :ethernet
@@ -608,7 +608,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       allow(Devices, self(), device_channel.channel_pid)
       reject(&Devices.update_network_interface/2)
 
-      push(device_channel, "set_network_interface", %{"interface" => "wlan0"})
+      push(device_channel, "report_network_interface", %{"interface" => "wlan0"})
 
       close_cleanly(device_channel)
     end
