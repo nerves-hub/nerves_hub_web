@@ -93,7 +93,6 @@ defmodule NervesHubWeb.Router do
       pipe_through([:api_require_authenticated_user])
 
       get("/users/me", UserController, :me)
-      post("/users/console_token", UserController, :console_token)
 
       scope "/orgs" do
         get("/", OrgController, :index)

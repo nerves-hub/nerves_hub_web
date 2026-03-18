@@ -3,7 +3,6 @@ defmodule NervesHubWeb.API.UserController do
   use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Accounts
-  alias NervesHubWeb.API.Schemas.ConsoleTokenResponse
   alias NervesHubWeb.API.Schemas.UserAuthRequest
   alias NervesHubWeb.API.Schemas.UserAuthWithNoteRequest
   alias NervesHubWeb.API.Schemas.UserResponse
@@ -51,19 +50,5 @@ defmodule NervesHubWeb.API.UserController do
       token = Accounts.create_user_api_token(user, assigns["note"])
       render(conn, :show, user: user, token: token)
     end
-  end
-
-  operation(:console_token,
-    summary: "Generate a token for connecting to the device console websocket (deprecated: pass your API token directly as the socket token param)",
-    responses: [
-      ok: {"Console token response", "application/json", ConsoleTokenResponse}
-    ],
-    security: [%{"bearer_auth" => []}],
-    deprecated: true
-  )
-
-  def console_token(%{assigns: %{current_scope: scope}} = conn, _params) do
-    token = Phoenix.Token.sign(NervesHubWeb.Endpoint, NervesHubWeb.user_salt(), scope.user.id)
-    render(conn, :console_token, token: token)
   end
 end

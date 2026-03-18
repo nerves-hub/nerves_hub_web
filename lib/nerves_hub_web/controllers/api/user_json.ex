@@ -13,10 +13,6 @@ defmodule NervesHubWeb.API.UserJSON do
     %{data: user(user)}
   end
 
-  def console_token(%{token: token}) do
-    %{data: %{token: token}}
-  end
-
   defp user(user) do
     %{name: user.name, email: user.email}
   end
