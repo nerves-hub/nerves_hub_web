@@ -17,11 +17,9 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Products
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
-  # alias NervesHub.Support.EctoTelemetryHandler
   alias NervesHub.Support.Utils
   alias NervesHubWeb.DeviceEndpoint
   alias NervesHubWeb.Endpoint
-  # alias Phoenix.Channel.Server
   alias X509.Certificate.Template
   alias X509.Certificate.Validity
 
