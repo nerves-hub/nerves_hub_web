@@ -6,8 +6,8 @@ defmodule NervesHubWeb.UserSocket do
   channel("user:console:*", NervesHubWeb.UserConsoleChannel)
   channel("user:local_shell:*", NervesHubWeb.UserLocalShellChannel)
 
-  def connect(%{"api_token" => api_token}, socket) do
-    with {:ok, user, user_token} <- Accounts.fetch_user_by_api_token(api_token),
+  def connect(%{"token" => token}, socket) do
+    with {:ok, user, user_token} <- Accounts.fetch_user_by_api_token(token),
          :ok <- Accounts.mark_last_used(user_token) do
       {:ok, assign(socket, :user, user)}
     else
