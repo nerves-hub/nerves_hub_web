@@ -2,6 +2,7 @@ defmodule NervesHubWeb.UserSocket do
   use Phoenix.Socket
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.User
 
   channel("user:console:*", NervesHubWeb.UserConsoleChannel)
   channel("user:local_shell:*", NervesHubWeb.UserLocalShellChannel)
@@ -17,7 +18,7 @@ defmodule NervesHubWeb.UserSocket do
 
   def connect(%{"session_token" => session_token}, socket) do
     with {:ok, decoded} <- Base.url_decode64(session_token),
-         %NervesHub.Accounts.User{} = user <- Accounts.get_user_by_session_token(decoded) do
+         %User{} = user <- Accounts.get_user_by_session_token(decoded) do
       {:ok, assign(socket, :user, user)}
     else
       _ -> :error

@@ -19,8 +19,6 @@ defmodule NervesHubWeb do
 
   def static_paths(), do: ~w(assets fonts images favicon.ico robots.txt)
 
-  def user_salt(), do: "user salt"
-
   def plug() do
     quote do
       @behaviour Plug
