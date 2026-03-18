@@ -6,20 +6,21 @@ defmodule NervesHubWeb.UserSocket do
   channel("user:console:*", NervesHubWeb.UserConsoleChannel)
   channel("user:local_shell:*", NervesHubWeb.UserLocalShellChannel)
 
-  def connect(%{"token" => token}, socket) do
-    case Phoenix.Token.verify(socket, NervesHubWeb.user_salt(), token, max_age: 86_400) do
-      {:ok, user_id} ->
-        case Accounts.get_user(user_id) do
-          {:ok, user} ->
-            socket = assign(socket, :user, user)
-            {:ok, socket}
+  def connect(%{"api_token" => api_token}, socket) do
+    with {:ok, user, user_token} <- Accounts.fetch_user_by_api_token(api_token),
+         :ok <- Accounts.mark_last_used(user_token) do
+      {:ok, assign(socket, :user, user)}
+    else
+      _ -> :error
+    end
+  end
 
-          {:error, _} ->
-            :error
-        end
-
-      {:error, _} ->
-        :error
+  def connect(%{"session_token" => session_token}, socket) do
+    with {:ok, decoded} <- Base.url_decode64(session_token),
+         %NervesHub.Accounts.User{} = user <- Accounts.get_user_by_session_token(decoded) do
+      {:ok, assign(socket, :user, user)}
+    else
+      _ -> :error
     end
   end
 

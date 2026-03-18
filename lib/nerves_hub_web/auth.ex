@@ -87,7 +87,7 @@ defmodule NervesHubWeb.Auth do
 
       conn
       |> assign(:current_scope, Scope.for_user(user))
-      |> assign(:user_token, Phoenix.Token.sign(conn, NervesHubWeb.user_salt(), user.id))
+      |> assign(:user_token, Base.url_encode64(user_token))
     else
       nil ->
         assign(conn, :current_scope, Scope.for_user(nil))
