@@ -141,7 +141,7 @@ defmodule NervesHub.Logger do
   end
 
   def log_event([:nerves_hub, :devices, :network_interface_mismatch], _, metadata, _) do
-    Logger.warning("Network interface mismatch detected",
+    Logger.warning("Network interface mismatch between device socket and device downloader detected",
       event: "nerves_hub.devices.network_interface_mismatch",
       params: inspect(metadata[:params])
     )
