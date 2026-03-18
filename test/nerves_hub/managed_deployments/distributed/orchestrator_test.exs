@@ -24,7 +24,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, deployment_group} =
-      Fixtures.deployment_group_fixture(firmware, %{is_active: true})
+      Fixtures.deployment_group_fixture(firmware, %{is_active: true, user: user})
       |> ManagedDeployments.update_deployment_group_status(:ready)
 
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
@@ -59,14 +59,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(
-        deployment_group,
-        %{
-          concurrent_updates: 2,
-          firmware_id: firmware.id
-        },
-        user
-      )
+      ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 2}, user)
+
+    {:ok, {_release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user)
 
     {:ok, _pid} =
       start_supervised(%{
@@ -156,7 +152,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, _deployment_group} =
-      ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id}, user)
+      ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user)
 
     # check that the first device was told to update
     assert_receive %Broadcast{topic: ^topic1, event: "update"}, 500
@@ -261,14 +257,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(
-        deployment_group,
-        %{
-          concurrent_updates: 2,
-          firmware_id: firmware.id
-        },
-        user
-      )
+      ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 2}, user)
+
+    {:ok, {_release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user)
 
     deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
@@ -403,14 +395,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
     {:ok, deployment_group} =
-      ManagedDeployments.update_deployment_group(
-        deployment_group,
-        %{
-          concurrent_updates: 2,
-          firmware_id: firmware.id
-        },
-        user
-      )
+      ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 2}, user)
+
+    {:ok, {_release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user)
 
     deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
@@ -860,9 +848,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       assert Orchestrator.available_priority_slots(deployment_group) == 1
     end
 
-    test "priority queue disabled by default", %{org: org, product: product, firmware: firmware} do
+    test "priority queue disabled by default", %{user: user, org: org, product: product, firmware: firmware} do
       {:ok, deployment_group} =
-        Fixtures.deployment_group_fixture(firmware, %{name: "Priority Queue Test Disabled", is_active: true})
+        Fixtures.deployment_group_fixture(firmware, %{name: "Priority Queue Test Disabled", is_active: true, user: user})
         |> ManagedDeployments.update_deployment_group_status(:ready)
 
       refute deployment_group.priority_queue_enabled
@@ -1115,7 +1103,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     test "priority queue empty when threshold is nil", %{org: org, product: product, firmware: firmware, user: user} do
       {:ok, deployment_group} =
-        Fixtures.deployment_group_fixture(firmware, %{name: "Priority Queue Test Nil", is_active: true})
+        Fixtures.deployment_group_fixture(firmware, %{name: "Priority Queue Test Nil", is_active: true, user: user})
         |> ManagedDeployments.update_deployment_group(
           %{
             priority_queue_enabled: true,

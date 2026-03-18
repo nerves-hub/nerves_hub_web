@@ -117,10 +117,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                     </span>
                   </td>
                   <td class="px-4 py-3 text-sm text-base-400">
-                    <span :if={release.user}>
-                      {release.user.name}
+                    <span :if={release.created_by}>
+                      {release.created_by.name}
                     </span>
-                    <span :if={!release.user} class="text-base-500 italic">
+                    <span :if={!release.created_by} class="text-base-500 italic">
                       Unknown
                     </span>
                   </td>
@@ -139,7 +139,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
           <div class="flex flex-col p-4 gap-6">
             <div class="w-1/2 flex flex-col gap-6">
               <.input
-                field={@form[:firmware_id]}
+                field={@form[:firmware]}
+                value={if is_struct(@form[:firmware].value, NervesHub.Firmwares.Firmware), do: @form[:firmware].value.id, else: @form[:firmware].value}
                 type="select"
                 options={firmware_dropdown_options(@firmwares)}
                 label="Firmware version"
@@ -198,19 +199,22 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
     authorized!(:"deployment_group:update", scope)
 
-    case ManagedDeployments.update_deployment_group(deployment_group, params, scope.user) do
-      {:ok, updated} ->
+    firmware = Firmwares.get_by_id(scope.product, params["firmware"])
+    archive = Archives.get_by_id(scope.product, params["archive"])
+
+    case ManagedDeployments.create_deployment_release(deployment_group, firmware, archive, scope.user) do
+      {:ok, {_release, deployment_group}} ->
         AuditLogs.audit!(
           scope.user,
-          updated,
-          "User #{scope.user.name} updated deployment group #{updated.name}"
+          deployment_group,
+          "User #{scope.user.name} updated deployment group #{deployment_group.name}"
         )
 
-        releases = ManagedDeployments.list_deployment_releases(updated)
-        changeset = DeploymentGroup.update_changeset(updated, %{})
+        releases = ManagedDeployments.list_deployment_releases(deployment_group)
+        changeset = DeploymentGroup.update_changeset(deployment_group, %{})
 
         socket
-        |> assign(:deployment_group, updated)
+        |> assign(:deployment_group, deployment_group)
         |> assign(:releases, releases)
         |> assign(:form, to_form(changeset))
         |> push_event("close-modal", %{id: "new-release"})

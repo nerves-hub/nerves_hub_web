@@ -16,6 +16,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHub.Support.Fwup
@@ -27,7 +28,7 @@ defmodule NervesHub.DevicesTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(firmware, %{is_active: true})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{is_active: true, user: user})
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
     device2 = Fixtures.device_fixture(org, product, firmware)
     device3 = Fixtures.device_fixture(org, product, firmware)
@@ -669,7 +670,6 @@ defmodule NervesHub.DevicesTest do
 
   describe "inflight updates" do
     test "clears expired inflight updates", %{device: device, deployment_group: deployment_group} do
-      deployment_group = Repo.preload(deployment_group, :firmware)
       Fixtures.inflight_update(device, deployment_group)
       assert {0, _} = Devices.delete_expired_inflight_updates()
 
@@ -1193,7 +1193,9 @@ defmodule NervesHub.DevicesTest do
 
       # generate new firmware and update the deployment group in the DB
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      {:ok, _} = Ecto.Changeset.change(deployment_group, %{firmware_id: new_firmware.id}) |> Repo.update()
+
+      {:ok, _} =
+        NervesHub.ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user)
 
       # create a device using the firmware of the deployment group cached in the test
       Fixtures.device_fixture(org, product, deployment_group.current_release.firmware, %{
@@ -1236,9 +1238,9 @@ defmodule NervesHub.DevicesTest do
         Fixtures.deployment_group_fixture(new_firmware, %{
           name: "Delta deployment updates",
           is_active: true,
-          delta_updatable: true
+          delta_updatable: true,
+          user: user
         })
-        |> Repo.preload(:firmware)
 
       device =
         Fixtures.device_fixture(org, product, old_firmware, %{
@@ -1354,9 +1356,9 @@ defmodule NervesHub.DevicesTest do
         Fixtures.deployment_group_fixture(new_firmware_one, %{
           name: "Delta deployment updates",
           is_active: true,
-          delta_updatable: true
+          delta_updatable: true,
+          user: user
         })
-        |> Repo.preload(:firmware)
 
       # and a device using the old firmware, ready to receive an update
       device =
@@ -1519,7 +1521,7 @@ defmodule NervesHub.DevicesTest do
       deployment_group = %{
         deployment_group
         | delta_updatable: false,
-          firmware: %{firmware | delta_updatable: true}
+          current_release: %DeploymentRelease{firmware: %{firmware | delta_updatable: true}}
       }
 
       {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
@@ -1534,7 +1536,9 @@ defmodule NervesHub.DevicesTest do
       deployment_group = %{
         deployment_group
         | delta_updatable: true,
-          firmware: %{firmware | delta_updatable: false}
+          current_release: %DeploymentRelease{
+            firmware: %{firmware | delta_updatable: false}
+          }
       }
 
       {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)

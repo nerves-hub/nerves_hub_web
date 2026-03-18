@@ -156,14 +156,14 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       # Create a deployment from the firmware
-      Fixtures.deployment_group_fixture(firmware)
+      Fixtures.deployment_group_fixture(firmware, %{user: user})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
       |> assert_has("h1", text: firmware.uuid)
       |> click_button("Delete")
       |> assert_path("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
-      |> assert_has("div", text: "Firmware has associated deployments")
+      |> assert_has("div", text: "Firmware has associated deployment releases")
     end
 
     test "error deleting firmware when it has associated deployment releases", %{
@@ -178,7 +178,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       # Create a deployment from the firmware
-      deployment = Fixtures.deployment_group_fixture(firmware)
+      deployment = Fixtures.deployment_group_fixture(firmware, %{user: user})
 
       ManagedDeployments.update_deployment_group(deployment, %{firmware_id: firmware2.id}, user)
 

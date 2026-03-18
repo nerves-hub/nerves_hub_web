@@ -67,7 +67,8 @@
               </div>
 
               <.input
-                field={@form[:firmware_id]}
+                field={@form[:firmware]}
+                value={if is_struct(@form[:firmware].value, NervesHub.Firmwares.Firmware), do: @form[:firmware].value.id, else: @form[:firmware].value}
                 type="select"
                 options={firmware_dropdown_options(@firmwares)}
                 disabled={@firmwares == []}

@@ -6,15 +6,14 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
   alias __MODULE__
   alias NervesHub.Accounts.Org
-  alias NervesHub.Archives
-  alias NervesHub.Archives.Archive
+  alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdateStat
-  alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
+  alias NervesHub.Repo
   alias NervesHub.Types.Tag
 
   @type t :: %__MODULE__{}
@@ -32,22 +31,23 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
   @derive {Phoenix.Param, key: :name}
   schema "deployments" do
-    belongs_to(:firmware, Firmware)
     belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:org, Org, where: [deleted_at: nil])
-    belongs_to(:archive, Archive)
 
     has_many(:inflight_updates, InflightUpdate, foreign_key: :deployment_id)
     has_many(:devices, Device, foreign_key: :deployment_id, on_delete: :nilify_all)
     has_many(:deployment_releases, DeploymentRelease, on_delete: :delete_all)
     has_many(:update_stats, UpdateStat, on_delete: :nilify_all, foreign_key: :deployment_id)
 
-    has_one(:current_release, DeploymentRelease)
+    belongs_to(:current_release, DeploymentRelease, foreign_key: :current_deployment_release_id)
 
     embeds_one :conditions, __MODULE__.Conditions, primary_key: false, on_replace: :update do
       field(:version, :string, default: "")
       field(:tags, Tag, default: [])
     end
+
+    field(:platform, :string, writable: :insert)
+    field(:architecture, :string, writable: :insert)
 
     field(:device_failure_threshold, :integer, default: 3)
     field(:device_failure_rate_seconds, :integer, default: 180)
@@ -82,6 +82,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:releases_count, :integer, virtual: true)
     field(:device_count, :integer, virtual: true)
 
+    # dummy field so we can use this in the 'create deployment group' form (changeset)
+    field(:firmware, :any, virtual: true)
+
     # TODO: (joshk) this column is unused, remove after 1st May
     # field(:orchestrator_strategy, Ecto.Enum,
     #   values: [:multi, :distributed],
@@ -91,14 +94,113 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     timestamps()
   end
 
-  @spec create_changeset(map(), Product.t()) :: Ecto.Changeset.t()
-  def create_changeset(params, product) do
+  @doc """
+  This changeset creates a DeploymentGroup and its first DeploymentRelease.
+
+  When a DeploymentGroup is created, the platform and architecture of the firmware is saved
+  and used for restricting future releases.
+
+  A virtual field for `firmware` is used for simplifying the UI form (and errors), as well
+  as the API post payload and errors.
+  """
+  @spec create_changeset(map(), Product.t(), Firmware.t(), User.t()) :: Ecto.Changeset.t()
+  def create_changeset(params, product, firmware, user) do
     %DeploymentGroup{}
-    |> cast(params, [:name, :delta_updatable, :firmware_id])
-    |> cast_and_validate_firmware(product)
-    |> validate_required([:name, :delta_updatable])
-    |> unique_constraint(:name, name: :deployments_product_id_name_index)
+    |> cast(params, [:name, :delta_updatable, :platform, :architecture])
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
+    |> put_change(:product_id, product.id)
+    |> put_change(:org_id, product.org_id)
+    |> put_change(:firmware, firmware)
+    |> maybe_add_platform()
+    |> maybe_add_architecture()
+    |> validate_required([:name, :delta_updatable, :product_id, :org_id, :firmware])
+    |> validate_firmware(product)
+    |> validate_platform()
+    |> validate_architecture()
+    |> unique_constraint(:name, name: :deployments_product_id_name_index)
+    |> then(fn changeset ->
+      first_release = first_release_changeset(product, get_field(changeset, :firmware), user)
+
+      put_assoc(changeset, :deployment_releases, [first_release])
+    end)
+  end
+
+  defp first_release_changeset(product, firmware, created_by_user) do
+    change(%DeploymentRelease{})
+    |> put_assoc(:firmware, firmware)
+    |> put_assoc(:created_by, created_by_user)
+    |> put_change(:number, 1)
+    |> validate_required([:firmware])
+    |> validate_change(:created_by, fn :created_by, created_by_assoc ->
+      created_by = created_by_assoc.data
+
+      User
+      |> join(:inner, [u], o in assoc(u, :orgs))
+      |> join(:inner, [_, o], p in assoc(o, :products))
+      |> where([u], u.id == ^created_by.id)
+      |> where([_, _, p], p.id == ^product.id)
+      |> Repo.one()
+      |> case do
+        nil -> [created_by_id: "invalid associated user"]
+        _user -> []
+      end
+    end)
+  end
+
+  defp validate_firmware(changeset, product) do
+    validate_change(changeset, :firmware, fn :firmware, firmware ->
+      if not is_nil(firmware) && firmware.product_id != product.id do
+        [firmware: "invalid firmware selected"]
+      else
+        []
+      end
+    end)
+  end
+
+  defp validate_platform(changeset) do
+    firmware = get_field(changeset, :firmware)
+
+    validate_change(changeset, :platform, fn :platform, platform ->
+      if not is_nil(firmware) && platform != firmware.platform do
+        [platform: "platform doesn't match firmwares platform"]
+      else
+        []
+      end
+    end)
+  end
+
+  defp validate_architecture(changeset) do
+    firmware = get_field(changeset, :firmware)
+
+    validate_change(changeset, :architecture, fn :architecture, architecture ->
+      if not is_nil(firmware) && architecture != firmware.architecture do
+        [architecture: "architecture doesn't match firmwares platform"]
+      else
+        []
+      end
+    end)
+  end
+
+  defp maybe_add_architecture(changeset) do
+    firmware = get_field(changeset, :firmware)
+    architecture = get_field(changeset, :architecture)
+
+    cond do
+      is_nil(firmware) -> changeset
+      is_nil(architecture) -> put_change(changeset, :architecture, firmware.architecture)
+      true -> changeset
+    end
+  end
+
+  defp maybe_add_platform(changeset) do
+    firmware = get_field(changeset, :firmware)
+    platform = get_field(changeset, :platform)
+
+    cond do
+      is_nil(firmware) -> changeset
+      is_nil(platform) -> put_change(changeset, :platform, firmware.platform)
+      true -> changeset
+    end
   end
 
   @spec update_changeset(DeploymentGroup.t(), map()) :: Ecto.Changeset.t()
@@ -110,8 +212,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       :delta_updatable,
       :connecting_code,
       :queue_management,
-      :firmware_id,
-      :archive_id,
       :priority_queue_enabled,
       :priority_queue_firmware_version_threshold,
       :release_network_interfaces,
@@ -119,8 +219,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     ])
     |> cast_and_validate_numeric_fields(params)
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
-    |> cast_and_validate_firmware()
-    |> cast_and_validate_archive()
     |> validate_required([:name, :delta_updatable, :is_active, :queue_management])
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> prepare_current_updated_devices()
@@ -141,47 +239,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> validate_number(:penalty_timeout_minutes, greater_than_or_equal_to: 60)
     |> normalize_priority_queue_threshold()
     |> validate_priority_queue_version_threshold()
-  end
-
-  defp cast_and_validate_firmware(changeset, product \\ nil) do
-    product = product || %Product{id: changeset.data.product_id}
-
-    if firmware_id = changeset.changes[:firmware_id] do
-      case Firmwares.get_firmware(product, firmware_id) do
-        {:ok, firmware} ->
-          changeset
-          |> put_change(:org_id, firmware.org_id)
-          |> put_change(:product_id, firmware.product_id)
-          |> put_change(:firmware_id, firmware.id)
-          |> assoc_constraint(:org)
-          |> assoc_constraint(:product)
-          |> assoc_constraint(:firmware)
-
-        {:error, _} ->
-          add_error(changeset, :firmware_id, "does not exist")
-      end
-    else
-      changeset
-      |> validate_required([:firmware_id])
-    end
-  end
-
-  defp cast_and_validate_archive(changeset) do
-    if archive_id = changeset.changes[:archive_id] do
-      %Product{id: changeset.data.product_id}
-      |> Archives.get_by_product_and_id(archive_id)
-      |> case do
-        {:ok, archive} ->
-          changeset
-          |> put_change(:archive_id, archive.id)
-          |> assoc_constraint(:archive)
-
-        {:error, _} ->
-          add_error(changeset, :archive_id, "invalid archive")
-      end
-    else
-      changeset
-    end
   end
 
   defp prepare_current_updated_devices(changeset) do
@@ -220,14 +277,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
         # deltas have been turned on
         get_change(changeset, :delta_updatable) ->
           put_change(changeset, :status, :preparing)
-
-        # deltas are on and firmware id has changed
-        changed?(changeset, :firmware_id) && get_field(changeset, :delta_updatable) ->
-          put_change(changeset, :status, :preparing)
-
-        # deltas are off and firmware id has changed
-        changed?(changeset, :firmware_id) && not get_field(changeset, :delta_updatable) ->
-          put_change(changeset, :status, :ready)
 
         true ->
           changeset

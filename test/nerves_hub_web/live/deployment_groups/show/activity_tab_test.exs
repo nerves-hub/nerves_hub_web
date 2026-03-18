@@ -12,7 +12,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ActivityTabTest do
     %{context | conn: conn}
   end
 
-  test "shows a nice message when there are no audit logs", %{conn: conn} do
-    assert_has(conn, "span", text: "No audit logs found for the deployment group.")
+  test "shows an audit log message saying who created the deployment group", %{conn: conn} do
+    assert_has(conn, "div", text: "created deployment group")
   end
 end

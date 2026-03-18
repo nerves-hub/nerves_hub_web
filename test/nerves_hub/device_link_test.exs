@@ -14,7 +14,7 @@ defmodule NervesHub.DeviceLinkTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(firmware, %{is_active: true})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{is_active: true, user: user})
     device = Fixtures.device_fixture(org, product, firmware)
 
     {:ok,
