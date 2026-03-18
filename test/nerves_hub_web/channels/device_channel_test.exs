@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.DeviceChannelTest do
   use NervesHubWeb.ChannelCase
+  use Mimic
   use DefaultMocks
 
   import TrackerHelper
@@ -469,7 +470,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     device = NervesHub.Repo.preload(device, :org)
 
     new_deployment_group =
-      Fixtures.deployment_group_fixture(firmware, %{name: "Super Deployment"})
+      Fixtures.deployment_group_fixture(firmware, %{name: "Super Deployment", user: user})
 
     Devices.update_deployment_group(device, new_deployment_group)
 
@@ -550,6 +551,69 @@ defmodule NervesHubWeb.DeviceChannelTest do
     close_cleanly(device_channel)
   end
 
+  describe "device network interface" do
+    test "updates when incoming interface is different than the current one",
+         %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      params =
+        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+          {"nerves_fw_#{k}", v}
+        end
+        |> Map.put("device_api_version", "2.2.0")
+
+      {:ok, _join_reply, device_channel} =
+        subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
+
+      assert_online_and_available(device)
+
+      push(device_channel, "report_network_interface", %{"interface" => "eth0"})
+      _socket = :sys.get_state(device_channel.channel_pid)
+
+      assert Repo.reload(device) |> Map.get(:network_interface) == :ethernet
+
+      close_cleanly(device_channel)
+    end
+
+    test "doesn't update when incoming interface is the same as the current one",
+         %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+      {:ok, device} = Devices.update_network_interface(device, "wlan0")
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      params =
+        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+          {"nerves_fw_#{k}", v}
+        end
+        |> Map.put("device_api_version", "2.2.0")
+
+      {:ok, _join_reply, device_channel} =
+        subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
+
+      assert_online_and_available(device)
+
+      allow(Devices, self(), device_channel.channel_pid)
+      reject(&Devices.update_network_interface/2)
+
+      push(device_channel, "report_network_interface", %{"interface" => "wlan0"})
+
+      close_cleanly(device_channel)
+    end
+  end
+
   describe "unhandled messages are caught" do
     test "handle_info", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
@@ -600,7 +664,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
         dir: tmp_dir
       })
 
-    deployment_group = Fixtures.deployment_group_fixture(firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
 
     params = Enum.into(device_params, %{tags: ["beta", "beta-edge"]})
 
@@ -622,9 +686,14 @@ defmodule NervesHubWeb.DeviceChannelTest do
     org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
     archive = %{uuid: archive_uuid} = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
 
-    ManagedDeployments.update_deployment_group(deployment_group, %{archive_id: archive.id}, user)
+    ManagedDeployments.create_deployment_release(
+      deployment_group,
+      firmware,
+      archive,
+      user
+    )
 
     {device, _firmware, _deployment_group} =
       device_fixture(user, %{identifier: "123", deployment_id: deployment_group.id}, tmp_dir)

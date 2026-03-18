@@ -9,6 +9,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
@@ -158,7 +159,7 @@ defmodule NervesHub.ManagedDeployments do
 
   def join_current_release(query, preload_firmware \\ false) do
     query
-    |> join(:left_lateral, [], dr in subquery(current_release_subquery()), on: true, as: :current_release)
+    |> join(:inner, [deployment_group: dg], dr in assoc(dg, :current_release), as: :current_release)
     |> then(fn query ->
       if preload_firmware do
         query
@@ -171,13 +172,6 @@ defmodule NervesHub.ManagedDeployments do
         query
       end
     end)
-  end
-
-  defp current_release_subquery() do
-    DeploymentRelease
-    |> order_by([dr], desc: dr.number)
-    |> where([d], d.deployment_group_id == parent_as(:deployment_group).id)
-    |> limit(1)
   end
 
   defp join_counts(query) do
@@ -210,18 +204,24 @@ defmodule NervesHub.ManagedDeployments do
   @spec delete_deployment_group(DeploymentGroup.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def delete_deployment_group(%DeploymentGroup{id: deployment_id}) do
-    DeploymentGroup
-    |> Repo.get!(deployment_id)
-    |> Repo.delete()
-    |> case do
-      {:error, _changeset} ->
-        {:error, :not_found}
+    Repo.transact(fn ->
+      deployment_group = Repo.get!(DeploymentGroup, deployment_id)
 
-      {:ok, deployment_group} ->
-        :ok = deployment_deleted_event(deployment_group)
+      changeset = Ecto.Changeset.change(deployment_group, current_deployment_release_id: nil)
 
-        {:ok, deployment_group}
-    end
+      with {:ok, deployment_group} <- Repo.update(changeset) do
+        Repo.delete(deployment_group)
+      end
+      |> case do
+        {:error, _changeset} ->
+          {:error, :not_found}
+
+        {:ok, deployment_group} ->
+          :ok = deployment_deleted_event(deployment_group)
+
+          {:ok, deployment_group}
+      end
+    end)
   end
 
   @doc """
@@ -232,15 +232,12 @@ defmodule NervesHub.ManagedDeployments do
   """
   @spec update_deployment_group(DeploymentGroup.t(), map, User.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def update_deployment_group(deployment_group, params, user) do
-    deployment_group = Repo.preload(deployment_group, :firmware)
-
+  def update_deployment_group(deployment_group, params, _user) do
     changeset = DeploymentGroup.update_changeset(deployment_group, params)
 
     Repo.transact(fn ->
       with {:ok, deployment_group} <- Repo.update(changeset),
-           :ok <- create_audit_logs!(deployment_group, changeset),
-           {:ok, _deployment_release} <- maybe_create_deployment_release(deployment_group, changeset, user.id) do
+           :ok <- create_audit_logs!(deployment_group, changeset) do
         {:ok, _} = maybe_trigger_delta_generation(deployment_group, changeset)
 
         deployment_group = load_current_release(deployment_group, force: true)
@@ -277,42 +274,66 @@ defmodule NervesHub.ManagedDeployments do
 
   def load_current_release(deployment_group, opts \\ []) do
     force = Keyword.get(opts, :force, false)
-
-    current_release_query =
-      DeploymentRelease
-      |> join(:left, [dr], f in assoc(dr, :firmware), as: :firmware)
-      |> join(:left, [dr], a in assoc(dr, :archive), as: :archive)
-      |> where([dr], dr.deployment_group_id == ^deployment_group.id)
-      |> order_by([dr], desc: dr.number)
-      |> limit(1)
-
-    Repo.preload(deployment_group, [current_release: {current_release_query, [:firmware, :archive]}], force: force)
+    Repo.preload(deployment_group, [current_release: [:firmware, :archive]], force: force)
   end
 
-  defp maybe_create_deployment_release(deployment_group, changeset, user_id) do
-    create_deployment_release? =
-      Map.has_key?(changeset.changes, :firmware_id) or
-        Map.has_key?(changeset.changes, :archive_id)
+  def create_deployment_release(deployment_group, firmware, archive, user, opts \\ []) do
+    Repo.transact(fn ->
+      dr_changeset = DeploymentRelease.new_changeset(deployment_group, firmware, archive, user)
 
-    if create_deployment_release? do
-      %DeploymentRelease{}
-      |> DeploymentRelease.changeset(%{
-        deployment_group_id: deployment_group.id,
-        firmware_id: deployment_group.firmware_id,
-        archive_id: deployment_group.archive_id,
-        created_by_id: user_id
-      })
-      |> Repo.insert()
-    else
-      {:ok, nil}
+      with {:ok, release} <- Repo.insert(dr_changeset),
+           {:ok, deployment_group} = recalculate_current_release(deployment_group),
+           deployment_group = load_current_release(deployment_group, force: true),
+           :ok <- maybe_audit_new_deployment_release(user, deployment_group, opts),
+           {:ok, _} <- maybe_trigger_delta_generation(deployment_group, release),
+           {:ok, updated_deployments} <- recalculate_deployment_group_status_by_firmware_id(release.firmware_id),
+           {:ok, dg} <- Enum.find(updated_deployments, fn {_, dg} -> dg.id == deployment_group.id end) do
+        {:ok, {release, Map.put(deployment_group, :status, dg.status)}}
+      else
+        {:error, _} = error -> error
+        {:update_deployment, _} -> {:error, "could not update deployment group current release information"}
+      end
+    end)
+    |> case do
+      {:ok, {_release, deployment_group}} = result ->
+        if Keyword.get(opts, :broadcast, true) do
+          :ok = broadcast(deployment_group, "deployments/update")
+        end
+
+        archive = get_in(deployment_group.current_release.archive)
+
+        _ =
+          if Keyword.get(opts, :broadcast, true) && archive do
+            broadcast(deployment_group, "archives/updated", %{archive_id: archive.id})
+          end
+
+        result
+
+      error ->
+        error
     end
   end
 
+  defp maybe_audit_new_deployment_release(user, deployment_group, opts) do
+    if Keyword.get(opts, :audit, true) do
+      DeploymentGroupTemplates.audit_new_deployment_release(user, deployment_group)
+    else
+      :ok
+    end
+  end
+
+  @doc """
+  Recalculates the status of all deployment groups whose current release is associated with a given firmware ID
+  """
+  @spec recalculate_deployment_group_status_by_firmware_id(pos_integer()) ::
+          {:ok, [DeploymentGroup.t()]} | {:error, String.t()}
   def recalculate_deployment_group_status_by_firmware_id(firmware_id) do
     updated_deployment_groups =
       DeploymentGroup
       |> from(as: :deployment_group)
-      |> join_current_release(true)
+      |> join(:inner, [deployment_group: dg], dr in assoc(dg, :current_release), as: :current_release)
+      |> join(:inner, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
+      |> preload([current_release: cr, firmware: f], current_release: {cr, firmware: f})
       |> where([current_release: cr], cr.firmware_id == ^firmware_id)
       |> Repo.all()
       |> Enum.map(fn deployment_group ->
@@ -326,6 +347,10 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
+  @doc """
+  Recalculates the status of a deployment group based on the firmware deltas associated with the
+  firmware of the deployment group's current release.
+  """
   def recalculate_deployment_group_status(deployment_group) do
     source_ids =
       deployment_group.id
@@ -389,17 +414,24 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   defp maybe_trigger_delta_generation(
-         %{delta_updatable: true} = deployment_group,
-         %{changes: %{firmware_id: _}} = _changeset
+         %{is_active: true, delta_updatable: true} = deployment_group,
+         %DeploymentRelease{} = _new_release
        ), do: trigger_delta_generation_for_deployment_group(deployment_group)
 
   defp maybe_trigger_delta_generation(
          %{delta_updatable: true} = deployment_group,
-         %{changes: %{is_active: true}} = _changeset
+         %Ecto.Changeset{changes: %{firmware_id: _}} = _changeset
        ), do: trigger_delta_generation_for_deployment_group(deployment_group)
 
-  defp maybe_trigger_delta_generation(deployment_group, %{changes: %{delta_updatable: true}} = _changeset),
-    do: trigger_delta_generation_for_deployment_group(deployment_group)
+  defp maybe_trigger_delta_generation(
+         %{delta_updatable: true} = deployment_group,
+         %Ecto.Changeset{changes: %{is_active: true}} = _changeset
+       ), do: trigger_delta_generation_for_deployment_group(deployment_group)
+
+  defp maybe_trigger_delta_generation(
+         deployment_group,
+         %Ecto.Changeset{changes: %{delta_updatable: true}} = _changeset
+       ), do: trigger_delta_generation_for_deployment_group(deployment_group)
 
   defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: {:ok, :no_deltas_started}
 
@@ -420,10 +452,10 @@ defmodule NervesHub.ManagedDeployments do
     end)
   end
 
-  @spec deltas_processing?(DeploymentGroup.t()) :: boolean()
-  def deltas_processing?(%DeploymentGroup{id: id, firmware_id: firmware_id}) do
+  @spec deltas_processing?(DeploymentRelease.t()) :: boolean()
+  def deltas_processing?(%DeploymentRelease{deployment_group_id: deployment_group_id, firmware_id: firmware_id}) do
     source_ids =
-      id
+      deployment_group_id
       |> Devices.get_device_firmware_for_delta_generation_by_deployment_group()
       |> Enum.map(fn {source_id, _target_id} -> source_id end)
 
@@ -455,19 +487,21 @@ defmodule NervesHub.ManagedDeployments do
     Ecto.Changeset.change(%DeploymentGroup{})
   end
 
-  @spec create_deployment_group(map(), Product.t(), User.t()) ::
+  @spec create_deployment_group(map(), Product.t(), Firmware.t(), User.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def create_deployment_group(params, %Product{} = product, user) do
+  def create_deployment_group(params, %Product{} = product, firmware, user) do
     Repo.transact(fn ->
-      changeset = DeploymentGroup.create_changeset(params, product)
+      changeset = DeploymentGroup.create_changeset(params, product, firmware, user)
 
-      with {:ok, deployment_group} <- Repo.insert(changeset),
-           {:ok, _release} <- maybe_create_deployment_release(deployment_group, changeset, user.id) do
-        {:ok, load_current_release(deployment_group)}
+      with {:ok, deployment_group} <- Repo.insert(changeset) do
+        DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)
+        recalculate_current_release(deployment_group)
       end
     end)
     |> case do
       {:ok, deployment_group} ->
+        deployment_group = load_current_release(deployment_group, force: true)
+
         deployment_created_event(deployment_group)
 
         {:ok, deployment_group}
@@ -475,6 +509,19 @@ defmodule NervesHub.ManagedDeployments do
       {:error, changeset} ->
         {:error, changeset}
     end
+  end
+
+  defp recalculate_current_release(%DeploymentGroup{} = deployment_group) do
+    release =
+      DeploymentRelease
+      |> where(deployment_group_id: ^deployment_group.id)
+      |> order_by(desc: :number)
+      |> limit(1)
+      |> Repo.one()
+
+    Ecto.Changeset.change(deployment_group)
+    |> Ecto.Changeset.put_change(:current_deployment_release_id, release.id)
+    |> Repo.update()
   end
 
   @doc """
@@ -485,7 +532,7 @@ defmodule NervesHub.ManagedDeployments do
     DeploymentRelease
     |> where([r], r.deployment_group_id == ^deployment_group_id)
     |> order_by([r], desc: r.inserted_at, desc: r.id)
-    |> preload([:firmware, :user, :archive])
+    |> preload([:firmware, :created_by, :archive])
     |> Repo.all()
   end
 
@@ -780,7 +827,7 @@ defmodule NervesHub.ManagedDeployments do
   """
   @spec matched_device_ids(DeploymentGroup.t(), in_deployment: boolean()) :: [non_neg_integer()]
   def matched_device_ids(deployment_group, in_deployment: in_deployment) do
-    deployment_group = Repo.preload(deployment_group, [:firmware])
+    deployment_group = Repo.preload(deployment_group, current_release: [:firmware])
     query = matched_devices_base_query(deployment_group, in_deployment)
 
     do_matched_devices(deployment_group, query, :collect_ids)
