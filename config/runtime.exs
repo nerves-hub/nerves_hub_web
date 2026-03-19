@@ -248,13 +248,21 @@ database_ssl_opts =
 if config_env() == :prod do
   database_socket_options = if System.get_env("DATABASE_INET6") == "true", do: [:inet6], else: []
 
+  database_prepare =
+    if System.get_env("DATABASE_PREPARE", "named") == "unnamed", do: :unnamed, else: :named
+
   config :nerves_hub, NervesHub.Repo,
     url: System.fetch_env!("DATABASE_URL"),
     ssl: database_ssl_opts,
     pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
     pool_count: String.to_integer(System.get_env("DATABASE_POOL_COUNT", "1")),
     socket_options: database_socket_options,
-    queue_target: 5000
+    queue_target: 5000,
+    prepare: database_prepare
+
+  if migration_url = System.get_env("DATABASE_MIGRATION_URL") do
+    config :nerves_hub, NervesHub.Repo, priv: "priv/repo", migration_url: migration_url
+  end
 
   config :nerves_hub,
     database_auto_migrator: System.get_env("DATABASE_AUTO_MIGRATOR", "true") == "true"

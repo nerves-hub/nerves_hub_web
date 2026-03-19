@@ -131,7 +131,17 @@ config :nerves_hub, :scopes,
 config :nerves_hub,
   env: Mix.env(),
   namespace: NervesHub,
-  ecto_repos: [NervesHub.AnalyticsRepo, NervesHub.Repo]
+  ecto_repos: [NervesHub.AnalyticsRepo, NervesHub.Repo],
+  ash_domains: [
+    NervesHub.Ash.Products,
+    NervesHub.Ash.Scripts,
+    NervesHub.Ash.Accounts,
+    NervesHub.Ash.Devices,
+    NervesHub.Ash.Firmwares,
+    NervesHub.Ash.Deployments,
+    NervesHub.Ash.Archives,
+    NervesHub.Ash.AuditLogs
+  ]
 
 config :phoenix,
   json_library: Jason,

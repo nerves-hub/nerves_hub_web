@@ -8,6 +8,8 @@ config :bcrypt_elixir, log_rounds: 4
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+config :nerves_hub, ecto_repos: [NervesHub.Repo]
+
 config :nerves_hub, NervesHub.AnalyticsRepo,
   url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default_test")
 
