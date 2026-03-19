@@ -1520,9 +1520,10 @@ defmodule NervesHub.Devices do
 
         # Queue delta generation for any new device firmware combinations immediately
         # after the device updates within the same transaction
-        _ = if deployment_group.delta_updatable do
-          ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
-        end
+        _ =
+          if deployment_group.delta_updatable do
+            ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+          end
 
         {:ok, {count, nil}}
       end)
