@@ -1038,9 +1038,10 @@ defmodule NervesHub.Devices do
 
         # Then queue delta generation for any new device firmware combinations
         # This will pick up the newly added device's firmware
-        if deployment_group.delta_updatable do
-          _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
-        end
+        _ =
+          if deployment_group.delta_updatable do
+            ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+          end
 
         {:ok, updated_device}
       end)
