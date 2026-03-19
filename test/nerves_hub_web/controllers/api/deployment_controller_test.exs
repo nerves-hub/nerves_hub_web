@@ -20,7 +20,7 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
     } do
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      Fixtures.deployment_group_fixture(firmware)
+      Fixtures.deployment_group_fixture(firmware, %{user: user})
 
       conn = get(conn, Routes.api_deployment_group_path(conn, :index, org.name, product.name))
       [deployment_group] = json_response(conn, 200)["data"]
