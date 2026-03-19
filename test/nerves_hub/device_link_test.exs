@@ -1,7 +1,9 @@
 defmodule NervesHub.DeviceLinkTest do
   use NervesHub.DataCase, async: true
+  use Mimic
 
   alias NervesHub.DeviceLink
+  alias NervesHub.Devices
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Fixtures
   alias NervesHub.Repo
