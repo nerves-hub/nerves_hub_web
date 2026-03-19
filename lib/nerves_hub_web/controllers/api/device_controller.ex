@@ -77,6 +77,8 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   def update(%{assigns: %{device: device}} = conn, params) do
+    dbg(device)
+
     with {:ok, updated_device} <- Devices.update_device(device, params) do
       updated_device = preload_device(updated_device)
 

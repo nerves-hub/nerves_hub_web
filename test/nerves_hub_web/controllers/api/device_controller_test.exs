@@ -289,15 +289,16 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+      device = Fixtures.device_fixture(org, product, firmware)
 
-      Fixtures.device_fixture(org, product, firmware)
-
-      [to_update | _] = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
+      {:ok, device} =
+        Devices.update_device(device, %{deployment_id: deployment_group.id})
 
       conn =
         put(
           conn,
-          Routes.api_device_path(conn, :update, org.name, product.name, to_update.identifier),
+          Routes.api_device_path(conn, :update, org.name, product.name, device.identifier),
           %{
             tags: ["a", "b", "c", "d"]
           }
@@ -308,7 +309,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn =
         get(
           conn,
-          Routes.api_device_path(conn, :show, org.name, product.name, to_update.identifier)
+          Routes.api_device_path(conn, :show, org.name, product.name, device.identifier)
         )
 
       assert json_response(conn, 200)
