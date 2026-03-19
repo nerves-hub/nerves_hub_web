@@ -150,7 +150,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
             <div class="w-1/2 flex flex-col gap-6">
               <.input
-                field={@form[:archive_id]}
+                field={@form[:archive]}
                 type="select"
                 options={archive_dropdown_options(@archives)}
                 prompt="Select an Archive"
