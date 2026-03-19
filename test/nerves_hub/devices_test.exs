@@ -20,6 +20,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHub.Support.Fwup
+  alias NervesHub.Workers.FirmwareDeltaBuilder
   alias Phoenix.Socket.Broadcast
 
   setup %{tmp_dir: tmp_dir} do
@@ -723,6 +724,160 @@ defmodule NervesHub.DevicesTest do
 
       assert device.deployment_id == deployment_group.id
       assert_receive %{event: "deployment_updated"}
+    end
+
+    test "broadcasts device-added when device is added to a deployment group", %{
+      user: user,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      device: device,
+      tmp_dir: tmp_dir
+    } do
+      # Create new device firmware and target firmware to ensure delta doesn't already exist
+      device_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Update device to use the new device firmware
+      {:ok, device} = Devices.update_firmware_metadata(device, %{"uuid" => device_firmware.uuid}, :unknown, false)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            concurrent_updates: 2,
+            delta_updatable: true
+          },
+          user
+        )
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user)
+
+      deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+
+      _device = Devices.update_deployment_group(device, deployment_group)
+
+      # Assert that the device-added event was broadcast
+      assert_receive %Broadcast{topic: ^deployment_topic, event: "device-added"}, 500
+    end
+
+    test "triggers delta generation when device is added to a delta-updatable deployment group", %{
+      user: user,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      device: device,
+      tmp_dir: tmp_dir
+    } do
+      # Create new device firmware and target firmware to ensure delta doesn't already exist
+      device_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Update device to use the new device firmware
+      {:ok, device} = Devices.update_firmware_metadata(device, %{"uuid" => device_firmware.uuid}, :unknown, false)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            concurrent_updates: 2,
+            delta_updatable: true
+          },
+          user
+        )
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user)
+
+      _device = Devices.update_deployment_group(device, deployment_group)
+
+      # Delta generation happens inline in the transaction
+      # Assert that delta generation job was enqueued for the new firmware pair
+      assert_enqueued(
+        worker: FirmwareDeltaBuilder,
+        args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
+      )
+    end
+
+    test "broadcasts bulk-devices-added when a group (bulk) of devices are added to a deployment group", %{
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      device: device1,
+      device2: device2,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      # Create new device firmware and target firmware to ensure delta doesn't already exist
+      device_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Update devices to use the new device firmware
+      {:ok, device1} = Devices.update_firmware_metadata(device1, %{"uuid" => device_firmware.uuid}, :unknown, false)
+      {:ok, device2} = Devices.update_firmware_metadata(device2, %{"uuid" => device_firmware.uuid}, :unknown, false)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            concurrent_updates: 2,
+            delta_updatable: true
+          },
+          user
+        )
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user)
+
+      deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+
+      Devices.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
+
+      # Assert that the bulk-devices-added event was broadcast
+      assert_receive %Broadcast{topic: ^deployment_topic, event: "bulk-devices-added"}, 500
+    end
+
+    test "triggers delta generation when a group (bulk) of devices are added to a delta-updatable deployment group", %{
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      device: device1,
+      device2: device2,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      # Create new device firmware and target firmware to ensure delta doesn't already exist
+      device_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Update devices to use the new device firmware
+      {:ok, device1} = Devices.update_firmware_metadata(device1, %{"uuid" => device_firmware.uuid}, :unknown, false)
+      {:ok, device2} = Devices.update_firmware_metadata(device2, %{"uuid" => device_firmware.uuid}, :unknown, false)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            concurrent_updates: 2,
+            delta_updatable: true
+          },
+          user
+        )
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user)
+
+      Devices.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
+
+      # Delta generation happens inline in the transaction
+      # Assert that delta generation job was enqueued for the new firmware pair
+      assert_enqueued(
+        worker: FirmwareDeltaBuilder,
+        args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
+      )
     end
   end
 
