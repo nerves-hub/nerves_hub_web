@@ -233,22 +233,15 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     user: user,
     tmp_dir: tmp_dir
   } do
-    # An ugly set of expectations
     # `Devices.available_for_update` should be called:
     # - once upon Orchestrator startup
-    # - once when a device is added to the deployment group
     # - once for when an out of date device comes online
-    # - once more when a device is added to the deployment group
     # - and no more times after that
+    # Note: No longer called when devices are added since delta generation
+    # now happens inline in the transaction, not via orchestrator events
     Devices
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
       []
-    end)
-    |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
-      []
-    end)
-    |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
-      [device1]
     end)
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
       [device1]
@@ -285,8 +278,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     device1 = Devices.update_deployment_group(device1, deployment_group)
 
-    assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-added"}, 500
-
     {:ok, connection} = Connections.device_connecting(device1, device1.product_id)
     :ok = Connections.device_connected(device1, connection.id)
 
@@ -313,8 +304,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     device2 = Devices.update_deployment_group(device2, deployment_group)
 
-    assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-added"}, 500
-
     Mimic.reject(&Devices.available_for_update/2)
 
     {:ok, connection} = Connections.device_connecting(device2, device2.product_id)
@@ -328,7 +317,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     :sys.get_state(pid)
   end
 
-  test "the orchestrator 'trigger's when a group (bulk) of devices are added to a deployment group", %{
+  test "delta generation is triggered when a group (bulk) of devices are added to a deployment group", %{
     deployment_group: deployment_group,
     org_key: org_key,
     product: product,
@@ -337,15 +326,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     user: user,
     tmp_dir: tmp_dir
   } do
-    # An ugly set of expectations
     # `Devices.available_for_update` should be called:
     # - once upon Orchestrator startup
-    # - and once when a bulk number of devices are added to the deployment group
     # - and no more times after that
+    # Note: No longer called when devices are bulk added since delta generation
+    # now happens inline in the transaction when move_many_to_deployment_group is called
     Devices
-    |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
-      []
-    end)
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
       []
     end)
@@ -384,10 +370,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     Devices.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
 
-    assert_receive %Broadcast{topic: ^deployment_group_topic, event: "bulk-devices-added"}, 500
-    # Give orchestrator time to process the event and enqueue jobs
-    Process.sleep(50)
-
+    # Delta generation happens inline in the transaction now
     # Assert that delta generation job was enqueued for the new firmware pair
     assert_enqueued(
       worker: FirmwareDeltaBuilder,
@@ -459,7 +442,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     :sys.get_state(pid)
   end
 
-  test "the orchestrator is 'triggered' when a device is add to a deployment group", %{
+  test "delta generation is triggered when a device is added to a deployment group", %{
     user: user,
     deployment_group: deployment_group,
     org_key: org_key,
@@ -488,15 +471,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
 
-    # An ugly set of expectations
     # `Devices.available_for_update` should be called:
     # - once upon Orchestrator startup
-    # - once when a device is added to it
     # - and no more times after that
+    # Note: No longer called when device is added since delta generation
+    # now happens inline in the transaction when update_deployment_group is called
     Devices
-    |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
-      []
-    end)
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
       []
     end)
@@ -513,11 +493,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     _device1 = Devices.update_deployment_group(device1, deployment_group)
 
-    # the orchestrator is told that a device has just been assigned to it
-    assert_receive %Broadcast{topic: ^deployment_topic, event: "device-added"}, 500
-    # Give orchestrator time to process the event and enqueue jobs
-    Process.sleep(50)
-
+    # Delta generation happens inline in the transaction now
     # Assert that delta generation job was enqueued for the new firmware pair
     assert_enqueued(
       worker: FirmwareDeltaBuilder,

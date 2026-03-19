@@ -56,9 +56,7 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p], dg in assoc(d, :deployment_group))
     |> join(:left, [d, o, p, dg], cr in assoc(dg, :current_release))
     |> join(:left, [d, o, p, dg, cr], f in assoc(cr, :firmware))
-    |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection),
-      as: :latest_connection
-    )
+    |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, o, p, dg, cr, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
     |> preload([d, o, p, dg, cr, f, latest_connection: lc, latest_health: lh],
       org: o,
@@ -111,9 +109,7 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p], dg in assoc(d, :deployment_group))
     |> join(:left, [d, o, p, dg], cr in assoc(dg, :current_release))
     |> join(:left, [d, o, p, dg, cr], f in assoc(cr, :firmware))
-    |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection),
-      as: :latest_connection
-    )
+    |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, o, p, dg, cr, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
     |> Repo.exclude_deleted()
     |> DeviceFiltering.sort(sorting)
@@ -235,8 +231,7 @@ defmodule NervesHub.Devices do
           Device.t()
   def get_by_identifier!(scope, identifier, preload_assoc \\ [:product, :latest_connection])
 
-  def get_by_identifier!(%Scope{} = scope, identifier, preload_assoc)
-      when is_binary(identifier) do
+  def get_by_identifier!(%Scope{} = scope, identifier, preload_assoc) when is_binary(identifier) do
     get_by_identifier_query(scope, identifier, preload_assoc)
     |> Repo.one!()
   end
@@ -247,11 +242,7 @@ defmodule NervesHub.Devices do
           preload_assocs :: atom() | list(atom()) | nil
         ) ::
           {:ok, Device.t()} | {:error, :not_found}
-  def get_by_identifier(
-        %Scope{} = scope,
-        identifier,
-        preload_assoc \\ [:product, :latest_connection]
-      )
+  def get_by_identifier(%Scope{} = scope, identifier, preload_assoc \\ [:product, :latest_connection])
       when is_binary(identifier) do
     get_by_identifier_query(scope, identifier, preload_assoc)
     |> Repo.one()
@@ -261,8 +252,7 @@ defmodule NervesHub.Devices do
     end
   end
 
-  defp get_by_identifier_query(%Scope{org: org}, identifier, preload_assoc)
-       when not is_nil(org) do
+  defp get_by_identifier_query(%Scope{org: org}, identifier, preload_assoc) when not is_nil(org) do
     Device
     |> join(:left, [d], o in assoc(d, :org), as: :org)
     |> where(identifier: ^identifier)
@@ -272,8 +262,7 @@ defmodule NervesHub.Devices do
     |> join_and_preload(preload_assoc)
   end
 
-  defp get_by_identifier_query(%Scope{user: user}, identifier, preload_assoc)
-       when not is_nil(user) do
+  defp get_by_identifier_query(%Scope{user: user}, identifier, preload_assoc) when not is_nil(user) do
     Device
     |> join(:left, [d], o in assoc(d, :org), as: :org)
     |> join(:left, [d, o], u in assoc(o, :users), as: :users)
@@ -287,9 +276,7 @@ defmodule NervesHub.Devices do
   def join_and_preload_deployment_group_and_current_release(query) do
     query
     |> join(:left, [d], dp in assoc(d, :deployment_group), as: :deployment_group)
-    |> join(:left, [deployment_group: dg], cr in assoc(dg, :current_release),
-      as: :current_release
-    )
+    |> join(:left, [deployment_group: dg], cr in assoc(dg, :current_release), as: :current_release)
     |> join(:left, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
     |> preload([deployment_group: dg, firmware: f, current_release: cr],
       deployment_group: {dg, current_release: {cr, firmware: f}}
@@ -484,8 +471,7 @@ defmodule NervesHub.Devices do
     |> get_device_by_certificate()
   end
 
-  def get_device_by_certificate(%DeviceCertificate{device: %Device{} = device}),
-    do: {:ok, Repo.preload(device, :org)}
+  def get_device_by_certificate(%DeviceCertificate{device: %Device{} = device}), do: {:ok, Repo.preload(device, :org)}
 
   def get_device_by_certificate(_), do: {:error, :not_found}
 
@@ -564,8 +550,7 @@ defmodule NervesHub.Devices do
 
   @spec create_ca_certificate_from_x509(Org.t(), X509.Certificate.t(), binary() | nil) ::
           {:ok, CACertificate.t()} | {:error, Ecto.Changeset.t()}
-  def create_ca_certificate_from_x509(%Org{} = org, otp_cert, description \\ nil)
-      when is_tuple(otp_cert) do
+  def create_ca_certificate_from_x509(%Org{} = org, otp_cert, description \\ nil) when is_tuple(otp_cert) do
     {not_before, not_after} = Certificate.get_validity(otp_cert)
 
     params = %{
@@ -687,9 +672,7 @@ defmodule NervesHub.Devices do
     |> where([dep], dep.id == ^deployment_id)
     |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
     |> join(:inner, [dep], cr in assoc(dep, :current_release))
-    |> join(:inner, [_, dev], f in Firmware,
-      on: f.uuid == fragment("?.firmware_metadata->>'uuid'", dev)
-    )
+    |> join(:inner, [_, dev], f in Firmware, on: f.uuid == fragment("?.firmware_metadata->>'uuid'", dev))
     # Exclude the current firmware, we don't need to generate that one
     |> where([_, _, cr, f], f.id != cr.firmware_id)
     |> select([_, _, cr, f], {f.id, cr.firmware_id})
@@ -793,10 +776,7 @@ defmodule NervesHub.Devices do
   @spec available_for_priority_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
 
   # No threshold set, return empty list
-  def available_for_priority_update(
-        %DeploymentGroup{priority_queue_firmware_version_threshold: threshold},
-        _count
-      )
+  def available_for_priority_update(%DeploymentGroup{priority_queue_firmware_version_threshold: threshold}, _count)
       when is_nil(threshold), do: []
 
   def available_for_priority_update(deployment_group, count) do
@@ -819,35 +799,8 @@ defmodule NervesHub.Devices do
     |> join(:inner, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
     |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
     |> ManagedDeployments.join_current_release()
-    |> join(
-      :left_lateral,
-      [],
-      f in subquery(
-        from(f in Firmware,
-          where: f.product_id == parent_as(:device).product_id,
-          where:
-            fragment(
-              "(? #>> '{\"uuid\"}') = ?",
-              parent_as(:device).firmware_metadata,
-              f.uuid
-            )
-        )
-      ),
-      on: true,
-      as: :firmware
-    )
-    |> join(
-      :left_lateral,
-      [],
-      fd in subquery(
-        from(fd in FirmwareDelta,
-          where: fd.source_id == parent_as(:firmware).id,
-          where: fd.target_id == parent_as(:current_release).firmware_id
-        )
-      ),
-      on: true,
-      as: :firmware_delta
-    )
+    |> join_firmware()
+    |> join_firmware_deltas()
     |> where([device: d], d.deployment_id == ^deployment_group.id)
     |> where([device: d], d.updates_enabled == true)
     |> where([device: d], not is_nil(d.firmware_metadata))
@@ -865,6 +818,34 @@ defmodule NervesHub.Devices do
     |> maybe_release_tags(deployment_group.release_tags)
     |> order_by_queue_management(deployment_group.queue_management)
     |> limit(^count)
+  end
+
+  defp join_firmware(query) do
+    firmware_query =
+      Firmware
+      |> where([f], f.product_id == parent_as(:device).product_id)
+      |> where(
+        [f],
+        fragment(
+          "(? #>> '{\"uuid\"}') = ?",
+          parent_as(:device).firmware_metadata,
+          f.uuid
+        )
+      )
+
+    join(query, :left_lateral, [], f in subquery(firmware_query), on: true, as: :firmware)
+  end
+
+  defp join_firmware_deltas(query) do
+    firmware_deltas_query =
+      FirmwareDelta
+      |> where([fd], fd.source_id == parent_as(:firmware).id)
+      |> where([fd], fd.target_id == parent_as(:current_release).firmware_id)
+
+    join(query, :left_lateral, [], fd in subquery(firmware_deltas_query),
+      on: true,
+      as: :firmware_delta
+    )
   end
 
   # Filter by network interface if release_network_interfaces is specified
@@ -1002,10 +983,7 @@ defmodule NervesHub.Devices do
   end
 
   @spec delta_ready?(Device.t(), Firmware.t()) :: boolean()
-  def delta_ready?(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{
-        id: target_id,
-        product_id: product_id
-      }) do
+  def delta_ready?(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
     source_firmware_id_query =
       Firmware
       |> where(uuid: ^source_uuid)
@@ -1039,70 +1017,42 @@ defmodule NervesHub.Devices do
 
   @spec update_deployment_group(Device.t(), DeploymentGroup.t()) :: Device.t()
   def update_deployment_group(device, deployment_group) do
-    deployment_group = ManagedDeployments.load_current_release(deployment_group, force: true)
+    # Use a transaction to prevent race condition: queue delta BEFORE updating device
+    # so that when the device appears in the deployment group, the firmware_delta row
+    # with :processing status already exists, preventing the orchestrator from scheduling
+    # a full update instead of waiting for the delta
+    {:ok, device} =
+      Repo.transact(fn ->
+        # Queue delta generation first (creates firmware_delta row with :processing status)
+        # Use the deployment_group as passed in - it should already have the correct current_release loaded
+        :ok = maybe_trigger_delta_for_device(device, deployment_group)
 
-    Repo.transact(fn ->
-      # Update the device's deployment group
-      device =
-        device
-        |> Ecto.Changeset.change()
-        |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
-        |> Repo.update!()
+        # Then update the device's deployment group
+        updated_device =
+          device
+          |> Ecto.Changeset.change()
+          |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
+          |> Repo.update!()
 
-      {:ok, device}
-    end)
-    |> case do
-      {:ok, device} ->
-        DeviceEvents.deployment_assigned(device)
-        DeploymentOrchestratorEvents.device_added(device)
-        Map.put(device, :deployment_group, deployment_group)
+        {:ok, updated_device}
+      end)
 
-      {:error, reason} ->
-        Logger.error("Failed to add device to deployment group: #{inspect(reason)}")
-        device
-    end
-  end
-
-  # Check if device needs a delta and queue generation if one does not exist
-  defp maybe_queue_delta_for_device(device, deployment_group) do
-    _ =
-      with true <- delta_updatable?(device, deployment_group),
-           {:ok, source_firmware} <-
-             Firmwares.get_firmware_by_product_id_and_uuid(
-               device.product_id,
-               device.firmware_metadata.uuid
-             ) do
-        # Attempt to create firmware delta - this will create a firmware_deltas row in the
-        # :processing state and queue a job to generate the delta itself.
-        case Firmwares.attempt_firmware_delta(
-               source_firmware.id,
-               deployment_group.current_release.id,
-               false
-             ) do
-          {:error, reason} ->
-            Logger.warning("Failed to queue delta for device #{device.id}: #{inspect(reason)}")
-            :ok
-
-          _ ->
-            :ok
-        end
-      end
-
-    :ok
+    DeviceEvents.deployment_assigned(device)
+    Map.put(device, :deployment_group, deployment_group)
   end
 
   # Triggers delta generation when a device is added to a deployment group that has delta updates enabled
   defp maybe_trigger_delta_for_device(device, deployment_group) do
     with true <- deployment_group.delta_updatable,
          true <- deployment_group.is_active,
-         %{current_release: %{firmware: target_firmware}} when not is_nil(target_firmware) <-
+         %{current_release: %{firmware_id: target_firmware_id}} when not is_nil(target_firmware_id) <-
            deployment_group,
          %{firmware_metadata: %{uuid: source_uuid}, product_id: product_id} <- device,
          {:ok, source_firmware} <-
            Firmwares.get_firmware_by_product_id_and_uuid(product_id, source_uuid),
-         false <- source_firmware.id == target_firmware.id do
+         false <- source_firmware.id == target_firmware_id do
       # Don't recalculate deployment statuses since we're just adding one device
-      _ = Firmwares.attempt_firmware_delta(source_firmware.id, target_firmware.id, false)
+      _ = Firmwares.attempt_firmware_delta(source_firmware.id, target_firmware_id, false)
       :ok
     else
       _ -> :ok
@@ -1482,14 +1432,11 @@ defmodule NervesHub.Devices do
           DeploymentGroup.t() | non_neg_integer()
         ) ::
           {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
-  def move_many_to_deployment_group(%Scope{} = scope, device_ids, %DeploymentGroup{
-        id: deployment_id
-      }) do
+  def move_many_to_deployment_group(%Scope{} = scope, device_ids, %DeploymentGroup{id: deployment_id}) do
     move_many_to_deployment_group(scope, device_ids, deployment_id)
   end
 
-  def move_many_to_deployment_group(%Scope{} = scope, device_ids, deployment_id)
-      when is_number(deployment_id) do
+  def move_many_to_deployment_group(%Scope{} = scope, device_ids, deployment_id) when is_number(deployment_id) do
     deployment_group =
       DeploymentGroup
       |> from(as: :deployment_group)
@@ -1504,28 +1451,39 @@ defmodule NervesHub.Devices do
       )
       |> Repo.one!()
 
-    {devices_updated_count, _} =
-      Device
-      |> join(:inner, [d], o in assoc(d, :org), as: :org)
-      |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
-      |> where([users: users], users.id == ^scope.user.id)
-      |> Repo.exclude_deleted()
-      |> where([d], d.id in ^device_ids)
-      |> where(
-        [d],
-        d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform
-      )
-      |> where(
-        [d],
-        d.firmware_metadata["architecture"] ==
-          ^deployment_group.current_release.firmware.architecture
-      )
-      |> Repo.update_all([set: [deployment_id: deployment_id]], timeout: to_timeout(minute: 2))
+    # Use a transaction to ensure devices are updated and deltas are queued atomically
+    # This minimizes the race condition window where the orchestrator could pick up devices
+    # before their firmware_delta rows are created
+    {:ok, {devices_updated_count, _}} =
+      Repo.transact(fn ->
+        {count, _} =
+          Device
+          |> join(:inner, [d], o in assoc(d, :org), as: :org)
+          |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
+          |> where([users: users], users.id == ^scope.user.id)
+          |> Repo.exclude_deleted()
+          |> where([d], d.id in ^device_ids)
+          |> where(
+            [d],
+            d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform
+          )
+          |> where(
+            [d],
+            d.firmware_metadata["architecture"] ==
+              ^deployment_group.current_release.firmware.architecture
+          )
+          |> Repo.update_all([set: [deployment_id: deployment_id]], timeout: to_timeout(minute: 2))
+
+        # Queue delta generation for any new device firmware combinations immediately
+        # after the device updates within the same transaction
+        if deployment_group.delta_updatable do
+          _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+        end
+
+        {:ok, {count, nil}}
+      end)
 
     :ok = Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
-
-    # let the orchestrator know that some devices have been added to the deployment group
-    DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
 
     {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
   end
@@ -1735,9 +1693,7 @@ defmodule NervesHub.Devices do
     Enum.all?(deployment_group_tags, fn tag -> tag in device_tags end)
   end
 
-  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{
-        id: target
-      }) do
+  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}) do
     existing_target_keys = from(k in OrgKey, where: [org_id: ^target], select: k.key)
 
     from(
@@ -1820,9 +1776,7 @@ defmodule NervesHub.Devices do
         # Device already has an inflight update, fetch it
         case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment_group.id) do
           nil ->
-            Logger.error(
-              "An inflight update could not be created or found for the device (#{device_id})"
-            )
+            Logger.error("An inflight update could not be created or found for the device (#{device_id})")
 
             :error
 
@@ -2005,15 +1959,10 @@ defmodule NervesHub.Devices do
           | {:error, :delta_not_completed}
           | {:error, :device_does_not_support_deltas}
           | {:error, :delta_not_found}
-  def get_delta_or_firmware_url(
-        %Device{firmware_metadata: %{uuid: source_uuid}} = device,
-        %DeploymentGroup{
-          delta_updatable: true,
-          current_release: %DeploymentRelease{
-            firmware: %Firmware{delta_updatable: true} = target_firmware
-          }
-        }
-      ) do
+  def get_delta_or_firmware_url(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
+        delta_updatable: true,
+        current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
+      }) do
     case Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, source_uuid) do
       {:ok, source_firmware} ->
         case get_delta_if_ready(device, source_firmware, target_firmware) do
@@ -2036,7 +1985,7 @@ defmodule NervesHub.Devices do
   end
 
   def get_delta_or_firmware_url(%Device{}, %DeploymentGroup{current_release: %{firmware: target}}),
-      do: Firmwares.get_firmware_url(target)
+    do: Firmwares.get_firmware_url(target)
 
   @spec get_delta_if_ready(Device.t(), Firmware.t(), Firmware.t()) ::
           {:ok, FirmwareDelta.t()}
@@ -2059,10 +2008,7 @@ defmodule NervesHub.Devices do
   @spec get_delta_url(Device.t(), Firmware.t()) ::
           {:ok, String.t()}
           | {:error, :failure}
-  def get_delta_url(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{
-        id: target_id,
-        product_id: product_id
-      }) do
+  def get_delta_url(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
     source_firmware_id_query =
       Firmware
       |> where(uuid: ^source_uuid)
