@@ -273,7 +273,7 @@ defmodule NervesHub.Devices do
     |> join_and_preload(preload_assoc)
   end
 
-  defp join_and_preload_deployment_group_and_current_release(query) do
+  def join_and_preload_deployment_group_and_current_release(query) do
     query
     |> join(:left, [d], dp in assoc(d, :deployment_group), as: :deployment_group)
     |> join(:left, [deployment_group: dg], cr in assoc(dg, :current_release), as: :current_release)
