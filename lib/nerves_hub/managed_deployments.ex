@@ -27,37 +27,11 @@ defmodule NervesHub.ManagedDeployments do
 
   @spec filter(Product.t(), map()) :: {[DeploymentGroup.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
-    device_count_subquery =
-      Device
-      |> select([d], %{
-        device_count: count()
-      })
-      |> Repo.exclude_deleted()
-      |> where([d], d.deployment_id == parent_as(:deployment_group).id)
-
-    releases_count_subquery =
-      DeploymentRelease
-      |> select([d], %{
-        releases_count: count()
-      })
-      |> where([d], d.deployment_group_id == parent_as(:deployment_group).id)
-
     base_query =
       DeploymentGroup
       |> from(as: :deployment_group)
-      |> join(:left_lateral, [deployment_group: d], dev in subquery(device_count_subquery),
-        as: :device_count,
-        on: true
-      )
-      |> join(:left_lateral, [deployment_group: d], rel in subquery(releases_count_subquery),
-        as: :releases_count,
-        on: true
-      )
+      |> join_counts()
       |> join_current_release(true)
-      |> select_merge([device_count: dc, releases_count: rc], %{
-        device_count: dc.device_count,
-        releases_count: rc.releases_count
-      })
 
     CommonFiltering.filter(
       base_query,
@@ -72,6 +46,7 @@ defmodule NervesHub.ManagedDeployments do
     |> from(as: :deployment_group)
     |> join(:left, [deployment_group: d], p in assoc(d, :product), as: :product)
     |> join_current_release(true)
+    |> join_counts()
     |> preload([product: product], product: product)
     |> order_by(:name)
     |> where([deployment_group: d], d.product_id == ^product_id)
@@ -178,6 +153,7 @@ defmodule NervesHub.ManagedDeployments do
     |> where(product_id: ^product_id)
     |> join(:left, [deployment_group: d], p in assoc(d, :product), as: :product)
     |> join_current_release(true)
+    |> join_counts()
     |> preload([product: p], product: p)
   end
 
@@ -196,6 +172,33 @@ defmodule NervesHub.ManagedDeployments do
         query
       end
     end)
+  end
+
+  defp join_counts(query) do
+    device_count_subquery =
+      Device
+      |> select([d], %{device_count: count()})
+      |> Repo.exclude_deleted()
+      |> where([d], d.deployment_id == parent_as(:deployment_group).id)
+
+    releases_count_subquery =
+      DeploymentRelease
+      |> select([d], %{releases_count: count()})
+      |> where([d], d.deployment_group_id == parent_as(:deployment_group).id)
+
+    query
+    |> join(:left_lateral, [deployment_group: d], dev in subquery(device_count_subquery),
+      as: :device_count,
+      on: true
+    )
+    |> join(:left_lateral, [deployment_group: d], rel in subquery(releases_count_subquery),
+      as: :releases_count,
+      on: true
+    )
+    |> select_merge([device_count: dc, releases_count: rc], %{
+      device_count: dc.device_count,
+      releases_count: rc.releases_count
+    })
   end
 
   @spec delete_deployment_group(DeploymentGroup.t()) ::

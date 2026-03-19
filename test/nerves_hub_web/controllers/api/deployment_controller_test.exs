@@ -10,6 +10,96 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
       conn = get(conn, Routes.api_deployment_group_path(conn, :index, org.name, product.name))
       assert json_response(conn, 200)["data"] == []
     end
+
+    test "includes device_count, releases_count, and current_release", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+      conn = get(conn, Routes.api_deployment_group_path(conn, :index, org.name, product.name))
+      [deployment_group] = json_response(conn, 200)["data"]
+
+      assert deployment_group["device_count"] == 0
+      assert deployment_group["releases_count"] >= 1
+      assert deployment_group["firmware_uuid"] == firmware.uuid
+
+      current_release = deployment_group["current_release"]
+      assert current_release["number"] >= 1
+      assert current_release["inserted_at"]
+      assert current_release["updated_at"]
+
+      release_firmware = current_release["firmware"]
+      assert release_firmware["uuid"] == firmware.uuid
+      assert release_firmware["version"] == firmware.version
+      assert release_firmware["architecture"] == firmware.architecture
+      assert release_firmware["platform"] == firmware.platform
+    end
+  end
+
+  describe "show deployment group" do
+    setup [:create_deployment_group]
+
+    test "returns deployment group with all fields", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      path =
+        Routes.api_deployment_group_path(
+          conn,
+          :show,
+          org.name,
+          product.name,
+          deployment_group.name
+        )
+
+      conn = get(conn, path)
+      data = json_response(conn, 200)["data"]
+
+      assert data["name"] == deployment_group.name
+      assert data["device_count"] == 0
+      assert data["releases_count"] >= 1
+      assert is_boolean(data["is_active"])
+      assert data["state"] in ["on", "off"]
+      assert is_boolean(data["delta_updatable"])
+
+      assert %{"version" => _, "tags" => _} = data["conditions"]
+
+      current_release = data["current_release"]
+      assert current_release["number"] >= 1
+      assert current_release["firmware"]["uuid"]
+    end
+
+    test "includes device_count reflecting assigned devices", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group,
+      firmware: firmware
+    } do
+      _device = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+
+      path =
+        Routes.api_deployment_group_path(
+          conn,
+          :show,
+          org.name,
+          product.name,
+          deployment_group.name
+        )
+
+      conn = get(conn, path)
+      data = json_response(conn, 200)["data"]
+
+      assert data["device_count"] == 1
+    end
   end
 
   describe "create deployment group" do
@@ -330,6 +420,6 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
     org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
-    {:ok, %{deployment_group: deployment_group, org_key: org_key}}
+    {:ok, %{deployment_group: deployment_group, org_key: org_key, firmware: firmware}}
   end
 end
