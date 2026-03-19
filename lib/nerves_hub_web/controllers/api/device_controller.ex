@@ -1,10 +1,13 @@
 defmodule NervesHubWeb.API.DeviceController do
   use NervesHubWeb, :api_controller
 
+  import Ecto.Query
+
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
@@ -77,8 +80,6 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   def update(%{assigns: %{device: device}} = conn, params) do
-    dbg(device)
-
     with {:ok, updated_device} <- Devices.update_device(device, params) do
       updated_device = preload_device(updated_device)
 
@@ -199,12 +200,11 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  defp preload_device(device) do
-    Repo.preload(device, [
-      :org,
-      :product,
-      :latest_connection,
-      deployment_group: [:firmware]
-    ])
+  defp preload_device(%{identifier: identifier}) do
+    Device
+    |> where(identifier: ^identifier)
+    |> Devices.join_and_preload_deployment_group_and_current_release()
+    |> preload([:org, :product, :latest_connection])
+    |> Repo.one!()
   end
 end
