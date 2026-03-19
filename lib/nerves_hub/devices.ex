@@ -1019,6 +1019,9 @@ defmodule NervesHub.Devices do
 
   @spec update_deployment_group(Device.t(), DeploymentGroup.t()) :: Device.t()
   def update_deployment_group(device, deployment_group) do
+    # Check if deployment is actually changing
+    deployment_changed = device.deployment_id != deployment_group.id
+
     # Use a transaction to prevent race condition: queue delta BEFORE updating device
     # so that when the device appears in the deployment group, the firmware_delta row
     # with :processing status already exists, preventing the orchestrator from scheduling
@@ -1039,7 +1042,14 @@ defmodule NervesHub.Devices do
         {:ok, updated_device}
       end)
 
+    # Always notify the device about its deployment assignment
     DeviceEvents.deployment_assigned(device)
+
+    # Only notify the orchestrator if the deployment actually changed
+    if deployment_changed do
+      DeploymentOrchestratorEvents.device_added(device)
+    end
+
     Map.put(device, :deployment_group, deployment_group)
   end
 
@@ -1534,6 +1544,9 @@ defmodule NervesHub.Devices do
 
     :ok = Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
 
+    # let the orchestrator know that some devices have been added to the deployment group
+    DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
+
     {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
   end
 
@@ -1790,6 +1803,9 @@ defmodule NervesHub.Devices do
   end
 
   def told_to_update(device_id, deployment_group, opts) do
+    # Reload deployment_group from database to ensure we have the latest current_release_id
+    deployment_group = Repo.get!(ManagedDeployments.DeploymentGroup, deployment_group.id)
+
     deployment_group =
       ManagedDeployments.load_current_release(deployment_group, force: true)
       |> Repo.preload([:org])
@@ -1801,7 +1817,7 @@ defmodule NervesHub.Devices do
 
     priority_queue = Keyword.get(opts, :priority_queue, false)
 
-    %{
+    inflight_params = %{
       device_id: device_id,
       deployment_id: deployment_group.id,
       firmware_id: deployment_group.current_release.firmware_id,
@@ -1809,6 +1825,8 @@ defmodule NervesHub.Devices do
       expires_at: expires_at,
       priority_queue: priority_queue
     }
+
+    inflight_params
     |> InflightUpdate.create_changeset()
     |> Repo.insert()
     |> case do
