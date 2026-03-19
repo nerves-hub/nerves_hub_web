@@ -15,14 +15,6 @@ defmodule NervesHub.DeploymentOrchestratorEvents do
     broadcast(device, "device-online", payload)
   end
 
-  def device_added(device) do
-    broadcast(device, "device-added", %{})
-  end
-
-  def bulk_devices_added(deployment) do
-    broadcast(deployment, "bulk-devices-added", %{})
-  end
-
   def deployment_group_deactivated(deployment) do
     broadcast(deployment, "deactivated", %{})
   end
