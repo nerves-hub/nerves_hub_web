@@ -1022,22 +1022,25 @@ defmodule NervesHub.Devices do
     # Check if deployment is actually changing
     deployment_changed = device.deployment_id != deployment_group.id
 
-    # Use a transaction to prevent race condition: queue delta BEFORE updating device
-    # so that when the device appears in the deployment group, the firmware_delta row
-    # with :processing status already exists, preventing the orchestrator from scheduling
-    # a full update instead of waiting for the delta
+    # Use a transaction to ensure device update and delta generation happen atomically
+    # This prevents race condition: when the transaction commits, both the device's new
+    # deployment_id and any firmware_delta rows (with :processing status) become visible
+    # simultaneously, preventing the orchestrator from scheduling a full update when a delta
+    # is being prepared
     {:ok, device} =
       Repo.transact(fn ->
-        # Queue delta generation first (creates firmware_delta row with :processing status)
-        # Use the deployment_group as passed in - it should already have the correct current_release loaded
-        :ok = maybe_trigger_delta_for_device(device, deployment_group)
-
-        # Then update the device's deployment group
+        # Update the device's deployment group first
         updated_device =
           device
           |> Ecto.Changeset.change()
           |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
           |> Repo.update!()
+
+        # Then queue delta generation for any new device firmware combinations
+        # This will pick up the newly added device's firmware
+        if deployment_group.delta_updatable do
+          _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+        end
 
         {:ok, updated_device}
       end)
@@ -1051,24 +1054,6 @@ defmodule NervesHub.Devices do
     end
 
     Map.put(device, :deployment_group, deployment_group)
-  end
-
-  # Triggers delta generation when a device is added to a deployment group that has delta updates enabled
-  defp maybe_trigger_delta_for_device(device, deployment_group) do
-    with true <- deployment_group.delta_updatable,
-         true <- deployment_group.is_active,
-         %{current_release: %{firmware_id: target_firmware_id}} when not is_nil(target_firmware_id) <-
-           deployment_group,
-         %{firmware_metadata: %{uuid: source_uuid}, product_id: product_id} <- device,
-         {:ok, source_firmware} <-
-           Firmwares.get_firmware_by_product_id_and_uuid(product_id, source_uuid),
-         false <- source_firmware.id == target_firmware_id do
-      # Don't recalculate deployment statuses since we're just adding one device
-      _ = Firmwares.attempt_firmware_delta(source_firmware.id, target_firmware_id, false)
-      :ok
-    else
-      _ -> :ok
-    end
   end
 
   @spec clear_deployment_group(Device.t()) :: Device.t()

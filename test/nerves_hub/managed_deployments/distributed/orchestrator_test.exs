@@ -3,7 +3,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   use Mimic
   use AssertEventually, timeout: 500, interval: 50
 
-  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.InflightUpdate
