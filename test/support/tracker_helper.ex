@@ -3,7 +3,7 @@ defmodule TrackerHelper do
 
   defmacro subscribe_for_updates(device) do
     quote do
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{unquote(device).identifier}:internal")
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{unquote(device).id}:internal")
     end
   end
 
@@ -15,7 +15,7 @@ defmodule TrackerHelper do
 
   defmacro refute_online(device) do
     quote do
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{unquote(device).identifier}:internal")
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{unquote(device).id}:internal")
       NervesHub.Tracker.online?(unquote(device))
       refute_receive %{event: "connection:status"}
     end

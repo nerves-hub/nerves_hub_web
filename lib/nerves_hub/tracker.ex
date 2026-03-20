@@ -11,7 +11,7 @@ defmodule NervesHub.Tracker do
     _ =
       ChannelServer.broadcast(
         NervesHub.PubSub,
-        "device:#{device.identifier}:internal",
+        "device:#{device.id}:internal",
         "connection:heartbeat",
         %{}
       )
@@ -20,25 +20,25 @@ defmodule NervesHub.Tracker do
   end
 
   def connecting(%Device{} = device) do
-    publish(device.identifier, "connecting")
+    publish(device.id, "connecting")
   end
 
   def online(%{} = device) do
-    online(device.identifier)
+    online(device.id)
   end
 
-  def online(identifier) when is_binary(identifier) do
-    publish(identifier, "online")
+  def online(id) when is_integer(id) do
+    publish(id, "online")
   end
 
-  def confirm_online(%Device{identifier: identifier}) do
+  def confirm_online(%Device{id: id}) do
     _ =
       ChannelServer.broadcast(
         NervesHub.PubSub,
-        "device:#{identifier}:internal",
+        "device:#{id}:internal",
         "connection:status",
         %{
-          device_id: identifier,
+          device_id: id,
           status: "online"
         }
       )
@@ -49,18 +49,18 @@ defmodule NervesHub.Tracker do
   @doc """
   Tell internal listeners that the device is offline, via a connection change
   """
-  def offline(%Device{identifier: identifier}) when is_binary(identifier) do
-    publish(identifier, "offline")
+  def offline(%Device{id: id}) when is_integer(id) do
+    publish(id, "offline")
   end
 
-  defp publish(identifier, status) do
+  defp publish(id, status) do
     _ =
       ChannelServer.broadcast(
         NervesHub.PubSub,
-        "device:#{identifier}:internal",
+        "device:#{id}:internal",
         "connection:change",
         %{
-          device_id: identifier,
+          device_id: id,
           status: status
         }
       )
