@@ -1375,22 +1375,16 @@ defmodule NervesHub.DevicesTest do
       source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      # Update deployment group to target firmware
-      {:ok, deployment_group} =
-        Ecto.Changeset.change(deployment_group, %{firmware_id: target_firmware.id})
-        |> Repo.update()
-
       # Create a new deployment release for the target firmware
-      {:ok, _release} =
-        %DeploymentRelease{}
-        |> DeploymentRelease.changeset(%{
-          deployment_group_id: deployment_group.id,
-          firmware_id: target_firmware.id,
-          created_by_id: user.id
-        })
-        |> Repo.insert()
-
-      deployment_group = ManagedDeployments.load_current_release(deployment_group, force: true)
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(
+          deployment_group,
+          target_firmware,
+          nil,
+          user,
+          broadcast: false,
+          audit: false
+        )
 
       # Create device with source firmware
       device =
@@ -1448,22 +1442,16 @@ defmodule NervesHub.DevicesTest do
       source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      # Update deployment group to target firmware
-      {:ok, deployment_group} =
-        Ecto.Changeset.change(deployment_group, %{firmware_id: target_firmware.id})
-        |> Repo.update()
-
       # Create a new deployment release for the target firmware
-      {:ok, _release} =
-        %DeploymentRelease{}
-        |> DeploymentRelease.changeset(%{
-          deployment_group_id: deployment_group.id,
-          firmware_id: target_firmware.id,
-          created_by_id: user.id
-        })
-        |> Repo.insert()
-
-      deployment_group = ManagedDeployments.load_current_release(deployment_group, force: true)
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(
+          deployment_group,
+          target_firmware,
+          nil,
+          user,
+          broadcast: false,
+          audit: false
+        )
 
       # Create device with source firmware
       device =
@@ -1509,18 +1497,23 @@ defmodule NervesHub.DevicesTest do
       org: org,
       product: product,
       org_key: org_key,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       # Create source and target firmwares
       source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      # Update deployment group to target firmware
-      {:ok, deployment_group} =
-        Ecto.Changeset.change(deployment_group, %{firmware_id: target_firmware.id})
-        |> Repo.update()
-
-      deployment_group = Repo.preload(deployment_group, [current_release: :firmware], force: true)
+      # Create a new deployment release for the target firmware
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(
+          deployment_group,
+          target_firmware,
+          nil,
+          user,
+          broadcast: false,
+          audit: false
+        )
 
       # Create device with source firmware
       device =
@@ -1567,18 +1560,23 @@ defmodule NervesHub.DevicesTest do
       org: org,
       product: product,
       org_key: org_key,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       # Create source and target firmwares
       source_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      # Update deployment group to target firmware
-      {:ok, deployment_group} =
-        Ecto.Changeset.change(deployment_group, %{firmware_id: target_firmware.id})
-        |> Repo.update()
-
-      deployment_group = Repo.preload(deployment_group, [current_release: :firmware], force: true)
+      # Create a new deployment release for the target firmware
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(
+          deployment_group,
+          target_firmware,
+          nil,
+          user,
+          broadcast: false,
+          audit: false
+        )
 
       # Create device with source firmware
       device =
@@ -1623,17 +1621,22 @@ defmodule NervesHub.DevicesTest do
       org: org,
       product: product,
       org_key: org_key,
-      tmp_dir: tmp_dir
+      tmp_dir: tmp_dir,
+      user: user
     } do
       # Create target firmware for deployment group
       target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      # Update deployment group to target firmware
-      {:ok, deployment_group} =
-        Ecto.Changeset.change(deployment_group, %{firmware_id: target_firmware.id})
-        |> Repo.update()
-
-      deployment_group = Repo.preload(deployment_group, [current_release: :firmware], force: true)
+      # Create a new deployment release for the target firmware
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(
+          deployment_group,
+          target_firmware,
+          nil,
+          user,
+          broadcast: false,
+          audit: false
+        )
 
       # Create device with deployment_id
       device =
