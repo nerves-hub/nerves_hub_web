@@ -13,7 +13,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
   alias NervesHub.Repo
-  alias NervesHub.Workers.FirmwareDeltaBuilder
   alias Phoenix.Socket.Broadcast
 
   setup %{tmp_dir: tmp_dir} do
