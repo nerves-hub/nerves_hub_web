@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Plugs.ServerAuth do
 
   @impl Plug
   def call(conn, _opts) do
-    case conn.assigns.user do
+    case conn.assigns.current_scope.user do
       %{server_role: role} when not is_nil(role) ->
         conn
 
@@ -22,7 +22,7 @@ defmodule NervesHubWeb.Plugs.ServerAuth do
   end
 
   @impl Oban.Web.Resolver
-  def resolve_user(conn), do: conn.assigns.user
+  def resolve_user(conn), do: conn.assigns.current_scope.user
 
   @impl Oban.Web.Resolver
   def resolve_access(user) do
