@@ -22,7 +22,6 @@ defmodule NervesHubWeb.API.DeviceJSON do
 
   defp device(device) do
     %{
-      id: device.id,
       identifier: device.identifier,
       description: device.description,
       tags: device.tags,
