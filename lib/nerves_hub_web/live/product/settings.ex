@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
   alias NervesHub.Products
   alias NervesHubWeb.DeviceSocket
 
+  @decorate requires_permission(:"product:update")
   def mount(_params, _session, socket) do
     product = Products.load_shared_secret_auth(socket.assigns.current_scope.product)
 
@@ -21,6 +22,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     {:ok, socket}
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("add-shared-secret", _params, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
@@ -35,6 +37,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("deactivate-shared-secret", %{"shared_secret_id" => shared_secret_id}, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
@@ -50,6 +53,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:delete")
   def handle_event("delete-product", _params, socket) do
     authorized!(:"product:delete", socket.assigns.current_scope)
 
@@ -71,6 +75,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     end
   end
 
+  @decorate requires_permission(:"product:update")
   def handle_event("update-extension", %{"extension" => extension} = params, socket) do
     value = params["value"]
     available = Extensions.list() |> Enum.map(&to_string/1)

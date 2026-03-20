@@ -183,10 +183,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       {:ok, view, _html} = live(conn, device_show_path(fixture))
 
-      Process.flag(:trap_exit, true)
-
-      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
-               catch_exit(render_change(view, :reboot, %{}))
+      assert render_change(view, :reboot, %{}) =~
+               "Sorry. You were denied access. Please check your role or contact your support."
     end
   end
 
