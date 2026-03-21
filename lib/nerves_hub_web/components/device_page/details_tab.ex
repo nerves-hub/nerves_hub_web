@@ -290,7 +290,31 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                     </svg>
                   </button>
                 </span>
-                <form id="add-tag-form" phx-submit="add-tag" class="inline-flex items-center gap-1">
+                <button
+                  id="add-tag-open"
+                  type="button"
+                  aria-label="Add tag"
+                  class="bg-base-800 border-base-700 hover:bg-base-700 hover:text-base-200 text-base-400 flex size-7 items-center justify-center rounded border"
+                  phx-click={JS.show(to: "#add-tag-form") |> JS.show(to: "#add-tag-close") |> JS.hide(to: "#add-tag-open")}
+                >
+                  <span class="lucide-plus--light size-3.5" />
+                </button>
+                <button
+                  id="add-tag-close"
+                  type="button"
+                  aria-label="Cancel adding tag"
+                  style="display: none"
+                  class="bg-base-800 border-base-700 hover:bg-base-700 text-base-500 flex size-7 items-center justify-center rounded border hover:text-red-400"
+                  phx-click={JS.hide(to: "#add-tag-form") |> JS.hide(to: "#add-tag-close") |> JS.show(to: "#add-tag-open")}
+                >
+                  <span class="lucide-x--light size-3.5" />
+                </button>
+                <form
+                  id="add-tag-form"
+                  phx-submit={JS.push("add-tag") |> JS.hide(to: "#add-tag-form") |> JS.hide(to: "#add-tag-close") |> JS.show(to: "#add-tag-open")}
+                  style="display: none"
+                  class="inline-flex items-center gap-1"
+                >
                   <label for="add_tag_input" class="hidden">Add tag</label>
                   <input
                     type="text"
