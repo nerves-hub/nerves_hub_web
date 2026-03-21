@@ -13,7 +13,7 @@
   </div>
 
   <div class="h-0 flex-1 overflow-y-auto flex flex-col">
-    <div class="h-[90px] shrink-0 flex justify-between p-6 border-b border-base-700">
+    <NervesHubWeb.Layouts.page_heading current_scope={@current_scope} class="h-[90px] shrink-0 flex justify-between p-6 border-b border-base-700">
       <div class="flex gap-3 items-center">
         <h1 class="text-xl font-semibold leading-[30px] text-base-50">
           {@firmware.uuid}
@@ -42,7 +42,7 @@
           <span class="text-sm font-medium text-alert">Delete</span>
         </button>
       </div>
-    </div>
+    </NervesHubWeb.Layouts.page_heading>
 
     <div class="h-full flex items-start justify-between gap-4 p-6">
       <div class="w-1/2 flex flex-col gap-4">

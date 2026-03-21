@@ -25,13 +25,14 @@ defmodule NervesHubWeb.Layouts do
   end
 
   attr(:current_scope, :any, required: true)
+  attr(:class, :string, default: nil)
   slot(:inner_block, required: true)
 
   def page_heading(assigns) do
     assigns = assign(assigns, :banner_url, banner_url(assigns))
 
     ~H"""
-    <div class="relative overflow-hidden">
+    <div class="relative">
       <div
         :if={@banner_url}
         class="absolute inset-0 bg-cover bg-center z-0"
@@ -40,7 +41,8 @@ defmodule NervesHubWeb.Layouts do
         <div class="absolute inset-0 bg-gradient-to-r from-base-900 to-base-900/0"></div>
       </div>
       <div class={[
-        "flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium",
+        !@class && "flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium",
+        @class,
         @banner_url && "relative z-[1]"
       ]}>
         {render_slot(@inner_block)}
