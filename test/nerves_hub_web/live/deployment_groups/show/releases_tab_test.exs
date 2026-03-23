@@ -39,8 +39,61 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     |> assert_has("div", text: "Release settings")
     |> select("Firmware version", option: "#{new_firmware.version}", exact_option: false)
     |> submit()
-    |> assert_has("td", text: "#{new_firmware.uuid}")
+    |> refute_has("div", text: "Show notes")
+    |> assert_has("div", text: "Firmware: #{new_firmware.version} (#{String.slice(new_firmware.uuid, 0..7)})")
     |> assert_has("div", text: "Release settings updated")
+  end
+
+  test "successfully creates a new release with a description and notes", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+    new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> assert_has("h1", text: deployment_group.name)
+    |> assert_has("div", text: "Release settings")
+    |> fill_in("Description", with: "Snoot boops")
+    |> fill_in("Notes", with: "All the snoots need some boops")
+    |> select("Firmware version", option: "#{new_firmware.version}", exact_option: false)
+    |> submit()
+    |> assert_has("div", text: "Snoot boops")
+    |> assert_has("div", text: "Show notes")
+    |> assert_has("div", text: "All the snoots need some boops")
+    |> assert_has("div", text: "Firmware: #{new_firmware.version} (#{String.slice(new_firmware.uuid, 0..7)})")
+    |> assert_has("div", text: "Release settings updated")
+  end
+
+  test "release description can't be longer than 100 characters", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+    new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> assert_has("h1", text: deployment_group.name)
+    |> assert_has("div", text: "Release settings")
+    |> fill_in("Description", with: Enum.map_join(1..10, " ", fn _ -> "Snoot boops" end))
+    |> fill_in("Notes", with: "All the snoots need some boops")
+    |> select("Firmware version", option: "#{new_firmware.version}", exact_option: false)
+    |> submit()
+    |> assert_has("div", text: "An error occurred while updating the release settings")
   end
 
   test "updates the available firmware list when new firmware is uploaded", %{
@@ -102,9 +155,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
   end
 
   test "shows created releases", %{conn: conn} do
-    conn
-    |> assert_has("th", text: "Released")
-    |> assert_has("th", text: "Firmware Version")
-    |> assert_has("td", text: "1.0.0")
+    assert_has(conn, "div", text: "Firmware: 1.0.0")
   end
 end

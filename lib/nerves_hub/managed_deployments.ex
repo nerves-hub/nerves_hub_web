@@ -277,9 +277,9 @@ defmodule NervesHub.ManagedDeployments do
     Repo.preload(deployment_group, [current_release: [:firmware, :archive]], force: force)
   end
 
-  def create_deployment_release(deployment_group, firmware, archive, user, opts \\ []) do
+  def create_deployment_release(deployment_group, firmware, archive, user, params, opts \\ []) do
     Repo.transact(fn ->
-      dr_changeset = DeploymentRelease.new_changeset(deployment_group, firmware, archive, user)
+      dr_changeset = DeploymentRelease.new_changeset(deployment_group, firmware, archive, params, user)
 
       with {:ok, release} <- Repo.insert(dr_changeset),
            {:ok, deployment_group} = recalculate_current_release(deployment_group),

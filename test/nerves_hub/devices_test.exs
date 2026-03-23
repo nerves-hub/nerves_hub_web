@@ -1195,7 +1195,7 @@ defmodule NervesHub.DevicesTest do
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, _} =
-        NervesHub.ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user)
+        NervesHub.ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       # create a device using the firmware of the deployment group cached in the test
       Fixtures.device_fixture(org, product, deployment_group.current_release.firmware, %{
