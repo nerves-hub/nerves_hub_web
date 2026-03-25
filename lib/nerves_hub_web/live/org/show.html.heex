@@ -10,17 +10,22 @@
       </.button>
     </div>
     <div class="grid grid-cols-2 px-4 pb-4 pt-2 gap-4">
-      <div :if={@products == []}>
+      <div :if={@products == []} class="col-span-2">
         <div class="mx-4 my-4">
           <h2 class="text-xl leading-[30px] font-semibold text-neutral-50">{@org.name} doesn't have any products yet</h2>
           <p class="text-sm text-neutral-400">Create a new product to get started.</p>
         </div>
       </div>
-      <div :for={product <- @products} class="flex justify-between gap-[16px] p-4 w-full border border-base-700 rounded bg-gradient-to-r from-base-800/50 to-base-800">
-        <div class="text-neutral-50 font-semibold text-sm">
+      <div
+        :for={product <- @products}
+        class="flex justify-between gap-4 p-4 w-full border border-base-700 rounded bg-gradient-to-r from-base-800 to-base-800/0 bg-cover bg-center relative overflow-hidden hover:border-base-500 transition-colors"
+        style={@banner_urls[product.id] && "background-image: url('#{@banner_urls[product.id]}');"}
+      >
+        <div :if={@banner_urls[product.id]} class="absolute inset-0 bg-gradient-to-r from-base-900 to-base-900/0"></div>
+        <div class="text-neutral-50 font-semibold text-sm relative">
           <.link navigate={~p"/org/#{@org}/#{product}/devices"}>{product.name}</.link>
         </div>
-        <div class="flex gap-4 text-sm font-medium">
+        <div class="flex gap-4 text-sm font-medium relative">
           <div class="flex items-center gap-1.5">
             <div class="size-2 bg-green-500 rounded-full"></div>
             <span class="text-base-300">{get_in(@product_device_info, [product.id, :online]) || 0}</span>

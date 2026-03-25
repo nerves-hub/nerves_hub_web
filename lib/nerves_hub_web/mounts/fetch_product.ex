@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Mounts.FetchProduct do
   import Phoenix.Component
 
+  alias NervesHub.Products
+
   def on_mount(:default, %{"product_name" => product_name}, _session, socket) do
     %{org: org} = socket.assigns
 
@@ -12,6 +14,8 @@ defmodule NervesHubWeb.Mounts.FetchProduct do
     if !socket.assigns.product do
       raise NervesHubWeb.NotFoundError
     end
+
+    socket = assign(socket, :banner_url, Products.banner_url(socket.assigns.product))
 
     {:cont, socket}
   end

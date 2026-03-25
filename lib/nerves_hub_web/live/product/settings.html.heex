@@ -2,9 +2,9 @@
   <div class="h-[56px] shrink-0 flex justify-end bg-surface-muted border-b border-base-700 pl-6 items-center"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+    <NervesHubWeb.Layouts.page_heading current_scope={@current_scope}>
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Product Settings</h1>
-    </div>
+    </NervesHubWeb.Layouts.page_heading>
 
     <div class="flex flex-col items-start justify-between gap-4 p-6">
       <div class="flex flex-col w-full bg-base-900 border border-base-700 rounded">
@@ -15,6 +15,60 @@
           <div class="w-1/2 flex flex-col gap-6">
             <.input field={@form[:name]} label="Name" hint="Once created, a product name cannot be changed" disabled />
           </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col w-full bg-base-900 border border-base-700 rounded">
+        <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
+          <div class="text-base text-neutral-50 font-medium">Banner Image</div>
+        </div>
+        <div class="p-6 flex flex-col gap-4">
+          <p class="text-sm text-base-400">
+            Upload a banner image for your product. Recommended size: 1500x250 pixels (30:5 ratio). Max file size: 5MB. Accepted formats: JPG, PNG, WebP.
+          </p>
+
+          <div :if={@banner_url} class="flex flex-col gap-3">
+            <img src={@banner_url} alt="Product banner" class="w-full max-w-[750px] rounded border border-base-700 object-cover" />
+            <div>
+              <button
+                type="button"
+                class="flex px-3 py-1.5 gap-2 rounded bg-base-800 border border-red-500 hover:bg-red-100"
+                phx-click="remove-banner"
+                data-confirm="Are you sure you want to remove the banner image?"
+                disabled={!authorized?(:"product:update", @current_scope)}
+              >
+                <span class="text-sm font-medium text-red-500">Remove banner</span>
+              </button>
+            </div>
+          </div>
+
+          <form phx-change="validate-banner">
+            <div class="flex items-center gap-4">
+              <div class="flex px-3 py-1.5 gap-2 rounded bg-base-800 border border-base-600 hover:cursor-pointer">
+                <label for={@uploads.banner.ref} class="text-sm font-medium text-base-300 hover:cursor-pointer">
+                  {if @banner_url, do: "Replace banner", else: "Upload banner"}
+                </label>
+                <.live_file_input upload={@uploads.banner} class="hidden" />
+              </div>
+            </div>
+
+            <div :for={entry <- @uploads.banner.entries} class="mt-4 flex flex-col gap-2">
+              <div class="flex items-center gap-4">
+                <div class="flex-1">
+                  <div class="flex justify-between mb-1">
+                    <span class="text-sm text-base-300">{entry.client_name}</span>
+                    <span class="text-sm text-base-300">{entry.progress}%</span>
+                  </div>
+                  <div class="w-full bg-base-700 rounded-full h-2">
+                    <div class="bg-indigo-500 h-2 rounded-full animate-pulse" style={"width: #{entry.progress}%"}></div>
+                  </div>
+                </div>
+              </div>
+              <div :for={err <- upload_errors(@uploads.banner, entry)} class="text-red-500 text-sm">
+                {upload_error_to_string(err)}
+              </div>
+            </div>
+          </form>
         </div>
       </div>
 

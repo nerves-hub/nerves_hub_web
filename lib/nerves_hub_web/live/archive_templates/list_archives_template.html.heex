@@ -2,7 +2,7 @@
   <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
 
   <div class="h-0 flex-1 overflow-y-auto" phx-drop-target={@uploads.archive.ref}>
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+    <NervesHubWeb.Layouts.page_heading current_scope={@current_scope}>
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Archives</h1>
       <div class="rounded-sm bg-base-800 text-xs text-base-300 px-1.5 py-0.5 mr-auto">
         {@pager_meta.total_count}
@@ -33,7 +33,7 @@
           <.live_file_input upload={@uploads.archive} class="hidden" />
         </div>
       </form>
-    </div>
+    </NervesHubWeb.Layouts.page_heading>
     <%= if Enum.any?(@archives) do %>
       <div class="listing">
         <table>
