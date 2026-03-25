@@ -25,6 +25,7 @@ defmodule NervesHub.Repo.Migrations.AddMissingForeignKeyIndexes do
     create index(:jitp, [:product_id], concurrently: true)
     create index(:org_keys, [:created_by_id], concurrently: true)
     create index(:org_users, [:user_id], concurrently: true)
+    create index(:org_users, [:org_id], concurrently: true)
     create index(:pinned_devices, [:device_id], concurrently: true)
     create index(:pinned_devices, [:user_id], concurrently: true)
     create index(:product_shared_secret_auth, [:product_id], concurrently: true)
