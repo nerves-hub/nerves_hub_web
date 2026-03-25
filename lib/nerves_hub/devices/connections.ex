@@ -224,28 +224,45 @@ defmodule NervesHub.Devices.Connections do
   def clean_stale_connections() do
     interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
     jitter = Application.get_env(:nerves_hub, :device_last_seen_update_interval_jitter_seconds)
+    update_limit = Application.get_env(:nerves_hub, :device_connection_update_limit)
 
     max_jitter = ceil(jitter / 60)
-
     some_time_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + max_jitter + 1))
+    now = DateTime.utc_now()
 
-    {count, _} =
+    query =
       DeviceConnection
       |> where(status: :connected)
       |> where([d], d.last_seen_at < ^some_time_ago)
+      |> select([dc], dc.id)
+      |> limit(^update_limit)
+      |> order_by(:last_seen_at)
+
+    {update_count, _} =
+      DeviceConnection
+      |> where([d], d.id in subquery(query))
       |> Repo.update_all(
-        set: [
-          status: :disconnected,
-          disconnected_at: DateTime.utc_now(),
-          disconnected_reason: "Stale connection"
-        ]
+        [
+          set: [
+            status: :disconnected,
+            disconnected_at: now,
+            disconnected_reason: "Stale connection"
+          ]
+        ],
+        timeout: 60_000
       )
 
-    if count > 0 do
-      :telemetry.execute([:nerves_hub, :devices, :stale_connections], %{count: count})
+    if update_count > 0 do
+      :telemetry.execute([:nerves_hub, :devices, :stale_connections], %{count: update_count})
     end
 
-    :ok
+    if update_count < update_limit do
+      :ok
+    else
+      # relax stress on Ecto pool and go again
+      Process.sleep(2000)
+      clean_stale_connections()
+    end
   end
 
   def delete_old_connections() do
@@ -268,7 +285,7 @@ defmodule NervesHub.Devices.Connections do
       |> where([d], d.id in subquery(query))
       |> Repo.delete_all(timeout: 60_000)
 
-    if delete_count == 0 do
+    if delete_count < delete_limit do
       :ok
     else
       # relax stress on Ecto pool and go again
