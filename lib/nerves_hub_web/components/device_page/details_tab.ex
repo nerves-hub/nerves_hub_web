@@ -780,43 +780,35 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("add-tag", %{"tag" => tag}, socket) do
-    tag = String.trim(tag)
-
-    if tag == "" or String.contains?(tag, " ") do
-      socket
-      |> put_flash(:error, "Tags cannot be empty or contain spaces.")
-      |> halt()
-    else
-      %{device: device, user: user} = socket.assigns
-      current_tags = device.tags || []
-
-      if tag in current_tags do
-        socket
-        |> put_flash(:info, "Tag \"#{tag}\" already exists on this device.")
-        |> halt()
-      else
-        new_tags = current_tags ++ [tag]
-        {:ok, device} = Devices.tag_device(device, user, new_tags)
-
+    Devices.add_tag(socket.assigns.device, socket.assigns.user, tag)
+    |> case do
+      {:ok, device} ->
         socket
         |> assign(:device, device)
-        |> put_flash(:info, "Tag \"#{tag}\" added.")
+        |> put_flash(:info, "Tag \"#{tag}\" added successfully.")
         |> halt()
-      end
+
+      {:error, msg} ->
+        socket
+        |> put_flash(:error, "Failed to add tag: #{msg}")
+        |> halt()
     end
   end
 
   def hooked_event("remove-tag", %{"tag" => tag}, socket) do
-    %{device: device, user: user} = socket.assigns
-    current_tags = device.tags || []
-    new_tags = List.delete(current_tags, tag)
+    Devices.remove_tag(socket.assigns.device, socket.assigns.user, tag)
+    |> case do
+      {:ok, device} ->
+        socket
+        |> assign(:device, device)
+        |> put_flash(:info, "Tag \"#{tag}\" removed successfully.")
+        |> halt()
 
-    {:ok, device} = Devices.tag_device(device, user, new_tags)
-
-    socket
-    |> assign(:device, device)
-    |> put_flash(:info, "Tag \"#{tag}\" removed.")
-    |> halt()
+      {:error, msg} ->
+        socket
+        |> put_flash(:error, "Failed to remove tag: #{msg}")
+        |> halt()
+    end
   end
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}

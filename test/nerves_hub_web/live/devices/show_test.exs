@@ -1452,7 +1452,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "beta")
       |> fill_in("Add tag", with: "new-tag")
       |> click_button("Add")
-      |> assert_has("div", text: "Tag \"new-tag\" added.", timeout: 1_000)
+      |> assert_has("div", text: "Tag \"new-tag\" added successfully.", timeout: 1_000)
       |> assert_has("span", text: "new-tag")
       |> assert_has("span", text: "beta")
     end
@@ -1466,7 +1466,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> unwrap(fn view ->
         render_click(view, "remove-tag", %{"tag" => "beta"})
       end)
-      |> assert_has("div", text: "Tag \"beta\" removed.", timeout: 1_000)
+      |> assert_has("div", text: "Tag \"beta\" removed successfully.", timeout: 1_000)
       |> refute_has("span", text: "beta", exact: true)
       |> assert_has("span", text: "beta-edge")
     end

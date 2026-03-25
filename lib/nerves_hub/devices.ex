@@ -1292,6 +1292,33 @@ defmodule NervesHub.Devices do
     update_device_with_audit(device, params, user, description)
   end
 
+  @spec add_tag(Device.t(), User.t(), String.t()) :: {:ok, Device.t()} | {:error, any()} | {:error, any(), any(), any()}
+  def add_tag(%Device{} = device, user, tag) do
+    tag = String.trim(tag)
+
+    if tag == "" or String.contains?(tag, " ") do
+      {:error, "Tags cannot be empty or contain spaces."}
+    else
+      current_tags = device.tags || []
+
+      if tag in current_tags do
+        {:error, "Tag \"#{tag}\" already exists on this device."}
+      else
+        new_tags = current_tags ++ [tag]
+        tag_device(device, user, new_tags)
+      end
+    end
+  end
+
+  @spec remove_tag(Device.t(), User.t(), String.t()) ::
+          {:ok, Device.t()} | {:error, any()} | {:error, any(), any(), any()}
+  def remove_tag(%Device{} = device, user, tag) do
+    current_tags = device.tags || []
+    new_tags = List.delete(current_tags, tag)
+
+    tag_device(device, user, new_tags)
+  end
+
   @spec update_device_with_audit(Device.t(), map(), User.t(), String.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def update_device_with_audit(device, params, user, description) do
