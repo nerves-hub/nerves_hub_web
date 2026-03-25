@@ -1,6 +1,6 @@
 <div class="flex h-full">
-  <div class="w-[264px] h-full shrink-0 flex flex-col border-r border-base-700 bg-surface-muted">
-    <div class="h-14 pl-6 flex shrink-0 items-center border-b border-base-700">
+  <div class="bg-surface-muted border-base-700 flex h-full w-[264px] shrink-0 flex-col border-r">
+    <div class="border-base-700 flex h-14 shrink-0 items-center border-b pl-6">
       <.link navigate={~p"/orgs"}>
         <svg width="111" height="24" viewBox="0 0 111 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path
@@ -19,22 +19,22 @@
       </.link>
     </div>
 
-    <div class="flex flex-col border-base-700 relative">
+    <div class="border-base-700 relative flex flex-col">
       <div
         :if={@current_scope.org}
-        class="product-selector relative flex cursor-pointer h-[90px] py-4 pl-6 pr-3 border-b border-base-700 shrink-0 items-center"
+        class="border-base-700 product-selector relative flex h-[90px] shrink-0 cursor-pointer items-center border-b py-4 pr-3 pl-6"
         phx-click={toggle_product_picker()}
       >
         <div>
           <div class="org-selector-title">{@current_scope.org.name}</div>
-          <div :if={@current_scope.product} class="product-selector-title flex gap-2 items-center">
+          <div :if={@current_scope.product} class="product-selector-title flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10" fill="none">
               <path d="M1 1V5C1 7.20914 2.79086 9 5 9H9" stroke="#71717A" stroke-width="1.2" stroke-linecap="round" />
             </svg>
             <span>{@current_scope.product.name}</span>
           </div>
         </div>
-        <div class="product-selector-icon ml-auto p-1.5 rounded">
+        <div class="product-selector-icon ml-auto rounded p-1.5">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M8.33203 5.83398L12.4987 10.0007L8.33203 14.1673" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
@@ -43,22 +43,22 @@
       <div
         :if={@current_scope.org}
         id="product-picker"
-        class="w-[264px] absolute top-0 left-[265px] hidden"
+        class="absolute top-0 left-[265px] hidden w-[264px]"
       >
-        <div class="fixed top-0 left-[265px] w-full h-full bg-surface/70 z-30"></div>
+        <div class="bg-surface/70 fixed top-0 left-[265px] z-30 size-full"></div>
         <div class="relative">
           <div
-            class="relative p-3 border-r border-b border-base-700 bg-surface-muted z-50 max-h-[612px] overflow-y-scroll overscroll-none scrollbar-thin scrollbar-thumb-base-800 scrollbar-track-base-900"
+            class="bg-surface-muted border-base-700 scrollbar-thin scrollbar-thumb-base-800 scrollbar-track-base-900 relative z-50 max-h-[612px] overflow-y-scroll overscroll-none border-r border-b p-3"
             phx-window-keydown={hide_product_picker()}
             phx-key="escape"
             phx-click-away={toggle_product_picker()}
           >
             <div :for={org <- @current_scope.user.orgs} class="flex flex-col gap-2 p-4">
-              <.link navigate={~p"/org/#{org.name}"} class="flex items-center gap-3 group">
+              <.link navigate={~p"/org/#{org.name}"} class="group flex items-center gap-3">
                 <div class="org-avatar">
                   {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
                 </div>
-                <h3 class="subtitle underline-base underline-left underline-color-indigo-500 group-hover:underline-expanded">{org.name}</h3>
+                <h3 class="group-hover:underline-expanded subtitle underline-base underline-color-indigo-500 underline-left">{org.name}</h3>
               </.link>
               <div class="flex flex-col gap-1.5">
                 <div :for={product <- org.products}>
@@ -69,7 +69,7 @@
               </div>
             </div>
           </div>
-          <div class="absolute -inset-0.5 rounded-md translate-x-1 translate-y-1 blur-sm bg-gradient-to-br from-alert via-success to-primary z-40"></div>
+          <div class="from-alert to-primary via-success absolute -inset-0.5 z-40 translate-1 rounded-md bg-linear-to-br blur-sm"></div>
         </div>
       </div>
     </div>
@@ -80,30 +80,30 @@
       </nav>
     </div>
 
-    <div class="sticky bottom-0 mt-auto col-start-1 col-end-2">
-      <div id="user-menu" class="mb-4 mx-2 hidden border border-base-700 bg-surface-muted rounded-md">
-        <a href="https://docs.nerves-hub.org" class="block p-2 hover:bg-base-700">Documentation</a>
-        <.link navigate={~p"/account"} class="block p-2 hover:bg-base-700">Account</.link>
-        <.link href={~p"/logout"} class="block p-2 hover:bg-base-700">Log out</.link>
+    <div class="sticky bottom-0 col-start-1 col-end-2 mt-auto">
+      <div id="user-menu" class="bg-surface-muted border-base-700 mx-2 mb-4 hidden rounded-md border">
+        <a href="https://docs.nerves-hub.org" class="hover:bg-base-700 block p-2">Documentation</a>
+        <.link navigate={~p"/account"} class="hover:bg-base-700 block p-2">Account</.link>
+        <.link href={~p"/logout"} class="hover:bg-base-700 block p-2">Log out</.link>
       </div>
-      <a id="user-menu-toggle" href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-white hover:bg-indigo-700" phx-click={toggle_user_menu()}>
-        <div :if={!@current_scope.user.profile_picture_url} class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
+      <a id="user-menu-toggle" href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm/6 font-semibold text-white hover:bg-indigo-700" phx-click={toggle_user_menu()}>
+        <div :if={!@current_scope.user.profile_picture_url} class="relative inline-flex size-8 items-center justify-center overflow-hidden rounded-full bg-gray-100 pt-0.5 dark:bg-gray-600">
           <span class="font-medium text-gray-600 dark:text-gray-300">{String.split(@current_scope.user.name) |> Enum.map(fn w -> String.at(w, 0) end)}</span>
         </div>
-        <div :if={@current_scope.user.profile_picture_url} class="relative inline-flex items-center justify-center w-8 h-8 overflow-hidden">
-          <img src={@current_scope.user.profile_picture_url} alt="User Profile Picture" class="w-full h-full object-cover rounded-full" />
+        <div :if={@current_scope.user.profile_picture_url} class="relative inline-flex size-8 items-center justify-center overflow-hidden">
+          <img src={@current_scope.user.profile_picture_url} alt="User Profile Picture" class="size-full rounded-full object-cover" />
         </div>
 
         <div class="">
           <div class="sr-only">Your profile</div>
           <div aria-hidden="true" class="text-sm font-light">{@current_scope.user.name}</div>
-          <div aria-hidden="true" class="text-xs font-light text-base-400">{@current_scope.user.email}</div>
+          <div aria-hidden="true" class="text-base-400 text-xs font-light">{@current_scope.user.email}</div>
         </div>
       </a>
     </div>
   </div>
 
-  <div class="h-full w-full flex flex-col">
+  <div class="flex size-full flex-col">
     <.flash_group flash={@flash} />
 
     {render_slot(@inner_block)}

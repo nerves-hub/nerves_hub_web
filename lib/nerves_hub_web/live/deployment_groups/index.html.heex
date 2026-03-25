@@ -1,15 +1,15 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
+  <div class="bg-surface-muted border-base-700 flex h-[56px] justify-end border-b"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Deployment Groups</h1>
-      <div class="rounded-sm bg-base-800 text-xs text-base-300 px-1.5 py-0.5 mr-auto">{@pager_meta.total_count}</div>
-      <form :if={Enum.any?(@entries) || @currently_filtering} class="flex items-center h-full" phx-change="update-filters">
-        <div class="grid grid-cols-1 h-full">
+      <div class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs">{@pager_meta.total_count}</div>
+      <form :if={Enum.any?(@entries) || @currently_filtering} class="flex h-full items-center" phx-change="update-filters">
+        <div class="grid h-full grid-cols-1">
           <input
             type="text"
-            class="col-start-1 row-start-1 block h-full w-full bg-surface-muted text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
+            class="bg-surface-muted border-base-600 text-base-400 col-start-1 row-start-1 block size-full gap-2 rounded border px-3 py-1 text-sm font-normal"
             name="search"
             id="deployment_group_search_top"
             placeholder="Search..."
@@ -39,7 +39,7 @@
 
     <%= if Enum.empty?(@entries) do %>
       <!-- TODO: Go over empty-state with new design -->
-      <div class="h-full pb-16 flex items-center justify-center">
+      <div class="flex h-full items-center justify-center pb-16">
         <span class="text-xl font-medium text-neutral-50">{@current_scope.product.name} doesn’t have any deployment groups configured.</span>
       </div>
     <% else %>
@@ -47,7 +47,7 @@
         <table class="">
           <thead>
             <tr>
-              <th phx-click="sort" phx-value-sort="name" class="cursor-pointer w-1/5">
+              <th phx-click="sort" phx-value-sort="name" class="w-1/5 cursor-pointer">
                 <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
               <th phx-click="sort" phx-value-sort="platform" class="cursor-pointer">
@@ -62,7 +62,7 @@
               <th phx-click="sort" phx-value-sort="releases_count" class="cursor-pointer">
                 <Sorting.sort_icon text="Releases" field="releases_count" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
-              <th phx-click="sort" phx-value-sort="firmware_version" class="cursor-pointer min-w-fit">
+              <th phx-click="sort" phx-value-sort="firmware_version" class="min-w-fit cursor-pointer">
                 <Sorting.sort_icon text="Firmware version" field="firmware_version" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
               <th>
@@ -74,10 +74,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr :for={deployment_group <- @entries} class={["border-b border-base-800"]}>
+            <tr :for={deployment_group <- @entries} class={["border-base-800 border-b"]}>
               <td>
                 <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{deployment_group}"}>
-                  <div class="h-[40px] w-full flex gap-[8px] items-center">
+                  <div class="flex h-[40px] w-full items-center gap-[8px]">
                     <svg class={["size-1.5", (deployment_group.is_active && "fill-success") || "fill-base-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
                       <circle cx="3" cy="3" r="3" />
                     </svg>
@@ -104,12 +104,12 @@
               </td>
 
               <td class="min-w-fit">
-                <span class="inline-block py-1 px-2 items-center rounded bg-base-800 whitespace-nowrap">
+                <span class="bg-base-800 inline-block items-center rounded px-2 py-1 whitespace-nowrap">
                   <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware/#{deployment_group.current_release.firmware}"} class="flex items-center">
-                    <span class="text-sm text-base-300 mr-1">
+                    <span class="text-base-300 mr-1 text-sm">
                       {deployment_group.current_release.firmware.version} ({String.slice(deployment_group.current_release.firmware.uuid, 0..7)})
                     </span>
-                    <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <svg class="size-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
                         d="M8 10V8M8 6V5.99333M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
                         stroke="#A1A1AA"

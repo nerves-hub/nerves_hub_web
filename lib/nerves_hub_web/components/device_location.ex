@@ -96,7 +96,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
 
   defp location_header(assigns) do
     ~H"""
-    <div class="help-text mb-1 tooltip-label">
+    <div class="help-text tooltip-label mb-1">
       <span>Device location</span>
       <span class="tooltip-info"></span>
       <span class="tooltip-text">{@tooltip}</span>

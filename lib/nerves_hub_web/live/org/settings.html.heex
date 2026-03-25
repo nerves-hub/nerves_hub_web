@@ -1,19 +1,19 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
+  <div class="bg-surface-muted border-base-700 flex h-[56px] justify-end border-b"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Organization Settings</h1>
     </div>
 
-    <div class="px-6 py-4 max-w-[650px]">
+    <div class="max-w-[650px] px-6 py-4">
       <.form :let={f} for={@form} phx-submit="update">
         <div class="mb-4">
-          <label for="name_input" class="block text-sm font-medium text-base-300 mb-2">
-            Organization Name <span class="text-xs text-base-500 ml-2">(Must be one word)</span>
+          <label for="name_input" class="text-base-300 mb-2 block text-sm font-medium">
+            Organization Name <span class="text-base-500 ml-2 text-xs">(Must be one word)</span>
           </label>
           {text_input(f, :name, class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "name_input")}
-          <div class="text-sm text-red-400 mt-1">{error_tag(f, :name)}</div>
+          <div class="mt-1 text-sm text-red-400">{error_tag(f, :name)}</div>
         </div>
 
         <div class="flex gap-3">
@@ -23,9 +23,9 @@
         </div>
       </.form>
 
-      <div class="border-t border-base-700 mt-8 pt-6">
-        <h3 class="text-base font-semibold text-neutral-50 mb-3">Danger Zone</h3>
-        <p class="text-sm text-base-400 mb-4">Once you delete an organization, there is no going back. Please be certain.</p>
+      <div class="border-base-700 mt-8 border-t pt-6">
+        <h3 class="mb-3 text-base font-semibold text-neutral-50">Danger Zone</h3>
+        <p class="text-base-400 mb-4 text-sm">Once you delete an organization, there is no going back. Please be certain.</p>
         <.button style="danger" type="link" patch={~p"/org/#{@org}/settings/delete"}>
           Delete Organization
         </.button>

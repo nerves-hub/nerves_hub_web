@@ -20,7 +20,9 @@ defmodule NervesHubWeb.Components.Pager do
           <path d="M11.6667 5.83337L7.5 10L11.6667 14.1667" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </button>
-      <button :for={page <- @start_range..@end_range} phx-click="paginate" phx-value-page={page} {@rest} class={"pager-button #{if page == @page_number do "active-page" end}"}>
+      <button :for={page <- @start_range..@end_range} phx-click="paginate" phx-value-page={page} {@rest} class={"pager-button #{if page == @page_number do
+      "active-page"
+    end}"}>
         {page}
       </button>
       <button :if={@total_pages > @distance} class="pager-button" phx-click="paginate" phx-value-page="…" {@rest}>…</button>
@@ -40,7 +42,7 @@ defmodule NervesHubWeb.Components.Pager do
 
   def render_with_page_sizes(assigns) do
     ~H"""
-    <div class="sticky bottom-0 h-16 w-full shrink-0 flex flex-row border-0 bg-surface border-t border-t-base-700 px-6 py-4 z-10">
+    <div class="bg-surface border-t-base-700 sticky bottom-0 z-10 flex h-16 w-full shrink-0 flex-row border-0 border-t px-6 py-4">
       <%= for {size, index} <- Enum.with_index(@page_sizes) do %>
         <button
           :if={(index == 0 && @pager.total_count > size) || @pager.total_count > Enum.at(@page_sizes, index - 1)}

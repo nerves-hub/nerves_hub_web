@@ -1,10 +1,10 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
+  <div class="bg-surface-muted border-base-700 flex h-[56px] justify-end border-b"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Support Scripts</h1>
-      <div class="rounded-sm bg-base-800 text-xs text-base-300 px-1.5 py-0.5 mr-auto">
+      <div class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs">
         {@pager_meta.total_count}
       </div>
 
@@ -29,9 +29,9 @@
           </tr>
         </thead>
         <tbody>
-          <tr :for={script <- @scripts} class="border-b border-base-800">
+          <tr :for={script <- @scripts} class="border-base-800 border-b">
             <td class="h-[52px]">
-              <.link class="size-full flex items-center" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/#{script}/edit"}>
+              <.link class="flex size-full items-center" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/#{script}/edit"}>
                 {script.name}
               </.link>
             </td>
@@ -52,7 +52,7 @@
       </table>
     </div>
 
-    <div :if={Enum.empty?(@scripts)} class="h-full pb-16 flex items-center justify-center">
+    <div :if={Enum.empty?(@scripts)} class="flex h-full items-center justify-center pb-16">
       <span class="text-xl font-medium text-neutral-50">{@current_scope.product.name} doesn’t have any Support Scripts.</span>
     </div>
   </div>

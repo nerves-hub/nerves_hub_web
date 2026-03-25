@@ -12,10 +12,10 @@ defmodule NervesHubWeb.Components.PinnedDevices do
   def render(assigns) do
     ~H"""
     <div>
-      <div class="mt-12 h-[88px] py-6 flex items-center justify-between">
+      <div class="mt-12 flex h-[88px] items-center justify-between py-6">
         <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">My Pinned Devices</h1>
       </div>
-      <div class="bg-base-900 border border-base-700 rounded">
+      <div class="bg-base-900 border-base-700 rounded border">
         <div class="flex flex-col">
           <div class="listing">
             <table class="">
@@ -30,9 +30,9 @@ defmodule NervesHubWeb.Components.PinnedDevices do
                 </tr>
               </thead>
               <tbody>
-                <tr :for={device <- @devices} class="border-b last:border-0 border-base-800 relative last:rounded-b">
+                <tr :for={device <- @devices} class="border-base-800 relative border-b last:rounded-b last:border-0">
                   <td>
-                    <div class="flex gap-[8px] items-center">
+                    <div class="flex items-center gap-[8px]">
                       <span title="status">
                         <%= if @statuses[device.identifier] == "online" do %>
                           <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
@@ -44,20 +44,20 @@ defmodule NervesHubWeb.Components.PinnedDevices do
                           </svg>
                         <% end %>
                       </span>
-                      <.link navigate={~p"/org/#{device.org.name}/#{device.product.name}/devices/#{device.identifier}"} class="ff-m ">
+                      <.link navigate={~p"/org/#{device.org.name}/#{device.product.name}/devices/#{device.identifier}"} class="ff-m">
                         {device.identifier}
                       </.link>
                     </div>
                   </td>
 
                   <td>
-                    <div class="flex gap-[8px] items-center justify-center">
+                    <div class="flex items-center justify-center gap-[8px]">
                       <HealthStatus.render device_id={device.id} health={device.latest_health} />
                     </div>
                   </td>
 
                   <td>
-                    <div class="flex gap-[8px] items-center">
+                    <div class="flex items-center gap-[8px]">
                       <span>
                         <%= if is_nil(device.firmware_metadata) do %>
                           -
@@ -96,9 +96,9 @@ defmodule NervesHubWeb.Components.PinnedDevices do
                     </span>
                   </td>
 
-                  <td class="max-w-[250px] relative">
+                  <td class="relative max-w-[250px]">
                     <span class="pinned-device-tag-gradient-mask" />
-                    <div class="flex items-center text-nowrap gap-[4px] scrollable-inner">
+                    <div class="scrollable-inner flex items-center gap-[4px] text-nowrap">
                       <%= if !is_nil(device.tags) do %>
                         <%= for tag <- device.tags do %>
                           <span class="tag">{tag}</span>
@@ -108,7 +108,7 @@ defmodule NervesHubWeb.Components.PinnedDevices do
                   </td>
                   <td>
                     <div class="org-selector-title">{device.org.name}</div>
-                    <div class="product-selector-title flex gap-2 items-center">
+                    <div class="product-selector-title flex items-center gap-2">
                       <span>{device.product.name}</span>
                     </div>
                   </td>
@@ -117,7 +117,7 @@ defmodule NervesHubWeb.Components.PinnedDevices do
             </table>
           </div>
 
-          <div :if={@total_count > @device_limit} phx-click="toggle-expand-devices" class="px-6 py-2 text-center text-xs font-normal text-base-400  hover:text-neutral-50 hover:cursor-pointer">
+          <div :if={@total_count > @device_limit} phx-click="toggle-expand-devices" class="text-base-400 px-6 py-2 text-center text-xs font-normal hover:cursor-pointer hover:text-neutral-50">
             {if @show_all?, do: "Show less", else: "Show all #{@total_count} devices"}
           </div>
         </div>

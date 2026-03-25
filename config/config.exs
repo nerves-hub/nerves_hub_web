@@ -142,7 +142,7 @@ config :phoenix,
 config :swoosh, :api_client, Finch
 
 config :tailwind,
-  version: "4.2.1",
+  version: "4.2.2",
   default: [
     args: ~w(
       --input=assets/css/app.css
