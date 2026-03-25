@@ -19,4 +19,9 @@ defmodule NervesHub.Telemetry.Customizations do
 
     :ok
   end
+
+  def handle_request([:bandit, :request, :stop], _measurements, _metadata, _config) do
+    # Handle cases where conn is not present (e.g., timeouts, errors)
+    :ok
+  end
 end
