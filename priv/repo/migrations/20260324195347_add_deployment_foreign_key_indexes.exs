@@ -6,19 +6,19 @@ defmodule NervesHub.Repo.Migrations.AddDeploymentForeignKeyIndexes do
 
   def change do
     # Index for join from deployment_groups to deployment_releases
-    create index(:deployments, [:current_deployment_release_id],
+    create_if_not_exists index(:deployments, [:current_deployment_release_id],
              concurrently: true,
              name: :deployments_current_release_id_index
            )
 
     # Index for join from deployment_releases to firmwares
-    create index(:deployment_releases, [:firmware_id],
+    create_if_not_exists index(:deployment_releases, [:firmware_id],
              concurrently: true,
              name: :deployment_releases_firmware_id_index
            )
 
     # Index for join from deployment_releases to archives
-    create index(:deployment_releases, [:archive_id],
+    create_if_not_exists index(:deployment_releases, [:archive_id],
              concurrently: true,
              name: :deployment_releases_archive_id_index
            )
