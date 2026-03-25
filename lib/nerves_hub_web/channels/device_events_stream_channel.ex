@@ -3,12 +3,20 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   Phoenix Channel for external services to subscribe to device updates.
   Currently only supports firmware update progress.
 
-  External services can join device-specific channels using the topic pattern "device:\#{device_identifier}"
+  If the running platform has the application config `:platform_unique_device_identifiers`
+  set to true (the default), external services can join device-specific channels
+  using the topic pattern "device:\#{device_id}".
+
+  And if the running platform has the application config is set to false, external services
+  can join device-specific channels using the topic pattern "org:\#{org_name}:device:\#{device_id}".
   """
 
   use Phoenix.Channel
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Scope
+  alias NervesHub.Devices
   alias NervesHubWeb.Helpers.Authorization
   alias Phoenix.Socket.Broadcast
 
@@ -17,12 +25,43 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   @impl Phoenix.Channel
   def join("device:" <> device_identifier, _params, socket) do
     # Socket already has authenticated user, just validate device access
-    if authorized?(socket.assigns.user, device_identifier) do
-      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device_identifier}:internal")
+    case authorized?(socket.assigns.user, device_identifier) do
+      %OrgUser{} = org_user ->
+        scope =
+          socket.assigns.user
+          |> Scope.for_user()
+          |> Scope.put_org(org_user.org)
 
-      {:ok, socket}
-    else
-      {:error, %{reason: "unauthorized"}}
+        {:ok, device} = Devices.get_by_identifier(scope, device_identifier)
+
+        :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}:internal")
+
+        {:ok, socket}
+
+      _ ->
+        {:error, %{reason: "unauthorized"}}
+    end
+  end
+
+  def join(org_name_and_device_identifier, _params, socket) do
+    ["org", org_name, "device", device_identifier] = String.split(org_name_and_device_identifier, ":")
+
+    # Socket already has authenticated user, just validate device access
+    case authorized?(socket.assigns.user, org_name, device_identifier) do
+      %OrgUser{} = org_user ->
+        scope =
+          socket.assigns.user
+          |> Scope.for_user()
+          |> Scope.put_org(org_user.org)
+
+        {:ok, device} = Devices.get_by_identifier(scope, device_identifier)
+
+        :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}:internal")
+
+        {:ok, socket}
+
+      _ ->
+        {:error, %{reason: "unauthorized"}}
     end
   end
 
@@ -41,12 +80,24 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
   end
 
   defp authorized?(user, device_identifier) do
-    case Accounts.find_org_user_with_device_identifier(user, device_identifier) do
-      nil ->
-        false
+    Application.get_env(:nerves_hub, :platform_unique_device_identifiers) &&
+      case Accounts.find_org_user_with_device_identifier(user, device_identifier) do
+        nil ->
+          false
 
-      org_user ->
-        Authorization.authorized?(:"device:view", org_user)
+        org_user ->
+          Authorization.authorized?(:"device:view", org_user) && org_user
+      end
+  end
+
+  defp authorized?(user, org_name, device_identifier) do
+    with %OrgUser{} = org_user <- Accounts.find_org_user_with_device_identifier(user, device_identifier),
+         true <- org_user.org.name == org_name,
+         true <- Authorization.authorized?(:"device:view", org_user) do
+      org_user
+    else
+      _ ->
+        false
     end
   end
 end

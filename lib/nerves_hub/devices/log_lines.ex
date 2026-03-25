@@ -57,7 +57,7 @@ defmodule NervesHub.Devices.LogLines do
         _ =
           ChannelServer.broadcast(
             NervesHub.PubSub,
-            "device:#{device.identifier}:internal",
+            "device:#{device.id}:internal",
             "logs:received",
             log_line
           )
