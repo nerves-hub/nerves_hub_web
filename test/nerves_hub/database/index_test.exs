@@ -35,6 +35,7 @@ defmodule NervesHub.Database.IndexTest do
             FROM pg_catalog.pg_index i
             WHERE i.indrelid = t.conrelid
             AND i.indkey[0] = t.conkey[1]
+            AND i.indpred IS NULL
           )
           )
           SELECT  referencing_tbl || '.' || referencing_column as column
