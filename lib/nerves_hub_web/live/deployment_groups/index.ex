@@ -43,7 +43,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   @sort_types %{sort_direction: :string, sort: :string}
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+  @decorate requires_permission(:"deployment_group:list")
+  def mount(_params, _session, socket) do
+    scope = socket.assigns.current_scope
     deployment_groups = ManagedDeployments.get_deployment_groups_by_product(scope.product)
     counts = ManagedDeployments.get_device_counts_by_product(scope.product)
 
@@ -71,6 +73,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"deployment_group:list")
   def handle_params(params, _url, socket) do
     filters = Map.merge(@default_filters, filter_changes(params))
     pagination_changes = pagination_changes(params)
@@ -91,6 +94,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"deployment_group:list")
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -100,6 +104,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"deployment_group:list")
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -109,11 +114,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"deployment_group:list")
   def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
     {:noreply, assign(socket, :show_filters, toggle != "true")}
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"deployment_group:list")
   def handle_event("update-filters", params, socket) do
     socket
     |> push_patch(to: self_path(socket, params))
@@ -121,6 +128,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"deployment_group:list")
   def handle_event("reset-filters", _params, socket) do
     socket
     |> push_patch(to: self_path(socket, @default_filters))
@@ -132,6 +140,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
+    socket = authorize!(socket, :"deployment_group:list", socket.assigns.current_scope.product)
     %{sort_direction: sort_direction} = socket.assigns
 
     # switch sort direction for column because
@@ -146,6 +155,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   # User has clicked a new column to sort
   @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, socket) do
+    socket = authorize!(socket, :"deployment_group:list", socket.assigns.current_scope.product)
     new_params = %{sort_direction: "asc", sort: value}
 
     socket

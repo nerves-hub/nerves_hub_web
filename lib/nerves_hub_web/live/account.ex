@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Account do
   embed_templates("account_templates/*")
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     socket
     |> assign(:password_changeset, Accounts.change_user_password(scope.user))
@@ -20,6 +21,7 @@ defmodule NervesHubWeb.Live.Account do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def handle_params(params, _url, socket) do
     socket
     |> apply_action(socket.assigns.live_action, params)
@@ -41,6 +43,7 @@ defmodule NervesHubWeb.Live.Account do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def handle_event("update-details", %{"user" => params}, socket) do
     socket.assigns.current_scope.user
     |> Accounts.update_user(params)
@@ -59,6 +62,7 @@ defmodule NervesHubWeb.Live.Account do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_no_permission()
   def handle_event("update-password", %{"user" => %{"current_password" => password} = user_params}, socket) do
     user_params = Map.delete(user_params, "current_password")
 
@@ -80,6 +84,7 @@ defmodule NervesHubWeb.Live.Account do
     end
   end
 
+  @decorate requires_no_permission()
   def handle_event("delete", params, %{assigns: %{current_scope: scope}} = socket) do
     if params["confirm_email"] == scope.user.email do
       {:ok, _} = Accounts.remove_account(scope.user.id)
@@ -95,6 +100,7 @@ defmodule NervesHubWeb.Live.Account do
     end
   end
 
+  @decorate requires_no_permission()
   def handle_event("generate-access-token", %{"user_token" => params}, socket) do
     %{assigns: %{current_scope: %{user: user}}} = socket
 
@@ -108,6 +114,7 @@ defmodule NervesHubWeb.Live.Account do
     |> noreply()
   end
 
+  @decorate requires_no_permission()
   def handle_event("delete-access-token", %{"access_token_id" => token_id}, socket) do
     %{assigns: %{current_scope: %{user: user}}} = socket
 

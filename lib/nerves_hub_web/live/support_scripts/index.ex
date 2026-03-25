@@ -27,6 +27,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   @sort_types %{sort_direction: :string, sort: :string}
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:list")
   def mount(_params, _session, socket) do
     socket
     |> page_title("Support Scripts - #{socket.assigns.current_scope.product.name}")
@@ -38,6 +39,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:list")
   def handle_params(params, _uri, socket) do
     pagination_changes = pagination_changes(params)
     pagination_opts = Map.merge(@default_pagination, pagination_changes)
@@ -52,6 +54,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:list")
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -61,6 +64,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:list")
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -74,6 +78,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
+    socket = authorize!(socket, :"support_script:list", socket.assigns.current_scope.product)
     %{sort_direction: sort_direction} = socket.assigns
 
     # switch sort direction for column because
@@ -88,6 +93,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   # User has clicked a new column to sort
   @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, socket) do
+    socket = authorize!(socket, :"support_script:list", socket.assigns.current_scope.product)
     new_params = %{sort_direction: "asc", sort: value}
 
     socket
@@ -96,6 +102,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"support_script:delete")
   def handle_event("delete-support-script", %{"script_id" => script_id}, socket) do
     authorized!(:"support_script:delete", socket.assigns.current_scope)
 

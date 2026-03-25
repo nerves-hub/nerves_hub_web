@@ -11,11 +11,13 @@ defmodule NervesHubWeb.Live.Org.Users do
   embed_templates("user_templates/*")
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def mount(_params, _session, socket) do
     {:ok, assign(socket, :org, socket.assigns.current_scope.org)}
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"organization:view")
   def handle_params(params, _url, socket) do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
@@ -49,6 +51,7 @@ defmodule NervesHubWeb.Live.Org.Users do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"org_user:invite")
   def handle_event("send_invite", %{"invite" => invite_params}, socket) do
     %{org: org, current_scope: %{user: invited_by} = scope} = socket.assigns
 
@@ -80,6 +83,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
+  @decorate requires_permission(:"org_user:invite:rescind")
   def handle_event("rescind_invite", %{"invite_token" => invite_token}, socket) do
     authorized!(:"org_user:invite:rescind", socket.assigns.current_scope)
 
@@ -101,6 +105,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
+  @decorate requires_permission(:"org_user:update")
   def handle_event("update-org-user", %{"org_user" => params}, socket) do
     authorized!(:"org_user:update", socket.assigns.current_scope)
 
@@ -118,8 +123,9 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
-  def handle_event("delete_org_user", %{"user_id" => user_id}, %{assigns: %{current_scope: scope}} = socket) do
-    authorized!(:"org_user:delete", scope)
+  @decorate requires_permission(:"org_user:delete")
+  def handle_event("delete_org_user", %{"user_id" => user_id}, socket) do
+    scope = socket.assigns.current_scope
 
     {:ok, user_to_remove} = Accounts.get_user(user_id)
 

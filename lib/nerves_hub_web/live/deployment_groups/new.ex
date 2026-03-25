@@ -6,7 +6,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
   alias NervesHub.ManagedDeployments
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+  @decorate requires_permission(:"deployment_group:create")
+  def mount(_params, _session, socket) do
+    scope = socket.assigns.current_scope
+
     if Firmwares.count(scope.product) == 0 do
       socket
       |> assign(:firmware_required, true)
@@ -30,6 +33,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"deployment_group:create")
   def handle_event(
         "update-form",
         %{"_target" => ["deployment_group", "platform"], "deployment_group" => %{"platform" => platform}},
@@ -47,6 +51,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:create")
   def handle_event(
         "update-form",
         %{"_target" => ["deployment_group", "architecture"], "deployment_group" => %{"architecture" => architecture}},
@@ -63,11 +68,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
     |> noreply()
   end
 
+  @decorate requires_permission(:"deployment_group:create")
   def handle_event("update-form", _data, socket) do
     # noop all other changed fields
     {:noreply, socket}
   end
 
+  @decorate requires_permission(:"deployment_group:create")
   def handle_event("recover-form", %{"deployment_group" => params}, socket) do
     socket
     |> assign(:form, to_form(params, as: :deployment_group))
@@ -134,6 +141,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
   #   |> noreply()
   # end
 
+  @decorate requires_permission(:"deployment_group:create")
   def handle_event("create-deployment-group", %{"deployment_group" => params}, socket) do
     authorized!(:"deployment_group:create", socket.assigns.current_scope)
 

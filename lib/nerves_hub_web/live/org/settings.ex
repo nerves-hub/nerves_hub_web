@@ -5,7 +5,10 @@ defmodule NervesHubWeb.Live.Org.Settings do
   alias NervesHub.Accounts.Org
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+  @decorate requires_permission(:"organization:update")
+  def mount(_params, _session, socket) do
+    scope = socket.assigns.current_scope
+
     socket
     |> page_title("Settings - #{scope.org.name}")
     |> assign(:org, scope.org)
@@ -15,7 +18,9 @@ defmodule NervesHubWeb.Live.Org.Settings do
   end
 
   @impl Phoenix.LiveView
-  def handle_event("update", %{"org" => org_params}, %{assigns: %{current_scope: scope}} = socket) do
+  @decorate requires_permission(:"organization:update")
+  def handle_event("update", %{"org" => org_params}, socket) do
+    scope = socket.assigns.current_scope
     authorized!(:"organization:update", scope)
 
     case Accounts.update_org(scope.org, org_params) do
