@@ -507,7 +507,7 @@
             phx-change="target-deployment-group"
             phx-submit="move-devices-deployment-group"
           >
-            <label class="sidebar-label">Set deployment group</label>
+            <label class="sidebar-label">Assign to deployment group</label>
 
             <div class="flex gap-2">
               <label for="set_deployment_group" class="hidden">Set deployment group</label>
@@ -529,7 +529,7 @@
               <.button
                 style="primary"
                 type="submit"
-                data-confirm={"This will set all selected devices to #{@target_deployment_group && @target_deployment_group.name}. Would you like to continue?"}
+                data-confirm={"This will add the selected devices to #{@target_deployment_group && @target_deployment_group.name}. Would you like to continue?"}
                 {unless @target_deployment_group, do: [disabled: true], else: []}
               >
                 Set
@@ -562,11 +562,13 @@
               <label for="firmware_select" class="hidden">Firmware</label>
               <select name="firmware" id="firmware_select" class="sidebar-select" phx-update="ignore">
                 <option value="">Select firmware</option>
-                <%= for firmware <- @available_firmwares_for_filtered_platform do %>
-                  <option value={firmware.uuid} {if @target_firmware && @target_firmware.uuid == firmware.uuid, do: [selected: true], else: []}>
-                    {firmware.version} ({String.slice(firmware.uuid, 0..7)})
-                  </option>
-                <% end %>
+                <option
+                  :for={firmware <- @available_firmwares_for_filtered_platform}
+                  value={firmware.uuid}
+                  selected={@target_firmware && @target_firmware.uuid == firmware.uuid}
+                >
+                  {firmware.version} ({String.slice(firmware.uuid, 0..7)})
+                </option>
               </select>
 
               <.button
