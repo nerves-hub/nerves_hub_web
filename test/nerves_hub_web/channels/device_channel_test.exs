@@ -692,7 +692,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
       deployment_group,
       firmware,
       archive,
-      user
+      user,
+      %{}
     )
 
     {device, _firmware, _deployment_group} =

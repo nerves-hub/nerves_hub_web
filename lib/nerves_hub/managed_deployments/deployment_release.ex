@@ -19,18 +19,23 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     belongs_to(:archive, Archive)
     belongs_to(:created_by, User)
 
+    field(:description, :string)
+    field(:notes, :string)
     field(:number, :integer)
 
     timestamps()
   end
 
-  def new_changeset(deployment_group, firmware, archive, user) do
+  def new_changeset(deployment_group, firmware \\ nil, archive \\ nil, params \\ %{}, user \\ nil) do
     change(%__MODULE__{})
+    |> cast(params, [:description, :notes])
     |> put_assoc(:deployment_group, deployment_group)
     |> put_assoc(:firmware, firmware)
     |> put_assoc(:archive, archive)
     |> put_assoc(:created_by, user)
     |> put_change(:number, 1)
+    |> validate_length(:description, max: 100)
+    |> validate_length(:notes, max: 1_000)
     |> validate_required([:firmware])
     |> validate_firmware(deployment_group)
     |> validate_change(:created_by, fn :created_by, created_by_assoc ->

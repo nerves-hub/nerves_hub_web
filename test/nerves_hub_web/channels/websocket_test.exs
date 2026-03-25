@@ -732,7 +732,7 @@ defmodule NervesHubWeb.WebsocketTest do
         Fixtures.firmware_fixture(org_key, firmware.product, %{version: "0.0.2", dir: tmp_dir})
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       # This is what the orchestrator process will do
       Orchestrator.trigger_update(Map.put(deployment_group, :firmware, new_firmware))
@@ -1251,7 +1251,8 @@ defmodule NervesHubWeb.WebsocketTest do
           deployment_group,
           firmware,
           archive,
-          user
+          user,
+          %{}
         )
 
       ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true, archive_id: archive.id}, user)
@@ -1314,7 +1315,8 @@ defmodule NervesHubWeb.WebsocketTest do
           deployment_group,
           firmware,
           archive,
-          user
+          user,
+          %{}
         )
 
       {:ok, deployment_group} =
@@ -1399,7 +1401,8 @@ defmodule NervesHubWeb.WebsocketTest do
           deployment_group,
           firmware,
           archive,
-          user
+          user,
+          %{}
         )
 
       archive = SocketClient.wait_archive(socket)

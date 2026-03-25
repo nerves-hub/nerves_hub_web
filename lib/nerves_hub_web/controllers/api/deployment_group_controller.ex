@@ -74,7 +74,13 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
     with {:ok, deployment_group} <-
            ManagedDeployments.get_deployment_group_by_name(product, name),
          {:ok, {_deployment_release, updated_deployment_group}} <-
-           ManagedDeployments.create_deployment_release(deployment_group, firmware, archive, user) do
+           ManagedDeployments.create_deployment_release(
+             deployment_group,
+             firmware,
+             archive,
+             user,
+             deployment_group_params
+           ) do
       DeploymentGroupTemplates.audit_new_deployment_release(user, deployment_group)
 
       render(conn, :show, deployment_group: updated_deployment_group)

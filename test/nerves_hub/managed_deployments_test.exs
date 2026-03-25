@@ -236,7 +236,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, _} =
-        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       assert_enqueued(worker: FirmwareDeltaBuilder, args: %{source_id: firmware.id, target_id: new_firmware.id})
     end
@@ -257,7 +257,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       device =
         Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
@@ -449,7 +449,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       _device = Fixtures.device_fixture(org, product, old_firmware, %{deployment_id: deployment_group.id})
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       assert deployment_group.status == :preparing
     end
@@ -501,7 +501,8 @@ defmodule NervesHub.ManagedDeploymentsTest do
           deployment_group,
           new_firmware,
           archive,
-          user
+          user,
+          %{}
         )
 
       releases = ManagedDeployments.list_deployment_releases(updated_deployment_group)
@@ -517,7 +518,8 @@ defmodule NervesHub.ManagedDeploymentsTest do
           deployment_group,
           new_firmware,
           nil,
-          user
+          user,
+          %{}
         )
 
       releases = ManagedDeployments.list_deployment_releases(updated_deployment_group)
@@ -560,7 +562,8 @@ defmodule NervesHub.ManagedDeploymentsTest do
             deployment_group,
             firmware,
             nil,
-            user
+            user,
+            %{}
           )
 
         updated_dg
@@ -590,10 +593,10 @@ defmodule NervesHub.ManagedDeploymentsTest do
       firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.1.0"})
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, firmware1, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, firmware1, nil, user, %{})
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, firmware2, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, firmware2, nil, user, %{})
 
       releases = ManagedDeployments.list_deployment_releases(deployment_group)
       assert length(releases) == 3

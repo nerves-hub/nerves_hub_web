@@ -678,7 +678,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       :ok = Connections.device_connected(device, connection.id)
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
 
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
@@ -725,7 +725,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       NervesHub.ManagedDeployments.update_deployment_group(deployment_group, %{is_active: false}, user)
-      NervesHub.ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user)
+      NervesHub.ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
 
       NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
 
@@ -958,7 +958,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
@@ -988,7 +988,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
@@ -1041,7 +1041,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
 
@@ -1098,7 +1098,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       _ = Fixtures.firmware_delta_fixture(firmware, new_firmware)
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true, delta_updatable: true}, user)

@@ -134,7 +134,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
         deployment_group,
         other_firmware,
         nil,
-        user
+        user,
+        %{}
       )
 
     # deployment group needs to be explicitly passed in because association

@@ -194,7 +194,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       :ok = UpdateStats.log_update(device, source_firmware_metadata)
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, other_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, other_firmware, nil, user, %{})
 
       # deployment group needs to be explicitly passed in because association
       # is already preloaded from fixtures, causing the preload in log_update/2
