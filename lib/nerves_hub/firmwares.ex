@@ -97,6 +97,16 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
+  @spec get_firmwares_by_product_and_platform(Product.t(), String.t()) :: [Firmware.t()]
+  def get_firmwares_by_product_and_platform(product, platform) do
+    Firmware
+    |> where([f], f.product_id == ^product.id)
+    |> where([f], f.platform == ^platform)
+    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> limit(25)
+    |> Repo.all()
+  end
+
   @spec get_firmwares(Product.t(), String.t(), String.t()) :: [Firmware.t()]
   def get_firmwares(product, platform, architecture) do
     Firmware
@@ -584,7 +594,8 @@ defmodule NervesHub.Firmwares do
              get_firmware_delta_by_source_and_target(source_id, target_id, [:processing, :completed]),
            {_, {:ok, _}} <-
              {:delta_insert, start_firmware_delta(source_id, target_id, recalculate_deployment_statuses)},
-           {_, {:ok, _}} <- {:job, Oban.insert(FirmwareDeltaBuilder.new(%{source_id: source_id, target_id: target_id}))} do
+           {_, {:ok, _}} <-
+             {:job, Oban.insert(FirmwareDeltaBuilder.new(%{source_id: source_id, target_id: target_id}))} do
         {:ok, :started}
       else
         {:ok, %FirmwareDelta{}} ->
@@ -662,7 +673,8 @@ defmodule NervesHub.Firmwares do
       |> Repo.update()
       |> notify_firmware_delta_target()
 
-    {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
+    {:ok, _} =
+      ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
 
     {:ok, firmware_delta}
   end

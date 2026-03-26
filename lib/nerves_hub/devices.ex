@@ -147,8 +147,10 @@ defmodule NervesHub.Devices do
         on: pd.device_id == d.id and pd.user_id == ^user.id,
         as: :pinned
       )
+      |> join(:left, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
       |> preload([latest_connection: lc], latest_connection: lc)
       |> preload([latest_health: lh], latest_health: lh)
+      |> preload([deployment_group: dg], deployment_group: dg)
 
     CommonFiltering.filter(
       base_query,
@@ -1003,6 +1005,26 @@ defmodule NervesHub.Devices do
     Map.put(device, :deployment_group, nil)
   end
 
+  @doc """
+  Remove multiple devices from their deployment groups.
+
+  Returns `{:ok, count}` with the number of devices updated.
+  """
+  @spec remove_many_from_deployment_group(Scope.t(), [non_neg_integer()]) :: {:ok, non_neg_integer()}
+  def remove_many_from_deployment_group(%Scope{product: product}, device_ids) when is_list(device_ids) do
+    {count, _} =
+      Device
+      |> Repo.exclude_deleted()
+      |> where([d], d.id in ^device_ids)
+      |> where([d], d.product_id == ^product.id)
+      |> where([d], not is_nil(d.deployment_id))
+      |> Repo.update_all(set: [deployment_id: nil])
+
+    Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
+
+    {:ok, count}
+  end
+
   @spec failure_threshold_met?(Device.t(), DeploymentGroup.t()) :: boolean()
   def failure_threshold_met?(%Device{} = device, %DeploymentGroup{} = deployment_group) do
     Enum.count(device.update_attempts) >= deployment_group.device_failure_threshold
@@ -1268,6 +1290,33 @@ defmodule NervesHub.Devices do
     description = "User #{user.name} updated device #{device.identifier} tags"
     params = %{tags: tags}
     update_device_with_audit(device, params, user, description)
+  end
+
+  @spec add_tag(Device.t(), User.t(), String.t()) :: {:ok, Device.t()} | {:error, any()} | {:error, any(), any(), any()}
+  def add_tag(%Device{} = device, user, tag) do
+    tag = String.trim(tag)
+
+    if tag == "" or String.contains?(tag, " ") do
+      {:error, "Tags cannot be empty or contain spaces."}
+    else
+      current_tags = device.tags || []
+
+      if tag in current_tags do
+        {:error, "Tag \"#{tag}\" already exists on this device."}
+      else
+        new_tags = current_tags ++ [tag]
+        tag_device(device, user, new_tags)
+      end
+    end
+  end
+
+  @spec remove_tag(Device.t(), User.t(), String.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
+  def remove_tag(%Device{} = device, user, tag) do
+    current_tags = device.tags || []
+    new_tags = List.delete(current_tags, tag)
+
+    tag_device(device, user, new_tags)
   end
 
   @spec update_device_with_audit(Device.t(), map(), User.t(), String.t()) ::

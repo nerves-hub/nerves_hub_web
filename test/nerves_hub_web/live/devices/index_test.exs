@@ -719,8 +719,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> unwrap(fn view ->
         render_change(view, "select", %{"id" => device.id})
       end)
-      |> fill_in("Set tags", with: "moussaka")
-      |> click_button("Set")
+      |> unwrap(fn view ->
+        render_submit(view, "tag-devices", %{"tags" => "moussaka"})
+      end)
       |> assert_has("span", text: "moussaka", timeout: 1_000)
     end
 
@@ -796,9 +797,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div", text: "2", timeout: 1000)
       |> check("Select all devices", exact: false)
       |> assert_has("div", text: "2 devices selected")
-      |> within("form#deployment-move", fn session ->
+      |> within("form#deployment-set", fn session ->
         session
-        |> select("Deployment Group",
+        |> select("Set deployment group",
           option: deployment_group.name,
           exact_option: false
         )
@@ -975,6 +976,111 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> refute_has("a", text: first_device.identifier, timeout: 1000)
       |> click_button("button[phx-click='paginate'][phx-value-page='3']", "3")
       |> refute_has("a", text: first_device.identifier, timeout: 1000)
+    end
+
+    test "sets deployment group on devices", %{conn: conn, fixture: fixture} do
+      %{device: device, deployment_group: deployment_group} = fixture
+
+      refute device.deployment_id
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("div a", text: device.identifier, timeout: 1_000)
+      # Select the device - this should populate valid deployment groups
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => device.id})
+      end)
+      |> assert_has("h4", text: "1 device selected")
+      # The "Set deployment group" dropdown should be available
+      |> assert_has("label", text: "Set deployment group")
+      # Choose the deployment group and submit
+      |> unwrap(fn view ->
+        render_change(view, "target-deployment-group", %{"deployment_group" => to_string(deployment_group.id)})
+      end)
+      |> unwrap(fn view ->
+        render_submit(view, "move-devices-deployment-group", %{})
+      end)
+      |> assert_has("div",
+        text: "All selected devices were added to deployment #{deployment_group.name}",
+        timeout: 1_000
+      )
+    end
+
+    test "removes devices from deployment group with badge shown", %{conn: conn, fixture: fixture} do
+      %{device: device, deployment_group: deployment_group} = fixture
+
+      # Put the device in the deployment group first
+      Repo.update!(Ecto.Changeset.change(device, deployment_id: deployment_group.id))
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("div a", text: device.identifier, timeout: 1_000)
+      # Select the device
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => device.id})
+      end)
+      |> assert_has("h4", text: "1 device selected")
+      # Should show the deployment group badge since all selected are in the same one
+      |> assert_has("label", text: "Remove from deployment group")
+      |> assert_has("span", text: deployment_group.name)
+      # Click remove (trash icon button)
+      |> unwrap(fn view ->
+        render_click(view, "remove-devices-from-deployment-group", %{})
+      end)
+      |> assert_has("div", text: "1 device(s) removed from their deployment group", timeout: 1_000)
+    end
+
+    test "disables deployment group dropdown when selecting devices with different platforms", %{
+      conn: conn,
+      fixture: fixture,
+      tmp_dir: tmp_dir
+    } do
+      %{device: device, org: org, product: product, user: user} = fixture
+
+      # Create a second device on a different platform
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      other_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "other_platform"})
+      other_device = Fixtures.device_fixture(org, product, other_firmware)
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      # Select both devices
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => device.id})
+      end)
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => other_device.id})
+      end)
+      |> assert_has("h4", text: "2 devices selected")
+      # The dropdown should be disabled with "(no valid choices)"
+      |> assert_has("select[disabled]#set_deployment_group")
+      |> assert_has("option", text: "(no valid choices)")
+    end
+
+    test "sends manual firmware update to devices", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("div a", text: device.identifier, timeout: 1_000)
+      # Filter by platform to reveal the firmware push option
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> select("Platform", option: "platform")
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      # Select the device
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => device.id})
+      end)
+      |> assert_has("h4", text: "1 device selected")
+      # Choose the firmware and submit
+      |> unwrap(fn view ->
+        render_change(view, "target-firmware", %{"firmware" => firmware.uuid})
+      end)
+      |> unwrap(fn view ->
+        render_submit(view, "push-firmware-to-devices", %{})
+      end)
+      |> assert_has("div", text: "Firmware update sent to 1 device(s)", timeout: 1_000)
     end
   end
 

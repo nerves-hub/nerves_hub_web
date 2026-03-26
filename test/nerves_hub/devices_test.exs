@@ -1643,4 +1643,57 @@ defmodule NervesHub.DevicesTest do
       {"cannot be set to nil", []} = changeset.errors[:network_interface]
     end
   end
+
+  describe "remove_many_from_deployment_group/2" do
+    test "removes deployment group from devices that have one", %{
+      user: user,
+      org: org,
+      product: product,
+      device: device,
+      device2: device2,
+      deployment_group: deployment_group
+    } do
+      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
+      Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
+      Repo.update!(Changeset.change(device2, deployment_id: deployment_group.id))
+
+      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id, device2.id])
+
+      assert count == 2
+
+      assert Repo.get!(Device, device.id).deployment_id == nil
+      assert Repo.get!(Device, device2.id).deployment_id == nil
+    end
+
+    test "only counts devices that had a deployment group", %{
+      user: user,
+      org: org,
+      product: product,
+      device: device,
+      device2: device2,
+      deployment_group: deployment_group
+    } do
+      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
+      Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
+      # device2 has no deployment group
+
+      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id, device2.id])
+
+      assert count == 1
+    end
+
+    test "returns zero when no devices have a deployment group", %{
+      user: user,
+      org: org,
+      product: product,
+      device: device
+    } do
+      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
+      refute device.deployment_id
+
+      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id])
+
+      assert count == 0
+    end
+  end
 end
