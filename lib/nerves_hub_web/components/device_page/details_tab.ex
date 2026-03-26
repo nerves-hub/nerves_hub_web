@@ -804,9 +804,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         |> put_flash(:info, "Tag \"#{tag}\" removed successfully.")
         |> halt()
 
-      {:error, msg} ->
+      {:error, _, _, _} ->
         socket
-        |> put_flash(:error, "Failed to remove tag: #{msg}")
+        |> put_flash(:error, "There was an error removing the tag, if this persists, please contact support.")
         |> halt()
     end
   end

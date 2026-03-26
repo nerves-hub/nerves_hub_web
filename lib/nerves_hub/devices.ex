@@ -1311,7 +1311,7 @@ defmodule NervesHub.Devices do
   end
 
   @spec remove_tag(Device.t(), User.t(), String.t()) ::
-          {:ok, Device.t()} | {:error, any()} | {:error, any(), any(), any()}
+          {:ok, Device.t()} | {:error, any(), any(), any()}
   def remove_tag(%Device{} = device, user, tag) do
     current_tags = device.tags || []
     new_tags = List.delete(current_tags, tag)
