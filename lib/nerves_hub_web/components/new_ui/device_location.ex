@@ -20,13 +20,13 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   # mapbox token is nil, maps aren't enabled
   def render(%{mapbox_access_token: nil} = assigns) do
     ~H"""
-    <div class="flex flex-col w-full h-[450px] p-4 gap-4">
+    <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-neutral-50 font-medium leading-6">Location</div>
+        <div class="leading-6 font-medium text-neutral-50">Location</div>
       </div>
 
-      <div class="relative size-full flex flex-col items-center justify-center">
-        <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
+      <div class="relative flex size-full flex-col items-center justify-center">
+        <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
           <div class="text-base-300">Device maps haven't been enabled on your platform.</div>
           <div class="text-base-300">Please contact your platform admin.</div>
@@ -39,13 +39,13 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   # disabled in product settings
   def render(%{enabled_product: false} = assigns) do
     ~H"""
-    <div class="flex flex-col w-full h-[450px] p-4 gap-4">
+    <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-neutral-50 font-medium leading-6">Location</div>
+        <div class="leading-6 font-medium text-neutral-50">Location</div>
       </div>
 
-      <div class="relative size-full flex flex-col items-center justify-center">
-        <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
+      <div class="relative flex size-full flex-col items-center justify-center">
+        <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
           <div class="text-base-300">Device maps have been disabled in your product settings.</div>
           <div class="text-base-300">To enable this feature, please contact your product admin.</div>
@@ -58,13 +58,13 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   # disabled in device settings
   def render(%{enabled_device: false} = assigns) do
     ~H"""
-    <div class="flex flex-col w-full h-[450px] p-4 gap-4">
+    <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-neutral-50 font-medium leading-6">Location</div>
+        <div class="leading-6 font-medium text-neutral-50">Location</div>
       </div>
 
-      <div class="relative size-full flex flex-col items-center justify-center">
-        <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
+      <div class="relative flex size-full flex-col items-center justify-center">
+        <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
           <div class="text-base-300">Device maps have been disabled for this device.</div>
           <div class="text-base-300">To enable this feature, please contact your product admin.</div>
@@ -77,10 +77,10 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   # yay, we have a location and map key, lets display a map
   def render(%{enable_location_editor: true} = assigns) do
     ~H"""
-    <div class="flex flex-col w-full h-[450px] p-4 gap-4">
+    <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-neutral-50 font-medium leading-6">Location</div>
-        <div class="text-xs font-normal text-base-400">
+        <div class="leading-6 font-medium text-neutral-50">Location</div>
+        <div class="text-base-400 text-xs font-normal">
           Please select the devices location.
         </div>
       </div>
@@ -106,14 +106,14 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   # location information is nil or empty, geo location might not be enabled
   def render(%{location: location} = assigns) when is_nil(location) or map_size(location) == 0 do
     ~H"""
-    <div class="flex flex-col w-full h-[450px] p-4 gap-4">
+    <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-neutral-50 font-medium leading-6">Location</div>
-        <div class="text-xs font-normal text-base-400">The devices location is announced by the device after it connects.</div>
+        <div class="leading-6 font-medium text-neutral-50">Location</div>
+        <div class="text-base-400 text-xs font-normal">The devices location is announced by the device after it connects.</div>
       </div>
 
-      <div class="relative size-full flex flex-col items-center justify-center">
-        <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
+      <div class="relative flex size-full flex-col items-center justify-center">
+        <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
           <div class="text-base-300">No location information found.</div>
           <div class="text-base-300">Please check if the Geo extension has been included in your firmware.</div>
@@ -131,14 +131,14 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
     assigns = %{location: location}
 
     ~H"""
-    <div class="flex flex-col w-full h-[450px] p-4 gap-4">
+    <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-neutral-50 font-medium leading-6">Location</div>
-        <div class="text-xs font-normal text-base-400">The devices location is announced by the device after it connects.</div>
+        <div class="disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100">Location</div>
+        <div class="text-base-400 text-xs font-normal">The devices location is announced by the device after it connects.</div>
       </div>
 
-      <div class="relative size-full flex flex-col items-center justify-center">
-        <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
+      <div class="relative flex size-full flex-col items-center justify-center">
+        <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
           <div class="text-base-300">An error occurred during location resolution : {@location["error_code"]}</div>
           <div :if={@location["error_description"]} class="text-base-300">{@location["error_description"]}</div>
@@ -151,13 +151,13 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   def render(%{location: %{"latitude" => latitude, "longitude" => longitude}} = assigns)
       when is_nil(latitude) or latitude == "" or is_nil(longitude) or longitude == "" do
     ~H"""
-    <div class="flex flex-col w-full h-[450px] p-4 gap-4">
+    <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="text-neutral-50 font-medium leading-6">Location</div>
+        <div class="leading-6 font-medium text-neutral-50">Location</div>
       </div>
 
-      <div class="relative size-full flex flex-col items-center justify-center">
-        <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
+      <div class="relative flex size-full flex-col items-center justify-center">
+        <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
         <div class="z-50 flex flex-col items-center gap-4">
           <div class="text-base-300">The location coordinates are invalid and can't be displayed.</div>
         </div>
@@ -186,15 +186,15 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
     assigns = Map.put(assigns, :source_information, source_information)
 
     ~H"""
-    <div class="flex flex-col w-full h-[450px] p-4 gap-4">
+    <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between gap-2">
-        <div class="text-neutral-50 font-medium leading-6">Location</div>
-        <div class="text-xs font-normal text-base-400 ml-auto">
+        <div class="leading-6 font-medium text-neutral-50">Location</div>
+        <div class="text-base-400 ml-auto text-xs font-normal">
           {@source_information}
         </div>
         <div class="relative flex justify-end">
           <button
-            class="border rounded-sm border-base-600 bg-base-800 hover:bg-base-700 active:bg-indigo-500 disabled:bg-base-800 p-0.5"
+            class="bg-base-800 border-base-600 disabled:bg-base-800 hover:bg-base-700 rounded-sm border p-0.5 active:bg-indigo-500"
             id="location-settings-button"
             aria-expanded="true"
             aria-haspopup="true"
@@ -219,12 +219,12 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
             }
             phx-key="Escape"
           >
-            <.icon name="settings" class="size-3 fill-base-400" />
+            <.icon name="settings" class="fill-base-400 size-3" />
           </button>
 
           <div
             id="location-settings-menu"
-            class="absolute right-0 z-10 mt-6 w-48 origin-top-right rounded bg-base-900 border border-base-700 shadow-lg ring-1 ring-black/5 focus:outline-none"
+            class="bg-base-900 border-base-700 absolute right-0 z-10 mt-6 w-48 origin-top-right rounded border shadow-lg ring-1 ring-black/5 focus:outline-none"
             role="menu"
             hidden="true"
             aria-orientation="vertical"
@@ -232,13 +232,13 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
             tabindex="-1"
           >
             <div role="none">
-              <button phx-click="enable-location-editor" class="block w-full text-left px-4 pt-2 pb-3 text-xs text-base-300 hover:bg-base-700" role="menuitem" tabindex="-1">
+              <button phx-click="enable-location-editor" class="hover:bg-base-700 text-base-300 block w-full px-4 pt-2 pb-3 text-left text-xs" role="menuitem" tabindex="-1">
                 Manually update location
               </button>
               <button
                 :if={@source == "manual"}
                 phx-click="clear-manual-location-information"
-                class="block w-full text-left px-4 pt-2 pb-3 text-xs text-base-300 hover:bg-base-700"
+                class="hover:bg-base-700 text-base-300 block w-full px-4 pt-2 pb-3 text-left text-xs"
                 role="menuitem"
                 tabindex="-1"
               >

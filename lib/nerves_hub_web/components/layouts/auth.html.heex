@@ -1,5 +1,5 @@
 <div class="flex min-h-full">
-  <div class="flex flex-1 flex-col w-1/2 justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
+  <div class="flex w-1/2 flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
     <div class="mx-auto w-full max-w-sm lg:w-96">
       <div>
         <.link href="/login">
@@ -21,7 +21,7 @@
         <h1 class="mt-12 text-2xl/9 font-bold tracking-tight text-neutral-50">
           {render_slot(@title)}
         </h1>
-        <p :if={assigns[:subheader]} class="mt-2 text-sm/6 text-base-300">
+        <p :if={assigns[:subheader]} class="text-base-300 mt-2 text-sm/6">
           {render_slot(@subheader)}
         </p>
       </div>

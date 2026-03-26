@@ -20,7 +20,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
       </div>
       <div>
         <button
-          class="btn btn-outline-light btn-action"
+          class="btn btn-action btn-outline-light"
           aria-label={if @health_check_timer, do: "Disable Auto Refresh", else: "Enable Auto Refresh"}
           type="button"
           phx-click="toggle-health-check-auto-refresh"
@@ -33,7 +33,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
     <div class="device-meta-grid">
       <div>
         <div class="help-text">Status</div>
-        <p class="flex-row align-items-center tt-c">
+        <p class="align-items-center tt-c flex-row">
           <span>{get_status(@latest_connection)}</span>
           <span class="ml-1">
             <%= if get_status(@latest_connection) in ["offline"] do %>
@@ -45,7 +45,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
         </p>
       </div>
       <div>
-        <div class="help-text mb-1 tooltip-label help-tooltip">
+        <div class="help-text help-tooltip tooltip-label mb-1">
           <span>Last connected</span>
           <span :if={@latest_connection} class="tooltip-info"></span>
           <span :if={@latest_connection} class="tooltip-text" id="connection-established-at-tooltip" phx-hook="LocalTime">
@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
         </p>
       </div>
       <div>
-        <div class="help-text mb-1 tooltip-label help-tooltip">
+        <div class="help-text help-tooltip tooltip-label mb-1">
           <span>Last reported</span>
           <span :if={@health_reported_at} class="tooltip-info"></span>
           <span :if={@health_reported_at} class="tooltip-text" id="last-reported-at-tooltip" phx-hook="LocalTime">

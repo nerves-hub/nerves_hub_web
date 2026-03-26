@@ -92,6 +92,7 @@ defmodule NervesHub.MixProject do
       {:crontab, "~> 1.1"},
       {:decorator, "~> 1.2"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:canonical_tailwind, "~> 0.1.0", only: [:dev, :test], runtime: false},
       {:ecto, "~> 3.8", override: true},
       {:ecto_ch, "~> 0.8.0"},
       {:ecto_psql_extras, "~> 0.7"},

@@ -1,21 +1,21 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
+  <div class="bg-surface-muted border-base-700 flex h-[56px] justify-end border-b"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Delete Organization</h1>
     </div>
 
-    <div class="px-6 py-4 max-w-[650px]">
-      <div class="p-4 mb-6 bg-red-900/20 border border-red-800 rounded">
-        <h3 class="text-base font-semibold text-red-400 mb-2">Are you absolutely sure?</h3>
-        <p class="text-sm text-red-300 mb-2">Unexpected bad things will happen if you don't read this!</p>
+    <div class="max-w-[650px] px-6 py-4">
+      <div class="mb-6 rounded border border-red-800 bg-red-900/20 p-4">
+        <h3 class="mb-2 text-base font-semibold text-red-400">Are you absolutely sure?</h3>
+        <p class="mb-2 text-sm text-red-300">Unexpected bad things will happen if you don't read this!</p>
         <p class="text-sm text-red-300">This action cannot be undone. This will permanently delete the <strong>{@org.name}</strong> organization.</p>
       </div>
 
       <.form :let={f} for={@form} phx-submit="delete">
         <div class="mb-6">
-          <label for="org_name_input" class="block text-sm font-medium text-base-300 mb-2">
+          <label for="org_name_input" class="text-base-300 mb-2 block text-sm font-medium">
             Please type <strong>{@org.name}</strong> to confirm.
           </label>
           {text_input(f, :confirm_name,

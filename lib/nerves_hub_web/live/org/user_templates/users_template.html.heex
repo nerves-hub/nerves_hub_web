@@ -1,8 +1,8 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
+  <div class="bg-surface-muted border-base-700 flex h-[56px] justify-end border-b"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Users</h1>
       <div class="mr-auto"></div>
       <.button type="link" navigate={~p"/org/#{@org}/settings/users/invite"} aria-label="Add new user">
@@ -11,7 +11,7 @@
     </div>
 
     <%= if !Enum.empty?(@invites) do %>
-      <h2 class="text-base font-semibold text-neutral-50 px-4 py-2">Outstanding Invites</h2>
+      <h2 class="px-4 py-2 text-base font-semibold text-neutral-50">Outstanding Invites</h2>
       <div class="listing">
         <table>
           <thead>
@@ -23,14 +23,14 @@
           </thead>
           <tbody>
             <%= for invite <- @invites do %>
-              <tr class="border-b border-base-800 isolate">
+              <tr class="border-base-800 isolate border-b">
                 <td class="text-base-400">{invite.email}</td>
                 <td class="text-base-400">
-                  <code class="text-xs text-base-400 bg-base-900 px-2 py-1 rounded">{Routes.account_url(@socket, :invite, invite.token)}</code>
+                  <code class="bg-base-900 text-base-400 rounded px-2 py-1 text-xs">{Routes.account_url(@socket, :invite, invite.token)}</code>
                 </td>
                 <td :if={authorized?(:"org_user:invite:rescind", @current_scope)} class="text-base-400">
                   <button
-                    class="px-3 py-1.5 text-sm font-medium text-base-300 bg-base-800 border border-base-700 rounded hover:bg-base-700"
+                    class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-3 py-1.5 text-sm font-medium"
                     phx-click="rescind_invite"
                     phx-value-invite_token={invite.token}
                     data-confirm="Are you sure you want to rescind the invite?"
@@ -58,9 +58,9 @@
         </thead>
         <tbody>
           <%= for org_user <- @org_users do %>
-            <tr class="border-b border-base-800 isolate">
+            <tr class="border-base-800 isolate border-b">
               <td>
-                <.link navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="text-base-300 hover:text-base-100">
+                <.link navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"} class="hover:text-base-100 text-base-300">
                   {org_user.user.name}
                 </.link>
               </td>
@@ -70,17 +70,17 @@
                 <div phx-hook="SimpleDate" id={"user-#{org_user.id}-date"} class="date-time">{org_user.user.inserted_at}</div>
               </td>
               <td :if={authorized?(:"org_user:delete", @current_scope) && org_user.user.id != @current_scope.user.id} class="text-right">
-                <div class="flex gap-2 justify-end">
+                <div class="flex justify-end gap-2">
                   <.link
                     navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"}
-                    class="px-3 py-1.5 text-sm font-medium text-base-300 bg-base-800 border border-base-700 rounded hover:bg-base-700"
+                    class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-3 py-1.5 text-sm font-medium"
                   >
                     Edit
                   </.link>
                   <button
                     :if={authorized?(:"org_user:delete", @current_scope)}
                     type="link"
-                    class="px-3 py-1.5 text-sm font-medium text-alert bg-base-800 border border-alert rounded hover:bg-base-700"
+                    class="bg-base-800 border-alert hover:bg-base-700 text-alert rounded border px-3 py-1.5 text-sm font-medium"
                     phx-click="delete_org_user"
                     phx-value-user_id={org_user.user_id}
                     data-confirm="Are you sure you want to remove this user? This can not be undone."

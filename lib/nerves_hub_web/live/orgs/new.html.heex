@@ -1,16 +1,16 @@
 <NervesHubWeb.Layouts.no_sidebar flash={@flash} current_scope={@current_scope}>
   <div class="w-[800px]">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 text-sm font-medium">
+    <div class="flex h-[90px] items-center gap-4 px-6 py-7 text-sm font-medium">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Create New Organization</h1>
     </div>
 
     <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <.form :let={f} for={@form} phx-submit="save_org" class="w-full flex flex-col gap-4">
-        <div class="w-1/2 flex flex-col gap-6">
+      <.form :let={f} for={@form} phx-submit="save_org" class="flex w-full flex-col gap-4">
+        <div class="flex w-1/2 flex-col gap-6">
           <.input field={f[:name]} label="Name" hint="Must be one word" />
         </div>
 
-        <div class="flex gap-3 mt-3">
+        <div class="mt-3 flex gap-3">
           <.button style="primary" type="submit">
             Create Organization
           </.button>

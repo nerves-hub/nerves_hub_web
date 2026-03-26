@@ -1,8 +1,8 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
+  <div class="bg-surface-muted border-base-700 flex h-[56px] justify-end border-b"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Certificate Authorities</h1>
       <div class="mr-auto"></div>
       <.button type="link" navigate={~p"/org/#{@org}/settings/certificates/new"} aria-label="Add certificate authority">
@@ -27,9 +27,9 @@
         </thead>
         <tbody>
           <%= for cert <- @certificates do %>
-            <tr class="border-b border-base-800 isolate">
+            <tr class="border-base-800 isolate border-b">
               <td>
-                <code class="text-xs text-base-300 bg-base-800 px-2 py-1 rounded font-mono break-all">{Utils.format_serial(cert.serial)}</code>
+                <code class="bg-base-800 text-base-300 rounded px-2 py-1 font-mono text-xs break-all">{Utils.format_serial(cert.serial)}</code>
               </td>
               <td>
                 <%= if is_nil(cert.description) do %>
@@ -61,15 +61,15 @@
                 <CAHelpers.certificate_status not_after={cert.not_after} />
               </td>
               <td :if={authorized?(:"certificate_authority:update", @current_scope)} class="text-right">
-                <div class="flex gap-2 justify-end">
+                <div class="flex justify-end gap-2">
                   <.link
                     navigate={~p"/org/#{@org}/settings/certificates/#{cert}/edit"}
-                    class="px-3 py-1.5 text-sm font-medium text-base-300 bg-base-800 border border-base-700 rounded hover:bg-base-700"
+                    class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-3 py-1.5 text-sm font-medium"
                   >
                     Edit
                   </.link>
                   <button
-                    class="px-3 py-1.5 text-sm font-medium text-alert bg-base-800 border border-alert rounded hover:bg-base-700"
+                    class="bg-base-800 border-alert hover:bg-base-700 text-alert rounded border px-3 py-1.5 text-sm font-medium"
                     phx-click="delete-certificate-authority"
                     phx-value-certificate_serial={cert.serial}
                     data-confirm="Are you sure you want to delete this certificate? This can not be undone."

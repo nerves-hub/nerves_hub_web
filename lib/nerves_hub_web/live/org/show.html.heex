@@ -1,32 +1,32 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
+  <div class="bg-surface-muted border-base-700 flex h-[56px] justify-end border-b"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Products</h1>
       <div class="mr-auto"></div>
       <.button type="link" navigate={~p"/org/#{@org}/new"} aria-label="Create new product">
         <.icon name="add" /> Create New
       </.button>
     </div>
-    <div class="grid grid-cols-2 px-4 pb-4 pt-2 gap-4">
+    <div class="grid grid-cols-2 gap-4 px-4 pt-2 pb-4">
       <div :if={@products == []}>
-        <div class="mx-4 my-4">
+        <div class="m-4">
           <h2 class="text-xl leading-[30px] font-semibold text-neutral-50">{@org.name} doesn't have any products yet</h2>
           <p class="text-sm text-neutral-400">Create a new product to get started.</p>
         </div>
       </div>
-      <div :for={product <- @products} class="flex justify-between gap-[16px] p-4 w-full border border-base-700 rounded bg-gradient-to-r from-base-800/50 to-base-800">
-        <div class="text-neutral-50 font-semibold text-sm">
+      <div :for={product <- @products} class="border-base-700 from-base-800/50 to-base-800 flex w-full justify-between gap-[16px] rounded border bg-linear-to-r p-4">
+        <div class="text-sm font-semibold text-neutral-50">
           <.link navigate={~p"/org/#{@org}/#{product}/devices"}>{product.name}</.link>
         </div>
         <div class="flex gap-4 text-sm font-medium">
           <div class="flex items-center gap-1.5">
-            <div class="size-2 bg-green-500 rounded-full"></div>
+            <div class="size-2 rounded-full bg-green-500"></div>
             <span class="text-base-300">{get_in(@product_device_info, [product.id, :online]) || 0}</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <div class="size-2 bg-base-500 rounded-full"></div>
+            <div class="bg-base-500 size-2 rounded-full"></div>
             <span class="text-base-400">{get_in(@product_device_info, [product.id, :offline]) || 0}</span>
           </div>
         </div>

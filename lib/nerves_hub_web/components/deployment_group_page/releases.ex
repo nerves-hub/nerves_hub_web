@@ -351,15 +351,15 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   # keeping some code around while the feature is being developed
   defp rollout_options(assigns) do
     ~H"""
-    <div class="hidden w-full border-t border-base-700 pt-6">
+    <div class="border-base-700 hidden w-full border-t pt-6">
       <button
         type="button"
         phx-click="toggle-rollout-options"
         phx-target={@myself}
-        class="flex items-center gap-2 text-sm font-medium text-base-300 hover:text-base-100"
+        class="hover:text-base-100 text-base-300 flex items-center gap-2 text-sm font-medium"
       >
         <svg
-          class={["w-4 h-4 transition-transform", @show_rollout_options && "rotate-90"]}
+          class={["size-4 transition-transform", @show_rollout_options && "rotate-90"]}
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
           fill="currentColor"

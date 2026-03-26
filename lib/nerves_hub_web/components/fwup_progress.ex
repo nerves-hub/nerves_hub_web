@@ -6,7 +6,7 @@ defmodule NervesHubWeb.Components.FwupProgress do
   def render(assigns) do
     ~H"""
     <div class="help-text mt-3">Progress</div>
-    <div class="progress device-show">
+    <div class="device-show progress">
       <div class="progress-bar" role="progressbar" style={"width: #{@fwup_progress}%"}>
         {@fwup_progress}%
       </div>
@@ -18,12 +18,12 @@ defmodule NervesHubWeb.Components.FwupProgress do
 
   def updated_render(assigns) do
     ~H"""
-    <div class="relative sticky top-0 w-full h-0 overflow-visible z-20">
-      <div class="z-40 absolute border-t border-success-500" role="progressbar" style={"width: #{@fwup_progress}%"}>
-        <div class="animate-pulse bg-progress-glow w-full h-16" />
+    <div class="sticky top-0 z-20 h-0 w-full overflow-visible">
+      <div class="border-success-500 absolute z-40 border-t" role="progressbar" style={"width: #{@fwup_progress}%"}>
+        <div class="bg-progress-glow h-16 w-full animate-pulse" />
       </div>
-      <div class="z-50 absolute w-full flex justify-center">
-        <div class="mt-1 py-1 px-2 bg-surface-muted/20 rounded-full text-sm font-medium">Updating firmware {@fwup_progress}%</div>
+      <div class="absolute z-50 flex w-full justify-center">
+        <div class="bg-surface-muted/20 mt-1 rounded-full px-2 py-1 text-sm font-medium">Updating firmware {@fwup_progress}%</div>
       </div>
     </div>
     """

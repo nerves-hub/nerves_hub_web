@@ -10,7 +10,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
 
   def render(assigns) do
     ~H"""
-    <h1 class="ff-m mt-2 mb-2">{@device.identifier}</h1>
+    <h1 class="ff-m my-2">{@device.identifier}</h1>
 
     <%= if @device.description do %>
       <p class="help-text large">{@device.description}</p>
@@ -20,7 +20,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
       <div class="row">
         <div class="col pl-0">
           <div class="help-text mb-1">Status</div>
-          <p class="flex-row align-items-center tt-c">
+          <p class="align-items-center tt-c flex-row">
             <span>{get_status(@device_connection)}</span>
             <span class="ml-1">
               <%= if get_status(@device_connection) == "offline" do %>
@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
               {Timex.from_now(@device_connection.established_at)}
             </time>
             <span class="tooltip-info ml-1" id="connection-information-tooltip-icon"></span>
-            <span class="container tooltip-text pl-3 pr-0 ml-1" id="connection-information-tooltip">
+            <span class="tooltip-text container ml-1 pr-0 pl-3" id="connection-information-tooltip">
               <span class="row">
                 <span class="col pl-1">Device connected:</span>
                 <span class="col pl-0">
@@ -91,7 +91,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
                 <span class="ml-1">
                   <img src="/images/icons/firmware-penalty-box.svg" alt="Firmware penalty box icon" style="width: 1.3rem; margin-top: -4px;" />
                 </span>
-                <a style="" class="btn btn-sm btn-outline-light btn-action" href="#" class="" title="Clear penalty box" aria-label="Clear penalty box" type="button" phx-click="clear-penalty-box">
+                <a style="" class="btn btn-action btn-outline-light btn-sm" href="#" class="" title="Clear penalty box" aria-label="Clear penalty box" type="button" phx-click="clear-penalty-box">
                   Clear
                 </a>
               <% true -> %>

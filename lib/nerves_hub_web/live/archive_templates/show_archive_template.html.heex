@@ -1,7 +1,7 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] shrink-0 flex justify-between bg-surface-muted border-b border-base-700 pl-6 items-center">
+  <div class="bg-surface-muted border-base-700 flex h-[56px] shrink-0 items-center justify-between border-b pl-6">
     <div class="flex gap-2.5">
-      <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/archives"} class="back-link flex gap-2.5 items-center">
+      <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/archives"} class="back-link flex items-center gap-2.5">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
@@ -12,10 +12,10 @@
     </div>
   </div>
 
-  <div class="h-0 flex-1 overflow-y-auto flex flex-col">
-    <div class="h-[90px] shrink-0 flex justify-between p-6 border-b border-base-700">
-      <div class="flex gap-3 items-center">
-        <h1 class="text-xl font-semibold leading-[30px] text-base-50">
+  <div class="flex h-0 flex-1 flex-col overflow-y-auto">
+    <div class="border-base-700 flex h-[90px] shrink-0 justify-between border-b p-6">
+      <div class="flex items-center gap-3">
+        <h1 class="text-base-50 text-xl leading-[30px] font-semibold">
           {@archive.uuid}
         </h1>
       </div>
@@ -26,12 +26,12 @@
         </.button>
 
         <button
-          class="box-content h-5 py-1.5 px-3 flex gap-2 justify-center items-center rounded border border-alert bg-base-800 text-sm font-medium text-base-300 disabled:text-base-500"
+          class="bg-base-800 border-alert disabled:text-base-500 text-base-300 box-content flex h-5 items-center justify-center gap-2 rounded border px-3 py-1.5 text-sm font-medium"
           aria-label="Delete archive"
           type="button"
           phx-click="delete-archive"
         >
-          <svg class="size-5 stroke-alert" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg class="stroke-alert size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
               stroke-width="1.2"
@@ -39,78 +39,78 @@
               stroke-linejoin="round"
             />
           </svg>
-          <span class="text-sm font-medium text-alert">Delete</span>
+          <span class="text-alert text-sm font-medium">Delete</span>
         </button>
       </div>
     </div>
 
-    <div class="h-full flex items-start justify-between gap-4 p-6">
-      <div class="w-1/2 flex flex-col gap-4">
-        <div class="flex flex-col pb-4 rounded border border-base-700 bg-base-900 shadow-device-details-content">
-          <div class="h-14 pl-4 pr-3 flex items-center text-neutral-50 font-medium leading-6">
+    <div class="flex h-full items-start justify-between gap-4 p-6">
+      <div class="flex w-1/2 flex-col gap-4">
+        <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border pb-4">
+          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-neutral-50">
             General info
           </div>
           <div class="flex flex-col gap-3">
-            <div :if={@archive.author} class="min-h-7 px-4 flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">Author:</span>
-              <span class="text-sm text-base-300">{@archive.author}</span>
+            <div :if={@archive.author} class="flex min-h-7 items-center gap-4 px-4">
+              <span class="text-nerves-gray-500 text-sm">Author:</span>
+              <span class="text-base-300 text-sm">{@archive.author}</span>
             </div>
 
-            <div class="min-h-7 px-4 flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">Description:</span>
-              <span :if={@archive.description} class="text-sm text-base-300">{@archive.description}</span>
-              <span :if={!@archive.description} class="text-sm text-base-400">No description</span>
+            <div class="flex min-h-7 items-center gap-4 px-4">
+              <span class="text-nerves-gray-500 text-sm">Description:</span>
+              <span :if={@archive.description} class="text-base-300 text-sm">{@archive.description}</span>
+              <span :if={!@archive.description} class="text-base-400 text-sm">No description</span>
             </div>
 
-            <div :if={@archive.misc} class="min-h-7 px-4 flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">Misc:</span>
-              <span class="text-sm text-base-300">{@archive.misc}</span>
+            <div :if={@archive.misc} class="flex min-h-7 items-center gap-4 px-4">
+              <span class="text-nerves-gray-500 text-sm">Misc:</span>
+              <span class="text-base-300 text-sm">{@archive.misc}</span>
             </div>
 
-            <div class="min-h-7 px-4 flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">Signed with:</span>
-              <span class="flex items-center gap-1 pl-2.5 pr-3 py-0.5 border border-base-700 rounded-full bg-base-800">
-                <code class="text-xs text-base-300">{format_signed(@archive, @org_keys)}</code>
+            <div class="flex min-h-7 items-center gap-4 px-4">
+              <span class="text-nerves-gray-500 text-sm">Signed with:</span>
+              <span class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-3 pl-2.5">
+                <code class="text-base-300 text-xs">{format_signed(@archive, @org_keys)}</code>
               </span>
             </div>
 
-            <div class="min-h-7 px-4 flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">Uploaded on:</span>
-              <span class="text-sm text-base-300">{Calendar.strftime(@archive.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}</span>
+            <div class="flex min-h-7 items-center gap-4 px-4">
+              <span class="text-nerves-gray-500 text-sm">Uploaded on:</span>
+              <span class="text-base-300 text-sm">{Calendar.strftime(@archive.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="w-1/2 flex flex-col gap-4">
-        <div class="flex flex-col pb-4 rounded border border-base-700 bg-base-900 shadow-device-details-content">
-          <div class="h-14 pl-4 pr-3 flex items-center text-neutral-50 font-medium leading-6">
+      <div class="flex w-1/2 flex-col gap-4">
+        <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border pb-4">
+          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-neutral-50">
             Metadata
           </div>
           <div class="flex flex-col gap-3">
-            <div class="min-h-7 px-4 flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">Version:</span>
-              <span class="text-sm text-base-300">{@archive.version}</span>
+            <div class="flex min-h-7 items-center gap-4 px-4">
+              <span class="text-nerves-gray-500 text-sm">Version:</span>
+              <span class="text-base-300 text-sm">{@archive.version}</span>
             </div>
 
-            <div class="min-h-7 px-4 flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">Architecture:</span>
-              <span class="text-sm text-base-300">{@archive.architecture}</span>
+            <div class="flex min-h-7 items-center gap-4 px-4">
+              <span class="text-nerves-gray-500 text-sm">Architecture:</span>
+              <span class="text-base-300 text-sm">{@archive.architecture}</span>
             </div>
 
-            <div class="min-h-7 px-4 flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">Platform:</span>
-              <span class="text-sm text-base-300">{@archive.platform}</span>
+            <div class="flex min-h-7 items-center gap-4 px-4">
+              <span class="text-nerves-gray-500 text-sm">Platform:</span>
+              <span class="text-base-300 text-sm">{@archive.platform}</span>
             </div>
 
-            <div :if={@archive.vcs_identifier} class="min-h-7 px-4 flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">VCS ID:</span>
-              <span class="text-sm text-base-300">{@archive.vcs_identifier}</span>
+            <div :if={@archive.vcs_identifier} class="flex min-h-7 items-center gap-4 px-4">
+              <span class="text-nerves-gray-500 text-sm">VCS ID:</span>
+              <span class="text-base-300 text-sm">{@archive.vcs_identifier}</span>
             </div>
 
-            <div class="min-h-7 px-4 flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">Size:</span>
-              <span class="text-sm text-base-300">{format_file_size(@archive.size)}</span>
+            <div class="flex min-h-7 items-center gap-4 px-4">
+              <span class="text-nerves-gray-500 text-sm">Size:</span>
+              <span class="text-base-300 text-sm">{format_file_size(@archive.size)}</span>
             </div>
           </div>
         </div>
