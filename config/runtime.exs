@@ -3,6 +3,7 @@ import Config
 alias NervesHub.Firmwares.Upload
 alias NervesHub.Firmwares.Upload.S3
 alias NervesHub.Telemetry.FilteredSampler
+alias NervesHub.Repo
 alias Sentry.OpenTelemetry.Sampler
 alias Sentry.OpenTelemetry.SpanProcessor
 alias Swoosh.Adapters.SMTP
@@ -234,11 +235,17 @@ database_ssl_opts =
         |> :public_key.pem_decode()
         |> Enum.map(fn {_, der, _} -> der end)
 
+      verify =
+        if System.get_env("DATABASE_CERT_SELF_SIGNED", "false") == "true" do
+          [verify: :verify_none, verify_fun: {&Repo.verify_fun/3, {:der_bin, List.first(cacerts)}}]
+        else
+          [verify: :verify_peer]
+        end
+
       [
-        verify: :verify_peer,
         cacerts: cacerts,
         server_name_indication: db_hostname_charlist
-      ]
+      ] ++ verify
     else
       [cacerts: :public_key.cacerts_get()]
     end
