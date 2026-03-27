@@ -14,7 +14,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware)
 
-    {:ok, %{device: device, product: product}}
+    {:ok, %{org: org, device: device, product: product, firmware: firmware}}
   end
 
   describe "connection lifecycle" do
@@ -26,8 +26,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
       topic = "device:#{device.identifier}:internal"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
-      assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
-               Connections.device_connecting(device, device.product_id)
+      assert {:ok, %DeviceConnection{id: ref, status: :connecting}} = Connections.device_connecting(device)
 
       assert %DeviceConnection{status: :connecting} = Connections.get_latest_for_device(device.id)
       assert_receive %Broadcast{topic: ^topic, event: "connection:change", payload: %{status: "connecting"}}, 500
@@ -52,7 +51,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
       assert {:ok, %DeviceConnection{id: connection_id, last_seen_at: first_seen_at} = connection} =
-               Connections.device_connecting(device, device.product_id)
+               Connections.device_connecting(device)
 
       assert_receive %Broadcast{topic: ^topic, event: "connection:change", payload: %{status: "connecting"}}, 500
 
@@ -72,49 +71,9 @@ defmodule NervesHub.Devices.ConnectionsTest do
     end
   end
 
-  describe "delete_old_connections/0" do
-    test "deletes connections older than configured retention period", %{device: device} do
-      {:ok, _} = Connections.device_connecting(device, device.product_id)
-      two_weeks_ago = DateTime.utc_now() |> DateTime.add(-14, :day)
-
-      deleted_device_connection =
-        Fixtures.device_connection_fixture(device, %{
-          status: :disconnected,
-          last_seen_at: two_weeks_ago
-        })
-
-      _ = Connections.delete_old_connections()
-
-      refute Repo.reload(deleted_device_connection)
-
-      assert device
-             |> Repo.reload()
-             |> Repo.preload(:latest_connection)
-             |> Map.get(:latest_connection)
-    end
-
-    test "never deletes a device's latest connection", %{device: device} do
-      {:ok, _} = Connections.device_connecting(device, device.product_id)
-
-      %{latest_connection: latest_connection} =
-        device |> Repo.reload() |> Repo.preload(:latest_connection)
-
-      two_weeks_ago = DateTime.utc_now() |> DateTime.add(-14, :day)
-
-      latest_connection
-      |> Ecto.Changeset.change(%{last_seen_at: two_weeks_ago})
-      |> Repo.update!()
-
-      _ = Connections.delete_old_connections()
-
-      assert Repo.reload(latest_connection)
-      assert Repo.reload(device) |> Map.get(:latest_connection_id)
-    end
-  end
-
   describe "clean_stale_connections/0" do
     test "marks stale connected connections as disconnected", %{device: device} do
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
 
       # Get the configured interval and jitter
@@ -138,7 +97,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
     end
 
     test "does not mark recent connections as stale", %{device: device} do
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
 
       # Set last_seen_at to recent time
@@ -189,7 +148,9 @@ defmodule NervesHub.Devices.ConnectionsTest do
     end
 
     test "processes connections in batches respecting the update limit", %{
-      device: device
+      org: org,
+      product: product,
+      firmware: firmware
     } do
       # Get the configured interval and jitter
       interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
@@ -200,6 +161,8 @@ defmodule NervesHub.Devices.ConnectionsTest do
       # Create multiple stale connections for the same device
       connections =
         for _ <- 1..5 do
+          device = Fixtures.device_fixture(org, product, firmware)
+
           Fixtures.device_connection_fixture(device, %{
             status: :connected,
             last_seen_at: stale_time

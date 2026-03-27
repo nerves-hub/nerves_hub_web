@@ -44,8 +44,9 @@ defmodule NervesHub.Devices.Device do
     belongs_to(:org, Org)
     belongs_to(:product, Product)
     belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
-    belongs_to(:latest_connection, DeviceConnection, type: :binary_id)
     belongs_to(:latest_health, DeviceHealth)
+
+    has_one(:latest_connection, DeviceConnection)
 
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)

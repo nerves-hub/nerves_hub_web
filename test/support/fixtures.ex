@@ -477,10 +477,10 @@ defmodule NervesHub.Fixtures do
   def device_connection_fixture(%Devices.Device{} = device, params \\ %{}) do
     now = DateTime.utc_now()
 
-    DeviceConnection.create_changeset(
+    %DeviceConnection{}
+    |> Ecto.Changeset.change(
       Map.merge(
         %{
-          product_id: device.product_id,
           device_id: device.id,
           established_at: now,
           last_seen_at: now,

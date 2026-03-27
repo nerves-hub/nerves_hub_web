@@ -196,9 +196,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit(device_show_path(fixture))
       |> assert_has("svg[data-connection-status=unknown]")
       |> unwrap(fn view ->
-        {:ok, connection} =
-          Connections.device_connecting(fixture.device, fixture.device.product_id)
-
+        {:ok, connection} = Connections.device_connecting(fixture.device)
         :ok = Connections.device_connected(fixture.device, connection.id)
         render(view)
       end)
@@ -221,7 +219,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       # Set device status to :provisioned for deployment group eligibility
       %{status: :provisioned} = device = Devices.set_as_provisioned!(device)
 
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
 
       # mismatch device and deployment group firmware so "Send Update" form doesn't display
@@ -262,7 +260,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 22})
 
-        {:ok, connection} = Connections.device_connecting(device, device.product_id)
+        {:ok, connection} = Connections.device_connecting(device)
         :ok = Connections.device_connected(device, connection.id)
 
         topic = "device:#{device.id}:extensions"
@@ -375,7 +373,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{}})
 
@@ -392,7 +390,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{"latitude" => nil, "longitude" => nil}})
 
@@ -409,7 +407,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{"latitude" => "", "longitude" => ""}})
 
@@ -425,7 +423,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "location" => %{"error_code" => "BOOP", "error_description" => "BEEP"}
       }
 
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
       :ok = Connections.merge_update_metadata(connection.id, metadata)
 
@@ -447,7 +445,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         }
       }
 
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
       :ok = Connections.merge_update_metadata(connection.id, metadata)
 
@@ -672,9 +670,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      {:ok, connection} =
-        Connections.device_connecting(device, device.product_id)
-
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
 
       {:ok, {_release, deployment_group}} =
@@ -717,9 +713,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
         |> Repo.update!()
 
-      {:ok, connection} =
-        Connections.device_connecting(device, device.product_id)
-
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -947,7 +941,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
       device = Devices.set_as_provisioned!(device)
 
@@ -981,7 +975,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
       device = Devices.set_as_provisioned!(device)
 
@@ -1034,7 +1028,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
       device = Devices.set_as_provisioned!(device)
 
@@ -1084,7 +1078,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       Devices.update_device(device, %{firmware_metadata: metadata})
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device, device.product_id)
+      {:ok, connection} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, connection.id)
       device = Devices.set_as_provisioned!(device)
 
@@ -1165,23 +1159,14 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("button[disabled]", text: "Send full update")
 
-      %{id: latest_connection_id} =
-        DeviceConnection.create_changeset(%{
-          product_id: product.id,
-          device_id: device_id,
-          established_at: DateTime.utc_now(),
-          last_seen_at: DateTime.utc_now(),
-          status: :connected
-        })
-        |> DeviceConnection.update_changeset(%{
-          disconnected_at: DateTime.utc_now(),
-          status: :disconnected
-        })
-        |> Repo.insert!()
-
-      Device
-      |> where(id: ^device_id)
-      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+      Ecto.Changeset.change(%DeviceConnection{}, %{
+        device_id: device_id,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
+        disconnected_at: DateTime.utc_now(),
+        status: :disconnected
+      })
+      |> Repo.insert!()
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1197,19 +1182,13 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       assert device.updates_enabled
 
-      %{id: latest_connection_id} =
-        DeviceConnection.create_changeset(%{
-          product_id: device.product_id,
-          device_id: device.id,
-          established_at: DateTime.utc_now(),
-          last_seen_at: DateTime.utc_now(),
-          status: :connected
-        })
-        |> Repo.insert!()
-
-      Device
-      |> where(id: ^device.id)
-      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+      Ecto.Changeset.change(%DeviceConnection{}, %{
+        device_id: device.id,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
+        status: :connected
+      })
+      |> Repo.insert!()
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1248,19 +1227,13 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert device.updates_enabled
 
-      %{id: latest_connection_id} =
-        DeviceConnection.create_changeset(%{
-          product_id: device.product_id,
-          device_id: device.id,
-          established_at: DateTime.utc_now(),
-          last_seen_at: DateTime.utc_now(),
-          status: :connected
-        })
-        |> Repo.insert!()
-
-      Device
-      |> where(id: ^device.id)
-      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+      Ecto.Changeset.change(%DeviceConnection{}, %{
+        device_id: device.id,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
+        status: :connected
+      })
+      |> Repo.insert!()
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1300,19 +1273,17 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       firmware_metadata = Map.put(device.firmware_metadata, :fwup_version, "1.13.0")
 
-      %{id: latest_connection_id} =
-        DeviceConnection.create_changeset(%{
-          product_id: device.product_id,
-          device_id: device.id,
-          established_at: DateTime.utc_now(),
-          last_seen_at: DateTime.utc_now(),
-          status: :connected
-        })
-        |> Repo.insert!()
+      Ecto.Changeset.change(%DeviceConnection{}, %{
+        device_id: device.id,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
+        status: :connected
+      })
+      |> Repo.insert!()
 
       Device
       |> where(id: ^device.id)
-      |> Repo.update_all(set: [firmware_metadata: firmware_metadata, latest_connection_id: latest_connection_id])
+      |> Repo.update_all(set: [firmware_metadata: firmware_metadata])
 
       device = Repo.reload(device)
 
