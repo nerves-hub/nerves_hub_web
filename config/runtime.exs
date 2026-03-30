@@ -177,7 +177,11 @@ if config_env() == :prod do
       keyfile: keyfile,
       certfile: certfile,
       cacertfile: cacertfile,
-      hibernate_after: 15_000
+      hibernate_after: 15_000,
+      recbuf: 16_384,
+      sndbuf: 16_384,
+      buffer: 16_384,
+      nodelay: true
     ]
 
     # Older versions of OTP 25 may break using using devices
