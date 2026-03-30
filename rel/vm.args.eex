@@ -10,6 +10,9 @@
 ## Tweak GC to run more often
 ##-env ERL_FULLSWEEP_AFTER 10
 
-## Use "address order best fit" for binary_alloc, and eheap_alloc
-+MBas aobf
-+MHas aobf
+# Forces allocator to pack memory at the front,
+# making it possible to free memory at the back
++MBas aoffcbf
+
+# Allow allocator to move on active block to a different carrier
++Mmuao true

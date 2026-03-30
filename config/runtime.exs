@@ -181,7 +181,8 @@ if config_env() == :prod do
       recbuf: 16_384,
       sndbuf: 16_384,
       buffer: 9216,
-      nodelay: true
+      nodelay: true,
+      active: 5
     ]
 
     # Older versions of OTP 25 may break using using devices
