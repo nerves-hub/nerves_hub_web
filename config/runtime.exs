@@ -180,7 +180,7 @@ if config_env() == :prod do
       hibernate_after: 15_000,
       recbuf: 16_384,
       sndbuf: 16_384,
-      buffer: 16_384,
+      buffer: 9216,
       nodelay: true
     ]
 
