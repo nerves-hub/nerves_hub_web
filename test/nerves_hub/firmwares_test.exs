@@ -126,6 +126,62 @@ defmodule NervesHub.FirmwaresTest do
     assert firmware.size == expected_size
   end
 
+  test "firmware stores its sha256 checksum, base16 encoded", %{
+    org: org,
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir
+  } do
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    assert File.exists?(firmware.upload_metadata[:local_path])
+
+    expected_checksum = Firmwares.firmware_checksum(firmware.upload_metadata[:local_path])
+
+    {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+    assert firmware.checksum == expected_checksum
+  end
+
+  test "firmware stores checksums of 1024 byte parts of its full file, base16 encoded", %{
+    org: org,
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir
+  } do
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    assert File.exists?(firmware.upload_metadata[:local_path])
+
+    expected_checksums = Firmwares.partials_checksums(firmware.upload_metadata[:local_path])
+
+    {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+    assert firmware.partials_checksums == expected_checksums
+    assert length(firmware.partials_checksums) == 1
+  end
+
+  test "firmware stores checksums of 1024 byte parts of its full file, base16 encoded, using a larger file", %{
+    org: org,
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir
+  } do
+    firmware =
+      Fixtures.firmware_fixture(org_key, product, %{
+        version: "1.0.0",
+        resource_contents: String.duplicate("source file contents ", 100_000),
+        dir: tmp_dir
+      })
+
+    assert File.exists?(firmware.upload_metadata[:local_path])
+
+    expected_checksums = Firmwares.partials_checksums(firmware.upload_metadata[:local_path])
+
+    {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+    assert firmware.partials_checksums == expected_checksums
+    assert length(firmware.partials_checksums) == 6
+  end
+
   describe "get_firmwares_by_product/1" do
     test "returns firmwares", %{
       product: product,

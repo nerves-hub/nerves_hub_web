@@ -889,7 +889,9 @@ defmodule NervesHub.Devices do
               firmware_url: firmware_url,
               firmware_meta: meta,
               deployment_group: deployment_group,
-              deployment_id: deployment_group.id
+              deployment_id: deployment_group.id,
+              checksum: deployment_group.current_release.firmware.checksum,
+              partials_checksums: deployment_group.current_release.firmware.partials_checksums
             }
 
           {:error, reason} ->

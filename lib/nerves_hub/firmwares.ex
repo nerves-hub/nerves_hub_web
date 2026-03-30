@@ -749,7 +749,7 @@ defmodule NervesHub.Firmwares do
       filename = fm.uuid <> ".fw"
 
       params =
-        resolve_product(%{
+        %{
           architecture: fm.architecture,
           author: fm.author,
           description: fm.description,
@@ -770,10 +770,41 @@ defmodule NervesHub.Firmwares do
           vcs_identifier: fm.vcs_identifier,
           version: fm.version,
           tool_metadata: tm
-        })
+        }
+        |> calculate_checksums()
+        |> resolve_product()
 
       {:ok, params}
     end
+  end
+
+  defp calculate_checksums(params) do
+    params
+    |> Map.put(:checksum, firmware_checksum(params.filepath))
+    |> Map.put(:partials_checksums, partials_checksums(params.filepath))
+  end
+
+  def firmware_checksum(filepath) do
+    filepath
+    |> File.stream!(2048)
+    |> Enum.reduce(:crypto.hash_init(:sha256), fn bytes, hash_state ->
+      :crypto.hash_update(hash_state, bytes)
+    end)
+    |> :crypto.hash_final()
+    |> Base.encode16()
+  end
+
+  def partials_checksums(filepath) do
+    filepath
+    |> File.stream!(1024)
+    |> Enum.reduce([], fn bytes, checksum_list ->
+      partial_checksum =
+        :crypto.hash(:sha256, bytes)
+        |> Base.encode16()
+
+      [partial_checksum | checksum_list]
+    end)
+    |> Enum.reverse()
   end
 
   defp resolve_product(params) do

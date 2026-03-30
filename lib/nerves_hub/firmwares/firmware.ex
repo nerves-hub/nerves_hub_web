@@ -74,6 +74,9 @@ defmodule NervesHub.Firmwares.Firmware do
     field(:vcs_identifier, :string)
     field(:version, :string)
 
+    field(:checksum, :string)
+    field(:partials_checksums, {:array, :string}, default: [])
+
     field(:install_count, :integer, virtual: true)
 
     timestamps()
@@ -81,7 +84,7 @@ defmodule NervesHub.Firmwares.Firmware do
 
   def create_changeset(%Firmware{} = firmware, params) do
     firmware
-    |> cast(params, @required_params ++ @optional_params)
+    |> cast(params, @required_params ++ @optional_params ++ [:checksum, :partials_checksums])
     |> validate_required(@required_params)
     |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
     |> foreign_key_constraint(:deployment_groups, name: :deployment_groups_firmware_id_fkey)
