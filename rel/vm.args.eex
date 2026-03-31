@@ -10,6 +10,6 @@
 ## Tweak GC to run more often
 ##-env ERL_FULLSWEEP_AFTER 10
 
-+MBas aoffcbf
-+MHas aoffcbf
-+MSas aoffcbf
+## Use "address order best fit" for binary_alloc, and eheap_alloc
++MBas aobf
++MHas aobf
