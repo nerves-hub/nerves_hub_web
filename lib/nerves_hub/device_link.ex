@@ -172,9 +172,10 @@ defmodule NervesHub.DeviceLink do
     :ok
   end
 
-  defp maybe_request_extensions(device, device_api_version) do
-    if Version.match?(device_api_version, ">= 2.2.0"),
-      do: broadcast(device, "extensions:get", %{})
+  defp maybe_request_extensions(_device, _device_api_version) do
+    # Temporarily disabled to test if ExtensionsChannel joins are causing memory issues
+    # if Version.match?(device_api_version, ">= 2.2.0"),
+    #   do: broadcast(device, "extensions:get", %{})
 
     :ok
   end
