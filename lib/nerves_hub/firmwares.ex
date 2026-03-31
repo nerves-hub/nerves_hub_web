@@ -22,6 +22,8 @@ defmodule NervesHub.Firmwares do
 
   require Logger
 
+  @firmware_partial_chunk_size 1024 * 1024
+
   @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
 
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
@@ -796,15 +798,11 @@ defmodule NervesHub.Firmwares do
 
   def partials_checksums(filepath) do
     filepath
-    |> File.stream!(1024)
-    |> Enum.reduce([], fn bytes, checksum_list ->
-      partial_checksum =
-        :crypto.hash(:sha256, bytes)
-        |> Base.encode16()
-
-      [partial_checksum | checksum_list]
+    |> File.stream!(@firmware_partial_chunk_size)
+    |> Stream.map(fn chunk ->
+      :crypto.hash(:sha256, chunk) |> Base.encode16()
     end)
-    |> Enum.reverse()
+    |> Enum.to_list()
   end
 
   defp resolve_product(params) do

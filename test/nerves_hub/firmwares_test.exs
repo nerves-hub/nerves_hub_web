@@ -142,7 +142,7 @@ defmodule NervesHub.FirmwaresTest do
     assert firmware.checksum == expected_checksum
   end
 
-  test "firmware stores checksums of 1024 byte parts of its full file, base16 encoded", %{
+  test "firmware stores checksums of 1MB parts of its full file, base16 encoded", %{
     org: org,
     org_key: org_key,
     product: product,
@@ -159,7 +159,7 @@ defmodule NervesHub.FirmwaresTest do
     assert length(firmware.partials_checksums) == 1
   end
 
-  test "firmware stores checksums of 1024 byte parts of its full file, base16 encoded, using a larger file", %{
+  test "firmware stores checksums of 1MB parts of its full file, base16 encoded, using a larger file", %{
     org: org,
     org_key: org_key,
     product: product,
@@ -168,7 +168,7 @@ defmodule NervesHub.FirmwaresTest do
     firmware =
       Fixtures.firmware_fixture(org_key, product, %{
         version: "1.0.0",
-        resource_contents: String.duplicate("source file contents ", 100_000),
+        resource_contents_path: "test/fixtures/fwup/dummy_4mb.txt",
         dir: tmp_dir
       })
 
@@ -179,7 +179,7 @@ defmodule NervesHub.FirmwaresTest do
     {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
 
     assert firmware.partials_checksums == expected_checksums
-    assert length(firmware.partials_checksums) == 6
+    assert length(firmware.partials_checksums) == 5
   end
 
   describe "get_firmwares_by_product/1" do
