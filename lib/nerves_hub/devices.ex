@@ -890,6 +890,7 @@ defmodule NervesHub.Devices do
               firmware_meta: meta,
               deployment_group: deployment_group,
               deployment_id: deployment_group.id,
+              size: deployment_group.current_release.firmware.size,
               checksum: deployment_group.current_release.firmware.checksum,
               partials_checksums: deployment_group.current_release.firmware.partials_checksums
             }
