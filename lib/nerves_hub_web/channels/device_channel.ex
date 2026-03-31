@@ -244,6 +244,11 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("report_network_interface", %{"interface" => interface}, %{assigns: %{device: device}} = socket) do
+    :telemetry.execute([:nerves_hub, :devices, :network_interface_report], %{count: 1}, %{
+      device_identifier: device.identifier,
+      interface: interface
+    })
+
     if Device.humanized_network_interface_name(interface) == device.network_interface do
       {:noreply, socket}
     else
