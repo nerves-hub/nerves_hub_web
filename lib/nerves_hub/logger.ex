@@ -142,7 +142,7 @@ defmodule NervesHub.Logger do
   end
 
   def log_event([:nerves_hub, :devices, :network_interface_report], _, metadata, _) do
-    Logger.warning("Device reporting network interface",
+    Logger.info("Device reporting network interface",
       event: "nerves_hub.devices.network_interface_report",
       device_identifier: metadata[:device_identifier],
       interface: metadata[:interface]
