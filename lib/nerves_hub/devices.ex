@@ -1915,11 +1915,7 @@ defmodule NervesHub.Devices do
   @doc """
   Get firmware or delta update URL.
   """
-  @spec get_delta_or_firmware_url(Device.t(), DeploymentGroup.t()) ::
-          {:ok, String.t()}
-          | {:error, :delta_not_completed}
-          | {:error, :device_does_not_support_deltas}
-          | {:error, :delta_not_found}
+  @spec get_delta_or_firmware_url(Device.t(), DeploymentGroup.t()) :: {:ok, String.t()} | {:error, :failure}
   def get_delta_or_firmware_url(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
         delta_updatable: true,
         current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
@@ -1930,14 +1926,8 @@ defmodule NervesHub.Devices do
           {:ok, delta} ->
             Firmwares.get_firmware_url(delta)
 
-          {:device_delta_updatable, false} ->
-            {:error, :device_does_not_support_deltas}
-
-          {:delta, {:ok, %FirmwareDelta{}}} ->
-            {:error, :delta_not_completed}
-
-          {:delta, {:error, :not_found}} ->
-            {:error, :delta_not_found}
+          _ ->
+            Firmwares.get_firmware_url(target_firmware)
         end
 
       {:error, :not_found} ->

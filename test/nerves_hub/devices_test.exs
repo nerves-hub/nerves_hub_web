@@ -1545,7 +1545,7 @@ defmodule NervesHub.DevicesTest do
       assert String.ends_with?(url, "#{firmware.uuid}.fw")
     end
 
-    test "returns error if device does not support deltas", %{
+    test "returns the full firmware url if device does not support deltas", %{
       device: device,
       deployment_group: deployment_group,
       org_key: org_key,
@@ -1561,10 +1561,11 @@ defmodule NervesHub.DevicesTest do
           current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
-      assert {:error, :device_does_not_support_deltas} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
     end
 
-    test "returns error if delta isn't ready", %{
+    test "returns the full firmware url if delta isn't ready", %{
       device: device,
       deployment_group: deployment_group,
       org_key: org_key,
@@ -1586,7 +1587,8 @@ defmodule NervesHub.DevicesTest do
           current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
-      assert {:error, :delta_not_completed} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
     end
 
     test "returns full firmware url when source firmware can't be found", %{
