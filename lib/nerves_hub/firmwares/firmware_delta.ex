@@ -65,6 +65,7 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
           checksum :: String.t(),
           partials_checksums :: [String.t()]
         ) :: Ecto.Changeset.t()
+  # credo:disable-for-next-line
   def complete_changeset(
         %FirmwareDelta{} = firmware_delta,
         tool,
