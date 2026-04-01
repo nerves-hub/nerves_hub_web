@@ -1781,11 +1781,8 @@ defmodule NervesHub.Devices do
   end
 
   def told_to_update(device_id, deployment_group, opts) do
-    # Reload deployment_group from database to ensure we have the latest current_release_id
-    deployment_group = Repo.get!(ManagedDeployments.DeploymentGroup, deployment_group.id)
-
     deployment_group =
-      ManagedDeployments.load_current_release(deployment_group, force: true)
+      ManagedDeployments.load_current_release(deployment_group)
       |> Repo.preload([:org])
 
     expires_at =
