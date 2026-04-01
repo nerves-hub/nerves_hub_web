@@ -809,6 +809,8 @@ defmodule NervesHub.Devices do
     |> where([device: d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
     |> where([deployment_group: dg], dg.is_active == true)
     |> where([deployment_group: dg], dg.status == :ready)
+    # this is a short circuit to avoid a race condition where a new deployment release is created by
+    # the orchestrator is about to run this query before the orchestrator has refreshed its information
     |> where(
       [deployment_group: dg],
       dg.current_deployment_release_id == ^deployment_group.current_deployment_release_id
