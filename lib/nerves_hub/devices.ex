@@ -1032,8 +1032,7 @@ defmodule NervesHub.Devices do
         # Update the device's deployment group first
         updated_device =
           device
-          |> Ecto.Changeset.change()
-          |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
+          |> Device.update_deployment_group(deployment_group)
           |> Repo.update!()
 
         # Then queue delta generation for any new device firmware combinations
