@@ -738,8 +738,7 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec update_network_interface(Device.t(), binary()) ::
-          {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
+  @spec update_network_interface(Device.t(), binary()) :: {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def update_network_interface(device, network_interface) do
     device
     |> Device.update_network_interface_changeset(network_interface)
@@ -915,8 +914,7 @@ defmodule NervesHub.Devices do
       {:ok, _device} ->
         case get_delta_or_firmware_url(device, deployment_group) do
           {:ok, url} ->
-            {:ok, meta} =
-              Firmwares.metadata_from_firmware(deployment_group.current_release.firmware)
+            {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.current_release.firmware)
 
             firmware_url =
               if opts[:firmware_proxy_url] do
@@ -1824,7 +1822,6 @@ defmodule NervesHub.Devices do
         case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment_group.id) do
           nil ->
             Logger.error("An inflight update could not be created or found for the device (#{device_id})")
-
             :error
 
           inflight_update ->
