@@ -896,16 +896,6 @@ defmodule NervesHub.Devices do
               checksum: firmware_or_delta.checksum,
               partials_checksums: firmware_or_delta.partials_checksums
             }
-
-          {:error, reason} ->
-            Logger.info(
-              "Firmware URL could not be generated",
-              reason: reason,
-              source_firmware: Map.get(device.firmware_metadata, :uuid),
-              target_firmware: deployment_group.current_release.firmware.uuid
-            )
-
-            %UpdatePayload{update_available: false}
         end
 
       {:error, :deployment_group_not_active, _device} ->
@@ -1921,7 +1911,7 @@ defmodule NervesHub.Devices do
   Get firmware or delta.
   """
   @spec get_delta_or_firmware(Device.t(), DeploymentGroup.t()) ::
-          {:ok, Firmware.t()} | {:ok, FirmwareDelta.t()} | {:error, atom()}
+          {:ok, Firmware.t()} | {:ok, FirmwareDelta.t()}
   def get_delta_or_firmware(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
         delta_updatable: true,
         current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
