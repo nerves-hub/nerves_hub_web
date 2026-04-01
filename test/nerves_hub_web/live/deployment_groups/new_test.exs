@@ -46,7 +46,7 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
       |> assert_has("div", text: "Deployment Group created")
       |> assert_has("h1", text: "Moussaka")
 
-      [%{resource_type: DeploymentGroup}] = AuditLogs.logs_by(user)
+      [%{resource_type: DeploymentGroup}, %{resource_type: DeploymentGroup}] = AuditLogs.logs_by(user)
     end
 
     test "error message displayed if invalid firmware is selected", %{
@@ -59,18 +59,19 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
       product = Fixtures.product_fixture(user, org)
 
       firmware =
-        Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "taramasalata"})
+        Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "snoot", architecture: "boop"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new")
       |> select("Platform", option: firmware.platform)
+      |> select("Architecture", option: firmware.architecture)
       |> unwrap(fn view ->
         view
         |> element("form")
         |> render_submit(%{deployment_group: %{"firmware_id" => -1}})
       end)
       |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/new")
-      |> assert_has("p", text: "does not exist")
+      |> assert_has("span", text: "can't be blank")
     end
 
     test "redirects to firmware upload firmware_id is passed and no firmwares are found" do
@@ -99,7 +100,7 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
     |> select("Architecture", option: "x86_64")
     |> select("Firmware", option: "1.0.0", exact_option: false)
     |> submit()
-    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/Canaries")
+    |> assert_path(~p"/org/#{org}/#{product}/deployment_groups/Canaries")
 
     deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
     assert deployment_group.delta_updatable

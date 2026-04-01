@@ -34,6 +34,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
   alias NervesHub.Products.Product
@@ -53,13 +54,14 @@ defmodule NervesHub.Devices do
     |> join(:left, [d], o in assoc(d, :org))
     |> join(:left, [d, o], p in assoc(d, :product))
     |> join(:left, [d, o, p], dg in assoc(d, :deployment_group))
-    |> join(:left, [d, o, p, dg], f in assoc(dg, :firmware))
-    |> join(:left, [d, o, p, dg, f], lc in assoc(d, :latest_connection), as: :latest_connection)
-    |> join(:left, [d, o, p, dg, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
-    |> preload([d, o, p, dg, f, latest_connection: lc, latest_health: lh],
+    |> join(:left, [d, o, p, dg], cr in assoc(dg, :current_release))
+    |> join(:left, [d, o, p, dg, cr], f in assoc(cr, :firmware))
+    |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, o, p, dg, cr, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
+    |> preload([d, o, p, dg, cr, f, latest_connection: lc, latest_health: lh],
       org: o,
       product: p,
-      deployment_group: {dg, firmware: f},
+      deployment_group: {dg, current_release: {cr, firmware: f}},
       latest_connection: lc,
       latest_health: lh
     )
@@ -145,8 +147,10 @@ defmodule NervesHub.Devices do
         on: pd.device_id == d.id and pd.user_id == ^user.id,
         as: :pinned
       )
+      |> join(:left, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
       |> preload([latest_connection: lc], latest_connection: lc)
       |> preload([latest_health: lh], latest_health: lh)
+      |> preload([deployment_group: dg], deployment_group: dg)
 
     CommonFiltering.filter(
       base_query,
@@ -271,10 +275,10 @@ defmodule NervesHub.Devices do
     |> join_and_preload(preload_assoc)
   end
 
-  defp join_and_preload_deployment_group_and_current_release(query) do
+  def join_and_preload_deployment_group_and_current_release(query) do
     query
     |> join(:left, [d], dp in assoc(d, :deployment_group), as: :deployment_group)
-    |> ManagedDeployments.join_current_release()
+    |> join(:left, [deployment_group: dg], cr in assoc(dg, :current_release), as: :current_release)
     |> join(:left, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
     |> preload([deployment_group: dg, firmware: f, current_release: cr],
       deployment_group: {dg, current_release: {cr, firmware: f}}
@@ -669,10 +673,11 @@ defmodule NervesHub.Devices do
     DeploymentGroup
     |> where([dep], dep.id == ^deployment_id)
     |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
-    |> join(:inner, [dep, dev], f in Firmware, on: f.uuid == fragment("d1.firmware_metadata->>'uuid'"))
+    |> join(:inner, [dep], cr in assoc(dep, :current_release))
+    |> join(:inner, [_, dev], f in Firmware, on: f.uuid == fragment("?.firmware_metadata->>'uuid'", dev))
     # Exclude the current firmware, we don't need to generate that one
-    |> where([dep, dev, f], f.id != dep.firmware_id)
-    |> select([dep, dev, f], {f.id, dep.firmware_id})
+    |> where([_, _, cr, f], f.id != cr.firmware_id)
+    |> select([_, _, cr, f], {f.id, cr.firmware_id})
     |> distinct(true)
     |> Repo.all()
   end
@@ -984,7 +989,6 @@ defmodule NervesHub.Devices do
     # let the orchestrator know that a device has been added to the deployment group
     DeploymentOrchestratorEvents.device_added(device)
 
-    deployment_group = Repo.preload(deployment_group, :firmware)
     Map.put(device, :deployment_group, deployment_group)
   end
 
@@ -999,6 +1003,26 @@ defmodule NervesHub.Devices do
     DeviceEvents.deployment_cleared(device)
 
     Map.put(device, :deployment_group, nil)
+  end
+
+  @doc """
+  Remove multiple devices from their deployment groups.
+
+  Returns `{:ok, count}` with the number of devices updated.
+  """
+  @spec remove_many_from_deployment_group(Scope.t(), [non_neg_integer()]) :: {:ok, non_neg_integer()}
+  def remove_many_from_deployment_group(%Scope{product: product}, device_ids) when is_list(device_ids) do
+    {count, _} =
+      Device
+      |> Repo.exclude_deleted()
+      |> where([d], d.id in ^device_ids)
+      |> where([d], d.product_id == ^product.id)
+      |> where([d], not is_nil(d.deployment_id))
+      |> Repo.update_all(set: [deployment_id: nil])
+
+    Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
+
+    {:ok, count}
   end
 
   @spec failure_threshold_met?(Device.t(), DeploymentGroup.t()) :: boolean()
@@ -1266,6 +1290,33 @@ defmodule NervesHub.Devices do
     description = "User #{user.name} updated device #{device.identifier} tags"
     params = %{tags: tags}
     update_device_with_audit(device, params, user, description)
+  end
+
+  @spec add_tag(Device.t(), User.t(), String.t()) :: {:ok, Device.t()} | {:error, any()} | {:error, any(), any(), any()}
+  def add_tag(%Device{} = device, user, tag) do
+    tag = String.trim(tag)
+
+    if tag == "" or String.contains?(tag, " ") do
+      {:error, "Tags cannot be empty or contain spaces."}
+    else
+      current_tags = device.tags || []
+
+      if tag in current_tags do
+        {:error, "Tag \"#{tag}\" already exists on this device."}
+      else
+        new_tags = current_tags ++ [tag]
+        tag_device(device, user, new_tags)
+      end
+    end
+  end
+
+  @spec remove_tag(Device.t(), User.t(), String.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
+  def remove_tag(%Device{} = device, user, tag) do
+    current_tags = device.tags || []
+    new_tags = List.delete(current_tags, tag)
+
+    tag_device(device, user, new_tags)
   end
 
   @spec update_device_with_audit(Device.t(), map(), User.t(), String.t()) ::
@@ -1864,14 +1915,10 @@ defmodule NervesHub.Devices do
   @doc """
   Get firmware or delta update URL.
   """
-  @spec get_delta_or_firmware_url(Device.t(), DeploymentGroup.t()) ::
-          {:ok, String.t()}
-          | {:error, :delta_not_completed}
-          | {:error, :device_does_not_support_deltas}
-          | {:error, :delta_not_found}
+  @spec get_delta_or_firmware_url(Device.t(), DeploymentGroup.t()) :: {:ok, String.t()} | {:error, :failure}
   def get_delta_or_firmware_url(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
         delta_updatable: true,
-        current_release: %{firmware: %Firmware{delta_updatable: true} = target_firmware}
+        current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
       }) do
     case Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, source_uuid) do
       {:ok, source_firmware} ->
@@ -1879,14 +1926,8 @@ defmodule NervesHub.Devices do
           {:ok, delta} ->
             Firmwares.get_firmware_url(delta)
 
-          {:device_delta_updatable, false} ->
-            {:error, :device_does_not_support_deltas}
-
-          {:delta, {:ok, %FirmwareDelta{}}} ->
-            {:error, :delta_not_completed}
-
-          {:delta, {:error, :not_found}} ->
-            {:error, :delta_not_found}
+          _ ->
+            Firmwares.get_firmware_url(target_firmware)
         end
 
       {:error, :not_found} ->

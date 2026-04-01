@@ -93,64 +93,64 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     <div
       id="health-tab"
       phx-mounted={JS.remove_class("opacity-0")}
-      class="transition-all duration-500 opacity-0 tab-content phx-click-loading:opacity-50 w-full p-6"
+      class="phx-click-loading:opacity-50 tab-content w-full p-6 opacity-0 transition-all duration-500"
     >
-      <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="mb-6 w-full flex flex-col bg-base-900 border border-base-700 rounded">
-        <div class="flex flex-col shadow-device-details-content">
-          <div class="flex pt-2 px-4 pb-4 gap-2 items-center justify-items-stretch flex-wrap">
-            <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-success bg-health-good">
-              <span class="text-xs text-base-400 tracking-wide">CPU</span>
-              <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex justify-between items-end">
+      <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="bg-base-900 border-base-700 mb-6 flex w-full flex-col rounded border">
+        <div class="shadow-device-details-content flex flex-col">
+          <div class="flex flex-wrap items-center justify-items-stretch gap-2 px-4 pt-2 pb-4">
+            <div class="bg-health-good border-success flex h-16 grow flex-col rounded border-b px-3 py-2">
+              <span class="text-base-400 text-xs tracking-wide">CPU</span>
+              <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
                 <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
-                <span class="text-base text-success">{round(@latest_metrics["cpu_temp"])}°</span>
+                <span class="text-success text-base">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
-              <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="flex justify-between items-end">
+              <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="flex items-end justify-between">
                 <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
               </div>
-              <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex justify-between items-end">
+              <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
                 <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
-              <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
+              <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
             </div>
-            <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-warning bg-health-warning">
-              <span class="text-xs text-base-400 tracking-wide">Memory used</span>
-              <div :if={@latest_metrics["mem_used_mb"]} class="flex justify-between items-end">
+            <div class="bg-health-warning border-warning flex h-16 grow flex-col rounded border-b px-3 py-2">
+              <span class="text-base-400 text-xs tracking-wide">Memory used</span>
+              <div :if={@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
                 <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["mem_used_mb"])}MB</span>
-                <span class="text-base text-warning">{round(@latest_metrics["mem_used_percent"])}%</span>
+                <span class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}%</span>
               </div>
-              <div :if={!@latest_metrics["mem_used_mb"]} class="flex justify-between items-end">
-                <span class="text-xl leading-[30px] text-nerves-gray-500">Not reported</span>
+              <div :if={!@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
+                <span class="text-nerves-gray-500 text-xl leading-[30px]">Not reported</span>
               </div>
             </div>
-            <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-indigo-500 bg-health-neutral">
-              <span class="text-xs text-base-400 tracking-wide">Load avg</span>
-              <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex justify-between items-center">
+            <div class="bg-health-neutral flex h-16 grow flex-col rounded border-b border-indigo-500 px-3 py-2">
+              <span class="text-base-400 text-xs tracking-wide">Load avg</span>
+              <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex items-center justify-between">
                 <span :if={@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_1min"]}</span>
-                <span :if={!@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
-                <span class="w-px h-4 bg-base-700"></span>
+                <span :if={!@latest_metrics["load_1min"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
+                <span class="bg-base-700 h-4 w-px"></span>
                 <span :if={@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_5min"]}</span>
-                <span :if={!@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
-                <span class="w-px h-4 bg-base-700"></span>
+                <span :if={!@latest_metrics["load_5min"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
+                <span class="bg-base-700 h-4 w-px"></span>
                 <span :if={@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_15min"]}</span>
-                <span :if={!@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
+                <span :if={!@latest_metrics["load_15min"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
               </div>
               <div :if={!@latest_metrics["load_1min"] && !@latest_metrics["load_5min"] && !@latest_metrics["load_15min"]} class="flex items-center">
-                <span class="text-xl leading-[30px] text-nerves-gray-500">Not reported</span>
+                <span class="text-nerves-gray-500 text-xl leading-[30px]">Not reported</span>
               </div>
             </div>
-            <div :for={{key, value} <- custom_metrics(@latest_metrics)} class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-neutral-500 bg-health-plain">
-              <span class="text-xs text-neutral-400 tracking-wide">{key_label(key)}</span>
+            <div :for={{key, value} <- custom_metrics(@latest_metrics)} class="bg-health-plain flex h-16 grow flex-col rounded border-b border-neutral-500 px-3 py-2">
+              <span class="text-xs tracking-wide text-neutral-400">{key_label(key)}</span>
               <span class="text-xl leading-[30px] text-neutral-50">{nice_round(value)}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="w-full flex flex-col bg-base-900 border border-base-700 rounded">
-        <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
+      <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
+        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
           <div class="flex items-end gap-3">
-            <div class="text-base text-neutral-50 font-medium">Health over time</div>
-            <div :if={@latest_metrics["timestamp"]} class="text-xs text-nerves-gray-500 tracking-wide mr-auto">
+            <div class="text-base font-medium text-neutral-50">Health over time</div>
+            <div :if={@latest_metrics["timestamp"]} class="text-nerves-gray-500 mr-auto text-xs tracking-wide">
               <span>Last updated: </span>
               <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
                 {Timex.from_now(@latest_metrics["timestamp"])}
@@ -162,9 +162,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
               :for={{unit, amount} <- @time_frame_opts}
               type="button"
               class={[
-                "px-4 py-2 text-sm font-medium border border-base-600 first:rounded-s-lg last:rounded-e-lg hover:text-base-200 hover:bg-base-700 focus:z-10 focus:ring-0",
-                {unit, amount} != @time_frame && "text-base-300 bg-base-800",
-                {unit, amount} == @time_frame && "text-base-200 bg-base-700"
+                "border-base-600 hover:bg-base-700 hover:text-base-200 border px-4 py-2 text-sm font-medium first:rounded-s-lg last:rounded-e-lg focus:z-10 focus:ring-0",
+                {unit, amount} != @time_frame && "bg-base-800 text-base-300",
+                {unit, amount} == @time_frame && "bg-base-700 text-base-200"
               ]}
               aria-label={Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
               type="button"
@@ -177,13 +177,13 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
           </div>
         </div>
 
-        <div class="p-10 flex flex-col gap-10">
+        <div class="flex flex-col gap-10 p-10">
           <div :if={Enum.empty?(@charts)} class="flex items-center justify-center p-6">
             <span class="text-base-500 font-extralight">No metrics for the selected period.</span>
           </div>
 
           <div :for={chart <- @charts} :if={Enum.any?(@charts)} class="flex flex-col gap-3">
-            <div class="w-full h-[200px]">
+            <div class="h-[200px] w-full">
               <canvas
                 id={chart.type}
                 phx-hook="Chart"

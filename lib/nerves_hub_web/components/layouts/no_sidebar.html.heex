@@ -1,6 +1,6 @@
-<div class="flex flex-col h-full">
-  <div class="border-b border-base-700 bg-surface-muted">
-    <div class="h-14 w-[264px] pl-6 shrink-0 flex items-center">
+<div class="flex h-full flex-col">
+  <div class="bg-surface-muted border-base-700 border-b">
+    <div class="flex h-14 w-[264px] shrink-0 items-center pl-6">
       <.link navigate={~p"/orgs"}>
         <svg width="111" height="24" viewBox="0 0 111 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path
@@ -21,30 +21,30 @@
     <div></div>
   </div>
 
-  <div class="h-full w-full flex flex-col items-center">
+  <div class="flex size-full flex-col items-center">
     <.flash_group flash={@flash} />
 
     {render_slot(@inner_block)}
   </div>
 
   <div class="fixed bottom-0">
-    <div id="user-menu" class="mb-4 mx-2 hidden border border-base-700 bg-surface-muted rounded-md">
-      <a href="https://docs.nerves-hub.org" class="block p-2 hover:bg-base-700">Documentation</a>
-      <a href={~p"/account"} class="block p-2 hover:bg-base-700">Account</a>
-      <a href={~p"/logout"} class="block p-2 hover:bg-base-700">Log out</a>
+    <div id="user-menu" class="bg-surface-muted border-base-700 mx-2 mb-4 hidden rounded-md border">
+      <a href="https://docs.nerves-hub.org" class="hover:bg-base-700 block p-2">Documentation</a>
+      <a href={~p"/account"} class="hover:bg-base-700 block p-2">Account</a>
+      <a href={~p"/logout"} class="hover:bg-base-700 block p-2">Log out</a>
     </div>
-    <a href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-white hover:bg-indigo-700" phx-click={toggle_user_menu()}>
-      <div :if={!@current_scope.user.profile_picture_url} class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
+    <a href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm/6 font-semibold text-white hover:bg-indigo-700" phx-click={toggle_user_menu()}>
+      <div :if={!@current_scope.user.profile_picture_url} class="relative inline-flex size-8 items-center justify-center overflow-hidden rounded-full bg-gray-100 pt-0.5 dark:bg-gray-600">
         <span class="font-medium text-gray-600 dark:text-gray-300">{String.split(@current_scope.user.name) |> Enum.map(fn w -> String.at(w, 0) end)}</span>
       </div>
-      <div :if={@current_scope.user.profile_picture_url} class="relative inline-flex items-center justify-center w-8 h-8 overflow-hidden">
-        <img src={@current_scope.user.profile_picture_url} alt="User Profile Picture" class="w-full h-full object-cover rounded-full" />
+      <div :if={@current_scope.user.profile_picture_url} class="relative inline-flex size-8 items-center justify-center overflow-hidden">
+        <img src={@current_scope.user.profile_picture_url} alt="User Profile Picture" class="size-full rounded-full object-cover" />
       </div>
 
       <div class="">
         <div class="sr-only">Your profile</div>
         <div aria-hidden="true" class="text-sm font-light">{@current_scope.user.name}</div>
-        <div aria-hidden="true" class="text-xs font-light text-base-400">{@current_scope.user.email}</div>
+        <div aria-hidden="true" class="text-base-400 text-xs font-light">{@current_scope.user.email}</div>
       </div>
     </a>
   </div>

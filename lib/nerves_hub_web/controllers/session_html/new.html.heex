@@ -6,8 +6,8 @@
     Don't have an account? <.link href="/register" class="font-semibold text-indigo-500 hover:text-indigo-400">Sign up for free</.link>
   </:subheader>
 
-  <div :if={assigns[:error_message]} role="alert" class="mt-4 mr-2 w-full rounded-sm p-3 ring-1 shadow-md bg-alert-soft text-alert-content ring-alert fill-alert">
-    <p class="mt-1 text-sm leading-5">{@error_message}</p>
+  <div :if={assigns[:error_message]} role="alert" class="bg-alert-soft fill-alert ring-alert text-alert-content mt-4 mr-2 w-full rounded-sm p-3 shadow-md ring-1">
+    <p class="mt-1 text-sm/5">{@error_message}</p>
   </div>
 
   <div class="mt-6">
@@ -28,19 +28,10 @@
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
-                class="
-                      appearance-none
-                      rounded border border-base-600
-                      bg-base-800 text-indigo-400
-                      checked:border-base-600 checked:bg-indigo-500
-                      focus:ring-0 focus:ring-offset-0
-                      indeterminate:border-base-600 indeterminate:bg-indigo-500
-                      focus-visible:outline-none focus-visible:ring-0 focus-visible:outline-offset-2 focus-visible:outline-indigo-500
-                      disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100
-                      forced-colors-adjust-auto"
+                class=""
               />
             </div>
-            <label for="remember-me" class="block text-sm/6 text-base-300">Remember me</label>
+            <label for="remember-me" class="text-base-300 block text-sm/6">Remember me</label>
           </div>
 
           <div class="text-sm/6">

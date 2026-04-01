@@ -1,22 +1,22 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-14 flex justify-end bg-surface-muted border-b border-base-700"></div>
+  <div class="bg-surface-muted border-base-700 flex h-14 justify-end border-b"></div>
 
   <div id="device-container" class="h-0 flex-1 overflow-y-auto" phx-hook="PageVisible">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
       <h1 :if={!@devices.ok?} class="text-xl leading-[30px] font-semibold text-neutral-50">Loading...</h1>
-      <h1 :if={@devices.ok?} id="devices-header" class="text-xl leading-[30px] font-semibold text-neutral-50 hidden" phx-mounted={fade_in("#devices-header")}>
+      <h1 :if={@devices.ok?} id="devices-header" class="hidden text-xl leading-[30px] font-semibold text-neutral-50" phx-mounted={fade_in("#devices-header")}>
         All Devices
       </h1>
       <div class="mr-auto">
-        <div :if={@devices.ok?} id="device-count" class="rounded-sm bg-base-800 text-xs text-base-300 px-1.5 py-0.5 mr-auto hidden" phx-mounted={fade_in("#device-count")}>
+        <div :if={@devices.ok?} id="device-count" class="bg-base-800 text-base-300 mr-auto hidden rounded-sm px-1.5 py-0.5 text-xs" phx-mounted={fade_in("#device-count")}>
           {@total_entries}
         </div>
       </div>
-      <form :if={has_results?(@devices, @currently_filtering)} class="flex items-center h-full" phx-change="update-filters">
-        <div class="grid grid-cols-1 h-full">
+      <form :if={has_results?(@devices, @currently_filtering)} class="flex h-full items-center" phx-change="update-filters">
+        <div class="grid h-full grid-cols-1">
           <input
             type="text"
-            class="col-start-1 row-start-1 block h-full w-full bg-surface-muted text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
+            class="bg-surface-muted border-base-600 text-base-400 col-start-1 row-start-1 block size-full gap-2 rounded border px-3 py-1 text-sm font-normal"
             name="search"
             id="device_search_top"
             placeholder="Search..."
@@ -63,42 +63,47 @@
                 <th>Firmware</th>
                 <th>Platform</th>
                 <th>Uptime</th>
+                <th>Deployment Group</th>
                 <th>Tags</th>
               </tr>
             </thead>
             <tbody>
-              <tr :for={_ <- 1..25} class="border-b border-base-800 isolate clickable-table-row animate-pulse">
+              <tr :for={_ <- 1..25} class="border-base-800 clickable-table-row isolate animate-pulse border-b">
                 <td class="checkbox"><input class="checkbox opacity-50" type="checkbox" /></td>
                 <td>
-                  <div class="flex gap-2 items-center">
+                  <div class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
                       <circle cx="3" cy="3" r="3" fill="#71717A" />
                     </svg>
-                    <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-[200px]"></div>
+                    <div class="h-2.5 w-[200px] rounded-full bg-gray-200 dark:bg-gray-700"></div>
                   </div>
                 </td>
 
                 <td>
-                  <div class="flex gap-2 items-center justify-center">
-                    <div class="size-4 bg-gray-200 rounded-full dark:bg-gray-700"></div>
+                  <div class="flex items-center justify-center gap-2">
+                    <div class="size-4 rounded-full bg-gray-200 dark:bg-gray-700"></div>
                   </div>
                 </td>
 
                 <td>
-                  <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-20"></div>
+                  <div class="h-2.5 w-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
                 </td>
 
                 <td>
-                  <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-20"></div>
+                  <div class="h-2.5 max-w-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
                 </td>
 
                 <td>
-                  <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-20"></div>
+                  <div class="h-2.5 max-w-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                </td>
+
+                <td>
+                  <div class="h-2.5 max-w-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
                 </td>
 
                 <td>
                   <div class="flex items-center gap-1">
-                    <div class="tag h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-[30px]"></div>
+                    <div class="tag h-2.5 w-[30px] rounded-full bg-gray-200 dark:bg-gray-700"></div>
                   </div>
                 </td>
               </tr>
@@ -107,29 +112,29 @@
         </div>
       </:loading>
       <:failed :let={_failure}>
-        <div class="h-full pb-16 flex items-center justify-center">
+        <div class="flex h-full items-center justify-center pb-16">
           <span class="text-xl font-medium text-neutral-50">There was an error loading the device list, please contact support.</span>
         </div>
       </:failed>
 
       <%= cond do %>
         <% Enum.empty?(devices) && @currently_filtering -> %>
-          <div class="h-full pb-16 flex items-center justify-center">
+          <div class="flex h-full items-center justify-center pb-16">
             <span class="text-xl font-medium text-neutral-50">No devices match the current filters.</span>
           </div>
         <% Enum.empty?(devices) -> %>
-          <div class="h-full pb-16 flex items-center justify-center">
-            <div class="max-w-2xl w-full px-6">
-              <h2 class="text-xl font-semibold text-neutral-50 mb-4">{@product.name} doesn't have any devices yet.</h2>
-              <p class="text-sm text-base-400 mb-6">Get started by adding <code class="text-base-300">nerves_hub_link</code> to your Nerves project.</p>
+          <div class="flex h-full items-center justify-center pb-16">
+            <div class="w-full max-w-2xl px-6">
+              <h2 class="mb-4 text-xl font-semibold text-neutral-50">{@product.name} doesn't have any devices yet.</h2>
+              <p class="text-base-400 mb-6 text-sm">Get started by adding <code class="text-base-300">nerves_hub_link</code> to your Nerves project.</p>
               <% active_secret = Enum.find(@product.shared_secret_auths, &is_nil(&1.deactivated_at)) %>
               <%= if active_secret do %>
-                <div class="bg-base-900 border border-base-700 rounded-lg p-4">
-                  <h3 class="text-sm font-semibold text-base-300 mb-3">1. Add the dependency to your <code>mix.exs</code></h3>
-                  <pre class="bg-base-950 rounded p-3 text-sm text-green-400 font-mono mb-4 overflow-x-auto"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
+                <div class="bg-base-900 border-base-700 rounded-lg border p-4">
+                  <h3 class="text-base-300 mb-3 text-sm font-semibold">1. Add the dependency to your <code>mix.exs</code></h3>
+                  <pre class="bg-base-950 mb-4 overflow-x-auto rounded p-3 font-mono text-sm text-green-400"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
 
-                  <h3 class="text-sm font-semibold text-base-300 mb-3">2. Add this to your <code>config/config.exs</code></h3>
-                  <pre class="bg-base-950 rounded p-3 text-sm text-green-400 font-mono overflow-x-auto"><code>config :nerves_hub_link,
+                  <h3 class="text-base-300 mb-3 text-sm font-semibold">2. Add this to your <code>config/config.exs</code></h3>
+                  <pre class="bg-base-950 overflow-x-auto rounded p-3 font-mono text-sm text-green-400"><code>config :nerves_hub_link,
   host: "{onboarding_nhl_host()}",
   remote_iex: true,
   shared_secret: [
@@ -137,27 +142,27 @@
     product_secret: "{active_secret.secret}"
   ]</code></pre>
 
-                  <p class="text-xs text-base-500 mt-4">
-                    See the <a class="underline text-base-400 hover:text-base-300" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a> for more details.
+                  <p class="text-base-500 mt-4 text-xs">
+                    See the <a class="hover:text-base-300 text-base-400 underline" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a> for more details.
                   </p>
                 </div>
               <% else %>
-                <p class="text-sm text-base-400">
-                  Check the <a class="underline text-base-300 hover:text-base-200" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
+                <p class="text-base-400 text-sm">
+                  Check the <a class="hover:text-base-200 text-base-300 underline" href="https://hexdocs.pm/nerves_hub_link" target="_blank">nerves_hub_link documentation</a>
                   for how to connect your first device.
                 </p>
               <% end %>
 
-              <div class="mt-6 p-4 border border-base-700/50 rounded-lg bg-base-900/50">
-                <h3 class="text-sm font-semibold text-base-300 mb-2">Production authentication</h3>
-                <p class="text-xs text-base-400">
+              <div class="bg-base-900/50 border-base-700/50 mt-6 rounded-lg border p-4">
+                <h3 class="text-base-300 mb-2 text-sm font-semibold">Production authentication</h3>
+                <p class="text-base-400 text-xs">
                   For production applications, we recommend mTLS authentication using a local certificate or dedicated secure hardware.
                 </p>
-                <div class="flex gap-4 mt-2">
-                  <a class="text-xs underline text-base-400 hover:text-base-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.LocalCert.html" target="_blank">
+                <div class="mt-2 flex gap-4">
+                  <a class="hover:text-base-300 text-base-400 text-xs underline" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.LocalCert.html" target="_blank">
                     LocalCert configurator
                   </a>
-                  <a class="text-xs underline text-base-400 hover:text-base-300" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.NervesKey.html" target="_blank">
+                  <a class="hover:text-base-300 text-base-400 text-xs underline" href="https://hexdocs.pm/nerves_hub_link/NervesHubLink.Configurator.NervesKey.html" target="_blank">
                     NervesKey configurator
                   </a>
                 </div>
@@ -175,13 +180,12 @@
                       id="toggle-all"
                       title="Select/unselect all"
                       checked={Enum.any?(devices) && Enum.count(@selected_devices) == Enum.count(devices)}
-                      id="toggle-all"
                       name="toggle-all"
                       type="checkbox"
                       phx-click="select-all"
                       disabled={not authorized?(:"device:update", @current_scope)}
                     />
-                    <label for="toggle-all" class="peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
+                    <label for="toggle-all" class="peer-disabled:hover:bg-base-800 peer-disabled:opacity-40">
                       <span class="hidden">Select all devices</span>
                       <svg :if={Enum.any?(@selected_devices)} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
                         <path d="M2 6H6H10" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
@@ -201,6 +205,7 @@
                   <th phx-click="sort" phx-value-sort="connection_established_at" class="cursor-pointer">
                     <Sorting.sort_icon text="Connected for" field="connection_established_at" selected_field={@current_sort} selected_direction={@sort_direction} />
                   </th>
+                  <th>Deployment Group</th>
                   <th phx-click="sort" phx-value-sort="tags" class="cursor-pointer">
                     <Sorting.sort_icon text="Tags" field="tags" selected_field={@current_sort} selected_direction={@sort_direction} />
                   </th>
@@ -209,7 +214,7 @@
               <tbody>
                 <tr
                   :for={device <- devices}
-                  class={["border-b border-base-800 isolate clickable-table-row", device.id in @selected_devices && "selected-row"]}
+                  class={["border-base-800 clickable-table-row isolate border-b", device.id in @selected_devices && "selected-row"]}
                   style={progress_style(@progress[device.id])}
                 >
                   <td class="checkbox">
@@ -223,14 +228,14 @@
                       phx-click="select"
                       disabled={not authorized?(:"device:update", @current_scope)}
                     />
-                    <label for={"checkbox-device-#{device.id}"} class="relative z-20 peer-disabled:opacity-40 peer-disabled:hover:bg-base-800">
+                    <label for={"checkbox-device-#{device.id}"} class="peer-disabled:hover:bg-base-800 relative z-20 peer-disabled:opacity-40">
                       <svg :if={device.id in @selected_devices} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
                         <path d="M2.5 6.5L4.5 8.5L10 3" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                       </svg>
                     </label>
                   </td>
                   <td>
-                    <div class="flex gap-2 items-center">
+                    <div class="flex items-center gap-2">
                       <span title={connection_established_at_status(device.latest_connection)}>
                         <%= if @device_statuses.result[device.identifier] == "online" do %>
                           <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
@@ -264,29 +269,29 @@
                       </span>
                       <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"} class="ff-m font-mono">
                         {device.identifier}
-                        <div :if={device.deleted_at} class="relative inline-block align-middle z-50" id={"health-tooltip-#{device.identifier}"} phx-hook="ToolTip" data-placement="right">
+                        <div :if={device.deleted_at} class="relative z-50 inline-block align-middle" id={"health-tooltip-#{device.identifier}"} phx-hook="ToolTip" data-placement="right">
                           <.icon name="info" class="stroke-base-400" />
-                          <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-base-700 bg-surface-muted flex">
+                          <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border px-2 py-1.5 text-xs">
                             This device has been deleted. <br /> You can destroy or restore it in the device's settings.
-                            <div class="tooltip-arrow absolute w-2 h-2 border-base-700 bg-surface-muted origin-center rotate-45"></div>
+                            <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
                           </div>
                         </div>
                         <span class="clickable-table-row-mask" />
                       </.link>
-                      <span class={["flex items-center gap-1 ml-2 pl-2.5 pr-2.5 py-0.5 border border-base-700 rounded-full bg-base-800", !@progress[device.id] && "invisible"]}>
-                        <span class="text-xs text-base-300 tracking-tight">updating</span>
+                      <span class={["bg-base-800 border-base-700 ml-2 flex items-center gap-1 rounded-full border px-2.5 py-0.5", !@progress[device.id] && "invisible"]}>
+                        <span class="text-base-300 text-xs tracking-tight">updating</span>
                       </span>
                     </div>
                   </td>
 
                   <td>
-                    <div class="flex gap-2 items-center justify-center">
+                    <div class="flex items-center justify-center gap-2">
                       <HealthStatus.render device_id={device.id} health={device.latest_health} tooltip_position="top" />
                     </div>
                   </td>
 
                   <td>
-                    <div class="flex gap-2 items-center">
+                    <div class="flex items-center gap-2">
                       <span class="font-mono">
                         <%= if is_nil(device.firmware_metadata) do %>
                           Unknown
@@ -312,6 +317,15 @@
                     <div :if={device.latest_connection} title={connection_established_at(device.latest_connection)}>
                       {connection_established_at(device.latest_connection)}
                     </div>
+                  </td>
+
+                  <td>
+                    <span :if={device.deployment_id} class="bg-base-800 border-base-700 flex w-fit items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5">
+                      <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="3" cy="3" r="3" fill="#10B981" />
+                      </svg>
+                      <span class="text-base-300 text-xs tracking-tight">{device.deployment_group.name}</span>
+                    </span>
                   </td>
 
                   <td>
@@ -412,19 +426,19 @@
     <:filter attr="only_updating" label="Update status" type={:select} values={[{"All", "false"}, {"Updating", "true"}]} />
   </FilterSidebar.render>
 
-  <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 mb-[119px] sm:pl-16 z-40">
+  <div class="pointer-events-none fixed inset-y-0 right-0 z-40 mb-[119px] flex max-w-full pl-10 sm:pl-16">
     <div class={[
-      "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-y border-l border-base-700 bg-surface-muted shadow-filter-slider transition-transform",
+      "bg-surface-muted border-base-700 shadow-filter-slider pointer-events-auto mt-[55px] flex h-full w-screen max-w-80 flex-col border-y border-l transition-transform",
       Enum.empty?(@selected_devices) && "translate-x-full",
       Enum.empty?(@selected_devices) && "invisible"
     ]}>
       <div class="h-0 flex-1 overflow-y-auto">
-        <div class="flex items-center h-14 px-4 py-3 border-b border-base-700">
+        <div class="border-base-700 flex h-14 items-center border-b px-4 py-3">
           <h4 :if={length(@selected_devices) == 1} class="text-base font-semibold">{length(@selected_devices)} device selected</h4>
           <h4 :if={length(@selected_devices) > 1} class="text-base font-semibold">{length(@selected_devices)} devices selected</h4>
 
           <button class="ml-auto p-1.5" type="button" phx-click="deselect-all">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="none">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 20 20" fill="none">
               <path
                 d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
                 stroke="#A1A1AA"
@@ -436,7 +450,7 @@
           </button>
         </div>
 
-        <div class="flex flex-1 flex-col px-4 py-6 gap-6">
+        <div class="flex flex-1 flex-col gap-6 px-4 py-6">
           <form id="product-move" class="flex flex-col gap-2" phx-change="target-product" phx-submit="move-devices-product">
             <label for="move_to" class="sidebar-label">Move device(s) to product:</label>
 
@@ -458,33 +472,67 @@
             </div>
           </form>
 
+          <div :if={@selected_have_deployment_groups} class="flex flex-col gap-2">
+            <label class="sidebar-label">Remove from deployment group</label>
+            <div class="flex items-center gap-2">
+              <span :if={@selected_shared_deployment_group} class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5">
+                <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="3" cy="3" r="3" fill="#10B981" />
+                </svg>
+                <span class="text-base-300 text-xs tracking-tight">{@selected_shared_deployment_group.name}</span>
+              </span>
+              <button
+                class="bg-base-800 rounded-full border border-red-500 p-1"
+                data-confirm="This will remove all selected devices from their deployment groups. Would you like to continue?"
+                aria-label="Remove selected devices from deployment group"
+                type="button"
+                phx-click="remove-devices-from-deployment-group"
+              >
+                <svg class="size-3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
+                    stroke="#EF4444"
+                    stroke-width="1.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
           <form
-            :if={Enum.any?(@available_deployment_groups_for_filtered_platform)}
-            id="deployment-move"
+            id="deployment-set"
             class="flex flex-col gap-2"
             phx-change="target-deployment-group"
             phx-submit="move-devices-deployment-group"
           >
-            <label class="sidebar-label">Move device(s) to deployment group filtered by platform:</label>
+            <label class="sidebar-label">Assign to deployment group</label>
 
             <div class="flex gap-2">
-              <label for="deployment_group" class="hidden">Deployment Group</label>
-              <select name="deployment_group" id="deployment_group" class="sidebar-select" phx-update="ignore">
-                <option value="">Select deployment group</option>
-                <%= for deployment_group <- @available_deployment_groups_for_filtered_platform do %>
-                  <option value={deployment_group.id} {if @target_deployment_group && @target_deployment_group.id == deployment_group.id, do: [selected: true], else: []}>
-                    {deployment_group.name} - {deployment_group.current_release.firmware.architecture} - {deployment_group.current_release.firmware.platform}
-                  </option>
-                <% end %>
-              </select>
+              <label for="set_deployment_group" class="hidden">Set deployment group</label>
+              <%= if Enum.any?(@valid_deployment_groups_for_selected) do %>
+                <select name="deployment_group" id="set_deployment_group" class="sidebar-select">
+                  <option value="">Select deployment group</option>
+                  <%= for deployment_group <- @valid_deployment_groups_for_selected do %>
+                    <option value={deployment_group.id} {if @target_deployment_group && @target_deployment_group.id == deployment_group.id, do: [selected: true], else: []}>
+                      {deployment_group.name} - {deployment_group.current_release.firmware.architecture} - {deployment_group.current_release.firmware.platform}
+                    </option>
+                  <% end %>
+                </select>
+              <% else %>
+                <select name="deployment_group" id="set_deployment_group" class="sidebar-select" disabled>
+                  <option value="">(no valid choices)</option>
+                </select>
+              <% end %>
 
               <.button
                 style="primary"
                 type="submit"
-                data-confirm={"This will move all selected devices to #{@target_deployment_group && @target_deployment_group.name}. Would you like to continue?"}
+                data-confirm={"This will add the selected devices to #{@target_deployment_group && @target_deployment_group.name}. Would you like to continue?"}
                 {unless @target_deployment_group, do: [disabled: true], else: []}
               >
-                Move
+                Set
               </.button>
             </div>
           </form>
@@ -501,10 +549,43 @@
             <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
           </form>
 
+          <form
+            :if={Enum.any?(@available_firmwares_for_filtered_platform)}
+            id="push-firmware"
+            class="flex flex-col gap-2"
+            phx-change="target-firmware"
+            phx-submit="push-firmware-to-devices"
+          >
+            <label class="sidebar-label">Send firmware update (filtered by platform):</label>
+
+            <div class="flex gap-2">
+              <label for="firmware_select" class="hidden">Firmware</label>
+              <select name="firmware" id="firmware_select" class="sidebar-select" phx-update="ignore">
+                <option value="">Select firmware</option>
+                <option
+                  :for={firmware <- @available_firmwares_for_filtered_platform}
+                  value={firmware.uuid}
+                  selected={@target_firmware && @target_firmware.uuid == firmware.uuid}
+                >
+                  {firmware.version} ({String.slice(firmware.uuid, 0..7)})
+                </option>
+              </select>
+
+              <.button
+                style="primary"
+                type="submit"
+                data-confirm="This will send the selected firmware to all selected devices. Would you like to continue?"
+                {unless @target_firmware, do: [disabled: true], else: []}
+              >
+                Send
+              </.button>
+            </div>
+          </form>
+
           <div class="flex flex-col gap-2">
             <label>Firmware updates</label>
 
-            <div class="flex gap-2 w-full">
+            <div class="flex w-full gap-2">
               <form class="grow" id="disable-updates" phx-submit="disable-updates-for-devices">
                 <button class="sidebar-button w-full" type="submit" data-confirm="This will disable updates for all selected devices">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">

@@ -3,11 +3,11 @@
     {assigns[:error_title] || "We've sent you a new link"}
   </:title>
   <div class="mt-8">
-    <p class="mt-2 text-sm/6 text-base-300">
+    <p class="text-base-300 mt-2 text-sm/6">
       {@error_message}
     </p>
 
-    <p :if={Application.get_env(:nerves_hub, :support_email_address)} class="mt-2 text-sm/6 text-base-300">
+    <p :if={Application.get_env(:nerves_hub, :support_email_address)} class="text-base-300 mt-2 text-sm/6">
       Please contact us at <.link class="underline" href={"mailto:#{Application.get_env(:nerves_hub, :support_email_address)}"}>{Application.get_env(:nerves_hub, :support_email_address)}</.link>
       if you continue to experience issues confirming your account.
     </p>

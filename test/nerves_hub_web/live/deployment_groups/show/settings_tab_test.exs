@@ -86,10 +86,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     assert reloaded_deployment_group.conditions.version == "4.3.2"
     assert Enum.sort(reloaded_deployment_group.conditions.tags) == Enum.sort(~w(josh lars))
 
-    [audit_log_one, audit_log_two] = AuditLogs.logs_for(reloaded_deployment_group)
+    [audit_log_one, audit_log_two, audit_log_three] = AuditLogs.logs_for(reloaded_deployment_group)
 
     assert audit_log_one.resource_type == DeploymentGroup
     assert audit_log_two.description =~ ~r/conditions changed/
+    assert audit_log_three.description =~ ~r/created deployment group/
   end
 
   test "failed update shows errors", %{
@@ -142,9 +143,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     assert ManagedDeployments.get_deployment_group(deployment_group.id) ==
              {:error, :not_found}
 
-    logs = AuditLogs.logs_for(deployment_group)
+    [log | _] = AuditLogs.logs_for(deployment_group)
 
-    assert List.last(logs).description =~ ~r/deleted deployment/
+    assert log.description =~ ~r/deleted deployment/
   end
 
   test "you can delete a deployment group with devices attached to it", %{
@@ -168,9 +169,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     assert ManagedDeployments.get_deployment_group(deployment_group.id) ==
              {:error, :not_found}
 
-    logs = AuditLogs.logs_for(deployment_group)
+    [log | _] = AuditLogs.logs_for(deployment_group)
 
-    assert List.last(logs).description =~ ~r/deleted deployment/
+    assert log.description =~ ~r/deleted deployment/
 
     device = Repo.reload(device)
     assert device.deployment_id == nil

@@ -677,7 +677,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       :ok = Connections.device_connected(device, connection.id)
 
-      ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware.id, is_active: true}, user)
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
+
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
 
       NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
 
@@ -700,6 +704,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "available update exists but deployment is not active", %{
       conn: conn,
+      user: user,
       org: org,
       product: product,
       device: device,
@@ -719,9 +724,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      deployment_group
-      |> Ecto.Changeset.change(%{firmware_id: firmware.id, is_active: false})
-      |> Repo.update!()
+      NervesHub.ManagedDeployments.update_deployment_group(deployment_group, %{is_active: false}, user)
+      NervesHub.ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
 
       NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
 
@@ -784,11 +788,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       mismatched_firmware_deployment_group =
         Fixtures.deployment_group_fixture(mismatched_firmware, %{
-          name: "Vulture Deployment 2025"
+          name: "Vulture Deployment 2025",
+          user: user
         })
 
       deployment_group2 =
-        Fixtures.deployment_group_fixture(firmware, %{name: "Beta Deployment"})
+        Fixtures.deployment_group_fixture(firmware, %{name: "Beta Deployment", user: user})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -814,11 +819,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       deployment_group_from_product2 =
         Fixtures.deployment_group_fixture(firmware2, %{
-          name: "Vulture Deployment 2025"
+          name: "Vulture Deployment 2025",
+          user: user
         })
 
       deployment_group2 =
-        Fixtures.deployment_group_fixture(firmware, %{name: "Beta Deployment"})
+        Fixtures.deployment_group_fixture(firmware, %{name: "Beta Deployment", user: user})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -916,7 +922,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       # Set device status to :provisioned for deployment eligibility
       %{status: :provisioned} = Devices.set_as_provisioned!(device)
-      _ = Repo.delete!(deployment_group)
+      _ = ManagedDeployments.delete_deployment_group(deployment_group)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -951,11 +957,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      ManagedDeployments.update_deployment_group(
-        deployment_group,
-        %{firmware_id: new_firmware.id, is_active: true},
-        user
-      )
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
+
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -981,11 +987,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      ManagedDeployments.update_deployment_group(
-        deployment_group,
-        %{firmware_id: new_firmware.id, is_active: true},
-        user
-      )
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
+
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1034,11 +1040,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      ManagedDeployments.update_deployment_group(
-        deployment_group,
-        %{firmware_id: new_firmware.id, is_active: true},
-        user
-      )
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
+
+      {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1092,11 +1097,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       {:ok, firmware} = Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, device.firmware_metadata.uuid)
       _ = Fixtures.firmware_delta_fixture(firmware, new_firmware)
 
-      ManagedDeployments.update_deployment_group(
-        deployment_group,
-        %{is_active: true, firmware_id: new_firmware.id, delta_updatable: true},
-        user
-      )
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
+
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true, delta_updatable: true}, user)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1436,6 +1441,53 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       Devices.firmware_validated(device)
 
       assert_has(conn, "span", text: "Validated")
+    end
+  end
+
+  describe "tag management" do
+    test "adds a tag to the device", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "beta")
+      |> fill_in("Add tag", with: "new-tag")
+      |> click_button("Add")
+      |> assert_has("div", text: "Tag \"new-tag\" added successfully.", timeout: 1_000)
+      |> assert_has("span", text: "new-tag")
+      |> assert_has("span", text: "beta")
+    end
+
+    test "removes a tag from the device", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "beta")
+      |> assert_has("span", text: "beta-edge")
+      |> unwrap(fn view ->
+        render_click(view, "remove-tag", %{"tag" => "beta"})
+      end)
+      |> assert_has("div", text: "Tag \"beta\" removed successfully.", timeout: 1_000)
+      |> refute_has("span", text: "beta", exact: true)
+      |> assert_has("span", text: "beta-edge")
+    end
+
+    test "rejects tags with spaces", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> fill_in("Add tag", with: "bad tag")
+      |> click_button("Add")
+      |> assert_has("div", text: "Tags cannot be empty or contain spaces.", timeout: 1_000)
+    end
+
+    test "rejects duplicate tags", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "beta")
+      |> fill_in("Add tag", with: "beta")
+      |> click_button("Add")
+      |> assert_has("div", text: "Tag \"beta\" already exists on this device.", timeout: 1_000)
     end
   end
 

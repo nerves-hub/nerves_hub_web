@@ -1,54 +1,54 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-14 flex justify-end bg-base-900 border-b border-base-700"></div>
+  <div class="bg-base-900 border-base-700 flex h-14 justify-end border-b"></div>
 
   <div class="h-0 flex-1 pb-20">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
-      <h1 class="text-xl leading-[30px] font-semibold text-base-50">Notifications</h1>
+    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
+      <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Notifications</h1>
       <div
         id="notification-count"
-        class="rounded-sm bg-base-800 text-xs text-base-300 px-1.5 py-0.5 mr-auto"
+        class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs"
       >
         {@result_meta.total_count}
       </div>
     </div>
 
-    <div class="flex flex-col items-start justify-between gap-4 p-6 h-full overflow-x-auto">
-      <div class="w-full flex flex-col bg-base-900 border border-base-700 rounded">
-        <div class="flex justify-end items-center h-14 px-4 gap-3 border-b border-base-700">
+    <div class="flex h-full flex-col items-start justify-between gap-4 overflow-x-auto p-6">
+      <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
+        <div class="border-base-700 flex h-14 items-center justify-end gap-3 border-b px-4">
           <.button :if={authorized?(:"product:notifications:dismiss", @current_scope)} style="secondary" phx-click="dismiss-all" data-confirm="Are you sure you want to dismiss all notifications?">
             Dismiss all
           </.button>
         </div>
-        <div :if={Enum.empty?(@notifications)} class="py-2 px-4 flex flex-col gap-1">
+        <div :if={Enum.empty?(@notifications)} class="flex flex-col gap-1 px-4 py-2">
           <div class="flex items-center justify-center p-14">
             <span class="text-base-500 font-extralight">You don't have any notifications. Huzzah!</span>
           </div>
         </div>
-        <div :if={Enum.any?(@notifications)} class="py-2 px-4 flex flex-col gap-1">
+        <div :if={Enum.any?(@notifications)} class="flex flex-col gap-1 px-4 py-2">
           <div :for={entry <- @notifications} class="flex items-center gap-6 p-2">
-            <div class="bg-base-800 size-[34px] rounded-full overflow-hidden">
+            <div class="bg-base-800 size-[34px] overflow-hidden rounded-full">
               <span
                 data-level={entry.level}
-                class="size-[38px] -ml-0.5 -mt-0.5 data-[level=error]:lucide-circle-alert--verythin data-[level=error]:text-alert data-[level=warning]:lucide-circle-slash--verythin data-[level=warning]:text-warning/85 data-[level=info]:lucide-info--verythin data-[level=info]:text-notice"
+                class="data-[level=error]:lucide-circle-alert--verythin data-[level=error]:text-alert data-[level=info]:lucide-info--verythin data-[level=info]:text-notice data-[level=warning]:lucide-circle-slash--verythin data-[level=warning]:text-warning/85 -mt-0.5 -ml-0.5 size-[38px]"
               />
             </div>
             <div class="grow">
-              <div data-level={entry.level} class="data-[level=error]:text-alert/85 data-[level=warning]:text-warning/85 data-[level=info]:text-notice/85 text-base-200">
+              <div data-level={entry.level} class="data-[level=error]:text-alert/85 data-[level=info]:text-notice/85 data-[level=warning]:text-warning/85 text-base-200">
                 {entry.title}
               </div>
-              <div class="text-base-400 text-sm pb-0.5">{entry.message}</div>
+              <div class="text-base-400 pb-0.5 text-sm">{entry.message}</div>
               <div class="flex gap-2">
-                <div class="text-xs text-base-400 tracking-wide">
+                <div class="text-base-400 text-xs tracking-wide">
                   Last occurrence: {Timex.from_now(entry.last_occurred_at)}
                 </div>
 
                 <div class="flex items-center">
-                  <svg class="h-0.5 w-0.5" viewBox="0 0 2 2" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <svg class="size-0.5" viewBox="0 0 2 2" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="1" cy="1" r="1" fill="#71717A" />
                   </svg>
                 </div>
 
-                <div class="text-xs text-base-400 tracking-wide">
+                <div class="text-base-400 text-xs tracking-wide">
                   {entry.occurrence_count} {if entry.occurrence_count == 1, do: "occurrence", else: "occurrences"}
                 </div>
               </div>

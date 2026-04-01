@@ -1,7 +1,6 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.New do
   use NervesHubWeb, :live_view
 
-  alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
@@ -140,11 +139,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
 
     %{user: user, org: org, product: product} = socket.assigns.current_scope
 
-    ManagedDeployments.create_deployment_group(params, product, user)
+    firmware = Firmwares.get_by_id(product, params["firmware"])
+
+    ManagedDeployments.create_deployment_group(params, product, firmware, user)
     |> case do
       {:ok, deployment_group} ->
-        _ = DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)
-
         socket
         |> put_flash(:info, "Deployment Group created")
         |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}")

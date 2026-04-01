@@ -24,6 +24,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   alias NervesHub.DeviceLink
   alias NervesHub.Devices
+  alias NervesHub.Devices.Device
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
@@ -78,7 +79,7 @@ defmodule NervesHubWeb.DeviceChannel do
     case [safe_to_run_scripts?(socket), Enum.empty?(connecting_codes)] do
       [true, false] ->
         connecting_code = Enum.join(connecting_codes, "\n")
-        # connecting code first incase it attempts to change things before the other messages
+        # connecting code first in the case it attempts to change things before the other messages
         push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
 
       [false, false] ->
@@ -201,8 +202,8 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_in:status_update")
-  def handle_in("status_update", %{"status" => status}, socket) do
-    DeviceLink.status_update(socket.assigns.device, status, socket.assigns.update_started?)
+  def handle_in("status_update", params, socket) do
+    DeviceLink.status_update(socket.assigns.device, params, socket.assigns.update_started?)
 
     {:noreply, socket}
   end
@@ -242,10 +243,23 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_in("network_interface_mismatch", params, socket) do
-    :telemetry.execute([:nerves_hub, :devices, :network_interface_mismatch], %{count: 1}, %{params: params})
+  @decorate with_span("Channels.DeviceChannel.handle_in:report_network_interface")
+  def handle_in("report_network_interface", %{"interface" => interface}, %{assigns: %{device: device}} = socket) do
+    if Device.humanized_network_interface_name(interface) == device.network_interface do
+      {:noreply, socket}
+    else
+      case Devices.update_network_interface(device, interface) do
+        {:ok, device} ->
+          {:noreply, assign(socket, :device, device)}
 
-    {:noreply, socket}
+        {:error, changeset} ->
+          Logger.warning(
+            "[DeviceChannel] could not update device network interface because: #{inspect(changeset.errors)}"
+          )
+
+          {:noreply, socket}
+      end
+    end
   end
 
   def handle_in(msg, params, %{assigns: %{device: device}} = socket) do

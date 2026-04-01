@@ -1,37 +1,37 @@
 <NervesHubWeb.Layouts.no_sidebar flash={@flash} current_scope={@current_scope}>
   <div class="w-[800px] pb-10">
-    <div class="h-[88px] py-6 flex items-center justify-between">
+    <div class="flex h-[88px] items-center justify-between py-6">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Personal Info</h1>
-      <.link navigate={~p"/account/delete"} class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded border border-alert transition-colors">
+      <.link navigate={~p"/account/delete"} class="border-alert rounded border bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700">
         Delete Account
       </.link>
     </div>
 
     <div class="flex flex-col gap-6">
-      <div class="bg-base-900 border border-base-700 rounded p-6">
-        <h2 class="text-lg font-semibold text-neutral-50 mb-4">Account Details</h2>
+      <div class="bg-base-900 border-base-700 rounded border p-6">
+        <h2 class="mb-4 text-lg font-semibold text-neutral-50">Account Details</h2>
         <.form :let={f} id="details-form" for={@form} phx-submit="update-details">
           <div class="flex flex-col gap-4">
             <div>
-              <label for="name_input" class="block text-sm font-medium text-base-300 mb-2">Name</label>
+              <label for="name_input" class="text-base-300 mb-2 block text-sm font-medium">Name</label>
               {text_input(f, :name,
                 class: "w-full px-3 py-2 bg-base-800 border border-base-600 rounded text-neutral-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                 id: "name_input"
               )}
-              <div class="text-red-400 text-sm mt-1">{error_tag(f, :name)}</div>
+              <div class="mt-1 text-sm text-red-400">{error_tag(f, :name)}</div>
             </div>
 
             <div>
-              <label for="email_input" class="block text-sm font-medium text-base-300 mb-2">Email</label>
+              <label for="email_input" class="text-base-300 mb-2 block text-sm font-medium">Email</label>
               {email_input(f, :email,
                 class: "w-full px-3 py-2 bg-base-800 border border-base-600 rounded text-neutral-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                 id: "email_input"
               )}
-              <div class="text-red-400 text-sm mt-1">{error_tag(f, :email)}</div>
+              <div class="mt-1 text-sm text-red-400">{error_tag(f, :email)}</div>
             </div>
 
             <div>
-              <label for="details_current_password_input" class="block text-sm font-medium text-base-300 mb-2">
+              <label for="details_current_password_input" class="text-base-300 mb-2 block text-sm font-medium">
                 Password <span class="text-base-500 text-xs">(required for updating your email address)</span>
               </label>
               {password_input(f, :current_password,
@@ -39,7 +39,7 @@
                 id: "details_current_password_input",
                 placeholder: "Enter current password"
               )}
-              <div class="text-red-400 text-sm mt-1">{error_tag(f, :current_password)}</div>
+              <div class="mt-1 text-sm text-red-400">{error_tag(f, :current_password)}</div>
             </div>
 
             <div class="flex justify-end pt-2">
@@ -55,38 +55,38 @@
         </.form>
       </div>
 
-      <div class="bg-base-900 border border-base-700 rounded p-6">
-        <h2 class="text-lg font-semibold text-neutral-50 mb-4">Change Password</h2>
+      <div class="bg-base-900 border-base-700 rounded border p-6">
+        <h2 class="mb-4 text-lg font-semibold text-neutral-50">Change Password</h2>
         <.form :let={f} id="password-form" for={@password_changeset} phx-submit="update-password">
           <div class="flex flex-col gap-4">
             <div>
-              <label for="current_password_input" class="block text-sm font-medium text-base-300 mb-2">Old Password</label>
+              <label for="current_password_input" class="text-base-300 mb-2 block text-sm font-medium">Old Password</label>
               {password_input(f, :current_password,
                 class: "w-full px-3 py-2 bg-base-800 border border-base-600 rounded text-neutral-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                 id: "current_password_input",
                 placeholder: "Enter current password"
               )}
-              <div class="text-red-400 text-sm mt-1">{error_tag(f, :current_password)}</div>
+              <div class="mt-1 text-sm text-red-400">{error_tag(f, :current_password)}</div>
             </div>
 
             <div>
-              <label for="password_input" class="block text-sm font-medium text-base-300 mb-2">New Password</label>
+              <label for="password_input" class="text-base-300 mb-2 block text-sm font-medium">New Password</label>
               {password_input(f, :password,
                 class: "w-full px-3 py-2 bg-base-800 border border-base-600 rounded text-neutral-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                 id: "password_input",
                 placeholder: "Enter new password"
               )}
-              <div class="text-red-400 text-sm mt-1">{error_tag(f, :password)}</div>
+              <div class="mt-1 text-sm text-red-400">{error_tag(f, :password)}</div>
             </div>
 
             <div>
-              <label for="password_confirmation_input" class="block text-sm font-medium text-base-300 mb-2">Confirm New Password</label>
+              <label for="password_confirmation_input" class="text-base-300 mb-2 block text-sm font-medium">Confirm New Password</label>
               {password_input(f, :password_confirmation,
                 class: "w-full px-3 py-2 bg-base-800 border border-base-600 rounded text-neutral-50 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                 id: "password_confirmation_input",
                 placeholder: "Confirm new password"
               )}
-              <div class="text-red-400 text-sm mt-1">{error_tag(f, :password_confirmation)}</div>
+              <div class="mt-1 text-sm text-red-400">{error_tag(f, :password_confirmation)}</div>
             </div>
 
             <div class="flex justify-end pt-2">
@@ -102,9 +102,9 @@
         </.form>
       </div>
 
-      <div class="bg-base-900 border border-base-700 rounded p-6">
+      <div class="bg-base-900 border-base-700 rounded border p-6">
         <div class="flex justify-between">
-          <h2 class="text-lg font-semibold text-neutral-50 mb-4">Access tokens</h2>
+          <h2 class="mb-4 text-lg font-semibold text-neutral-50">Access tokens</h2>
           <div>
             <.button
               type="button"
@@ -117,34 +117,34 @@
           </div>
         </div>
 
-        <div :if={@new_token} class="flex items-start gap-4 p-4 border border-indigo-500 rounded bg-gradient-to-r from-base-800/50 to-base-800">
-          <div class="flex gap-4 min-w-0">
+        <div :if={@new_token} class="from-base-800/50 to-base-800 flex items-start gap-4 rounded border border-indigo-500 bg-linear-to-r p-4">
+          <div class="flex min-w-0 gap-4">
             <h3 class="text-sm font-semibold text-neutral-50">
               New Token:
             </h3>
-            <div class="text-sm text-base-300">
+            <div class="text-base-300 text-sm">
               <code>{@new_token}</code>
             </div>
           </div>
         </div>
 
-        <div :if={@access_tokens == []} class="space-y-3 text-base-500">
+        <div :if={@access_tokens == []} class="text-base-500 space-y-3">
           No access tokens have been created
         </div>
 
-        <div class="pt-4 space-y-3">
-          <div :for={access_token <- @access_tokens} class="flex items-start gap-4 p-4 border border-base-700 rounded bg-gradient-to-r from-base-800/50 to-base-800">
-            <img src="/images/icons/key.svg" alt="key" class="size-6 mt-1" />
-            <div class="flex-1 min-w-0">
-              <h3 :if={access_token.note != ""} class="text-sm font-semibold text-neutral-50 mb-2">
+        <div class="space-y-3 pt-4">
+          <div :for={access_token <- @access_tokens} class="border-base-700 from-base-800/50 to-base-800 flex items-start gap-4 rounded border bg-linear-to-r p-4">
+            <img src="/images/icons/key.svg" alt="key" class="mt-1 size-6" />
+            <div class="min-w-0 flex-1">
+              <h3 :if={access_token.note != ""} class="mb-2 text-sm font-semibold text-neutral-50">
                 {access_token.note}
               </h3>
 
-              <h3 :if={access_token.note == ""} class="text-sm italic text-neutral-50 mb-2">
+              <h3 :if={access_token.note == ""} class="mb-2 text-sm text-neutral-50 italic">
                 Unnamed
               </h3>
 
-              <div class="text-xs text-base-500">
+              <div class="text-base-500 text-xs">
                 Last used:
                 <%= if !is_nil(access_token.last_used) do %>
                   {DateTimeFormat.from_now(access_token.last_used)}
@@ -154,7 +154,7 @@
               </div>
             </div>
             <button
-              class="px-3 py-1.5 text-sm font-medium text-base-300 bg-base-800 border border-base-700 rounded hover:bg-base-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
               phx-click="delete-access-token"
               phx-value-access_token_id={access_token.id}
               data-confirm="Are you sure?"
@@ -168,12 +168,12 @@
 
     <CoreComponents.modal id="new-access-token" on_cancel={Phoenix.LiveView.JS.add_class("hidden")}>
       <.form id="access-token-form" for={@access_token_form} phx-submit="generate-access-token">
-        <div class="flex justify-between items-center h-14 px-4 border-b border-base-700">
-          <div class="text-base text-neutral-50 font-medium">New access token</div>
+        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+          <div class="text-base font-medium text-neutral-50">New access token</div>
         </div>
 
-        <div class="flex flex-col p-4 gap-6">
-          <div class="w-1/2 flex flex-col gap-6">
+        <div class="flex flex-col gap-6 p-4">
+          <div class="flex w-1/2 flex-col gap-6">
             <.input
               field={@access_token_form[:note]}
               type="text"

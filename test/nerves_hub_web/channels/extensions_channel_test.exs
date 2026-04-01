@@ -408,7 +408,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
         dir: opts[:dir]
       })
 
-    deployment_group = Fixtures.deployment_group_fixture(firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
 
     params = Enum.into(device_params, %{tags: ["beta", "beta-edge"]})
 

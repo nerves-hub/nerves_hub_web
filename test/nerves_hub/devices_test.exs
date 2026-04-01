@@ -16,6 +16,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHub.Support.Fwup
@@ -27,7 +28,7 @@ defmodule NervesHub.DevicesTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    deployment_group = Fixtures.deployment_group_fixture(firmware, %{is_active: true})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{is_active: true, user: user})
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
     device2 = Fixtures.device_fixture(org, product, firmware)
     device3 = Fixtures.device_fixture(org, product, firmware)
@@ -669,7 +670,6 @@ defmodule NervesHub.DevicesTest do
 
   describe "inflight updates" do
     test "clears expired inflight updates", %{device: device, deployment_group: deployment_group} do
-      deployment_group = Repo.preload(deployment_group, :firmware)
       Fixtures.inflight_update(device, deployment_group)
       assert {0, _} = Devices.delete_expired_inflight_updates()
 
@@ -1193,7 +1193,9 @@ defmodule NervesHub.DevicesTest do
 
       # generate new firmware and update the deployment group in the DB
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      {:ok, _} = Ecto.Changeset.change(deployment_group, %{firmware_id: new_firmware.id}) |> Repo.update()
+
+      {:ok, _} =
+        NervesHub.ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       # create a device using the firmware of the deployment group cached in the test
       Fixtures.device_fixture(org, product, deployment_group.current_release.firmware, %{
@@ -1236,9 +1238,9 @@ defmodule NervesHub.DevicesTest do
         Fixtures.deployment_group_fixture(new_firmware, %{
           name: "Delta deployment updates",
           is_active: true,
-          delta_updatable: true
+          delta_updatable: true,
+          user: user
         })
-        |> Repo.preload(:firmware)
 
       device =
         Fixtures.device_fixture(org, product, old_firmware, %{
@@ -1354,9 +1356,9 @@ defmodule NervesHub.DevicesTest do
         Fixtures.deployment_group_fixture(new_firmware_one, %{
           name: "Delta deployment updates",
           is_active: true,
-          delta_updatable: true
+          delta_updatable: true,
+          user: user
         })
-        |> Repo.preload(:firmware)
 
       # and a device using the old firmware, ready to receive an update
       device =
@@ -1519,7 +1521,7 @@ defmodule NervesHub.DevicesTest do
       deployment_group = %{
         deployment_group
         | delta_updatable: false,
-          firmware: %{firmware | delta_updatable: true}
+          current_release: %DeploymentRelease{firmware: %{firmware | delta_updatable: true}}
       }
 
       {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
@@ -1534,14 +1536,16 @@ defmodule NervesHub.DevicesTest do
       deployment_group = %{
         deployment_group
         | delta_updatable: true,
-          firmware: %{firmware | delta_updatable: false}
+          current_release: %DeploymentRelease{
+            firmware: %{firmware | delta_updatable: false}
+          }
       }
 
       {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
       assert String.ends_with?(url, "#{firmware.uuid}.fw")
     end
 
-    test "returns error if device does not support deltas", %{
+    test "returns the full firmware url if device does not support deltas", %{
       device: device,
       deployment_group: deployment_group,
       org_key: org_key,
@@ -1557,10 +1561,11 @@ defmodule NervesHub.DevicesTest do
           current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
-      assert {:error, :device_does_not_support_deltas} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
     end
 
-    test "returns error if delta isn't ready", %{
+    test "returns the full firmware url if delta isn't ready", %{
       device: device,
       deployment_group: deployment_group,
       org_key: org_key,
@@ -1582,7 +1587,8 @@ defmodule NervesHub.DevicesTest do
           current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
-      assert {:error, :delta_not_completed} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert {:ok, url} = Devices.get_delta_or_firmware_url(device, deployment_group)
+      assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
     end
 
     test "returns full firmware url when source firmware can't be found", %{
@@ -1637,6 +1643,59 @@ defmodule NervesHub.DevicesTest do
     test "cannot be explicitly set to nil", %{device: device} do
       {:error, changeset} = Devices.update_network_interface(device, nil)
       {"cannot be set to nil", []} = changeset.errors[:network_interface]
+    end
+  end
+
+  describe "remove_many_from_deployment_group/2" do
+    test "removes deployment group from devices that have one", %{
+      user: user,
+      org: org,
+      product: product,
+      device: device,
+      device2: device2,
+      deployment_group: deployment_group
+    } do
+      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
+      Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
+      Repo.update!(Changeset.change(device2, deployment_id: deployment_group.id))
+
+      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id, device2.id])
+
+      assert count == 2
+
+      assert Repo.get!(Device, device.id).deployment_id == nil
+      assert Repo.get!(Device, device2.id).deployment_id == nil
+    end
+
+    test "only counts devices that had a deployment group", %{
+      user: user,
+      org: org,
+      product: product,
+      device: device,
+      device2: device2,
+      deployment_group: deployment_group
+    } do
+      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
+      Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
+      # device2 has no deployment group
+
+      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id, device2.id])
+
+      assert count == 1
+    end
+
+    test "returns zero when no devices have a deployment group", %{
+      user: user,
+      org: org,
+      product: product,
+      device: device
+    } do
+      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
+      refute device.deployment_id
+
+      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id])
+
+      assert count == 0
     end
   end
 end

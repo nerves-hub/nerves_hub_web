@@ -24,18 +24,18 @@ defmodule NervesHubWeb.Components.FilterSidebar do
       end)
 
     ~H"""
-    <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 sm:pl-16 z-40">
+    <div class="pointer-events-none fixed inset-y-0 right-0 z-40 flex max-w-full pl-10 sm:pl-16">
       <div class={[
-        "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-t border-l border-base-700 bg-surface-muted shadow-filter-slider transition-transform",
+        "bg-surface-muted border-base-700 shadow-filter-slider pointer-events-auto mt-[55px] flex h-full w-screen max-w-80 flex-col border-t border-l transition-transform",
         !@show && "translate-x-full",
         !@show && "invisible"
       ]}>
         <div class="h-0 flex-1 overflow-y-auto">
-          <div class="flex items-center h-14 px-4 py-3 border-b border-base-700">
+          <div class="border-base-700 flex h-14 items-center border-b px-4 py-3">
             <h4 class="text-base font-semibold">Filters</h4>
 
             <button class="ml-auto p-1.5" type="button" phx-click={@on_toggle} phx-value-toggle={to_string(@show)}>
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 20 20" fill="none">
                 <path
                   d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
                   stroke="#A1A1AA"
@@ -48,7 +48,7 @@ defmodule NervesHubWeb.Components.FilterSidebar do
           </div>
 
           <div class="flex flex-1 flex-col pb-4">
-            <form id="filter-form" class="px-4 grow" phx-change={@on_update}>
+            <form id="filter-form" class="grow px-4" phx-change={@on_update}>
               <div :for={filter <- @filter} class="mt-6">
                 <label class="sidebar-label" for={"input_#{filter.attr}"}>{filter.label}</label>
                 <%= case filter.type do %>
@@ -68,7 +68,7 @@ defmodule NervesHubWeb.Components.FilterSidebar do
           </div>
         </div>
 
-        <div class="flex shrink-0 justify-end h-16 px-4 py-4 mb-14 border-t border-base-700">
+        <div class="border-base-700 mb-14 flex h-16 shrink-0 justify-end border-t p-4">
           <button class="sidebar-button" type="button" phx-click={@on_reset}>Reset Filters</button>
         </div>
       </div>

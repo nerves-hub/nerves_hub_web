@@ -103,6 +103,10 @@ jobs:
       - name: Compiles without warnings
         run: mix compile --warnings-as-errors
 
+      # needed for tailwind class formatting
+      - name: Install tailwindcss
+        run: mix tailwind.install
+
       - name: Check Formatting
         run: mix format --check-formatted
 

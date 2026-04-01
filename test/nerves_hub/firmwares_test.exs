@@ -76,6 +76,7 @@ defmodule NervesHub.FirmwaresTest do
     end
 
     test "cannot delete firmware when it is referenced by deployment", %{
+      user: user,
       org_key: org_key,
       product: product,
       tmp_dir: tmp_dir
@@ -83,7 +84,7 @@ defmodule NervesHub.FirmwaresTest do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       assert File.exists?(firmware.upload_metadata[:local_path])
 
-      Fixtures.deployment_group_fixture(firmware, %{name: "a deployment"})
+      Fixtures.deployment_group_fixture(firmware, %{name: "a deployment", user: user})
 
       assert {:error, %Changeset{}} = Firmwares.delete_firmware(firmware)
     end
@@ -474,6 +475,25 @@ defmodule NervesHub.FirmwaresTest do
       %FirmwareDelta{} = Fixtures.firmware_delta_fixture(source, target)
 
       {:ok, :delta_already_exists} = Firmwares.attempt_firmware_delta(source.id, target.id)
+    end
+  end
+
+  describe "get_firmwares_by_product_and_platform/2" do
+    test "returns firmwares matching product and platform", %{product: product, firmware: firmware} do
+      result = Firmwares.get_firmwares_by_product_and_platform(product, firmware.platform)
+
+      assert length(result) == 1
+      assert hd(result).id == firmware.id
+    end
+
+    test "returns empty list for non-matching platform", %{product: product} do
+      assert [] == Firmwares.get_firmwares_by_product_and_platform(product, "nonexistent")
+    end
+
+    test "does not return firmwares from other products", %{firmware: firmware, user: user, org: org} do
+      other_product = Fixtures.product_fixture(user, org, %{name: "OtherProduct"})
+
+      assert [] == Firmwares.get_firmwares_by_product_and_platform(other_product, firmware.platform)
     end
   end
 

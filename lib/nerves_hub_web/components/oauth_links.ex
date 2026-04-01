@@ -6,16 +6,16 @@ defmodule NervesHubWeb.Components.OAuthLinks do
     <div :if={google_auth_enabled?()} class="mt-10">
       <div class="relative">
         <div class="relative flex justify-center text-sm/6 font-medium">
-          <span class="px-6 text-base-300">Or create a new account with</span>
+          <span class="text-base-300 px-6">Or create a new account with</span>
         </div>
       </div>
 
       <div class="mt-6 flex justify-center gap-4">
         <.link
           href="/auth/google"
-          class="flex w-44 items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-base-100 focus-visible:ring-transparent"
+          class="hover:bg-base-100 flex w-44 items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-gray-300 ring-inset focus-visible:ring-transparent"
         >
-          <svg class="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+          <svg class="size-5" viewBox="0 0 24 24" aria-hidden="true">
             <path
               d="M12.0003 4.75C13.7703 4.75 15.3553 5.36002 16.6053 6.54998L20.0303 3.125C17.9502 1.19 15.2353 0 12.0003 0C7.31028 0 3.25527 2.69 1.28027 6.60998L5.27028 9.70498C6.21525 6.86002 8.87028 4.75 12.0003 4.75Z"
               fill="#EA4335"

@@ -1,9 +1,9 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <%= if @live_action == :index do %>
-    <div class="h-14 flex justify-end bg-surface-muted border-b border-base-700"></div>
+    <div class="bg-surface-muted border-base-700 flex h-14 justify-end border-b"></div>
 
     <div class="h-0 flex-1 overflow-y-auto">
-      <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+      <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
         <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Signing Keys</h1>
         <div class="mr-auto"></div>
         <.button type="link" navigate={~p"/org/#{@org}/settings/keys/new"} aria-label="Add new signing key">
@@ -12,23 +12,23 @@
       </div>
 
       <div class="px-6 py-4">
-        <p class="text-sm text-base-400 mb-4">Signing Keys are used to sign uploaded firmware, and verify the firmware on the device before the device is updated.</p>
+        <p class="text-base-400 mb-4 text-sm">Signing Keys are used to sign uploaded firmware, and verify the firmware on the device before the device is updated.</p>
 
         <div class="space-y-3">
           <%= for signing_key <- @signing_keys do %>
-            <div class="flex items-start gap-4 p-4 border border-base-700 rounded bg-gradient-to-r from-base-800/50 to-base-800">
-              <img src="/images/icons/key.svg" alt="key" class="size-6 mt-1" />
-              <div class="flex-1 min-w-0">
-                <h3 class="text-sm font-semibold text-neutral-50 mb-2">
+            <div class="border-base-700 from-base-800/50 to-base-800 flex items-start gap-4 rounded border bg-linear-to-r p-4">
+              <img src="/images/icons/key.svg" alt="key" class="mt-1 size-6" />
+              <div class="min-w-0 flex-1">
+                <h3 class="mb-2 text-sm font-semibold text-neutral-50">
                   {signing_key.name}
                 </h3>
-                <div class="text-xs text-base-400 break-all mb-1">{signing_key.key}</div>
-                <div :if={signing_key.created_by} class="text-xs text-base-500">
+                <div class="text-base-400 mb-1 text-xs break-all">{signing_key.key}</div>
+                <div :if={signing_key.created_by} class="text-base-500 text-xs">
                   Created by: {signing_key.created_by.name} ({signing_key.created_by.email})
                 </div>
               </div>
               <button
-                class="px-3 py-1.5 text-sm font-medium text-base-300 bg-base-800 border border-base-700 rounded hover:bg-base-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
                 phx-click="delete"
                 phx-value-signing_key_id={signing_key.id}
                 disabled={!authorized?(:"signing_key:delete", @current_scope)}
@@ -48,17 +48,17 @@
   <% end %>
 
   <%= if @live_action == :new do %>
-    <div class="h-14 flex justify-end bg-surface-muted border-b border-base-700"></div>
+    <div class="bg-surface-muted border-base-700 flex h-14 justify-end border-b"></div>
 
     <div class="h-0 flex-1 overflow-y-auto">
-      <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+      <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
         <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">New Signing Key</h1>
       </div>
 
-      <div class="px-6 py-4 max-w-[650px]">
+      <div class="max-w-[650px] px-6 py-4">
         <.form :let={f} for={@form} phx-submit="save">
           <%= if @form.action do %>
-            <div class="p-4 mb-4 text-sm text-red-400 bg-red-900/20 border border-red-800 rounded">
+            <div class="mb-4 rounded border border-red-800 bg-red-900/20 p-4 text-sm text-red-400">
               <p>Something went wrong! Please check the errors below.</p>
             </div>
           <% end %>
@@ -66,13 +66,13 @@
           <div class="mb-4">
             {label(f, :name, for: "name_input", class: "block text-sm font-medium text-base-300 mb-2")}
             {text_input(f, :name, class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "name_input")}
-            <div class="text-sm text-red-400 mt-1">{error_tag(f, :name)}</div>
+            <div class="mt-1 text-sm text-red-400">{error_tag(f, :name)}</div>
           </div>
 
           <div class="mb-6">
             {label(f, :key, for: "key_input", class: "block text-sm font-medium text-base-300 mb-2")}
             {text_input(f, :key, class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "key_input")}
-            <div class="text-sm text-red-400 mt-1">{error_tag(f, :key)}</div>
+            <div class="mt-1 text-sm text-red-400">{error_tag(f, :key)}</div>
           </div>
 
           <div class="flex gap-3">

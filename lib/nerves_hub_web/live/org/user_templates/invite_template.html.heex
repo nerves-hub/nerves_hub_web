@@ -1,35 +1,35 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-[56px] flex justify-end bg-surface-muted border-b border-base-700"></div>
+  <div class="bg-surface-muted border-base-700 flex h-[56px] justify-end border-b"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-base-700 text-sm font-medium">
+    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Add New User</h1>
     </div>
 
-    <div class="px-6 py-4 max-w-[650px]">
-      <p class="text-sm text-base-400 mb-6">An invitation will be sent to join {@org.name}. Invites expire in 48 hours.</p>
+    <div class="max-w-[650px] px-6 py-4">
+      <p class="text-base-400 mb-6 text-sm">An invitation will be sent to join {@org.name}. Invites expire in 48 hours.</p>
 
       <.form :let={f} for={@form} phx-submit="send_invite">
         <%= if f.action do %>
-          <div class="p-4 mb-4 text-sm text-red-400 bg-red-900/20 border border-red-800 rounded">
+          <div class="mb-4 rounded border border-red-800 bg-red-900/20 p-4 text-sm text-red-400">
             <p>Something went wrong, please check the errors below.</p>
           </div>
         <% end %>
 
         <div class="mb-4">
-          <label for="email_input" class="block text-sm font-medium text-base-300 mb-2">Email</label>
+          <label for="email_input" class="text-base-300 mb-2 block text-sm font-medium">Email</label>
           {email_input(f, :email,
             class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
             id: "email_input",
             value: assigns[:email]
           )}
-          <div class="text-sm text-red-400 mt-1">{error_tag(f, :email)}</div>
-          <div class="text-sm text-red-400 mt-1">{error_tag(f, :org_users)}</div>
+          <div class="mt-1 text-sm text-red-400">{error_tag(f, :email)}</div>
+          <div class="mt-1 text-sm text-red-400">{error_tag(f, :org_users)}</div>
         </div>
 
         <div class="mb-6">
-          <label for="role_input" class="block text-sm font-medium text-base-300 mb-2">
-            Role <span class="text-xs text-base-500 ml-2">(Defines the type of access this user has in this org)</span>
+          <label for="role_input" class="text-base-300 mb-2 block text-sm font-medium">
+            Role <span class="text-base-500 ml-2 text-xs">(Defines the type of access this user has in this org)</span>
           </label>
           {select(f, :role, Utils.role_options(),
             selected: :view,
