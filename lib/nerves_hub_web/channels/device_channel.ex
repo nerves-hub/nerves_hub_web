@@ -243,6 +243,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_in:report_network_interface")
   def handle_in("report_network_interface", %{"interface" => interface}, %{assigns: %{device: device}} = socket) do
     if Device.humanized_network_interface_name(interface) == device.network_interface do
       {:noreply, socket}
