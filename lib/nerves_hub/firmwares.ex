@@ -544,6 +544,9 @@ defmodule NervesHub.Firmwares do
         target_firmware.uuid
       )
 
+    checksum = firmware_checksum(delta_file_metadata.filepath)
+    partials_checksums = partials_checksums(delta_file_metadata.filepath)
+
     changeset =
       FirmwareDelta.complete_changeset(
         firmware_delta,
@@ -552,7 +555,9 @@ defmodule NervesHub.Firmwares do
         delta_file_metadata.source_size,
         delta_file_metadata.target_size,
         delta_file_metadata.tool_metadata,
-        upload_metadata
+        upload_metadata,
+        checksum,
+        partials_checksums
       )
 
     with {:ok, firmware_delta} <- Repo.update(changeset),

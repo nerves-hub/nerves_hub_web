@@ -549,6 +549,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         %{status: :processing}
       )
 
+    Elixir.File.cp!("test/fixtures/fwup/dummy_100kb.txt", Path.join(tmp_dir, "dummy_100kb.txt"))
+
     expect(Fwup, :create_firmware_delta_file, fn _, _, _ ->
       {:ok,
        %{
@@ -556,7 +558,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
          size: "1000",
          source_size: "2000",
          target_size: "3000",
-         filepath: tmp_dir,
+         filepath: Path.join(tmp_dir, "dummy_100kb.txt"),
          tool_metadata: %{}
        }}
     end)
