@@ -1576,7 +1576,7 @@ defmodule NervesHub.DevicesTest do
       assert {:ok, %Firmware{} = firmware} = Devices.get_delta_or_firmware(device, deployment_group)
     end
 
-    test "returns the full firmware url if delta isn't ready", %{
+    test "returns the full firmware if delta isn't ready", %{
       device: device,
       deployment_group: deployment_group,
       org_key: org_key,
