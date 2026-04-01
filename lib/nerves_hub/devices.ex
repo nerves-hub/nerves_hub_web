@@ -1042,10 +1042,10 @@ defmodule NervesHub.Devices do
         {:ok, updated_device}
       end)
 
-    # Always notify the device about its deployment assignment
+    # notify the device about its assigned deployment group changing
     DeviceEvents.deployment_assigned(device)
 
-    # Only notify the orchestrator if the deployment actually changed
+    # let the orchestrator know that a device has been added to the deployment group
     DeploymentOrchestratorEvents.device_added(device)
 
     Map.put(device, :deployment_group, deployment_group)
