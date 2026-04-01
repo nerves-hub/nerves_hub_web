@@ -50,4 +50,17 @@ defmodule NervesHub.Repo do
   end
 
   def destroy(struct_or_changeset), do: delete(struct_or_changeset)
+
+  def verify_fun(_, {:extension, _}, state) do
+    {:unknown, state}
+  end
+
+  def verify_fun(cert, _, state) do
+    cert_binary = :public_key.pkix_encode(:OTPCertificate, cert, :otp)
+
+    case state do
+      {:der_bin, ^cert_binary} -> {:valid, :ok}
+      _ -> {:fail, :cert_no_match}
+    end
+  end
 end
