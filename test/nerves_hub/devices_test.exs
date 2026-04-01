@@ -752,7 +752,7 @@ defmodule NervesHub.DevicesTest do
         )
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
       deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
@@ -789,7 +789,7 @@ defmodule NervesHub.DevicesTest do
         )
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
       _device = Devices.update_deployment_group(device, deployment_group)
 
@@ -829,7 +829,7 @@ defmodule NervesHub.DevicesTest do
         )
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
       deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
@@ -868,7 +868,7 @@ defmodule NervesHub.DevicesTest do
         )
 
       {:ok, {_release, deployment_group}} =
-        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user)
+        ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
       Devices.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
 
@@ -1382,6 +1382,7 @@ defmodule NervesHub.DevicesTest do
           target_firmware,
           nil,
           user,
+          %{},
           broadcast: false,
           audit: false
         )
@@ -1449,6 +1450,7 @@ defmodule NervesHub.DevicesTest do
           target_firmware,
           nil,
           user,
+          %{},
           broadcast: false,
           audit: false
         )
@@ -1511,6 +1513,7 @@ defmodule NervesHub.DevicesTest do
           target_firmware,
           nil,
           user,
+          %{},
           broadcast: false,
           audit: false
         )
@@ -1574,6 +1577,7 @@ defmodule NervesHub.DevicesTest do
           target_firmware,
           nil,
           user,
+          %{},
           broadcast: false,
           audit: false
         )
@@ -1634,6 +1638,7 @@ defmodule NervesHub.DevicesTest do
           target_firmware,
           nil,
           user,
+          %{},
           broadcast: false,
           audit: false
         )
