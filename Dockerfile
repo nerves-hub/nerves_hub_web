@@ -124,26 +124,26 @@ RUN git checkout 428350a && \
 ### Build jemalloc - GCC 14
 ###
 
-FROM ${RUNNER_IMAGE} AS jemalloc
+# FROM ${RUNNER_IMAGE} AS jemalloc
 
-RUN apt-get update -y && \
-    apt-get upgrade -y && \
-    apt-get install -y git autoconf cmake make software-properties-common && \
-    add-apt-repository ppa:ubuntu-toolchain-r/ppa -y && \
-    apt-get update -y && \
-    apt-get install -y gcc-14 g++-14 && \
-    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 --slave /usr/bin/g++ g++ /usr/bin/g++-14
+# RUN apt-get update -y && \
+#     apt-get upgrade -y && \
+#     apt-get install -y git autoconf cmake make software-properties-common && \
+#     add-apt-repository ppa:ubuntu-toolchain-r/ppa -y && \
+#     apt-get update -y && \
+#     apt-get install -y gcc-14 g++-14 && \
+#     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 --slave /usr/bin/g++ g++ /usr/bin/g++-14
 
-# Build the latest jemalloc
+# # Build the latest jemalloc
 
-RUN git clone https://github.com/facebook/jemalloc /tmp/jemalloc
+# RUN git clone https://github.com/facebook/jemalloc /tmp/jemalloc
 
-WORKDIR /tmp/jemalloc
+# WORKDIR /tmp/jemalloc
 
-RUN autoconf && \
-    ./configure && \
-    make && \
-    make install
+# RUN autoconf && \
+#     ./configure && \
+#     make && \
+#     make install
 
 
 ###
@@ -167,8 +167,8 @@ ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
 # Use jemalloc for memory allocation
-COPY --from=jemalloc /usr/local/lib/libjemalloc.so.2 /usr/local/lib/libjemalloc.so.2
-ENV LD_PRELOAD=/usr/local/lib/libjemalloc.so.2
+# COPY --from=jemalloc /usr/local/lib/libjemalloc.so.2 /usr/local/lib/libjemalloc.so.2
+# ENV LD_PRELOAD=/usr/local/lib/libjemalloc.so.2
 
 # Copy over the statically built fwup
 COPY --from=fwup /usr/local/bin/fwup /usr/local/bin/fwup
