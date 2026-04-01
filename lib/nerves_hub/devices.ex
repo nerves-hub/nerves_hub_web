@@ -1018,7 +1018,7 @@ defmodule NervesHub.Devices do
   @spec update_deployment_group(Device.t(), DeploymentGroup.t()) :: Device.t()
   # No-op if the deployment group ID matches the current deployment ID
   def update_deployment_group(%{deployment_id: deployment_id} = device, %{id: deployment_id}) do
-    {:ok, device}
+    device
   end
 
   def update_deployment_group(device, deployment_group) do
