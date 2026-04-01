@@ -1016,10 +1016,12 @@ defmodule NervesHub.Devices do
   def matches_deployment_group?(_, _), do: false
 
   @spec update_deployment_group(Device.t(), DeploymentGroup.t()) :: Device.t()
-  def update_deployment_group(device, deployment_group) do
-    # Check if deployment is actually changing
-    deployment_changed = device.deployment_id != deployment_group.id
+  # No-op if the deployment group ID matches the current deployment ID
+  def update_deployment_group(%{deployment_id: deployment_id} = device, %{id: deployment_id}) do
+    {:ok, device}
+  end
 
+  def update_deployment_group(device, deployment_group) do
     # Use a transaction to ensure device update and delta generation happen atomically
     # This prevents race condition: when the transaction commits, both the device's new
     # deployment_id and any firmware_delta rows (with :processing status) become visible
@@ -1044,9 +1046,7 @@ defmodule NervesHub.Devices do
     DeviceEvents.deployment_assigned(device)
 
     # Only notify the orchestrator if the deployment actually changed
-    if deployment_changed do
-      DeploymentOrchestratorEvents.device_added(device)
-    end
+    DeploymentOrchestratorEvents.device_added(device)
 
     Map.put(device, :deployment_group, deployment_group)
   end
