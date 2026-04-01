@@ -809,6 +809,10 @@ defmodule NervesHub.Devices do
     |> where([device: d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
     |> where([deployment_group: dg], dg.is_active == true)
     |> where([deployment_group: dg], dg.status == :ready)
+    |> where(
+      [deployment_group: dg],
+      dg.current_deployment_release_id == ^deployment_group.current_deployment_release_id
+    )
     |> where([latest_connection: lc], lc.status == :connected)
     |> where([firmware: f, current_release: cr], is_nil(f.id) or f.id != cr.firmware_id)
     |> where([inflight_update: ifu], is_nil(ifu))
