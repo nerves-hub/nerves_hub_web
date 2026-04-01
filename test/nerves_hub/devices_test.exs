@@ -14,6 +14,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentRelease
@@ -1573,7 +1574,7 @@ defmodule NervesHub.DevicesTest do
           current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
-      assert {:ok, %Firmware{} = firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      assert {:ok, %Firmware{}} = Devices.get_delta_or_firmware(device, deployment_group)
     end
 
     test "returns the full firmware if delta isn't ready", %{
@@ -1598,7 +1599,7 @@ defmodule NervesHub.DevicesTest do
           current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
-      assert {:ok, %Firmware{} = firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      assert {:ok, %Firmware{}} = Devices.get_delta_or_firmware(device, deployment_group)
     end
 
     test "returns full firmware url when source firmware can't be found", %{
