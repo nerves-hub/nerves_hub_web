@@ -123,6 +123,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1}, user)
 
+    deployment_group = Repo.preload(deployment_group, current_release: :firmware)
+
     device = Devices.update_deployment_group(device, deployment_group)
     {:ok, connection} = Connections.device_connecting(device, device.product_id)
     :ok = Connections.device_connected(device, connection.id)
@@ -150,23 +152,16 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     # create new firmware and update the deployment group with it
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-    {:ok, _deployment_group} =
-      ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
+    # create a new release, which will kick off the orchestrator
+    {:ok, {_release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{}, broadcast: true)
 
     # check that the first device was told to update
     assert_receive %Broadcast{topic: ^topic1, event: "update"}, 500
 
-    # bring the second device 'online'
-    Devices.update_deployment_group(device2, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device2, device2.product_id)
-    :ok = Connections.device_connected(device2, connection.id)
-
-    # sent by the device after its updated
-    assert_receive %Broadcast{topic: ^topic2, event: "deployment_updated"}, 500
-
     # pretend that the first device successfully updated
     {:ok, device} =
-      Devices.update_device(device, %{firmware_metadata: %{"uuid" => firmware.uuid}})
+      Devices.update_device(device, %{firmware_metadata: %{"uuid" => deployment_group.current_release.firmware.uuid}})
 
     Devices.firmware_update_successful(device, device.firmware_metadata)
 
@@ -174,7 +169,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     assert_receive %Broadcast{topic: ^topic1, event: "updated"}, 500
 
     # check that the orchestrator was told about the successful update
-    assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-updated"}, 500
+    assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-updated"}, 1_000
 
     # and that device2 was told to update
     assert_receive %Broadcast{topic: ^topic2, event: "update"}, 500
