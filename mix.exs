@@ -163,7 +163,11 @@ defmodule NervesHub.MixProject do
       {:unzip, "~> 0.12"},
       {:uuidv7, "~> 1.0"},
       {:x509, "~> 0.5.1 or ~> 0.6"},
-      {:flop, "~> 0.26.1"}
+      {:flop, "~> 0.26.1"},
+      {:ash, "~> 3.5"},
+      {:ash_postgres, "~> 2.5"},
+      {:ash_json_api, "~> 1.5"},
+      {:ash_graphql, "~> 1.7"}
     ]
   end
 

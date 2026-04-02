@@ -182,6 +182,8 @@ ENV HOME=/app
 ENV MIX_ENV=prod
 ENV SECRET_KEY_BASE=nokey
 ENV PORT=4000
+ENV ECTO_IPV6=true
+ENV ERL_AFLAGS="-proto_dist inet6_tcp"
 
 ENTRYPOINT ["bin/nerves_hub"]
 
