@@ -118,8 +118,7 @@ defmodule NervesHubWeb.Components.Navigation do
     <nav class="fixed-top flex-md-nowrap justify-content-center navbar navbar-dark navbar-expand flex-row p-0">
       <div class="align-items-center content-container justify-content-between h-100 flex-row">
         <a class="logo" href={~p"/"}>
-          <img src="/images/logo.svg" alt="logo" />
-          <img src="/images/logo-no-text.svg" alt="logo" class="mobile-logo" />
+          <.logo />
         </a>
 
         <%= if @user do %>

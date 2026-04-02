@@ -65,7 +65,8 @@ config :nerves_hub,
   devices_websocket_url:
     System.get_env("DEVICES_WEBSOCKET_HOST") || System.get_env("DEVICE_HOST") || System.get_env("WEB_HOST") ||
       System.get_env("HOST"),
-  clean_up_soft_deleted_devices: System.get_env("CLEAN_UP_SOFT_DELETED_DEVICES", "false") == "true"
+  clean_up_soft_deleted_devices: System.get_env("CLEAN_UP_SOFT_DELETED_DEVICES", "false") == "true",
+  logo_url: System.get_env("LOGO_URL")
 
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do
