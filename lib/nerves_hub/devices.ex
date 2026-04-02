@@ -1255,6 +1255,7 @@ defmodule NervesHub.Devices do
     Device
     |> where([d], d.deployment_id == ^deployment_group.id)
     |> where([d], d.firmware_metadata["uuid"] == ^deployment_group.current_release.firmware.uuid)
+    |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
   end
 
@@ -1274,6 +1275,7 @@ defmodule NervesHub.Devices do
       is_nil(d.firmware_metadata) or
         d.firmware_metadata["uuid"] != ^deployment_group.current_release.firmware.uuid
     )
+    |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
   end
 
