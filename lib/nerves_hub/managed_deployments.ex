@@ -634,10 +634,20 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @spec verify_deployment_group_membership(Device.t()) :: Device.t()
-  def verify_deployment_group_membership(
-        %Device{deployment_id: deployment_id, firmware_metadata: %{version: device_version}} = device
-      )
+  def verify_deployment_group_membership(%Device{deployment_id: deployment_id} = device)
       when not is_nil(deployment_id) do
+    with {:ok, deployment_group} <- get_or_clear_deployment_group(device) do
+      audit_device_deployment_group(device, deployment_group)
+    end
+  end
+
+  def verify_deployment_group_membership(device), do: device
+
+  # This is meant to safeguard against race conditions where the deployment group is deleted
+  # Simply returns the device if the deployment group was cleared since there isn't any more checking to do
+  defp get_or_clear_deployment_group(device) do
+    deployment_id = device.deployment_id
+
     deployment_group =
       DeploymentGroup
       |> from(as: :deployment_group)
@@ -645,12 +655,22 @@ defmodule NervesHub.ManagedDeployments do
       |> join_current_release(true)
       |> Repo.one()
 
+    if deployment_group do
+      {:ok, deployment_group}
+    else
+      device
+      |> Ecto.Changeset.change(%{deployment_id: nil})
+      |> Repo.update!()
+    end
+  end
+
+  defp audit_device_deployment_group(device, deployment_group) do
     bad_version =
       if deployment_group.conditions.version == "" do
         false
       else
         try do
-          !Version.match?(device_version, deployment_group.conditions.version)
+          !Version.match?(device.firmware_metadata.version, deployment_group.conditions.version)
         rescue
           _ ->
             true
@@ -690,8 +710,6 @@ defmodule NervesHub.ManagedDeployments do
       device
     end
   end
-
-  def verify_deployment_group_membership(device), do: device
 
   @spec preload_firmware_and_archive(DeploymentGroup.t()) :: DeploymentGroup.t()
   def preload_firmware_and_archive(deployment_group) do
