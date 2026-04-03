@@ -1066,6 +1066,21 @@ defmodule NervesHub.ManagedDeploymentsTest do
       [audit_log | _] = AuditLogs.logs_for(deployment_group)
       assert audit_log.description =~ "no longer matches deployment group"
     end
+
+    test "removes device from deployment group when deployment group is deleted",
+         %{
+           device: device,
+           deployment_group: deployment_group
+         } do
+      device = Devices.update_deployment_group(device, deployment_group)
+      assert device.deployment_id == deployment_group.id
+
+      # Delete the deployment group
+      {:ok, _} = ManagedDeployments.delete_deployment_group(deployment_group)
+
+      device = ManagedDeployments.verify_deployment_group_membership(device)
+      refute device.deployment_id
+    end
   end
 
   describe "matched_devices_count/2" do
