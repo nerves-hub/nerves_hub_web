@@ -4,16 +4,11 @@ defmodule NervesHub.Devices.DeviceConnection do
   import Ecto.Changeset
 
   alias NervesHub.Devices.Device
-  alias NervesHub.Products.Product
 
   @type t :: %__MODULE__{}
   @primary_key {:id, UUIDv7, autogenerate: true}
-  @required_params [:product_id, :device_id, :status, :last_seen_at, :established_at]
-  @wanted_on_create @required_params ++ [:metadata]
-  @wanted_on_update @required_params ++ [:disconnected_at, :disconnected_reason, :metadata]
 
-  schema "device_connections" do
-    belongs_to(:product, Product)
+  schema "latest_device_connections" do
     belongs_to(:device, Device)
 
     field(:established_at, :utc_datetime_usec)
@@ -28,15 +23,14 @@ defmodule NervesHub.Devices.DeviceConnection do
     )
   end
 
-  def create_changeset(params) do
-    %__MODULE__{}
-    |> cast(params, @wanted_on_create)
-    |> validate_required(@required_params)
-  end
+  def connecting_changeset(device) do
+    now = DateTime.utc_now()
 
-  def update_changeset(connection, params) do
-    connection
-    |> cast(params, @wanted_on_update)
-    |> validate_required(@required_params)
+    %__MODULE__{}
+    |> change()
+    |> put_assoc(:device, device)
+    |> put_change(:established_at, now)
+    |> put_change(:last_seen_at, now)
+    |> put_change(:status, :connecting)
   end
 end
