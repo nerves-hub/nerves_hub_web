@@ -21,6 +21,9 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
     field(:target_size, :integer, default: 0)
     field(:upload_metadata, :map)
 
+    field(:checksum, :string)
+    field(:partials_checksums, {:array, :string}, default: [])
+
     timestamps()
   end
 
@@ -58,8 +61,11 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
           source_size :: non_neg_integer(),
           target_size :: non_neg_integer(),
           tool_metadata :: map(),
-          upload_metadata :: map()
+          upload_metadata :: map(),
+          checksum :: String.t(),
+          partials_checksums :: [String.t()]
         ) :: Ecto.Changeset.t()
+  # credo:disable-for-next-line
   def complete_changeset(
         %FirmwareDelta{} = firmware_delta,
         tool,
@@ -67,7 +73,9 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
         source_size,
         target_size,
         tool_metadata,
-        upload_metadata
+        upload_metadata,
+        checksum,
+        partials_checksums
       ) do
     firmware_delta
     |> cast(
@@ -78,7 +86,9 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
         source_size: source_size,
         target_size: target_size,
         tool_metadata: tool_metadata,
-        upload_metadata: upload_metadata
+        upload_metadata: upload_metadata,
+        checksum: checksum,
+        partials_checksums: partials_checksums
       },
       [
         :status,
@@ -87,7 +97,9 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
         :source_size,
         :target_size,
         :tool_metadata,
-        :upload_metadata
+        :upload_metadata,
+        :checksum,
+        :partials_checksums
       ]
     )
     |> validate_required([
@@ -97,7 +109,9 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
       :source_size,
       :target_size,
       :tool_metadata,
-      :upload_metadata
+      :upload_metadata,
+      :checksum,
+      :partials_checksums
     ])
     |> unique_constraint(:unique_firmware_delta, name: :source_id_target_id_unique_index)
     |> foreign_key_constraint(:source_id, name: :firmware_deltas_source_id_fkey)

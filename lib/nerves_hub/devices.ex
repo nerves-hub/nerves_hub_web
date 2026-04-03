@@ -904,9 +904,11 @@ defmodule NervesHub.Devices do
   defp do_resolve_update(device, deployment_group, opts) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
-        case get_delta_or_firmware_url(device, deployment_group) do
-          {:ok, url} ->
+        case get_delta_or_firmware(device, deployment_group) do
+          {:ok, firmware_or_delta} ->
             {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.current_release.firmware)
+
+            {:ok, url} = Firmwares.get_firmware_url(firmware_or_delta)
 
             firmware_url =
               if opts[:firmware_proxy_url] do
@@ -920,18 +922,11 @@ defmodule NervesHub.Devices do
               firmware_url: firmware_url,
               firmware_meta: meta,
               deployment_group: deployment_group,
-              deployment_id: deployment_group.id
+              deployment_id: deployment_group.id,
+              size: firmware_or_delta.size,
+              checksum: firmware_or_delta.checksum,
+              partials_checksums: firmware_or_delta.partials_checksums
             }
-
-          {:error, reason} ->
-            Logger.info(
-              "Firmware URL could not be generated",
-              reason: reason,
-              source_firmware: Map.get(device.firmware_metadata, :uuid),
-              target_firmware: deployment_group.current_release.firmware.uuid
-            )
-
-            %UpdatePayload{update_available: false}
         end
 
       {:error, :deployment_group_not_active, _device} ->
@@ -1987,10 +1982,11 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Get firmware or delta update URL.
+  Get firmware or delta.
   """
-  @spec get_delta_or_firmware_url(Device.t(), DeploymentGroup.t()) :: {:ok, String.t()} | {:error, :failure}
-  def get_delta_or_firmware_url(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
+  @spec get_delta_or_firmware(Device.t(), DeploymentGroup.t()) ::
+          {:ok, Firmware.t()} | {:ok, FirmwareDelta.t()}
+  def get_delta_or_firmware(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
         delta_updatable: true,
         current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
       }) do
@@ -1998,19 +1994,18 @@ defmodule NervesHub.Devices do
       {:ok, source_firmware} ->
         case get_delta_if_ready(device, source_firmware, target_firmware) do
           {:ok, delta} ->
-            Firmwares.get_firmware_url(delta)
+            {:ok, delta}
 
           _ ->
-            Firmwares.get_firmware_url(target_firmware)
+            {:ok, target_firmware}
         end
 
       {:error, :not_found} ->
-        Firmwares.get_firmware_url(target_firmware)
+        {:ok, target_firmware}
     end
   end
 
-  def get_delta_or_firmware_url(%Device{}, %DeploymentGroup{current_release: %{firmware: target}}),
-    do: Firmwares.get_firmware_url(target)
+  def get_delta_or_firmware(%Device{}, %DeploymentGroup{current_release: %{firmware: target}}), do: {:ok, target}
 
   @spec get_delta_if_ready(Device.t(), Firmware.t(), Firmware.t()) ::
           {:ok, FirmwareDelta.t()}

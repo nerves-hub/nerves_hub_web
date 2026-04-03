@@ -126,6 +126,62 @@ defmodule NervesHub.FirmwaresTest do
     assert firmware.size == expected_size
   end
 
+  test "firmware stores its sha256 checksum, base16 encoded", %{
+    org: org,
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir
+  } do
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    assert File.exists?(firmware.upload_metadata[:local_path])
+
+    expected_checksum = Firmwares.firmware_checksum(firmware.upload_metadata[:local_path])
+
+    {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+    assert firmware.checksum == expected_checksum
+  end
+
+  test "firmware stores checksums of 1MB parts of its full file, base16 encoded", %{
+    org: org,
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir
+  } do
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    assert File.exists?(firmware.upload_metadata[:local_path])
+
+    expected_checksums = Firmwares.partials_checksums(firmware.upload_metadata[:local_path])
+
+    {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+    assert firmware.partials_checksums == expected_checksums
+    assert length(firmware.partials_checksums) == 1
+  end
+
+  test "firmware stores checksums of 1MB parts of its full file, base16 encoded, using a larger file", %{
+    org: org,
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir
+  } do
+    firmware =
+      Fixtures.firmware_fixture(org_key, product, %{
+        version: "1.0.0",
+        resource_contents_path: "test/fixtures/fwup/dummy_4mb.txt",
+        dir: tmp_dir
+      })
+
+    assert File.exists?(firmware.upload_metadata[:local_path])
+
+    expected_checksums = Firmwares.partials_checksums(firmware.upload_metadata[:local_path])
+
+    {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+    assert firmware.partials_checksums == expected_checksums
+    assert length(firmware.partials_checksums) == 5
+  end
+
   describe "get_firmwares_by_product/1" do
     test "returns firmwares", %{
       product: product,
@@ -284,7 +340,7 @@ defmodule NervesHub.FirmwaresTest do
 
   describe "create_firmware_delta/2" do
     @tag :tmp_dir
-    test "creates a new firmware delta when one doesn't exist", %{
+    test "creates a new firmware delta when one doesn't exist, and saves the checksum and partials checksums", %{
       firmware: source,
       org_key: org_key,
       product: product,
@@ -320,8 +376,55 @@ defmodule NervesHub.FirmwaresTest do
       assert {:ok, firmware_delta} = Firmwares.start_firmware_delta(source.id, target.id)
       Firmwares.generate_firmware_delta(firmware_delta, source, target)
 
-      assert {:ok, _firmware_delta} =
+      assert {:ok, firmware_delta} =
                Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+
+      assert firmware_delta.checksum == Firmwares.firmware_checksum(firmware_delta_path)
+      assert firmware_delta.partials_checksums == [Firmwares.firmware_checksum(firmware_delta_path)]
+    end
+
+    test "creates a new firmware delta when one doesn't exist, and saves the checksum and partials checksums (multiple partials)",
+         %{
+           firmware: source,
+           org_key: org_key,
+           product: product,
+           tmp_dir: tmp_dir
+         } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      source_url = "http://somefilestore.com/source.fw"
+      target_url = "http://somefilestore.com/target.fw"
+      firmware_delta_path = Path.join(tmp_dir, "firmware_delta.fw")
+      File.cp!("test/fixtures/fwup/dummy_4mb.txt", firmware_delta_path)
+
+      expect(UploadFile, :download_file, fn ^source -> {:ok, source_url} end)
+      expect(UploadFile, :download_file, fn ^target -> {:ok, target_url} end)
+
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn {_, ^source_url}, {_, ^target_url}, _ ->
+        {:ok,
+         %{
+           filepath: firmware_delta_path,
+           size: 5,
+           source_size: 10,
+           target_size: 15,
+           tool: "fwup",
+           tool_metadata: %{}
+         }}
+      end)
+
+      expect(UploadFile, :upload_file, fn ^firmware_delta_path, _ -> :ok end)
+
+      expect(UpdateToolDefault, :cleanup_firmware_delta_files, fn ^firmware_delta_path ->
+        :ok
+      end)
+
+      assert {:ok, firmware_delta} = Firmwares.start_firmware_delta(source.id, target.id)
+      Firmwares.generate_firmware_delta(firmware_delta, source, target)
+
+      assert {:ok, firmware_delta} =
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+
+      assert firmware_delta.checksum == Firmwares.firmware_checksum(firmware_delta_path)
+      assert firmware_delta.partials_checksums == Firmwares.partials_checksums(firmware_delta_path)
     end
 
     test "new firmware delta is not created if there is an error", %{
@@ -335,7 +438,7 @@ defmodule NervesHub.FirmwaresTest do
       expect(UpdateToolDefault, :create_firmware_delta_file, fn _s, _t, _wd ->
         {:ok,
          %{
-           filepath: "path/to/firmware.fw",
+           filepath: "test/fixtures/fwup/dummy_100kb.txt",
            size: 5,
            source_size: 10,
            target_size: 15,
