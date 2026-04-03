@@ -87,7 +87,7 @@ defmodule NervesHubWeb.Auth do
 
       conn
       |> assign(:current_scope, Scope.for_user(user))
-      |> assign(:user_token, Phoenix.Token.sign(conn, "user salt", user.id))
+      |> assign(:user_token, Base.url_encode64(user_token))
     else
       nil ->
         assign(conn, :current_scope, Scope.for_user(nil))
@@ -182,7 +182,8 @@ defmodule NervesHubWeb.Auth do
   end
 
   defp mount_current_scope(socket, %{"user_token" => user_token} = _session) do
-    Phoenix.Component.assign_new(socket, :current_scope, fn ->
+    socket
+    |> Phoenix.Component.assign_new(:current_scope, fn ->
       with user_token when is_binary(user_token) <- user_token,
            %User{} = user <- Accounts.get_user_by_session_token(user_token),
            %User{} = user <- Accounts.get_user_with_all_orgs_and_products(user.id) do
@@ -192,6 +193,7 @@ defmodule NervesHubWeb.Auth do
           Scope.for_user(nil)
       end
     end)
+    |> Phoenix.Component.assign(:user_token, Base.url_encode64(user_token))
   end
 
   defp mount_current_scope(socket, _session), do: socket
