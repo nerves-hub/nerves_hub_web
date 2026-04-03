@@ -1362,19 +1362,14 @@ defmodule NervesHub.DevicesTest do
         )
 
       # Set up device connection
-      %{id: latest_connection_id} =
-        DeviceConnection.create_changeset(%{
-          product_id: product.id,
-          device_id: device.id,
-          established_at: DateTime.utc_now(),
-          last_seen_at: DateTime.utc_now(),
-          status: :connected
-        })
-        |> Repo.insert!()
-
-      Device
-      |> where(id: ^device.id)
-      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+      %DeviceConnection{}
+      |> Ecto.Changeset.change(%{
+        device_id: device.id,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
+        status: :connected
+      })
+      |> Repo.insert!()
 
       # Create firmware_delta with status :processing
       delta =
@@ -1430,19 +1425,14 @@ defmodule NervesHub.DevicesTest do
         )
 
       # Set up device connection
-      %{id: latest_connection_id} =
-        DeviceConnection.create_changeset(%{
-          product_id: product.id,
-          device_id: device.id,
-          established_at: DateTime.utc_now(),
-          last_seen_at: DateTime.utc_now(),
-          status: :connected
-        })
-        |> Repo.insert!()
-
-      Device
-      |> where(id: ^device.id)
-      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+      %DeviceConnection{}
+      |> Ecto.Changeset.change(%{
+        device_id: device.id,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
+        status: :connected
+      })
+      |> Repo.insert!()
 
       # Create firmware_delta with status :failed
       _delta =
@@ -1493,19 +1483,14 @@ defmodule NervesHub.DevicesTest do
         )
 
       # Set up device connection
-      %{id: latest_connection_id} =
-        DeviceConnection.create_changeset(%{
-          product_id: product.id,
-          device_id: device.id,
-          established_at: DateTime.utc_now(),
-          last_seen_at: DateTime.utc_now(),
-          status: :connected
-        })
-        |> Repo.insert!()
-
-      Device
-      |> where(id: ^device.id)
-      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+      %DeviceConnection{}
+      |> Ecto.Changeset.change(%{
+        device_id: device.id,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
+        status: :connected
+      })
+      |> Repo.insert!()
 
       # Create firmware_delta with status :completed
       _delta =
@@ -1557,19 +1542,14 @@ defmodule NervesHub.DevicesTest do
         )
 
       # Set up device connection
-      %{id: latest_connection_id} =
-        DeviceConnection.create_changeset(%{
-          product_id: product.id,
-          device_id: device.id,
-          established_at: DateTime.utc_now(),
-          last_seen_at: DateTime.utc_now(),
-          status: :connected
-        })
-        |> Repo.insert!()
-
-      Device
-      |> where(id: ^device.id)
-      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+      %DeviceConnection{}
+      |> Ecto.Changeset.change(%{
+        device_id: device.id,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
+        status: :connected
+      })
+      |> Repo.insert!()
 
       # No firmware_delta created - device will use full firmware
 
@@ -1609,19 +1589,14 @@ defmodule NervesHub.DevicesTest do
         })
 
       # Set up device connection
-      %{id: latest_connection_id} =
-        DeviceConnection.create_changeset(%{
-          product_id: product.id,
-          device_id: device.id,
-          established_at: DateTime.utc_now(),
-          last_seen_at: DateTime.utc_now(),
-          status: :connected
-        })
-        |> Repo.insert!()
-
-      Device
-      |> where(id: ^device.id)
-      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+      %DeviceConnection{}
+      |> Ecto.Changeset.change(%{
+        device_id: device.id,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now(),
+        status: :connected
+      })
+      |> Repo.insert!()
 
       # Update device firmware_metadata to a UUID that doesn't exist in the firmwares table
       {:ok, device} =
