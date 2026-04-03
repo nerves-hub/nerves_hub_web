@@ -177,7 +177,12 @@ if config_env() == :prod do
       keyfile: keyfile,
       certfile: certfile,
       cacertfile: cacertfile,
-      hibernate_after: 15_000
+      hibernate_after: 15_000,
+      recbuf: 16_384,
+      sndbuf: 16_384,
+      buffer: 9216,
+      nodelay: true,
+      active: 5
     ]
 
     # Older versions of OTP 25 may break using using devices
@@ -444,13 +449,20 @@ cond do
         String.to_float(ratio)
       end
 
+    otlp_headers =
+      if auth_header = System.get_env("OTLP_AUTH_HEADER") do
+        [{auth_header, System.get_env("OTLP_AUTH_HEADER_VALUE")}]
+      else
+        []
+      end
+
     config :opentelemetry,
       sampler: {:parent_based, %{root: {FilteredSampler, otlp_sampler_ratio}}}
 
     config :opentelemetry_exporter,
       otlp_protocol: :http_protobuf,
       otlp_endpoint: otlp_endpoint,
-      otlp_headers: [{System.get_env("OTLP_AUTH_HEADER"), System.get_env("OTLP_AUTH_HEADER_VALUE")}]
+      otlp_headers: otlp_headers
 
   true ->
     config :opentelemetry, traces_exporter: :none
