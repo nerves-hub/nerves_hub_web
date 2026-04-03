@@ -806,7 +806,7 @@ defmodule NervesHub.Devices do
     |> where([device: d], d.updates_enabled == true)
     |> where([device: d], not is_nil(d.firmware_metadata))
     |> where([device: d], d.firmware_validation_status in [:validated, :unknown])
-    |> where([device: d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
+    |> where([device: d], coalesce(d.updates_blocked_until, "1970-01-01 00:00:00") |> type(:naive_datetime) < ^now)
     |> where([deployment_group: dg], dg.is_active == true)
     |> where([deployment_group: dg], dg.status == :ready)
     # this is a short circuit to avoid a race condition where a new deployment release is created by
