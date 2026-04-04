@@ -449,7 +449,12 @@ defmodule NervesHub.ManagedDeployments do
   defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: {:ok, :no_deltas_started}
 
   @spec trigger_delta_generation_for_deployment_group(DeploymentGroup.t()) ::
-          {:ok, :deltas_started | :deltas_already_generated | :some_deltas_started} | {:error, :delta_generation_failed}
+          {:ok, :deltas_started | :deltas_already_generated | :some_deltas_started}
+          | {:error, :deltas_not_enabled | :delta_generation_failed}
+  def trigger_delta_generation_for_deployment_group(%{delta_updatable: false}) do
+    {:error, :deltas_not_enabled}
+  end
+
   def trigger_delta_generation_for_deployment_group(deployment_group) do
     Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
     |> Enum.map(fn {source_id, target_id} ->

@@ -188,6 +188,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     |> assert_has("a", text: "Delete")
     |> assert_has("a", text: "Retry")
 
+    Elixir.File.cp!("test/fixtures/fwup/dummy_100kb.txt", Path.join(tmp_dir, "dummy_100kb.txt"))
+
     expect(Fwup, :create_firmware_delta_file, fn _, _, _ ->
       {:ok,
        %{
@@ -195,7 +197,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
          size: "1000",
          source_size: "2000",
          target_size: "3000",
-         filepath: tmp_dir,
+         filepath: Path.join(tmp_dir, "dummy_100kb.txt"),
          tool_metadata: %{}
        }}
     end)

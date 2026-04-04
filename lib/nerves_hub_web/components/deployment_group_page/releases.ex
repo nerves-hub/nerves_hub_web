@@ -87,7 +87,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
             <div class="w-full">
               <div :for={release <- @releases} class="border-base-800 hover:bg-base-800/50 border-b">
                 <div class="flex w-full">
-                  <div class="text-base-300 px-4 py-3 text-sm">
+                  <div class="text-base-300 w-44 px-4 py-3 text-sm">
                     <div class="flex flex-col">
                       <span>{Calendar.strftime(release.inserted_at, "%B %d, %Y")}</span>
                       <span class="text-base-500 text-xs">{Calendar.strftime(release.inserted_at, "%I:%M %p")} UTC</span>
@@ -147,8 +147,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                     </div>
                   </div>
 
-                  <div class="text-base-400 px-8 py-3 text-sm">
-                    Released by:
+                  <div class="text-base-400 flex w-54 flex-col gap-0.5 px-8 py-3 text-sm">
+                    <span>Released by:</span>
                     <span :if={release.created_by}>
                       {release.created_by.name}
                     </span>

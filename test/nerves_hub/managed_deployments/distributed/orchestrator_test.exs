@@ -76,7 +76,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic1)
 
     device1 = Devices.update_deployment_group(device1, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device1, device1.product_id)
+    {:ok, connection} = Connections.device_connecting(device1)
     :ok = Connections.device_connected(device1, connection.id)
     Devices.deployment_device_online(device1)
 
@@ -91,7 +91,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic2)
 
     device2 = Devices.update_deployment_group(device2, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device2, device2.product_id)
+    {:ok, connection} = Connections.device_connecting(device2)
     :ok = Connections.device_connected(device2, connection.id)
     Devices.deployment_device_online(device2)
 
@@ -103,7 +103,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic3)
 
     device3 = Devices.update_deployment_group(device3, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device3, device3.product_id)
+    {:ok, connection} = Connections.device_connecting(device3)
     :ok = Connections.device_connected(device3, connection.id)
     Devices.deployment_device_online(device3)
 
@@ -124,12 +124,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1}, user)
 
+    deployment_group = Repo.preload(deployment_group, current_release: :firmware)
+
     device = Devices.update_deployment_group(device, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device, device.product_id)
+    {:ok, connection} = Connections.device_connecting(device)
     :ok = Connections.device_connected(device, connection.id)
 
     device2 = Devices.update_deployment_group(device2, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device2, device2.product_id)
+    {:ok, connection} = Connections.device_connecting(device2)
     :ok = Connections.device_connected(device2, connection.id)
 
     topic1 = "device:#{device.id}"
@@ -151,23 +153,16 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     # create new firmware and update the deployment group with it
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-    {:ok, _deployment_group} =
-      ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
+    # create a new release, which will kick off the orchestrator
+    {:ok, {_release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{}, broadcast: true)
 
     # check that the first device was told to update
     assert_receive %Broadcast{topic: ^topic1, event: "update"}, 500
 
-    # bring the second device 'online'
-    Devices.update_deployment_group(device2, deployment_group)
-    {:ok, connection} = Connections.device_connecting(device2, device2.product_id)
-    :ok = Connections.device_connected(device2, connection.id)
-
-    # sent by the device after its updated
-    assert_receive %Broadcast{topic: ^topic2, event: "deployment_updated"}, 500
-
     # pretend that the first device successfully updated
     {:ok, device} =
-      Devices.update_device(device, %{firmware_metadata: %{"uuid" => firmware.uuid}})
+      Devices.update_device(device, %{firmware_metadata: %{"uuid" => deployment_group.current_release.firmware.uuid}})
 
     Devices.firmware_update_successful(device, device.firmware_metadata)
 
@@ -175,7 +170,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     assert_receive %Broadcast{topic: ^topic1, event: "updated"}, 500
 
     # check that the orchestrator was told about the successful update
-    assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-updated"}, 500
+    assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-updated"}, 1_000
 
     # and that device2 was told to update
     assert_receive %Broadcast{topic: ^topic2, event: "update"}, 500
@@ -197,7 +192,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     device = Devices.update_deployment_group(device, deployment_group)
     {:ok, device} = Devices.update_device(device, %{firmware_validation_status: "not_validated"})
-    {:ok, connection} = Connections.device_connecting(device, device.product_id)
+    {:ok, connection} = Connections.device_connecting(device)
     :ok = Connections.device_connected(device, connection.id)
 
     topic1 = "device:#{device.id}"
@@ -232,12 +227,11 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     user: user,
     tmp_dir: tmp_dir
   } do
-    # An ugly set of expectations
     # `Devices.available_for_update` should be called:
     # - once upon Orchestrator startup
-    # - once when a device is added to the deployment group
-    # - once for when an out of date device comes online
-    # - once more when a device is added to the deployment group
+    # - once when device1 is added to the deployment (but not online yet)
+    # - once for when device1 comes online (out of date device comes online)
+    # - once when device2 is added to the deployment (already up-to-date)
     # - and no more times after that
     Devices
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
@@ -250,7 +244,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       [device1]
     end)
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
-      [device1]
+      []
     end)
     |> reject(:available_for_update, 2)
 
@@ -286,7 +280,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-added"}, 500
 
-    {:ok, connection} = Connections.device_connecting(device1, device1.product_id)
+    {:ok, connection} = Connections.device_connecting(device1)
     :ok = Connections.device_connected(device1, connection.id)
 
     Devices.deployment_device_online(device1)
@@ -316,7 +310,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     Mimic.reject(&Devices.available_for_update/2)
 
-    {:ok, connection} = Connections.device_connecting(device2, device2.product_id)
+    {:ok, connection} = Connections.device_connecting(device2)
     :ok = Connections.device_connected(device2, connection.id)
     Devices.deployment_device_online(device2)
 
@@ -418,7 +412,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     device1 = Devices.update_deployment_group(device1, deployment_group)
     {:ok, device1} = Devices.update_device(device1, %{updates_enabled: false})
 
-    {:ok, connection} = Connections.device_connecting(device1, device1.product_id)
+    {:ok, connection} = Connections.device_connecting(device1)
     :ok = Connections.device_connected(device1, connection.id)
 
     Devices.deployment_device_online(device1)
@@ -549,6 +543,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         %{status: :processing}
       )
 
+    Elixir.File.cp!("test/fixtures/fwup/dummy_100kb.txt", Path.join(tmp_dir, "dummy_100kb.txt"))
+
     expect(Fwup, :create_firmware_delta_file, fn _, _, _ ->
       {:ok,
        %{
@@ -556,7 +552,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
          size: "1000",
          source_size: "2000",
          target_size: "3000",
-         filepath: tmp_dir,
+         filepath: Path.join(tmp_dir, "dummy_100kb.txt"),
          tool_metadata: %{}
        }}
     end)
@@ -593,7 +589,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       Fixtures.device_fixture(org, product, other_firmware)
       |> Devices.update_deployment_group(deployment_group)
 
-    {:ok, connection} = Connections.device_connecting(device, device.product_id)
+    {:ok, connection} = Connections.device_connecting(device)
     :ok = Connections.device_connected(device, connection.id)
 
     deployment_group =
@@ -709,9 +705,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
       new_device = Devices.update_deployment_group(new_device, deployment_group)
 
-      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
-      {:ok, conn2} = Connections.device_connecting(old_device2, product.id)
-      {:ok, conn3} = Connections.device_connecting(new_device, product.id)
+      {:ok, conn1} = Connections.device_connecting(old_device1)
+      {:ok, conn2} = Connections.device_connecting(old_device2)
+      {:ok, conn3} = Connections.device_connecting(new_device)
 
       :ok = Connections.device_connected(old_device1, conn1.id)
       :ok = Connections.device_connected(old_device2, conn2.id)
@@ -776,7 +772,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
       old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
 
-      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
+      {:ok, conn1} = Connections.device_connecting(old_device1)
       :ok = Connections.device_connected(old_device1, conn1.id)
       assert Orchestrator.available_priority_slots(deployment_group) == 2
 
@@ -830,8 +826,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
       new_device = Devices.update_deployment_group(new_device, deployment_group)
 
-      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
-      {:ok, conn2} = Connections.device_connecting(new_device, product.id)
+      {:ok, conn1} = Connections.device_connecting(old_device1)
+      {:ok, conn2} = Connections.device_connecting(new_device)
 
       :ok = Connections.device_connected(old_device1, conn1.id)
       :ok = Connections.device_connected(new_device, conn2.id)
@@ -867,7 +863,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
       device = Devices.update_deployment_group(device, deployment_group)
 
-      {:ok, conn} = Connections.device_connecting(device, product.id)
+      {:ok, conn} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, conn.id)
 
       # Should return empty list since priority queue is disabled
@@ -906,7 +902,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
       new_device = Devices.update_deployment_group(new_device, deployment_group)
 
-      {:ok, conn} = Connections.device_connecting(new_device, product.id)
+      {:ok, conn} = Connections.device_connecting(new_device)
       :ok = Connections.device_connected(new_device, conn.id)
       # new_device has version 1.5.0, threshold is 1.0.0
       available = Devices.available_for_priority_update(deployment_group, 10)
@@ -955,8 +951,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
       old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
 
-      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
-      {:ok, conn2} = Connections.device_connecting(old_device2, product.id)
+      {:ok, conn1} = Connections.device_connecting(old_device1)
+      {:ok, conn2} = Connections.device_connecting(old_device2)
 
       :ok = Connections.device_connected(old_device1, conn1.id)
       :ok = Connections.device_connected(old_device2, conn2.id)
@@ -1022,9 +1018,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
       new_device = Devices.update_deployment_group(new_device, deployment_group)
 
-      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
-      {:ok, conn2} = Connections.device_connecting(old_device2, product.id)
-      {:ok, conn3} = Connections.device_connecting(new_device, product.id)
+      {:ok, conn1} = Connections.device_connecting(old_device1)
+      {:ok, conn2} = Connections.device_connecting(old_device2)
+      {:ok, conn3} = Connections.device_connecting(new_device)
 
       :ok = Connections.device_connected(old_device1, conn1.id)
       :ok = Connections.device_connected(old_device2, conn2.id)
@@ -1086,8 +1082,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
       new_device = Devices.update_deployment_group(new_device, deployment_group)
 
-      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
-      {:ok, conn2} = Connections.device_connecting(new_device, product.id)
+      {:ok, conn1} = Connections.device_connecting(old_device1)
+      {:ok, conn2} = Connections.device_connecting(new_device)
 
       :ok = Connections.device_connected(old_device1, conn1.id)
       :ok = Connections.device_connected(new_device, conn2.id)
@@ -1124,7 +1120,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
       device = Devices.update_deployment_group(device, deployment_group)
 
-      {:ok, conn} = Connections.device_connecting(device, product.id)
+      {:ok, conn} = Connections.device_connecting(device)
       :ok = Connections.device_connected(device, conn.id)
 
       assert Devices.available_for_priority_update(deployment_group, 10) == []
@@ -1201,10 +1197,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       device_2_0 = Devices.update_deployment_group(device_2_0, deployment_group)
       device_1_1 = Devices.update_deployment_group(device_1_1, deployment_group)
 
-      {:ok, conn1} = Connections.device_connecting(device_1_10, product.id)
-      {:ok, conn2} = Connections.device_connecting(device_1_9, product.id)
-      {:ok, conn3} = Connections.device_connecting(device_2_0, product.id)
-      {:ok, conn4} = Connections.device_connecting(device_1_1, product.id)
+      {:ok, conn1} = Connections.device_connecting(device_1_10)
+      {:ok, conn2} = Connections.device_connecting(device_1_9)
+      {:ok, conn3} = Connections.device_connecting(device_2_0)
+      {:ok, conn4} = Connections.device_connecting(device_1_1)
 
       :ok = Connections.device_connected(device_1_10, conn1.id)
       :ok = Connections.device_connected(device_1_9, conn2.id)
@@ -1281,9 +1277,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
       new_device = Devices.update_deployment_group(new_device, deployment_group)
 
-      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
-      {:ok, conn2} = Connections.device_connecting(old_device2, product.id)
-      {:ok, conn3} = Connections.device_connecting(new_device, product.id)
+      {:ok, conn1} = Connections.device_connecting(old_device1)
+      {:ok, conn2} = Connections.device_connecting(old_device2)
+      {:ok, conn3} = Connections.device_connecting(new_device)
 
       :ok = Connections.device_connected(old_device1, conn1.id)
       :ok = Connections.device_connected(old_device2, conn2.id)
@@ -1384,13 +1380,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       # Device 3 should be third (2 minutes ago)
       # Device 4 should be last (newest connection - 1 minute ago)
       now = DateTime.utc_now()
-      {:ok, conn1} = Connections.device_connecting(old_device1, product.id)
+      {:ok, conn1} = Connections.device_connecting(old_device1)
       conn1 = Ecto.Changeset.change(conn1, established_at: DateTime.add(now, -240, :second)) |> Repo.update!()
-      {:ok, conn2} = Connections.device_connecting(old_device2, product.id)
+      {:ok, conn2} = Connections.device_connecting(old_device2)
       conn2 = Ecto.Changeset.change(conn2, established_at: DateTime.add(now, -180, :second)) |> Repo.update!()
-      {:ok, conn3} = Connections.device_connecting(old_device3, product.id)
+      {:ok, conn3} = Connections.device_connecting(old_device3)
       conn3 = Ecto.Changeset.change(conn3, established_at: DateTime.add(now, -120, :second)) |> Repo.update!()
-      {:ok, conn4} = Connections.device_connecting(old_device4, product.id)
+      {:ok, conn4} = Connections.device_connecting(old_device4)
       conn4 = Ecto.Changeset.change(conn4, established_at: DateTime.add(now, -60, :second)) |> Repo.update!()
 
       :ok = Connections.device_connected(old_device1, conn1.id)

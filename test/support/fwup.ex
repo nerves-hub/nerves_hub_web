@@ -21,6 +21,7 @@ defmodule NervesHub.Support.Fwup do
               platform: "platform",
               product: "nerves-hub",
               resource_contents: "Hello, world!",
+              resource_contents_path: nil,
               resource_name: nil,
               version: "1.0.0"
   end
@@ -164,7 +165,12 @@ defmodule NervesHub.Support.Fwup do
 
     # Create actual data file for delta generation
     data_file_path = Path.join(dir, "#{uuid}.txt")
-    File.write!(data_file_path, meta_params.resource_contents)
+
+    if meta_params.resource_contents_path do
+      File.cp!(meta_params.resource_contents_path, data_file_path)
+    else
+      File.write!(data_file_path, meta_params.resource_contents)
+    end
 
     """
     meta-product = "#{meta_params.product}"
