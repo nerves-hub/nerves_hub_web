@@ -1,0 +1,41 @@
+app = 'density-fleet-management'
+primary_region = 'sjc'
+
+[build]
+
+[env]
+  DATABASE_AUTO_MIGRATOR = 'true'
+  NERVES_HUB_APP = 'all'
+  PORT = '4000'
+  DATABASE_SSL = 'false'
+  DATABASE_POOL_SIZE = '10'
+  DATABASE_PREPARE = 'unnamed'
+  FIRMWARE_UPLOAD_BACKEND = 'S3'
+  OPEN_FOR_REGISTRATIONS = 'true'
+  PHX_HOST = 'fleethub.density.io'
+  WEB_HOST = 'fleethub.density.io'
+  WEB_SCHEME = 'https'
+  WEB_PORT = '443'
+  DEVICE_SHARED_SECRETS_ENABLED = 'true'
+  ERL_AFLAGS = '-proto_dist inet6_tcp'
+  DATABASE_INET6 = 'true'
+  DASHBOARD_ENABLED = 'true'
+  APP_NAME = 'density-fleet-management'
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'connections'
+    hard_limit = 550
+    soft_limit = 300
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1

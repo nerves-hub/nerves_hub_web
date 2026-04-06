@@ -186,6 +186,29 @@ defmodule NervesHubWeb.Router do
     end
   end
 
+  # API v2 — Ash JSON:API routes
+  scope "/api/v2" do
+    forward "/", NervesHubWeb.AshJsonApiRouter
+  end
+
+  # GraphQL endpoint
+  pipeline :graphql do
+    plug AshGraphql.Plug
+  end
+
+  scope "/gql" do
+    pipe_through(:graphql)
+
+    forward "/playground",
+            Absinthe.Plug.GraphiQL,
+            schema: Module.concat(["NervesHubWeb.GraphqlSchema"]),
+            interface: :playground
+
+    forward "/",
+            Absinthe.Plug,
+            schema: Module.concat(["NervesHubWeb.GraphqlSchema"])
+  end
+
   scope "/api" do
     # Use the default browser stack
     pipe_through(:browser)
