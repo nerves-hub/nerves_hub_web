@@ -139,21 +139,18 @@ defmodule NervesHub.Devices do
 
   @spec filter(Product.t(), User.t(), map()) :: {[Device.t()], Flop.Meta.t()}
   def filter(product, user, opts) do
-    base_query =
-      Device
-      |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
-      |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
-      |> join(:left, [d, dc, dh], pd in PinnedDevice,
-        on: pd.device_id == d.id and pd.user_id == ^user.id,
-        as: :pinned
-      )
-      |> join(:left, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
-      |> preload([latest_connection: lc], latest_connection: lc)
-      |> preload([latest_health: lh], latest_health: lh)
-      |> preload([deployment_group: dg], deployment_group: dg)
-
-    CommonFiltering.filter(
-      base_query,
+    Device
+    |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
+    |> join(:left, [d, dc, dh], pd in PinnedDevice,
+      on: pd.device_id == d.id and pd.user_id == ^user.id,
+      as: :pinned
+    )
+    |> join(:left, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
+    |> preload([latest_connection: lc], latest_connection: lc)
+    |> preload([latest_health: lh], latest_health: lh)
+    |> preload([deployment_group: dg], deployment_group: dg)
+    |> CommonFiltering.filter(
       product,
       opts
     )
@@ -1680,33 +1677,6 @@ defmodule NervesHub.Devices do
       Process.sleep(2000)
       truncate_device_health()
     end
-  end
-
-  def get_latest_health(device_id) do
-    DeviceHealth
-    |> where(device_id: ^device_id)
-    |> order_by(desc: :inserted_at)
-    |> limit(1)
-    |> Repo.all()
-    |> case do
-      [] -> nil
-      [latest] -> latest
-    end
-  end
-
-  def get_device_health(device_id) do
-    DeviceHealth
-    |> where(device_id: ^device_id)
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
-  end
-
-  def get_device_health(device_id, unit, amount) do
-    DeviceHealth
-    |> where(device_id: ^device_id)
-    |> where([d], d.inserted_at > ago(^amount, ^unit))
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
   end
 
   defp version_match?(_vsn, ""), do: true

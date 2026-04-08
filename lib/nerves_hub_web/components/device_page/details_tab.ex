@@ -31,7 +31,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:update_information, Devices.resolve_update(device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
-    |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
+    |> assign(:alarms, Alarms.current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, device.product))
     |> assign(:delta_available?, false)
     |> assign(:selected_firmware, "")
@@ -43,10 +43,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   def cleanup(), do: @keys_to_cleanup
 
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
-    health = Devices.get_latest_health(device.id)
-
     metadata =
-      if health, do: health.data["metadata"] || %{}, else: %{}
+      if device.latest_health, do: device.latest_health.data["metadata"] || %{}, else: %{}
 
     assign(socket, :metadata, Map.drop(metadata, standard_keys(device)))
   end

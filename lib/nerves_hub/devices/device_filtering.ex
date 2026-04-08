@@ -5,7 +5,6 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   import Ecto.Query
 
-  alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Types.Tag
@@ -27,15 +26,28 @@ defmodule NervesHub.Devices.DeviceFiltering do
     query
   end
 
-  def filter(query, _filters, :alarm, value) do
-    where(query, [d], d.id in subquery(Alarms.query_devices_with_alarm(value)))
+  def filter(query, _filters, :alarm, alarm) do
+    where(
+      query,
+      [latest_health: lh],
+      fragment(
+        "EXISTS (SELECT 1 FROM jsonb_each_text(?) WHERE value ILIKE ?)",
+        lh.data,
+        ^"%#{alarm}%"
+      )
+    )
   end
 
   def filter(query, _filters, :alarm_status, value) do
     case value do
-      "with" -> where(query, [d], d.id in subquery(Alarms.query_devices_with_alarms()))
-      "without" -> where(query, [d], d.id not in subquery(Alarms.query_devices_with_alarms()))
-      _ -> query
+      "with" ->
+        where(query, [latest_health: lh], fragment("?->'alarms' != '{}'", lh.data))
+
+      "without" ->
+        where(query, [latest_health: lh], fragment("(? IS NULL OR ?->'alarms' = '{}')", lh, lh.data))
+
+      _ ->
+        query
     end
   end
 

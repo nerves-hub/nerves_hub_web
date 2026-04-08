@@ -706,8 +706,6 @@ defmodule NervesHub.DevicesTest do
       assert {:ok, %Devices.DeviceHealth{id: health_id}} =
                Devices.save_device_health(device_health)
 
-      assert %Devices.DeviceHealth{} = Devices.get_latest_health(device.id)
-
       # Assert device is updated with latest health
       assert %{latest_health_id: ^health_id} = Devices.get_device(device.id)
     end

@@ -2,6 +2,7 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
   use NervesHub.DataCase
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Fixtures
   alias NervesHub.Workers.DeviceHealthTruncation
 
@@ -44,7 +45,11 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
 
     assert :ok = perform_job(DeviceHealthTruncation, %{})
 
-    healths = Devices.get_device_health(device.id)
+    healths =
+      DeviceHealth
+      |> where(device_id: ^device.id)
+      |> Repo.all()
+
     assert 7 = Enum.count(healths)
 
     metrics = Devices.Metrics.get_device_metrics(device.id)

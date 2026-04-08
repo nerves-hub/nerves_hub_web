@@ -1,7 +1,6 @@
 defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   use NervesHubWeb, tab_component: :health
 
-  alias NervesHub.Devices
   alias NervesHub.Devices.Metrics
 
   @time_frame_opts [
@@ -215,10 +214,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   end
 
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
-    health = Devices.get_latest_health(device.id)
-
     metadata =
-      if health, do: health.data["metadata"] || %{}, else: %{}
+      if device.latest_health, do: device.latest_health.data["metadata"] || %{}, else: %{}
 
     assign(socket, :metadata, Map.drop(metadata, standard_keys(device)))
   end
