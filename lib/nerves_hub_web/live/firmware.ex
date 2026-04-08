@@ -200,12 +200,13 @@ defmodule NervesHubWeb.Live.Firmware do
     if entry.done? do
       [filepath] =
         consume_uploaded_entries(socket, :firmware, fn %{path: path}, _entry ->
-          {:postpone, path}
+          {:ok, dest} = Briefly.create()
+          File.copy!(path, dest)
+          {:ok, dest}
         end)
 
       socket
       |> create_firmware(filepath)
-      |> clear_completed_upload(:firmware, entry)
       |> noreply()
     else
       {:noreply, assign(socket, status: "uploading...")}
@@ -315,17 +316,11 @@ defmodule NervesHubWeb.Live.Firmware do
 
     error_message = Enum.join([opts[:prefix] || "", error_message], " ")
 
-    socket
-    |> put_flash(:error, error_message)
+    put_flash(socket, :error, error_message)
   end
 
   defp error_feedback(socket, message, _opts) do
-    socket
-    |> put_flash(:error, message)
-  end
-
-  defp clear_completed_upload(socket, upload_name, entry) do
-    Phoenix.LiveView.Upload.unregister_completed_entry_upload(socket, socket.assigns[:uploads][upload_name], entry.ref)
+    put_flash(socket, :error, message)
   end
 
   defp format_file_size(size) do

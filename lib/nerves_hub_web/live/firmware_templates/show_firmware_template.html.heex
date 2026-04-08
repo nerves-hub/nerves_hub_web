@@ -1,7 +1,7 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <div class="bg-surface-muted border-base-700 flex h-[56px] shrink-0 items-center justify-between border-b pl-6">
     <div class="flex gap-2.5">
-      <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/firmware"} class="back-link flex items-center gap-2.5">
+      <.link patch={~p"/org/#{@current_scope.org}/#{@product}/firmware"} class="back-link flex items-center gap-2.5">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
