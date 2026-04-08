@@ -74,7 +74,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   @decorate with_span("Channels.ExtensionsChannel.handle_in")
   def handle_in(scoped_event, payload, socket) do
     with [key, event] <- String.split(scoped_event, ":", parts: 2),
-         %{attach?: true, module: mod} <- socket.assigns.extensions[key] do
+         %{attach?: true, status: status, module: mod} <- socket.assigns.extensions[key] do
       case event do
         "attached" ->
           update_in(socket.assigns.extensions[key], &%{&1 | status: :attached})
@@ -88,8 +88,11 @@ defmodule NervesHubWeb.ExtensionsChannel do
           socket = update_in(socket.assigns.extensions[key], &%{&1 | status: :detached})
           safe_handle_in(mod, event, payload, socket)
 
-        event ->
+        event when status == :attached ->
           safe_handle_in(mod, event, payload, socket)
+
+        _ ->
+          {:noreply, socket}
       end
     else
       _ ->
