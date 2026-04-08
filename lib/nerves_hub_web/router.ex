@@ -288,8 +288,6 @@ defmodule NervesHubWeb.Router do
         :edit
       )
 
-      live("/org/:org_name/:product_name/dashboard", Live.Dashboard.Index)
-
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
       live("/org/:org_name/:product_name/devices/new", Live.Devices.New)
       live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show, :details)

@@ -334,12 +334,6 @@ defmodule NervesHubWeb.Components.Navigation do
   def sidebar_product(assigns, path, tab_hint) do
     [
       %{
-        title: "Dashboard",
-        active: "",
-        href: ~p"/org/#{assigns.org}/#{assigns.product}/dashboard",
-        deactivated?: Application.get_env(:nerves_hub, :dashboard_enabled) != true
-      },
-      %{
         title: "Devices",
         active: "",
         href: ~p"/org/#{assigns.org}/#{assigns.product}/devices",
