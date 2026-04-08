@@ -348,6 +348,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  def handle_event("target-deployment-group", params, socket) when not is_map_key(params, "deployment_group") do
+    {:noreply, assign(socket, target_deployment_group: nil)}
+  end
+
   def handle_event("target-deployment-group", %{"deployment_group" => ""}, socket) do
     {:noreply, assign(socket, target_deployment_group: nil)}
   end
