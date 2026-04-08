@@ -308,7 +308,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   # Ignore handle_async results that have come from other tabs
   # This can happen when a support script is run from the details tab, only for the user
   # to navigate to a different tab before the result arrives.
-  def hooked_async(_name, _async_fun_result, socket), do: {:noreply, socket}
+  def handle_async(_name, _async_fun_result, socket), do: {:noreply, socket}
 
   defp load_device(scope, identifier) do
     Devices.get_by_identifier!(scope, identifier, [
