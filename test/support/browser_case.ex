@@ -27,7 +27,8 @@ defmodule NervesHubWeb.ConnCase.Browser do
           user: user,
           product: product,
           device: device,
-          deployment_group: deployment_group
+          deployment_group: deployment_group,
+          firmware: firmware
         } = fixture
 
         token = NervesHub.Accounts.create_user_session_token(user)
@@ -42,6 +43,7 @@ defmodule NervesHubWeb.ConnCase.Browser do
           conn: conn,
           user: user,
           org: org,
+          firmware: firmware,
           fixture: fixture,
           org_key: org_key,
           product: product,
