@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.UniqueDeploymentNameProductId do
   use Ecto.Migration
 
-  def up do
+  def up() do
     alter table(:deployments) do
       modify(:product_id, references(:products), null: false)
     end
@@ -9,7 +9,7 @@ defmodule NervesHub.Repo.Migrations.UniqueDeploymentNameProductId do
     create(unique_index(:deployments, [:product_id, :name]))
   end
 
-  def down do
+  def down() do
     drop(unique_index(:deployments, [:product_id, :name]))
   end
 end

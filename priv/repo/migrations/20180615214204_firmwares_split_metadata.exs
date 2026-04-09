@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.FirmwaresSplitMetadata do
   use Ecto.Migration
 
-  def up do
+  def up() do
     alter table(:firmwares) do
       add(:author, :string)
       add(:description, :string)
@@ -16,7 +16,7 @@ defmodule NervesHub.Repo.Migrations.FirmwaresSplitMetadata do
     end
   end
 
-  def down do
+  def down() do
     alter table(:firmwares) do
       add(:metadata, :string, null: false)
       add(:timestamp, :utc_datetime, null: false)

@@ -10,15 +10,15 @@ defmodule NervesHub.Repo.Migrations.RemoveLastCommunicationFromDevices do
   # You can accomplish this in releases with:
   #   Nerves.Release.Tasks.migrate([{NervesHub.Repo, [to_exclusive: 20240711034640]}])
 
-  def up do
+  def up() do
     alter table(:devices) do
-      remove_if_exists :last_communication, :utc_datetime
+      remove_if_exists(:last_communication, :utc_datetime)
     end
   end
 
-  def down do
+  def down() do
     alter table(:devices) do
-      add_if_not_exists :last_communication, :utc_datetime
+      add_if_not_exists(:last_communication, :utc_datetime)
     end
   end
 end

@@ -6,7 +6,7 @@ defmodule NervesHub.Repo.Migrations.DefaultUserOrg do
   # alias NervesHub.Accounts.{User, Org}
   # alias NervesHub.Repo
 
-  def up do
+  def up() do
     # This should have been done outside of a migration. If the User schema ever changes then
     # executing this migration will fail. Prod will never run it again and it has no impact on
     # fresh dev/test databases.
@@ -32,7 +32,7 @@ defmodule NervesHub.Repo.Migrations.DefaultUserOrg do
     # |> Enum.map(fn o -> Repo.delete(o) end)
   end
 
-  def down do
+  def down() do
     # There is no going back
   end
 end

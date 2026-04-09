@@ -7,7 +7,7 @@ defmodule NervesHub.Repo.Migrations.AssociateUsersAndOrgs do
   # alias NervesHub.Accounts
   # alias NervesHub.Accounts.{User, Org}
 
-  def up do
+  def up() do
     # This should have been done outside of a migration. If the User schema ever changes then
     # executing this migration will fail. Prod will never run it again and it has no impact on
     # fresh dev/test databases.
@@ -26,6 +26,6 @@ defmodule NervesHub.Repo.Migrations.AssociateUsersAndOrgs do
   end
 
   # There is no going back
-  def down do
+  def down() do
   end
 end

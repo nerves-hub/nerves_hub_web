@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.UserInvites do
   use Ecto.Migration
 
-  def change do
+  def change() do
     create table(:invites) do
       add(:tenant_id, references(:tenants), null: false)
       add(:name, :string, null: false)

@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.AddOrgMetrics do
   use Ecto.Migration
 
-  def change do
+  def change() do
     create table(:org_metrics, primary_key: false) do
       add(:id, :uuid, primary_key: true)
       add(:org_id, references(:orgs), null: false)

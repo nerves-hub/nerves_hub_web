@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.DeviceDeploymentId do
   use Ecto.Migration
 
-  def up do
+  def up() do
     alter table(:devices) do
       add(:target_deployment_id, references(:deployments, on_delete: :nothing), null: true)
       add(:current_firmware_id, references(:firmwares, on_delete: :nothing), null: true)
@@ -11,7 +11,7 @@ defmodule NervesHub.Repo.Migrations.DeviceDeploymentId do
     end
   end
 
-  def down do
+  def down() do
     alter table(:devices) do
       add(:target_version, :string, null: true)
       add(:current_version, :string, null: true)

@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.CreateProducts do
   use Ecto.Migration
 
-  def up do
+  def up() do
     create table(:products) do
       add(:name, :string)
       add(:tenant_id, references(:tenants), null: false)
@@ -27,7 +27,7 @@ defmodule NervesHub.Repo.Migrations.CreateProducts do
     create(index(:products, [:tenant_id]))
   end
 
-  def down do
+  def down() do
     drop(table(:products))
 
     alter table(:devices) do

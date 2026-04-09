@@ -1,15 +1,17 @@
-alias NervesHub.{AuditLogs.AuditLog, Repo}
 import Ecto.Query
 import IO.ANSI, only: [default_color: 0, green: 0, red: 0]
+
+alias NervesHub.AuditLogs.AuditLog
+alias NervesHub.Repo
 
 Logger.configure(level: :info)
 
 defmodule Helper do
   def convert_keys(nil), do: %{}
+
   def convert_keys(map) do
     map
-    |> Enum.map(fn {k,v} -> {String.to_atom(k), v} end)
-    |> Map.new
+    |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
   end
 end
 
@@ -23,8 +25,9 @@ end
     # Convert changes keys from string to atom
     changes = Helper.convert_keys(audit_log.changes)
 
-    with_description = %{audit_log | changes: changes, params: params}
-                       |> AuditLog.create_description()
+    with_description =
+      %{audit_log | changes: changes, params: params}
+      |> AuditLog.create_description()
 
     AuditLog.changeset(audit_log, Map.from_struct(with_description))
     |> Repo.update()
@@ -32,6 +35,7 @@ end
       {:ok, al} ->
         IO.write("#{green()}.#{default_color()}")
         {[al | success], errors}
+
       {:error, al} ->
         IO.write("#{red()}.#{default_color()}")
         {success, [al | errors]}

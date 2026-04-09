@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.CreateArchives do
   use Ecto.Migration
 
-  def change do
+  def change() do
     create table(:archives) do
       add(:product_id, references(:products), null: false)
       add(:org_key_id, references(:org_keys), null: false)
@@ -20,6 +20,6 @@ defmodule NervesHub.Repo.Migrations.CreateArchives do
       timestamps()
     end
 
-    create index(:archives, [:product_id, :uuid], unique: true)
+    create(index(:archives, [:product_id, :uuid], unique: true))
   end
 end
