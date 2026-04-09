@@ -35,9 +35,10 @@ defmodule NervesHub.Products do
   end
 
   @spec get_products(Scope.t()) :: [Product.t()]
-  def get_products(%Scope{user: user, org: org}) do
+  def get_products(%Scope{user: user, org: org}, opts \\ []) do
     from(
       p in Product,
+      as: :product,
       full_join: ou in OrgUser,
       on: p.org_id == ou.org_id,
       where:
@@ -45,8 +46,40 @@ defmodule NervesHub.Products do
           ou.role in ^User.role_or_higher(:view),
       group_by: p.id
     )
+    |> add_connected_devices_count(opts[:with_counts])
+    |> add_disconnected_devices_count(opts[:with_counts])
     |> Repo.exclude_deleted()
     |> Repo.all()
+  end
+
+  defp add_connected_devices_count(query, true) do
+    connected_devices_count =
+      Device
+      |> join(:inner, [d], lc in assoc(d, :latest_connection))
+      |> where([d], d.product_id == parent_as(:product).id)
+      |> where([_d, dc], dc.status == :connected)
+      |> select([d], count())
+
+    select_merge(query, %{connected_devices_count: subquery(connected_devices_count)})
+  end
+
+  defp add_connected_devices_count(query, _) do
+    query
+  end
+
+  defp add_disconnected_devices_count(query, true) do
+    disconnected_devices_count =
+      Device
+      |> join(:left, [d], lc in assoc(d, :latest_connection))
+      |> where([d], d.product_id == parent_as(:product).id)
+      |> where([_d, dc], is_nil(dc) or dc.status != :connected)
+      |> select([d], count())
+
+    select_merge(query, %{disconnected_devices_count: subquery(disconnected_devices_count)})
+  end
+
+  defp add_disconnected_devices_count(query, _) do
+    query
   end
 
   @spec get_products_by_user_and_org(User.t(), Org.t()) :: [Product.t()]
