@@ -113,7 +113,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:visible?, true)
     |> assign(:live_refresh_timer, nil)
     |> assign(:live_refresh_pending?, false)
-    |> assign(:received_connection_change_identifiers, [])
+    |> assign(:received_connection_change_identifiers, %{})
     |> assign(:current_alarms, [])
     |> assign(:metrics_keys, [])
     |> assign(:deployment_groups, [])
@@ -575,9 +575,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
     socket
-    |> assign(:received_connection_change_identifiers, [
-      payload | socket.assigns.received_connection_change_identifiers
-    ])
+    |> assign(
+      :received_connection_change_identifiers,
+      Map.put(socket.assigns.received_connection_change_identifiers, payload.device_id, payload)
+    )
     |> safe_refresh()
     |> update_device_statuses(payload)
   end
@@ -586,7 +587,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     socket
     |> assign(
       :received_connection_change_identifiers,
-      [payload | socket.assigns.received_connection_change_identifiers]
+      Map.put(socket.assigns.received_connection_change_identifiers, payload.device_id, payload)
     )
     |> safe_refresh()
     |> update_device_statuses(payload)
@@ -681,12 +682,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       Map.new(updated_devices, fn device ->
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
 
-        payload =
-          Enum.find(socket.assigns.received_connection_change_identifiers, fn %{
-                                                                                device_id: identifier
-                                                                              } ->
-            identifier == device.identifier
-          end)
+        payload = socket.assigns.received_connection_change_identifiers[device.identifier]
 
         if payload do
           {payload.device_id, payload.status}
@@ -698,7 +694,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     socket
     |> assign(:devices, AsyncResult.ok(old_devices, updated_devices))
     |> assign(:device_statuses, AsyncResult.ok(old_device_statuses, updated_device_statuses))
-    |> assign(:received_connection_change_identifiers, [])
+    |> assign(:received_connection_change_identifiers, %{})
     |> device_pagination_assigns(paginate_opts, pager)
     |> noreply()
   end
