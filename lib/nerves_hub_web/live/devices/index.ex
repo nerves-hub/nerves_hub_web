@@ -678,6 +678,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     %{devices: old_devices, device_statuses: old_device_statuses, paginate_opts: paginate_opts} =
       socket.assigns
 
+    Enum.each(
+      old_devices.result || [],
+      fn device -> socket.endpoint.unsubscribe("device:#{device.identifier}:internal") end
+    )
+
     updated_device_statuses =
       Map.new(updated_devices, fn device ->
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
