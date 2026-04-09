@@ -34,6 +34,7 @@ defmodule NervesHub.Logger do
         [:nerves_hub, :devices, :disconnect],
         [:nerves_hub, :devices, :duplicate_connection],
         [:nerves_hub, :devices, :network_interface_mismatch],
+        [:nerves_hub, :devices, :downloader_network_interface_nil],
         [:nerves_hub, :devices, :update, :automatic],
         [:nerves_hub, :devices, :update, :successful],
         [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
@@ -143,6 +144,13 @@ defmodule NervesHub.Logger do
   def log_event([:nerves_hub, :devices, :network_interface_mismatch], _, metadata, _) do
     Logger.warning("Network interface mismatch between device socket and device downloader detected",
       event: "nerves_hub.devices.network_interface_mismatch",
+      params: inspect(metadata[:params])
+    )
+  end
+
+  def log_event([:nerves_hub, :devices, :downloader_network_interface_nil], _, metadata, _) do
+    Logger.warning("Device reported nil downloader network interface",
+      event: "nerves_hub.devices.downloader_network_interface_nil",
       params: inspect(metadata[:params])
     )
   end

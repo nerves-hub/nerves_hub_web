@@ -45,7 +45,7 @@
   </div>
 
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
-    <FwupProgress.updated_render :if={@fwup_progress} fwup_progress={@fwup_progress} />
+    <FwupProgress.render :if={@fwup_progress} fwup_progress={@fwup_progress} />
 
     <div :if={@device.deleted_at} class="bg-alert-soft flex h-[89px] shrink-0 items-center justify-center p-4">
       <div class="text-alert font-medium">

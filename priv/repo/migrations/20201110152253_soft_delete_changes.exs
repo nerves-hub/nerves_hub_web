@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.SoftDeleteChanges do
   use Ecto.Migration
 
-  def change do
+  def change() do
     alter(table(:orgs)) do
       add(:deleted_at, :utc_datetime)
     end

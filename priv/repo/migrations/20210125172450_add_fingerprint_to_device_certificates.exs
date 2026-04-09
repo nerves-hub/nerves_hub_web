@@ -1,19 +1,20 @@
 defmodule NervesHub.Repo.Migrations.AddFingerprintToDeviceCertificates do
   use Ecto.Migration
 
-  alias NervesHub.{Certificate, Devices.DeviceCertificate}
-
-  import Ecto.Query, only: [from: 2]
   import Ecto.Changeset, only: [put_change: 3]
+  import Ecto.Query, only: [from: 2]
 
-  def change do
+  alias NervesHub.Certificate
+  alias NervesHub.Devices.DeviceCertificate
+
+  def change() do
     alter table(:device_certificates) do
-      add :fingerprint, :string
-      add :public_key_fingerprint, :string
+      add(:fingerprint, :string)
+      add(:public_key_fingerprint, :string)
     end
 
-    create unique_index :device_certificates, :fingerprint
-    create index :device_certificates, :public_key_fingerprint
+    create(unique_index(:device_certificates, :fingerprint))
+    create(index(:device_certificates, :public_key_fingerprint))
 
     execute(&execute_up/0, &execute_down/0)
   end

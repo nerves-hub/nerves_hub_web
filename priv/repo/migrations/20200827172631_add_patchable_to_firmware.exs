@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.AddPatchableToFirmware do
   use Ecto.Migration
 
-  def change do
+  def change() do
     alter table(:firmwares) do
       add(:patchable, :boolean, default: false)
     end

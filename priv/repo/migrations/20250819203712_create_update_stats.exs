@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.CreateUpdateStats do
   use Ecto.Migration
 
-  def change do
+  def change() do
     create table(:update_stats, primary_key: false) do
       add(:product_id, references(:products))
       add(:device_id, references(:devices))

@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.TenantToOrg do
   use Ecto.Migration
 
-  def change do
+  def change() do
     drop(unique_index(:products, [:tenant_id, :name], name: :products_tenant_id_name_index))
     drop(unique_index(:tenant_keys, [:tenant_id, :name], name: :tenant_keys_tenant_id_name_index))
     drop(unique_index(:tenant_keys, [:key]))

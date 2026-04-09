@@ -1,8 +1,8 @@
 defmodule NervesHub.Repo.Migrations.ChangeUserTokenColumnType do
   use Ecto.Migration
 
-  def up do
-    rename table(:user_tokens), :token, to: :old_token
+  def up() do
+    rename(table(:user_tokens), :token, to: :old_token)
 
     alter table(:user_tokens) do
       add(:token, :binary)
@@ -16,7 +16,7 @@ defmodule NervesHub.Repo.Migrations.ChangeUserTokenColumnType do
     create(unique_index(:user_tokens, [:context, :token]))
   end
 
-  def down do
+  def down() do
     raise "One way migration"
   end
 end

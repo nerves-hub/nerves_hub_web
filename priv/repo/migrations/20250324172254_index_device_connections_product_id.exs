@@ -4,7 +4,7 @@ defmodule NervesHub.Repo.Migrations.IndexDeviceConnectionsProductId do
   @disable_ddl_transaction true
   @disable_migration_lock true
 
-  def change do
+  def change() do
     create(index(:device_connections, [:product_id], concurrently: true))
   end
 end

@@ -1,7 +1,7 @@
 defmodule NervesHub.AnalyticsRepo.Migrations.DeviceLogLines do
   use Ecto.Migration
 
-  def change do
+  def change() do
     options = [
       partition_by: "toDate(timestamp)",
       order_by: "(product_id, device_id, timestamp)",
