@@ -53,14 +53,14 @@ defmodule NervesHub.Products do
   end
 
   defp add_connected_devices_count(query, true) do
-    connected_devicess_count =
+    connected_devices_count =
       Device
       |> join(:inner, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
       |> where([_d, dc], dc.status == :connected)
       |> select([d], count())
 
-    select_merge(query, %{connected_devices_count: subquery(connected_devicess_count)})
+    select_merge(query, %{connected_devices_count: subquery(connected_devices_count)})
   end
 
   defp add_connected_devices_count(query, _) do
