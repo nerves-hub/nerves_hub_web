@@ -44,8 +44,9 @@ defmodule NervesHub.SeedHelpers do
 
     firmwares
     |> elem(2)
-    |> Fixtures.deployment_group_fixture(user, %{
-      conditions: %{"version" => "< 1.0.0", "tags" => ["beta"]}
+    |> Fixtures.deployment_group_fixture(%{
+      conditions: %{"version" => "< 1.0.0", "tags" => ["beta"]},
+      user: user
     })
 
     device = Fixtures.device_fixture(org, product, firmwares |> elem(1))
