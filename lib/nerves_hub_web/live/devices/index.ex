@@ -730,7 +730,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
       "Live.Devices.Index.handle_async:update_filter_data failed due to exit: #{inspect(reason)}"
 
     {:ok, _} = Sentry.capture_message(message, result: :none)
+
     socket
+    |> assign(:filters_ready?, false)
+    |> noreply()
   end
 
   defp device_pagination_assigns(socket, paginate_opts, pager) do
