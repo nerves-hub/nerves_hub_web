@@ -3,7 +3,6 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   alias NervesHub.Accounts
   alias NervesHub.Devices
-  alias NervesHub.Devices.Connections
   alias NervesHub.Products
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.PinnedDevices
@@ -20,19 +19,19 @@ defmodule NervesHubWeb.Live.Orgs.Index do
         {device.identifier, Tracker.connection_status(device)}
       end)
 
+    orgs = Accounts.get_orgs(scope)
+
     socket =
       socket
       |> assign(:page_title, "Organizations")
       |> assign(:show_all_pinned?, false)
-      |> assign(:device_info, %{})
-      |> assign(:product_device_info, %{})
+      |> assign(:orgs, orgs)
       |> assign(:pinned_devices, pinned_devices)
       |> assign(:device_statuses, statuses)
       |> assign(:device_limit, @pinned_devices_limit)
       |> maybe_assign_onboarding()
       |> subscribe()
 
-    if connected?(socket), do: send(self(), :load_extras)
     {:ok, socket}
   end
 
@@ -61,25 +60,6 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   end
 
   @impl Phoenix.LiveView
-  def handle_info(:load_extras, socket) do
-    org_statuses =
-      socket.assigns.current_scope.user.orgs
-      |> Enum.map(& &1.id)
-      |> Connections.get_connection_status_by_orgs()
-
-    product_ids =
-      socket.assigns.current_scope.user.orgs
-      |> Enum.flat_map(& &1.products)
-      |> Enum.map(& &1.id)
-
-    product_statuses = Connections.get_connection_status_by_products(product_ids)
-
-    {:noreply,
-     socket
-     |> assign(:device_info, org_statuses)
-     |> assign(:product_device_info, product_statuses)}
-  end
-
   def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
     update_device_statuses(socket, payload)
   end

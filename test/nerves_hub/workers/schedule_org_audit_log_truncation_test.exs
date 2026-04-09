@@ -31,7 +31,7 @@ defmodule NervesHub.Workers.ScheduleOrgAuditLogTruncationTest do
 
       assert Enum.count(all_truncation_jobs) == 2
 
-      for org <- Accounts.get_orgs() do
+      for org <- Accounts.get_all_orgs() do
         assert_enqueued(worker: OrgAuditLogTruncation, args: %{org_id: org.id})
       end
     end
