@@ -623,8 +623,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> safe_refresh()
       |> noreply()
     end
-
-    noreply(socket)
   end
 
   def handle_info(:refresh_device_list, socket) do
