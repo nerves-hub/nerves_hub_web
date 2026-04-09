@@ -239,9 +239,8 @@ defmodule NervesHub.Fixtures do
     archive
   end
 
-  def deployment_group_fixture(%Firmwares.Firmware{} = firmware, params \\ %{}) do
+  def deployment_group_fixture(%Firmwares.Firmware{} = firmware, user, params \\ %{}) do
     {is_active, params} = Map.pop(params, :is_active, false)
-    user = Map.get_lazy(params, :user, &user_fixture/0)
 
     {:ok, deployment_group} =
       params
