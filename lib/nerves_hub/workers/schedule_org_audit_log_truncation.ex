@@ -9,7 +9,7 @@ defmodule NervesHub.Workers.ScheduleOrgAuditLogTruncation do
   @impl Oban.Worker
   def perform(_) do
     if enabled?() do
-      orgs = Accounts.get_orgs()
+      orgs = Accounts.get_all_orgs()
 
       Enum.each(orgs, fn org ->
         {:ok, _} =

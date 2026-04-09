@@ -40,6 +40,9 @@ defmodule NervesHub.Products.Product do
 
     field(:device_count, :integer, virtual: true)
 
+    field(:connected_devices_count, :integer, virtual: true, default: 0)
+    field(:disconnected_devices_count, :integer, virtual: true, default: 0)
+
     timestamps()
   end
 

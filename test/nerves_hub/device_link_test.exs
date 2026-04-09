@@ -115,5 +115,13 @@ defmodule NervesHub.DeviceLinkTest do
 
       :ok = DeviceLink.status_update(device, %{"status" => "started", "downloader_network_interface" => "eth0"}, false)
     end
+
+    test "'started' messages from device do not blow up if downloader network interface is nil", %{device: device} do
+      expect(:telemetry, :execute, fn _event, _measurements, metadata ->
+        assert metadata.identifier == device.identifier
+      end)
+
+      :ok = DeviceLink.status_update(device, %{"status" => "started", "downloader_network_interface" => nil}, false)
+    end
   end
 end

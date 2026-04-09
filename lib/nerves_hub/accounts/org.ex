@@ -35,6 +35,9 @@ defmodule NervesHub.Accounts.Org do
       field(:firmware_proxy_url, :string)
     end
 
+    field(:connected_devices_count, :integer, virtual: true, default: 0)
+    field(:disconnected_devices_count, :integer, virtual: true, default: 0)
+
     timestamps()
   end
 

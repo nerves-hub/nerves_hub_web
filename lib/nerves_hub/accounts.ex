@@ -380,29 +380,69 @@ defmodule NervesHub.Accounts do
   end
 
   def get_user_with_all_orgs_and_products(user_id) do
-    devices =
-      Device
-      |> select([d], %{
-        product_id: d.product_id,
-        device_count: count()
-      })
-      |> Repo.exclude_deleted()
-      |> group_by([d], d.product_id)
-
-    products =
-      Product
-      |> Repo.exclude_deleted()
-      |> join(:left, [p], dev in subquery(devices), on: dev.product_id == p.id, as: :devices)
-      |> order_by([p], asc: p.name)
-      |> select_merge([_, devices: devices], %{device_count: devices.device_count})
-
     User
     |> where(id: ^user_id)
     |> Repo.exclude_deleted()
     |> join(:left, [d], o in assoc(d, :orgs))
-    |> join(:left, [d, o], p in subquery(products), on: o.id == p.org_id)
+    |> join(:left, [d, o], p in assoc(o, :products))
     |> preload([d, o, p], orgs: {o, products: p})
     |> Repo.one!()
+  end
+
+  def get_orgs(%Scope{user: user}) do
+    connected_org_devices_count =
+      Device
+      |> join(:inner, [d], lc in assoc(d, :latest_connection))
+      |> join(:inner, [d], p in assoc(d, :product))
+      |> where([_d, _dc, p], p.org_id == parent_as(:org).id)
+      |> where([_d, dc], dc.status == :connected)
+      |> select([d], %{count: count()})
+
+    disconnected_org_devices_count =
+      Device
+      |> join(:left, [d], lc in assoc(d, :latest_connection))
+      |> join(:inner, [d], p in assoc(d, :product))
+      |> where([_d, _dc, p], p.org_id == parent_as(:org).id)
+      |> where([_d, dc], is_nil(dc) or dc.status != :connected)
+      |> select([d], %{count: count()})
+
+    Org
+    |> from(as: :org)
+    |> Repo.exclude_deleted()
+    |> join(:inner, [o], u in assoc(o, :users), on: u.id == ^user.id)
+    |> join(:left, [o], p in subquery(products_subquery()), on: p.org_id == o.id)
+    |> preload([d, o, p], products: p)
+    |> select_merge([o], %{
+      connected_devices_count: subquery(connected_org_devices_count),
+      disconnected_devices_count: subquery(disconnected_org_devices_count)
+    })
+    |> Repo.all()
+  end
+
+  defp products_subquery() do
+    connected_devices_count =
+      Device
+      |> join(:inner, [d], lc in assoc(d, :latest_connection))
+      |> where([d], d.product_id == parent_as(:product).id)
+      |> where([_d, dc], dc.status == :connected)
+      |> select([d], %{count: count()})
+
+    disconnected_devices_count =
+      Device
+      |> join(:left, [d], lc in assoc(d, :latest_connection))
+      |> where([d], d.product_id == parent_as(:product).id)
+      |> where([_d, dc], is_nil(dc) or dc.status != :connected)
+      |> select([d], %{count: count()})
+
+    Product
+    |> from(as: :product)
+    |> join(:left_lateral, [p], cdc in subquery(connected_devices_count), on: true, as: :connected_devices_count)
+    |> join(:left_lateral, [p], ddc in subquery(disconnected_devices_count), on: true, as: :disconnected_devices_count)
+    |> select_merge([_, connected_devices_count: cdc, disconnected_devices_count: ddc], %{
+      connected_devices_count: cdc.count,
+      disconnected_devices_count: ddc.count
+    })
+    |> Repo.exclude_deleted()
   end
 
   def get_user_by_email(email) do
@@ -415,8 +455,8 @@ defmodule NervesHub.Accounts do
     end
   end
 
-  @spec get_orgs() :: [Org.t()]
-  def get_orgs() do
+  @spec get_all_orgs() :: [Org.t()]
+  def get_all_orgs() do
     Org
     |> Repo.exclude_deleted()
     |> Repo.all()
