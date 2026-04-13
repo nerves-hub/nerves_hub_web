@@ -4,7 +4,10 @@ defmodule NervesHubWeb.Layouts do
   alias NervesHubWeb.Components.Navigation
   alias Phoenix.LiveView.JS
 
-  defp toggle_user_menu(js \\ %JS{}), do: JS.toggle(js, to: "#user-menu")
+  defp toggle_user_menu(js \\ %JS{}) do
+    JS.toggle_class(js, "hidden", to: "#user-menu")
+    |> JS.toggle_class("flex", to: "#user-menu")
+  end
 
   embed_templates("layouts/*")
 

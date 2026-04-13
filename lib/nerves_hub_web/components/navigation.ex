@@ -87,7 +87,7 @@ defmodule NervesHubWeb.Components.Navigation do
     <li
       data-selected={"#{@selected}"}
       class={[
-        "data-[selected=true]:border-primary data-[selected=true]:sidebar-item-selected hover:sidebar-item-hover flex h-11 items-center justify-center data-[selected=true]:border-r-2 lg:justify-start lg:px-4"
+        "dark:data-[selected=true]:dark-sidebar-item-selected data-[selected=true]:border-primary data-[selected=true]:light-sidebar-item-selected hover:dark:dark-sidebar-item-hover hover:light-sidebar-item-hover flex h-11 items-center justify-center data-[selected=true]:border-r-2 lg:justify-start lg:px-4"
       ]}
     >
       <.link class="group text-base-300 flex size-full items-center justify-center gap-x-3 text-sm leading-[19px] font-light tracking-wide lg:justify-start" navigate={@path}>

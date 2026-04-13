@@ -20,6 +20,7 @@ import PageVisible from "./hooks/pageVisible.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
 import SimpleDate from "./hooks/simpleDate.js"
 import SupportScriptOutput from "./hooks/supportScriptOutput.js"
+import ThemeSwitcher from "./hooks/themeSwitcher.js"
 import ToolTip from "./hooks/toolTip.js"
 import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
 import WorldMap from "./hooks/worldMap.js"
@@ -53,6 +54,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     SharedSecretClipboardClick,
     SimpleDate,
     SupportScriptOutput,
+    ThemeSwitcher,
     ToolTip,
     UpdatingTimeAgo,
     WorldMap,
@@ -146,5 +148,19 @@ window.addEventListener("phx:close-modal", ({ detail }) => {
   let modal = document.getElementById(detail.id)
   if (modal) {
     liveSocket.execJS(modal, modal.getAttribute("data-cancel"))
+  }
+})
+
+window.addEventListener("load", (event) => {
+  if (localStorage.theme === null) {
+    document.getElementById("theme-dark").setAttribute("data-selected", "true")
+  } else if (localStorage.theme === "system") {
+    document
+      .getElementById("theme-system")
+      .setAttribute("data-selected", "true")
+  } else if (localStorage.theme === "light") {
+    document.getElementById("theme-light").setAttribute("data-selected", "true")
+  } else if (localStorage.theme === "dark") {
+    document.getElementById("theme-dark").setAttribute("data-selected", "true")
   }
 })
