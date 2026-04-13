@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.FirmwareIsTruth do
   use Ecto.Migration
 
-  def change do
+  def change() do
     alter table(:devices) do
       remove(:target_deployment_id)
       remove(:product_id)

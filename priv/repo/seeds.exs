@@ -13,7 +13,10 @@
 # The seeds are run on every deploy. Therefore, it is important
 # that first check to see if the data you are trying to insert
 # has been run yet.
-alias NervesHub.{Accounts, Accounts.User, Repo}
+alias NervesHub.Accounts
+alias NervesHub.Accounts.Org
+alias NervesHub.Accounts.User
+alias NervesHub.Repo
 
 defmodule NervesHub.SeedHelpers do
   alias NervesHub.Fixtures
@@ -24,7 +27,7 @@ defmodule NervesHub.SeedHelpers do
     firmware_versions = ["0.1.0", "0.1.1", "0.1.2", "1.0.0"]
 
     org_with_keys_and_users =
-      org |> NervesHub.Accounts.Org.with_org_keys() |> Repo.preload(:users)
+      org |> Org.with_org_keys() |> Repo.preload(:users)
 
     org_keys = org_with_keys_and_users |> Map.get(:org_keys)
     names = org_with_keys_and_users |> Map.get(:users) |> Enum.map(fn x -> x.name end)
@@ -42,7 +45,8 @@ defmodule NervesHub.SeedHelpers do
     firmwares
     |> elem(2)
     |> Fixtures.deployment_group_fixture(%{
-      conditions: %{"version" => "< 1.0.0", "tags" => ["beta"]}
+      conditions: %{"version" => "< 1.0.0", "tags" => ["beta"]},
+      user: user
     })
 
     device = Fixtures.device_fixture(org, product, firmwares |> elem(1))

@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.UsersNameToUsername do
   use Ecto.Migration
 
-  def change do
+  def change() do
     alter table(:invites) do
       remove(:name)
     end

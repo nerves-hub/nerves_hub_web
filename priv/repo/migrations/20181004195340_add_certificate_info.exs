@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.AddCertificateInfo do
   use Ecto.Migration
 
-  def change do
+  def change() do
     alter table(:device_certificates) do
       add(:authority_key_id, :string)
     end

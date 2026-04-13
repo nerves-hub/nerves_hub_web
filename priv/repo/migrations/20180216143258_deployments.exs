@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.Deployments do
   use Ecto.Migration
 
-  def change do
+  def change() do
     create table(:deployments) do
       add(:tenant_id, references(:tenants), null: false)
       add(:firmware_id, references(:firmwares), null: false)

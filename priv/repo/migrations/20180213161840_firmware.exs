@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.Firmware do
   use Ecto.Migration
 
-  def change do
+  def change() do
     create table(:tenant_keys) do
       add(:tenant_id, references(:tenants), null: false)
 
@@ -11,9 +11,7 @@ defmodule NervesHub.Repo.Migrations.Firmware do
       timestamps()
     end
 
-    create(
-      unique_index(:tenant_keys, [:tenant_id, :name], name: :tenant_keys_tenant_id_name_index)
-    )
+    create(unique_index(:tenant_keys, [:tenant_id, :name], name: :tenant_keys_tenant_id_name_index))
 
     create table(:firmwares) do
       add(:tenant_id, references(:tenants), null: false)

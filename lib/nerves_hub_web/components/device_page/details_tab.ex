@@ -10,8 +10,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Scripts
+  alias NervesHubWeb.Components.DeviceLocation
   alias NervesHubWeb.Components.HealthStatus
-  alias NervesHubWeb.Components.NewUI.DeviceLocation
   alias Phoenix.Socket.Broadcast
 
   require Logger

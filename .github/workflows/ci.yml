@@ -10,6 +10,21 @@ on:
   pull_request:
 
 jobs:
+  report_mix_deps:
+    name: "Report Mix Dependencies"
+
+    runs-on: ubuntu-latest
+
+    # The API requires write permission on the repository to submit dependencies
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: erlef/mix-dependency-submission@v1
+      - uses: actions/dependency-review-action@v4
+        if: "${{ github.event_name == 'pull_request' }}"
+
   compile-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 14

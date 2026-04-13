@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.CreateDeviceLogLines do
   use Ecto.Migration
 
-  def change do
+  def change() do
     create table(:device_log_lines, primary_key: false) do
       add(:id, :uuid, primary_key: true)
       add(:device_id, references(:devices), null: false)

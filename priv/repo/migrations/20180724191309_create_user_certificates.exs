@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.CreateUserCertificates do
   use Ecto.Migration
 
-  def change do
+  def change() do
     create table(:user_certificates) do
       add(:serial, :string, null: false)
       add(:description, :string, null: false)

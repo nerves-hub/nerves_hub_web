@@ -1,9 +1,9 @@
 defmodule NervesHub.Repo.Migrations.AddTagsToScripts do
   use Ecto.Migration
 
-  def change do
+  def change() do
     alter table(:scripts) do
-      add :tags, {:array, :string}
+      add(:tags, {:array, :string})
     end
   end
 end

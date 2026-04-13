@@ -223,7 +223,6 @@ defmodule NervesHubWeb do
         root: "lib/nerves_hub_web/templates",
         namespace: NervesHubWeb
 
-      import NervesHubWeb.Components.SimpleActiveLink
       import Phoenix.Component
 
       import Phoenix.Controller,

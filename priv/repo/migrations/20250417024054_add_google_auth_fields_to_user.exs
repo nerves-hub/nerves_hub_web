@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.AddGoogleAuthFieldsToUser do
   use Ecto.Migration
 
-  def change do
+  def change() do
     alter table(:users) do
       add(:profile_picture_url, :string, null: true)
       add(:google_id, :string, null: true)

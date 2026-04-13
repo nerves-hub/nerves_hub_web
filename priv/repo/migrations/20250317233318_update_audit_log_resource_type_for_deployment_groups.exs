@@ -21,5 +21,5 @@ defmodule NervesHub.Repo.Migrations.UpdateAuditLogResourceTypeForDeploymentGroup
     """)
   end
 
-  def down(), do: raise "One way migration"
+  def down(), do: raise("One way migration")
 end

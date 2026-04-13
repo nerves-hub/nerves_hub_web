@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.AddConfirmedAtToUsers do
   use Ecto.Migration
 
-  def change do
+  def change() do
     alter table(:users) do
       add(:confirmed_at, :naive_datetime)
     end

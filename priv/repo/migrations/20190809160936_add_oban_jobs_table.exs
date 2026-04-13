@@ -6,11 +6,11 @@ defmodule NervesHub.Repo.Migrations.AddObanJobsTable do
 
   def up() do
     Oban.Migrations.up()
-    create_if_not_exists unique_index(:oban_jobs, [:args, :scheduled_at, :worker])
+    create_if_not_exists(unique_index(:oban_jobs, [:args, :scheduled_at, :worker]))
   end
 
   def down() do
-    drop_if_exists unique_index(:oban_jobs, [:args, :scheduled_at, :worker])
+    drop_if_exists(unique_index(:oban_jobs, [:args, :scheduled_at, :worker]))
     Oban.Migrations.down()
   end
 end

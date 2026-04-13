@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.Org.ProductsTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.Devices.Connections
   alias NervesHub.Fixtures
 
   test "user is redirected to login when trying to access an org, but the user isn't logged in" do
@@ -68,10 +69,19 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> assert_has("h1", text: "New Product")
     end
 
-    test "lists all products in the org", %{conn: conn, org: org, fixture: %{product: product}} do
+    test "lists all products in the org", %{conn: conn, org: org, product: product, firmware: firmware} do
+      _ = Fixtures.device_fixture(org, product, firmware)
+      _ = Fixtures.device_fixture(org, product, firmware)
+
+      device = Fixtures.device_fixture(org, product, firmware)
+      {:ok, device_connection} = Connections.device_connecting(device)
+      Connections.device_connected(device, device_connection.id)
+
       conn
       |> visit("/org/#{org.name}")
       |> assert_has("a", text: product.name)
+      |> assert_has("span.product-connected-devices-count", text: "1")
+      |> assert_has("span.product-disconnected-devices-count", text: "3")
     end
   end
 

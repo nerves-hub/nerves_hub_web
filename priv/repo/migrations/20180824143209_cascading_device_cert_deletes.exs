@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.CascadingDeviceCertDeletes do
   use Ecto.Migration
 
-  def up do
+  def up() do
     drop(constraint(:device_certificates, "device_certificates_device_id_fkey"))
 
     alter table(:device_certificates) do
@@ -9,7 +9,7 @@ defmodule NervesHub.Repo.Migrations.CascadingDeviceCertDeletes do
     end
   end
 
-  def down do
+  def down() do
     drop(constraint(:device_certificates, "device_certificates_device_id_fkey"))
 
     alter table(:device_certificates) do

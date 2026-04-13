@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.RenamePatchToDeltaUpdate do
   use Ecto.Migration
 
-  def up do
+  def up() do
     rename(table(:firmwares), :patchable, to: :delta_updatable)
     rename(table(:firmware_patches), to: table(:firmware_deltas))
 
@@ -17,7 +17,7 @@ defmodule NervesHub.Repo.Migrations.RenamePatchToDeltaUpdate do
     )
   end
 
-  def down do
+  def down() do
     rename(table(:firmwares), :delta_updatable, to: :patchable)
     rename(table(:firmware_deltas), to: table(:firmware_patches))
 

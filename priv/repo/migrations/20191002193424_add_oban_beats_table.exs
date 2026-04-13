@@ -1,11 +1,11 @@
 defmodule NervesHub.Repo.Migrations.AddObanBeatsTable do
   use Ecto.Migration
 
-  def up do
+  def up() do
     Oban.Migrations.up(version: 3)
   end
 
-  def down do
+  def down() do
     Oban.Migrations.down(version: 2)
   end
 end

@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.CreateInflightUpdates do
   use Ecto.Migration
 
-  def change do
+  def change() do
     create table(:inflight_updates) do
       add(:device_id, references(:devices), null: false)
       add(:deployment_id, references(:deployments), null: false)
@@ -13,6 +13,6 @@ defmodule NervesHub.Repo.Migrations.CreateInflightUpdates do
       timestamps(updated_at: false)
     end
 
-    create index(:inflight_updates, [:device_id, :deployment_id], unique: true)
+    create(index(:inflight_updates, [:device_id, :deployment_id], unique: true))
   end
 end

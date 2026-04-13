@@ -23,11 +23,11 @@
         <div class="flex gap-4 text-sm font-medium">
           <div class="flex items-center gap-1.5">
             <div class="size-2 rounded-full bg-green-500"></div>
-            <span class="text-base-300">{get_in(@product_device_info, [product.id, :online]) || 0}</span>
+            <span class="product-connected-devices-count text-base-300">{product.connected_devices_count}</span>
           </div>
           <div class="flex items-center gap-1.5">
             <div class="bg-base-500 size-2 rounded-full"></div>
-            <span class="text-base-400">{get_in(@product_device_info, [product.id, :offline]) || 0}</span>
+            <span class="product-disconnected-devices-count text-base-400">{product.disconnected_devices_count}</span>
           </div>
         </div>
       </div>

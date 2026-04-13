@@ -49,6 +49,14 @@ defmodule NervesHub.DeviceLink do
 
   @spec status_update(device :: Device.t(), status :: map(), update_started? :: boolean()) ::
           :ok
+  def status_update(device, %{"status" => "started", "downloader_network_interface" => nil}, _update_started?) do
+    :telemetry.execute([:nerves_hub, :devices, :downloader_network_interface_nil], %{count: 1}, %{
+      identifier: device.identifier
+    })
+
+    :ok
+  end
+
   def status_update(
         device,
         %{"status" => "started", "downloader_network_interface" => downloader_network_interface},
@@ -60,7 +68,8 @@ defmodule NervesHub.DeviceLink do
     else
       :telemetry.execute([:nerves_hub, :devices, :network_interface_mismatch], %{count: 1}, %{
         downloader_network_interface: downloader_network_interface,
-        device_network_interface: device.network_interface
+        device_network_interface: device.network_interface,
+        identifier: device.identifier
       })
 
       :ok

@@ -1,7 +1,7 @@
 defmodule NervesHub.Repo.Migrations.AddCaCertificates do
   use Ecto.Migration
 
-  def change do
+  def change() do
     create table(:ca_certificates) do
       add(:org_id, references(:orgs), null: false)
       add(:serial, :string, null: false)
@@ -13,8 +13,6 @@ defmodule NervesHub.Repo.Migrations.AddCaCertificates do
       timestamps()
     end
 
-    create(
-      unique_index(:ca_certificates, [:org_id, :serial], name: :ca_certificates_org_id_serial_index)
-    )
+    create(unique_index(:ca_certificates, [:org_id, :serial], name: :ca_certificates_org_id_serial_index))
   end
 end
