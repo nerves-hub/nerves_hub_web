@@ -18,7 +18,7 @@
 @plugin "@tailwindcss/forms";
 @plugin "../vendor/lucideicons";
 @plugin "../vendor/animatedelay";
-@plugin 'tailwind-scrollbar';
+@plugin "tailwind-scrollbar";
 
 @import "@artusdev/tailwind-underlines";
 
@@ -62,19 +62,57 @@
   --shadow-device-details-content: 0 16 32 -4 #141417, 0 14 4 -4 #141417;
 }
 
+/* Light mode overrides */
+[data-theme="light"] {
+  --color-surface: #ffffff;
+  --color-surface-muted: #f6f6f7;
+
+  --color-content-header: var(--color-base-900);
+
+  --color-base-50: var(--color-zinc-950);
+  --color-base-100: var(--color-zinc-900);
+  --color-base-200: var(--color-zinc-800); /* currently unused */
+  --color-base-300: var(--color-zinc-700);
+  --color-base-400: var(--color-zinc-600);
+  --color-base-500: oklch(0.5599 0.0012 17.2);
+  --color-base-600: var(--color-zinc-400);
+  --color-base-700: var(--color-zinc-300);
+  --color-base-800: var(--color-zinc-200);
+  --color-base-900: var(--color-zinc-100); /* currently unused */
+  --color-base-950: var(--color-zinc-50); /* currently unused */
+
+  /*--shadow-filter-slider: -16px 0px 32px -4px #ebebe8, 0px 4px 4px -4px #ebebe8;
+  --shadow-device-details-content: 0 16 32 -4 #ebebe8, 0 14 4 -4 #ebebe8;*/
+}
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
 @custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
 @custom-variant phx-no-feedback (.phx-no-feedback&, .phx-no-feedback &);
 
-@utility sidebar-item-hover {
+@utility light-sidebar-item-hover {
+  background-image: linear-gradient(
+    90deg,
+    rgba(246, 246, 247, 1) 0%,
+    rgba(99, 102, 241, 0.2) 100%
+  );
+}
+@utility dark-sidebar-item-hover {
   background-image: linear-gradient(
     90deg,
     rgba(63, 63, 70, 0.24) 0%,
     rgba(63, 63, 70, 0.48) 100%
   );
 }
-@utility sidebar-item-selected {
+@utility light-sidebar-item-selected {
+  background-image: linear-gradient(
+    90deg,
+    rgba(246, 246, 247, 1) 0%,
+    rgba(99, 102, 241, 0.2) 100%
+  );
+}
+@utility dark-sidebar-item-selected {
   background-image:
     linear-gradient(
       90deg,
@@ -405,7 +443,7 @@ body {
 
 .product-picker-product,
 .product-picker-product:link {
-  @apply text-base-300 hover:bg-base-800 block rounded px-4 py-1.5 ml-7;
+  @apply text-base-300 hover:bg-base-800 ml-7 block rounded px-4 py-1.5;
   font-size: 14px;
   font-style: normal;
   font-weight: 500;

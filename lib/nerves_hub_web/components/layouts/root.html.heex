@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-surface h-full">
+<html lang="en" class="bg-surface h-full" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -19,6 +19,41 @@
 
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+    <script type="text/javascript">
+      const handleThemeChangeEvent = (event) => {
+        if (event.matches) {
+          document.documentElement.setAttribute("data-theme", "light");
+        } else {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      }
+      window.handleThemeChangeEvent = handleThemeChangeEvent
+
+      function setupSystemTheme() {
+        const lightModeQuery = window.matchMedia('(prefers-color-scheme: light)');
+
+        if (window.matchMedia && lightModeQuery.matches) {
+          document.documentElement.setAttribute("data-theme", "light");
+        } else {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+
+        lightModeQuery.addEventListener('change', window.handleThemeChangeEvent);
+      }
+
+      function removeThemeEventListener() {
+        const lightModeQuery = window.matchMedia('(prefers-color-scheme: light)');
+        lightModeQuery.removeEventListener('change', window.handleThemeChangeEvent);
+      }
+
+      if (localStorage.theme === null) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      } else if (localStorage.theme === "system") {
+        setupSystemTheme()
+      } else {
+        document.documentElement.setAttribute("data-theme", localStorage.theme);
+      }
     </script>
   </head>
   <body class="h-full">
