@@ -24,7 +24,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
       <.form id="deployment-form" for={@form} class="flex w-full flex-col gap-4" phx-change="validate-deployment-group" phx-submit="update-deployment-group" phx-target={@myself}>
         <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base font-medium text-base-50">General settings</div>
+            <div class="text-base-50 text-base font-medium">General settings</div>
           </div>
 
           <div class="flex gap-6 p-6">
@@ -43,7 +43,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base font-medium text-base-50">Device matching conditions</div>
+            <div class="text-base-50 text-base font-medium">Device matching conditions</div>
           </div>
 
           <div class="flex flex-col gap-6 p-6">
@@ -69,7 +69,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base font-medium text-base-50">Device queue settings</div>
+            <div class="text-base-50 text-base font-medium">Device queue settings</div>
           </div>
 
           <div class="flex flex-col gap-6 p-6">
@@ -87,7 +87,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base font-medium text-base-50">Rolling updates</div>
+            <div class="text-base-50 text-base font-medium">Rolling updates</div>
           </div>
 
           <div class="flex gap-6 p-6">
@@ -113,7 +113,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base font-medium text-base-50">Priority queue</div>
+            <div class="text-base-50 text-base font-medium">Priority queue</div>
           </div>
 
           <div class="flex flex-col gap-6 p-6">
@@ -154,7 +154,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base font-medium text-base-50">Device penalty box logic</div>
+            <div class="text-base-50 text-base font-medium">Device penalty box logic</div>
           </div>
           <div class="border-base-700 flex flex-col gap-8 border-t p-6">
             <div>
@@ -221,7 +221,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base font-medium text-base-50">First Connect Code</div>
+            <div class="text-base-50 text-base font-medium">First Connect Code</div>
           </div>
 
           <div class="flex flex-col gap-6 p-6">

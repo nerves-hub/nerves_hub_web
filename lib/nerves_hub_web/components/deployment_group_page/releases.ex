@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       <div class="w-full">
         <div class="bg-base-900 border-base-700 flex flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base font-medium text-base-50">Release History</div>
+            <div class="text-base-50 text-base font-medium">Release History</div>
 
             <.button style="secondary" type="submit" phx-click={CoreComponents.show_modal("new-release")}>
               <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
@@ -165,7 +165,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       <CoreComponents.modal id="new-release" on_cancel={Phoenix.LiveView.JS.patch(~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/releases")}>
         <.form :let={f} id="release-form" for={@form} phx-change="validate-release" phx-submit="update-release" phx-target={@myself}>
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base font-medium text-base-50">Release settings</div>
+            <div class="text-base-50 text-base font-medium">Release settings</div>
           </div>
 
           <div class="flex flex-col gap-6 p-4">

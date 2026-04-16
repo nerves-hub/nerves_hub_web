@@ -3,8 +3,8 @@
 
   <div id="device-container" class="h-0 flex-1 overflow-y-auto" phx-hook="PageVisible">
     <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 :if={!@devices.ok?} class="text-xl leading-[30px] font-semibold text-base-50">Loading...</h1>
-      <h1 :if={@devices.ok?} id="devices-header" class="hidden text-xl leading-[30px] font-semibold text-base-50" phx-mounted={fade_in("#devices-header")}>
+      <h1 :if={!@devices.ok?} class="text-base-50 text-xl leading-[30px] font-semibold">Loading...</h1>
+      <h1 :if={@devices.ok?} id="devices-header" class="text-base-50 hidden text-xl leading-[30px] font-semibold" phx-mounted={fade_in("#devices-header")}>
         All Devices
       </h1>
       <div class="mr-auto">
@@ -113,19 +113,19 @@
       </:loading>
       <:failed :let={_failure}>
         <div class="flex h-full items-center justify-center pb-16">
-          <span class="text-xl font-medium text-base-50">There was an error loading the device list, please contact support.</span>
+          <span class="text-base-50 text-xl font-medium">There was an error loading the device list, please contact support.</span>
         </div>
       </:failed>
 
       <%= cond do %>
         <% Enum.empty?(devices) && @currently_filtering -> %>
           <div class="flex h-full items-center justify-center pb-16">
-            <span class="text-xl font-medium text-base-50">No devices match the current filters.</span>
+            <span class="text-base-50 text-xl font-medium">No devices match the current filters.</span>
           </div>
         <% Enum.empty?(devices) -> %>
           <div class="flex h-full items-center justify-center pb-16">
             <div class="w-full max-w-2xl px-6">
-              <h2 class="mb-4 text-xl font-semibold text-base-50">{@product.name} doesn't have any devices yet.</h2>
+              <h2 class="text-base-50 mb-4 text-xl font-semibold">{@product.name} doesn't have any devices yet.</h2>
               <p class="text-base-400 mb-6 text-sm">Get started by adding <code class="text-base-300">nerves_hub_link</code> to your Nerves project.</p>
               <% active_secret = Enum.find(@product.shared_secret_auths, &is_nil(&1.deactivated_at)) %>
               <%= if active_secret do %>

@@ -104,7 +104,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
           <div id="console-and-chat" class="flex size-full bg-black" phx-update="ignore" style="background-color: rgb(14, 16, 25);">
             <div :if={authorized?(:"device:console", @current_scope) && online?} id="dropzone" class="relative flex grow gap-6 p-12" style="background-color: rgb(14, 16, 25);">
               <div id="console" phx-hook="Console" data-user-token={@user_token} data-device-id={@device.id} class="z-10 size-full"></div>
-              <div id="immersive-device" class="pointer-events-none absolute top-4 left-6 z-20 hidden text-base-800">
+              <div id="immersive-device" class="text-base-800 pointer-events-none absolute top-4 left-6 z-20 hidden">
                 <div class="flex items-center gap-3">
                   <%= if Map.get(@device_connection || %{}, :status) == :connected do %>
                     <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6" fill="none">
