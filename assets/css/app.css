@@ -136,47 +136,29 @@
   background-image: linear-gradient(
     180deg,
     rgba(16, 185, 129, 0) 18.75%,
-    rgba(16, 185, 129, 0.04) 81.25%
+    rgba(16, 185, 129, 0.06) 81.25%
   );
 }
 @utility health-warning {
-  background-image:
-    linear-gradient(
-      180deg,
-      rgba(245, 158, 11, 0) 18.75%,
-      rgba(245, 158, 11, 0.04) 81.25%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(63, 63, 70, 0.16) 0%,
-      rgba(63, 63, 70, 0.24) 100%
-    );
+  background-image: linear-gradient(
+    180deg,
+    rgba(245, 158, 11, 0) 18.75%,
+    rgba(245, 158, 11, 0.04) 81.25%
+  );
 }
 @utility health-neutral {
-  background-image:
-    linear-gradient(
-      180deg,
-      rgba(99, 102, 241, 0) 18.75%,
-      rgba(99, 102, 241, 0.04) 81.25%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(63, 63, 70, 0.16) 0%,
-      rgba(63, 63, 70, 0.24) 100%
-    );
+  background-image: linear-gradient(
+    180deg,
+    rgba(99, 102, 241, 0) 18.75%,
+    rgba(99, 102, 241, 0.06) 81.25%
+  );
 }
 @utility health-plain {
-  background-image:
-    linear-gradient(
-      180deg,
-      rgba(99, 99, 99, 0) 18.75%,
-      rgba(99, 99, 99, 0.04) 81.25%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(63, 63, 63, 0.16) 0%,
-      rgba(63, 63, 63, 0.24) 100%
-    );
+  background-image: linear-gradient(
+    180deg,
+    rgba(99, 99, 99, 0) 18.75%,
+    rgba(99, 99, 99, 0.04) 81.25%
+  );
 }
 @utility progress-glow {
   background-image:
