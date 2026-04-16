@@ -47,13 +47,14 @@
         lightModeQuery.removeEventListener('change', window.handleThemeChangeEvent);
       }
 
-      if (localStorage.theme === null || localStorage.theme === "null") {
-        localStorage.theme = "dark"
-        document.documentElement.setAttribute("data-theme", "dark");
+      if (localStorage.theme === "dark" || localStorage.theme === "light") {
+        document.documentElement.setAttribute("data-theme", localStorage.theme);
       } else if (localStorage.theme === "system") {
         setupSystemTheme()
       } else {
-        document.documentElement.setAttribute("data-theme", localStorage.theme);
+        // use the dark theme as our default
+        localStorage.theme = "dark"
+        document.documentElement.setAttribute("data-theme", "dark");
       }
     </script>
   </head>
