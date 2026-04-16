@@ -3,7 +3,7 @@
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Users</h1>
+      <h1 class="text-xl leading-[30px] font-semibold text-base-50">Users</h1>
       <div class="mr-auto"></div>
       <.button type="link" navigate={~p"/org/#{@org}/settings/users/invite"} aria-label="Add new user">
         <.icon name="add" /> Add New User
@@ -11,7 +11,7 @@
     </div>
 
     <%= if !Enum.empty?(@invites) do %>
-      <h2 class="px-4 py-2 text-base font-semibold text-neutral-50">Outstanding Invites</h2>
+      <h2 class="px-4 py-2 text-base font-semibold text-base-50">Outstanding Invites</h2>
       <div class="listing">
         <table>
           <thead>

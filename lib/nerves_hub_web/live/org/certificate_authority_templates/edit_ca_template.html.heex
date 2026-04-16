@@ -3,7 +3,7 @@
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Edit Certificate Authority</h1>
+      <h1 class="text-xl leading-[30px] font-semibold text-base-50">Edit Certificate Authority</h1>
     </div>
 
     <div class="max-w-[650px] px-6 py-4">
@@ -11,7 +11,7 @@
         <div class="mb-4">
           <label for="description_input" class="text-base-300 mb-2 block text-sm font-medium">Description</label>
           {text_input(f, :description,
-            class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+            class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
             id: "description_input"
           )}
           <div class="mt-1 text-sm text-red-400">{error_tag(f, :description)}</div>
@@ -46,7 +46,7 @@
                   JITP Description <span class="text-base-500 ml-2 text-xs">(Device Description)</span>
                 </label>
                 {text_input(fp, :description,
-                  class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+                  class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
                   id: "jitp_description_input"
                 )}
                 <div class="mt-1 text-sm text-red-400">{error_tag(fp, :description)}</div>
@@ -57,7 +57,7 @@
                   JITP Tags <span class="text-base-500 ml-2 text-xs">(Tags are used by deployments to target a device)</span>
                 </label>
                 {text_input(fp, :tags,
-                  class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+                  class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
                   id: "tag_input"
                 )}
                 <div class="mt-1 text-sm text-red-400">{error_tag(fp, :tags)}</div>
@@ -68,7 +68,7 @@
                   JITP Product <span class="text-base-500 ml-2 text-xs">(JITP must be configured to use a particular product)</span>
                 </label>
                 {select(fp, :product_id, Enum.map(@products, &{&1.name, &1.id}),
-                  class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+                  class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
                   id: "product_input",
                   prompt: "Select Product"
                 )}

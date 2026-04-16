@@ -80,13 +80,13 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       <div class="flex w-1/2 flex-col gap-4">
         <div :if={!@product.extensions.health || !@device.extensions.health} class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
-            <div class="leading-6 font-medium text-neutral-50">Health and Alerting</div>
+            <div class="leading-6 font-medium text-base-50">Health and Alerting</div>
           </div>
           <div class="text-nerves-gray-500 flex items-center gap-2 px-4 pt-2 pb-4">
             Reporting is not enabled {if(!@product.extensions.health, do: "for your product", else: "for your device")}.
           </div>
           <div class="px-4 pb-4">
-            <.link class="text-base-400 text-xs font-normal hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+            <.link class="text-base-400 text-xs font-normal hover:text-base-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
               Learn more about device health and alert reporting.
             </.link>
           </div>
@@ -95,7 +95,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         <div :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health} class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
             <div class="flex items-center gap-2">
-              <div class="leading-6 font-medium text-neutral-50">Health</div>
+              <div class="leading-6 font-medium text-base-50">Health</div>
               <HealthStatus.render device_id={@device.id} health={@device.latest_health} tooltip_position="right" />
             </div>
             <div class="flex items-center gap-2">
@@ -135,21 +135,21 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <div class="bg-health-good border-success flex h-16 grow flex-col rounded border-b px-3 py-2">
               <span class="text-base-400 text-xs tracking-wide">CPU</span>
               <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
-                <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
+                <span class="text-xl leading-[30px] text-base-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
                 <span class="text-success text-base">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
               <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="flex items-end justify-between">
-                <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
+                <span class="text-xl leading-[30px] text-base-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
               </div>
               <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
-                <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_temp"])}°</span>
+                <span class="text-xl leading-[30px] text-base-50">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
               <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
             </div>
             <div class="bg-health-warning border-warning flex h-16 grow flex-col rounded border-b px-3 py-2">
               <span class="text-base-400 text-xs tracking-wide">Memory used</span>
               <div :if={@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
-                <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["mem_used_mb"])}MB</span>
+                <span class="text-xl leading-[30px] text-base-50">{round(@latest_metrics["mem_used_mb"])}MB</span>
                 <span class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}%</span>
               </div>
               <div :if={!@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
@@ -159,13 +159,13 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <div class="bg-health-neutral flex h-16 grow flex-col rounded border-b border-indigo-500 px-3 py-2">
               <span class="text-base-400 text-xs tracking-wide">Load avg</span>
               <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex items-center justify-between">
-                <span :if={@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_1min"]}</span>
+                <span :if={@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-base-50">{@latest_metrics["load_1min"]}</span>
                 <span :if={!@latest_metrics["load_1min"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
                 <span class="bg-base-700 h-4 w-px"></span>
-                <span :if={@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_5min"]}</span>
+                <span :if={@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-base-50">{@latest_metrics["load_5min"]}</span>
                 <span :if={!@latest_metrics["load_5min"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
                 <span class="bg-base-700 h-4 w-px"></span>
-                <span :if={@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_15min"]}</span>
+                <span :if={@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-base-50">{@latest_metrics["load_15min"]}</span>
                 <span :if={!@latest_metrics["load_15min"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
               </div>
               <div :if={!@latest_metrics["load_1min"] && !@latest_metrics["load_5min"] && !@latest_metrics["load_15min"]} class="flex items-center">
@@ -175,7 +175,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
           <div class="text-base-400 px-4 pb-4 text-xs font-normal">
             Learn more about
-            <.link class="underline decoration-dotted underline-offset-4 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+            <.link class="underline decoration-dotted underline-offset-4 hover:text-base-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
               device health reporting.
             </.link>
           </div>
@@ -183,14 +183,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
         <div :if={Enum.empty?(@latest_metrics) && @product.extensions.health && @device.extensions.health} class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
-            <div class="leading-6 font-medium text-neutral-50">Health</div>
+            <div class="leading-6 font-medium text-base-50">Health</div>
           </div>
           <div class="text-nerves-gray-500 flex items-center gap-2 px-4 pt-2 pb-4">
             No device health information has been received.
           </div>
           <div class="text-base-400 px-4 pb-4 text-xs font-normal">
             Learn more about
-            <.link class="underline decoration-dotted underline-offset-4 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+            <.link class="underline decoration-dotted underline-offset-4 hover:text-base-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
               device health reporting.
             </.link>
           </div>
@@ -198,7 +198,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
         <div :if={@alarms && @product.extensions.health && @device.extensions.health} class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
-            <div class="leading-6 font-medium text-neutral-50">Alarms</div>
+            <div class="leading-6 font-medium text-base-50">Alarms</div>
           </div>
 
           <div class="flex flex-col gap-2 px-4 pt-2 pb-4">
@@ -211,7 +211,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
           <div class="text-base-400 px-4 pb-4 text-xs font-normal">
             Learn more about
-            <.link class="underline decoration-dotted underline-offset-4 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+            <.link class="underline decoration-dotted underline-offset-4 hover:text-base-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
               alarm reporting
             </.link>
           </div>
@@ -219,18 +219,18 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
         <div :if={!@alarms && @product.extensions.health && @device.extensions.health} class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
-            <div class="leading-6 font-medium text-neutral-50">No Alarms Received</div>
+            <div class="leading-6 font-medium text-base-50">No Alarms Received</div>
           </div>
           <div class="text-base-400 px-4 pb-4 text-xs font-normal">
             Learn more about
-            <.link class="underline decoration-dotted underline-offset-4 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+            <.link class="underline decoration-dotted underline-offset-4 hover:text-base-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
               alarm reporting
             </.link>
           </div>
         </div>
 
         <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border pb-4">
-          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-neutral-50">
+          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-base-50">
             General Info
           </div>
           <div class="flex flex-col gap-3">
@@ -348,7 +348,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         </div>
 
         <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
-          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-neutral-50">
+          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-base-50">
             Deployment Groups
           </div>
 
@@ -477,7 +477,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         </div>
 
         <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
-          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-neutral-50">
+          <div class="flex h-14 items-center pr-3 pl-4 leading-6 font-medium text-base-50">
             Support Scripts
           </div>
 

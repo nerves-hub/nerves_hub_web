@@ -227,7 +227,7 @@ defmodule NervesHubWeb.CoreComponents do
         "bg-base-800 disabled:bg-base-800 hover:bg-base-700 active:bg-indigo-500",
         "border-base-600 rounded border active:border-indigo-500",
         "active:stroke-base-100 disabled:stroke-base-600 stroke-base-400",
-        "disabled:text-base-500 text-base-300 text-sm font-medium hover:text-neutral-50 active:text-neutral-50",
+        "disabled:text-base-500 text-base-300 text-sm font-medium hover:text-base-50 active:text-base-50",
         @class
       ]}
       {@rest}
@@ -284,7 +284,7 @@ defmodule NervesHubWeb.CoreComponents do
         "bg-base-800 disabled:bg-base-800 hover:bg-base-700 active:bg-indigo-500",
         "border-base-600 rounded border active:border-indigo-500",
         "active:stroke-base-100 disabled:stroke-base-600 stroke-base-400",
-        "disabled:text-base-500 text-base-300 text-sm font-medium hover:text-neutral-50 active:text-neutral-50",
+        "disabled:text-base-500 text-base-300 text-sm font-medium hover:text-base-50 active:text-base-50",
         @class
       ]}
       {@rest}

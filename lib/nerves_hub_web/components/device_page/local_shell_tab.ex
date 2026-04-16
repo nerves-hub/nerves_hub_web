@@ -94,7 +94,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
               style="background-color: rgb(14, 16, 25);"
             >
               <div id="local-shell" phx-hook="LocalShell" data-user-token={@user_token} data-device-id={@device.id} class="z-10 size-full"></div>
-              <div id="immersive-device" class="pointer-events-none absolute top-4 left-6 z-20 hidden text-neutral-800">
+              <div id="immersive-device" class="pointer-events-none absolute top-4 left-6 z-20 hidden text-base-800">
                 <div class="flex items-center gap-3">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"

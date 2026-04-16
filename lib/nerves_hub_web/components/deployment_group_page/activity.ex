@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
       <div class="w-full p-6">
         <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base font-medium text-neutral-50">Latest activity</div>
+            <div class="text-base font-medium text-base-50">Latest activity</div>
 
             <div class="bg-base-800 border-base-600 rounded border p-1.5">
               <.link href={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{@deployment_group}/audit_logs/download"}>

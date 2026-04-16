@@ -3,7 +3,7 @@
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Deployment Groups</h1>
+      <h1 class="text-xl leading-[30px] font-semibold text-base-50">All Deployment Groups</h1>
       <div class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs">{@pager_meta.total_count}</div>
       <form :if={Enum.any?(@entries) || @currently_filtering} class="flex h-full items-center" phx-change="update-filters">
         <div class="grid h-full grid-cols-1">
@@ -40,7 +40,7 @@
     <%= if Enum.empty?(@entries) do %>
       <!-- TODO: Go over empty-state with new design -->
       <div class="flex h-full items-center justify-center pb-16">
-        <span class="text-xl font-medium text-neutral-50">{@current_scope.product.name} doesn’t have any deployment groups configured.</span>
+        <span class="text-xl font-medium text-base-50">{@current_scope.product.name} doesn’t have any deployment groups configured.</span>
       </div>
     <% else %>
       <div class="listing">

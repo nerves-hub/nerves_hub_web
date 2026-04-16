@@ -3,7 +3,7 @@
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">{@membership.user.name}</h1>
+      <h1 class="text-xl leading-[30px] font-semibold text-base-50">{@membership.user.name}</h1>
     </div>
 
     <div class="max-w-[650px] px-6 py-4">
@@ -11,7 +11,7 @@
         <div class="mb-6">
           <label for="role_input" class="text-base-300 mb-2 block text-sm font-medium">Role</label>
           {select(f, :role, Utils.role_options(),
-            class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+            class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
             id: "role_input"
           )}
           <div class="mt-1 text-sm text-red-400">{error_tag(f, :role)}</div>

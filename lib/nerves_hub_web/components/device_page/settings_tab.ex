@@ -37,7 +37,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       <.form id="settings-form" for={@settings_form} class="w-full" phx-change="validate-device-settings" phx-submit="update-device-settings">
         <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base font-medium text-neutral-50">General settings</div>
+            <div class="text-base font-medium text-base-50">General settings</div>
             <%= if authorized?(:"device:update", @current_scope) do %>
               <.button style="secondary" type="submit">
                 <.icon name="save" /> Save changes
@@ -83,7 +83,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
       <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
         <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-          <div class="text-base font-medium text-neutral-50">Extensions</div>
+          <div class="text-base font-medium text-base-50">Extensions</div>
         </div>
         <div class="flex flex-col gap-1 px-4 py-2">
           <div :for={{key, description} <- available_extensions()} class="flex h-16 items-center gap-6 p-2">
@@ -117,7 +117,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
       <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
         <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-          <div class="text-base font-medium text-neutral-50">Certificates</div>
+          <div class="text-base font-medium text-base-50">Certificates</div>
           <div>
             <form id="upload-certificate" phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
               <div class="bg-base-800 border-base-600 flex gap-2 rounded border px-3 py-1.5 hover:cursor-pointer">

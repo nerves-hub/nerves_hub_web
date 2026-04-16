@@ -22,7 +22,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="leading-6 font-medium text-neutral-50">Location</div>
+        <div class="leading-6 font-medium text-base-50">Location</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="leading-6 font-medium text-neutral-50">Location</div>
+        <div class="leading-6 font-medium text-base-50">Location</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="leading-6 font-medium text-neutral-50">Location</div>
+        <div class="leading-6 font-medium text-base-50">Location</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
@@ -79,7 +79,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="leading-6 font-medium text-neutral-50">Location</div>
+        <div class="leading-6 font-medium text-base-50">Location</div>
         <div class="text-base-400 text-xs font-normal">
           Please select the devices location.
         </div>
@@ -108,7 +108,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="leading-6 font-medium text-neutral-50">Location</div>
+        <div class="leading-6 font-medium text-base-50">Location</div>
         <div class="text-base-400 text-xs font-normal">The devices location is announced by the device after it connects.</div>
       </div>
 
@@ -153,7 +153,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between">
-        <div class="leading-6 font-medium text-neutral-50">Location</div>
+        <div class="leading-6 font-medium text-base-50">Location</div>
       </div>
 
       <div class="relative flex size-full flex-col items-center justify-center">
@@ -188,7 +188,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     ~H"""
     <div class="flex h-[450px] w-full flex-col gap-4 p-4">
       <div class="flex items-end justify-between gap-2">
-        <div class="leading-6 font-medium text-neutral-50">Location</div>
+        <div class="leading-6 font-medium text-base-50">Location</div>
         <div class="text-base-400 ml-auto text-xs font-normal">
           {@source_information}
         </div>

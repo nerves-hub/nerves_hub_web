@@ -3,7 +3,7 @@
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Products</h1>
+      <h1 class="text-xl leading-[30px] font-semibold text-base-50">Products</h1>
       <div class="mr-auto"></div>
       <.button type="link" navigate={~p"/org/#{@org}/new"} aria-label="Create new product">
         <.icon name="add" /> Create New
@@ -12,12 +12,12 @@
     <div class="grid grid-cols-2 gap-4 px-4 pt-2 pb-4">
       <div :if={@products == []}>
         <div class="m-4">
-          <h2 class="text-xl leading-[30px] font-semibold text-neutral-50">{@org.name} doesn't have any products yet</h2>
-          <p class="text-sm text-neutral-400">Create a new product to get started.</p>
+          <h2 class="text-xl leading-[30px] font-semibold text-base-50">{@org.name} doesn't have any products yet</h2>
+          <p class="text-sm text-base-400">Create a new product to get started.</p>
         </div>
       </div>
       <div :for={product <- @products} class="border-base-700 from-base-800/50 to-base-800 flex w-full justify-between gap-[16px] rounded border bg-linear-to-r p-4">
-        <div class="text-sm font-semibold text-neutral-50">
+        <div class="text-sm font-semibold text-base-50">
           <.link navigate={~p"/org/#{@org}/#{product}/devices"}>{product.name}</.link>
         </div>
         <div class="flex gap-4 text-sm font-medium">

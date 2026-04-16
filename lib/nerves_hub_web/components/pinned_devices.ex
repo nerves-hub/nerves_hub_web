@@ -13,7 +13,7 @@ defmodule NervesHubWeb.Components.PinnedDevices do
     ~H"""
     <div>
       <div class="mt-12 flex h-[88px] items-center justify-between py-6">
-        <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">My Pinned Devices</h1>
+        <h1 class="text-xl leading-[30px] font-semibold text-base-50">My Pinned Devices</h1>
       </div>
       <div class="bg-base-900 border-base-700 rounded border">
         <div class="flex flex-col">
@@ -117,7 +117,7 @@ defmodule NervesHubWeb.Components.PinnedDevices do
             </table>
           </div>
 
-          <div :if={@total_count > @device_limit} phx-click="toggle-expand-devices" class="text-base-400 px-6 py-2 text-center text-xs font-normal hover:cursor-pointer hover:text-neutral-50">
+          <div :if={@total_count > @device_limit} phx-click="toggle-expand-devices" class="text-base-400 px-6 py-2 text-center text-xs font-normal hover:cursor-pointer hover:text-base-50">
             {if @show_all?, do: "Show less", else: "Show all #{@total_count} devices"}
           </div>
         </div>
