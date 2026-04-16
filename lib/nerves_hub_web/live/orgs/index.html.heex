@@ -2,7 +2,7 @@
   <%= if @onboarding do %>
     <div class="flex min-h-[60vh] items-center justify-center">
       <div class="w-full max-w-md">
-        <h1 class="mb-2 text-2xl font-semibold text-neutral-50">Get Started</h1>
+        <h1 class="text-base-50 mb-2 text-2xl font-semibold">Get Started</h1>
         <p class="text-base-400 mb-6 text-sm">
           Create your first organization and product to start managing devices.
         </p>
@@ -20,7 +20,7 @@
               id="org_name"
               value={@org_name}
               required
-              class="bg-base-900 border-base-700 w-full rounded border px-3 py-2 text-sm text-neutral-50 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              class="bg-base-900 border-base-700 text-base-50 w-full rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
             <p class="text-base-500 text-xs">Can be changed later.</p>
           </div>
@@ -33,14 +33,14 @@
               id="product_name"
               value={@product_name}
               required
-              class="bg-base-900 border-base-700 w-full rounded border px-3 py-2 text-sm text-neutral-50 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              class="bg-base-900 border-base-700 text-base-50 w-full rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
             <p class="text-base-500 text-xs">Cannot be changed later.</p>
           </div>
 
           <button
             type="submit"
-            class="mt-2 flex w-full items-center justify-center rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-neutral-50 transition-colors hover:bg-indigo-500"
+            class="text-base-50 mt-2 flex w-full items-center justify-center rounded bg-indigo-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-indigo-500"
           >
             Create & Get Started
           </button>
@@ -58,10 +58,10 @@
         total_count={length(@pinned_devices)}
       />
       <div class="flex h-[88px] items-center justify-between py-6">
-        <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Organizations</h1>
+        <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Organizations</h1>
         <.link
           navigate={~p"/orgs/new"}
-          class="bg-base-800 border-base-600 hover:bg-base-700 text-base-300 flex items-center justify-center gap-2 rounded border px-3 py-1.5 text-sm font-medium transition-colors hover:text-neutral-50 active:border-indigo-500 active:bg-indigo-500 active:text-neutral-50"
+          class="active:text-base-50 bg-base-800 border-base-600 hover:bg-base-700 hover:text-base-50 text-base-300 flex items-center justify-center gap-2 rounded border px-3 py-1.5 text-sm font-medium transition-colors active:border-indigo-500 active:bg-indigo-500"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="size-4 stroke-current" viewBox="0 0 16 16" fill="none" stroke-width="1.5">
             <path d="M8 3.33334V12.6667M3.33334 8H12.6667" stroke-linecap="round" stroke-linejoin="round" />
@@ -77,7 +77,7 @@
                 <div class="bg-base-800 text-base-500 flex size-8 items-center justify-center rounded text-sm font-semibold uppercase">
                   {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
                 </div>
-                <h3 class="text-base font-medium text-neutral-50">{org.name}</h3>
+                <h3 class="text-base-50 text-base font-medium">{org.name}</h3>
               </.link>
             </div>
             <div class="flex items-center gap-6 text-sm">
@@ -121,7 +121,7 @@
               <div class="bg-base-800/30 border-base-700 rounded border p-4 text-center">
                 <p class="text-base-400 text-sm">
                   No products yet.
-                  <.link navigate={~p"/org/#{org}/new"} class="text-base-300 underline hover:text-neutral-50">
+                  <.link navigate={~p"/org/#{org}/new"} class="hover:text-base-50 text-base-300 underline">
                     Create your first product
                   </.link>
                 </p>
@@ -134,7 +134,7 @@
                 navigate={~p"/org/#{org}/#{product}/devices"}
                 class="border-base-700 from-base-800/50 hover:border-base-500 to-base-800 flex w-full justify-between gap-[16px] rounded border bg-linear-to-r p-4 transition-colors"
               >
-                <div class="text-sm font-semibold text-neutral-50">
+                <div class="text-base-50 text-sm font-semibold">
                   {product.name}
                 </div>
                 <div class="flex gap-4 text-sm font-medium">

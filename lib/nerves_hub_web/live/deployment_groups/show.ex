@@ -336,7 +336,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   # TODO: refactor to use tailwind attributes
   defp tab_classes(tab_selected, tab) do
     if tab_selected == tab do
-      "px-6 py-2 h-11 font-normal text-sm text-neutral-50 border-b border-indigo-500 bg-tab-selected relative -bottom-px"
+      "px-6 py-2 h-11 font-normal text-sm text-base-50 border-b border-indigo-500 bg-tab-selected relative -bottom-px"
     else
       "px-6 py-2 h-11 font-normal text-sm text-base-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
     end
