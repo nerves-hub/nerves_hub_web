@@ -132,7 +132,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             </div>
           </div>
           <div class="flex flex-wrap items-center justify-items-stretch gap-2 px-4 pt-2 pb-4">
-            <div class="bg-health-good border-success flex h-16 grow flex-col rounded border-b px-3 py-2">
+            <div class="border-success health-good flex h-16 grow flex-col rounded border-b px-3 py-2">
               <span class="text-base-400 text-xs tracking-wide">CPU</span>
               <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
                 <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}%</span>
@@ -146,7 +146,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </div>
               <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
             </div>
-            <div class="bg-health-warning border-warning flex h-16 grow flex-col rounded border-b px-3 py-2">
+            <div class="border-warning health-warning flex h-16 grow flex-col rounded border-b px-3 py-2">
               <span class="text-base-400 text-xs tracking-wide">Memory used</span>
               <div :if={@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
                 <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["mem_used_mb"])}MB</span>
@@ -156,7 +156,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 <span class="text-nerves-gray-500 text-xl leading-[30px]">Not reported</span>
               </div>
             </div>
-            <div class="bg-health-neutral flex h-16 grow flex-col rounded border-b border-indigo-500 px-3 py-2">
+            <div class="border-notice health-neutral flex h-16 grow flex-col rounded border-b px-3 py-2">
               <span class="text-base-400 text-xs tracking-wide">Load avg</span>
               <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex items-center justify-between">
                 <span :if={@latest_metrics["load_1min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_1min"]}</span>
