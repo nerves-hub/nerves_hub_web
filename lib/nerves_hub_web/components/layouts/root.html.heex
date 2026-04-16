@@ -47,7 +47,8 @@
         lightModeQuery.removeEventListener('change', window.handleThemeChangeEvent);
       }
 
-      if (localStorage.theme === null) {
+      if (localStorage.theme === null || localStorage.theme === "null") {
+        localStorage.theme = "dark"
         document.documentElement.setAttribute("data-theme", "dark");
       } else if (localStorage.theme === "system") {
         setupSystemTheme()
