@@ -3,7 +3,6 @@ import mapboxgl from "mapbox-gl"
 export default {
   mounted() {
     let accessToken = this.el.dataset.accessToken
-    let style = this.el.dataset.style
     let centerLng = this.el.dataset.centerLng
     let centerLat = this.el.dataset.centerLat
     let zoom = this.el.dataset.zoom
@@ -13,11 +12,20 @@ export default {
 
     mapboxgl.accessToken = accessToken
 
+    let theme = document.documentElement.getAttribute("data-theme")
+
+    let style
+    if (theme === "dark") {
+      style = "mapbox://styles/mapbox/dark-v11"
+    } else if (theme === "light") {
+      style = "mapbox://styles/mapbox/light-v11"
+    }
+
     this.map = new mapboxgl.Map({
       container: ctx,
       style: style,
       center: [centerLng, centerLat],
-      zoom: zoom
+      zoom: zoom,
     })
 
     this.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }))
@@ -29,9 +37,22 @@ export default {
         .setLngLat([centerLng, centerLat])
         .addTo(this.map)
     }
+
+    window.addEventListener("themeUpdated", () => {
+      let theme = document.documentElement.getAttribute("data-theme")
+
+      let style
+      if (theme === "dark") {
+        style = "mapbox://styles/mapbox/dark-v11"
+      } else if (theme === "light") {
+        style = "mapbox://styles/mapbox/light-v11"
+      }
+
+      this.map.setStyle(style)
+    })
   },
 
   destroyed() {
     this.map.remove()
-  }
+  },
 }

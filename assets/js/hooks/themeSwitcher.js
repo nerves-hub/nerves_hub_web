@@ -28,6 +28,7 @@ export default {
         setupSystemTheme()
       } else {
         document.documentElement.setAttribute("data-theme", theme)
+        window.dispatchEvent(new Event("themeUpdated"))
       }
     })
   },
