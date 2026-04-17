@@ -58,4 +58,13 @@ defmodule NervesHubWeb.API.FirmwareController do
       send_resp(conn, :no_content, "")
     end
   end
+
+  operation(:download, summary: "Download a Firmware")
+
+  def download(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
+    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
+         {:ok, url} <- Application.get_env(:nerves_hub, :firmware_upload).download_file(firmware) do
+      redirect(conn, external: url)
+    end
+  end
 end

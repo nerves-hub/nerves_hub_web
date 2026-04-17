@@ -168,6 +168,7 @@ defmodule NervesHubWeb.Router do
                 get("/:uuid", FirmwareController, :show)
                 post("/", FirmwareController, :create)
                 delete("/:uuid", FirmwareController, :delete)
+                get("/:uuid/download", FirmwareController, :download)
               end
 
               scope "/deployments" do
