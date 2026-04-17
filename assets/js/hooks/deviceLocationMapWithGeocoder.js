@@ -7,27 +7,36 @@ export default {
     this.marker = undefined
     mapboxgl.accessToken = this.el.dataset.accessToken
 
+    let theme = document.documentElement.getAttribute("data-theme")
+
+    let style
+    if (theme === "dark") {
+      style = "mapbox://styles/mapbox/dark-v11"
+    } else if (theme === "light") {
+      style = "mapbox://styles/mapbox/light-v11"
+    }
+
     this.map = new mapboxgl.Map({
       container: this.el,
-      style: this.el.dataset.style,
+      style: style,
       center: [-97.35967815000978, 39.45158853193135],
-      zoom: 1
+      zoom: 1,
     })
 
     geocoder = new MapboxGeocoder({
       accessToken: mapboxgl.accessToken,
       mapboxgl: mapboxgl,
       marker: false,
-      flyTo: false
+      flyTo: false,
     })
 
     geolocate = new mapboxgl.GeolocateControl({
       positionOptions: {
-        enableHighAccuracy: true
+        enableHighAccuracy: true,
       },
       trackUserLocation: false,
       showUserHeading: false,
-      showUserLocation: false
+      showUserLocation: false,
     })
 
     // Add the control to the map.
@@ -35,11 +44,24 @@ export default {
     this.map.addControl(geolocate)
     this.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }))
 
-    geolocate.on("geolocate", e => {
+    geolocate.on("geolocate", (e) => {
       this.updateMarkerAndMoveMap(e.coords.longitude, e.coords.latitude)
     })
-    geocoder.on("result", e => {
+    geocoder.on("result", (e) => {
       this.updateMarkerAndMoveMap(e.result["center"][0], e.result["center"][1])
+    })
+
+    window.addEventListener("themeUpdated", () => {
+      let theme = document.documentElement.getAttribute("data-theme")
+
+      let style
+      if (theme === "dark") {
+        style = "mapbox://styles/mapbox/dark-v11"
+      } else if (theme === "light") {
+        style = "mapbox://styles/mapbox/light-v11"
+      }
+
+      this.map.setStyle(style)
     })
   },
 
@@ -50,7 +72,7 @@ export default {
 
     this.marker = new mapboxgl.Marker({
       draggable: true,
-      color: "rgb(99 102 241)"
+      color: "rgb(99 102 241)",
     })
       .setLngLat([lng, lat])
       .addTo(this.map)
@@ -59,22 +81,22 @@ export default {
       const lngLat = this.marker.getLngLat()
       this.pushEvent("update-device-location", {
         lng: lngLat.lng,
-        lat: lngLat.lat
+        lat: lngLat.lat,
       })
     })
 
     this.map.flyTo({
       center: [lng, lat],
-      zoom: 13
+      zoom: 13,
     })
 
     this.pushEvent("update-device-location", {
       lng: lng,
-      lat: lat
+      lat: lat,
     })
   },
 
   destroyed() {
     this.map.remove()
-  }
+  },
 }

@@ -91,7 +91,6 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         phx-hook="DeviceLocationMapWithGeocoder"
         phx-update="ignore"
         data-access-token={@mapbox_access_token}
-        data-style="mapbox://styles/mapbox/dark-v11"
       >
       </div>
 
@@ -255,7 +254,6 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         phx-hook="DeviceLocationMap"
         phx-update="ignore"
         data-access-token={@mapbox_access_token}
-        data-style="mapbox://styles/mapbox/dark-v11"
         data-center-lng={@lng}
         data-center-lat={@lat}
         data-zoom={@zoom}
