@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.API.FirmwareControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
+  alias NervesHub.Accounts
   alias NervesHub.Firmwares.Upload
   alias NervesHub.Fixtures
   alias NervesHub.Support.Fwup
@@ -114,6 +115,39 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
         )
 
       assert redirected_to(conn) =~ "#{firmware.uuid}.fw"
+    end
+
+    test "user does not have required role to download chosen firmware", %{
+      conn2: conn2,
+      user2: user2,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      Accounts.add_org_user(org, user2, %{role: :view})
+
+      assert_error_sent(401, fn ->
+        get(
+          conn2,
+          Routes.api_firmware_path(conn2, :download, org.name, product.name, firmware.uuid)
+        )
+      end)
+      |> assert_authorization_error(401)
+    end
+
+    test "user does not belong to org of chosen firmware", %{
+      conn2: conn2,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      assert_error_sent(404, fn ->
+        get(
+          conn2,
+          Routes.api_firmware_path(conn2, :download, org.name, product.name, firmware.uuid)
+        )
+      end)
+      |> assert_authorization_error(404)
     end
   end
 
