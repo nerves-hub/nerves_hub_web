@@ -7,7 +7,7 @@ defmodule NervesHubWeb.API.FirmwareController do
 
   require Logger
 
-  plug(:validate_role, [org: :manage] when action in [:create, :delete])
+  plug(:validate_role, [org: :manage] when action in [:create, :delete, :download])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
   tags(["Firmwares"])
