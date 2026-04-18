@@ -152,11 +152,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
         <div class="relative top-0 z-20 w-full items-center justify-center overflow-visible rounded">
           <div
             :if={@deployment_group.is_active}
-            class="border-success-500 absolute -top-px z-40 rounded-tl border-t"
+            class="border-success absolute -top-px z-40 rounded-tl border-t"
             role="progressbar"
             style={"width: #{deployment_group_percentage(@up_to_date_count, @deployment_group)}%"}
           >
-            <div class="bg-progress-glow h-16 w-full animate-pulse" />
+            <div class="progress-glow h-16 w-full animate-pulse" />
           </div>
 
           <div class="bg-surface-muted/20 my-1 flex flex-col items-center justify-center gap-1 p-2 text-sm font-medium">
