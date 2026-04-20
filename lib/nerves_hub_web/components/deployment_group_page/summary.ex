@@ -212,6 +212,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <div class="flex items-center gap-4">
                 <span class="text-nerves-gray-500 text-sm">Firmware deltas provide smaller update payloads by only sending the differences between firmware versions.</span>
               </div>
+              <div :if={@deployment_group.delta_minimum_version} class="flex items-center gap-4">
+                <span class="text-nerves-gray-500 w-32 text-sm">Minimum Version:</span>
+                <span class="text-base-300 text-sm">{@deployment_group.delta_minimum_version}</span>
+                <span class="text-nerves-gray-500 text-xs">(devices below this version receive full updates)</span>
+              </div>
             </div>
             <div :if={Enum.any?(@deltas)} class="bg-base-900 border-base-700 rounded-b border-t">
               <div class="flex flex-col">

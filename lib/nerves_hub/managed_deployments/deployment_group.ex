@@ -65,6 +65,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:queue_management, Ecto.Enum, values: [:FIFO, :LIFO], default: :FIFO)
 
     field(:delta_updatable, :boolean, default: true)
+    field(:delta_minimum_version, :string)
 
     field(:status, Ecto.Enum, values: [:ready, :preparing, :deltas_failed, :unknown_error], default: :ready)
 
@@ -106,7 +107,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   @spec create_changeset(map(), Product.t(), Firmware.t(), User.t()) :: Ecto.Changeset.t()
   def create_changeset(params, product, firmware, user) do
     %DeploymentGroup{}
-    |> cast(params, [:name, :delta_updatable, :platform, :architecture])
+    |> cast(params, [:name, :delta_updatable, :delta_minimum_version, :platform, :architecture])
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
     |> put_change(:product_id, product.id)
     |> put_change(:org_id, product.org_id)
@@ -117,6 +118,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> validate_firmware(product)
     |> validate_platform()
     |> validate_architecture()
+    |> normalize_delta_minimum_version()
+    |> validate_delta_minimum_version()
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> then(fn changeset ->
       first_release = first_release_changeset(product, get_field(changeset, :firmware), user)
@@ -210,6 +213,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       :name,
       :is_active,
       :delta_updatable,
+      :delta_minimum_version,
       :connecting_code,
       :queue_management,
       :priority_queue_enabled,
@@ -221,6 +225,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
     |> validate_required([:name, :delta_updatable, :is_active, :queue_management])
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
+    |> normalize_delta_minimum_version()
+    |> validate_delta_minimum_version()
     |> prepare_current_updated_devices()
     |> prepare_device_count()
     |> prepare_status()
@@ -310,6 +316,34 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
           add_error(
             changeset,
             :priority_queue_firmware_version_threshold,
+            "must be a valid semantic version"
+          )
+      end
+    else
+      changeset
+    end
+  end
+
+  defp normalize_delta_minimum_version(changeset) do
+    if get_change(changeset, :delta_minimum_version) == "" do
+      put_change(changeset, :delta_minimum_version, nil)
+    else
+      changeset
+    end
+  end
+
+  defp validate_delta_minimum_version(changeset) do
+    min_version = get_field(changeset, :delta_minimum_version)
+
+    if min_version do
+      case Version.parse(min_version) do
+        {:ok, _} ->
+          changeset
+
+        :error ->
+          add_error(
+            changeset,
+            :delta_minimum_version,
             "must be a valid semantic version"
           )
       end

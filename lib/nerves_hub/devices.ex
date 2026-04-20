@@ -983,6 +983,20 @@ defmodule NervesHub.Devices do
     Repo.exists?(query)
   end
 
+  defp meets_delta_minimum_version?(%Device{} = device, %DeploymentGroup{delta_minimum_version: min_version})
+       when not is_nil(min_version) do
+    case {Version.parse(device.firmware_metadata.version), Version.parse(min_version)} do
+      {{:ok, device_vsn}, {:ok, min_vsn}} ->
+        Version.compare(device_vsn, min_vsn) != :lt
+
+      _ ->
+        # If either version is invalid, fall back to full firmware
+        false
+    end
+  end
+
+  defp meets_delta_minimum_version?(_device, _deployment_group), do: true
+
   @doc """
   Returns true if Version.match? and all deployment tags are in device tags.
   """
@@ -1956,21 +1970,21 @@ defmodule NervesHub.Devices do
   """
   @spec get_delta_or_firmware(Device.t(), DeploymentGroup.t()) ::
           {:ok, Firmware.t()} | {:ok, FirmwareDelta.t()}
-  def get_delta_or_firmware(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
-        delta_updatable: true,
-        current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
-      }) do
-    case Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, source_uuid) do
-      {:ok, source_firmware} ->
-        case get_delta_if_ready(device, source_firmware, target_firmware) do
-          {:ok, delta} ->
-            {:ok, delta}
-
-          _ ->
-            {:ok, target_firmware}
-        end
-
-      {:error, :not_found} ->
+  def get_delta_or_firmware(
+        %Device{} = device,
+        %DeploymentGroup{
+          delta_updatable: true,
+          current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
+        } = deployment_group
+      ) do
+    with {:ok, source_firmware} <-
+           Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, device.firmware_metadata.uuid),
+         true <- meets_delta_minimum_version?(device, deployment_group),
+         {:ok, delta} <- get_delta_if_ready(device, source_firmware, target_firmware) do
+      {:ok, delta}
+    else
+      # Device firmware version is below minimum or delta not ready, use full firmware
+      _ ->
         {:ok, target_firmware}
     end
   end

@@ -668,6 +668,136 @@ defmodule NervesHub.DevicesTest do
 
       assert String.starts_with?(firmware_url, "https://files.customer.com/download?firmware=")
     end
+
+    test "broadcasts delta url when device firmware version meets delta_minimum_version", %{
+      org: org,
+      user: user,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      new_org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      old_firmware =
+        Fixtures.firmware_fixture(new_org_key, product, %{
+          fwup_version: "1.13.0",
+          version: "1.5.0",
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      new_firmware =
+        Fixtures.firmware_fixture(new_org_key, product, %{
+          fwup_version: "1.13.0",
+          version: "2.0.0",
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(new_firmware, %{
+          name: "Delta deployment with minimum version",
+          is_active: true,
+          delta_updatable: true,
+          delta_minimum_version: "1.0.0",
+          user: user
+        })
+
+      device =
+        Fixtures.device_fixture(org, product, old_firmware, %{
+          status: :provisioned,
+          deployment_id: deployment_group.id,
+          fwup_version: "1.13.0"
+        })
+
+      delta = Fixtures.firmware_delta_fixture(old_firmware, new_firmware)
+      {:ok, delta_url} = Firmwares.get_firmware_url(delta)
+
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      topic = "device:#{device.id}"
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
+
+      assert_receive %Broadcast{
+                       topic: ^topic,
+                       event: "update",
+                       payload: %{
+                         firmware_url: firmware_url
+                       }
+                     },
+                     500
+
+      assert delta_url == firmware_url
+    end
+
+    test "broadcasts full firmware url when device firmware version is below delta_minimum_version",
+         %{
+           org: org,
+           user: user,
+           product: product,
+           tmp_dir: tmp_dir
+         } do
+      new_org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      old_firmware =
+        Fixtures.firmware_fixture(new_org_key, product, %{
+          fwup_version: "1.13.0",
+          version: "0.9.0",
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      new_firmware =
+        Fixtures.firmware_fixture(new_org_key, product, %{
+          fwup_version: "1.13.0",
+          version: "2.0.0",
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(new_firmware, %{
+          name: "Delta deployment with minimum version",
+          is_active: true,
+          delta_updatable: true,
+          delta_minimum_version: "1.0.0",
+          user: user
+        })
+
+      device =
+        Fixtures.device_fixture(org, product, old_firmware, %{
+          status: :provisioned,
+          deployment_id: deployment_group.id,
+          fwup_version: "1.13.0"
+        })
+
+      # Create delta but it should not be used
+      _delta = Fixtures.firmware_delta_fixture(old_firmware, new_firmware)
+
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      topic = "device:#{device.id}"
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
+
+      assert_receive %Broadcast{
+                       topic: ^topic,
+                       event: "update",
+                       payload: %{
+                         firmware_url: firmware_url
+                       }
+                     },
+                     500
+
+      # Should get full firmware, not delta
+      refute String.ends_with?(firmware_url, ".delta.fw")
+    end
   end
 
   describe "inflight updates" do
@@ -1783,6 +1913,113 @@ defmodule NervesHub.DevicesTest do
       # confirm that the firmware url is the delta firmware url
       assert delta_url == update_payload.firmware_url
     end
+
+    test "returns delta when device firmware version meets delta_minimum_version and deployment group is delta updatable",
+         %{
+           org: org,
+           user: user,
+           product: product,
+           tmp_dir: tmp_dir
+         } do
+      new_org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      old_firmware =
+        Fixtures.firmware_fixture(new_org_key, product, %{
+          fwup_version: "1.13.0",
+          version: "1.5.0",
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      new_firmware =
+        Fixtures.firmware_fixture(new_org_key, product, %{
+          fwup_version: "1.13.0",
+          version: "2.0.0",
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(new_firmware, %{
+          name: "Delta deployment with minimum version",
+          is_active: true,
+          delta_updatable: true,
+          delta_minimum_version: "1.0.0",
+          user: user
+        })
+
+      device =
+        Fixtures.device_fixture(org, product, old_firmware, %{
+          status: :provisioned,
+          deployment_id: deployment_group.id,
+          fwup_version: "1.13.0"
+        })
+        |> Repo.preload(:deployment_group)
+
+      delta = Fixtures.firmware_delta_fixture(old_firmware, new_firmware)
+      {:ok, delta_url} = Firmwares.get_firmware_url(delta)
+
+      update_payload = Devices.resolve_update(device)
+
+      assert delta_url == update_payload.firmware_url
+    end
+
+    test "returns full firmware when device firmware version is below delta_minimum_version and deployment group is delta updatable",
+         %{
+           org: org,
+           user: user,
+           product: product,
+           tmp_dir: tmp_dir
+         } do
+      new_org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      old_firmware =
+        Fixtures.firmware_fixture(new_org_key, product, %{
+          fwup_version: "1.13.0",
+          version: "0.9.0",
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      new_firmware =
+        Fixtures.firmware_fixture(new_org_key, product, %{
+          fwup_version: "1.13.0",
+          version: "2.0.0",
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(new_firmware, %{
+          name: "Delta deployment with minimum version",
+          is_active: true,
+          delta_updatable: true,
+          delta_minimum_version: "1.0.0",
+          user: user
+        })
+
+      device =
+        Fixtures.device_fixture(org, product, old_firmware, %{
+          status: :provisioned,
+          deployment_id: deployment_group.id,
+          fwup_version: "1.13.0"
+        })
+        |> Repo.preload(:deployment_group)
+
+      # Create delta but it should not be used
+      _delta = Fixtures.firmware_delta_fixture(old_firmware, new_firmware)
+      {:ok, firmware_url} = Firmwares.get_firmware_url(new_firmware)
+
+      update_payload = Devices.resolve_update(device)
+
+      # Should get full firmware, not delta
+      assert firmware_url == update_payload.firmware_url
+      refute String.ends_with?(update_payload.firmware_url, ".delta.fw")
+    end
   end
 
   describe "get_device_firmware_for_delta_generation_by_deployment_group/1" do
@@ -2032,6 +2269,177 @@ defmodule NervesHub.DevicesTest do
       {:ok, url} = Firmwares.get_firmware_url(firmware)
 
       assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
+    end
+
+    test "returns full firmware when device version is below delta minimum version", %{
+      device: device,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+      _ = Fixtures.firmware_delta_fixture(deployment_group.current_release.firmware, target_firmware)
+
+      # Device is on version 0.5.0, but minimum is 1.0.0
+      device = %{
+        device
+        | firmware_metadata: %{
+            device.firmware_metadata
+            | fwup_version: "1.13.0",
+              version: "0.5.0"
+          }
+      }
+
+      deployment_group = %{
+        deployment_group
+        | delta_updatable: true,
+          delta_minimum_version: "1.0.0",
+          current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
+      }
+
+      {:ok, firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      {:ok, url} = Firmwares.get_firmware_url(firmware)
+
+      # Should get full firmware, not delta
+      assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
+      refute String.ends_with?(url, ".delta.fw")
+    end
+
+    test "returns delta when device version meets delta minimum version", %{
+      device: device,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+      _ = Fixtures.firmware_delta_fixture(deployment_group.current_release.firmware, target_firmware)
+
+      # Device is on version 1.5.0, minimum is 1.0.0 - should get delta
+      device = %{
+        device
+        | firmware_metadata: %{
+            device.firmware_metadata
+            | fwup_version: "1.13.0",
+              version: "1.5.0"
+          }
+      }
+
+      deployment_group = %{
+        deployment_group
+        | delta_updatable: true,
+          delta_minimum_version: "1.0.0",
+          current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
+      }
+
+      {:ok, firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      {:ok, url} = Firmwares.get_firmware_url(firmware)
+
+      # Should get delta firmware
+      assert String.ends_with?(url, ".delta.fw")
+    end
+
+    test "returns delta when device version equals delta minimum version", %{
+      device: device,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+      _ = Fixtures.firmware_delta_fixture(deployment_group.current_release.firmware, target_firmware)
+
+      # Device is on version 1.0.0, minimum is 1.0.0 - should get delta
+      device = %{
+        device
+        | firmware_metadata: %{
+            device.firmware_metadata
+            | fwup_version: "1.13.0",
+              version: "1.0.0"
+          }
+      }
+
+      deployment_group = %{
+        deployment_group
+        | delta_updatable: true,
+          delta_minimum_version: "1.0.0",
+          current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
+      }
+
+      {:ok, firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      {:ok, url} = Firmwares.get_firmware_url(firmware)
+
+      # Should get delta firmware
+      assert String.ends_with?(url, ".delta.fw")
+    end
+
+    test "returns delta when delta_minimum_version is nil", %{
+      device: device,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+      _ = Fixtures.firmware_delta_fixture(deployment_group.current_release.firmware, target_firmware)
+
+      device = %{
+        device
+        | firmware_metadata: %{
+            device.firmware_metadata
+            | fwup_version: "1.13.0",
+              version: "0.1.0"
+          }
+      }
+
+      deployment_group = %{
+        deployment_group
+        | delta_updatable: true,
+          delta_minimum_version: nil,
+          current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
+      }
+
+      {:ok, firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      {:ok, url} = Firmwares.get_firmware_url(firmware)
+
+      # Should get delta firmware even for very old version when minimum is nil
+      assert String.ends_with?(url, ".delta.fw")
+    end
+
+    test "returns full firmware when device version is invalid and minimum version is set", %{
+      device: device,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+      _ = Fixtures.firmware_delta_fixture(deployment_group.current_release.firmware, target_firmware)
+
+      # Device has invalid version format
+      device = %{
+        device
+        | firmware_metadata: %{
+            device.firmware_metadata
+            | fwup_version: "1.13.0",
+              version: "invalid-version"
+          }
+      }
+
+      deployment_group = %{
+        deployment_group
+        | delta_updatable: true,
+          delta_minimum_version: "1.0.0",
+          current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
+      }
+
+      {:ok, firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      {:ok, url} = Firmwares.get_firmware_url(firmware)
+
+      # Should get full firmware when version is invalid
+      assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
+      refute String.ends_with?(url, ".delta.fw")
     end
   end
 

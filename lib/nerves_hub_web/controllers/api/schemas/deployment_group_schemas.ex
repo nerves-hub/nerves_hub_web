@@ -77,6 +77,7 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
         current_release: CurrentRelease,
         conditions: Conditions,
         delta_updatable: %Schema{type: :boolean},
+        delta_minimum_version: %Schema{type: :string, nullable: true},
         device_count: %Schema{type: :integer},
         releases_count: %Schema{type: :integer}
       },
@@ -101,6 +102,7 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
           "tags" => ["beta"]
         },
         "delta_updatable" => false,
+        "delta_minimum_version" => "1.0.0",
         "device_count" => 42,
         "releases_count" => 3
       }

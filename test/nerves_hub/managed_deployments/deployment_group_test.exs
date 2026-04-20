@@ -276,4 +276,108 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
       assert changeset.changes.priority_queue_firmware_version_threshold == "2.0.0"
     end
   end
+
+  describe "delta_minimum_version validations" do
+    setup do
+      Fixtures.standard_fixture()
+    end
+
+    test "delta_minimum_version must be valid semantic version", %{
+      deployment_group: deployment_group
+    } do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          delta_minimum_version: "not-a-version"
+        })
+
+      refute changeset.valid?
+
+      assert errors_on(changeset).delta_minimum_version == [
+               "must be a valid semantic version"
+             ]
+    end
+
+    test "delta_minimum_version accepts valid semantic versions", %{
+      deployment_group: deployment_group
+    } do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          delta_minimum_version: "1.0.0"
+        })
+
+      assert changeset.valid?
+      assert changeset.changes.delta_minimum_version == "1.0.0"
+    end
+
+    test "delta_minimum_version accepts nil", %{
+      deployment_group: deployment_group
+    } do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          delta_minimum_version: nil
+        })
+
+      assert changeset.valid?
+    end
+
+    test "delta_minimum_version accepts empty string and normalizes to nil", %{
+      deployment_group: deployment_group
+    } do
+      # First set a value so we can verify normalization
+      deployment_group = %{deployment_group | delta_minimum_version: "1.0.0"}
+
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{
+          delta_minimum_version: ""
+        })
+
+      assert changeset.valid?
+      assert changeset.changes.delta_minimum_version == nil
+    end
+
+    test "delta_minimum_version can be set in create_changeset", %{
+      product: product,
+      user: user,
+      firmware: firmware
+    } do
+      changeset =
+        DeploymentGroup.create_changeset(
+          %{
+            name: "Test Deployment",
+            delta_minimum_version: "1.5.0",
+            conditions: %{"tags" => [], "version" => ""}
+          },
+          product,
+          firmware,
+          user
+        )
+
+      assert changeset.valid?
+      assert changeset.changes.delta_minimum_version == "1.5.0"
+    end
+
+    test "delta_minimum_version validates in create_changeset", %{
+      product: product,
+      user: user,
+      firmware: firmware
+    } do
+      changeset =
+        DeploymentGroup.create_changeset(
+          %{
+            name: "Test Deployment",
+            delta_minimum_version: "invalid",
+            conditions: %{"tags" => [], "version" => ""}
+          },
+          product,
+          firmware,
+          user
+        )
+
+      refute changeset.valid?
+
+      assert errors_on(changeset).delta_minimum_version == [
+               "must be a valid semantic version"
+             ]
+    end
+  end
 end

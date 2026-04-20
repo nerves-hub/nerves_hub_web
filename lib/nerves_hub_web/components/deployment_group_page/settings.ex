@@ -37,6 +37,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                   for more information on delta updates.
                 </:rich_hint>
               </.input>
+              <.input
+                field={@form[:delta_minimum_version]}
+                label="Delta Minimum Version"
+                placeholder="eg. 1.0.0"
+                hint="Devices with firmware versions below this will receive full firmware updates instead of deltas. Leave empty to allow deltas for all versions."
+              />
             </div>
           </div>
         </div>

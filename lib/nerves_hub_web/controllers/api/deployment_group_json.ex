@@ -19,6 +19,7 @@ defmodule NervesHubWeb.API.DeploymentGroupJSON do
       archive_uuid: get_in(deployment_group.current_release.archive.uuid),
       conditions: conditions(deployment_group.conditions),
       delta_updatable: deployment_group.delta_updatable,
+      delta_minimum_version: deployment_group.delta_minimum_version,
       device_count: deployment_group.device_count,
       releases_count: deployment_group.releases_count
     }
