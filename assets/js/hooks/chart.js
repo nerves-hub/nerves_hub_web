@@ -1,42 +1,37 @@
 import Chart from "chart.js/auto"
+import zoomPlugin from "chartjs-plugin-zoom"
+import { format } from "date-fns"
 
 export default {
-  dataset() {
-    return JSON.parse(this.el.dataset.metrics)
-  },
-  unit() {
-    return JSON.parse(this.el.dataset.unit)
-  },
   mounted() {
+    let key = this.el.dataset.key
     let metrics = JSON.parse(this.el.dataset.metrics)
-    let type = JSON.parse(this.el.dataset.type)
-    let max = JSON.parse(this.el.dataset.max)
-    let min = JSON.parse(this.el.dataset.min)
+
+    let max = null
+    // let min = JSON.parse(this.el.dataset.min)
+
     let maxTime = JSON.parse(this.el.dataset.maxtime)
     let minTime = JSON.parse(this.el.dataset.mintime)
-    let title = JSON.parse(this.el.dataset.title)
 
-    const ctx = this.el
-    var data = []
-    for (let i = 0; i < metrics.length; i++) {
-      data.push(metrics[i])
+    let title = this.el.dataset.title
+    let unit = this.el.dataset.unit
+
+    if (this.el.dataset.max != "") {
+      max = this.el.dataset.max
     }
 
     const areaChartDataset = {
-      type: "line",
+      type: "scatter",
       data: {
         datasets: [
           {
-            backgroundColor: "rgba(99, 102, 241)",
-            fill: {
-              target: "start",
-              above: "rgba(99, 102, 241, 0.29)",
-              below: "rgba(99, 102, 241, 0.29)"
-            },
             radius: 2,
-            data: this.dataset()
-          }
-        ]
+            data: metrics,
+            pointBackgroundColor: "rgb(97, 95, 255)",
+            pointBorderColor: "rgb(97, 95, 255)",
+            parsing: false,
+          },
+        ],
       },
       options: {
         plugins: {
@@ -46,67 +41,158 @@ export default {
             text: title,
             font: {
               size: 16,
-              weight: "normal"
+              weight: "normal",
             },
-            color: "rgba(212, 212, 216)",
+            color: null,
             padding: {
-              bottom: 14
-            }
+              bottom: 14,
+            },
           },
           legend: {
-            display: false
-          }
+            display: false,
+          },
+          tooltip: {
+            displayColors: false,
+            callbacks: {
+              title: function (context) {
+                return format(
+                  new Date(context[0].parsed.x),
+                  "dd-MM-yyyy : HH:mm:ssaaa",
+                )
+              },
+              label: function (context) {
+                return `${context.parsed.y}`
+              },
+            },
+          },
+          zoom: {
+            zoom: {
+              drag: {
+                enabled: true,
+              },
+              mode: "x",
+              onZoomComplete: function (chartRef) {
+                const { min, max } = chartRef.chart.scales.x
+
+                const event = new CustomEvent("chartZoomed", {
+                  detail: { min: min, max: max },
+                })
+
+                window.dispatchEvent(event)
+
+                chart.options.scales.x.time.unit = false
+
+                chart.update()
+              },
+            },
+          },
         },
         scales: {
           x: {
             grid: {
-              color: "rgba(63, 63, 70)"
+              color: null,
             },
             type: "time",
             time: {
-              unit: this.unit(),
+              unit: unit,
               displayFormats: {
-                millisecond: "HH:mm:ss.SSS",
-                second: "HH:mm:ss",
-                minute: "HH:mm",
-                hour: "HH:mm"
-              }
+                millisecond: "HH:mm:ss.SSSaaa",
+                second: "HH:mm:ssaaa",
+                minute: "HH:mmaaa",
+                hour: "HH:mmaaa",
+              },
             },
             ticks: {
+              source: "auto",
               display: true,
-              autoSkip: false
+              autoSkip: false,
             },
             min: minTime,
-            max: maxTime
+            max: maxTime,
           },
           y: {
-            offset: true,
             grid: {
-              color: "rgba(63 63 70)"
+              color: null,
             },
             type: "linear",
-            min: min,
-            max: max
-          }
+            suggestedMin: 0,
+            suggestedMax: max,
+          },
         },
         responsive: true,
-        maintainAspectRatio: false
-      }
+        maintainAspectRatio: false,
+      },
     }
 
-    const chart = new Chart(ctx, areaChartDataset)
+    setThemeColors(areaChartDataset)
+
+    Chart.register(zoomPlugin)
+
+    const chart = new Chart(this.el, areaChartDataset)
     this.el.chart = chart
 
-    this.handleEvent("update-charts", function(payload) {
-      if (payload.type == type) {
+    this.handleEvent("update-charts", function (payload) {
+      if (payload.key == key) {
+        chart.options.scales.x.time.unit = payload.unit
+        chart.options.scales.x.min = payload.from
+        chart.options.scales.x.max = payload.until
+        chart.options.scales.x.suggestedMin = payload.from
+        chart.options.scales.x.suggestedMax = payload.until
+
         chart.data.datasets[0].data = payload.data
+
         chart.update()
       }
     })
 
-    this.handleEvent("update-time-unit", function(payload) {
-      chart.options.scales.x.time.unit = payload.unit
+    this.handleEvent("update-time-frame", function (payload) {
+      chart.options.scales.x.min = payload.from
+      chart.options.scales.x.max = payload.until
+      chart.options.scales.x.suggestedMin = payload.from
+      chart.options.scales.x.suggestedMax = payload.until
+
       chart.update()
     })
-  }
+
+    this.handleEvent("add-data-point", function (payload) {
+      if (payload.key == key) {
+        let data = chart.data.datasets[0].data
+        data.push(payload.data)
+
+        chart.options.scales.x.min = payload.from
+        chart.options.scales.x.max = payload.until
+        chart.options.scales.x.suggestedMin = payload.from
+        chart.options.scales.x.suggestedMax = payload.until
+
+        chart.data.datasets[0].data = data
+
+        chart.update()
+      }
+    })
+
+    window.addEventListener("themeUpdated", function (payload) {
+      setThemeColors(chart)
+      chart.update()
+    })
+
+    window.addEventListener("chartZoomed", function (payload) {
+      chart.options.scales.x.min = payload.detail.min
+      chart.options.scales.x.max = payload.detail.max
+      chart.update()
+    })
+
+    function setThemeColors(chart) {
+      let theme = document.documentElement.getAttribute("data-theme")
+
+      if (theme == "dark") {
+        chart.options.plugins.title.color = "rgba(212, 212, 216)"
+        chart.options.scales.x.grid.color = "rgba(63, 63, 70)"
+        chart.options.scales.y.grid.color = "rgba(63, 63, 70)"
+      } else if (theme == "light") {
+        chart.options.plugins.title.color = "rgba(9, 9, 11)"
+        chart.options.scales.x.grid.color = "rgba(218, 218, 218)"
+        chart.options.scales.y.grid.color = "rgba(218, 218, 218)"
+      }
+    }
+  },
 }

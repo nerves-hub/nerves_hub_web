@@ -20,6 +20,7 @@
   ],
   "ignorePaths": [
     "**/*.csv",
+    "assets/js/hooks/chart.js",
     "docker/*",
     "Dockerfile",
     "config",
