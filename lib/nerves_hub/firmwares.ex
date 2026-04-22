@@ -19,6 +19,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteFirmware
   alias NervesHub.Workers.FirmwareDeltaBuilder
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -699,16 +700,12 @@ defmodule NervesHub.Firmwares do
   end
 
   defp notify_firmware_delta_target({:ok, %FirmwareDelta{} = firmware_delta}) do
-    _ =
-      NervesHubWeb.Endpoint.broadcast(
-        "firmware:#{firmware_delta.target_id}",
-        "delta/status_update",
-        %{
-          delta_id: firmware_delta.id,
-          source_firmware_id: firmware_delta.source_id,
-          status: firmware_delta.status
-        }
-      )
+    :ok =
+      ChannelServer.broadcast(NervesHub.PubSub, "firmware:#{firmware_delta.target_id}", "delta/status_update", %{
+        delta_id: firmware_delta.id,
+        source_firmware_id: firmware_delta.source_id,
+        status: firmware_delta.status
+      })
 
     {:ok, firmware_delta}
   end
