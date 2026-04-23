@@ -262,7 +262,7 @@ if config_env() == :prod do
     pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
     pool_count: String.to_integer(System.get_env("DATABASE_POOL_COUNT", "1")),
     socket_options: database_socket_options,
-    queue_target: 5000
+    queue_target: 5_000
 
   config :nerves_hub,
     database_auto_migrator: System.get_env("DATABASE_AUTO_MIGRATOR", "true") == "true"
@@ -274,7 +274,11 @@ if config_env() == :prod do
     # (using a default order will cause issues for the migration table)
     config :ecto_ch, default_table_engine: "MergeTree"
 
-    config :nerves_hub, NervesHub.AnalyticsRepo, url: clickhouse_url
+    config :nerves_hub, NervesHub.AnalyticsRepo,
+      url: clickhouse_url,
+      pool_size: String.to_integer(System.get_env("ANALYTICS_POOL_SIZE", "10")),
+      pool_count: String.to_integer(System.get_env("ANALYTICS_POOL_COUNT", "1")),
+      queue_target: 3_000
 
     config :nerves_hub,
       analytics_auto_migrator: System.get_env("ANALYTICS_AUTO_MIGRATOR", "true") == "true"
