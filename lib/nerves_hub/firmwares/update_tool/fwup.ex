@@ -183,7 +183,11 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
             source_work_dir,
             target_work_dir,
             output_work_dir,
-            all_delta_files
+            all_delta_files,
+            # Note: We intentionally use the target firmware's block cache size in case you need to update
+            # this value on the fly, perhaps due to running out of memory during delta application on the device.
+            # This allows you to rebuild the target firmware with a new block cache size if you need to.
+            Map.get(tool_metadata, :block_cache_size_mb)
           )
         end
         |> Enum.reject(&is_nil/1)
@@ -237,7 +241,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     :ok
   end
 
-  defp maybe_generate_delta("meta." <> _, _, _, _, _) do
+  defp maybe_generate_delta("meta." <> _, _, _, _, _, _) do
     nil
   end
 
@@ -246,7 +250,8 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          source_work_dir,
          target_work_dir,
          output_work_dir,
-         all_delta_files
+         all_delta_files,
+         block_cache_size_mb
        ) do
     output_path = Path.join(output_work_dir, path)
     target_filepath = Path.join(target_work_dir, path)
@@ -256,7 +261,12 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
 
       case File.stat(source_filepath) do
         {:ok, %{size: f_source_size}} ->
-          args = ["-A", "-S", "-f", "-s", source_filepath, target_filepath, output_path]
+          b_args =
+            if block_cache_size_mb,
+              do: ["-B", Integer.to_string(block_cache_size_mb * 1024 * 1024)],
+              else: []
+
+          args = b_args ++ ["-A", "-S", "-f", "-s", source_filepath, target_filepath, output_path]
           %{size: f_target_size} = File.stat!(target_filepath)
 
           if f_target_size < @delta_overhead_limit do
