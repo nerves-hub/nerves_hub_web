@@ -94,6 +94,20 @@ defmodule NervesHub.DevicesTest do
       assert Repo.aggregate(Device, :count) == 5
     end
 
+    test "all valid entries, with format :microchip_trust_and_go, and tags", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {5, 0} == Devices.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go", "snoot-boop")
+
+      assert Repo.aggregate(Device, :count) == 5
+
+      assert Repo.all(Device) |> Enum.all?(fn d -> d.tags == ["snoot-boop"] end)
+    end
+
     test "two invalid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
       Repo.delete_all(Device)
 
@@ -123,6 +137,25 @@ defmodule NervesHub.DevicesTest do
 
       assert Repo.aggregate(Device, :count) == 5
       assert Repo.aggregate(Notification, :count) == 1
+    end
+
+    test "all valid entries, with format :microchip_trust_and_go, with tags", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {:ok, task_pid} =
+               Devices.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go", "snoot-boop")
+
+      ref = Process.monitor(task_pid)
+      assert_receive {:DOWN, ^ref, _, _, :normal}
+
+      assert Repo.aggregate(Device, :count) == 5
+      assert Repo.aggregate(Notification, :count) == 1
+
+      assert Repo.all(Device) |> Enum.all?(fn d -> d.tags == ["snoot-boop"] end)
     end
 
     test "two invalid entries, with format :microchip_trust_and_go", %{org: org, product: product} do

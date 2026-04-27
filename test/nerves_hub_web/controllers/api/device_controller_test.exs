@@ -55,6 +55,24 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert Repo.aggregate(Notification, :count) == 1
     end
 
+    test "all devices are successfully imported, with tags set", %{conn: conn, org: org, product: product} do
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      conn =
+        conn
+        |> put_req_header("content-type", "application/json")
+        |> put_req_header("format", "microchip_trust_and_go")
+        |> put_req_header("tags", "snoot-boop")
+        |> post(Routes.api_device_path(conn, :bulk_import, org.name, product.name), json_import_data)
+
+      assert response(conn, 201)
+
+      eventually assert Repo.aggregate(Device, :count) == 5
+      assert Repo.aggregate(Notification, :count) == 1
+
+      assert Repo.all(Device) |> Enum.all?(fn d -> d.tags == ["snoot-boop"] end)
+    end
+
     test "not all devices are successfully imported", %{conn: conn, org: org, product: product} do
       json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
 

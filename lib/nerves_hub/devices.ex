@@ -387,13 +387,15 @@ defmodule NervesHub.Devices do
     |> Repo.maybe_preload(:product)
   end
 
-  def async_bulk_create(org_id, product_id, import_list, format) when not is_binary(import_list) do
-    async_bulk_create(org_id, product_id, JSON.encode!(import_list), format)
+  def async_bulk_create(org_id, product_id, import_list, format, tags \\ [])
+
+  def async_bulk_create(org_id, product_id, import_list, format, tags) when not is_binary(import_list) do
+    async_bulk_create(org_id, product_id, JSON.encode!(import_list), format, tags)
   end
 
-  def async_bulk_create(org_id, product_id, import_list, format) do
+  def async_bulk_create(org_id, product_id, import_list, format, tags) do
     Task.Supervisor.start_child(NervesHub.TaskSupervisor, fn ->
-      {successful_count, unsuccessful_count} = bulk_create(org_id, product_id, import_list, format)
+      {successful_count, unsuccessful_count} = bulk_create(org_id, product_id, import_list, format, tags)
 
       _ =
         ProductNotifications.create_device_async_bulk_create_notification!(
@@ -411,7 +413,7 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def bulk_create(org_id, product_id, import_list, format) do
+  def bulk_create(org_id, product_id, import_list, format, tags \\ []) do
     product =
       Product
       |> where(org_id: ^org_id, id: ^product_id)
@@ -424,7 +426,8 @@ defmodule NervesHub.Devices do
         Device.changeset(%Device{}, %{
           org_id: product.org_id,
           product_id: product.id,
-          identifier: details.device_identifier
+          identifier: details.device_identifier,
+          tags: tags
         })
 
       Repo.transact(fn ->

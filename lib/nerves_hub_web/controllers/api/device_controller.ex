@@ -72,9 +72,10 @@ defmodule NervesHubWeb.API.DeviceController do
 
   def bulk_import(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, import_list) do
     format = get_req_header(conn, "format") |> List.first()
+    tags = get_req_header(conn, "tags") |> List.first()
 
     with {:ok, _task_pid} <-
-           Devices.async_bulk_create(org.id, product.id, import_list["_json"], format || "microchip_trust_and_go") do
+           Devices.async_bulk_create(org.id, product.id, import_list["_json"], format || "microchip_trust_and_go", tags) do
       send_resp(conn, 201, "")
     end
   end
