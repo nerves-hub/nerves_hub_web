@@ -17,11 +17,12 @@ defmodule NervesHub.DeviceLink do
   @spec join(Device.t(), connection_reference :: String.t(), params :: map()) ::
           {:ok, Device.t()} | {:error, any()}
   def join(device, ref_id, params) do
+    update_metadata = %{
+      "device_api_version" => params["device_api_version"]
+    }
+
     with {:ok, device} <- update_firmware_metadata(device, params),
-         :ok <-
-           update_connection_metadata(ref_id, %{
-             "device_api_version" => params["device_api_version"]
-           }),
+         :ok <- Connections.merge_update_metadata(ref_id, update_metadata),
          :ok <- maybe_clear_inflight_update(device, params) do
       device = refresh_deployment_group(device)
       {:ok, device}
@@ -40,11 +41,6 @@ defmodule NervesHub.DeviceLink do
     end
   rescue
     err -> {:error, err}
-  end
-
-  @spec update_connection_metadata(reference_id :: String.t(), metadata :: map()) :: :ok
-  def update_connection_metadata(reference_id, metadata) do
-    :ok = Connections.merge_update_metadata(reference_id, metadata)
   end
 
   @spec status_update(device :: Device.t(), status :: map(), update_started? :: boolean()) ::
