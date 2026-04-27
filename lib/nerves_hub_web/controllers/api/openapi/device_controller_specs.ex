@@ -80,6 +80,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     |> list_action()
     |> certificate_auth_action()
     |> general_actions(:long)
+    |> import_devices_action()
     |> code_action(:long)
     |> move_action(:long)
     |> reboot_action(:long)
@@ -150,6 +151,32 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
       request_body: request_body,
       response: @device_creation_response
     )
+  end
+
+  def import_devices_action(openapi) do
+    opts = @path_structures[:long]
+
+    request_body =
+      request_body(
+        "Certificate manifest",
+        "application/json",
+        DeviceSchemas.DeviceBulkImport,
+        required: true
+      )
+
+    import_operation =
+      device_operation(
+        "Bulk create Devices from a manifest. Only a Microchip Trust and Go manifest is currently supported.",
+        :bulk_import,
+        [@organization_parameter, @product_parameter],
+        opts.tags,
+        request_body: request_body,
+        response: @empty_response
+      )
+
+    add_to_paths(openapi, "/api/orgs/{org_name}/products/{product_name}/devices/import", %OpenApiSpex.PathItem{
+      post: import_operation
+    })
   end
 
   def update_device_action(opts) do
