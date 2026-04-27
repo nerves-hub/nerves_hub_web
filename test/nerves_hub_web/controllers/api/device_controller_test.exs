@@ -1,11 +1,14 @@
 defmodule NervesHubWeb.API.DeviceControllerTest do
   use NervesHubWeb.APIConnCase, async: true
   use Mimic
+  use AssertEventually, timeout: 500, interval: 50
 
   import Phoenix.ChannelTest
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
+  alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias NervesHub.Scripts.Runner
 
@@ -33,6 +36,38 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
     test "renders errors when data is invalid", %{conn: conn, org: org} do
       conn = post(conn, Routes.api_key_path(conn, :create, org.name))
       assert json_response(conn, 422)["errors"] != %{}
+    end
+  end
+
+  describe "bulk create devices (async processing)" do
+    test "all devices are successfully imported", %{conn: conn, org: org, product: product} do
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      conn =
+        conn
+        |> put_req_header("content-type", "application/json")
+        |> put_req_header("format", "microchip_trust_and_go")
+        |> post(Routes.api_device_path(conn, :bulk_import, org.name, product.name), json_import_data)
+
+      assert response(conn, 201)
+
+      eventually assert Repo.aggregate(Device, :count) == 5
+      assert Repo.aggregate(Notification, :count) == 1
+    end
+
+    test "not all devices are successfully imported", %{conn: conn, org: org, product: product} do
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      conn =
+        conn
+        |> put_req_header("content-type", "application/json")
+        |> put_req_header("format", "microchip_trust_and_go")
+        |> post(Routes.api_device_path(conn, :bulk_import, org.name, product.name), json_import_data)
+
+      assert response(conn, 201)
+
+      eventually assert Repo.aggregate(Device, :count) == 5
+      assert Repo.aggregate(Notification, :count) == 1
     end
   end
 

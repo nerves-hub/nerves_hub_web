@@ -134,6 +134,7 @@ defmodule NervesHubWeb.Router do
               scope "/devices" do
                 get("/", DeviceController, :index)
                 post("/", DeviceController, :create)
+                post("/import", DeviceController, :bulk_import)
                 post("/auth", DeviceController, :auth)
 
                 scope "/:identifier" do

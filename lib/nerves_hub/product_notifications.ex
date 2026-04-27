@@ -44,6 +44,62 @@ defmodule NervesHub.ProductNotifications do
     :ok
   end
 
+  @spec create_device_async_bulk_create_notification!(
+          product_id :: pos_integer(),
+          successfully_created_count :: non_neg_integer(),
+          unsuccessfully_created_count :: non_neg_integer(),
+          format :: String.t()
+        ) :: Notification.t()
+  def create_device_async_bulk_create_notification!(
+        product_id,
+        successfully_created_count,
+        unsuccessfully_created_count,
+        format
+      ) do
+    [message, level] =
+      case {successfully_created_count, unsuccessfully_created_count} do
+        {0, 0} ->
+          [
+            "No devices entries were processed. Please check if the uploaded manifest was empty, or contact support if you believe this was an error with the import process.",
+            :warning
+          ]
+
+        {1, 0} ->
+          [
+            "1 device was imported successfully. Only 1 device was detected in the manifest, please contact support if this was incorrect.",
+            :info
+          ]
+
+        {successful_count, 0} ->
+          [
+            "All device entries were imported successfully. #{successful_count} devices have been created, along with their associated certificates.",
+            :info
+          ]
+
+        {0, unsuccessful_count} ->
+          [
+            "All device entries (#{unsuccessful_count}) failed to import successfully. Please check if the uploaded manifest was valid, or contact support if you believe this was an error with the import process.",
+            :error
+          ]
+
+        {successful_count, unsuccessful_count} ->
+          [
+            "#{successful_count} device#{if(successful_count > 1, do: "s")} were imported successfully, and #{unsuccessful_count} device#{if(unsuccessful_count > 1, do: "s")} failed to import. Please check if the uploaded manifest was valid, or contact support if you believe this was an error with the import process.",
+            :warning
+          ]
+      end
+
+    Products.get_product!(product_id)
+    |> Notification.new_changeset(%{
+      title: "An async bulk device import has completed.",
+      message: message,
+      level: level,
+      metadata: %{format: format},
+      event_key: "device_bulk_create-#{DateTime.utc_now() |> DateTime.to_unix()}"
+    })
+    |> insert_and_notify!()
+  end
+
   @spec create_duplicate_device_identifier_notification!(
           product_id :: pos_integer(),
           identifier :: String.t(),

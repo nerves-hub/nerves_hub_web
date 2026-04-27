@@ -14,6 +14,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Certificate
   alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
+  alias NervesHub.Devices.BulkImport
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -384,6 +385,61 @@ defmodule NervesHub.Devices do
     |> Device.changeset(params)
     |> Repo.insert()
     |> Repo.maybe_preload(:product)
+  end
+
+  def async_bulk_create(org_id, product_id, import_list, format) when not is_binary(import_list) do
+    async_bulk_create(org_id, product_id, JSON.encode!(import_list), format)
+  end
+
+  def async_bulk_create(org_id, product_id, import_list, format) do
+    Task.Supervisor.start_child(NervesHub.TaskSupervisor, fn ->
+      {successful_count, unsuccessful_count} = bulk_create(org_id, product_id, import_list, format)
+
+      _ =
+        ProductNotifications.create_device_async_bulk_create_notification!(
+          product_id,
+          successful_count,
+          unsuccessful_count,
+          format
+        )
+    end)
+    |> case do
+      :ignore -> {:error, :ignored}
+      {:error, _} = error -> error
+      {:ok, pid, _info} -> {:ok, pid}
+      ok -> ok
+    end
+  end
+
+  def bulk_create(org_id, product_id, import_list, format) do
+    product =
+      Product
+      |> where(org_id: ^org_id, id: ^product_id)
+      |> Repo.exclude_deleted()
+      |> Repo.one!()
+
+    BulkImport.parse_file(format, import_list)
+    |> Enum.map(fn details ->
+      changeset =
+        Device.changeset(%Device{}, %{
+          org_id: product.org_id,
+          product_id: product.id,
+          identifier: details.device_identifier
+        })
+
+      Repo.transact(fn ->
+        with {:ok, device} <- Repo.insert(changeset),
+             {:ok, pem} <- details.pem,
+             {:ok, otp_cert} <- Certificate.from_pem_or_der(pem),
+             {:ok, _db_cert} <- create_device_certificate(device, otp_cert) do
+          {:ok, device}
+        end
+      end)
+    end)
+    |> Enum.frequencies_by(fn result -> elem(result, 0) end)
+    |> then(fn res ->
+      {Map.get(res, :ok, 0), Map.get(res, :error, 0)}
+    end)
   end
 
   def set_as_provisioned!(device) do

@@ -19,6 +19,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products
+  alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias NervesHub.Support.Fwup
   alias NervesHub.Workers.FirmwareDeltaBuilder
@@ -77,6 +78,68 @@ defmodule NervesHub.DevicesTest do
 
     for key <- Map.keys(metadata) do
       assert Map.get(device.firmware_metadata, key) == Map.get(metadata, key)
+    end
+  end
+
+  describe "bulk_create/4" do
+    test "all valid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {5, 0} == Devices.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      assert Repo.aggregate(Device, :count) == 5
+    end
+
+    test "two invalid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data =
+        File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest_two_failures.json")
+
+      assert {5, 2} == Devices.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      assert Repo.aggregate(Device, :count) == 5
+    end
+  end
+
+  describe "async_bulk_create/4" do
+    test "all valid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {:ok, task_pid} = Devices.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      ref = Process.monitor(task_pid)
+      assert_receive {:DOWN, ^ref, _, _, :normal}
+
+      assert Repo.aggregate(Device, :count) == 5
+      assert Repo.aggregate(Notification, :count) == 1
+    end
+
+    test "two invalid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data =
+        File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest_two_failures.json")
+
+      assert {:ok, task_pid} = Devices.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      ref = Process.monitor(task_pid)
+      assert_receive {:DOWN, ^ref, _, _, :normal}
+
+      assert Repo.aggregate(Device, :count) == 5
+      assert Repo.aggregate(Notification, :count) == 1
     end
   end
 
