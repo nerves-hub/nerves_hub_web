@@ -319,18 +319,9 @@ defmodule NervesHubWeb.DeviceSocket do
       identifier: device.identifier
     })
 
-    case Connections.device_disconnected(device, reference_id) do
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        Logger.error(
-          "An error occurred while disconnecting device (#{device.id}), ecto update result: #{inspect(reason)}",
-          identifier: device.identifier,
-          device_id: device.id,
-          ref_id: reference_id
-        )
-    end
+    # its possible that this is a stale connection and the device has already reconnected,
+    # which means the following call might return :error, but we can ignore it
+    _ = Connections.device_disconnected(device, reference_id)
 
     assign(socket, :disconnection_handled?, true)
   end
