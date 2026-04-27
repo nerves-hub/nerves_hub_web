@@ -564,6 +564,32 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> select("Update status", option: "Updating")
       |> refute_has("a", text: device.identifier, timeout: 1000)
     end
+
+    test "using another select drop down filter doesn't reset the deployment group drop down filter", %{
+      conn: conn,
+      fixture: fixture
+    } do
+      %{device: device, firmware: firmware, org: org, product: product, deployment_group: deployment_group} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+      device3 = Fixtures.device_fixture(org, product, firmware, %{tags: nil})
+
+      Repo.update!(Ecto.Changeset.change(device2, deployment_id: deployment_group.id))
+      Repo.update!(Ecto.Changeset.change(device3, deployment_id: deployment_group.id))
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "3", timeout: 1000)
+      |> assert_has("div a", text: device.identifier)
+      |> assert_has("div a", text: device2.identifier)
+      |> assert_has("div a", text: device3.identifier)
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> select("Deployment Group", option: deployment_group.name)
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> select("Platform", option: "platform")
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> assert_has("#input_deployment_id:has(> option[selected])")
+    end
   end
 
   describe "bulk actions" do
