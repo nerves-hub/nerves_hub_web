@@ -194,9 +194,10 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_in:connection_types")
   def handle_in("connection_types", %{"values" => types}, socket) do
-    DeviceLink.update_connection_metadata(socket.assigns.reference_id, %{
-      "connection_types" => types
-    })
+    _ =
+      DeviceLink.update_connection_metadata(socket.assigns.reference_id, %{
+        "connection_types" => types
+      })
 
     {:noreply, socket}
   end
