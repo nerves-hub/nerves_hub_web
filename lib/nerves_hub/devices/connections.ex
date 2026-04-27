@@ -55,7 +55,7 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Creates a device connection, reported from device socket
   """
-  @spec device_connected(Device.t(), connection_id :: binary()) :: :ok | :error
+  @spec device_connected(Device.t(), connection_id :: binary()) :: :ok
   def device_connected(device, connection_id) do
     DeviceConnection
     |> where(id: ^connection_id)
@@ -72,7 +72,7 @@ defmodule NervesHub.Devices.Connections do
         :ok
 
       _ ->
-        :error
+        :ok
     end
   end
 
