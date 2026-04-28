@@ -49,7 +49,7 @@ defmodule NervesHub.Extensions.Geo do
 
   @impl NervesHub.Extensions
   def handle_in("location:update", location, socket) do
-    Connections.merge_update_metadata(socket.assigns.reference_id, %{location: location})
+    :ok = Connections.merge_update_metadata(socket.assigns.reference_id, %{location: location})
 
     _ =
       ChannelServer.broadcast(
