@@ -9,7 +9,7 @@
       </h1>
       <div class="mr-auto">
         <div :if={@devices.ok?} id="device-count" class="bg-base-800 text-base-300 mr-auto hidden rounded-sm px-1.5 py-0.5 text-xs" phx-mounted={fade_in("#device-count")}>
-          {@total_entries}
+          {Number.Delimit.number_to_delimited(@total_entries, precision: 0)}
         </div>
       </div>
       <form :if={has_results?(@devices, @currently_filtering)} class="flex h-full items-center" phx-change="update-filters">
@@ -389,7 +389,7 @@
       values={[
         {"All", ""},
         {"No Deployment Group", "-1"}
-        | Enum.map(@deployment_groups, &{&1.name, &1.id})
+        | Enum.map(@deployment_groups, &{&1.name, to_string(&1.id)})
       ]}
     />
     <:filter
@@ -437,7 +437,7 @@
           <h4 :if={length(@selected_devices) == 1} class="text-base font-semibold">{length(@selected_devices)} device selected</h4>
           <h4 :if={length(@selected_devices) > 1} class="text-base font-semibold">{length(@selected_devices)} devices selected</h4>
 
-          <button class="ml-auto p-1.5" type="button" phx-click="deselect-all">
+          <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click="deselect-all">
             <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 20 20" fill="none">
               <path
                 d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
@@ -482,7 +482,7 @@
                 <span class="text-base-300 text-xs tracking-tight">{@selected_shared_deployment_group.name}</span>
               </span>
               <button
-                class="bg-base-800 rounded-full border border-red-500 p-1"
+                class="bg-base-800 cursor-pointer rounded-full border border-red-500 p-1"
                 data-confirm="This will remove all selected devices from their deployment groups. Would you like to continue?"
                 aria-label="Remove selected devices from deployment group"
                 type="button"
