@@ -131,7 +131,7 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Updates the connection `metadata` by merging in new metadata.
   """
-  @spec merge_update_metadata(UUIDv7.t(), map()) :: :ok | :error
+  @spec merge_update_metadata(UUIDv7.t(), map()) :: :ok | {:error, any()}
   def merge_update_metadata(ref_id, new_metadata) do
     DeviceConnection
     |> where(id: ^ref_id)
@@ -139,7 +139,7 @@ defmodule NervesHub.Devices.Connections do
     |> Repo.update_all([])
     |> case do
       {1, _} -> :ok
-      _ -> :error
+      result -> {:error, result}
     end
   end
 
