@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Live.Devices.Index do
   use NervesHubWeb, :live_view
 
+  import Number.Delimit, only: [number_to_delimited: 2]
+
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
@@ -325,12 +327,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   @decorate requires_permission(:"device:update")
   def handle_event("tag-devices", %{"tags" => tags}, socket) do
     if socket.assigns.select_all_matching do
-      filter_query(socket)
-      |> BulkActions.async_tag_devices(socket.assigns.current_scope.user, tags, self())
-
-      socket
-      |> put_flash(:notice, "Updating devices...")
-      |> noreply()
+      start_bulk_async(socket, :tag_devices, [socket.assigns.current_scope.user, tags])
     else
       %{selected_devices: selected_devices, current_scope: scope} = socket.assigns
 
@@ -412,17 +409,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     } = socket.assigns
 
     if socket.assigns.select_all_matching do
-      filter_query(socket)
-      |> BulkActions.async_move_many(target_product, scope.user, self())
-
-      socket
-      |> put_flash(:notice, "Updating devices...")
-      |> noreply()
+      start_bulk_async(socket, :move_many, [target_product, scope.user])
     else
       with {:devices_selected, true} <- {:devices_selected, selected_devices != []},
            {:product_selected, true} <- {:product_selected, target_product != nil},
            devices when is_list(devices) and devices != [] <- Devices.get_devices_by_id(scope, selected_devices),
-           result = BulkActions.move_many(scope, devices, target_product),
+           result = BulkActions.move_many(devices, target_product, scope.user),
            {:successful, true} <- {:successful, Enum.any?(result[:ok])},
            {:has_errors, false, _result} <- {:has_errors, Enum.any?(result[:error]), result} do
         socket
@@ -464,15 +456,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     } = socket
 
     if socket.assigns.select_all_matching do
-      filter_query(socket)
-      |> BulkActions.async_move_many_to_deployment_group(target_deployment_group.id, scope, self())
-
-      socket
-      |> put_flash(:notice, "Updating devices...")
-      |> noreply()
+      start_bulk_async(socket, :move_many_to_deployment_group, [target_deployment_group.id, scope.user])
     else
-      with {:ok, %{updated: updated_count, ignored: ignored_count} = result} <-
-             BulkActions.move_many_to_deployment_group(scope, selected_devices, target_deployment_group.id),
+      with %{updated: updated_count, ignored: ignored_count} = result <-
+             BulkActions.move_many_to_deployment_group(selected_devices, target_deployment_group.id, scope.user),
            {:successful, true} <- {:successful, updated_count > 0},
            {:has_ignores, false, _result} <- {:has_ignores, ignored_count > 0, result} do
         socket
@@ -552,14 +539,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
     if socket.assigns.select_all_matching do
-      filter_query(socket)
-      |> BulkActions.async_remove_many_from_deployment_group(self())
-
-      socket
-      |> put_flash(:notice, "Updating devices...")
-      |> noreply()
+      start_bulk_async(socket, :remove_many_from_deployment_group, [])
     else
-      {:ok, count} = BulkActions.remove_many_from_deployment_group(scope, selected_devices)
+      %{ok: count} = BulkActions.remove_many_from_deployment_group({selected_devices, scope.product})
 
       socket
       |> assign_display_devices()
@@ -573,12 +555,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
     if socket.assigns.select_all_matching do
-      filter_query(socket)
-      |> BulkActions.async_disable_updates_for_devices(scope.user, self())
-
-      socket
-      |> put_flash(:notice, "Updating devices...")
-      |> noreply()
+      start_bulk_async(socket, :disable_updates_for_devices, [scope.user])
     else
       %{ok: successfuls} =
         Devices.get_devices_by_id(scope, selected_devices)
@@ -597,12 +574,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
     if socket.assigns.select_all_matching do
-      filter_query(socket)
-      |> BulkActions.async_enable_updates_for_devices(scope.user, self())
-
-      socket
-      |> put_flash(:notice, "Updating devices...")
-      |> noreply()
+      start_bulk_async(socket, :enable_updates_for_devices, [scope.user])
     else
       %{ok: successfuls} =
         Devices.get_devices_by_id(scope, selected_devices)
@@ -621,12 +593,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
     if socket.assigns.select_all_matching do
-      filter_query(socket)
-      |> BulkActions.async_clear_penalty_box_for_devices(scope.user, self())
-
-      socket
-      |> put_flash(:notice, "Updating devices...")
-      |> noreply()
+      start_bulk_async(socket, :clear_penalty_box_for_devices, [scope.user])
     else
       %{ok: successfuls} =
         Devices.get_devices_by_id(scope, selected_devices)
@@ -822,6 +789,137 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(:filters_ready?, false)
+    |> noreply()
+  end
+
+  def handle_async(:enable_updates_for_devices, {:ok, results}, socket) do
+    socket
+    |> put_flash(
+      :info,
+      "Enabled updates for #{number_to_delimited(results.ok, precision: 0)} selected device(s)."
+    )
+    |> assign_display_devices()
+    |> noreply()
+  end
+
+  def handle_async(:disable_updates_for_devices, {:ok, results}, socket) do
+    socket
+    |> put_flash(
+      :info,
+      "Disabled updates for #{number_to_delimited(results.ok, precision: 0)} selected device(s)."
+    )
+    |> assign_display_devices()
+    |> noreply()
+  end
+
+  def handle_async(:clear_penalty_box_for_devices, {:ok, results}, socket) do
+    socket
+    |> put_flash(
+      :info,
+      "#{number_to_delimited(results.ok, precision: 0)} selected device(s) cleared from the penalty box."
+    )
+    |> assign_display_devices()
+    |> noreply()
+  end
+
+  def handle_async(:tag_devices, {:ok, results}, socket) do
+    case results do
+      %{ok: successful_count, error: 0} ->
+        put_flash(
+          socket,
+          :info,
+          "All selected devices (#{number_to_delimited(successful_count, precision: 0)}) tagged successfully."
+        )
+
+      %{ok: 0, error: unsuccessful_count} ->
+        put_flash(
+          socket,
+          :error,
+          "All selected devices (#{number_to_delimited(unsuccessful_count, precision: 0)}) failed updating with new tags."
+        )
+
+      %{ok: successful_count, error: unsuccessful_count} ->
+        put_flash(
+          socket,
+          :notice,
+          "#{number_to_delimited(successful_count, precision: 0)} devices were successfully tagged and #{number_to_delimited(unsuccessful_count, precision: 0)} devices had errors."
+        )
+    end
+    |> assign_display_devices()
+    |> noreply()
+  end
+
+  def handle_async(:remove_many_from_deployment_group, {:ok, results}, socket) do
+    case results do
+      %{ok: successful_count, error: 0} ->
+        put_flash(
+          socket,
+          :info,
+          "All devices (#{number_to_delimited(successful_count, precision: 0)}) were successfully removed from their deployment group."
+        )
+
+      %{ok: 0, error: _} ->
+        put_flash(
+          socket,
+          :error,
+          "No devices were successfully removed from their deployment group."
+        )
+
+      %{ok: successful_count, error: unsuccessful_count} ->
+        put_flash(
+          socket,
+          :notice,
+          "#{number_to_delimited(successful_count, precision: 0)} devices were successfully from their deployment group, and #{number_to_delimited(unsuccessful_count, precision: 0)} devices had errors and couldn't be removed"
+        )
+    end
+    |> assign_display_devices()
+    |> noreply()
+  end
+
+  def handle_async(:move_many_to_deployment_group, {:ok, results}, socket) do
+    case results do
+      %{ok: _, error: 0} ->
+        put_flash(socket, :info, "All selected devices were successfully assigned to the selected deployment group.")
+
+      %{ok: 0, error: _} ->
+        put_flash(socket, :error, "No devices were successfully assigned to the selected deployment group.")
+
+      %{ok: successful_count, error: unsuccessful_count} ->
+        put_flash(
+          socket,
+          :notice,
+          "#{number_to_delimited(successful_count, precision: 0)} devices were successfully assigned to the selected deployment group, and #{number_to_delimited(unsuccessful_count, precision: 0)} devices encountered errors and couldn't be assigned."
+        )
+    end
+    |> assign_display_devices()
+    |> noreply()
+  end
+
+  def handle_async(:move_many, {:ok, results}, socket) do
+    case results do
+      %{ok: _, error: 0} ->
+        put_flash(socket, :info, "All selected devices successfully moved to the selected product.")
+
+      %{ok: 0, error: _} ->
+        put_flash(socket, :error, "No devices were successfully moved to the selected product.")
+
+      %{ok: successful_count, error: unsuccessful_count} ->
+        put_flash(
+          socket,
+          :error,
+          "#{number_to_delimited(successful_count, precision: 0)} devices were successfully moved to the selected product, and #{number_to_delimited(unsuccessful_count, precision: 0)} devices had errors and couldn't be moved"
+        )
+    end
+    |> assign_display_devices()
+    |> noreply()
+  end
+
+  defp start_bulk_async(socket, name, args) do
+    ecto_query = filter_query(socket)
+
+    socket
+    |> start_async(name, fn -> apply(BulkActions, name, [ecto_query | args]) end)
+    |> put_flash(:notice, "Updating devices, please wait...")
     |> noreply()
   end
 

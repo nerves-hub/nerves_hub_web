@@ -1,7 +1,6 @@
 defmodule NervesHub.Devices.BulkActions do
   import Ecto.Query
 
-  alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.Certificate
   alias NervesHub.DeploymentOrchestratorEvents
@@ -76,11 +75,10 @@ defmodule NervesHub.Devices.BulkActions do
     end)
   end
 
-  @spec tag_devices([Device.t()], User.t(), list(String.t())) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
-        }
-  def tag_devices(devices, user, tags) do
+  @spec tag_devices([Device.t()] | Ecto.Query.t(), User.t(), list(String.t())) ::
+          %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
+          | %{ok: non_neg_integer(), error: non_neg_integer()}
+  def tag_devices(devices, user, tags) when is_list(devices) do
     Enum.map(devices, &Task.Supervisor.async(Tasks, Devices, :tag_device, [&1, user, tags]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
@@ -89,13 +87,18 @@ defmodule NervesHub.Devices.BulkActions do
     end)
   end
 
+  def tag_devices(%Ecto.Query{} = devices_query, user, tags) do
+    stream_processing(devices_query, {:tag_device, [user, tags]})
+  end
+
   @doc """
   Remove multiple devices from their deployment groups.
 
   Returns `{:ok, count}` with the number of devices updated.
   """
-  @spec remove_many_from_deployment_group(Scope.t(), [non_neg_integer()]) :: {:ok, non_neg_integer()}
-  def remove_many_from_deployment_group(%Scope{product: product}, device_ids) when is_list(device_ids) do
+  @spec remove_many_from_deployment_group({[non_neg_integer()], Product.t()} | Ecto.Query.t()) ::
+          %{ok: non_neg_integer(), error: non_neg_integer()} | %{ok: non_neg_integer()}
+  def remove_many_from_deployment_group({device_ids, product} = args) when is_tuple(args) do
     {count, _} =
       Device
       |> Repo.exclude_deleted()
@@ -106,7 +109,23 @@ defmodule NervesHub.Devices.BulkActions do
 
     Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
 
-    {:ok, count}
+    %{ok: count}
+  end
+
+  def remove_many_from_deployment_group(%Ecto.Query{} = devices_query) do
+    stream_processing(devices_query, fn device ->
+      device
+      |> Device.clear_deployment_group()
+      |> Repo.update()
+      |> case do
+        {:ok, device} = res ->
+          DeviceEvents.deployment_cleared(device)
+          res
+
+        res ->
+          res
+      end
+    end)
   end
 
   @doc """
@@ -121,16 +140,17 @@ defmodule NervesHub.Devices.BulkActions do
   > {:ok, %{updated: 3, ignored: 0}}
   """
   @spec move_many_to_deployment_group(
-          Scope.t(),
-          [non_neg_integer()],
-          DeploymentGroup.t() | non_neg_integer()
+          [non_neg_integer()] | Ecto.Query.t(),
+          DeploymentGroup.t() | non_neg_integer(),
+          User.t()
         ) ::
-          {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
-  def move_many_to_deployment_group(%Scope{} = scope, device_ids, %DeploymentGroup{id: deployment_id}) do
-    move_many_to_deployment_group(scope, device_ids, deployment_id)
+          %{updated: non_neg_integer(), ignored: non_neg_integer()}
+          | %{ok: non_neg_integer(), error: non_neg_integer()}
+  def move_many_to_deployment_group(devices, %DeploymentGroup{id: deployment_id}, user) do
+    move_many_to_deployment_group(devices, deployment_id, user)
   end
 
-  def move_many_to_deployment_group(%Scope{} = scope, device_ids, deployment_id) when is_number(deployment_id) do
+  def move_many_to_deployment_group(device_ids, deployment_id, user) when is_list(device_ids) do
     deployment_group =
       DeploymentGroup
       |> from(as: :deployment_group)
@@ -139,7 +159,7 @@ defmodule NervesHub.Devices.BulkActions do
       |> ManagedDeployments.join_current_release()
       |> join(:inner, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
       |> where([deployment_group: dg], dg.id == ^deployment_id)
-      |> where([users: users], users.id == ^scope.user.id)
+      |> where([users: users], users.id == ^user.id)
       |> preload([firmware: f, current_release: cr],
         current_release: {cr, firmware: f}
       )
@@ -154,7 +174,7 @@ defmodule NervesHub.Devices.BulkActions do
           Device
           |> join(:inner, [d], o in assoc(d, :org), as: :org)
           |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
-          |> where([users: users], users.id == ^scope.user.id)
+          |> where([users: users], users.id == ^user.id)
           |> Repo.exclude_deleted()
           |> where([d], d.id in ^device_ids)
           |> where(
@@ -180,15 +200,61 @@ defmodule NervesHub.Devices.BulkActions do
     # let the orchestrator know that some devices have been added to the deployment group
     DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
 
-    {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
+    %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}
   end
 
-  @spec move_many(Scope.t(), [Device.t()], Product.t()) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
-        }
-  def move_many(%Scope{user: user}, devices, product) do
-    product = Repo.preload(product, :org)
+  def move_many_to_deployment_group(%Ecto.Query{} = devices_query, deployment_id, user) do
+    deployment_group =
+      DeploymentGroup
+      |> from(as: :deployment_group)
+      |> join(:inner, [deployment_group: dg], o in assoc(dg, :org), as: :org)
+      |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
+      |> ManagedDeployments.join_current_release()
+      |> join(:inner, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
+      |> where([deployment_group: dg], dg.id == ^deployment_id)
+      |> where([users: users], users.id == ^user.id)
+      |> preload([firmware: f, current_release: cr],
+        current_release: {cr, firmware: f}
+      )
+      |> Repo.one!()
+
+    devices_query
+    |> where(
+      [d],
+      d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform or
+        is_nil(d.firmware_metadata)
+    )
+    |> where(
+      [d],
+      d.firmware_metadata["architecture"] ==
+        ^deployment_group.current_release.firmware.architecture or is_nil(d.firmware_metadata)
+    )
+    |> stream_processing(
+      fn device ->
+        device
+        |> Device.update_deployment_group(deployment_group)
+        |> Repo.update()
+        |> case do
+          {:ok, device} ->
+            DeviceEvents.updated(device)
+            :ok
+
+          _ ->
+            :error
+        end
+      end,
+      before_commit: fn ->
+        _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
+        DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
+      end
+    )
+  end
+
+  @spec move_many([Device.t()] | Ecto.Query.t(), Product.t(), User.t()) ::
+          %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
+          | %{ok: non_neg_integer(), error: non_neg_integer()}
+  def move_many(devices, target_product, user) when is_list(devices) do
+    product = Repo.preload(target_product, :org)
 
     Enum.map(devices, &Task.Supervisor.async(Tasks, Devices, :move, [&1, product, user]))
     |> Task.await_many(20_000)
@@ -198,11 +264,14 @@ defmodule NervesHub.Devices.BulkActions do
     end)
   end
 
-  @spec enable_updates_for_devices([Device.t()], User.t()) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
-        }
-  def enable_updates_for_devices(devices, user) do
+  def move_many(%Ecto.Query{} = devices_query, target_product, user) do
+    stream_processing(devices_query, {:move, [target_product, user]})
+  end
+
+  @spec enable_updates_for_devices([Device.t()] | Ecto.Query.t(), User.t()) ::
+          %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
+          | %{ok: non_neg_integer(), error: non_neg_integer()}
+  def enable_updates_for_devices(devices, user) when is_list(devices) do
     Enum.map(devices, &Task.Supervisor.async(Tasks, Devices, :enable_updates, [&1, user]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
@@ -211,11 +280,14 @@ defmodule NervesHub.Devices.BulkActions do
     end)
   end
 
-  @spec disable_updates_for_devices([Device.t()], User.t()) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
-        }
-  def disable_updates_for_devices(devices, user) do
+  def enable_updates_for_devices(%Ecto.Query{} = devices_query, user) do
+    stream_processing(devices_query, {:enable_updates, [user]})
+  end
+
+  @spec disable_updates_for_devices([Device.t()] | Ecto.Query.t(), User.t()) ::
+          %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
+          | %{ok: non_neg_integer(), error: non_neg_integer()}
+  def disable_updates_for_devices(devices, user) when is_list(devices) do
     Enum.map(devices, &Task.Supervisor.async(Tasks, Devices, :disable_updates, [&1, user]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
@@ -224,7 +296,14 @@ defmodule NervesHub.Devices.BulkActions do
     end)
   end
 
-  def clear_penalty_box_for_devices(devices, user) do
+  def disable_updates_for_devices(%Ecto.Query{} = devices_query, user) do
+    stream_processing(devices_query, {:disable_updates, [user]})
+  end
+
+  @spec clear_penalty_box_for_devices([Device.t()] | Ecto.Query.t(), User.t()) ::
+          %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
+          | %{ok: non_neg_integer(), error: non_neg_integer()}
+  def clear_penalty_box_for_devices(devices, user) when is_list(devices) do
     Enum.map(devices, &Task.Supervisor.async(Tasks, Devices, :clear_penalty_box, [&1, user]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
@@ -233,213 +312,8 @@ defmodule NervesHub.Devices.BulkActions do
     end)
   end
 
-  def async_remove_many_from_deployment_group(devices_query, callback_pid) do
-    Task.Supervisor.start_child(Tasks, fn ->
-      devices_query
-      |> stream_processing(fn device ->
-        device
-        |> Device.clear_deployment_group()
-        |> Repo.update()
-        |> case do
-          {:ok, device} = res ->
-            DeviceEvents.deployment_cleared(device)
-            res
-
-          res ->
-            res
-        end
-      end)
-      |> case do
-        {:ok, %{ok: successful_count, error: 0}} ->
-          send_async_msg(callback_pid, "All device(s) (#{successful_count}) removed from their deployment group.")
-
-        {:ok, %{ok: 0, error: _}} ->
-          send_async_msg(callback_pid, "No devices were successfully removed from their deployment group.", :error)
-
-        {:ok, %{ok: successful_count, error: unsuccessful_count}} ->
-          send_async_msg(
-            callback_pid,
-            "#{successful_count} devices were successfully from their deployment group, and #{unsuccessful_count} devices had errors and couldn't be removed",
-            :notice
-          )
-      end
-    end)
-    |> case do
-      {:ok, _} -> :ok
-      {:ok, _, _} -> :ok
-    end
-  end
-
-  def async_move_many_to_deployment_group(devices_query, deployment_id, scope, callback_pid) do
-    deployment_group =
-      DeploymentGroup
-      |> from(as: :deployment_group)
-      |> join(:inner, [deployment_group: dg], o in assoc(dg, :org), as: :org)
-      |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
-      |> ManagedDeployments.join_current_release()
-      |> join(:inner, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
-      |> where([deployment_group: dg], dg.id == ^deployment_id)
-      |> where([users: users], users.id == ^scope.user.id)
-      |> preload([firmware: f, current_release: cr],
-        current_release: {cr, firmware: f}
-      )
-      |> Repo.one!()
-
-    Task.Supervisor.start_child(Tasks, fn ->
-      devices_query
-      |> where(
-        [d],
-        d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform or
-          is_nil(d.firmware_metadata)
-      )
-      |> where(
-        [d],
-        d.firmware_metadata["architecture"] ==
-          ^deployment_group.current_release.firmware.architecture or is_nil(d.firmware_metadata)
-      )
-      |> stream_processing(
-        fn device ->
-          device
-          |> Device.update_deployment_group(deployment_group)
-          |> Repo.update()
-          |> case do
-            {:ok, device} ->
-              DeviceEvents.updated(device)
-              :ok
-
-            _ ->
-              :error
-          end
-        end,
-        before_commit: fn ->
-          _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
-          DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
-        end
-      )
-      |> case do
-        {:ok, %{ok: _, error: 0}} ->
-          send(
-            callback_pid,
-            {:async_update_complete, :info, "All selected devices successfully assigned to #{deployment_group.name}"}
-          )
-
-        {:ok, %{ok: 0, error: _}} ->
-          send(
-            callback_pid,
-            {:async_update_complete, :error, "No devices were successfully assigned to #{deployment_group.name}"}
-          )
-
-        {:ok, %{ok: successful_count, error: unsuccessful_count}} ->
-          send(
-            callback_pid,
-            {:async_update_complete, :notice,
-             "#{successful_count} devices were successfully assigned to #{deployment_group.name}, and #{unsuccessful_count} devices had errors and couldn't be assigned"}
-          )
-      end
-    end)
-    |> case do
-      {:ok, _} -> :ok
-      {:ok, _, _} -> :ok
-    end
-  end
-
-  def async_move_many(devices_query, target_product, user, callback_pid) do
-    Task.Supervisor.start_child(Tasks, fn ->
-      devices_query
-      |> stream_processing({:move, [target_product, user]})
-      |> case do
-        {:ok, %{ok: _, error: 0}} ->
-          send_async_msg(callback_pid, "All selected devices successfully moved to #{target_product.name}")
-
-        {:ok, %{ok: 0, error: _}} ->
-          send_async_msg(callback_pid, "No devices were successfully moved to #{target_product.name}", :error)
-
-        {:ok, %{ok: successful_count, error: unsuccessful_count}} ->
-          send_async_msg(
-            callback_pid,
-            "#{successful_count} devices were successfully moved to #{target_product.name}, and #{unsuccessful_count} devices had errors and couldn't be moved",
-            :notice
-          )
-      end
-    end)
-    |> case do
-      {:ok, _} -> :ok
-      {:ok, _, _} -> :ok
-    end
-  end
-
-  def async_disable_updates_for_devices(devices_query, user, callback_pid) do
-    Task.Supervisor.start_child(Tasks, fn ->
-      devices_query
-      |> stream_processing({:disable_updates, [user]})
-      |> case do
-        {:ok, res} ->
-          send_async_msg(callback_pid, "Disabled updates for #{res.ok} selected device(s).")
-      end
-    end)
-    |> case do
-      {:ok, _} -> :ok
-      {:ok, _, _} -> :ok
-    end
-  end
-
-  def async_tag_devices(devices_query, user, tags, callback_pid) do
-    Task.Supervisor.start_child(Tasks, fn ->
-      devices_query
-      |> stream_processing({:tag_device, [user, tags]})
-      |> case do
-        {:ok, %{ok: successful_count, error: 0}} ->
-          send_async_msg(callback_pid, "All selected devices (#{successful_count}) tagged successfully.")
-
-        {:ok, %{ok: 0, error: unsuccessful_count}} ->
-          send_async_msg(
-            callback_pid,
-            "All selected devices (#{unsuccessful_count}) failed updating with new tags.",
-            :error
-          )
-
-        {:ok, %{ok: successful_count, error: unsuccessful_count}} ->
-          send_async_msg(
-            callback_pid,
-            "#{successful_count} devices were successfully tagged and #{unsuccessful_count} devices had errors.",
-            :notice
-          )
-      end
-    end)
-    |> case do
-      {:ok, _} -> :ok
-      {:ok, _, _} -> :ok
-    end
-  end
-
-  def async_enable_updates_for_devices(devices_query, user, callback_pid) do
-    Task.Supervisor.start_child(Tasks, fn ->
-      devices_query
-      |> stream_processing({:enable_updates, [user]})
-      |> case do
-        {:ok, res} ->
-          send_async_msg(callback_pid, "Enabled updates for #{res.ok} selected device(s).")
-      end
-    end)
-    |> case do
-      {:ok, _} -> :ok
-      {:ok, _, _} -> :ok
-    end
-  end
-
-  def async_clear_penalty_box_for_devices(devices_query, user, callback_pid) do
-    Task.Supervisor.start_child(Tasks, fn ->
-      devices_query
-      |> stream_processing({:clear_penalty_box, [user]})
-      |> case do
-        {:ok, res} ->
-          send_async_msg(callback_pid, "#{res.ok} selected device(s) cleared from the penalty box.")
-      end
-    end)
-    |> case do
-      {:ok, _} -> :ok
-      {:ok, _, _} -> :ok
-    end
+  def clear_penalty_box_for_devices(%Ecto.Query{} = devices_query, user) do
+    stream_processing(devices_query, {:clear_penalty_box, [user]})
   end
 
   defp stream_processing(devices_query, fun, opts \\ []) do
@@ -471,9 +345,8 @@ defmodule NervesHub.Devices.BulkActions do
       end,
       timeout: 60_000
     )
-  end
-
-  defp send_async_msg(callback_pid, message, key \\ :info) do
-    send(callback_pid, {:async_update_complete, key, message})
+    |> case do
+      {:ok, res} -> res
+    end
   end
 end

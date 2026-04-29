@@ -207,31 +207,82 @@ defmodule NervesHub.DevicesTest do
     refute Repo.exists?(where(DeviceHealth, device_id: ^device.id))
   end
 
-  test "can tag multiple devices", %{
-    user: user,
-    device: device,
-    device2: device2,
-    device3: device3
-  } do
-    devices = [device, device2, device3]
-    tags = "New,Tags"
+  describe "tag_devices/3" do
+    test "can tag multiple devices", %{
+      user: user,
+      device: device,
+      device2: device2,
+      device3: device3
+    } do
+      devices = [device, device2, device3]
+      tags = "New,Tags"
 
-    %{ok: devices} = BulkActions.tag_devices(devices, user, tags)
+      %{ok: devices} = BulkActions.tag_devices(devices, user, tags)
 
-    assert Enum.all?(devices, fn device -> device.tags == ["New", "Tags"] end)
+      assert Enum.all?(devices, fn device -> device.tags == ["New", "Tags"] end)
+    end
+
+    test "supports an Ecto.Query for the first argument", %{
+      user: user,
+      device: device,
+      device2: device2,
+      device3: device3
+    } do
+      devices = [device, device2, device3]
+      device_ids = Enum.map(devices, & &1.id)
+
+      tags = "New,Tags"
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in ^device_ids)
+        |> BulkActions.tag_devices(user, tags)
+
+      assert count == 3
+
+      assert Enum.all?(devices, fn device ->
+               Repo.reload(device).tags == ["New", "Tags"]
+             end)
+    end
   end
 
-  test "can disable updates for multiple devices", %{
-    user: user,
-    device: device,
-    device2: device2,
-    device3: device3
-  } do
-    devices = [device, device2, device3]
+  describe "disable_updates_for_devices/2" do
+    test "can disable updates for multiple devices", %{
+      user: user,
+      device: device,
+      device2: device2,
+      device3: device3
+    } do
+      devices = [device, device2, device3]
 
-    %{ok: devices} = BulkActions.disable_updates_for_devices(devices, user)
+      %{ok: devices} = BulkActions.disable_updates_for_devices(devices, user)
 
-    assert Enum.all?(devices, fn device -> device.updates_enabled == false end)
+      assert Enum.all?(devices, fn device -> device.updates_enabled == false end)
+    end
+
+    test "accepts an Ecto.Query for the first argument", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+
+      devices = [device, device2, device3]
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in ^Enum.map(devices, & &1.id))
+        |> BulkActions.disable_updates_for_devices(user)
+
+      assert count == 3
+
+      assert Enum.all?(devices, fn device ->
+               Repo.reload(device).updates_enabled == false
+             end)
+    end
   end
 
   test "can enable updates for a devices", %{tmp_dir: tmp_dir} do
@@ -249,44 +300,102 @@ defmodule NervesHub.DevicesTest do
     assert device.update_attempts == []
   end
 
-  test "can enable updates for multiple devices", %{tmp_dir: tmp_dir} do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
-    product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
-    device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
-    device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+  describe "enable_updates_for_devices/2" do
+    test "can enable updates for multiple devices", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
 
-    devices = [device, device2, device3]
+      devices = [device, device2, device3]
 
-    %{ok: devices} = BulkActions.enable_updates_for_devices(devices, user)
+      %{ok: devices} = BulkActions.enable_updates_for_devices(devices, user)
 
-    assert Enum.all?(devices, fn device -> device.updates_enabled == true end)
+      assert Enum.all?(devices, fn device -> device.updates_enabled == true end)
+    end
+
+    test "accepts an Ecto.Query for the first argument", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+
+      devices = [device, device2, device3]
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in ^Enum.map(devices, & &1.id))
+        |> BulkActions.enable_updates_for_devices(user)
+
+      assert count == 3
+
+      assert Enum.all?(devices, fn device ->
+               Repo.reload(device).updates_enabled == true
+             end)
+    end
   end
 
-  test "can clear penalty box for multiple devices", %{tmp_dir: tmp_dir} do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
-    product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+  describe "clear_penalty_box_for_devices/2" do
+    test "can clear penalty box for multiple devices", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-    device =
-      Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
 
-    device2 =
-      Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+      device2 =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
 
-    device3 =
-      Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+      device3 =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
 
-    devices = [device, device2, device3]
+      devices = [device, device2, device3]
 
-    %{ok: devices} = BulkActions.clear_penalty_box_for_devices(devices, user)
+      %{ok: devices} = BulkActions.clear_penalty_box_for_devices(devices, user)
 
-    assert Enum.all?(devices, fn device -> is_nil(device.updates_blocked_until) end)
+      assert Enum.all?(devices, fn device -> is_nil(device.updates_blocked_until) end)
+    end
+
+    test "accepts an Ecto.Query for the first argument", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+
+      device2 =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+
+      device3 =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+
+      devices = [device, device2, device3]
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in ^Enum.map(devices, & &1.id))
+        |> BulkActions.clear_penalty_box_for_devices(user)
+
+      assert count == 3
+
+      assert Enum.all?(devices, fn device ->
+               Repo.reload(device).updates_blocked_until |> is_nil()
+             end)
+    end
   end
 
   test "delete_device deletes its certificates", %{device: device} do
@@ -905,6 +1014,43 @@ defmodule NervesHub.DevicesTest do
         args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
       )
     end
+  end
+
+  describe "move_many_to_deployment_group/3" do
+    test "many devices can be moved to a deployment group", %{
+      deployment_group: deployment_group,
+      device: device1,
+      device2: device2,
+      user: user
+    } do
+      refute Repo.exists?(where(Device, [d], d.deployment_id == ^deployment_group.id))
+
+      %{updated: count} = BulkActions.move_many_to_deployment_group([device1.id, device2.id], deployment_group, user)
+
+      assert count == 2
+
+      assert Repo.aggregate(where(Device, [d], d.deployment_id == ^deployment_group.id), :count) == 2
+    end
+
+    test "accepts an Ecto.Query for the first argument", %{
+      deployment_group: deployment_group,
+      device: device1,
+      device2: device2,
+      user: user
+    } do
+      refute Repo.exists?(where(Device, [d], d.deployment_id == ^deployment_group.id))
+
+      device_ids = [device1.id, device2.id]
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in ^device_ids)
+        |> BulkActions.move_many_to_deployment_group(deployment_group, user)
+
+      assert count == 2
+
+      assert Repo.aggregate(where(Device, [d], d.deployment_id == ^deployment_group.id), :count) == 2
+    end
 
     test "broadcasts bulk-devices-added when a group (bulk) of devices are added to a deployment group", %{
       deployment_group: deployment_group,
@@ -939,7 +1085,7 @@ defmodule NervesHub.DevicesTest do
       deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
 
-      BulkActions.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
+      BulkActions.move_many_to_deployment_group([device1.id, device2.id], deployment_group, user)
 
       # Assert that the bulk-devices-added event was broadcast
       assert_receive %Broadcast{topic: ^deployment_topic, event: "bulk-devices-added"}, 500
@@ -975,7 +1121,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, {_release, deployment_group}} =
         ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
-      BulkActions.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
+      BulkActions.move_many_to_deployment_group([device1.id, device2.id], deployment_group, user)
 
       # Delta generation happens inline in the transaction
       # Assert that delta generation job was enqueued for the new firmware pair
@@ -983,6 +1129,45 @@ defmodule NervesHub.DevicesTest do
         worker: FirmwareDeltaBuilder,
         args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
       )
+    end
+  end
+
+  describe "move_many/3" do
+    test "many devices can be moved to a product", %{
+      org: org,
+      device: device1,
+      device2: device2,
+      user: user
+    } do
+      target_product = Fixtures.product_fixture(user, org)
+
+      refute Repo.exists?(where(Device, [d], d.product_id == ^target_product.id))
+
+      %{ok: moved_list} = BulkActions.move_many([device1, device2], target_product, user)
+
+      assert length(moved_list) == 2
+
+      assert Repo.aggregate(where(Device, [d], d.product_id == ^target_product.id), :count) == 2
+    end
+
+    test "accepts an Ecto.Query for the first argument", %{
+      org: org,
+      device: device1,
+      device2: device2,
+      user: user
+    } do
+      target_product = Fixtures.product_fixture(user, org)
+
+      refute Repo.exists?(where(Device, [d], d.product_id == ^target_product.id))
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in [^device1.id, ^device2.id])
+        |> BulkActions.move_many(target_product, user)
+
+      assert count == 2
+
+      assert Repo.aggregate(where(Device, [d], d.product_id == ^target_product.id), :count) == 2
     end
   end
 
@@ -2171,18 +2356,34 @@ defmodule NervesHub.DevicesTest do
 
   describe "remove_many_from_deployment_group/2" do
     test "removes deployment group from devices that have one", %{
-      user: user,
-      org: org,
       product: product,
       device: device,
       device2: device2,
       deployment_group: deployment_group
     } do
-      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
       Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
       Repo.update!(Changeset.change(device2, deployment_id: deployment_group.id))
 
-      {:ok, count} = BulkActions.remove_many_from_deployment_group(scope, [device.id, device2.id])
+      %{ok: count} = BulkActions.remove_many_from_deployment_group({[device.id, device2.id], product})
+
+      assert count == 2
+
+      assert Repo.get!(Device, device.id).deployment_id == nil
+      assert Repo.get!(Device, device2.id).deployment_id == nil
+    end
+
+    test "supports an Ecto.Query for the first argument", %{
+      device: device,
+      device2: device2,
+      deployment_group: deployment_group
+    } do
+      Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
+      Repo.update!(Changeset.change(device2, deployment_id: deployment_group.id))
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in [^device.id, ^device2.id])
+        |> BulkActions.remove_many_from_deployment_group()
 
       assert count == 2
 
@@ -2191,32 +2392,26 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "only counts devices that had a deployment group", %{
-      user: user,
-      org: org,
       product: product,
       device: device,
       device2: device2,
       deployment_group: deployment_group
     } do
-      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
       Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
       # device2 has no deployment group
 
-      {:ok, count} = BulkActions.remove_many_from_deployment_group(scope, [device.id, device2.id])
+      %{ok: count} = BulkActions.remove_many_from_deployment_group({[device.id, device2.id], product})
 
       assert count == 1
     end
 
     test "returns zero when no devices have a deployment group", %{
-      user: user,
-      org: org,
       product: product,
       device: device
     } do
-      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
       refute device.deployment_id
 
-      {:ok, count} = BulkActions.remove_many_from_deployment_group(scope, [device.id])
+      %{ok: count} = BulkActions.remove_many_from_deployment_group({[device.id], product})
 
       assert count == 0
     end
