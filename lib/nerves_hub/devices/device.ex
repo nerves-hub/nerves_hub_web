@@ -128,6 +128,12 @@ defmodule NervesHub.Devices.Device do
     |> put_change(:deployment_id, deployment_group.id)
   end
 
+  def clear_deployment_group(device) do
+    device
+    |> change()
+    |> put_change(:deployment_id, nil)
+  end
+
   def clear_updates_information_changeset(%Device{} = device) do
     device
     |> change()

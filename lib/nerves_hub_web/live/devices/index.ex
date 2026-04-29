@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
@@ -105,6 +106,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:current_filters, @default_filters)
     |> assign(:currently_filtering, false)
     |> assign(:selected_devices, [])
+    |> assign(:select_all_matching, false)
     |> assign(:target_product, nil)
     |> assign(:progress, %{})
     |> assign(:valid_tags, true)
@@ -225,6 +227,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(:selected_devices, [])
+    |> assign(:select_all_matching, false)
     |> push_patch(to: self_path(socket, Map.merge(params, page_params)))
     |> noreply()
   end
@@ -253,6 +256,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
       socket
       |> assign(:selected_devices, selected_devices)
+      |> assign(:select_all_matching, false)
       |> update_selected_device_info()
       |> noreply()
     else
@@ -288,7 +292,24 @@ defmodule NervesHubWeb.Live.Devices.Index do
   @decorate requires_permission(:"device:update")
   def handle_event("deselect-all", _, socket) do
     socket
-    |> assign(%{selected_devices: [], available_deployment_groups_for_filtered_platform: []})
+    |> assign(%{
+      selected_devices: [],
+      select_all_matching: false,
+      available_deployment_groups_for_filtered_platform: []
+    })
+    |> update_selected_device_info()
+    |> noreply()
+  end
+
+  @decorate requires_permission(:"device:update")
+  def handle_event("select-all-matching", _, socket) do
+    %{devices: devices} = socket.assigns
+
+    selected_devices = Enum.map(devices.result, & &1.id)
+
+    socket
+    |> assign(:selected_devices, selected_devices)
+    |> assign(:select_all_matching, true)
     |> update_selected_device_info()
     |> noreply()
   end
@@ -303,33 +324,42 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @decorate requires_permission(:"device:update")
   def handle_event("tag-devices", %{"tags" => tags}, socket) do
-    %{selected_devices: selected_devices, current_scope: scope} = socket.assigns
+    if socket.assigns.select_all_matching do
+      filter_query(socket)
+      |> BulkActions.async_tag_devices(socket.assigns.current_scope.user, tags, self())
 
-    with {:devices, devices} when is_list(devices) and devices != [] <-
-           {:devices, Devices.get_devices_by_id(scope, selected_devices)},
-         result = Devices.tag_devices(devices, scope.user, tags),
-         {:successful, true} <- {:successful, Enum.any?(result[:ok])},
-         {:has_errors, false, _result} <- {:has_errors, Enum.any?(result[:error]), result} do
       socket
-      |> put_flash(:info, "Tagged all selected device(s).")
-      |> assign_display_devices()
+      |> put_flash(:notice, "Updating devices...")
       |> noreply()
     else
-      {:devices, _} ->
-        {:noreply, put_flash(socket, :error, "You haven't selected any devices")}
+      %{selected_devices: selected_devices, current_scope: scope} = socket.assigns
 
-      {:successful, false} ->
-        {:noreply, put_flash(socket, :error, "No devices were successfully tagged")}
-
-      {:has_errors, true, result} ->
+      with {:devices, devices} when is_list(devices) and devices != [] <-
+             {:devices, Devices.get_devices_by_id(scope, selected_devices)},
+           result = BulkActions.tag_devices(devices, scope.user, tags),
+           {:successful, true} <- {:successful, Enum.any?(result[:ok])},
+           {:has_errors, false, _result} <- {:has_errors, Enum.any?(result[:error]), result} do
         socket
-        |> put_flash(
-          :info,
-          "#{Enum.count(result[:ok])} devices were successfully tagged and #{Enum.count(result[:error])} devices had errors."
-        )
-        |> assign(selected_devices: Enum.map(result[:ok], & &1.id))
+        |> put_flash(:info, "Tagged all selected device(s).")
         |> assign_display_devices()
         |> noreply()
+      else
+        {:devices, _} ->
+          {:noreply, put_flash(socket, :error, "You haven't selected any devices")}
+
+        {:successful, false} ->
+          {:noreply, put_flash(socket, :error, "No devices were successfully tagged")}
+
+        {:has_errors, true, result} ->
+          socket
+          |> put_flash(
+            :info,
+            "#{Enum.count(result[:ok])} devices were successfully tagged and #{Enum.count(result[:error])} devices had errors."
+          )
+          |> assign(selected_devices: Enum.map(result[:ok], & &1.id))
+          |> assign_display_devices()
+          |> noreply()
+      end
     end
   end
 
@@ -381,36 +411,45 @@ defmodule NervesHubWeb.Live.Devices.Index do
       current_scope: scope
     } = socket.assigns
 
-    with {:devices_selected, true} <- {:devices_selected, selected_devices != []},
-         {:product_selected, true} <- {:product_selected, target_product != nil},
-         devices when is_list(devices) and devices != [] <- Devices.get_devices_by_id(scope, selected_devices),
-         result = Devices.move_many(scope, devices, target_product),
-         {:successful, true} <- {:successful, Enum.any?(result[:ok])},
-         {:has_errors, false, _result} <- {:has_errors, Enum.any?(result[:error]), result} do
+    if socket.assigns.select_all_matching do
+      filter_query(socket)
+      |> BulkActions.async_move_many(target_product, scope.user, self())
+
       socket
-      |> assign(:target_product, nil)
-      |> assign_display_devices()
-      |> put_flash(:info, "All selected devices successfully moved moved to #{target_product.name}")
+      |> put_flash(:notice, "Updating devices...")
       |> noreply()
     else
-      {:devices_selected, false} ->
-        {:noreply, put_flash(socket, :error, "You haven't selected any devices")}
-
-      {:product_selected, false} ->
-        {:noreply, put_flash(socket, :error, "You haven't selected a product")}
-
-      {:successful, false} ->
-        {:noreply, put_flash(socket, :error, "No devices were successfully moved to #{target_product.name}")}
-
-      {:has_errors, true, result} ->
+      with {:devices_selected, true} <- {:devices_selected, selected_devices != []},
+           {:product_selected, true} <- {:product_selected, target_product != nil},
+           devices when is_list(devices) and devices != [] <- Devices.get_devices_by_id(scope, selected_devices),
+           result = BulkActions.move_many(scope, devices, target_product),
+           {:successful, true} <- {:successful, Enum.any?(result[:ok])},
+           {:has_errors, false, _result} <- {:has_errors, Enum.any?(result[:error]), result} do
         socket
-        |> put_flash(
-          :info,
-          "#{Enum.count(result[:ok])} devices were successfully moved to #{target_product.name}, and #{Enum.count(result[:error])} devices had errors and couldn't be moved"
-        )
-        |> assign(selected_devices: Enum.map(result[:ok], & &1.id))
+        |> assign(:target_product, nil)
         |> assign_display_devices()
+        |> put_flash(:info, "All selected devices successfully moved to #{target_product.name}")
         |> noreply()
+      else
+        {:devices_selected, false} ->
+          {:noreply, put_flash(socket, :error, "You haven't selected any devices")}
+
+        {:product_selected, false} ->
+          {:noreply, put_flash(socket, :error, "You haven't selected a product")}
+
+        {:successful, false} ->
+          {:noreply, put_flash(socket, :error, "No devices were successfully moved to #{target_product.name}")}
+
+        {:has_errors, true, result} ->
+          socket
+          |> put_flash(
+            :info,
+            "#{Enum.count(result[:ok])} devices were successfully moved to #{target_product.name}, and #{Enum.count(result[:error])} devices had errors and couldn't be moved"
+          )
+          |> assign(selected_devices: Enum.map(result[:ok], & &1.id))
+          |> assign_display_devices()
+          |> noreply()
+      end
     end
   end
 
@@ -424,33 +463,42 @@ defmodule NervesHubWeb.Live.Devices.Index do
       }
     } = socket
 
-    with {:ok, %{updated: updated_count, ignored: ignored_count} = result} <-
-           Devices.move_many_to_deployment_group(scope, selected_devices, target_deployment_group.id),
-         {:successful, true} <- {:successful, updated_count > 0},
-         {:has_ignores, false, _result} <- {:has_ignores, ignored_count > 0, result} do
+    if socket.assigns.select_all_matching do
+      filter_query(socket)
+      |> BulkActions.async_move_many_to_deployment_group(target_deployment_group.id, scope, self())
+
       socket
-      |> assign(:target_deployment_group, nil)
-      |> assign_display_devices()
-      |> put_flash(:info, "All selected devices were added to deployment #{target_deployment_group.name}")
+      |> put_flash(:notice, "Updating devices...")
       |> noreply()
     else
-      {:successful, false} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "No devices selected could be added to deployment #{target_deployment_group.name} because of mismatched firmware"
-         )}
-
-      {:has_ignores, true, result} ->
+      with {:ok, %{updated: updated_count, ignored: ignored_count} = result} <-
+             BulkActions.move_many_to_deployment_group(scope, selected_devices, target_deployment_group.id),
+           {:successful, true} <- {:successful, updated_count > 0},
+           {:has_ignores, false, _result} <- {:has_ignores, ignored_count > 0, result} do
         socket
-        |> put_flash(
-          :info,
-          "#{result.updated} #{maybe_pluralize(result.updated, "device")} added to deployment #{target_deployment_group.name}. #{result.ignored} #{maybe_pluralize(result.ignored, "device")} could not be added to deployment because of mismatched firmware"
-        )
         |> assign(:target_deployment_group, nil)
         |> assign_display_devices()
+        |> put_flash(:info, "All selected devices were added to deployment #{target_deployment_group.name}")
         |> noreply()
+      else
+        {:successful, false} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             "No devices selected could be added to deployment #{target_deployment_group.name} because of mismatched firmware"
+           )}
+
+        {:has_ignores, true, result} ->
+          socket
+          |> put_flash(
+            :info,
+            "#{result.updated} #{maybe_pluralize(result.updated, "device")} added to deployment #{target_deployment_group.name}. #{result.ignored} #{maybe_pluralize(result.ignored, "device")} could not be added to deployment because of mismatched firmware"
+          )
+          |> assign(:target_deployment_group, nil)
+          |> assign_display_devices()
+          |> noreply()
+      end
     end
   end
 
@@ -503,60 +551,96 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def handle_event("remove-devices-from-deployment-group", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
-    {:ok, count} = Devices.remove_many_from_deployment_group(scope, selected_devices)
+    if socket.assigns.select_all_matching do
+      filter_query(socket)
+      |> BulkActions.async_remove_many_from_deployment_group(self())
 
-    socket
-    |> assign_display_devices()
-    |> put_flash(:info, "#{count} device(s) removed from their deployment group.")
-    |> noreply()
+      socket
+      |> put_flash(:notice, "Updating devices...")
+      |> noreply()
+    else
+      {:ok, count} = BulkActions.remove_many_from_deployment_group(scope, selected_devices)
+
+      socket
+      |> assign_display_devices()
+      |> put_flash(:info, "#{count} device(s) removed from their deployment group.")
+      |> noreply()
+    end
   end
 
   @decorate requires_permission(:"device:update")
   def handle_event("disable-updates-for-devices", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
-    %{ok: successfuls} =
-      Devices.get_devices_by_id(scope, selected_devices)
-      |> Devices.disable_updates_for_devices(scope.user)
+    if socket.assigns.select_all_matching do
+      filter_query(socket)
+      |> BulkActions.async_disable_updates_for_devices(scope.user, self())
 
-    socket
-    |> assign(selected_devices: selected_devices)
-    |> put_flash(:info, "Disabled updates for #{Enum.count(successfuls)} selected device(s).")
-    |> assign_display_devices()
-    |> noreply()
+      socket
+      |> put_flash(:notice, "Updating devices...")
+      |> noreply()
+    else
+      %{ok: successfuls} =
+        Devices.get_devices_by_id(scope, selected_devices)
+        |> BulkActions.disable_updates_for_devices(scope.user)
+
+      socket
+      |> assign(selected_devices: selected_devices)
+      |> put_flash(:info, "Disabled updates for #{Enum.count(successfuls)} selected device(s).")
+      |> assign_display_devices()
+      |> noreply()
+    end
   end
 
   @decorate requires_permission(:"device:update")
   def handle_event("enable-updates-for-devices", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
-    %{ok: successfuls} =
-      Devices.get_devices_by_id(scope, selected_devices)
-      |> Devices.enable_updates_for_devices(scope.user)
+    if socket.assigns.select_all_matching do
+      filter_query(socket)
+      |> BulkActions.async_enable_updates_for_devices(scope.user, self())
 
-    socket
-    |> assign(selected_devices: selected_devices)
-    |> put_flash(:info, "Enabled updates for #{Enum.count(successfuls)} selected device(s).")
-    |> assign_display_devices()
-    |> noreply()
+      socket
+      |> put_flash(:notice, "Updating devices...")
+      |> noreply()
+    else
+      %{ok: successfuls} =
+        Devices.get_devices_by_id(scope, selected_devices)
+        |> BulkActions.enable_updates_for_devices(scope.user)
+
+      socket
+      |> assign(selected_devices: selected_devices)
+      |> put_flash(:info, "Enabled updates for #{Enum.count(successfuls)} selected device(s).")
+      |> assign_display_devices()
+      |> noreply()
+    end
   end
 
   @decorate requires_permission(:"device:update")
   def handle_event("clear-penalty-box-for-devices", _, socket) do
     %{assigns: %{current_scope: scope, selected_devices: selected_devices}} = socket
 
-    %{ok: successfuls} =
-      Devices.get_devices_by_id(scope, selected_devices)
-      |> Devices.clear_penalty_box_for_devices(scope.user)
+    if socket.assigns.select_all_matching do
+      filter_query(socket)
+      |> BulkActions.async_clear_penalty_box_for_devices(scope.user, self())
 
-    socket
-    |> assign(selected_devices: selected_devices)
-    |> put_flash(
-      :info,
-      "#{Enum.count(successfuls)} selected device(s) cleared from the penalty box."
-    )
-    |> assign_display_devices()
-    |> noreply()
+      socket
+      |> put_flash(:notice, "Updating devices...")
+      |> noreply()
+    else
+      %{ok: successfuls} =
+        Devices.get_devices_by_id(scope, selected_devices)
+        |> BulkActions.clear_penalty_box_for_devices(scope.user)
+
+      socket
+      |> assign(selected_devices: selected_devices)
+      |> put_flash(
+        :info,
+        "#{Enum.count(successfuls)} selected device(s) cleared from the penalty box."
+      )
+      |> assign_display_devices()
+      |> noreply()
+    end
   end
 
   def handle_event("page_visibility_change", %{"visible" => visible?}, socket) do
@@ -570,6 +654,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
       end
     end)
     |> assign(visible?: visible?)
+    |> noreply()
+  end
+
+  def handle_info({:async_update_complete, key, message}, socket) do
+    socket
+    |> put_flash(key, message)
+    |> assign_display_devices()
     |> noreply()
   end
 
@@ -745,6 +836,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:total_entries, pager.total_count)
     |> assign(:paginate_opts, paginate_opts)
     |> assign(:pager_meta, pager)
+  end
+
+  defp filter_query(%{assigns: %{current_scope: scope}} = socket) do
+    opts = %{
+      sort: {
+        String.to_existing_atom(socket.assigns.sort_direction),
+        String.to_atom(socket.assigns.current_sort)
+      },
+      filters: transform_deployment_filter(socket.assigns.current_filters)
+    }
+
+    Devices.filter_query(scope.product, scope.user, opts)
   end
 
   defp transform_deployment_filter(%{deployment_id: ""} = filters), do: Map.delete(filters, :deployment_id)

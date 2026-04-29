@@ -867,7 +867,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         )
         |> submit()
       end)
-      |> assert_has("div", text: "All selected devices successfully moved moved to #{other_product.name}")
+      |> assert_has("div", text: "All selected devices successfully moved to #{other_product.name}")
       |> visit("/org/#{org.name}/#{other_product.name}/devices")
       |> assert_has("div", text: "2", timeout: 1000)
 

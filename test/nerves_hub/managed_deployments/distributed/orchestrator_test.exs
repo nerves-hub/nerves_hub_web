@@ -5,6 +5,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
   alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
@@ -368,7 +369,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     allow(Devices, self(), pid)
 
-    Devices.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
+    BulkActions.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
 
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "bulk-devices-added"}, 500
 

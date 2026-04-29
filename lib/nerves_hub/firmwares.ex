@@ -609,6 +609,17 @@ defmodule NervesHub.Firmwares do
         {:ok, %FirmwareDelta{}} ->
           {:ok, :delta_already_exists}
 
+        {:delta_insert,
+         {:error,
+          [
+            {:unique_firmware_delta,
+             {"has already been taken", [constraint: :unique, constraint_name: "source_id_target_id_unique_index"]}}
+          ]}} ->
+          # a race condition exists where multiple devices connect, are added to a deployment group, and
+          # try to create a delta, only for one to 'start' but all others fail.
+          # This should be regarded as an `:ok` response.
+          {:ok, :delta_already_exists}
+
         {:delta_insert, {:error, changeset}} ->
           Logger.warning("Failed to insert firmware delta for #{source_id} -> #{target_id}")
 

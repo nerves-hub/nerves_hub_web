@@ -8,6 +8,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -89,7 +90,7 @@ defmodule NervesHub.DevicesTest do
 
       json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
 
-      assert {5, 0} == Devices.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+      assert {5, 0} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
 
       assert Repo.aggregate(Device, :count) == 5
     end
@@ -101,7 +102,8 @@ defmodule NervesHub.DevicesTest do
 
       json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
 
-      assert {5, 0} == Devices.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go", "snoot-boop")
+      assert {5, 0} ==
+               BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go", "snoot-boop")
 
       assert Repo.aggregate(Device, :count) == 5
 
@@ -116,7 +118,7 @@ defmodule NervesHub.DevicesTest do
       json_import_data =
         File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest_two_failures.json")
 
-      assert {5, 2} == Devices.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+      assert {5, 2} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
 
       assert Repo.aggregate(Device, :count) == 5
     end
@@ -130,7 +132,8 @@ defmodule NervesHub.DevicesTest do
 
       json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
 
-      assert {:ok, task_pid} = Devices.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+      assert {:ok, task_pid} =
+               BulkActions.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
 
       ref = Process.monitor(task_pid)
       assert_receive {:DOWN, ^ref, _, _, :normal}
@@ -147,7 +150,13 @@ defmodule NervesHub.DevicesTest do
       json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
 
       assert {:ok, task_pid} =
-               Devices.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go", "snoot-boop")
+               BulkActions.async_bulk_create(
+                 org.id,
+                 product.id,
+                 json_import_data,
+                 "microchip_trust_and_go",
+                 "snoot-boop"
+               )
 
       ref = Process.monitor(task_pid)
       assert_receive {:DOWN, ^ref, _, _, :normal}
@@ -166,7 +175,8 @@ defmodule NervesHub.DevicesTest do
       json_import_data =
         File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest_two_failures.json")
 
-      assert {:ok, task_pid} = Devices.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+      assert {:ok, task_pid} =
+               BulkActions.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
 
       ref = Process.monitor(task_pid)
       assert_receive {:DOWN, ^ref, _, _, :normal}
@@ -206,7 +216,7 @@ defmodule NervesHub.DevicesTest do
     devices = [device, device2, device3]
     tags = "New,Tags"
 
-    %{ok: devices} = Devices.tag_devices(devices, user, tags)
+    %{ok: devices} = BulkActions.tag_devices(devices, user, tags)
 
     assert Enum.all?(devices, fn device -> device.tags == ["New", "Tags"] end)
   end
@@ -219,7 +229,7 @@ defmodule NervesHub.DevicesTest do
   } do
     devices = [device, device2, device3]
 
-    %{ok: devices} = Devices.disable_updates_for_devices(devices, user)
+    %{ok: devices} = BulkActions.disable_updates_for_devices(devices, user)
 
     assert Enum.all?(devices, fn device -> device.updates_enabled == false end)
   end
@@ -251,7 +261,7 @@ defmodule NervesHub.DevicesTest do
 
     devices = [device, device2, device3]
 
-    %{ok: devices} = Devices.enable_updates_for_devices(devices, user)
+    %{ok: devices} = BulkActions.enable_updates_for_devices(devices, user)
 
     assert Enum.all?(devices, fn device -> device.updates_enabled == true end)
   end
@@ -274,7 +284,7 @@ defmodule NervesHub.DevicesTest do
 
     devices = [device, device2, device3]
 
-    %{ok: devices} = Devices.clear_penalty_box_for_devices(devices, user)
+    %{ok: devices} = BulkActions.clear_penalty_box_for_devices(devices, user)
 
     assert Enum.all?(devices, fn device -> is_nil(device.updates_blocked_until) end)
   end
@@ -929,7 +939,7 @@ defmodule NervesHub.DevicesTest do
       deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
 
-      Devices.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
+      BulkActions.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
 
       # Assert that the bulk-devices-added event was broadcast
       assert_receive %Broadcast{topic: ^deployment_topic, event: "bulk-devices-added"}, 500
@@ -965,7 +975,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, {_release, deployment_group}} =
         ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
-      Devices.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
+      BulkActions.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
 
       # Delta generation happens inline in the transaction
       # Assert that delta generation job was enqueued for the new firmware pair
@@ -2172,7 +2182,7 @@ defmodule NervesHub.DevicesTest do
       Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
       Repo.update!(Changeset.change(device2, deployment_id: deployment_group.id))
 
-      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id, device2.id])
+      {:ok, count} = BulkActions.remove_many_from_deployment_group(scope, [device.id, device2.id])
 
       assert count == 2
 
@@ -2192,7 +2202,7 @@ defmodule NervesHub.DevicesTest do
       Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
       # device2 has no deployment group
 
-      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id, device2.id])
+      {:ok, count} = BulkActions.remove_many_from_deployment_group(scope, [device.id, device2.id])
 
       assert count == 1
     end
@@ -2206,7 +2216,7 @@ defmodule NervesHub.DevicesTest do
       scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
       refute device.deployment_id
 
-      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id])
+      {:ok, count} = BulkActions.remove_many_from_deployment_group(scope, [device.id])
 
       assert count == 0
     end

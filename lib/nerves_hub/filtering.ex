@@ -31,10 +31,6 @@ defmodule NervesHub.Filtering do
   @spec filter(Ecto.Query.t(), Product.t(), map()) ::
           {[Device.t()] | [DeploymentGroup.t()] | [Script.t()], Flop.Meta.t()}
   def filter(base_query, product, opts \\ %{}) do
-    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
-
-    sorting = Map.get(opts, :sort, {:asc, :name})
-    filters = Map.get(opts, :filters, %{})
     pagination = Map.get(opts, :pagination, %{})
 
     flop = %Flop{
@@ -42,10 +38,20 @@ defmodule NervesHub.Filtering do
       page_size: Map.get(pagination, :page_size, 25)
     }
 
+    filter_query(base_query, product, opts)
+    |> Flop.run(flop)
+  end
+
+  @spec filter_query(Ecto.Query.t(), Product.t(), map()) :: Ecto.Query.t()
+  def filter_query(base_query, product, opts \\ %{}) do
+    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
+
+    sorting = Map.get(opts, :sort, {:asc, :name})
+    filters = Map.get(opts, :filters, %{})
+
     base_query
     |> where([q], q.product_id == ^product.id)
     |> filter_and_sort(base_query.from, sorting, filters)
-    |> Flop.run(flop)
   end
 
   defp filter_and_sort(query, %{source: {_, Device}}, sorting_opts, filter_opts) do

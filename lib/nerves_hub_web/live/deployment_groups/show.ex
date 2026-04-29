@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
@@ -92,7 +93,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     move_devices = fn ->
       devices = ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false)
 
-      Devices.move_many_to_deployment_group(scope, devices, deployment_group)
+      BulkActions.move_many_to_deployment_group(scope, devices, deployment_group)
       |> then(fn {:ok, %{updated: updated_count, ignored: ignored_count}} ->
         if ignored_count > 0 do
           {:error, updated_count, ignored_count}
