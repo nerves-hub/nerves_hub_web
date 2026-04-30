@@ -7,6 +7,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.UpdatePayload
@@ -75,7 +76,13 @@ defmodule NervesHubWeb.API.DeviceController do
     tags = get_req_header(conn, "tags") |> List.first()
 
     with {:ok, _task_pid} <-
-           Devices.async_bulk_create(org.id, product.id, import_list["_json"], format || "microchip_trust_and_go", tags) do
+           BulkActions.async_bulk_create(
+             org.id,
+             product.id,
+             import_list["_json"],
+             format || "microchip_trust_and_go",
+             tags
+           ) do
       send_resp(conn, 201, "")
     end
   end
