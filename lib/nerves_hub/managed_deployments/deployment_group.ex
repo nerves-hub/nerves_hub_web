@@ -113,6 +113,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> put_change(:firmware, firmware)
     |> maybe_add_platform()
     |> maybe_add_architecture()
+    |> maybe_set_queue_management()
     |> validate_required([:name, :delta_updatable, :product_id, :org_id, :firmware])
     |> validate_firmware(product)
     |> validate_platform()
@@ -200,6 +201,14 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       is_nil(firmware) -> changeset
       is_nil(platform) -> put_change(changeset, :platform, firmware.platform)
       true -> changeset
+    end
+  end
+
+  defp maybe_set_queue_management(changeset) do
+    if Application.get_env(:nerves_hub, :default_lifo_deployment_queue) do
+      put_change(changeset, :queue_management, :LIFO)
+    else
+      changeset
     end
   end
 
