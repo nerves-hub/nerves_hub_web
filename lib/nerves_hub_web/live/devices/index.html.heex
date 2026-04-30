@@ -434,8 +434,11 @@
     ]}>
       <div class="h-0 flex-1 overflow-y-auto">
         <div class="border-base-700 flex h-14 items-center border-b px-4 py-3">
-          <h4 :if={length(@selected_devices) == 1} class="text-base font-semibold">{length(@selected_devices)} device selected</h4>
-          <h4 :if={length(@selected_devices) > 1} class="text-base font-semibold">{length(@selected_devices)} devices selected</h4>
+          <h4 :if={length(@selected_devices) == 1 and not @select_all_matching} class="text-base font-semibold">1 device selected</h4>
+          <h4 :if={length(@selected_devices) > 1 and not @select_all_matching} class="text-base font-semibold">
+            {length(@selected_devices) |> Number.Delimit.number_to_delimited(precision: 0)} devices selected
+          </h4>
+          <h4 :if={@select_all_matching} class="text-base font-semibold">All devices selected</h4>
 
           <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click="deselect-all">
             <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 20 20" fill="none">
@@ -448,6 +451,16 @@
               />
             </svg>
           </button>
+        </div>
+
+        <div class="flex flex-1 flex-col gap-6 px-4 pt-6">
+          <span :if={length(@selected_devices) == @total_entries or @select_all_matching}>All available devices matching the filters have been selected.</span>
+          <div :if={length(@selected_devices) != @total_entries and not @select_all_matching}>
+            <span>{Number.Delimit.number_to_delimited(@total_entries - length(@selected_devices), precision: 0)} additional devices match the filters but haven't been selected.</span>
+            <button class="sidebar-button" type="button" phx-click="select-all-matching">
+              Select all
+            </button>
+          </div>
         </div>
 
         <div class="flex flex-1 flex-col gap-6 px-4 py-6">
@@ -472,16 +485,20 @@
             </div>
           </form>
 
-          <div :if={@selected_have_deployment_groups} class="flex flex-col gap-2">
+          <div :if={@selected_have_deployment_groups or @select_all_matching} class="flex flex-col gap-2">
             <label class="sidebar-label">Remove from deployment group</label>
             <div class="flex items-center gap-2">
-              <span :if={@selected_shared_deployment_group} class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5">
+              <span :if={@selected_shared_deployment_group && not @select_all_matching} class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5">
                 <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <circle cx="3" cy="3" r="3" fill="#10B981" />
                 </svg>
                 <span class="text-base-300 text-xs tracking-tight">{@selected_shared_deployment_group.name}</span>
               </span>
+              <span :if={is_nil(@selected_shared_deployment_group) or @select_all_matching} class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5">
+                <span class="text-base-300 text-xs tracking-tight italic">All deployment groups</span>
+              </span>
               <button
+                id="remove-devices-from-deployment-group"
                 class="bg-base-800 cursor-pointer rounded-full border border-red-500 p-1"
                 data-confirm="This will remove all selected devices from their deployment groups. Would you like to continue?"
                 aria-label="Remove selected devices from deployment group"
@@ -550,7 +567,7 @@
           </form>
 
           <form
-            :if={Enum.any?(@available_firmwares_for_filtered_platform)}
+            :if={Enum.any?(@available_firmwares_for_filtered_platform) and not @select_all_matching}
             id="push-firmware"
             class="flex flex-col gap-2"
             phx-change="target-firmware"
@@ -606,7 +623,7 @@
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
                     <path d="M4.1665 10.8333L7.49984 14.1667L16.6665 5" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
-                  <span class="">Enable</span>
+                  Enable
                 </button>
               </form>
             </div>

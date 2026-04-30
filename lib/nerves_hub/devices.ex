@@ -14,7 +14,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Certificate
   alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
-  alias NervesHub.Devices.BulkImport
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -40,7 +39,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
-  alias NervesHub.TaskSupervisor, as: Tasks
   alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
@@ -140,6 +138,20 @@ defmodule NervesHub.Devices do
 
   @spec filter(Product.t(), User.t(), map()) :: {[Device.t()], Flop.Meta.t()}
   def filter(product, user, opts) do
+    common_filter_query(user)
+    |> preload([latest_connection: lc], latest_connection: lc)
+    |> preload([latest_health: lh], latest_health: lh)
+    |> preload([deployment_group: dg], deployment_group: dg)
+    |> CommonFiltering.filter(product, opts)
+  end
+
+  @spec filter_query(Product.t(), User.t(), map()) :: Ecto.Query.t()
+  def filter_query(product, user, opts) do
+    common_filter_query(user)
+    |> CommonFiltering.filter_query(product, opts)
+  end
+
+  defp common_filter_query(user) do
     Device
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
@@ -148,13 +160,6 @@ defmodule NervesHub.Devices do
       as: :pinned
     )
     |> join(:left, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
-    |> preload([latest_connection: lc], latest_connection: lc)
-    |> preload([latest_health: lh], latest_health: lh)
-    |> preload([deployment_group: dg], deployment_group: dg)
-    |> CommonFiltering.filter(
-      product,
-      opts
-    )
   end
 
   def get_minimal_device_location_by_product(product) do
@@ -385,64 +390,6 @@ defmodule NervesHub.Devices do
     |> Device.changeset(params)
     |> Repo.insert()
     |> Repo.maybe_preload(:product)
-  end
-
-  def async_bulk_create(org_id, product_id, import_list, format, tags \\ [])
-
-  def async_bulk_create(org_id, product_id, import_list, format, tags) when not is_binary(import_list) do
-    async_bulk_create(org_id, product_id, JSON.encode!(import_list), format, tags)
-  end
-
-  def async_bulk_create(org_id, product_id, import_list, format, tags) do
-    Task.Supervisor.start_child(NervesHub.TaskSupervisor, fn ->
-      {successful_count, unsuccessful_count} = bulk_create(org_id, product_id, import_list, format, tags)
-
-      _ =
-        ProductNotifications.create_device_async_bulk_create_notification!(
-          product_id,
-          successful_count,
-          unsuccessful_count,
-          format
-        )
-    end)
-    |> case do
-      :ignore -> {:error, :ignored}
-      {:error, _} = error -> error
-      {:ok, pid, _info} -> {:ok, pid}
-      ok -> ok
-    end
-  end
-
-  def bulk_create(org_id, product_id, import_list, format, tags \\ []) do
-    product =
-      Product
-      |> where(org_id: ^org_id, id: ^product_id)
-      |> Repo.exclude_deleted()
-      |> Repo.one!()
-
-    BulkImport.parse_file(format, import_list)
-    |> Enum.map(fn details ->
-      changeset =
-        Device.changeset(%Device{}, %{
-          org_id: product.org_id,
-          product_id: product.id,
-          identifier: details.device_identifier,
-          tags: tags
-        })
-
-      Repo.transact(fn ->
-        with {:ok, device} <- Repo.insert(changeset),
-             {:ok, pem} <- details.pem,
-             {:ok, otp_cert} <- Certificate.from_pem_or_der(pem),
-             {:ok, _db_cert} <- create_device_certificate(device, otp_cert) do
-          {:ok, device}
-        end
-      end)
-    end)
-    |> Enum.frequencies_by(fn result -> elem(result, 0) end)
-    |> then(fn res ->
-      {Map.get(res, :ok, 0), Map.get(res, :error, 0)}
-    end)
   end
 
   def set_as_provisioned!(device) do
@@ -1098,33 +1045,12 @@ defmodule NervesHub.Devices do
   def clear_deployment_group(device) do
     device =
       device
-      |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_change(:deployment_id, nil)
+      |> Device.clear_deployment_group()
       |> Repo.update!()
 
     DeviceEvents.deployment_cleared(device)
 
     Map.put(device, :deployment_group, nil)
-  end
-
-  @doc """
-  Remove multiple devices from their deployment groups.
-
-  Returns `{:ok, count}` with the number of devices updated.
-  """
-  @spec remove_many_from_deployment_group(Scope.t(), [non_neg_integer()]) :: {:ok, non_neg_integer()}
-  def remove_many_from_deployment_group(%Scope{product: product}, device_ids) when is_list(device_ids) do
-    {count, _} =
-      Device
-      |> Repo.exclude_deleted()
-      |> where([d], d.id in ^device_ids)
-      |> where([d], d.product_id == ^product.id)
-      |> where([d], not is_nil(d.deployment_id))
-      |> Repo.update_all(set: [deployment_id: nil])
-
-    Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
-
-    {:ok, count}
   end
 
   @spec failure_threshold_met?(Device.t(), DeploymentGroup.t()) :: boolean()
@@ -1500,80 +1426,6 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Move devices to a deployment group. A deployment group struct or id can
-  be given. Devices are fetched by their id and also filtered by the given
-  deployment group firmware's architecture and platform.
-
-  `Repo.update_all()` is used to update the rows. The return informs how
-  many rows were updated and how many were ignored because of a problem.
-
-  move_many_to_deployment_group([1, 2, 3], deployment_group)
-  > {:ok, %{updated: 3, ignored: 0}}
-  """
-  @spec move_many_to_deployment_group(
-          Scope.t(),
-          [non_neg_integer()],
-          DeploymentGroup.t() | non_neg_integer()
-        ) ::
-          {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
-  def move_many_to_deployment_group(%Scope{} = scope, device_ids, %DeploymentGroup{id: deployment_id}) do
-    move_many_to_deployment_group(scope, device_ids, deployment_id)
-  end
-
-  def move_many_to_deployment_group(%Scope{} = scope, device_ids, deployment_id) when is_number(deployment_id) do
-    deployment_group =
-      DeploymentGroup
-      |> from(as: :deployment_group)
-      |> join(:inner, [deployment_group: dg], o in assoc(dg, :org), as: :org)
-      |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
-      |> ManagedDeployments.join_current_release()
-      |> join(:inner, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
-      |> where([deployment_group: dg], dg.id == ^deployment_id)
-      |> where([users: users], users.id == ^scope.user.id)
-      |> preload([firmware: f, current_release: cr],
-        current_release: {cr, firmware: f}
-      )
-      |> Repo.one!()
-
-    # Use a transaction to ensure devices are updated and deltas are queued atomically
-    # This minimizes the race condition window where the orchestrator could pick up devices
-    # before their firmware_delta rows are created
-    {:ok, {devices_updated_count, _}} =
-      Repo.transact(fn ->
-        {count, _} =
-          Device
-          |> join(:inner, [d], o in assoc(d, :org), as: :org)
-          |> join(:inner, [org: o], u in assoc(o, :users), as: :users)
-          |> where([users: users], users.id == ^scope.user.id)
-          |> Repo.exclude_deleted()
-          |> where([d], d.id in ^device_ids)
-          |> where(
-            [d],
-            d.firmware_metadata["platform"] == ^deployment_group.current_release.firmware.platform
-          )
-          |> where(
-            [d],
-            d.firmware_metadata["architecture"] ==
-              ^deployment_group.current_release.firmware.architecture
-          )
-          |> Repo.update_all([set: [deployment_id: deployment_id]], timeout: to_timeout(minute: 2))
-
-        # Queue delta generation for any new device firmware combinations immediately
-        # after the device updates within the same transaction
-        _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
-
-        {:ok, {count, nil}}
-      end)
-
-    :ok = Enum.each(device_ids, &DeviceEvents.updated(%Device{id: &1}))
-
-    # let the orchestrator know that some devices have been added to the deployment group
-    DeploymentOrchestratorEvents.bulk_devices_added(deployment_group)
-
-    {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
-  end
-
-  @doc """
   Removes unmatched devices from deployment group. The given device ids are
   assumed to be ids of devices that "match" a deployment group's conditions,
   e.g. devices from ManagedDeployments.matched_device_ids/2. Devices are
@@ -1604,69 +1456,6 @@ defmodule NervesHub.Devices do
        updated: devices_updated_count,
        ignored: length(matched_device_ids) - devices_updated_count
      }}
-  end
-
-  @spec move_many(Scope.t(), [Device.t()], Product.t()) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
-        }
-  def move_many(%Scope{user: user}, devices, product) do
-    product = Repo.preload(product, :org)
-
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :move, [&1, product, user]))
-    |> Task.await_many(20_000)
-    |> Enum.reduce(%{ok: [], error: []}, fn
-      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
-      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
-    end)
-  end
-
-  @spec disable_updates([Device.t()], User.t()) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
-        }
-  def disable_updates_for_devices(devices, user) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :disable_updates, [&1, user]))
-    |> Task.await_many(20_000)
-    |> Enum.reduce(%{ok: [], error: []}, fn
-      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
-      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
-    end)
-  end
-
-  @spec tag_devices([Device.t()], User.t(), list(String.t())) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
-        }
-  def tag_devices(devices, user, tags) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :tag_device, [&1, user, tags]))
-    |> Task.await_many(20_000)
-    |> Enum.reduce(%{ok: [], error: []}, fn
-      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
-      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
-    end)
-  end
-
-  @spec enable_updates_for_devices([Device.t()], User.t()) :: %{
-          ok: [Device.t()],
-          error: [{Ecto.Multi.name(), any()}]
-        }
-  def enable_updates_for_devices(devices, user) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :enable_updates, [&1, user]))
-    |> Task.await_many(20_000)
-    |> Enum.reduce(%{ok: [], error: []}, fn
-      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
-      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
-    end)
-  end
-
-  def clear_penalty_box_for_devices(devices, user) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :clear_penalty_box, [&1, user]))
-    |> Task.await_many(20_000)
-    |> Enum.reduce(%{ok: [], error: []}, fn
-      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
-      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
-    end)
   end
 
   @spec get_devices_by_id(Scope.t(), [non_neg_integer()]) :: [Device.t()]
