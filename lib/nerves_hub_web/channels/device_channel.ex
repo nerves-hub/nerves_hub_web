@@ -25,7 +25,6 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.DeviceLink
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
-  alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -33,19 +32,19 @@ defmodule NervesHubWeb.DeviceChannel do
   intercept(["updated", "deployment_updated"])
 
   @decorate with_span("Channels.DeviceChannel.join")
-  def join("device:" <> _device_id, params, %{assigns: %{device: device, reference_id: reference_id}} = socket) do
-    Logger.metadata(device_id: device.id, device_identifier: device.identifier)
+  def join("device:" <> _device_id, params, %{assigns: %{device_info: device_info}} = socket) do
+    Logger.metadata(device_id: device_info.device_id, device_identifier: device_info.device_identifier)
 
     params = maybe_sanitize_device_api_version(params)
 
-    case DeviceLink.join(device, reference_id, params) do
-      {:ok, device} ->
+    case DeviceLink.join(device_info, params) do
+      {:ok, device_info} ->
         socket =
           socket
           |> assign(:currently_downloading_uuid, params["currently_downloading_uuid"])
           |> assign(:update_started?, !!params["currently_downloading_uuid"])
           |> assign(:device_api_version, params["device_api_version"])
-          |> update_device(device)
+          |> update_device_info(device_info)
 
         send(self(), {:after_join, params})
 
@@ -53,7 +52,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
       err ->
         :telemetry.execute([:nerves_hub, :devices, :join_failure], %{count: 1}, %{
-          identifier: device.identifier,
+          identifier: device_info.device_identifier,
           channel: "device",
           error: err
         })
@@ -64,36 +63,11 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_info:after_join")
   def handle_info({:after_join, params}, socket) do
-    %{device: device, reference_id: reference_id} = socket.assigns
+    :ok = DeviceLink.after_join(socket.assigns.device_info, params)
 
-    # :deployment_group is manually set to nil in DeviceLink, need to force reload here
-    device = NervesHub.Repo.preload(device, :deployment_group, force: true)
-
-    connecting_codes =
-      [
-        get_in(device, [Access.key(:deployment_group), Access.key(:connecting_code)]),
-        device.connecting_code
-      ]
-      |> Enum.filter(&(not is_nil(&1) and byte_size(&1) > 0))
-
-    case [safe_to_run_scripts?(socket), Enum.empty?(connecting_codes)] do
-      [true, false] ->
-        connecting_code = Enum.join(connecting_codes, "\n")
-        # connecting code first in the case it attempts to change things before the other messages
-        push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
-
-      [false, false] ->
-        connecting_code = Enum.join(connecting_codes, "\n")
-        text = ~s/#{connecting_code}\n\r/
-        topic = "device:console:#{device.id}"
-
-        socket.endpoint.broadcast_from!(self(), topic, "dn", %{"data" => text})
-
-      _ ->
-        :ok
-    end
-
-    :ok = DeviceLink.after_join(device, reference_id, params)
+    socket.assigns.device_info
+    |> DeviceLink.fetch_connecting_code()
+    |> send_connecting_code(safe_to_run_scripts?(socket), socket)
 
     {:noreply, socket}
   end
@@ -105,10 +79,11 @@ defmodule NervesHubWeb.DeviceChannel do
 
   # listen for notifications about archive updates for deployments
   def handle_info(%Broadcast{event: "archives/updated"}, socket) do
-    %{device: device, device_api_version: device_api_version, reference_id: reference_id} =
+    %{device_info: device_info, device_api_version: device_api_version} =
       socket.assigns
 
-    DeviceLink.maybe_send_archive(device, device_api_version, reference_id, audit_log: true)
+    DeviceLink.maybe_send_archive(device_info, device_api_version, audit_log: true)
+
     {:noreply, socket}
   end
 
@@ -150,7 +125,7 @@ defmodule NervesHubWeb.DeviceChannel do
   # Ignore unhandled messages, and send some telemetry
   def handle_info(msg, socket) do
     :telemetry.execute([:nerves_hub, :devices, :unhandled_info], %{count: 1}, %{
-      identifier: socket.assigns.device.identifier,
+      identifier: socket.assigns.device_info.device_identifier,
       msg: msg
     })
 
@@ -159,35 +134,35 @@ defmodule NervesHubWeb.DeviceChannel do
 
   # Update local state and tell the various servers of the new information
   @decorate with_span("Channels.DeviceChannel.handle_out:updated")
-  def handle_out("updated", _, %{assigns: %{device: device}} = socket) do
-    device = Repo.reload(device)
+  def handle_out("updated", _, %{assigns: %{device_info: device_info}} = socket) do
+    device_info = DeviceLink.refresh_device_info(device_info)
 
-    %{device_api_version: device_api_version, reference_id: reference_id} = socket.assigns
-    DeviceLink.maybe_send_archive(device, device_api_version, reference_id, audit_log: true)
+    %{device_api_version: device_api_version} = socket.assigns
+    DeviceLink.maybe_send_archive(device_info, device_api_version, audit_log: true)
 
-    {:noreply, update_device(socket, device)}
+    {:noreply, update_device_info(socket, device_info)}
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_out:deployment_updated")
   def handle_out("deployment_updated", payload, socket) do
-    device = %{socket.assigns.device | deployment_id: payload.deployment_id}
+    device_info = %{socket.assigns.device_info | deployment_id: payload.deployment_id}
 
-    %{device_api_version: device_api_version, reference_id: reference_id} = socket.assigns
-    DeviceLink.maybe_send_archive(device, device_api_version, reference_id, audit_log: true)
+    %{device_api_version: device_api_version} = socket.assigns
+    DeviceLink.maybe_send_archive(device_info, device_api_version, audit_log: true)
 
-    {:noreply, update_device(socket, device)}
+    {:noreply, update_device_info(socket, device_info)}
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_in:firmware_validated")
-  def handle_in("firmware_validated", _, %{assigns: %{device: device}} = socket) do
-    {:ok, device} = Devices.firmware_validated(device)
+  def handle_in("firmware_validated", _, %{assigns: %{device_info: device_info}} = socket) do
+    Devices.firmware_validated(device_info)
 
-    {:noreply, assign(socket, :device, device)}
+    {:noreply, socket}
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_in:fwup_progress")
-  def handle_in("fwup_progress", %{"value" => percent}, %{assigns: %{device: device}} = socket) do
-    DeviceLink.firmware_update_progress(device, percent)
+  def handle_in("fwup_progress", %{"value" => percent}, %{assigns: %{device_info: device_info}} = socket) do
+    DeviceLink.firmware_update_progress(device_info, percent)
 
     {:noreply, maybe_update_update_attempts(socket)}
   end
@@ -195,7 +170,7 @@ defmodule NervesHubWeb.DeviceChannel do
   @decorate with_span("Channels.DeviceChannel.handle_in:connection_types")
   def handle_in("connection_types", %{"values" => types}, socket) do
     :ok =
-      DeviceLink.update_connection_metadata(socket.assigns.reference_id, %{
+      DeviceLink.update_connection_metadata(socket.assigns.device_info.connection_ref, %{
         "connection_types" => types
       })
 
@@ -204,7 +179,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_in:status_update")
   def handle_in("status_update", params, socket) do
-    DeviceLink.status_update(socket.assigns.device, params, socket.assigns.update_started?)
+    DeviceLink.status_update(socket.assigns.device_info, params, socket.assigns.update_started?)
 
     {:noreply, socket}
   end
@@ -222,7 +197,7 @@ defmodule NervesHubWeb.DeviceChannel do
       when result == "error" or return == "nil" do
     :telemetry.execute([:nerves_hub, :devices, :connecting_code_failure], %{
       output: output,
-      identifier: socket.assigns.device.identifier
+      identifier: socket.assigns.device_info.device_identifier
     })
 
     {:noreply, socket}
@@ -245,13 +220,17 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_in:report_network_interface")
-  def handle_in("report_network_interface", %{"interface" => interface}, %{assigns: %{device: device}} = socket) do
-    if Device.humanized_network_interface_name(interface) == device.network_interface do
+  def handle_in(
+        "report_network_interface",
+        %{"interface" => interface},
+        %{assigns: %{device_info: device_info}} = socket
+      ) do
+    if Device.humanized_network_interface_name(interface) == device_info.device_network_interface do
       {:noreply, socket}
     else
-      case Devices.update_network_interface(device, interface) do
+      case Devices.update_network_interface(device_info.device_id, interface) do
         {:ok, device} ->
-          {:noreply, assign(socket, :device, device)}
+          {:noreply, assign(socket, :device_info, %{device_info | device_network_interface: device.network_interface})}
 
         {:error, changeset} ->
           Logger.warning(
@@ -263,11 +242,11 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  def handle_in(msg, params, %{assigns: %{device: device}} = socket) do
+  def handle_in(msg, params, %{assigns: %{device_info: device_info}} = socket) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.
     :telemetry.execute([:nerves_hub, :devices, :unhandled_in], %{count: 1}, %{
-      identifier: device.identifier,
+      identifier: device_info.device_identifier,
       msg: msg,
       params: params
     })
@@ -300,9 +279,25 @@ defmodule NervesHubWeb.DeviceChannel do
   #
   # we don't need to store the result as this information isn't used anywhere else
   def maybe_update_update_attempts(socket) do
-    :ok = Devices.update_attempted(socket.assigns.device)
+    :ok = Devices.update_attempted(socket.assigns.device_info)
 
     assign(socket, :update_started?, true)
+  end
+
+  defp send_connecting_code(nil, _, _), do: :ok
+
+  defp send_connecting_code(connecting_code, true, socket) when is_list(connecting_code) do
+    connecting_code = Enum.join(connecting_code, "\n")
+    # connecting code first in the case it attempts to change things before the other messages
+    push(socket, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"})
+  end
+
+  defp send_connecting_code(connecting_code, false, socket) when is_list(connecting_code) do
+    connecting_code = Enum.join(connecting_code, "\n")
+    text = ~s/#{connecting_code}\n\r/
+    topic = "device:console:#{socket.assigns.device_info.device_id}"
+
+    socket.endpoint.broadcast_from!(self(), topic, "dn", %{"data" => text})
   end
 
   defp subscribe(topic) when not is_nil(topic) do
@@ -318,14 +313,14 @@ defmodule NervesHubWeb.DeviceChannel do
 
   defp unsubscribe(nil), do: :ok
 
-  defp update_device(socket, device) do
+  defp update_device_info(socket, device_info) do
     socket
-    |> assign(:device, device)
-    |> update_deployment_group_subscription(device)
+    |> assign(:device_info, device_info)
+    |> update_deployment_group_subscription(device_info)
   end
 
-  defp update_deployment_group_subscription(socket, device) do
-    deployment_channel = deployment_channel(device)
+  defp update_deployment_group_subscription(socket, device_info) do
+    deployment_channel = deployment_channel(device_info)
 
     if deployment_channel == socket.assigns[:deployment_channel] do
       socket
@@ -337,9 +332,9 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  defp deployment_channel(device) do
-    if device.deployment_id do
-      "deployment:#{device.deployment_id}"
+  defp deployment_channel(device_info) do
+    if device_info.deployment_id do
+      "deployment:#{device_info.deployment_id}"
     end
   end
 

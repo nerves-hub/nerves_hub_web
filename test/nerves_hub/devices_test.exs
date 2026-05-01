@@ -7,6 +7,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.CACertificate
@@ -293,7 +294,7 @@ defmodule NervesHub.DevicesTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
 
-    :ok = Devices.update_attempted(device)
+    :ok = Devices.update_attempted(to_device_info(device))
     {:ok, device} = Devices.enable_updates(device, user)
 
     assert device.updates_enabled
@@ -631,11 +632,11 @@ defmodule NervesHub.DevicesTest do
 
   describe "tracking update attempts and verifying eligibility" do
     test "records the timestamp of an attempt", %{device: device} do
-      :ok = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(to_device_info(device))
       device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 1
 
-      :ok = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(to_device_info(device))
       device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 2
     end
@@ -643,7 +644,7 @@ defmodule NervesHub.DevicesTest do
     test "records and audit log for updating", %{device: device} do
       assert [] = AuditLogs.logs_for(device)
 
-      :ok = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(to_device_info(device))
 
       [audit_log] = AuditLogs.logs_for(device)
 
@@ -651,7 +652,7 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "resets update attempts on successful update", %{device: device} do
-      :ok = Devices.update_attempted(device)
+      :ok = to_device_info(device) |> Devices.update_attempted()
       device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 1
 
@@ -692,7 +693,7 @@ defmodule NervesHub.DevicesTest do
     test "device updates successfully", %{device: device, deployment_group: deployment_group} do
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
-      :ok = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(to_device_info(device))
 
       {:ok, device} = Devices.verify_update_eligibility(device, deployment_group)
 
@@ -706,8 +707,8 @@ defmodule NervesHub.DevicesTest do
     } do
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
-      :ok = Devices.update_attempted(device)
-      :ok = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(to_device_info(device))
+      :ok = Devices.update_attempted(to_device_info(device))
 
       device = Repo.reload(device)
 
@@ -730,9 +731,9 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      :ok = Devices.update_attempted(device, DateTime.add(now, -3600, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -1200, :second))
-      :ok = Devices.update_attempted(device, now)
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -3600, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -1200, :second))
+      :ok = Devices.update_attempted(to_device_info(device), now)
 
       device = Repo.reload(device)
 
@@ -759,12 +760,12 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      :ok = Devices.update_attempted(device, DateTime.add(now, -3600, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -1200, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -500, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -500, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -500, :second))
-      :ok = Devices.update_attempted(device, now)
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -3600, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -1200, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
+      :ok = Devices.update_attempted(to_device_info(device), now)
 
       device = Repo.reload(device)
 
@@ -786,11 +787,11 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      :ok = Devices.update_attempted(device, DateTime.add(now, -13, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -10, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -5, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -2, :second))
-      :ok = Devices.update_attempted(device, now)
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -13, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -10, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -5, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -2, :second))
+      :ok = Devices.update_attempted(to_device_info(device), now)
 
       device = Repo.reload(device)
 
@@ -1319,10 +1320,14 @@ defmodule NervesHub.DevicesTest do
       device_unknown = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
       # Set network interfaces and prepare for updates
-      {:ok, device_wifi} = Devices.update_network_interface(device_wifi, "wlan0")
-      {:ok, device_ethernet} = Devices.update_network_interface(device_ethernet, "eth0")
-      {:ok, device_cellular} = Devices.update_network_interface(device_cellular, "wwan0")
-      {:ok, device_unknown} = Devices.update_network_interface(device_unknown, "hmmmmmmm")
+      {:ok, device_wifi} = Devices.update_network_interface(device_wifi.id, "wlan0")
+      device_wifi = Repo.reload(device_wifi)
+      {:ok, device_ethernet} = Devices.update_network_interface(device_ethernet.id, "eth0")
+      device_ethernet = Repo.reload(device_ethernet)
+      {:ok, device_cellular} = Devices.update_network_interface(device_cellular.id, "wwan0")
+      device_cellular = Repo.reload(device_cellular)
+      {:ok, device_unknown} = Devices.update_network_interface(device_unknown.id, "hmmmmmmm")
+      device_unknown = Repo.reload(device_unknown)
 
       # Set up connections and different firmware versions for all devices
       for device <- [device_wifi, device_ethernet, device_cellular, device_unknown] do
@@ -1371,8 +1376,11 @@ defmodule NervesHub.DevicesTest do
       device_wifi = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
       device_cellular = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
-      {:ok, device_wifi} = Devices.update_network_interface(device_wifi, "wlan0")
-      {:ok, device_cellular} = Devices.update_network_interface(device_cellular, "wwan0")
+      {:ok, device_wifi} = Devices.update_network_interface(device_wifi.id, "wlan0")
+      device_wifi = Repo.reload(device_wifi)
+
+      {:ok, device_cellular} = Devices.update_network_interface(device_cellular.id, "wwan0")
+      device_cellular = Repo.reload(device_cellular)
 
       # Set up connections and different firmware versions
       for device <- [device_wifi, device_cellular] do
@@ -1537,17 +1545,21 @@ defmodule NervesHub.DevicesTest do
       device_cellular_prod = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
       device_ethernet_prod = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
-      {:ok, device_wifi_prod} = Devices.update_network_interface(device_wifi_prod, "wlan0")
       {:ok, device_wifi_prod} = Devices.update_device(device_wifi_prod, %{tags: ["production"]})
+      {:ok, device_wifi_prod} = Devices.update_network_interface(device_wifi_prod.id, "wlan0")
+      device_wifi_prod = Repo.reload(device_wifi_prod)
 
-      {:ok, device_wifi_prod} = Devices.update_network_interface(device_wifi_prod, "wlan0")
       {:ok, device_wifi_dev} = Devices.update_device(device_wifi_dev, %{tags: ["development"]})
+      {:ok, device_wifi_dev} = Devices.update_network_interface(device_wifi_dev.id, "wlan0")
+      device_wifi_dev = Repo.reload(device_wifi_dev)
 
-      {:ok, device_cellular_prod} = Devices.update_network_interface(device_cellular_prod, "wwan0")
       {:ok, device_cellular_prod} = Devices.update_device(device_cellular_prod, %{tags: ["production"]})
+      {:ok, device_cellular_prod} = Devices.update_network_interface(device_cellular_prod.id, "wwan0")
+      device_cellular_prod = Repo.reload(device_cellular_prod)
 
-      {:ok, device_ethernet_prod} = Devices.update_network_interface(device_ethernet_prod, "eth0")
       {:ok, device_ethernet_prod} = Devices.update_device(device_ethernet_prod, %{tags: ["production"]})
+      {:ok, device_ethernet_prod} = Devices.update_network_interface(device_ethernet_prod.id, "eth0")
+      device_ethernet_prod = Repo.reload(device_ethernet_prod)
 
       # Set up connections and different firmware versions for all devices
       for device <- [device_wifi_prod, device_wifi_dev, device_cellular_prod, device_ethernet_prod] do
@@ -2330,26 +2342,26 @@ defmodule NervesHub.DevicesTest do
     test "updates device.network_interface", %{device: device} do
       refute device.network_interface
 
-      {:ok, device} = Devices.update_network_interface(device, "eth0")
+      {:ok, device} = Devices.update_network_interface(device.id, "eth0")
       assert device.network_interface == :ethernet
 
-      {:ok, device} = Devices.update_network_interface(device, "en0")
+      {:ok, device} = Devices.update_network_interface(device.id, "en0")
       assert device.network_interface == :ethernet
 
-      {:ok, device} = Devices.update_network_interface(device, "wlan0")
+      {:ok, device} = Devices.update_network_interface(device.id, "wlan0")
       assert device.network_interface == :wifi
 
-      {:ok, device} = Devices.update_network_interface(device, "wwan0")
+      {:ok, device} = Devices.update_network_interface(device.id, "wwan0")
       assert device.network_interface == :cellular
     end
 
     test "sets to 'unknown' for invalid values", %{device: device} do
-      {:ok, device} = Devices.update_network_interface(device, "foobarbaz")
+      {:ok, device} = Devices.update_network_interface(device.id, "foobarbaz")
       assert device.network_interface == :unknown
     end
 
     test "cannot be explicitly set to nil", %{device: device} do
-      {:error, changeset} = Devices.update_network_interface(device, nil)
+      {:error, changeset} = Devices.update_network_interface(device.id, nil)
       {"cannot be set to nil", []} = changeset.errors[:network_interface]
     end
   end
@@ -2415,5 +2427,14 @@ defmodule NervesHub.DevicesTest do
 
       assert count == 0
     end
+  end
+
+  def to_device_info(device) do
+    %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
   end
 end

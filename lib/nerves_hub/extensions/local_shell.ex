@@ -55,7 +55,7 @@ defmodule NervesHub.Extensions.LocalShell do
       |> assign(:current_line, current_line)
       |> assign(:buffer, buffer)
 
-    topic = "user:local_shell:#{socket.assigns.device.id}"
+    topic = "user:local_shell:#{socket.assigns.device_info.device_id}"
 
     socket.endpoint.broadcast!(topic, "output", %{data: data})
 
@@ -64,7 +64,7 @@ defmodule NervesHub.Extensions.LocalShell do
 
   def handle_in(event, params, socket) do
     Logger.warning(
-      "[Extensions.LocalShell] unknown message received for device: #{inspect(socket.assigns.device.id)} / #{inspect(event)} / #{inspect(params)}"
+      "[Extensions.LocalShell] unknown message received for device: #{inspect(socket.assigns.device_info.device_id)} / #{inspect(event)} / #{inspect(params)}"
     )
 
     {:noreply, socket}

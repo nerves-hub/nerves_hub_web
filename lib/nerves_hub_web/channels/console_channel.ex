@@ -4,16 +4,10 @@ defmodule NervesHubWeb.ConsoleChannel do
 
   alias Phoenix.Socket.Broadcast
 
-  def join("console", payload, %{assigns: %{device: device}} = socket) do
+  def join("console", payload, socket) do
     send(self(), {:after_join, payload})
 
-    socket =
-      socket
-      |> assign(:device, device)
-      |> assign(:current_line, "")
-      |> assign(:buffer, CircularBuffer.new(1024))
-
-    {:ok, socket}
+    {:ok, assign(socket, %{current_line: "", buffer: CircularBuffer.new(1024)})}
   end
 
   def terminate(_, _socket) do
@@ -34,27 +28,30 @@ defmodule NervesHubWeb.ConsoleChannel do
       |> assign(:current_line, current_line)
       |> assign(:buffer, buffer)
 
-    topic = "user:console:#{socket.assigns.device.id}"
-    socket.endpoint.broadcast!(topic, "up", payload)
+    user_topic(socket)
+    |> socket.endpoint.broadcast!("up", payload)
 
     {:noreply, socket}
   end
 
   def handle_in("file-data/start", payload, socket) do
-    topic = "user:console:#{socket.assigns.device.id}"
-    socket.endpoint.broadcast!(topic, "file-data/start", payload)
+    user_topic(socket)
+    |> socket.endpoint.broadcast!("file-data/start", payload)
+
     {:noreply, socket}
   end
 
   def handle_in("file-data", payload, socket) do
-    topic = "user:console:#{socket.assigns.device.id}"
-    socket.endpoint.broadcast!(topic, "file-data", payload)
+    user_topic(socket)
+    |> socket.endpoint.broadcast!("file-data", payload)
+
     {:noreply, socket}
   end
 
   def handle_in("file-data/stop", payload, socket) do
-    topic = "user:console:#{socket.assigns.device.id}"
-    socket.endpoint.broadcast!(topic, "file-data/stop", payload)
+    user_topic(socket)
+    |> socket.endpoint.broadcast!("file-data/stop", payload)
+
     {:noreply, socket}
   end
 
@@ -66,10 +63,10 @@ defmodule NervesHubWeb.ConsoleChannel do
     # additionally, this topic isn't needed or used, so we can unsubscribe from it
     socket.endpoint.unsubscribe("console")
 
-    socket.endpoint.subscribe("device:console:#{socket.assigns.device.id}")
+    socket.endpoint.subscribe(device_topic(socket))
 
     socket.endpoint.broadcast!(
-      "device:console:#{socket.assigns.device.id}:internal",
+      device_internal_topic(socket),
       "console_joined",
       %{}
     )
@@ -96,4 +93,10 @@ defmodule NervesHubWeb.ConsoleChannel do
     push(socket, event, payload)
     {:noreply, socket}
   end
+
+  defp device_topic(socket), do: "device:console:#{socket.assigns.device_info.device_id}"
+
+  defp device_internal_topic(socket), do: "device:console:#{socket.assigns.device_info.device_id}:internal"
+
+  defp user_topic(socket), do: "user:console:#{socket.assigns.device_info.device_id}"
 end

@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.AuditLogs
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
@@ -196,8 +197,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit(device_show_path(fixture))
       |> assert_has("svg[data-connection-status=unknown]")
       |> unwrap(fn view ->
-        {:ok, connection} = Connections.device_connecting(fixture.device)
-        :ok = Connections.device_connected(fixture.device, connection.id)
+        {:ok, connection} = Connections.device_connecting(fixture.device.id, fixture.device.identifier)
+        :ok = Connections.device_connected(fixture.device.identifier, connection.id)
         render(view)
       end)
       |> assert_has("svg[data-connection-status=connected]")
@@ -219,8 +220,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       # Set device status to :provisioned for deployment group eligibility
       %{status: :provisioned} = device = Devices.set_as_provisioned!(device)
 
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
 
       # mismatch device and deployment group firmware so "Send Update" form doesn't display
       original_firmware_platform = device.firmware_metadata.platform
@@ -260,8 +261,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 22})
 
-        {:ok, connection} = Connections.device_connecting(device)
-        :ok = Connections.device_connected(device, connection.id)
+        {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+        :ok = Connections.device_connected(device.identifier, connection.id)
 
         topic = "device:#{device.id}:extensions"
         ChannelServer.broadcast!(NervesHub.PubSub, topic, "health_check_report", %{})
@@ -373,8 +374,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{}})
 
       conn
@@ -390,8 +391,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{"latitude" => nil, "longitude" => nil}})
 
       conn
@@ -407,8 +408,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{"latitude" => "", "longitude" => ""}})
 
       conn
@@ -423,8 +424,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "location" => %{"error_code" => "BOOP", "error_description" => "BEEP"}
       }
 
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
       :ok = Connections.merge_update_metadata(connection.id, metadata)
 
       conn
@@ -445,8 +446,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         }
       }
 
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
       :ok = Connections.merge_update_metadata(connection.id, metadata)
 
       conn
@@ -670,8 +671,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
 
       {:ok, {_release, deployment_group}} =
         ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
@@ -713,8 +714,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
         |> Repo.update!()
 
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
@@ -941,8 +942,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
       device = Devices.set_as_provisioned!(device)
 
       conn
@@ -975,8 +976,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
       device = Devices.set_as_provisioned!(device)
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -1028,8 +1029,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
       device = Devices.set_as_provisioned!(device)
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -1078,8 +1079,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       Devices.update_device(device, %{firmware_metadata: metadata})
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
+      :ok = Connections.device_connected(device.identifier, connection.id)
       device = Devices.set_as_provisioned!(device)
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -1409,7 +1410,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
         |> assert_has("span", text: "Not validated")
 
-      Devices.firmware_validated(device)
+      to_device_info(device)
+      |> Devices.firmware_validated()
 
       assert_has(conn, "span", text: "Validated")
     end
@@ -1464,5 +1466,14 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
   def device_show_path(%{device: device, org: org, product: product}) do
     ~p"/org/#{org}/#{product}/devices/#{device}"
+  end
+
+  def to_device_info(device) do
+    %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
   end
 end

@@ -23,12 +23,12 @@ defmodule NervesHub.Devices.DeviceConnection do
     )
   end
 
-  def connecting_changeset(device) do
+  def connecting_changeset(device_id) do
     now = DateTime.utc_now()
 
     %__MODULE__{}
     |> change()
-    |> put_assoc(:device, device)
+    |> put_change(:device_id, device_id)
     |> put_change(:established_at, now)
     |> put_change(:last_seen_at, now)
     |> put_change(:status, :connecting)

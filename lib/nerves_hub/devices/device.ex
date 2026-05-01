@@ -141,6 +141,12 @@ defmodule NervesHub.Devices.Device do
     |> put_change(:updates_blocked_until, nil)
   end
 
+  def firmware_validated(%Device{} = device) do
+    device
+    |> change()
+    |> put_change(:firmware_validation_status, :validated)
+  end
+
   def update_network_interface_changeset(%Device{} = device, nil) do
     add_error(
       change(device),
