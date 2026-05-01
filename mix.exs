@@ -80,7 +80,7 @@ defmodule NervesHub.MixProject do
       {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
       {:recon, "~> 2.5"},
       {:assert_eventually, "~> 1.0.0", only: [:dev, :test]},
-      {:bandit, "~> 1.0"},
+      {:bandit, "~> 1.11"},
       {:bcrypt_elixir, "~> 3.0"},
       {:briefly, "~> 0.5.0"},
       {:castore, "~> 1.0"},
