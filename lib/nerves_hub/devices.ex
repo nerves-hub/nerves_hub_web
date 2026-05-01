@@ -1729,15 +1729,15 @@ defmodule NervesHub.Devices do
 
   @spec fetch_allowed_extensions(pos_integer()) :: allowed_extensions :: list(atom())
   def fetch_allowed_extensions(device_id) do
-    device =
+    {device_extensions, product_extensions} =
       Device
       |> join(:left, [d], p in assoc(d, :product))
-      |> preload([d, p], product: p)
+      |> select([d, p], {d.extensions, p.extensions})
       |> where(id: ^device_id)
       |> Repo.one!()
 
-    for {extension, true} <- Map.from_struct(device.product.extensions),
-        {^extension, device_enabled?} <- Map.from_struct(device.extensions),
+    for {extension, true} <- Map.from_struct(product_extensions),
+        {^extension, device_enabled?} <- Map.from_struct(device_extensions),
         device_enabled? != false,
         do: extension
   end
