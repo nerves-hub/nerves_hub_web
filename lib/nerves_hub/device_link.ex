@@ -96,12 +96,9 @@ defmodule NervesHub.DeviceLink do
 
   @spec fetch_connecting_code(DeviceInfo.t()) :: list(binary()) | nil
   def fetch_connecting_code(device_info) do
-    device = Devices.get_device(device_info.device_id, [:deployment])
+    {device_connecting_code, deployment_connecting_code} = Devices.fetch_connecting_code(device_info.device_id)
 
-    [
-      get_in(device, [Access.key(:deployment_group), Access.key(:connecting_code)]),
-      device.connecting_code
-    ]
+    [deployment_connecting_code, device_connecting_code]
     |> Enum.filter(&(not is_nil(&1) and byte_size(&1) > 0))
     |> case do
       list when list == [] -> nil

@@ -1727,6 +1727,14 @@ defmodule NervesHub.Devices do
     |> Repo.aggregate(:count)
   end
 
+  def fetch_connecting_code(device_id) do
+    Device
+    |> join(:left, [d], dp in assoc(d, :deployment_group))
+    |> select([d, dp], {d.connecting_code, dp.connecting_code})
+    |> where(id: ^device_id)
+    |> Repo.one!()
+  end
+
   def enable_extension_setting(%Device{} = device, extension_string) do
     device = get_device(device.id)
 
