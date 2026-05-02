@@ -2,7 +2,6 @@ defmodule NervesHubWeb.ExtensionsChannel do
   use Phoenix.Channel
   use OpenTelemetryDecorator
 
-  alias NervesHub.Devices
   alias NervesHub.Extensions
   alias NervesHub.Helpers.Logging
   alias Phoenix.PubSub
@@ -35,13 +34,11 @@ defmodule NervesHubWeb.ExtensionsChannel do
   end
 
   defp load_and_parse_extensions(device_info, extension_versions) do
-    allowed_extensions = Devices.fetch_allowed_extensions(device_info.device_id)
-
     for {key_str, version} <- extension_versions, into: %{} do
       meta =
         case Version.parse(version) do
           {:ok, ver} ->
-            extension = Enum.find(allowed_extensions, &(to_string(&1) == key_str))
+            extension = Enum.find(device_info.allowed_extensions, &(to_string(&1) == key_str))
 
             if extension do
               mod = Extensions.module(extension, ver)

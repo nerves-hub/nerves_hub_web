@@ -343,7 +343,7 @@ defmodule NervesHub.Devices do
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
-      certificate -> {:ok, certificate}
+      device -> {:ok, device}
     end
   end
 
@@ -1725,21 +1725,6 @@ defmodule NervesHub.Devices do
     |> where([iu], iu.deployment_id == ^deployment_group.id)
     |> where([iu], iu.priority_queue == true)
     |> Repo.aggregate(:count)
-  end
-
-  @spec fetch_allowed_extensions(pos_integer()) :: allowed_extensions :: list(atom())
-  def fetch_allowed_extensions(device_id) do
-    {device_extensions, product_extensions} =
-      Device
-      |> join(:left, [d], p in assoc(d, :product))
-      |> select([d, p], {d.extensions, p.extensions})
-      |> where(id: ^device_id)
-      |> Repo.one!()
-
-    for {extension, true} <- Map.from_struct(product_extensions),
-        {^extension, device_enabled?} <- Map.from_struct(device_extensions),
-        device_enabled? != false,
-        do: extension
   end
 
   def enable_extension_setting(%Device{} = device, extension_string) do

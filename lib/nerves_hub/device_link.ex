@@ -16,6 +16,7 @@ defmodule NervesHub.DeviceLink do
 
   defmodule DeviceInfo do
     defstruct [
+      :allowed_extensions,
       :connection_ref,
       :deployment_id,
       :device_id,
@@ -29,6 +30,7 @@ defmodule NervesHub.DeviceLink do
     ]
 
     @type t :: %__MODULE__{
+            allowed_extensions: list(atom()) | nil,
             connection_ref: String.t() | nil,
             deployment_id: pos_integer() | nil,
             device_id: pos_integer() | nil,

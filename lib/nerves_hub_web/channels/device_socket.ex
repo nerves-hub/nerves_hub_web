@@ -273,7 +273,8 @@ defmodule NervesHubWeb.DeviceSocket do
       deployment_id: device.deployment_id,
       firmware_metadata: device.firmware_metadata,
       device_updates_enabled: device.updates_enabled,
-      device_updates_blocked_until: device.updates_blocked_until
+      device_updates_blocked_until: device.updates_blocked_until,
+      allowed_extensions: calculate_allowed_extensions(device)
     }
 
     {:ok, assign(socket, :device_info, device_info)}
@@ -331,6 +332,13 @@ defmodule NervesHubWeb.DeviceSocket do
     _ = Connections.device_disconnected(device_info.device_identifier, device_info.connection_ref)
 
     assign(socket, :disconnection_handled?, true)
+  end
+
+  defp calculate_allowed_extensions(device) do
+    for {extension, true} <- Map.from_struct(device.product.extensions),
+        {^extension, device_enabled?} <- Map.from_struct(device.extensions),
+        device_enabled? != false,
+        do: extension
   end
 
   defp last_seen_update_interval() do
