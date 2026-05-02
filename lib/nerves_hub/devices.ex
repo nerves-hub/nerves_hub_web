@@ -1564,8 +1564,8 @@ defmodule NervesHub.Devices do
 
   def fetch_firmware_signing_keys(device_id) do
     OrgKey
-    |> join(:left, [ok], d in assoc(ok, :org))
-    |> join(:left, [ok, o], d in assoc(o, :devices))
+    |> join(:inner, [ok], d in assoc(ok, :org))
+    |> join(:inner, [ok, o], d in assoc(o, :devices))
     |> where([ok, o, d], d.id == ^device_id)
     |> Repo.all()
   end
