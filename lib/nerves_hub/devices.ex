@@ -352,10 +352,11 @@ defmodule NervesHub.Devices do
   def get_shared_secret_auth(key) do
     SharedSecretAuth
     |> join(:inner, [ssa], d in assoc(ssa, :device))
+    |> join(:inner, [ssa, d], p in assoc(d, :product))
     |> where([ssa], ssa.key == ^key)
     |> where([ssa], is_nil(ssa.deactivated_at))
     |> where([_, d], is_nil(d.deleted_at))
-    |> preload([:device, :product_shared_secret_auth])
+    |> preload([ssa, d, p], [:product_shared_secret_auth, device: {d, product: p}])
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
