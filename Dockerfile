@@ -136,11 +136,12 @@ RUN apt-get update -y && \
 
 # Build the latest jemalloc
 
-RUN git clone https://github.com/facebook/jemalloc /tmp/jemalloc
+RUN git clone https://github.com/jemalloc/jemalloc /tmp/jemalloc
 
 WORKDIR /tmp/jemalloc
 
-RUN autoconf && \
+RUN git checkout 5.3.1 && \
+    autoconf && \
     ./configure && \
     make && \
     make install
