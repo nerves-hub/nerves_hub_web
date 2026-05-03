@@ -109,8 +109,7 @@ RUN git clone https://github.com/fwup-home/fwup /tmp/fwup
 
 WORKDIR /tmp/fwup
 
-# pinning to 428350a as it fixes dependency download URL issues
-RUN git checkout 428350a && \
+RUN git checkout v1.16.0 && \
     ./scripts/download_deps.sh && \
     ./scripts/build_deps.sh && \
     ./autogen.sh && \
@@ -136,11 +135,12 @@ RUN apt-get update -y && \
 
 # Build the latest jemalloc
 
-RUN git clone https://github.com/facebook/jemalloc /tmp/jemalloc
+RUN git clone https://github.com/jemalloc/jemalloc /tmp/jemalloc
 
 WORKDIR /tmp/jemalloc
 
-RUN autoconf && \
+RUN git checkout 5.3.1 && \
+    autoconf && \
     ./configure && \
     make && \
     make install
