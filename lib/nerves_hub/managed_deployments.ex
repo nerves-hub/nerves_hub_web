@@ -640,10 +640,9 @@ defmodule NervesHub.ManagedDeployments do
       when not is_nil(deployment_id) do
     deployment_group =
       DeploymentGroup
-      |> from(as: :deployment_group)
+      |> select([:id, :org_id, :name, :conditions, :platform, :architecture])
       |> where([d], d.id == ^deployment_id)
-      |> join_current_release(true)
-      |> Repo.one()
+      |> Repo.one!()
 
     bad_version =
       if deployment_group.conditions.version == "" do
@@ -657,10 +656,10 @@ defmodule NervesHub.ManagedDeployments do
         end
       end
 
-    bad_platform = device.firmware_metadata.platform != deployment_group.current_release.firmware.platform
+    bad_platform = device.firmware_metadata.platform != deployment_group.platform
 
     bad_architecture =
-      device.firmware_metadata.architecture != deployment_group.current_release.firmware.architecture
+      device.firmware_metadata.architecture != deployment_group.architecture
 
     reason =
       cond do

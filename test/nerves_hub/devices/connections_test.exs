@@ -26,7 +26,8 @@ defmodule NervesHub.Devices.ConnectionsTest do
       topic = "device:#{device.identifier}:internal"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
-      assert {:ok, %DeviceConnection{id: ref, status: :connecting}} = Connections.device_connecting(device)
+      assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
+               Connections.device_connecting(device.id, device.identifier)
 
       assert %DeviceConnection{status: :connecting} = Connections.get_latest_for_device(device.id)
       assert_receive %Broadcast{topic: ^topic, event: "connection:change", payload: %{status: "connecting"}}, 500
@@ -51,7 +52,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
       assert {:ok, %DeviceConnection{id: connection_id, last_seen_at: first_seen_at} = connection} =
-               Connections.device_connecting(device)
+               Connections.device_connecting(device.id, device.identifier)
 
       assert_receive %Broadcast{topic: ^topic, event: "connection:change", payload: %{status: "connecting"}}, 500
 
@@ -73,7 +74,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
   describe "clean_stale_connections/0" do
     test "marks stale connected connections as disconnected", %{device: device} do
-      {:ok, connection} = Connections.device_connecting(device)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
       :ok = Connections.device_connected(device, connection.id)
 
       # Get the configured interval and jitter
@@ -97,7 +98,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
     end
 
     test "does not mark recent connections as stale", %{device: device} do
-      {:ok, connection} = Connections.device_connecting(device)
+      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
       :ok = Connections.device_connected(device, connection.id)
 
       # Set last_seen_at to recent time

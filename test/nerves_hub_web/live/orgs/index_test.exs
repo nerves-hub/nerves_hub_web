@@ -59,7 +59,8 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
       _ = Fixtures.device_fixture(org, product, firmware)
 
       device = Fixtures.device_fixture(org, product, firmware)
-      {:ok, device_connection} = Connections.device_connecting(device)
+      {:ok, device_connection} = Connections.device_connecting(device.id, device.identifier)
+
       Connections.device_connected(device, device_connection.id)
 
       conn

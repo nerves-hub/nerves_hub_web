@@ -4,7 +4,6 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   alias NervesHub.Extensions
   alias NervesHub.Helpers.Logging
-  alias NervesHub.Repo
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
@@ -12,13 +11,9 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   @impl Phoenix.Channel
   @decorate with_span("Channels.ExtensionsChannel.join")
-  def join("extensions", extension_versions, socket) do
-    # the assigns are not shared between channels, so if we don't
-    # reload the device we are likely to have incorrect data, especially
-    # after the first connect event
-    socket = reload_device(socket)
+  def join("extensions", extension_versions, %{assigns: %{device_info: device_info}} = socket) do
+    extensions = load_and_parse_extensions(device_info, extension_versions)
 
-    extensions = parse_extensions(socket.assigns.device, extension_versions)
     socket = assign(socket, :extensions, extensions)
 
     attach_list = for {key, %{attach?: true}} <- extensions, do: key
@@ -32,27 +27,18 @@ defmodule NervesHubWeb.ExtensionsChannel do
     # additionally, this topic isn't needed or used, so we can unsubscribe from it
     :ok = socket.endpoint.unsubscribe("extensions")
 
-    topic = "device:#{socket.assigns.device.id}:extensions"
+    topic = "device:#{device_info.device_id}:extensions"
     :ok = socket.endpoint.subscribe(topic)
 
     {:ok, attach_list, socket}
   end
 
-  defp parse_extensions(
-         %{extensions: device_extensions, product: %{extensions: product_extensions}},
-         extension_versions
-       ) do
-    allowed_extensions =
-      for {extension, true} <- Map.from_struct(product_extensions),
-          {^extension, device_enabled?} <- Map.from_struct(device_extensions),
-          device_enabled? != false,
-          do: extension
-
+  defp load_and_parse_extensions(device_info, extension_versions) do
     for {key_str, version} <- extension_versions, into: %{} do
       meta =
         case Version.parse(version) do
           {:ok, ver} ->
-            extension = Enum.find(allowed_extensions, &(to_string(&1) == key_str))
+            extension = Enum.find(device_info.allowed_extensions, &(to_string(&1) == key_str))
 
             if extension do
               mod = Extensions.module(extension, ver)
@@ -107,13 +93,13 @@ defmodule NervesHubWeb.ExtensionsChannel do
     error ->
       Logger.warning("#{inspect(mod)} failed to handle extension message [#{event}] - #{inspect(error)}")
 
-      Logging.log_to_sentry(socket.assigns.device, error)
+      Logging.log_to_sentry(socket.assigns.device_info, error)
       {:noreply, socket}
   end
 
   @impl Phoenix.Channel
   def handle_info(:init_extensions, socket) do
-    topic = "product:#{socket.assigns.device.product.id}:extensions"
+    topic = "product:#{socket.assigns.device_info.product_id}:extensions"
     :ok = PubSub.subscribe(NervesHub.PubSub, topic)
 
     {:noreply, socket}
@@ -131,18 +117,9 @@ defmodule NervesHubWeb.ExtensionsChannel do
   rescue
     error ->
       Logger.warning("#{inspect(mod)} failed handle_info - #{inspect(error)}")
-      Logging.log_to_sentry(socket.assigns.device, error)
+      Logging.log_to_sentry(socket.assigns.device_info, error)
       {:noreply, socket}
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
-
-  defp reload_device(%{assigns: %{device: device}} = socket) do
-    device =
-      device
-      |> Repo.reload()
-      |> Repo.preload(:product)
-
-    assign(socket, :device, device)
-  end
 end

@@ -4,6 +4,7 @@ defmodule NervesHub.Devices.LogLinesTest do
   use NervesHub.DataCase, async: false
 
   alias NervesHub.AnalyticsRepo
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.LogLine
   alias NervesHub.Devices.LogLines
   alias NervesHub.Fixtures
@@ -36,7 +37,8 @@ defmodule NervesHub.Devices.LogLinesTest do
     product_id = device.product_id
 
     {:ok, log} =
-      LogLines.async_create(device, %{
+      to_device_info(device)
+      |> LogLines.async_create(%{
         "timestamp" => logged_at,
         "level" => level,
         "message" => message
@@ -71,7 +73,8 @@ defmodule NervesHub.Devices.LogLinesTest do
     product_id = device.product_id
 
     {:ok, log} =
-      LogLines.async_create(device, %{
+      to_device_info(device)
+      |> LogLines.async_create(%{
         "level" => level,
         "message" => message,
         "meta" => %{"time" => logged_at |> DateTime.to_unix(:microsecond) |> to_string()}
@@ -119,8 +122,17 @@ defmodule NervesHub.Devices.LogLinesTest do
       "message" => random_word()
     }
 
-    {:ok, log_line} = LogLines.async_create(device, attrs)
+    {:ok, log_line} = LogLines.async_create(to_device_info(device), attrs)
 
     log_line
+  end
+
+  def to_device_info(device) do
+    %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
   end
 end

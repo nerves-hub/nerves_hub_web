@@ -1,6 +1,7 @@
 defmodule NervesHub.Extensions.Health do
   @behaviour NervesHub.Extensions
 
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
@@ -65,7 +66,7 @@ defmodule NervesHub.Extensions.Health do
       end
 
     device_health = %{
-      "device_id" => socket.assigns.device.id,
+      "device_id" => socket.assigns.device_info.device_id,
       "data" => device_report,
       "status" => status,
       "status_reasons" => reasons
@@ -74,14 +75,14 @@ defmodule NervesHub.Extensions.Health do
     with {:health_report, {:ok, _}} <-
            {:health_report, Devices.save_device_health(device_health)},
          {:metrics_report, {:ok, _}} <-
-           {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
-      :ok = device_internal_broadcast!(socket.assigns.device, "health_check_report", %{})
+           {:metrics_report, Metrics.save_metrics(socket.assigns.device_info.device_id, metrics)} do
+      :ok = device_internal_broadcast!(socket.assigns.device_info, "health_check_report", %{})
     else
       {:health_report, {:error, err}} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
 
         Logging.log_to_sentry(
-          socket.assigns.device,
+          socket.assigns.device_info,
           "[DeviceChannel] Failed to save health check data."
         )
 
@@ -89,7 +90,7 @@ defmodule NervesHub.Extensions.Health do
         Logger.warning("Failed to save metrics report")
 
         Logging.log_to_sentry(
-          socket.assigns.device,
+          socket.assigns.device_info,
           "[DeviceChannel] Failed to save metrics report."
         )
     end
@@ -104,11 +105,15 @@ defmodule NervesHub.Extensions.Health do
   end
 
   def request_health_check(device) do
-    :ok = device_internal_broadcast!(device, "health:check", %{})
+    :ok = device_internal_broadcast!(device.id, "health:check", %{})
   end
 
-  defp device_internal_broadcast!(device, event, payload) do
-    topic = "device:#{device.id}:extensions"
+  defp device_internal_broadcast!(%DeviceInfo{} = device_info, event, payload) do
+    device_internal_broadcast!(device_info.device_id, event, payload)
+  end
+
+  defp device_internal_broadcast!(device_id, event, payload) do
+    topic = "device:#{device_id}:extensions"
 
     ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, event, payload)
   end

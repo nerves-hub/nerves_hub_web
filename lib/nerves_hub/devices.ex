@@ -14,6 +14,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Certificate
   alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -45,6 +46,13 @@ defmodule NervesHub.Devices do
 
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
+  end
+
+  def get_device(device_id, preloads \\ []) do
+    Device
+    |> where(id: ^device_id)
+    |> join_and_preload(preloads)
+    |> Repo.one!()
   end
 
   def get_complete_device(device_id) do
@@ -296,6 +304,10 @@ defmodule NervesHub.Devices do
 
   defp join_and_preload(query, nil), do: query
 
+  defp join_and_preload(query, :deployment) do
+    join_and_preload_deployment_group_and_current_release(query)
+  end
+
   defp join_and_preload(query, :device_certificates) do
     query
     |> join(:left, [d], dc in assoc(d, :device_certificates), as: :device_certificates)
@@ -331,7 +343,7 @@ defmodule NervesHub.Devices do
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
-      certificate -> {:ok, certificate}
+      device -> {:ok, device}
     end
   end
 
@@ -340,10 +352,11 @@ defmodule NervesHub.Devices do
   def get_shared_secret_auth(key) do
     SharedSecretAuth
     |> join(:inner, [ssa], d in assoc(ssa, :device))
+    |> join(:inner, [ssa, d], p in assoc(d, :product))
     |> where([ssa], ssa.key == ^key)
     |> where([ssa], is_nil(ssa.deactivated_at))
     |> where([_, d], is_nil(d.deleted_at))
-    |> preload([:device, :product_shared_secret_auth])
+    |> preload([ssa, d, p], [:product_shared_secret_auth, device: {d, product: p}])
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -709,20 +722,22 @@ defmodule NervesHub.Devices do
     })
   end
 
-  def firmware_validated(device) do
-    DeviceTemplates.audit_firmware_validated(device)
+  def firmware_validated(device_info) do
+    %Device{id: device_info.device_id}
+    |> Device.firmware_validated()
+    |> Repo.update!()
 
-    {:ok, device} = update_device(device, %{firmware_validation_status: "validated"})
+    DeviceTemplates.audit_firmware_validated(device_info)
 
     ChannelServer.broadcast_from!(
       NervesHub.PubSub,
       self(),
-      "device:#{device.identifier}:internal",
+      "device:#{device_info.device_identifier}:internal",
       "firmware:validated",
       %{}
     )
 
-    {:ok, device}
+    :ok
   end
 
   @spec update_device(Device.t(), map(), broadcast: boolean()) ::
@@ -741,9 +756,9 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec update_network_interface(Device.t(), binary()) :: {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
-  def update_network_interface(device, network_interface) do
-    device
+  @spec update_network_interface(pos_integer(), binary()) :: {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
+  def update_network_interface(device_id, network_interface) do
+    %Device{id: device_id}
     |> Device.update_network_interface_changeset(network_interface)
     |> Repo.update()
   end
@@ -1075,11 +1090,18 @@ defmodule NervesHub.Devices do
   Devices that haven't been automatically blocked are not in the penalty window.
   Devices that have a time greater than now are in the penalty window.
   """
-  def device_in_penalty_box?(device, now \\ DateTime.utc_now())
+  @spec device_in_penalty_box?(device_or_device_info :: Device.t() | DeviceInfo.t(), now :: DateTime.t()) :: boolean()
+  def device_in_penalty_box?(device_or_device_info, now \\ DateTime.utc_now())
 
-  def device_in_penalty_box?(%{updates_blocked_until: nil}, _now), do: false
+  def device_in_penalty_box?(%DeviceInfo{device_updates_blocked_until: nil}, _now), do: false
 
-  def device_in_penalty_box?(device, now) do
+  def device_in_penalty_box?(%Device{updates_blocked_until: nil}, _now), do: false
+
+  def device_in_penalty_box?(%DeviceInfo{} = device_info, now) do
+    DateTime.after?(device_info.device_updates_blocked_until, now)
+  end
+
+  def device_in_penalty_box?(%Device{} = device, now) do
     DateTime.after?(device.updates_blocked_until, now)
   end
 
@@ -1133,8 +1155,8 @@ defmodule NervesHub.Devices do
     update_device(device, %{updates_blocked_until: blocked_until, update_attempts: []})
   end
 
-  @spec update_attempted(Device.t(), DateTime.t()) :: :ok | {:error, Changeset.t()}
-  def update_attempted(device, now \\ DateTime.utc_now()) do
+  @spec update_attempted(DeviceInfo.t(), DateTime.t()) :: :ok | {:error, Changeset.t()}
+  def update_attempted(device_info, now \\ DateTime.utc_now()) do
     now = DateTime.truncate(now, :second)
 
     Multi.new()
@@ -1142,13 +1164,13 @@ defmodule NervesHub.Devices do
       :device,
       fn _ ->
         Device
-        |> where(id: ^device.id)
+        |> where(id: ^device_info.device_id)
         |> update(set: [update_attempts: fragment("update_attempts || ?::timestamp", ^now)])
       end,
       []
     )
     |> Multi.run(:audit_device, fn _, _ ->
-      DeviceTemplates.audit_update_attempt(device)
+      DeviceTemplates.audit_update_attempt(device_info)
     end)
     |> Repo.transact()
     |> case do
@@ -1196,20 +1218,20 @@ defmodule NervesHub.Devices do
     |> Repo.update()
   end
 
-  def deployment_device_online(%Device{deployment_id: nil}) do
+  def deployment_device_online(%DeviceInfo{deployment_id: nil}) do
     :ok
   end
 
-  def deployment_device_online(device) do
-    firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid)
+  def deployment_device_online(device_info) do
+    firmware_uuid = if(device_info.firmware_metadata, do: device_info.firmware_metadata.uuid)
 
     payload = %{
-      updates_enabled: device.updates_enabled,
-      updates_blocked_until: device.updates_blocked_until,
+      updates_enabled: device_info.device_updates_enabled,
+      updates_blocked_until: device_info.device_updates_blocked_until,
       firmware_uuid: firmware_uuid
     }
 
-    DeploymentOrchestratorEvents.device_online(device, payload)
+    DeploymentOrchestratorEvents.device_online(device_info, payload)
 
     :ok
   end
@@ -1540,6 +1562,14 @@ defmodule NervesHub.Devices do
     Enum.all?(deployment_group_tags, fn tag -> tag in device_tags end)
   end
 
+  def fetch_firmware_signing_keys(device_id) do
+    OrgKey
+    |> join(:inner, [ok], d in assoc(ok, :org))
+    |> join(:inner, [ok, o], d in assoc(o, :devices))
+    |> where([ok, o, d], d.id == ^device_id)
+    |> Repo.all()
+  end
+
   def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}) do
     existing_target_keys = from(k in OrgKey, where: [org_id: ^target], select: k.key)
 
@@ -1635,9 +1665,17 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def clear_inflight_update(device) do
+  def clear_inflight_update(%DeviceInfo{device_id: id}) do
+    clear_inflight_update(id)
+  end
+
+  def clear_inflight_update(%Device{id: id}) do
+    clear_inflight_update(id)
+  end
+
+  def clear_inflight_update(device_id) do
     InflightUpdate
-    |> where([iu], iu.device_id == ^device.id)
+    |> where([iu], iu.device_id == ^device_id)
     |> Repo.delete_all()
   end
 
@@ -1688,6 +1726,14 @@ defmodule NervesHub.Devices do
     |> where([iu], iu.deployment_id == ^deployment_group.id)
     |> where([iu], iu.priority_queue == true)
     |> Repo.aggregate(:count)
+  end
+
+  def fetch_connecting_code(device_id) do
+    Device
+    |> join(:left, [d], dp in assoc(d, :deployment_group))
+    |> select([d, dp], {d.connecting_code, dp.connecting_code})
+    |> where(id: ^device_id)
+    |> Repo.one!()
   end
 
   def enable_extension_setting(%Device{} = device, extension_string) do

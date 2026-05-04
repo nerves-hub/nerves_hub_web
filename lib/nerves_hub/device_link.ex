@@ -14,33 +14,96 @@ defmodule NervesHub.DeviceLink do
 
   require Logger
 
-  @spec join(Device.t(), connection_reference :: String.t(), params :: map()) ::
-          {:ok, Device.t()} | {:error, any()}
-  def join(device, ref_id, params) do
+  defmodule DeviceInfo do
+    defstruct [
+      :allowed_extensions,
+      :connection_ref,
+      :deployment_id,
+      :device_id,
+      :device_identifier,
+      :device_network_interface,
+      :device_updates_blocked_until,
+      :device_updates_enabled,
+      :firmware_metadata,
+      :org_id,
+      :product_id
+    ]
+
+    @type t :: %__MODULE__{
+            allowed_extensions: list(atom()) | nil,
+            connection_ref: String.t() | nil,
+            deployment_id: pos_integer() | nil,
+            device_id: pos_integer() | nil,
+            device_updates_enabled: boolean() | nil,
+            device_updates_blocked_until: DateTime.t() | nil,
+            device_identifier: String.t() | nil,
+            device_network_interface: String.t() | nil,
+            firmware_metadata: map() | nil,
+            org_id: pos_integer() | nil,
+            product_id: pos_integer() | nil
+          }
+  end
+
+  @public_key_types ["fwup_public_keys", "archive_public_keys"]
+
+  @spec join(DeviceInfo.t(), params :: map()) :: {:ok, DeviceInfo.t()} | {:error, any()}
+  def join(device_info, params) do
     updated_metadata = %{
       "device_api_version" => params["device_api_version"]
     }
 
+    device = Devices.get_device(device_info.device_id)
+
     with {:ok, device} <- update_firmware_metadata(device, params),
-         :ok <- update_connection_metadata(ref_id, updated_metadata),
+         :ok <- update_connection_metadata(device_info.connection_ref, updated_metadata),
          :ok <- maybe_clear_inflight_update(device, params) do
       device = refresh_deployment_group(device)
-      {:ok, device}
+
+      {:ok, %{device_info | deployment_id: device.deployment_id, firmware_metadata: device.firmware_metadata}}
     else
       err -> {:error, err}
     end
   end
 
-  @spec after_join(Device.t(), connection_reference :: String.t(), params :: map()) ::
-          :ok | {:error, any()}
-  def after_join(device, reference_id, params) do
-    with :ok <- maybe_send_public_keys(device, params),
-         :ok <- maybe_send_archive(device, params["device_api_version"], reference_id),
-         :ok <- maybe_request_extensions(device, params["device_api_version"]) do
-      announce_online(device, reference_id)
+  @spec after_join(DeviceInfo.t(), params :: map()) :: :ok | {:error, any()}
+  def after_join(device_info, params) do
+    with :ok <- maybe_send_public_keys(device_info, params),
+         :ok <- maybe_send_archive(device_info, params["device_api_version"]),
+         :ok <- maybe_request_extensions(device_info, params["device_api_version"]) do
+      announce_online(device_info)
     end
   rescue
     err -> {:error, err}
+  end
+
+  @spec refresh_device_info(DeviceInfo.t()) :: DeviceInfo.t()
+  def refresh_device_info(device_info) do
+    device = Devices.get_device(device_info.device_id)
+
+    %{
+      device_info
+      | org_id: device.org_id,
+        product_id: device.product_id,
+        device_id: device.id,
+        device_identifier: device.identifier,
+        deployment_id: device.deployment_id,
+        firmware_metadata: device.firmware_metadata,
+        device_updates_enabled: device.updates_enabled,
+        device_updates_blocked_until: device.updates_blocked_until,
+        device_network_interface: device.network_interface
+    }
+  end
+
+  @spec fetch_connecting_code(DeviceInfo.t()) :: list(binary()) | nil
+  def fetch_connecting_code(device_info) do
+    {device_connecting_code, deployment_connecting_code} = Devices.fetch_connecting_code(device_info.device_id)
+
+    [deployment_connecting_code, device_connecting_code]
+    |> Enum.filter(&(not is_nil(&1) and byte_size(&1) > 0))
+    |> case do
+      list when list == [] -> nil
+      list -> list
+    end
   end
 
   @spec update_connection_metadata(reference_id :: String.t(), metadata :: map()) :: :ok | {:error, any()}
@@ -48,47 +111,47 @@ defmodule NervesHub.DeviceLink do
     Connections.merge_update_metadata(reference_id, metadata)
   end
 
-  @spec status_update(device :: Device.t(), status :: map(), update_started? :: boolean()) ::
+  @spec status_update(device_info :: DeviceInfo.t(), status :: map(), update_started? :: boolean()) ::
           :ok
-  def status_update(device, %{"status" => "started", "downloader_network_interface" => nil}, _update_started?) do
+  def status_update(device_info, %{"status" => "started", "downloader_network_interface" => nil}, _update_started?) do
     :telemetry.execute([:nerves_hub, :devices, :downloader_network_interface_nil], %{count: 1}, %{
-      identifier: device.identifier
+      identifier: device_info.device_identifier
     })
 
     :ok
   end
 
   def status_update(
-        device,
+        %{device_network_interface: device_network_interface} = device_info,
         %{"status" => "started", "downloader_network_interface" => downloader_network_interface},
         _update_started?
       ) do
-    if is_nil(device.network_interface) or
-         device.network_interface == Device.humanized_network_interface_name(downloader_network_interface) do
+    if is_nil(device_network_interface) or
+         device_network_interface == Device.humanized_network_interface_name(downloader_network_interface) do
       :ok
     else
       :telemetry.execute([:nerves_hub, :devices, :network_interface_mismatch], %{count: 1}, %{
         downloader_network_interface: downloader_network_interface,
-        device_network_interface: device.network_interface,
-        identifier: device.identifier
+        device_network_interface: device_info.device_network_interface,
+        identifier: device_info.device_identifier
       })
 
       :ok
     end
   end
 
-  def status_update(device, %{"status" => status}, update_started?) do
+  def status_update(device_info, %{"status" => status}, update_started?) do
     # a temporary hook into failed updates
     if String.contains?(String.downcase(status), "fwup error") do
       # if there was an error during updating
       # mark the attempt
       _ =
         if update_started? do
-          Devices.update_attempted(device)
+          Devices.update_attempted(device_info)
         end
 
       # clear the inflight update
-      Devices.clear_inflight_update(device)
+      Devices.clear_inflight_update(device_info)
       :ok
     else
       # if there was no error during updating, do nothing
@@ -96,43 +159,42 @@ defmodule NervesHub.DeviceLink do
     end
   end
 
-  @spec firmware_update_progress(device :: Device.t(), percent :: integer()) :: :ok
-  def firmware_update_progress(device, percent) do
-    topic = "device:#{device.identifier}:internal"
+  @spec firmware_update_progress(device_info :: DeviceInfo.t(), percent :: integer()) :: :ok
+  def firmware_update_progress(device_info, percent) do
+    topic = "device:#{device_info.device_identifier}:internal"
 
     :ok =
       ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, "fwup_progress", %{
-        device_id: device.id,
+        device_id: device_info.device_id,
         percent: percent
       })
   end
 
   @spec maybe_send_archive(
-          device :: Device.t(),
+          device_info :: DeviceInfo.t(),
           device_api_version :: String.t(),
-          reference_id :: String.t(),
           opts :: Keyword.t()
         ) :: :ok
-  def maybe_send_archive(device, device_api_version, reference_id, opts \\ [])
+  def maybe_send_archive(device_info, device_api_version, opts \\ [])
 
-  def maybe_send_archive(%{deployment_id: nil}, _device_api_version, _reference_id, _opts), do: :ok
+  def maybe_send_archive(%{deployment_id: nil}, _device_api_version, _opts), do: :ok
 
-  def maybe_send_archive(device, device_api_version, reference_id, opts) do
+  def maybe_send_archive(device_info, device_api_version, opts) do
     opts = Keyword.validate!(opts, audit_log: false)
-    updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
+    updates_enabled = device_info.device_updates_enabled && !Devices.device_in_penalty_box?(device_info)
     version_match = Version.match?(device_api_version, ">= 2.0.0")
 
     if updates_enabled && version_match do
-      if archive = Archives.archive_for_deployment_group(device.deployment_id) do
+      if archive = Archives.archive_for_deployment_group(device_info.deployment_id) do
         if opts[:audit_log],
           do:
             DeviceTemplates.audit_device_archive_update_triggered(
-              device,
+              %Device{id: device_info.device_id, identifier: device_info.device_identifier, org_id: device_info.org_id},
               archive,
-              reference_id
+              device_info.connection_ref
             )
 
-        broadcast(device, "archive", %{
+        broadcast(device_info, "archive", %{
           size: archive.size,
           uuid: archive.uuid,
           version: archive.version,
@@ -148,11 +210,11 @@ defmodule NervesHub.DeviceLink do
     :ok
   end
 
-  defp announce_online(device, reference_id) do
+  defp announce_online(device_info) do
     # Update the connection to say that we are fully up and running
-    Connections.device_connected(device, reference_id)
+    Connections.device_connected(device_info.device_identifier, device_info.connection_ref)
     # tell the orchestrator that we are online
-    Devices.deployment_device_online(device)
+    Devices.deployment_device_online(device_info)
   end
 
   defp refresh_deployment_group(device) do
@@ -162,12 +224,20 @@ defmodule NervesHub.DeviceLink do
     |> Map.put(:deployment_group, nil)
   end
 
-  defp maybe_send_public_keys(device, params) do
-    Enum.each(["fwup_public_keys", "archive_public_keys"], fn key_type ->
-      if params[key_type] == "on_connect" do
-        org_keys = NervesHub.Accounts.list_org_keys(device.org_id, false)
+  defp maybe_send_public_keys(device_info, params) do
+    signing_keys =
+      if Enum.any?(@public_key_types, fn type -> params[type] == "on_connect" end) do
+        Devices.fetch_firmware_signing_keys(device_info.device_id)
+      else
+        []
+      end
 
-        broadcast(device, key_type, %{keys: Enum.map(org_keys, & &1.key)})
+    Enum.each(["fwup_public_keys", "archive_public_keys"], fn key_type ->
+      with "on_connect" <- params[key_type],
+           org_keys when is_list(org_keys) and org_keys != [] <- signing_keys do
+        broadcast(device_info, key_type, %{keys: Enum.map(org_keys, & &1.key)})
+      else
+        _ -> :ok
       end
     end)
 
@@ -182,9 +252,9 @@ defmodule NervesHub.DeviceLink do
     :ok
   end
 
-  defp maybe_request_extensions(device, device_api_version) do
+  defp maybe_request_extensions(device_info, device_api_version) do
     if Version.match?(device_api_version, ">= 2.2.0"),
-      do: broadcast(device, "extensions:get", %{})
+      do: broadcast(device_info, "extensions:get", %{})
 
     :ok
   end
@@ -233,11 +303,11 @@ defmodule NervesHub.DeviceLink do
     |> Map.get("firmware_auto_revert_detected", false)
   end
 
-  defp topic(%Device{id: id}) do
+  defp topic(%DeviceInfo{device_id: id}) do
     "device:#{id}"
   end
 
-  defp broadcast(device, event, payload) do
-    :ok = ChannelServer.broadcast(NervesHub.PubSub, topic(device), event, payload)
+  defp broadcast(device_info, event, payload) do
+    :ok = ChannelServer.broadcast(NervesHub.PubSub, topic(device_info), event, payload)
   end
 end

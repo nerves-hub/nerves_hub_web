@@ -31,15 +31,15 @@ defmodule NervesHub.Extensions.Logging do
   end
 
   @impl NervesHub.Extensions
-  def handle_in("send", log_line, %{assigns: %{device: device}} = socket) do
+  def handle_in("send", log_line, %{assigns: %{device_info: device_info}} = socket) do
     case RateLimit.hit(
-           "device_#{device.id}",
+           "device_#{device_info.device_id}",
            @rate_limit_tokens_per_sec,
            @rate_limit_max_capacity,
            @rate_limit_token_cost
          ) do
       {:allow, _} ->
-        schedule_create(device, log_line)
+        schedule_create(device_info, log_line)
 
       {:deny, _} ->
         :noop
@@ -53,11 +53,11 @@ defmodule NervesHub.Extensions.Logging do
     {:noreply, socket}
   end
 
-  defp schedule_create(device, log_line) do
+  defp schedule_create(device_info, log_line) do
     _ =
       Task.Supervisor.start_child(
         {:via, PartitionSupervisor, {NervesHub.AnalyticsEventsProcessing, self()}},
-        fn -> {:ok, _} = LogLines.async_create(device, log_line) end
+        fn -> {:ok, _} = LogLines.async_create(device_info, log_line) end
       )
 
     :noop

@@ -8,10 +8,14 @@ defmodule NervesHub.Tracker do
   """
 
   def heartbeat(%Device{} = device) do
+    heartbeat(device.identifier)
+  end
+
+  def heartbeat(device_identifier) when is_binary(device_identifier) do
     _ =
       ChannelServer.broadcast(
         NervesHub.PubSub,
-        "device:#{device.identifier}:internal",
+        "device:#{device_identifier}:internal",
         "connection:heartbeat",
         %{}
       )
@@ -20,7 +24,11 @@ defmodule NervesHub.Tracker do
   end
 
   def connecting(%Device{} = device) do
-    publish(device.identifier, "connecting")
+    connecting(device.identifier)
+  end
+
+  def connecting(device_identifier) when is_binary(device_identifier) do
+    publish(device_identifier, "connecting")
   end
 
   def online(%{} = device) do
@@ -49,7 +57,11 @@ defmodule NervesHub.Tracker do
   @doc """
   Tell internal listeners that the device is offline, via a connection change
   """
-  def offline(%Device{identifier: identifier}) when is_binary(identifier) do
+  def offline(%Device{identifier: identifier}) do
+    offline(identifier)
+  end
+
+  def offline(identifier) when is_binary(identifier) do
     publish(identifier, "offline")
   end
 
