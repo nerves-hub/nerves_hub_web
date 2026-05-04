@@ -107,7 +107,9 @@ defmodule NervesHub.Application do
 
     case Application.get_env(:nerves_hub, :app) do
       "device" ->
-        Keyword.put(config, :queues, [])
+        config
+        |> Keyword.put(:queues, [])
+        |> Keyword.put(:peer, false)
 
       _ ->
         config

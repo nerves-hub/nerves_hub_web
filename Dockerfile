@@ -1,6 +1,6 @@
 ARG ELIXIR_VERSION=1.19.5
-ARG OTP_VERSION=28.3.1
-ARG DISTRO=noble-20260210.1
+ARG OTP_VERSION=28.5
+ARG DISTRO=noble-20260410
 ARG NODE_VERSION=24.13.1
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${DISTRO}"
@@ -109,8 +109,7 @@ RUN git clone https://github.com/fwup-home/fwup /tmp/fwup
 
 WORKDIR /tmp/fwup
 
-# pinning to 428350a as it fixes dependency download URL issues
-RUN git checkout 428350a && \
+RUN git checkout v1.16.0 && \
     ./scripts/download_deps.sh && \
     ./scripts/build_deps.sh && \
     ./autogen.sh && \
@@ -128,19 +127,15 @@ FROM ${RUNNER_IMAGE} AS jemalloc
 
 RUN apt-get update -y && \
     apt-get upgrade -y && \
-    apt-get install -y git autoconf cmake make software-properties-common && \
-    add-apt-repository ppa:ubuntu-toolchain-r/ppa -y && \
-    apt-get update -y && \
-    apt-get install -y gcc-14 g++-14 && \
+    apt-get install -y git autoconf cmake make gcc-14 g++-14 && \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 --slave /usr/bin/g++ g++ /usr/bin/g++-14
 
-# Build the latest jemalloc
-
-RUN git clone https://github.com/facebook/jemalloc /tmp/jemalloc
+RUN git clone https://github.com/jemalloc/jemalloc /tmp/jemalloc
 
 WORKDIR /tmp/jemalloc
 
-RUN autoconf && \
+RUN git checkout 5.3.1 && \
+    autoconf && \
     ./configure && \
     make && \
     make install
