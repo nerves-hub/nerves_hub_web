@@ -127,13 +127,8 @@ FROM ${RUNNER_IMAGE} AS jemalloc
 
 RUN apt-get update -y && \
     apt-get upgrade -y && \
-    apt-get install -y git autoconf cmake make software-properties-common && \
-    add-apt-repository ppa:ubuntu-toolchain-r/ppa -y && \
-    apt-get update -y && \
-    apt-get install -y gcc-14 g++-14 && \
+    apt-get install -y git autoconf cmake make gcc-14 g++-14 && \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 --slave /usr/bin/g++ g++ /usr/bin/g++-14
-
-# Build the latest jemalloc
 
 RUN git clone https://github.com/jemalloc/jemalloc /tmp/jemalloc
 
