@@ -94,7 +94,7 @@ defmodule NervesHub.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:canonical_tailwind, "~> 0.1.0", only: [:dev, :test], runtime: false},
       {:ecto, "~> 3.8", override: true},
-      {:ecto_ch, "~> 0.8.0"},
+      {:ecto_ch, "~> 0.9.2"},
       {:ecto_psql_extras, "~> 0.7"},
       {:ecto_sql, "~> 3.0"},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
