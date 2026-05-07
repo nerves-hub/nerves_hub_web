@@ -73,9 +73,9 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @decorate with_span("Channels.DeviceSocket.heartbeat")
-  defp heartbeat(%{assigns: %{device_info: device_info, reference_id: ref_id}} = socket) do
+  defp heartbeat(%{assigns: %{device_info: device_info}} = socket) do
     if update_heartbeat?(socket) do
-      Connections.device_heartbeat(device_info.device_identifier, ref_id)
+      Connections.device_heartbeat(device_info.device_identifier, device_info.connection_ref)
       update_last_heartbeat(socket)
     else
       socket
