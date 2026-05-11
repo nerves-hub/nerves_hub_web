@@ -128,7 +128,7 @@ defmodule NervesHub.Firmwares do
     sort = Map.get(opts, :sort, "inserted_at")
     sort_direction = Map.get(opts, :sort_direction, "desc")
 
-    sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
+    sort_opts = {String.to_existing_atom(sort_direction), String.to_existing_atom(sort)}
 
     flop = %Flop{
       page: String.to_integer(Map.get(opts, :page, "1")),
