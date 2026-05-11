@@ -1306,6 +1306,16 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     end
   end
 
+  describe "sorting" do
+    test "renders the device list with a non-default sort column", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices?sort=connection_established_at&sort_direction=desc")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+    end
+  end
+
   def device_index_path(%{org: org, product: product}) do
     ~p"/org/#{org}/#{product}/devices"
   end

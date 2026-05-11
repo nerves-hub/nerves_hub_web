@@ -89,7 +89,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     {parsed_amount, ""} = Integer.parse(amount)
 
     socket
-    |> assign(:time_frame, {unit, parsed_amount})
+    |> assign(:time_frame, {validate_time_unit(unit), parsed_amount})
     |> update_from_and_until_timestamps()
     |> update_charts()
     |> halt()
@@ -314,7 +314,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   defp update_from_and_until_timestamps(socket) do
     {unit, unit_amount} = Map.get(socket.assigns, :time_frame, @default_time_frame)
 
-    from = DateTime.add(DateTime.utc_now(), -unit_amount, String.to_atom(unit))
+    from = DateTime.add(DateTime.utc_now(), -unit_amount, String.to_existing_atom(unit))
     until = DateTime.utc_now()
 
     socket
@@ -360,7 +360,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   defp fetch_from_and_until(socket) do
     {unit, amount} = socket.assigns.time_frame
 
-    from = DateTime.add(DateTime.utc_now(), -amount, String.to_atom(unit))
+    from = DateTime.add(DateTime.utc_now(), -amount, String.to_existing_atom(unit))
     until = DateTime.utc_now()
 
     {from, until}
@@ -437,4 +437,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   defp chart_data_key(key), do: String.to_atom("#{key}_chart_data")
   defp has_chart_data_key(key), do: String.to_atom("#{key}_has_chart_data")
+
+  defp validate_time_unit(unit) when unit in ~w(hour day minute second), do: unit
+  defp validate_time_unit(_unit), do: elem(@default_time_frame, 0)
 end

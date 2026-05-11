@@ -72,6 +72,21 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
     end
   end
 
+  describe "sorting" do
+    test "renders the list with a non-default sort column", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts?sort=inserted_at&sort_direction=desc")
+      |> assert_has("td", text: "MOTD")
+    end
+  end
+
   describe "delete" do
     test "removes support script", %{conn: conn, org: org, product: product, user: user} do
       {:ok, script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
