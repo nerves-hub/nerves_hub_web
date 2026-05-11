@@ -145,9 +145,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       deployment_group: deployment_group
     } do
       conn
-      |> visit(
-        "/org/#{org.name}/#{product.name}/deployment_groups?sort=platform&sort_direction=desc"
-      )
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups?sort=platform&sort_direction=desc")
       |> assert_has("a", text: deployment_group.name)
     end
   end

@@ -716,7 +716,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp assign_display_devices(%{assigns: %{current_scope: scope, paginate_opts: paginate_opts}} = socket) do
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
-      sort: {String.to_existing_atom(socket.assigns.sort_direction), String.to_existing_atom(socket.assigns.current_sort)},
+      sort:
+        {String.to_existing_atom(socket.assigns.sort_direction), String.to_existing_atom(socket.assigns.current_sort)},
       filters: transform_deployment_filter(socket.assigns.current_filters)
     }
 

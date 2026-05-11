@@ -1311,9 +1311,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       %{device: device, org: org, product: product} = fixture
 
       conn
-      |> visit(
-        ~p"/org/#{org}/#{product}/devices?sort=connection_established_at&sort_direction=desc"
-      )
+      |> visit(~p"/org/#{org}/#{product}/devices?sort=connection_established_at&sort_direction=desc")
       |> assert_has("a", text: device.identifier, timeout: 1000)
     end
   end
