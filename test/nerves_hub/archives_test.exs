@@ -36,6 +36,21 @@ defmodule NervesHub.ArchivesTest do
     end
   end
 
+  describe "filter/2" do
+    test "returns archives with non-default sort", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
+
+      {archives, _meta} =
+        Archives.filter(product, %{sort: "uuid", sort_direction: "asc"})
+
+      assert Enum.map(archives, & &1.id) == [archive.id]
+    end
+  end
+
   describe "delete_archive/1" do
     test "delete archive", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()

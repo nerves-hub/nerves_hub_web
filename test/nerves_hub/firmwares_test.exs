@@ -565,6 +565,11 @@ defmodule NervesHub.FirmwaresTest do
       {[firmware], _} = Firmwares.filter(product)
       assert firmware.install_count == 3
     end
+
+    test "accepts a non-default sort", %{firmware: firmware, product: product} do
+      {[result], _} = Firmwares.filter(product, %{sort: "uuid", sort_direction: "asc"})
+      assert result.id == firmware.id
+    end
   end
 
   describe "attempt_firmware_delta/2" do

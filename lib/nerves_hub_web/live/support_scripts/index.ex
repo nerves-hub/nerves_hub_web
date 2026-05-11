@@ -123,7 +123,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
 
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
-      sort: {String.to_existing_atom(sort_direction), String.to_atom(current_sort)}
+      sort: {String.to_existing_atom(sort_direction), String.to_existing_atom(current_sort)}
     }
 
     {entries, pager_meta} = Scripts.filter(scope, opts)
