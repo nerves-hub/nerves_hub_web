@@ -113,7 +113,12 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   @decorate with_span("Channels.ExtensionsChannel.handle_info[Broadcast]")
   def handle_info({mod, msg}, socket) do
-    mod.handle_info(msg, socket)
+    socket.assigns.extensions
+    |> Enum.find(fn {_, v} -> v[:module] == mod && v[:status] == :attached end)
+    |> case do
+      nil -> {:noreply, socket}
+      _ -> mod.handle_info(msg, socket)
+    end
   rescue
     error ->
       Logger.warning("#{inspect(mod)} failed handle_info - #{inspect(error)}")
