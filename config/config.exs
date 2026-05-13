@@ -66,13 +66,16 @@ config :nerves_hub, Oban,
   log: false,
   queues: [
     default: 1,
+    firmware: 5,
+    delete_file: 3,
+    cleanup: 2,
+    # temporary, schedule for removal
     delete_archive: 1,
     delete_firmware: 1,
     device: 1,
     firmware_delta_builder: 2,
     firmware_delta_timeout: 1,
     truncate: 1,
-    # temporary, will remove in November
     truncation: 1
   ],
   plugins: [
