@@ -80,7 +80,7 @@ config :nerves_hub, Oban,
   ],
   plugins: [
     # 1 week
-    {Oban.Plugins.Pruner, max_age: 604_800},
+    {Oban.Plugins.Pruner, max_age: 86_400},
     {Oban.Plugins.Cron,
      crontab: [
        {"0 * * * *", ScheduleOrgAuditLogTruncation},
