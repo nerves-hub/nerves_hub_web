@@ -14,6 +14,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -184,6 +185,66 @@ defmodule NervesHub.DevicesTest do
 
       assert Repo.aggregate(Device, :count) == 5
       assert Repo.aggregate(Notification, :count) == 1
+    end
+  end
+
+  describe "updated_device_info/4" do
+    test "creates a DeviceFirmware history item", %{device: device} do
+      metadata = Map.from_struct(device.firmware_metadata)
+
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          %{metadata | uuid: UUIDv7.autogenerate()},
+          :unknown,
+          false
+        )
+
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :unknown
+      refute df.firmware_auto_revert_detected
+    end
+
+    test "updates the validation and revert detection information if the metadata is passed in as `nil`", %{
+      device: device
+    } do
+      metadata = Map.from_struct(device.firmware_metadata)
+
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          %{metadata | uuid: UUIDv7.autogenerate()},
+          :unknown,
+          false
+        )
+
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :unknown
+      refute df.firmware_auto_revert_detected
+
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          nil,
+          :validated,
+          true
+        )
+
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :validated
+      assert df.firmware_auto_revert_detected
     end
   end
 

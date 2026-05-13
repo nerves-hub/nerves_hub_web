@@ -301,6 +301,12 @@ defmodule NervesHubWeb.Router do
       )
 
       live(
+        "/org/:org_name/:product_name/devices/:device_identifier/firmware_history",
+        Live.Devices.Show,
+        :firmware_history
+      )
+
+      live(
         "/org/:org_name/:product_name/devices/:device_identifier/logs",
         Live.Devices.Show,
         :logs
