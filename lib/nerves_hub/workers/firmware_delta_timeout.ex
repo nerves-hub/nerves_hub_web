@@ -1,7 +1,7 @@
 defmodule NervesHub.Workers.FirmwareDeltaTimeout do
   use Oban.Worker,
-    max_attempts: 5,
-    queue: :firmware_delta_timeout
+    queue: :cleanup,
+    max_attempts: 5
 
   alias NervesHub.Firmwares
 

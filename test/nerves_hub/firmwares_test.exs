@@ -502,7 +502,7 @@ defmodule NervesHub.FirmwaresTest do
       assert_enqueued(
         args: %{source_id: source_id, target_id: target_id},
         worker: FirmwareDeltaBuilder,
-        queue: :firmware_delta_builder
+        queue: :firmware
       )
 
       expect(UpdateToolDefault, :create_firmware_delta_file, fn _, _, _ ->

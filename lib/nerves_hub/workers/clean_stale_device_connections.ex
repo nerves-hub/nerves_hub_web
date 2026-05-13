@@ -1,7 +1,7 @@
 defmodule NervesHub.Workers.CleanStaleDeviceConnections do
   use Oban.Worker,
+    queue: :cleanup,
     max_attempts: 5,
-    queue: :device,
     unique: [states: [:available, :scheduled, :executing]]
 
   alias NervesHub.Devices.Connections

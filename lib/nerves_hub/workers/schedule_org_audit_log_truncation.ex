@@ -1,6 +1,6 @@
 defmodule NervesHub.Workers.ScheduleOrgAuditLogTruncation do
   use Oban.Worker,
-    queue: :truncation,
+    queue: :cleanup,
     max_attempts: 1
 
   alias NervesHub.Accounts

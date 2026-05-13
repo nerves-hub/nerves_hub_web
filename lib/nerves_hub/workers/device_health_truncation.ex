@@ -7,8 +7,8 @@ defmodule NervesHub.Workers.DeviceHealthTruncation do
   """
 
   use Oban.Worker,
-    max_attempts: 1,
-    queue: :truncate
+    queue: :cleanup,
+    max_attempts: 1
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Metrics
