@@ -20,6 +20,8 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceFiltering
+  alias NervesHub.Devices.DeviceFirmware
+  alias NervesHub.Devices.DeviceFirmwares
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.PinnedDevice
@@ -706,28 +708,76 @@ defmodule NervesHub.Devices do
         ) ::
           {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def update_firmware_metadata(device, nil, validation_status, auto_revert_detected?) do
-    update_device(device, %{
-      firmware_validation_status: validation_status,
-      firmware_auto_revert_detected: auto_revert_detected?
-    })
+    Repo.transact(fn ->
+      attrs = %{
+        firmware_validation_status: validation_status,
+        firmware_auto_revert_detected: auto_revert_detected?
+      }
+
+      firmware_metadata = Map.from_struct(device.firmware_metadata)
+
+      attrs =
+        DeviceFirmwares.add_or_update_reported_firmware(
+          device,
+          firmware_metadata,
+          validation_status,
+          auto_revert_detected?
+        )
+        |> case do
+          :ok -> attrs
+          {:ok, df} -> Map.put(attrs, :current_device_firmware_id, df.id)
+        end
+
+      update_device(device, attrs)
+    end)
   end
 
-  def update_firmware_metadata(device, metadata, validation_status, auto_revert_detected?) do
-    DeviceTemplates.audit_firmware_metadata_updated(device)
+  def update_firmware_metadata(device, updated_metadata, validation_status, auto_revert_detected?) do
+    Repo.transact(fn ->
+      DeviceTemplates.audit_firmware_metadata_updated(device)
 
-    update_device(device, %{
-      firmware_metadata: metadata,
-      firmware_validation_status: validation_status,
-      firmware_auto_revert_detected: auto_revert_detected?
-    })
+      updated_metadata =
+        Map.new(updated_metadata, fn {k, v} ->
+          if is_atom(k), do: {k, v}, else: {String.to_existing_atom(k), v}
+        end)
+
+      metadata =
+        if is_nil(device.firmware_metadata) do
+          updated_metadata
+        else
+          device.firmware_metadata
+          |> Map.from_struct()
+          |> Map.merge(updated_metadata)
+        end
+
+      with {:ok, device_firmware} <-
+             DeviceFirmwares.add_reported_firmware(
+               device,
+               metadata,
+               validation_status,
+               auto_revert_detected?
+             ) do
+        update_device(device, %{
+          firmware_metadata: metadata,
+          firmware_validation_status: validation_status,
+          firmware_auto_revert_detected: auto_revert_detected?,
+          current_device_firmware_id: device_firmware.id
+        })
+      end
+    end)
   end
 
   def firmware_validated(device_info) do
-    %Device{id: device_info.device_id}
-    |> Device.firmware_validated()
-    |> Repo.update!()
-
-    DeviceTemplates.audit_firmware_validated(device_info)
+    Repo.transact(fn ->
+      with device when not is_nil(device) <- get_device(device_info.device_id),
+           device_changeset = Device.firmware_validated(device),
+           {:ok, device} <- Repo.update(device_changeset),
+           device_firmware_changeset = DeviceFirmware.firmware_validated(device),
+           {:ok, _device_firmware} <- Repo.update(device_firmware_changeset),
+           :ok <- DeviceTemplates.audit_firmware_validated(device_info) do
+        {:ok, device}
+      end
+    end)
 
     ChannelServer.broadcast_from!(
       NervesHub.PubSub,

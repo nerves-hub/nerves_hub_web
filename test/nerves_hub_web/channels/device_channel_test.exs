@@ -8,6 +8,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
@@ -39,6 +40,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
       device = Repo.reload(device)
       assert device.firmware_validation_status == :unknown
 
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :unknown
+
       # assert_online_and_available(device)
       close_cleanly(device_channel)
     end
@@ -65,6 +73,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
       device = Repo.reload(device)
       assert device.firmware_validation_status == :not_validated
+
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :not_validated
 
       # assert_online_and_available(device)
       close_cleanly(device_channel)
@@ -93,6 +108,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
       device = Repo.reload(device)
       assert device.firmware_validation_status == :validated
 
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :validated
+
       # assert_online_and_available(device)
       close_cleanly(device_channel)
     end
@@ -120,12 +142,22 @@ defmodule NervesHubWeb.DeviceChannelTest do
       device = Repo.reload(device)
       assert device.firmware_validation_status == :not_validated
 
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :not_validated
+
       push(device_channel, "firmware_validated", %{})
 
       _socket = :sys.get_state(device_channel.channel_pid)
 
       device = Repo.reload(device)
       assert device.firmware_validation_status == :validated
+
+      df = Repo.reload(df)
+      assert df.firmware_validation_status == :validated
 
       assert Repo.exists?(AuditLogs.with_description("Device #{device.identifier} has validated its firmware"))
 
