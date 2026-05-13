@@ -86,7 +86,7 @@ defmodule NervesHub.MixProject do
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 1.0.0"},
       {:comeonin, "~> 5.3"},
-      {:confuse, "~> 0.3.1"},
+      {:confuse, github: "underjord/confuse", ref: "c00faf0064d79336e7d40a92922db58c684c2236"},
       {:contex, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:crontab, "~> 1.1"},
