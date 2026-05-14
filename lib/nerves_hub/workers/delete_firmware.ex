@@ -1,7 +1,7 @@
 defmodule NervesHub.Workers.DeleteFirmware do
   use Oban.Worker,
-    max_attempts: 5,
-    queue: :delete_firmware
+    queue: :delete_file,
+    max_attempts: 5
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do

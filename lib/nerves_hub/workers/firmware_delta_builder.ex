@@ -1,9 +1,7 @@
-max_attempts = 3
-
 defmodule NervesHub.Workers.FirmwareDeltaBuilder do
   use Oban.Worker,
-    max_attempts: unquote(max_attempts),
-    queue: :firmware_delta_builder,
+    queue: :firmware,
+    max_attempts: 3,
     unique: [
       period: 60 * 10,
       states: [:available, :scheduled, :executing],
@@ -17,10 +15,8 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
 
   require Logger
 
-  @max_attempts max_attempts
-
   @impl Oban.Worker
-  def perform(%Oban.Job{id: id, attempt: attempt, args: %{"source_id" => source_id, "target_id" => target_id}}) do
+  def perform(%Oban.Job{id: id, args: %{"source_id" => source_id, "target_id" => target_id}} = job) do
     source = Firmwares.get_firmware!(source_id)
     target = Firmwares.get_firmware!(target_id)
 
@@ -36,7 +32,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
     case Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id) do
       {:ok, %FirmwareDelta{status: :processing} = delta} ->
         Logger.info(
-          "Processing delta #{source.version} to #{target.version}; attempt number #{attempt}/#{@max_attempts}"
+          "Processing delta #{source.version} to #{target.version}; attempt number #{job.attempt}/#{job.max_attempts}"
         )
 
         # if on last attempt and delta hasn't been marked as failed, fail it
@@ -51,7 +47,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
             delta = Repo.reload(delta)
 
             _ =
-              if attempt >= @max_attempts and delta.status != :failed do
+              if job.attempt >= job.max_attempts and delta.status != :failed do
                 Logger.warning("Delta generation failed on final attempt, marking as failed")
                 {:ok, _} = Firmwares.fail_firmware_delta(delta)
               end
