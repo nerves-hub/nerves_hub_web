@@ -111,6 +111,7 @@ defmodule NervesHub.MixProject do
       {:hlclock, "~> 1.0"},
       {:process_hub, "~> 0.5.0-beta"},
       {:jason, "~> 1.2", override: true},
+      {:joken, "~> 2.6"},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:libcluster_postgres, "~> 0.2.0"},
       {:logfmt_ex, "~> 0.4"},
