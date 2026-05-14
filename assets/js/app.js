@@ -153,14 +153,19 @@ window.addEventListener("phx:close-modal", ({ detail }) => {
 
 window.addEventListener("load", (event) => {
   if (localStorage.theme === null) {
-    document.getElementById("theme-dark").setAttribute("data-selected", "true")
+    selectTheme("theme-dark")
   } else if (localStorage.theme === "system") {
-    document
-      .getElementById("theme-system")
-      .setAttribute("data-selected", "true")
+    selectTheme("theme-system")
   } else if (localStorage.theme === "light") {
-    document.getElementById("theme-light").setAttribute("data-selected", "true")
+    selectTheme("theme-light")
   } else if (localStorage.theme === "dark") {
-    document.getElementById("theme-dark").setAttribute("data-selected", "true")
+    selectTheme("theme-dark")
   }
 })
+
+function selectTheme(elementId) {
+  const el = document.getElementById("theme-dark")
+  if (el) {
+    el.setAttribute("data-selected", "true")
+  }
+}
