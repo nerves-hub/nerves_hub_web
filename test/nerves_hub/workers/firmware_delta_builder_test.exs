@@ -119,6 +119,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
       job = %Oban.Job{
         id: Ecto.UUID.generate(),
         attempt: 3,
+        max_attempts: 3,
         args: %{
           "source_id" => source_firmware.id,
           "target_id" => target_firmware.id

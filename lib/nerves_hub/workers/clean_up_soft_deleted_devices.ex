@@ -1,7 +1,7 @@
 defmodule NervesHub.Workers.CleanUpSoftDeletedDevices do
   use Oban.Worker,
-    max_attempts: 5,
-    queue: :device
+    queue: :cleanup,
+    max_attempts: 5
 
   alias NervesHub.Devices
 
