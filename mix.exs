@@ -90,6 +90,7 @@ defmodule NervesHub.MixProject do
       {:contex, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:crontab, "~> 1.1"},
+      {:decimal, "~> 3.0", override: true},
       {:decorator, "~> 1.2"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:canonical_tailwind, "~> 0.1.0", only: [:dev, :test], runtime: false},
