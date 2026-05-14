@@ -1410,7 +1410,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
         |> assert_has("span", text: "Not validated")
 
-      to_device_info(device)
+      metadata = Map.from_struct(device.firmware_metadata)
+
+      Devices.update_firmware_metadata(device, metadata, :validated, false)
+
+      Repo.reload(device)
+      |> to_device_info()
       |> Devices.firmware_validated()
 
       assert_has(conn, "span", text: "Validated")
