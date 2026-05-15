@@ -172,7 +172,10 @@ defmodule NervesHub.Application do
         ]
 
       "device" ->
-        [NervesHubWeb.DeviceEndpoint]
+        [
+          NervesHubWeb.DeviceEndpoint,
+          NervesHubWeb.HealthCheckEndpoint
+        ]
 
       "web" ->
         [NervesHubWeb.Endpoint]
