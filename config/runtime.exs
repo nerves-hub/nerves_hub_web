@@ -211,6 +211,17 @@ if config_env() == :prod do
       ]
   end
 
+  if nerves_hub_app == "device" do
+    host = System.get_env("DEVICE_HOST") || System.get_env("WEB_HOST") || System.get_env("HOST")
+    port = String.to_integer(System.get_env("DEVICE_HOST_STATUS_PORT", "4040"))
+
+    config :nerves_hub, NervesHubWeb.HealthCheckEndpoint,
+      url: [host: host],
+      http: [port: port],
+      adapter: Bandit.PhoenixAdapter,
+      server: true
+  end
+
   config :nerves_hub, NervesHubWeb.DeviceSocket,
     shared_secrets: [
       enabled: System.get_env("DEVICE_SHARED_SECRETS_ENABLED", "false") == "true"
