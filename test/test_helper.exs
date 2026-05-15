@@ -16,6 +16,7 @@ Mimic.copy(NervesHub.Workers.FirmwareDeltaBuilder)
 Mimic.copy(Oban)
 Mimic.copy(Sentry)
 Mimic.copy(:telemetry)
+Mimic.copy(System)
 Mimic.copy(Ueberauth)
 
 [capture_log: true, exclude: [:pending]]
