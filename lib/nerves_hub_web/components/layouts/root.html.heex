@@ -60,6 +60,7 @@
         document.documentElement.setAttribute("data-theme", "dark");
       }
     </script>
+    <.featurebase_sdk current_scope={assigns[:current_scope]} app_id={Application.get_env(:nerves_hub, :featurebase_app_id)} />
   </head>
   <body class="h-full">
     {@inner_content}

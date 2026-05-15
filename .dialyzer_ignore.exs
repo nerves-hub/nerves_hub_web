@@ -7,5 +7,7 @@
   # causing spurious call_without_opaque warnings on Ecto.Multi pipe chains.
   {"lib/nerves_hub/accounts.ex", :call_without_opaque},
   {"lib/nerves_hub/accounts/remove_account.ex", :call_without_opaque},
-  {"lib/nerves_hub/devices.ex", :call_without_opaque}
+  {"lib/nerves_hub/devices.ex", :call_without_opaque},
+  {"lib/nerves_hub_web/components/layouts.ex", :call},
+  {"lib/nerves_hub_web/components/layouts.ex", :no_return}
 ]

@@ -67,7 +67,9 @@ config :nerves_hub,
     System.get_env("DEVICES_WEBSOCKET_HOST") || System.get_env("DEVICE_HOST") || System.get_env("WEB_HOST") ||
       System.get_env("HOST"),
   clean_up_soft_deleted_devices: System.get_env("CLEAN_UP_SOFT_DELETED_DEVICES", "false") == "true",
-  default_lifo_deployment_queue: System.get_env("DEFAULT_LIFO_DEPLOYMENT_QUEUE", "false") == "true"
+  default_lifo_deployment_queue: System.get_env("DEFAULT_LIFO_DEPLOYMENT_QUEUE", "false") == "true",
+  featurebase_app_id: System.get_env("FEATUREBASE_APP_ID"),
+  featurebase_signing_token: System.get_env("FEATUREBASE_SIGNING_TOKEN")
 
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do
