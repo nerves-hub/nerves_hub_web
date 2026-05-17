@@ -119,18 +119,27 @@ defmodule NervesHubWeb.Live.Org.Users do
   end
 
   def handle_event("delete_org_user", %{"user_id" => user_id}, %{assigns: %{current_scope: scope}} = socket) do
-    authorized!(:"org_user:delete", scope)
+    {:ok, org_user_to_remove} = Accounts.get_org_user(socket.assigns.org, user_id)
 
-    {:ok, user_to_remove} = Accounts.get_user(user_id)
+    can_remove!(org_user_to_remove, scope, socket.assigns.admin_count)
 
-    case Accounts.remove_org_user(scope.org, user_to_remove) do
+    case Accounts.remove_org_user(scope.org, org_user_to_remove.user) do
       :ok ->
-        _ = UserNotifier.deliver_all_tell_org_user_removed(scope.org, scope.user, user_to_remove)
+        if org_user_to_remove.user.id == scope.user.id do
+          _ = UserNotifier.deliver_all_tell_org_user_removed_themself(scope.org, scope.user)
 
-        {:noreply,
-         socket
-         |> org_users()
-         |> put_flash(:info, "User removed")}
+          socket
+          |> push_navigate(to: ~p"/orgs")
+          |> put_flash(:info, "You have removed yourself from the #{scope.org.name} org")
+          |> noreply()
+        else
+          _ = UserNotifier.deliver_all_tell_org_user_removed(scope.org, scope.user, org_user_to_remove.user)
+
+          socket
+          |> org_users()
+          |> put_flash(:info, "User removed")
+          |> noreply()
+        end
 
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Could not remove user")}
@@ -138,10 +147,37 @@ defmodule NervesHubWeb.Live.Org.Users do
   end
 
   defp org_users(socket) do
-    assign(socket, :org_users, Accounts.get_org_users(socket.assigns.org))
+    org_users = Accounts.get_org_users(socket.assigns.org)
+
+    socket
+    |> assign(:org_users, org_users)
+    |> assign(:admin_count, Enum.count(org_users, fn ou -> ou.role == :admin end))
   end
 
   defp org_invites(socket) do
     assign(socket, :invites, Accounts.get_invites_for_org(socket.assigns.org))
+  end
+
+  defp can_remove!(org_user, current_scope, admin_count) do
+    can_remove?(org_user, current_scope, admin_count) || raise NervesHubWeb.UnauthorizedError
+  end
+
+  defp can_remove?(%{user: %{id: id}, role: role}, %{user: %{id: id}}, _) when role != :admin do
+    true
+  end
+
+  defp can_remove?(org_user, current_scope, admin_count) do
+    authorized?(:"org_user:delete", current_scope) && user_can_be_removed?(org_user, current_scope, admin_count)
+  end
+
+  defp user_can_be_removed?(%{user: %{id: id}}, %{user: %{id: id}}, 1), do: false
+  defp user_can_be_removed?(_org_user, _current_scope, _), do: true
+
+  defp remove_user_message(%{user: %{id: id}}, %{user: %{id: id}}) do
+    "Are you sure you want to remove yourself from the org? This can not be undone."
+  end
+
+  defp remove_user_message(_org_user, _current_scope) do
+    "Are you sure you want to remove this user? This can not be undone."
   end
 end

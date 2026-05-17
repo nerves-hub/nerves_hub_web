@@ -1,10 +1,13 @@
 defmodule NervesHubWeb.Live.Org.UsersTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  import Ecto.Query, only: [where: 3]
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Fixtures
+  alias NervesHub.Repo
 
   describe "users" do
     test "all users of the org are listed", %{conn: conn, org: org} do
@@ -21,12 +24,50 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       end)
     end
 
-    test "you can't remove yourself from the org", %{conn: conn, org: org, user: user} do
+    test "you can't remove yourself from the org, if you are an admin and the only admin", %{
+      conn: conn,
+      org: org,
+      user: user
+    } do
       conn
       |> visit("/org/#{org.name}/settings/users")
       |> assert_has("h1", text: "Users")
       |> assert_has("td", text: user.name)
-      |> refute_has("a[phx-value-user_id=\"#{user.id}\"]", text: "Delete")
+      |> refute_has("a[phx-value-user_id=\"#{user.id}\"]", text: "Remove")
+    end
+
+    test "you can remove yourself from the org, if you are an admin but not the only one", %{
+      conn: conn,
+      org: org,
+      user: user
+    } do
+      {:ok, _org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :admin})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users")
+      |> assert_has("h1", text: "Users")
+      |> assert_has("td", text: user.name)
+      |> click_button("#remove-user-#{user.id}", "Remove")
+      |> assert_path(~p"/orgs")
+      |> assert_has("div", text: "You have removed yourself from the #{org.name} org")
+    end
+
+    test "you can remove yourself from the org, if you are not an admin", %{conn: conn, org: org, user: user} do
+      {:ok, _org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :admin})
+
+      {1, _} =
+        OrgUser
+        |> where([ou], ou.org_id == ^org.id)
+        |> where([ou], ou.user_id == ^user.id)
+        |> Repo.update_all(set: [role: :view])
+
+      conn
+      |> visit("/org/#{org.name}/settings/users")
+      |> assert_has("h1", text: "Users")
+      |> assert_has("td", text: user.name)
+      |> click_button("#remove-user-#{user.id}", "Remove")
+      |> assert_path(~p"/orgs")
+      |> assert_has("div", text: "You have removed yourself from the #{org.name} org")
     end
 
     test "update org user role", %{conn: conn, org: org} do
@@ -60,7 +101,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       conn
       |> visit("/org/#{org.name}/settings/users")
       |> assert_has("h1", text: "Users")
-      |> click_link("button[phx-value-user_id=\"#{org_user.user_id}\"]", "Delete")
+      |> click_link("button[phx-value-user_id=\"#{org_user.user_id}\"]", "Remove")
       |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User removed")
 
