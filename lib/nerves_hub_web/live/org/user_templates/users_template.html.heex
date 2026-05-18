@@ -18,7 +18,7 @@
             <tr>
               <th>Email</th>
               <th>Invite Link</th>
-              <th>Action</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -69,23 +69,25 @@
               <td class="text-base-400">
                 <div phx-hook="SimpleDate" id={"user-#{org_user.id}-date"} class="date-time">{org_user.user.inserted_at}</div>
               </td>
-              <td :if={authorized?(:"org_user:delete", @current_scope) && org_user.user.id != @current_scope.user.id} class="text-right">
+              <td class="text-right">
                 <div class="flex justify-end gap-2">
                   <.link
+                    :if={authorized?(:"org_user:update", @current_scope) && org_user.user.id != @current_scope.user.id}
                     navigate={~p"/org/#{@org}/settings/users/#{org_user.user_id}/edit"}
                     class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-3 py-1.5 text-sm font-medium"
                   >
-                    Edit
+                    Edit Role
                   </.link>
                   <button
-                    :if={authorized?(:"org_user:delete", @current_scope)}
+                    :if={can_remove?(org_user, @current_scope, @admin_count)}
+                    id={"remove-user-#{org_user.user_id}"}
                     type="link"
-                    class="bg-base-800 border-alert hover:bg-base-700 text-alert rounded border px-3 py-1.5 text-sm font-medium"
+                    class="bg-base-800 border-alert hover:bg-base-700 text-alert cursor-pointer rounded border px-3 py-1.5 text-sm font-medium"
                     phx-click="delete_org_user"
                     phx-value-user_id={org_user.user_id}
-                    data-confirm="Are you sure you want to remove this user? This can not be undone."
+                    data-confirm={remove_user_message(org_user, @current_scope)}
                   >
-                    Delete
+                    Remove
                   </button>
                 </div>
               </td>
