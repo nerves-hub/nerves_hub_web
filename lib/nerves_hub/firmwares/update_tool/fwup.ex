@@ -250,44 +250,44 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
          all_delta_files,
          tool_metadata
        ) do
-    output_path = Path.join(output_work_dir, path)
-    target_filepath = Path.join(target_work_dir, path)
+    with true <- subpath in all_delta_files,
+         source_filepath = Path.join(source_work_dir, path),
+         {:ok, %{size: source_size}} <- File.stat(source_filepath),
+         target_filepath = Path.join(target_work_dir, path),
+         %{size: target_size} <- File.stat!(target_filepath),
+         :ok <- check_target_delta_size(target_size, path) do
+      # Note: We intentionally use the target firmware's block cache size in case you need to update
+      # this value on the fly, perhaps due to running out of memory during delta application on the device.
+      # This allows you to rebuild the target firmware with a new block cache size if you need to.
+      block_cache_size_mb = Map.get(tool_metadata, :block_cache_size_mb)
 
-    if subpath in all_delta_files do
-      source_filepath = Path.join(source_work_dir, path)
+      # This value determines how large the source window is when generating the delta.
+      # A larger source window results in a smaller delta, but more RAM usage.
+      source_window_arg =
+        if block_cache_size_mb,
+          do: ["-B", Integer.to_string(block_cache_size_mb * 1024 * 1024)],
+          else: []
 
-      case File.stat(source_filepath) do
-        {:ok, %{size: f_source_size}} ->
-          %{size: f_target_size} = File.stat!(target_filepath)
+      output_path = Path.join(output_work_dir, path)
 
-          if f_target_size < @delta_overhead_limit do
-            Logger.info("Skipping generating delta for #{path} it is under 22 bytes.")
-            nil
-          else
-            # Note: We intentionally use the target firmware's block cache size in case you need to update
-            # this value on the fly, perhaps due to running out of memory during delta application on the device.
-            # This allows you to rebuild the target firmware with a new block cache size if you need to.
-            block_cache_size_mb = Map.get(tool_metadata, :block_cache_size_mb)
+      generate_and_validate_delta(
+        path,
+        source_window_arg ++ ["-A", "-S", "-f", "-s", source_filepath, target_filepath, output_path],
+        output_path,
+        source_size,
+        target_size
+      )
+    else
+      _ -> nil
+    end
+  end
 
-            # This value determines how large the source window is when generating the delta.
-            # A larger source window results in a smaller delta, but more RAM usage.
-            source_window_arg =
-              if block_cache_size_mb,
-                do: ["-B", Integer.to_string(block_cache_size_mb * 1024 * 1024)],
-                else: []
-
-            generate_and_validate_delta(
-              path,
-              source_window_arg ++ ["-A", "-S", "-f", "-s", source_filepath, target_filepath, output_path],
-              output_path,
-              f_source_size,
-              f_target_size
-            )
-          end
-
-        {:error, :enoent} ->
-          nil
-      end
+  defp check_target_delta_size(target_size, path) do
+    if target_size < @delta_overhead_limit do
+      Logger.info("Skipping generating delta for #{path} it is under 22 bytes.")
+      :skip
+    else
+      :ok
     end
   end
 
