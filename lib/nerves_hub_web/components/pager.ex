@@ -42,7 +42,10 @@ defmodule NervesHubWeb.Components.Pager do
 
   def render_with_page_sizes(assigns) do
     ~H"""
-    <div class="bg-surface border-t-base-700 sticky bottom-0 z-10 flex h-16 w-full shrink-0 flex-row border-0 border-t px-6 py-4">
+    <div
+      data-extra-spacing={"#{not is_nil(Application.get_env(:nerves_hub, :featurebase_app_id))}"}
+      class="bg-surface border-t-base-700 sticky bottom-0 z-10 flex h-16 w-full shrink-0 flex-row border-0 border-t px-6 py-4 data-[extra-spacing=true]:pr-20"
+    >
       <%= for {size, index} <- Enum.with_index(@page_sizes) do %>
         <button
           :if={(index == 0 && @pager.total_count > size) || @pager.total_count > Enum.at(@page_sizes, index - 1)}

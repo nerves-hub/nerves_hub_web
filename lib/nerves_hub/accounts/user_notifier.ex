@@ -12,6 +12,7 @@ defmodule NervesHub.Accounts.UserNotifier do
   alias NervesHub.Emails.TellOrgUserAddedTemplate
   alias NervesHub.Emails.TellOrgUserInvitedTemplate
   alias NervesHub.Emails.TellOrgUserRemovedTemplate
+  alias NervesHub.Emails.TellOrgUserRemovedThemselfTemplate
   alias NervesHub.Emails.UserInviteTemplate
   alias NervesHub.Emails.WelcomeTemplate
   alias NervesHub.SwooshMailer, as: Mailer
@@ -183,6 +184,14 @@ defmodule NervesHub.Accounts.UserNotifier do
     end)
   end
 
+  def deliver_all_tell_org_user_removed_themself(org, user) do
+    admins = Accounts.get_org_admins(org)
+
+    Enum.map(admins, fn admin ->
+      deliver_tell_org_user_removed_themself(org, admin, user)
+    end)
+  end
+
   def deliver_tell_org_user_removed(org, admin, instigator, removed_user) do
     assigns = %{
       user_name: admin.name,
@@ -192,6 +201,23 @@ defmodule NervesHub.Accounts.UserNotifier do
     }
 
     {html, text} = render(TellOrgUserRemovedTemplate, assigns)
+
+    send_email(
+      admin,
+      "#{platform_name()}: #{removed_user.name} has been removed from #{org.name}",
+      html,
+      text
+    )
+  end
+
+  def deliver_tell_org_user_removed_themself(org, admin, removed_user) do
+    assigns = %{
+      user_name: admin.name,
+      removed_user_name: removed_user.name,
+      org_name: org.name
+    }
+
+    {html, text} = render(TellOrgUserRemovedThemselfTemplate, assigns)
 
     send_email(
       admin,
