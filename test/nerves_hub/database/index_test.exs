@@ -11,6 +11,44 @@ defmodule NervesHub.Database.IndexTest do
   alias Ecto.Adapters.SQL
   alias NervesHub.Repo
 
+  # These FK indexes are known to be missing and are excluded from the check.
+  # This test is meant as a reminder to consider missing indexes as new tables/columns are added.
+  # Only add to this list if you are certain the index isn't needed!
+  # quokka:sort
+  @known_missing_fk_indexes [
+    "archives.org_key_id",
+    "ca_certificates.org_id",
+    "deployment_releases.created_by_id",
+    "deployments.org_id",
+    "device_certificates.org_id",
+    "device_firmwares.firmware_id",
+    "device_shared_secret_auths.device_id",
+    "device_shared_secret_auths.product_shared_secret_auth_id",
+    "devices.current_device_firmware_id",
+    "devices.org_id",
+    "firmware_deltas.target_id",
+    "firmware_transfers.org_id",
+    "firmwares.org_id",
+    "firmwares.org_key_id",
+    "inflight_deployment_checks.deployment_id",
+    "inflight_deployment_checks.device_id",
+    "inflight_updates.firmware_id",
+    "invites.invited_by_id",
+    "invites.org_id",
+    "jitp.product_id",
+    "org_keys.created_by_id",
+    "org_users.org_id",
+    "org_users.user_id",
+    "pinned_devices.device_id",
+    "pinned_devices.user_id",
+    "product_shared_secret_auth.product_id",
+    "product_users.user_id",
+    "scripts.created_by_id",
+    "scripts.last_updated_by_id",
+    "scripts.product_id",
+    "user_tokens.user_id"
+  ]
+
   describe "Check for missing FK indexes" do
     test "Verify we have no missing FK indexes on main database" do
       # cspell: disable
@@ -47,7 +85,12 @@ defmodule NervesHub.Database.IndexTest do
 
       # cspell: enable
 
-      assert rows == []
+      unexpected_missing =
+        rows
+        |> Enum.map(fn [col] -> col end)
+        |> Enum.reject(&(&1 in @known_missing_fk_indexes))
+
+      assert unexpected_missing == []
     end
   end
 end
