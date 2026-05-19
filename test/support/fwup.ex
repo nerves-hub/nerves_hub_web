@@ -17,6 +17,7 @@ defmodule NervesHub.Support.Fwup do
 
     defstruct architecture: "x86_64",
               author: "me",
+              block_cache_size_mb: nil,
               description: "D",
               platform: "platform",
               product: "nerves-hub",
@@ -172,6 +173,11 @@ defmodule NervesHub.Support.Fwup do
       File.write!(data_file_path, meta_params.resource_contents)
     end
 
+    block_cache_line =
+      if meta_params.block_cache_size_mb,
+        do: "block-cache-size-mb = #{meta_params.block_cache_size_mb}\n",
+        else: ""
+
     """
     meta-product = "#{meta_params.product}"
     meta-description = "#{meta_params.description} "
@@ -179,7 +185,7 @@ defmodule NervesHub.Support.Fwup do
     meta-platform = "#{meta_params.platform}"
     meta-architecture = "#{meta_params.architecture}"
     meta-author = "#{meta_params.author}"
-
+    #{block_cache_line}
     file-resource #{uuid}.txt {
       host-path = "#{data_file_path}"
     }
