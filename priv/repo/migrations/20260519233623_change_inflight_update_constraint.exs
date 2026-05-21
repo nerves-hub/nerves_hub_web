@@ -1,6 +1,9 @@
 defmodule NervesHub.Repo.Migrations.ChangeInflightUpdateConstraint do
   use Ecto.Migration
 
+  @disable_ddl_transaction true
+  @disable_migration_lock true
+
   def change() do
     drop(unique_index(:inflight_updates, [:device_id, :deployment_id]))
     create(unique_index(:inflight_updates, [:device_id]))
