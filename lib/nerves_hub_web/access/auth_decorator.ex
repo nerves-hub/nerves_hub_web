@@ -6,22 +6,29 @@ defmodule NervesHubWeb.Access.AuthDecorator do
   @org_level_prefixes ~w(organization signing_key org_user certificate_authority)
   @org_level_permissions [:"product:create"]
 
+  @authz_keys [:authorization_applied?, :authorization_granted?, :authorization_info]
+
   def requires_no_permission(body, %{args: [_event, _params, _socket]}) do
     quote(location: :keep) do
-      {reply, socket} = unquote(body)
-
-      {reply, RequireAuthorization.authorization_not_needed(socket)}
+      unquote(body)
+      |> NervesHubWeb.Access.AuthDecorator.mark_socket(fn sock ->
+        RequireAuthorization.authorization_not_needed(sock)
+      end)
     end
   end
 
   def special_permission(reason, body, %{args: [_event, _params, _socket]}) do
     quote(location: :keep) do
-      {reply, socket} = unquote(body)
-      {reply, RequireAuthorization.confirm_user_is_authorized(socket, unquote(reason))}
+      unquote(body)
+      |> NervesHubWeb.Access.AuthDecorator.mark_socket(fn sock ->
+        RequireAuthorization.confirm_user_is_authorized(sock, unquote(reason))
+      end)
     end
   end
 
-  def requires_permission(permission, body, %{args: [_event, _params, socket]}) do
+  def requires_permission(permission, body, %{args: [_event, _params, socket_arg]}) do
+    socket = socket_var(socket_arg)
+
     subject =
       if org_level_permission?(permission) do
         quote(do: unquote(socket).assigns.current_scope.org)
@@ -30,15 +37,33 @@ defmodule NervesHubWeb.Access.AuthDecorator do
       end
 
     quote(location: :keep) do
-      %{private: private} =
-        socket = RequireAuthorization.authorize!(unquote(socket), unquote(permission), unquote(subject))
+      authz_socket =
+        RequireAuthorization.authorize!(unquote(socket), unquote(permission), unquote(subject))
 
-      {reply, socket} = unquote(body)
-      authz = Map.take(private, [:authorization_applied?, :authorization_granted?, :authorization_info])
-      socket = %{socket | private: Map.merge(socket.private, authz)}
-      {reply, socket}
+      authz = Map.take(authz_socket.private, unquote(@authz_keys))
+
+      unquote(body)
+      |> NervesHubWeb.Access.AuthDecorator.mark_socket(fn sock ->
+        %{sock | private: Map.merge(sock.private, authz)}
+      end)
     end
   end
+
+  # Extract the bare socket variable from an arg AST. The arg may be a plain
+  # variable (`socket`) or a pattern match (`%{...} = socket` / `socket = %{...}`).
+  # Without this, `unquote(socket_arg)` would re-inject the pattern and shadow
+  # any variables it binds.
+  defp socket_var({:=, _, [{name, _, ctx} = var, _]}) when is_atom(name) and is_atom(ctx), do: var
+  defp socket_var({:=, _, [_, {name, _, ctx} = var]}) when is_atom(name) and is_atom(ctx), do: var
+  defp socket_var({name, _, ctx} = var) when is_atom(name) and is_atom(ctx), do: var
+
+  @doc false
+  def mark_socket({:noreply, sock}, fun), do: {:noreply, fun.(sock)}
+  def mark_socket({:reply, reply, sock}, fun), do: {:reply, reply, fun.(sock)}
+  def mark_socket({:ok, sock}, fun), do: {:ok, fun.(sock)}
+  def mark_socket({:ok, sock, opts}, fun), do: {:ok, fun.(sock), opts}
+  def mark_socket({:halt, sock}, fun), do: {:halt, fun.(sock)}
+  def mark_socket({:cont, sock}, fun), do: {:cont, fun.(sock)}
 
   defp org_level_permission?(permission) do
     permission in @org_level_permissions or
