@@ -18,7 +18,7 @@ defmodule NervesHub.Release.Tasks do
   """
   @spec migrate([{Ecto.Repo.t(), keyword()}]) :: [{:ok, [integer()], [atom()]} | {:error, term()}]
   def migrate(opts \\ []) do
-    for repo <- Application.fetch_env!(@app, :ecto_repos) do
+    for repo <- ecto_repos() do
       run_opts = opts[repo] || [all: true]
       {:ok, _, _} = Migrator.with_repo(repo, &Migrator.run(&1, :up, run_opts), @migrate_opts)
     end
@@ -48,5 +48,14 @@ defmodule NervesHub.Release.Tasks do
       err ->
         raise "Failed to run seed script: #{inspect(err)}"
     end
+  end
+
+  defp ecto_repos() do
+    Application.fetch_env!(@app, :ecto_repos) --
+      if Application.get_env(:nerves_hub, :analytics_enabled) do
+        []
+      else
+        [NervesHub.AnalyticsRepo]
+      end
   end
 end
