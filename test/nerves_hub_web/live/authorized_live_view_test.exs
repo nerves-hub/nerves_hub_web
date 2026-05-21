@@ -128,6 +128,70 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
     def render(assigns), do: ~H"<div>test</div>"
   end
 
+  # A LiveView that destructures the socket in the function head. The decorator
+  # must not re-inject the pattern match into the body; if it did, `scope` would
+  # be re-bound and shadow the head match (compiler warning + broken hygiene).
+  defmodule HeadPatternMatchLive do
+    use Phoenix.LiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
+
+    @decorate requires_permission(:"device:list")
+    def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+      {:ok, Phoenix.Component.assign(socket, :matched_product_id, scope.product.id)}
+    end
+
+    def render(assigns), do: ~H"<div>test</div>"
+  end
+
+  # A LiveView using special_permission — the body does its own check.
+  defmodule SpecialPermissionLive do
+    use Phoenix.LiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
+
+    @decorate requires_no_permission()
+    def mount(_params, _session, socket) do
+      {:ok, socket}
+    end
+
+    @decorate special_permission(:checked_in_body)
+    def handle_event("custom", _params, socket) do
+      {:noreply, socket}
+    end
+
+    def render(assigns), do: ~H"<div>test</div>"
+  end
+
+  # A LiveView returning a {:reply, msg, socket} 3-tuple from a decorated event.
+  defmodule ReplyTupleEventLive do
+    use Phoenix.LiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
+
+    @decorate requires_no_permission()
+    def mount(_params, _session, socket) do
+      {:ok, socket}
+    end
+
+    @decorate requires_no_permission()
+    def handle_event("ping", _params, socket) do
+      {:reply, %{pong: true}, socket}
+    end
+
+    def render(assigns), do: ~H"<div>test</div>"
+  end
+
+  # A LiveView returning {:ok, socket, opts} from a decorated mount.
+  defmodule MountWithOptsLive do
+    use Phoenix.LiveView
+    use NervesHubWeb.Access.AuthorizedLiveView
+
+    @decorate requires_no_permission()
+    def mount(_params, _session, socket) do
+      {:ok, socket, layout: false}
+    end
+
+    def render(assigns), do: ~H"<div>test</div>"
+  end
+
   defp build_socket(extra_assigns \\ %{}) do
     assigns =
       %{__changed__: %{}}
@@ -143,19 +207,13 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
     }
   end
 
-  defp build_scope(user, org, product \\ nil) do
+  defp build_scope(user, org, product) do
     org_user = Accounts.get_org_user!(org, user.id)
 
-    scope =
-      Scope.for_user(user)
-      |> Scope.put_org(org)
-      |> Scope.put_role(org_user.role)
-
-    if product do
-      Scope.put_product(scope, product)
-    else
-      scope
-    end
+    Scope.for_user(user)
+    |> Scope.put_org(org)
+    |> Scope.put_role(org_user.role)
+    |> Scope.put_product(product)
   end
 
   defp reset_authorization(socket) do
@@ -277,6 +335,53 @@ defmodule NervesHubWeb.Access.AuthorizedLiveViewTest do
       socket = reset_authorization(socket)
 
       assert {:noreply, _socket} = DecoratedEventLive.handle_event("click", %{}, socket)
+    end
+  end
+
+  describe "head pattern matching" do
+    test "preserves head-matched variables through requires_permission", %{
+      user: user,
+      org: org,
+      product: product
+    } do
+      scope = build_scope(user, org, product)
+      socket = build_socket(%{current_scope: scope})
+
+      assert {:ok, socket} = HeadPatternMatchLive.mount(%{}, %{}, socket)
+      assert socket.assigns.matched_product_id == product.id
+      assert socket.private.authorization_granted?
+    end
+  end
+
+  describe "special_permission" do
+    test "marks the socket as authorized via the supplied reason" do
+      socket = build_socket()
+      {:ok, socket} = DecoratedMountLive.mount(%{}, %{}, socket)
+      socket = reset_authorization(socket)
+
+      assert {:noreply, socket} = SpecialPermissionLive.handle_event("custom", %{}, socket)
+      assert socket.private.authorization_granted?
+      assert socket.private.authorization_info == :checked_in_body
+    end
+  end
+
+  describe "return shapes" do
+    test "preserves {:reply, msg, socket} from a decorated handle_event" do
+      socket = build_socket()
+      {:ok, socket} = DecoratedMountLive.mount(%{}, %{}, socket)
+      socket = reset_authorization(socket)
+
+      assert {:reply, %{pong: true}, socket} =
+               ReplyTupleEventLive.handle_event("ping", %{}, socket)
+
+      assert socket.private.authorization_granted?
+    end
+
+    test "preserves {:ok, socket, opts} from a decorated mount" do
+      socket = build_socket()
+
+      assert {:ok, socket, layout: false} = MountWithOptsLive.mount(%{}, %{}, socket)
+      assert socket.private.authorization_granted?
     end
   end
 end
