@@ -123,7 +123,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
-  @decorate requires_permission(:"org_user:delete")
+  @decorate special_permission(:enforced_by_can_remove)
   def handle_event("delete_org_user", %{"user_id" => user_id}, socket) do
     scope = socket.assigns.current_scope
     {:ok, org_user_to_remove} = Accounts.get_org_user(socket.assigns.org, user_id)
