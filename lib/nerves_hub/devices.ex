@@ -152,6 +152,7 @@ defmodule NervesHub.Devices do
     |> preload([latest_connection: lc], latest_connection: lc)
     |> preload([latest_health: lh], latest_health: lh)
     |> preload([deployment_group: dg], deployment_group: dg)
+    |> preload([inflight_update: ifu], inflight_update: ifu)
     |> CommonFiltering.filter(product, opts)
   end
 
@@ -170,6 +171,7 @@ defmodule NervesHub.Devices do
       as: :pinned
     )
     |> join(:left, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
+    |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)
   end
 
   def get_minimal_device_location_by_product(product) do
@@ -951,11 +953,13 @@ defmodule NervesHub.Devices do
   Resolve an update for the device's deployment
   """
   @spec resolve_update(Device.t()) :: UpdatePayload.t()
-  def resolve_update(%Device{status: :registered}), do: %UpdatePayload{update_available: false}
+  def resolve_update(device, deployment_group \\ nil, opts \\ [])
 
-  def resolve_update(%Device{deployment_id: nil}), do: %UpdatePayload{update_available: false}
+  def resolve_update(%Device{status: :registered}, nil, _), do: %UpdatePayload{update_available: false}
 
-  def resolve_update(%Device{firmware_metadata: fw_meta} = device) do
+  def resolve_update(%Device{deployment_id: nil}, nil, _), do: %UpdatePayload{update_available: false}
+
+  def resolve_update(%Device{firmware_metadata: fw_meta} = device, nil, _) do
     Logger.metadata(device_id: device.id, source_firmware_uuid: Map.get(fw_meta, :uuid))
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
 
@@ -966,10 +970,10 @@ defmodule NervesHub.Devices do
         []
       end
 
-    do_resolve_update(device, deployment_group, opts)
+    resolve_update(device, deployment_group, opts)
   end
 
-  defp do_resolve_update(device, deployment_group, opts) do
+  def resolve_update(device, deployment_group, opts) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
         case get_delta_or_firmware(device, deployment_group) do
@@ -1251,9 +1255,11 @@ defmodule NervesHub.Devices do
 
     _ =
       if inflight_update do
-        DeploymentGroup
-        |> where([d], d.id == ^inflight_update.deployment_id)
-        |> Repo.update_all(inc: [current_updated_devices: 1])
+        if inflight_update.deployment_id do
+          DeploymentGroup
+          |> where([d], d.id == ^inflight_update.deployment_id)
+          |> Repo.update_all(inc: [current_updated_devices: 1])
+        end
 
         Repo.delete(inflight_update)
 
@@ -1652,67 +1658,31 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  @doc """
-  Deployment orchestrator told a device to update
-  """
-  @spec told_to_update(
-          device_or_id :: Device.t() | integer(),
-          deployment_group :: DeploymentGroup.t(),
-          opts :: Keyword.t()
-        ) ::
-          {:ok, InflightUpdate.t()} | :error
-  def told_to_update(device_or_id, deployment_group, opts \\ [])
+  def update_inflight_update(device_id, status, progress \\ nil, persist_update? \\ true)
 
-  def told_to_update(%Device{id: id}, deployment_group, opts) do
-    told_to_update(id, deployment_group, opts)
+  def update_inflight_update(device_id, status, progress, true) do
+    updated_at = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    InflightUpdate
+    |> where(device_id: ^device_id)
+    |> Repo.update_all(set: [status: status, progress: progress, updated_at: updated_at])
+    |> case do
+      {1, _} -> broadcast_inflight_update(device_id, status, progress)
+      _ -> true
+    end
+
+    :ok
   end
 
-  def told_to_update(device_id, deployment_group, opts) do
-    deployment_group =
-      ManagedDeployments.load_current_release(deployment_group)
-      |> Repo.preload([:org])
+  def update_inflight_update(device_id, status, progress, false) do
+    broadcast_inflight_update(device_id, status, progress)
+    :ok
+  end
 
-    expires_at =
-      DateTime.utc_now()
-      |> DateTime.add(60 * deployment_group.inflight_update_expiration_minutes, :second)
-      |> DateTime.truncate(:second)
-
-    priority_queue = Keyword.get(opts, :priority_queue, false)
-
-    inflight_params = %{
-      device_id: device_id,
-      deployment_id: deployment_group.id,
-      firmware_id: deployment_group.current_release.firmware_id,
-      firmware_uuid: deployment_group.current_release.firmware.uuid,
-      expires_at: expires_at,
-      priority_queue: priority_queue
-    }
-
-    inflight_params
-    |> InflightUpdate.create_changeset()
-    |> Repo.insert()
-    |> case do
-      {:ok, inflight_update} ->
-        if opts[:user] do
-          DeviceTemplates.audit_pushed_available_update(opts[:user], device_id, deployment_group)
-        end
-
-        broadcast_update_request(device_id, inflight_update, deployment_group)
-        {:ok, inflight_update}
-
-      {:error, _changeset} ->
-        # TODO this logic doesn't feel right. We should revise this approach.
-        # Device already has an inflight update, fetch it
-        case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment_group.id) do
-          nil ->
-            Logger.error("An inflight update could not be created or found for the device (#{device_id})")
-            :error
-
-          inflight_update ->
-            broadcast_update_request(device_id, inflight_update, deployment_group)
-            {:ok, inflight_update}
-        end
-    end
+  defp broadcast_inflight_update(device_id, status, progress) do
+    topic = "internal:device:#{device_id}"
+    payload = %{stage: status, percent: progress}
+    :ok = ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, "firmware_update_progress", payload)
   end
 
   def clear_inflight_update(%DeviceInfo{device_id: id}) do
@@ -1729,24 +1699,26 @@ defmodule NervesHub.Devices do
     |> Repo.delete_all()
   end
 
+  @spec delete_expired_inflight_updates() :: integer
   def delete_expired_inflight_updates() do
-    InflightUpdate
-    |> where([iu], iu.expires_at < fragment("now()"))
-    |> Repo.delete_all()
+    {counts, results} =
+      InflightUpdate
+      |> join(:inner, [iu], d in assoc(iu, :device))
+      |> where([iu], iu.updated_at < fragment("NOW() - INTERVAL '30 minutes'"))
+      |> select([iu, d], %{device_id: d.id})
+      |> Repo.delete_all()
+
+    Enum.each(results, fn result ->
+      update_inflight_update(result.device_id, "expired", nil, false)
+    end)
+
+    counts
   end
 
-  def update_started!(inflight_update, device, deployment) do
-    Repo.transact(fn ->
-      DeviceTemplates.audit_device_deployment_group_update_triggered(
-        device,
-        deployment
-      )
-
-      inflight_update
-      |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_change(:status, "updating")
-      |> Repo.update!()
-    end)
+  def inflight_update_for(%Device{id: device_id}) when not is_nil(device_id) do
+    InflightUpdate
+    |> where([iu], iu.device_id == ^device_id)
+    |> Repo.one()
   end
 
   def inflight_updates_for(%DeploymentGroup{} = deployment_group) do
@@ -1817,25 +1789,6 @@ defmodule NervesHub.Devices do
   def preload_product(%Device{} = device) do
     device
     |> Repo.preload(:product)
-  end
-
-  defp broadcast_update_request(device_id, inflight_update, deployment_group) do
-    Logger.metadata(device_id: device_id)
-
-    device = get_device(device_id)
-
-    opts =
-      if proxy_url = get_in(deployment_group.org.settings.firmware_proxy_url) do
-        [firmware_proxy_url: proxy_url]
-      else
-        []
-      end
-
-    update_payload = do_resolve_update(device, deployment_group, opts)
-
-    device = %{device | deployment_group: deployment_group}
-
-    DeviceEvents.schedule_update(device, inflight_update, update_payload)
   end
 
   @spec get_pinned_devices(Scope.t()) :: [Device.t()]

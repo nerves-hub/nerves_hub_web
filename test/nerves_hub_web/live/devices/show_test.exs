@@ -277,8 +277,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
-  describe "fwup progress" do
-    test "no fwup progress", %{conn: conn, org: org, product: product, device: device} do
+  describe "firmware update progress" do
+    test "no firmware update progress", %{conn: conn, org: org, product: product, device: device} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
@@ -286,36 +286,119 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> refute_has("div.progress")
     end
 
-    test "some fwup progress", %{conn: conn, org: org, product: product, device: device} do
+    test "shows information when the update is requested", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> unwrap(fn view ->
-        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 50}})
-        render(view)
-      end)
-      |> assert_has("div", text: "Updating firmware 50%")
+      |> assert_has("div", text: "Firmware update request sent to the device")
     end
 
-    test "complete fwup progress", %{conn: conn, org: org, product: product, device: device} do
+    test "shows information when the update is received by the device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "received", nil, true)
+
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> unwrap(fn view ->
-        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 50}})
-        render(view)
-      end)
-      |> assert_has("div", text: "Updating firmware 50%")
-      |> unwrap(fn view ->
-        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 100}})
-        render(view)
-      end)
-      |> refute_has("div", text: "Progress")
-      |> refute_has("div.progress")
-      |> assert_has("div", text: "Update complete: The device will reboot shortly.")
+      |> assert_has("div", text: "Firmware update request received by the device")
     end
 
-    test "hides flash after the device has restarted", %{
+    test "shows information when the update is being downloaded by the device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "downloading", 50, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Downloading firmware : 50%")
+    end
+
+    test "shows information when the update is being applied by the device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "updating", 50, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Updating firmware : 50%")
+    end
+
+    test "shows information when the update 'expires'", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "expired", nil, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Firmware update aborted - no updates received")
+    end
+
+    test "shows information when the update completes successfully", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "completed", nil, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
+    end
+
+    test "responds to pubsub updates", %{
       conn: conn,
       org: org,
       product: product,
@@ -323,13 +406,55 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
       |> unwrap(fn view ->
-        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 100}})
+        Devices.update_inflight_update(device.id, "requested", nil, false)
         render(view)
       end)
-      |> refute_has("div", text: "Progress")
-      |> refute_has("div.progress")
-      |> assert_has("div", text: "Update complete: The device will reboot shortly.")
+      |> assert_has("div", text: "Firmware update request sent to the device")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "received", nil, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "Firmware update request received by the device")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "started", nil, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "Firmware update started...")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "downloading", 35, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "Downloading firmware : 35%")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "updating", 70, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "Updating firmware : 70%")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "completed", nil, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
+    end
+
+    test "hides banner after the device has restarted", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "completed", nil, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
           topic: "internal:device:#{device.id}",
@@ -339,8 +464,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         render(view)
       end)
-      |> assert_has("div", text: "Update complete: The device will reboot shortly.")
+      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
       |> unwrap(fn view ->
+        Repo.delete_all(InflightUpdate)
+
         send(view.pid, %Broadcast{
           topic: "internal:device:#{device.id}",
           event: "connection:change",
@@ -349,7 +476,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         render(view)
       end)
-      |> refute_has("div", text: "Update complete: The device will reboot shortly.")
+      |> refute_has("div", text: "Firmware update complete, waiting for device to restart")
     end
   end
 

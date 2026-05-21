@@ -10,6 +10,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   use GenServer
   use OpenTelemetryDecorator
 
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments
@@ -219,7 +220,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   defp tell_device_to_update(device_id, deployment_group, priority_queue) do
     :telemetry.execute([:nerves_hub, :deployments, :trigger_update, :device], %{count: 1})
 
-    case Devices.told_to_update(device_id, deployment_group, priority_queue: priority_queue) do
+    case DeviceEvents.schedule_update(device_id, deployment_group, priority_queue: priority_queue) do
       {:ok, _} -> true
       _ -> false
     end

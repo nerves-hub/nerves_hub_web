@@ -638,7 +638,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     %{device: device, user: user} = socket.assigns
 
-    case Devices.told_to_update(device, device.deployment_group, user: user) do
+    case DeviceEvents.schedule_update(device.id, device.deployment_group, user: user) do
       {:ok, _inflight_update} ->
         socket
         |> put_flash(:info, "Pushing available firmware update.")

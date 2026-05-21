@@ -6,6 +6,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
@@ -1015,7 +1016,7 @@ defmodule NervesHubWeb.WebsocketTest do
         )
 
       deployment_group = Repo.preload(deployment_group, :org)
-      {:ok, _} = Devices.told_to_update(device, deployment_group)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(device.id, deployment_group)
 
       assert Enum.count(Devices.inflight_updates_for(deployment_group)) == 1
 

@@ -99,15 +99,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                 hint="The number of devices that will update at any given time. This is a soft limit and concurrent updates may be slightly above this number."
               />
             </div>
-
-            <div class="flex w-1/2 flex-col gap-6">
-              <.input
-                field={@form[:inflight_update_expiration_minutes]}
-                label="Minutes Before Expiring Updates"
-                type="number"
-                hint="The number of minutes before an inflight update expires to clear the queue."
-              />
-            </div>
           </div>
         </div>
 
