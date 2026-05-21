@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Access.AuthDecorator do
   use Decorator.Define, requires_permission: 1, requires_no_permission: 0, special_permission: 1
 
+  alias __MODULE__
   alias NervesHubWeb.Mounts.RequireAuthorization
 
   @org_level_prefixes ~w(organization signing_key org_user certificate_authority)
@@ -11,7 +12,7 @@ defmodule NervesHubWeb.Access.AuthDecorator do
   def requires_no_permission(body, %{args: [_event, _params, _socket]}) do
     quote(location: :keep) do
       unquote(body)
-      |> NervesHubWeb.Access.AuthDecorator.mark_socket(fn sock ->
+      |> AuthDecorator.mark_socket(fn sock ->
         RequireAuthorization.authorization_not_needed(sock)
       end)
     end
@@ -20,7 +21,7 @@ defmodule NervesHubWeb.Access.AuthDecorator do
   def special_permission(reason, body, %{args: [_event, _params, _socket]}) do
     quote(location: :keep) do
       unquote(body)
-      |> NervesHubWeb.Access.AuthDecorator.mark_socket(fn sock ->
+      |> AuthDecorator.mark_socket(fn sock ->
         RequireAuthorization.confirm_user_is_authorized(sock, unquote(reason))
       end)
     end
@@ -43,7 +44,7 @@ defmodule NervesHubWeb.Access.AuthDecorator do
       authz = Map.take(authz_socket.private, unquote(@authz_keys))
 
       unquote(body)
-      |> NervesHubWeb.Access.AuthDecorator.mark_socket(fn sock ->
+      |> AuthDecorator.mark_socket(fn sock ->
         %{sock | private: Map.merge(sock.private, authz)}
       end)
     end
