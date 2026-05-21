@@ -631,24 +631,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
-    socket
-    |> assign(
-      :received_connection_change_identifiers,
-      Map.put(socket.assigns.received_connection_change_identifiers, payload.device_id, payload)
-    )
-    |> safe_refresh()
-    |> update_device_statuses(payload)
-  end
+  def handle_info(
+        %Broadcast{topic: "internal:device:" <> device_id, event: "connection:change", payload: payload},
+        socket
+      ) do
+    device_id = String.to_integer(device_id)
 
-  def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
     socket
-    |> assign(
-      :received_connection_change_identifiers,
-      Map.put(socket.assigns.received_connection_change_identifiers, payload.device_id, payload)
-    )
+    |> update(:received_connection_change_identifiers, fn identifiers ->
+      Map.put(identifiers, device_id, payload)
+    end)
     |> safe_refresh()
-    |> update_device_statuses(payload)
+    |> update_device_statuses(device_id, payload.status)
   end
 
   def handle_info(%Broadcast{event: "fwup_progress", payload: %{device_id: device_id, percent: percent}}, socket)
@@ -666,7 +660,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  # Unknown broadcasts get ignored, likely from the device:id:internal channel
+  # Unknown broadcasts get ignored, likely from the internal:device:id channel
   def handle_info(%Broadcast{}, socket) do
     socket
     |> safe_refresh()
@@ -690,8 +684,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def handle_info(:live_refresh, socket) do
     if socket.assigns.visible? and socket.assigns.live_refresh_pending? do
       Tracer.with_span "NervesHubWeb.Live.Devices.Index.live_refresh_device_list" do
-        socket
-        |> assign_display_devices()
+        assign_display_devices(socket)
       end
     else
       socket
@@ -737,19 +730,19 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     Enum.each(
       old_devices.result || [],
-      fn device -> socket.endpoint.unsubscribe("device:#{device.identifier}:internal") end
+      fn device -> socket.endpoint.unsubscribe("internal:device:#{device.id}") end
     )
 
     updated_device_statuses =
       Map.new(updated_devices, fn device ->
-        socket.endpoint.subscribe("device:#{device.identifier}:internal")
+        socket.endpoint.subscribe("internal:device:#{device.id}")
 
-        payload = socket.assigns.received_connection_change_identifiers[device.identifier]
+        payload = socket.assigns.received_connection_change_identifiers[device.id]
 
         if payload do
-          {payload.device_id, payload.status}
+          {device.id, payload.status}
         else
-          {device.identifier, Tracker.connection_status(device)}
+          {device.id, Tracker.connection_status(device)}
         end
       end)
 
@@ -955,9 +948,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp transform_deployment_filter(filters), do: %{filters | deployment_id: String.to_integer(filters.deployment_id)}
 
-  defp update_device_statuses(socket, payload) do
+  defp update_device_statuses(socket, device_id, status) do
     updated_device_statuses =
-      Map.replace(socket.assigns.device_statuses.result, payload.device_id, payload.status)
+      Map.replace(socket.assigns.device_statuses.result, device_id, status)
 
     {:noreply,
      assign(

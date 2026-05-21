@@ -75,7 +75,7 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.heartbeat")
   defp heartbeat(%{assigns: %{device_info: device_info}} = socket) do
     if update_heartbeat?(socket) do
-      Connections.device_heartbeat(device_info.device_identifier, device_info.connection_ref)
+      Connections.device_heartbeat(device_info.connection_ref)
       update_last_heartbeat(socket)
     else
       socket
@@ -283,8 +283,7 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.on_connect")
   defp on_connect(%{assigns: %{device_info: device_info}} = socket) do
     # Report connection and use connection id as reference
-    {:ok, %DeviceConnection{id: connection_id}} =
-      Connections.device_connecting(device_info.device_id, device_info.device_identifier)
+    {:ok, %DeviceConnection{id: connection_id}} = Connections.device_connecting(device_info.device_id)
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: connection_id,
@@ -329,7 +328,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
     # its possible that this is a stale connection and the device has already reconnected,
     # which means the following call might return :error, but we can ignore it
-    _ = Connections.device_disconnected(device_info.device_identifier, device_info.connection_ref)
+    _ = Connections.device_disconnected(device_info.connection_ref)
 
     assign(socket, :disconnection_handled?, true)
   end

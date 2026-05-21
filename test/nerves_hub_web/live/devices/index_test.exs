@@ -80,32 +80,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("circle[fill='#{offline_indicator_color}']", timeout: 1000)
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
+          topic: "internal:device:#{device.id}",
           event: "connection:change",
-          payload: %{device_id: device.identifier, status: "online"}
-        })
-
-        render(view)
-      end)
-      |> assert_has("circle[fill='#{online_indicator_color}']")
-    end
-
-    test "connection:status", %{
-      conn: conn,
-      fixture: fixture,
-      offline_indicator_color: offline_indicator_color,
-      online_indicator_color: online_indicator_color
-    } do
-      %{device: device, org: org, product: product} = fixture
-
-      conn
-      |> visit(~p"/org/#{org}/#{product}/devices")
-      |> assert_has("circle[fill='#{offline_indicator_color}']", timeout: 1000)
-      |> unwrap(fn view ->
-        send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
-          event: "connection:status",
-          payload: %{device_id: device.identifier, status: "online"}
+          payload: %{status: "online"}
         })
 
         render(view)

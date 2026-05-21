@@ -60,10 +60,6 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   end
 
   @impl Phoenix.LiveView
-  def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
-    update_device_statuses(socket, payload)
-  end
-
   def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
     update_device_statuses(socket, payload)
   end
@@ -74,7 +70,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   def subscribe(%{assigns: %{pinned_devices: devices}} = socket) do
     if connected?(socket) do
       Enum.each(devices, fn device ->
-        socket.endpoint.subscribe("device:#{device.identifier}:internal")
+        socket.endpoint.subscribe("internal:device:#{device.id}")
       end)
     end
 

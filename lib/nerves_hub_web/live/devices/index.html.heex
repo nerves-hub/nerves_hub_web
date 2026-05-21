@@ -237,7 +237,7 @@
                   <td>
                     <div class="flex items-center gap-2">
                       <span title={connection_established_at_status(device.latest_connection)}>
-                        <%= if @device_statuses.result[device.identifier] == "online" do %>
+                        <%= if @device_statuses.result[device.id] == "online" do %>
                           <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
                             <circle cx="3" cy="3" r="3" fill="#10B981" />
                           </svg>

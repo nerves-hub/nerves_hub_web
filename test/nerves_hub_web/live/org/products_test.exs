@@ -74,8 +74,8 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       _ = Fixtures.device_fixture(org, product, firmware)
 
       device = Fixtures.device_fixture(org, product, firmware)
-      {:ok, device_connection} = Connections.device_connecting(device.id, device.identifier)
-      Connections.device_connected(device.identifier, device_connection.id)
+      {:ok, device_connection} = Connections.device_connecting(device.id)
+      Connections.device_connected(device_connection.id)
 
       conn
       |> visit("/org/#{org.name}")

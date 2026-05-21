@@ -23,20 +23,20 @@ defmodule NervesHub.Devices.ConnectionsTest do
     end
 
     test "transitions through connecting -> connected -> disconnected states", %{device: device} do
-      topic = "device:#{device.identifier}:internal"
+      topic = "internal:device:#{device.id}"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
       assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
-               Connections.device_connecting(device.id, device.identifier)
+               Connections.device_connecting(device.id)
 
       assert %DeviceConnection{status: :connecting} = Connections.get_latest_for_device(device.id)
       assert_receive %Broadcast{topic: ^topic, event: "connection:change", payload: %{status: "connecting"}}, 500
 
-      assert :ok = Connections.device_connected(device, ref)
+      assert :ok = Connections.device_connected(ref)
       assert %DeviceConnection{status: :connected} = Connections.get_latest_for_device(device.id)
       assert_receive %Broadcast{topic: ^topic, event: "connection:change", payload: %{status: "online"}}, 500
 
-      assert :ok = Connections.device_disconnected(device, ref)
+      assert :ok = Connections.device_disconnected(ref)
 
       assert %DeviceConnection{status: :disconnected, disconnected_at: disconnected_at} =
                Connections.get_latest_for_device(device.id)
@@ -48,19 +48,19 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
   describe "device_heartbeat/2" do
     test "updates last_seen_at and broadcasts heartbeat event", %{device: device} do
-      topic = "device:#{device.identifier}:internal"
+      topic = "internal:device:#{device.id}"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
       assert {:ok, %DeviceConnection{id: connection_id, last_seen_at: first_seen_at} = connection} =
-               Connections.device_connecting(device.id, device.identifier)
+               Connections.device_connecting(device.id)
 
       assert_receive %Broadcast{topic: ^topic, event: "connection:change", payload: %{status: "connecting"}}, 500
 
-      assert :ok = Connections.device_connected(device, connection_id)
+      assert :ok = Connections.device_connected(connection_id)
 
       assert_receive %Broadcast{topic: ^topic, event: "connection:change", payload: %{status: "online"}}, 500
 
-      Connections.device_heartbeat(device, connection_id)
+      Connections.device_heartbeat(connection_id)
 
       assert_receive %Broadcast{topic: ^topic, event: "connection:heartbeat"}, 500
 
@@ -74,8 +74,8 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
   describe "clean_stale_connections/0" do
     test "marks stale connected connections as disconnected", %{device: device} do
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
 
       # Get the configured interval and jitter
       interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
@@ -98,8 +98,8 @@ defmodule NervesHub.Devices.ConnectionsTest do
     end
 
     test "does not mark recent connections as stale", %{device: device} do
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
 
       # Set last_seen_at to recent time
       recent_time = DateTime.utc_now() |> DateTime.add(-5, :minute)

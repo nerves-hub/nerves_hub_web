@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     if connected?(socket) do
       Logger.metadata(device_id: device.id, user_id: user.id, product_id: product.id)
-      socket.endpoint.subscribe("device:#{device.identifier}:internal")
+      socket.endpoint.subscribe("internal:device:#{device.id}")
       socket.endpoint.subscribe("device:console:#{device.id}:internal")
       socket.endpoint.subscribe("device:console:#{device.id}")
       socket.endpoint.subscribe("device:#{device.id}:extensions")
@@ -93,25 +93,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(%Broadcast{event: "connection:heartbeat"}, socket) do
     %{device: device} = socket.assigns
 
-    {:noreply, assign(socket, :device_connection, Connections.get_latest_for_device(device.id))}
-  end
-
-  def handle_info(
-        %Broadcast{event: "connection:status", payload: %{status: "online"}},
-        %{assigns: %{device: device, current_scope: scope}} = socket
-      ) do
-    device = load_device(scope, device.identifier)
-
-    socket
-    |> general_assigns(device)
-    |> assign(:update_information, Devices.resolve_update(device))
-    |> noreply()
-  end
-
-  def handle_info(
-        %Broadcast{event: "connection:status", payload: %{status: "offline"}},
-        %{assigns: %{device: device}} = socket
-      ) do
     {:noreply, assign(socket, :device_connection, Connections.get_latest_for_device(device.id))}
   end
 

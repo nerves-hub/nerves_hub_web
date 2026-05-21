@@ -8,14 +8,14 @@ defmodule NervesHub.Tracker do
   """
 
   def heartbeat(%Device{} = device) do
-    heartbeat(device.identifier)
+    heartbeat(device.id)
   end
 
-  def heartbeat(device_identifier) when is_binary(device_identifier) do
+  def heartbeat(device_id) when is_integer(device_id) do
     _ =
       ChannelServer.broadcast(
         NervesHub.PubSub,
-        "device:#{device_identifier}:internal",
+        "internal:device:#{device_id}",
         "connection:heartbeat",
         %{}
       )
@@ -24,55 +24,39 @@ defmodule NervesHub.Tracker do
   end
 
   def connecting(%Device{} = device) do
-    connecting(device.identifier)
+    connecting(device.id)
   end
 
-  def connecting(device_identifier) when is_binary(device_identifier) do
-    publish(device_identifier, "connecting")
+  def connecting(device_id) when is_integer(device_id) do
+    publish(device_id, "connecting")
   end
 
-  def online(%{} = device) do
-    online(device.identifier)
+  def online(%Device{} = device) do
+    online(device.id)
   end
 
-  def online(identifier) when is_binary(identifier) do
-    publish(identifier, "online")
-  end
-
-  def confirm_online(%Device{identifier: identifier}) do
-    _ =
-      ChannelServer.broadcast(
-        NervesHub.PubSub,
-        "device:#{identifier}:internal",
-        "connection:status",
-        %{
-          device_id: identifier,
-          status: "online"
-        }
-      )
-
-    :ok
+  def online(device_id) when is_integer(device_id) do
+    publish(device_id, "online")
   end
 
   @doc """
   Tell internal listeners that the device is offline, via a connection change
   """
-  def offline(%Device{identifier: identifier}) do
-    offline(identifier)
+  def offline(%Device{} = device) do
+    offline(device.id)
   end
 
-  def offline(identifier) when is_binary(identifier) do
-    publish(identifier, "offline")
+  def offline(device_id) when is_integer(device_id) do
+    publish(device_id, "offline")
   end
 
-  defp publish(identifier, status) do
+  defp publish(device_id, status) do
     _ =
       ChannelServer.broadcast(
         NervesHub.PubSub,
-        "device:#{identifier}:internal",
+        "internal:device:#{device_id}",
         "connection:change",
         %{
-          device_id: identifier,
           status: status
         }
       )
