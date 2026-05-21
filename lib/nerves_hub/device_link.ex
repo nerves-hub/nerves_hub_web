@@ -161,7 +161,7 @@ defmodule NervesHub.DeviceLink do
 
   @spec firmware_update_progress(device_info :: DeviceInfo.t(), percent :: integer()) :: :ok
   def firmware_update_progress(device_info, percent) do
-    topic = "device:#{device_info.device_identifier}:internal"
+    topic = "internal:device:#{device_info.device_id}"
 
     :ok =
       ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, "fwup_progress", %{
@@ -212,7 +212,7 @@ defmodule NervesHub.DeviceLink do
 
   defp announce_online(device_info) do
     # Update the connection to say that we are fully up and running
-    Connections.device_connected(device_info.device_identifier, device_info.connection_ref)
+    Connections.device_connected(device_info.connection_ref)
     # tell the orchestrator that we are online
     Devices.deployment_device_online(device_info)
   end

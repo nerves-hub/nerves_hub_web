@@ -54,7 +54,7 @@ defmodule NervesHub.Extensions.Geo do
     _ =
       ChannelServer.broadcast(
         NervesHub.PubSub,
-        "device:#{socket.assigns.device_info.device_identifier}:internal",
+        "internal:device:#{socket.assigns.device_info.device_id}",
         "location:updated",
         location
       )
