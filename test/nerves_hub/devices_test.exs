@@ -460,6 +460,94 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "deployment progress counts" do
+    setup %{product: product, org_key: org_key, deployment_group: deployment_group, tmp_dir: tmp_dir} do
+      deployment_group = ManagedDeployments.load_current_release(deployment_group)
+      current_firmware = deployment_group.current_release.firmware
+      other_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      %{
+        deployment_group: deployment_group,
+        current_firmware: current_firmware,
+        other_firmware: other_firmware
+      }
+    end
+
+    test "up_to_date_count/1 only counts eligible devices on the current firmware",
+         %{
+           org: org,
+           product: product,
+           deployment_group: dg,
+           current_firmware: current,
+           other_firmware: other
+         } do
+      _on_current = Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id})
+      _on_other = Fixtures.device_fixture(org, product, other, %{deployment_id: dg.id})
+
+      _disabled_on_current =
+        Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id, updates_enabled: false})
+
+      _no_deployment = Fixtures.device_fixture(org, product, current, %{})
+
+      assert Devices.up_to_date_count(dg) == 1
+    end
+
+    test "waiting_for_update_count/1 only counts eligible devices not on the current firmware",
+         %{
+           org: org,
+           product: product,
+           deployment_group: dg,
+           current_firmware: current,
+           other_firmware: other
+         } do
+      _on_current = Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id})
+      _on_other = Fixtures.device_fixture(org, product, other, %{deployment_id: dg.id})
+
+      _disabled_on_other =
+        Fixtures.device_fixture(org, product, other, %{deployment_id: dg.id, updates_enabled: false})
+
+      _no_deployment = Fixtures.device_fixture(org, product, other, %{})
+
+      assert Devices.waiting_for_update_count(dg) == 1
+    end
+
+    test "updates_disabled_count/1 counts deployment devices with updates_enabled = false",
+         %{org: org, product: product, deployment_group: dg, current_firmware: current} do
+      _enabled = Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id})
+
+      _disabled_a =
+        Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id, updates_enabled: false})
+
+      _disabled_b =
+        Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id, updates_enabled: false})
+
+      _disabled_no_deployment =
+        Fixtures.device_fixture(org, product, current, %{updates_enabled: false})
+
+      assert Devices.updates_disabled_count(dg) == 2
+    end
+
+    test "in_penalty_box_count/2 only counts deployment devices with a future block timestamp",
+         %{org: org, product: product, deployment_group: dg, current_firmware: current} do
+      now = DateTime.utc_now()
+      future = DateTime.add(now, 60, :second)
+      past = DateTime.add(now, -60, :second)
+
+      _blocked_future =
+        Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id, updates_blocked_until: future})
+
+      _blocked_past =
+        Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id, updates_blocked_until: past})
+
+      _not_blocked = Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id})
+
+      _blocked_no_deployment =
+        Fixtures.device_fixture(org, product, current, %{updates_blocked_until: future})
+
+      assert Devices.in_penalty_box_count(dg, now) == 1
+    end
+  end
+
   test "delete_device deletes its certificates", %{device: device} do
     [_cert] = Devices.get_device_certificates(device)
 
