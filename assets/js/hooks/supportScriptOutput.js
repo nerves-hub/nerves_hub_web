@@ -36,7 +36,8 @@ const defaultTermOptions = {
 
 export default {
   mounted() {
-    let content = document.getElementById("support-script-output").textContent
+    let outputId = this.el.dataset.outputId || "support-script-output"
+    let content = document.getElementById(outputId).textContent
     let contentRows = content.split("\n")
 
     if (contentRows.length <= 20) {
