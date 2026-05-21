@@ -44,8 +44,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
 
   @impl Phoenix.LiveView
   @decorate requires_permission(:"deployment_group:list")
-  def mount(_params, _session, socket) do
-    scope = socket.assigns.current_scope
+  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     deployment_groups = ManagedDeployments.get_deployment_groups_by_product(scope.product)
     counts = ManagedDeployments.get_device_counts_by_product(scope.product)
 

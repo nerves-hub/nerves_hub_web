@@ -14,9 +14,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   @impl Phoenix.LiveView
   @decorate requires_permission(:"firmware:list")
-  def mount(_params, _session, socket) do
-    scope = socket.assigns.current_scope
-
+  def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     if connected?(socket) do
       Logger.metadata(user_id: scope.user.id, product_id: scope.product.id)
 

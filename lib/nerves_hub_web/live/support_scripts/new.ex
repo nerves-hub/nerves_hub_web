@@ -25,8 +25,7 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
   end
 
   @decorate requires_permission(:"support_script:create")
-  def handle_event("create-script", %{"script" => script_params}, socket) do
-    scope = socket.assigns.current_scope
+  def handle_event("create-script", %{"script" => script_params}, %{assigns: %{current_scope: scope}} = socket) do
     authorized!(:"support_script:create", scope)
 
     case Scripts.create(scope.product, scope.user, script_params) do
