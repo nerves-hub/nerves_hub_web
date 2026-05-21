@@ -351,10 +351,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span class="text-base-300 text-sm">{@deployment_group.concurrent_updates}</span>
             </div>
             <div class="flex items-center gap-4">
-              <span class="text-nerves-gray-500 text-sm">Minutes before expiring updates:</span>
-              <span class="text-base-300 text-sm">{@deployment_group.inflight_update_expiration_minutes}</span>
-            </div>
-            <div class="flex items-center gap-4">
               <span class="text-nerves-gray-500 text-sm">Device failure rate:</span>
               <span class="text-base-300 text-sm">
                 <span class="font-bold">{@deployment_group.device_failure_rate_amount}</span> failures per <span class="font-bold">{@deployment_group.device_failure_rate_seconds}</span> seconds

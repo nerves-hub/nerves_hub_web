@@ -3,6 +3,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   use Mimic
   use AssertEventually, timeout: 500, interval: 50
 
+  alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.BulkActions
@@ -779,7 +780,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       assert Orchestrator.available_priority_slots(deployment_group) == 2
 
       # Add one device to priority queue
-      {:ok, _} = Devices.told_to_update(old_device1, deployment_group, priority_queue: true)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(old_device1.id, deployment_group, priority_queue: true)
 
       assert Orchestrator.available_priority_slots(deployment_group) == 1
     end
@@ -834,13 +835,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       :ok = Connections.device_connected(conn1.id)
       :ok = Connections.device_connected(conn2.id)
       # Fill priority queue
-      {:ok, _} = Devices.told_to_update(old_device1, deployment_group, priority_queue: true)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(old_device1.id, deployment_group, priority_queue: true)
 
       # Normal queue should still have full capacity
       assert Orchestrator.available_slots(deployment_group) == deployment_group.concurrent_updates
 
       # Fill normal queue partially
-      {:ok, _} = Devices.told_to_update(new_device, deployment_group, priority_queue: false)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(new_device.id, deployment_group, priority_queue: false)
 
       # Priority queue should still have capacity
       assert Orchestrator.available_priority_slots(deployment_group) == 1
@@ -1029,14 +1030,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       :ok = Connections.device_connected(conn3.id)
       assert Devices.count_inflight_priority_updates_for(deployment_group) == 0
 
-      {:ok, _} = Devices.told_to_update(old_device1, deployment_group, priority_queue: true)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(old_device1.id, deployment_group, priority_queue: true)
       assert Devices.count_inflight_priority_updates_for(deployment_group) == 1
 
-      {:ok, _} = Devices.told_to_update(new_device, deployment_group, priority_queue: false)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(new_device.id, deployment_group, priority_queue: false)
       # Should still be 1, not counting normal queue
       assert Devices.count_inflight_priority_updates_for(deployment_group) == 1
 
-      {:ok, _} = Devices.told_to_update(old_device2, deployment_group, priority_queue: true)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(old_device2.id, deployment_group, priority_queue: true)
       assert Devices.count_inflight_priority_updates_for(deployment_group) == 2
     end
 
@@ -1091,10 +1092,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       :ok = Connections.device_connected(conn2.id)
       assert Devices.count_inflight_updates_for(deployment_group) == 0
 
-      {:ok, _} = Devices.told_to_update(new_device, deployment_group, priority_queue: false)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(new_device.id, deployment_group, priority_queue: false)
       assert Devices.count_inflight_updates_for(deployment_group) == 1
 
-      {:ok, _} = Devices.told_to_update(old_device1, deployment_group, priority_queue: true)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(old_device1.id, deployment_group, priority_queue: true)
       # Should still be 1, not counting priority queue
       assert Devices.count_inflight_updates_for(deployment_group) == 1
     end
@@ -1288,8 +1289,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       :ok = Connections.device_connected(conn3.id)
 
       # Fill both the priority queue slot and normal queue slot
-      {:ok, _} = Devices.told_to_update(old_device1.id, deployment_group, priority_queue: true)
-      {:ok, _} = Devices.told_to_update(new_device.id, deployment_group, priority_queue: false)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(old_device1.id, deployment_group, priority_queue: true)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(new_device.id, deployment_group, priority_queue: false)
 
       # Verify both queues are full
       assert Orchestrator.available_priority_slots(deployment_group) == 0

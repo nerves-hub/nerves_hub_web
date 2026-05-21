@@ -55,7 +55,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> selected_tab()
     |> general_assigns(device)
     |> schedule_health_check_timer()
-    |> assign(:fwup_progress, nil)
+    |> load_inprogress_firmware_update()
     |> assign(:pinned?, Devices.device_pinned?(user.id, device.id))
     |> setup_presence_tracking()
     |> setup_tab_components(@tab_components)
@@ -104,8 +104,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> assign(:device_connection, device.latest_connection)
+    |> load_inprogress_firmware_update()
     |> async_console_status_check()
-    |> assign(:fwup_progress, nil)
     |> assign(:update_information, Devices.resolve_update(device))
     |> then(fn socket ->
       if(payload.status == "online", do: clear_flash(socket), else: socket)
@@ -122,15 +122,37 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "fwup_progress", payload: payload}, socket) do
-    if payload.percent == 100 do
-      socket
-      |> put_flash(:info, "Update complete: The device will reboot shortly.")
-      |> assign(:fwup_progress, nil)
-      |> noreply()
-    else
-      {:noreply, assign(socket, :fwup_progress, payload.percent)}
-    end
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage}}, socket)
+      when stage == "expired" do
+    socket
+    |> put_flash(:notice, "Update aborted: No updates have been received in the last 15 minutes.")
+    |> assign(:firmware_update_progress, nil)
+    |> assign(:firmware_update_stage, nil)
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage}}, socket)
+      when stage == "completed" do
+    socket
+    |> put_flash(:info, "Update complete: The device will reboot shortly.")
+    |> assign(:firmware_update_progress, nil)
+    |> assign(:firmware_update_stage, stage)
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage, percent: percent}}, socket)
+      when stage in ["downloading", "updating"] do
+    socket
+    |> assign(:firmware_update_progress, percent)
+    |> assign(:firmware_update_stage, stage)
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage}}, socket) do
+    socket
+    |> assign(:firmware_update_progress, nil)
+    |> assign(:firmware_update_stage, stage)
+    |> noreply()
   end
 
   def handle_info(:check_health_interval, socket) do
@@ -307,6 +329,22 @@ defmodule NervesHubWeb.Live.Devices.Show do
       :latest_connection,
       :latest_health
     ])
+  end
+
+  defp load_inprogress_firmware_update(socket) do
+    socket.assigns.device
+    |> Devices.inflight_update_for()
+    |> case do
+      nil ->
+        socket
+        |> assign(:firmware_update_progress, nil)
+        |> assign(:firmware_update_stage, nil)
+
+      inflight_update ->
+        socket
+        |> assign(:firmware_update_progress, inflight_update.progress)
+        |> assign(:firmware_update_stage, inflight_update.status)
+    end
   end
 
   defp setup_presence_tracking(%{assigns: %{device: device, user: user}} = socket) do

@@ -279,7 +279,7 @@
                         <span class="clickable-table-row-mask" />
                       </.link>
                       <span class={["bg-base-800 border-base-700 ml-2 flex items-center gap-1 rounded-full border px-2.5 py-0.5", !@progress[device.id] && "invisible"]}>
-                        <span class="text-base-300 text-xs tracking-tight">updating</span>
+                        <span class="text-base-300 text-xs tracking-tight">{@progress[device.id][:stage]}</span>
                       </span>
                     </div>
                   </td>

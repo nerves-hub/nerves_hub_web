@@ -9,6 +9,7 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
 
@@ -49,17 +50,42 @@ defmodule NervesHub.DeviceEvents do
     end)
   end
 
-  def schedule_update(device, inflight_update, update_payload) do
-    Repo.transact(fn ->
-      inflight_update =
-        inflight_update
-        |> InflightUpdate.update_status_changeset("updating")
-        |> Repo.update!()
+  def schedule_update(device_id, deployment_group, opts \\ []) do
+    Logger.metadata(device_id: device_id)
 
-      DeviceTemplates.audit_device_deployment_group_update_triggered(
-        device,
-        device.deployment_group
-      )
+    deployment_group =
+      ManagedDeployments.load_current_release(deployment_group)
+      |> Repo.preload([:org])
+
+    priority_queue = Keyword.get(opts, :priority_queue, false)
+
+    inflight_changeset =
+      InflightUpdate.deployment_requested_changeset(deployment_group, device_id, priority_queue)
+
+    Repo.transact(fn ->
+      # we might need to do an upsert here
+      {:ok, inflight_update} = Repo.insert(inflight_changeset)
+      device = Devices.get_device(device_id)
+
+      update_opts =
+        if proxy_url = get_in(deployment_group.org.settings.firmware_proxy_url) do
+          [firmware_proxy_url: proxy_url]
+        else
+          []
+        end
+
+      update_payload = Devices.resolve_update(device, deployment_group, update_opts)
+
+      device = %{device | deployment_group: deployment_group}
+
+      if opts[:user] do
+        DeviceTemplates.audit_pushed_available_update(opts[:user], device_id, deployment_group)
+      else
+        DeviceTemplates.audit_device_deployment_group_update_triggered(
+          device,
+          device.deployment_group
+        )
+      end
 
       broadcast(device, "update", update_payload)
 
@@ -89,6 +115,10 @@ defmodule NervesHub.DeviceEvents do
         else
           url
         end
+
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
 
       {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
       {:ok, device} = Devices.disable_updates(device, user)

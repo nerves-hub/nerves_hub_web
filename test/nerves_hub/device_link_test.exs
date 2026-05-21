@@ -97,12 +97,7 @@ defmodule NervesHub.DeviceLinkTest do
                |> Enum.filter(&(&1.device_id == device.id))
 
       # Call status_update with a status that does not contain "fwup error"
-      :ok =
-        DeviceLink.status_update(
-          to_device_info(device),
-          %{"status" => "Update in progress: downloading firmware"},
-          true
-        )
+      :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "updating"}, true)
 
       # Verify the inflight update still exists
       assert [%InflightUpdate{}] =

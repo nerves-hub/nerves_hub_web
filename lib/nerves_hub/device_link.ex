@@ -118,6 +118,8 @@ defmodule NervesHub.DeviceLink do
       identifier: device_info.device_identifier
     })
 
+    Devices.update_inflight_update(device_info.device_id, "started")
+
     :ok
   end
 
@@ -126,6 +128,8 @@ defmodule NervesHub.DeviceLink do
         %{"status" => "started", "downloader_network_interface" => downloader_network_interface},
         _update_started?
       ) do
+    Devices.update_inflight_update(device_info.device_id, "started")
+
     if is_nil(device_network_interface) or
          device_network_interface == Device.humanized_network_interface_name(downloader_network_interface) do
       :ok
@@ -150,24 +154,25 @@ defmodule NervesHub.DeviceLink do
           Devices.update_attempted(device_info)
         end
 
+      Devices.update_inflight_update(device_info.device_id, "failed", nil, false)
+
       # clear the inflight update
       Devices.clear_inflight_update(device_info)
       :ok
     else
-      # if there was no error during updating, do nothing
+      Devices.update_inflight_update(device_info.device_id, status)
       :ok
     end
   end
 
-  @spec firmware_update_progress(device_info :: DeviceInfo.t(), percent :: integer()) :: :ok
-  def firmware_update_progress(device_info, percent) do
-    topic = "internal:device:#{device_info.device_id}"
-
-    :ok =
-      ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, "fwup_progress", %{
-        device_id: device_info.device_id,
-        percent: percent
-      })
+  @spec firmware_update_progress(
+          device_info :: DeviceInfo.t(),
+          stage :: String.t(),
+          percent :: integer(),
+          persist_progress :: boolean()
+        ) :: :ok
+  def firmware_update_progress(device_info, stage, percent, persist_progress? \\ true) do
+    Devices.update_inflight_update(device_info.device_id, stage, percent, persist_progress?)
   end
 
   @spec maybe_send_archive(

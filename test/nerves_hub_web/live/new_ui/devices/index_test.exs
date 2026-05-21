@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -296,7 +297,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> select("Update status", option: "Updating")
       |> refute_has("a", text: device.identifier, timeout: 1000)
 
-      {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(device.id, deployment_group)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
