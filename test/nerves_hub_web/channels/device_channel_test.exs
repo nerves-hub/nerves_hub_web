@@ -8,6 +8,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
@@ -39,6 +40,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
       device = Repo.reload(device)
       assert device.firmware_validation_status == :unknown
 
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :unknown
+
       # assert_online_and_available(device)
       close_cleanly(device_channel)
     end
@@ -65,6 +73,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
       device = Repo.reload(device)
       assert device.firmware_validation_status == :not_validated
+
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :not_validated
 
       # assert_online_and_available(device)
       close_cleanly(device_channel)
@@ -93,6 +108,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
       device = Repo.reload(device)
       assert device.firmware_validation_status == :validated
 
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :validated
+
       # assert_online_and_available(device)
       close_cleanly(device_channel)
     end
@@ -120,12 +142,22 @@ defmodule NervesHubWeb.DeviceChannelTest do
       device = Repo.reload(device)
       assert device.firmware_validation_status == :not_validated
 
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :not_validated
+
       push(device_channel, "firmware_validated", %{})
 
       _socket = :sys.get_state(device_channel.channel_pid)
 
       device = Repo.reload(device)
       assert device.firmware_validation_status == :validated
+
+      df = Repo.reload(df)
+      assert df.firmware_validation_status == :validated
 
       assert Repo.exists?(AuditLogs.with_description("Device #{device.identifier} has validated its firmware"))
 
@@ -436,7 +468,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     assert_online_and_available(device)
 
-    refute is_nil(device_channel.assigns.device.deployment_id)
+    refute is_nil(device_channel.assigns.device_info.deployment_id)
     refute is_nil(device_channel.assigns.deployment_channel)
 
     Devices.clear_deployment_group(device)
@@ -445,7 +477,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     # check the state of the device's connection types
     state = :sys.get_state(device_channel.channel_pid)
 
-    assert is_nil(state.assigns.device.deployment_id)
+    assert is_nil(state.assigns.device_info.deployment_id)
     assert is_nil(state.assigns.deployment_channel)
 
     close_cleanly(device_channel)
@@ -464,7 +496,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
-    assert device_channel.assigns.device.deployment_id == deployment_group.id
+    assert device_channel.assigns.device_info.deployment_id == deployment_group.id
     refute is_nil(device_channel.assigns.deployment_channel)
 
     device = NervesHub.Repo.preload(device, :org)
@@ -478,7 +510,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     # check the state of the device's connection types
     state = :sys.get_state(device_channel.channel_pid)
 
-    assert state.assigns.device.deployment_id == new_deployment_group.id
+    assert state.assigns.device_info.deployment_id == new_deployment_group.id
     refute is_nil(state.assigns.deployment_channel)
 
     close_cleanly(device_channel)
@@ -500,7 +532,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
-    assert device_channel.assigns.device.deployment_id == deployment_group.id
+    assert device_channel.assigns.device_info.deployment_id == deployment_group.id
 
     close_cleanly(device_channel)
   end
@@ -527,7 +559,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
-    refute device_channel.assigns.device.deployment_id
+    refute device_channel.assigns.device_info.deployment_id
 
     close_cleanly(device_channel)
   end
@@ -546,7 +578,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
-    assert device_channel.assigns.device.deployment_id == deployment_group.id
+    assert device_channel.assigns.device_info.deployment_id == deployment_group.id
 
     close_cleanly(device_channel)
   end
@@ -587,7 +619,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
       user = Fixtures.user_fixture()
       {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
       %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-      {:ok, device} = Devices.update_network_interface(device, "wlan0")
+      {:ok, device} = Devices.update_network_interface(device.id, "wlan0")
+      device = Repo.reload(device)
 
       subscribe_for_updates(device)
 

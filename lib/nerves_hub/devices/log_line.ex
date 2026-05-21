@@ -18,11 +18,11 @@ defmodule NervesHub.Devices.LogLine do
     field(:meta, Ch, type: "Map(LowCardinality(String), String)", default: %{})
   end
 
-  def create_changeset(device, params \\ %{}) do
+  def create_changeset(device_id, product_id, params \\ %{}) do
     params =
       params
-      |> Map.put("device_id", device.id)
-      |> Map.put("product_id", device.product_id)
+      |> Map.put("device_id", device_id)
+      |> Map.put("product_id", product_id)
       |> maybe_set_timestamp()
       |> format_message()
 

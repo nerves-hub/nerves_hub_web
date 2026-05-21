@@ -1,4 +1,5 @@
 defmodule NervesHub.Helpers.Logging do
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
@@ -31,6 +32,14 @@ defmodule NervesHub.Helpers.Logging do
 
     :ok
   end
+
+  defp set_sentry_tags(%DeviceInfo{} = device_info),
+    do:
+      Sentry.Context.set_tags_context(%{
+        device_identifier: device_info.device_identifier,
+        device_id: device_info.device_id,
+        product_id: device_info.product_id
+      })
 
   defp set_sentry_tags(%Device{} = device),
     do:

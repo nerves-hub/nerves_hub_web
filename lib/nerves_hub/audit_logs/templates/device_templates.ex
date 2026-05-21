@@ -6,6 +6,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   alias NervesHub.Accounts.User
   alias NervesHub.Archives.Archive
   alias NervesHub.AuditLogs
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
@@ -27,8 +28,13 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
 
   ## Firmware and upgrades
 
-  @spec audit_update_attempt(Device.t()) :: :ok
-  def audit_update_attempt(device) do
+  @spec audit_update_attempt(Device.t() | DeviceInfo.t()) :: :ok
+  def audit_update_attempt(%DeviceInfo{} = device_info) do
+    %Device{id: device_info.device_id, identifier: device_info.device_identifier, org_id: device_info.org_id}
+    |> audit_update_attempt()
+  end
+
+  def audit_update_attempt(%Device{} = device) do
     description = "Device #{device.identifier} is attempting to update"
     AuditLogs.audit(device, device, description)
   end
@@ -60,8 +66,13 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(device, device, description)
   end
 
-  @spec audit_firmware_validated(Device.t()) :: :ok
-  def audit_firmware_validated(device) do
+  @spec audit_firmware_validated(Device.t() | DeviceInfo.t()) :: :ok
+  def audit_firmware_validated(%DeviceInfo{} = device_info) do
+    %Device{id: device_info.device_id, identifier: device_info.device_identifier, org_id: device_info.org_id}
+    |> audit_firmware_validated()
+  end
+
+  def audit_firmware_validated(%Device{} = device) do
     description = "Device #{device.identifier} has validated its firmware"
     AuditLogs.audit!(device, device, description)
   end

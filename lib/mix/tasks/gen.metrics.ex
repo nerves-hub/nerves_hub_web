@@ -11,6 +11,7 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
 
   use Mix.Task
 
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Repo
 

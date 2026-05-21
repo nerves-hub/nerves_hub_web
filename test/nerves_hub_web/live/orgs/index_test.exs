@@ -59,15 +59,16 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
       _ = Fixtures.device_fixture(org, product, firmware)
 
       device = Fixtures.device_fixture(org, product, firmware)
-      {:ok, device_connection} = Connections.device_connecting(device)
+      {:ok, device_connection} = Connections.device_connecting(device.id, device.identifier)
+
       Connections.device_connected(device, device_connection.id)
 
       conn
       |> visit("/orgs")
       |> assert_has("h1", text: "Organizations")
       |> assert_has("h3", text: org.name)
-      |> assert_has("span#org-connected-devices-count", text: "1")
-      |> assert_has("span#org-disconnected-devices-count", text: "3")
+      |> assert_has("span#org-connected-devices-count-#{org.id}", text: "1")
+      |> assert_has("span#org-disconnected-devices-count-#{org.id}", text: "3")
       |> assert_has("span.product-connected-devices-count", text: "1")
       |> assert_has("span.product-disconnected-devices-count", text: "3")
     end

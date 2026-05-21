@@ -7,11 +7,14 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -19,6 +22,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products
+  alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias NervesHub.Support.Fwup
   alias NervesHub.Workers.FirmwareDeltaBuilder
@@ -80,6 +84,170 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "bulk_create/4" do
+    test "all valid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {5, 0} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      assert Repo.aggregate(Device, :count) == 5
+    end
+
+    test "all valid entries, with format :microchip_trust_and_go, and tags", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {5, 0} ==
+               BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go", "snoot-boop")
+
+      assert Repo.aggregate(Device, :count) == 5
+
+      assert Repo.all(Device) |> Enum.all?(fn d -> d.tags == ["snoot-boop"] end)
+    end
+
+    test "two invalid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data =
+        File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest_two_failures.json")
+
+      assert {5, 2} == BulkActions.bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      assert Repo.aggregate(Device, :count) == 5
+    end
+  end
+
+  describe "async_bulk_create/4" do
+    test "all valid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {:ok, task_pid} =
+               BulkActions.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      ref = Process.monitor(task_pid)
+      assert_receive {:DOWN, ^ref, _, _, :normal}
+
+      assert Repo.aggregate(Device, :count) == 5
+      assert Repo.aggregate(Notification, :count) == 1
+    end
+
+    test "all valid entries, with format :microchip_trust_and_go, with tags", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data = File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest.json")
+
+      assert {:ok, task_pid} =
+               BulkActions.async_bulk_create(
+                 org.id,
+                 product.id,
+                 json_import_data,
+                 "microchip_trust_and_go",
+                 "snoot-boop"
+               )
+
+      ref = Process.monitor(task_pid)
+      assert_receive {:DOWN, ^ref, _, _, :normal}
+
+      assert Repo.aggregate(Device, :count) == 5
+      assert Repo.aggregate(Notification, :count) == 1
+
+      assert Repo.all(Device) |> Enum.all?(fn d -> d.tags == ["snoot-boop"] end)
+    end
+
+    test "two invalid entries, with format :microchip_trust_and_go", %{org: org, product: product} do
+      Repo.delete_all(Device)
+
+      assert Repo.aggregate(Device, :count) == 0
+
+      json_import_data =
+        File.read!("test/fixtures/devices_bulk_create/microchip_trust_and_go_manifest_two_failures.json")
+
+      assert {:ok, task_pid} =
+               BulkActions.async_bulk_create(org.id, product.id, json_import_data, "microchip_trust_and_go")
+
+      ref = Process.monitor(task_pid)
+      assert_receive {:DOWN, ^ref, _, _, :normal}
+
+      assert Repo.aggregate(Device, :count) == 5
+      assert Repo.aggregate(Notification, :count) == 1
+    end
+  end
+
+  describe "updated_device_info/4" do
+    test "creates a DeviceFirmware history item", %{device: device} do
+      metadata = Map.from_struct(device.firmware_metadata)
+
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          %{metadata | uuid: UUIDv7.autogenerate()},
+          :unknown,
+          false
+        )
+
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :unknown
+      refute df.firmware_auto_revert_detected
+    end
+
+    test "updates the validation and revert detection information if the metadata is passed in as `nil`", %{
+      device: device
+    } do
+      metadata = Map.from_struct(device.firmware_metadata)
+
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          %{metadata | uuid: UUIDv7.autogenerate()},
+          :unknown,
+          false
+        )
+
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :unknown
+      refute df.firmware_auto_revert_detected
+
+      {:ok, device} =
+        Devices.update_firmware_metadata(
+          device,
+          nil,
+          :validated,
+          true
+        )
+
+      [df] = Repo.all(DeviceFirmware)
+
+      refute is_nil(device.current_device_firmware_id)
+
+      assert df.id == device.current_device_firmware_id
+      assert df.firmware_validation_status == :validated
+      assert df.firmware_auto_revert_detected
+    end
+  end
+
   test "delete_device", %{org: org, device: device} do
     {:ok, _device} = Devices.delete_device(device)
 
@@ -101,31 +269,82 @@ defmodule NervesHub.DevicesTest do
     refute Repo.exists?(where(DeviceHealth, device_id: ^device.id))
   end
 
-  test "can tag multiple devices", %{
-    user: user,
-    device: device,
-    device2: device2,
-    device3: device3
-  } do
-    devices = [device, device2, device3]
-    tags = "New,Tags"
+  describe "tag_devices/3" do
+    test "can tag multiple devices", %{
+      user: user,
+      device: device,
+      device2: device2,
+      device3: device3
+    } do
+      devices = [device, device2, device3]
+      tags = "New,Tags"
 
-    %{ok: devices} = Devices.tag_devices(devices, user, tags)
+      %{ok: devices} = BulkActions.tag_devices(devices, user, tags)
 
-    assert Enum.all?(devices, fn device -> device.tags == ["New", "Tags"] end)
+      assert Enum.all?(devices, fn device -> device.tags == ["New", "Tags"] end)
+    end
+
+    test "supports an Ecto.Query for the first argument", %{
+      user: user,
+      device: device,
+      device2: device2,
+      device3: device3
+    } do
+      devices = [device, device2, device3]
+      device_ids = Enum.map(devices, & &1.id)
+
+      tags = "New,Tags"
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in ^device_ids)
+        |> BulkActions.tag_devices(user, tags)
+
+      assert count == 3
+
+      assert Enum.all?(devices, fn device ->
+               Repo.reload(device).tags == ["New", "Tags"]
+             end)
+    end
   end
 
-  test "can disable updates for multiple devices", %{
-    user: user,
-    device: device,
-    device2: device2,
-    device3: device3
-  } do
-    devices = [device, device2, device3]
+  describe "disable_updates_for_devices/2" do
+    test "can disable updates for multiple devices", %{
+      user: user,
+      device: device,
+      device2: device2,
+      device3: device3
+    } do
+      devices = [device, device2, device3]
 
-    %{ok: devices} = Devices.disable_updates_for_devices(devices, user)
+      %{ok: devices} = BulkActions.disable_updates_for_devices(devices, user)
 
-    assert Enum.all?(devices, fn device -> device.updates_enabled == false end)
+      assert Enum.all?(devices, fn device -> device.updates_enabled == false end)
+    end
+
+    test "accepts an Ecto.Query for the first argument", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+
+      devices = [device, device2, device3]
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in ^Enum.map(devices, & &1.id))
+        |> BulkActions.disable_updates_for_devices(user)
+
+      assert count == 3
+
+      assert Enum.all?(devices, fn device ->
+               Repo.reload(device).updates_enabled == false
+             end)
+    end
   end
 
   test "can enable updates for a devices", %{tmp_dir: tmp_dir} do
@@ -136,51 +355,109 @@ defmodule NervesHub.DevicesTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
 
-    :ok = Devices.update_attempted(device)
+    :ok = Devices.update_attempted(to_device_info(device))
     {:ok, device} = Devices.enable_updates(device, user)
 
     assert device.updates_enabled
     assert device.update_attempts == []
   end
 
-  test "can enable updates for multiple devices", %{tmp_dir: tmp_dir} do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
-    product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
-    device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
-    device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+  describe "enable_updates_for_devices/2" do
+    test "can enable updates for multiple devices", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
 
-    devices = [device, device2, device3]
+      devices = [device, device2, device3]
 
-    %{ok: devices} = Devices.enable_updates_for_devices(devices, user)
+      %{ok: devices} = BulkActions.enable_updates_for_devices(devices, user)
 
-    assert Enum.all?(devices, fn device -> device.updates_enabled == true end)
+      assert Enum.all?(devices, fn device -> device.updates_enabled == true end)
+    end
+
+    test "accepts an Ecto.Query for the first argument", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+
+      devices = [device, device2, device3]
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in ^Enum.map(devices, & &1.id))
+        |> BulkActions.enable_updates_for_devices(user)
+
+      assert count == 3
+
+      assert Enum.all?(devices, fn device ->
+               Repo.reload(device).updates_enabled == true
+             end)
+    end
   end
 
-  test "can clear penalty box for multiple devices", %{tmp_dir: tmp_dir} do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
-    product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+  describe "clear_penalty_box_for_devices/2" do
+    test "can clear penalty box for multiple devices", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-    device =
-      Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
 
-    device2 =
-      Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+      device2 =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
 
-    device3 =
-      Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+      device3 =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
 
-    devices = [device, device2, device3]
+      devices = [device, device2, device3]
 
-    %{ok: devices} = Devices.clear_penalty_box_for_devices(devices, user)
+      %{ok: devices} = BulkActions.clear_penalty_box_for_devices(devices, user)
 
-    assert Enum.all?(devices, fn device -> is_nil(device.updates_blocked_until) end)
+      assert Enum.all?(devices, fn device -> is_nil(device.updates_blocked_until) end)
+    end
+
+    test "accepts an Ecto.Query for the first argument", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+
+      device2 =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+
+      device3 =
+        Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+
+      devices = [device, device2, device3]
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in ^Enum.map(devices, & &1.id))
+        |> BulkActions.clear_penalty_box_for_devices(user)
+
+      assert count == 3
+
+      assert Enum.all?(devices, fn device ->
+               Repo.reload(device).updates_blocked_until |> is_nil()
+             end)
+    end
   end
 
   test "delete_device deletes its certificates", %{device: device} do
@@ -416,11 +693,11 @@ defmodule NervesHub.DevicesTest do
 
   describe "tracking update attempts and verifying eligibility" do
     test "records the timestamp of an attempt", %{device: device} do
-      :ok = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(to_device_info(device))
       device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 1
 
-      :ok = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(to_device_info(device))
       device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 2
     end
@@ -428,7 +705,7 @@ defmodule NervesHub.DevicesTest do
     test "records and audit log for updating", %{device: device} do
       assert [] = AuditLogs.logs_for(device)
 
-      :ok = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(to_device_info(device))
 
       [audit_log] = AuditLogs.logs_for(device)
 
@@ -436,7 +713,7 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "resets update attempts on successful update", %{device: device} do
-      :ok = Devices.update_attempted(device)
+      :ok = to_device_info(device) |> Devices.update_attempted()
       device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 1
 
@@ -477,7 +754,7 @@ defmodule NervesHub.DevicesTest do
     test "device updates successfully", %{device: device, deployment_group: deployment_group} do
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
-      :ok = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(to_device_info(device))
 
       {:ok, device} = Devices.verify_update_eligibility(device, deployment_group)
 
@@ -491,8 +768,8 @@ defmodule NervesHub.DevicesTest do
     } do
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
-      :ok = Devices.update_attempted(device)
-      :ok = Devices.update_attempted(device)
+      :ok = Devices.update_attempted(to_device_info(device))
+      :ok = Devices.update_attempted(to_device_info(device))
 
       device = Repo.reload(device)
 
@@ -515,9 +792,9 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      :ok = Devices.update_attempted(device, DateTime.add(now, -3600, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -1200, :second))
-      :ok = Devices.update_attempted(device, now)
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -3600, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -1200, :second))
+      :ok = Devices.update_attempted(to_device_info(device), now)
 
       device = Repo.reload(device)
 
@@ -544,12 +821,12 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      :ok = Devices.update_attempted(device, DateTime.add(now, -3600, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -1200, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -500, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -500, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -500, :second))
-      :ok = Devices.update_attempted(device, now)
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -3600, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -1200, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
+      :ok = Devices.update_attempted(to_device_info(device), now)
 
       device = Repo.reload(device)
 
@@ -571,11 +848,11 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      :ok = Devices.update_attempted(device, DateTime.add(now, -13, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -10, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -5, :second))
-      :ok = Devices.update_attempted(device, DateTime.add(now, -2, :second))
-      :ok = Devices.update_attempted(device, now)
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -13, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -10, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -5, :second))
+      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -2, :second))
+      :ok = Devices.update_attempted(to_device_info(device), now)
 
       device = Repo.reload(device)
 
@@ -799,6 +1076,43 @@ defmodule NervesHub.DevicesTest do
         args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
       )
     end
+  end
+
+  describe "move_many_to_deployment_group/3" do
+    test "many devices can be moved to a deployment group", %{
+      deployment_group: deployment_group,
+      device: device1,
+      device2: device2,
+      user: user
+    } do
+      refute Repo.exists?(where(Device, [d], d.deployment_id == ^deployment_group.id))
+
+      %{updated: count} = BulkActions.move_many_to_deployment_group([device1.id, device2.id], deployment_group, user)
+
+      assert count == 2
+
+      assert Repo.aggregate(where(Device, [d], d.deployment_id == ^deployment_group.id), :count) == 2
+    end
+
+    test "accepts an Ecto.Query for the first argument", %{
+      deployment_group: deployment_group,
+      device: device1,
+      device2: device2,
+      user: user
+    } do
+      refute Repo.exists?(where(Device, [d], d.deployment_id == ^deployment_group.id))
+
+      device_ids = [device1.id, device2.id]
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in ^device_ids)
+        |> BulkActions.move_many_to_deployment_group(deployment_group, user)
+
+      assert count == 2
+
+      assert Repo.aggregate(where(Device, [d], d.deployment_id == ^deployment_group.id), :count) == 2
+    end
 
     test "broadcasts bulk-devices-added when a group (bulk) of devices are added to a deployment group", %{
       deployment_group: deployment_group,
@@ -833,7 +1147,7 @@ defmodule NervesHub.DevicesTest do
       deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
 
-      Devices.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
+      BulkActions.move_many_to_deployment_group([device1.id, device2.id], deployment_group, user)
 
       # Assert that the bulk-devices-added event was broadcast
       assert_receive %Broadcast{topic: ^deployment_topic, event: "bulk-devices-added"}, 500
@@ -869,7 +1183,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, {_release, deployment_group}} =
         ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
-      Devices.move_many_to_deployment_group(Scope.for_user(user), [device1.id, device2.id], deployment_group)
+      BulkActions.move_many_to_deployment_group([device1.id, device2.id], deployment_group, user)
 
       # Delta generation happens inline in the transaction
       # Assert that delta generation job was enqueued for the new firmware pair
@@ -877,6 +1191,45 @@ defmodule NervesHub.DevicesTest do
         worker: FirmwareDeltaBuilder,
         args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
       )
+    end
+  end
+
+  describe "move_many/3" do
+    test "many devices can be moved to a product", %{
+      org: org,
+      device: device1,
+      device2: device2,
+      user: user
+    } do
+      target_product = Fixtures.product_fixture(user, org)
+
+      refute Repo.exists?(where(Device, [d], d.product_id == ^target_product.id))
+
+      %{ok: moved_list} = BulkActions.move_many([device1, device2], target_product, user)
+
+      assert length(moved_list) == 2
+
+      assert Repo.aggregate(where(Device, [d], d.product_id == ^target_product.id), :count) == 2
+    end
+
+    test "accepts an Ecto.Query for the first argument", %{
+      org: org,
+      device: device1,
+      device2: device2,
+      user: user
+    } do
+      target_product = Fixtures.product_fixture(user, org)
+
+      refute Repo.exists?(where(Device, [d], d.product_id == ^target_product.id))
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in [^device1.id, ^device2.id])
+        |> BulkActions.move_many(target_product, user)
+
+      assert count == 2
+
+      assert Repo.aggregate(where(Device, [d], d.product_id == ^target_product.id), :count) == 2
     end
   end
 
@@ -1028,10 +1381,14 @@ defmodule NervesHub.DevicesTest do
       device_unknown = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
       # Set network interfaces and prepare for updates
-      {:ok, device_wifi} = Devices.update_network_interface(device_wifi, "wlan0")
-      {:ok, device_ethernet} = Devices.update_network_interface(device_ethernet, "eth0")
-      {:ok, device_cellular} = Devices.update_network_interface(device_cellular, "wwan0")
-      {:ok, device_unknown} = Devices.update_network_interface(device_unknown, "hmmmmmmm")
+      {:ok, device_wifi} = Devices.update_network_interface(device_wifi.id, "wlan0")
+      device_wifi = Repo.reload(device_wifi)
+      {:ok, device_ethernet} = Devices.update_network_interface(device_ethernet.id, "eth0")
+      device_ethernet = Repo.reload(device_ethernet)
+      {:ok, device_cellular} = Devices.update_network_interface(device_cellular.id, "wwan0")
+      device_cellular = Repo.reload(device_cellular)
+      {:ok, device_unknown} = Devices.update_network_interface(device_unknown.id, "hmmmmmmm")
+      device_unknown = Repo.reload(device_unknown)
 
       # Set up connections and different firmware versions for all devices
       for device <- [device_wifi, device_ethernet, device_cellular, device_unknown] do
@@ -1080,8 +1437,11 @@ defmodule NervesHub.DevicesTest do
       device_wifi = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
       device_cellular = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
-      {:ok, device_wifi} = Devices.update_network_interface(device_wifi, "wlan0")
-      {:ok, device_cellular} = Devices.update_network_interface(device_cellular, "wwan0")
+      {:ok, device_wifi} = Devices.update_network_interface(device_wifi.id, "wlan0")
+      device_wifi = Repo.reload(device_wifi)
+
+      {:ok, device_cellular} = Devices.update_network_interface(device_cellular.id, "wwan0")
+      device_cellular = Repo.reload(device_cellular)
 
       # Set up connections and different firmware versions
       for device <- [device_wifi, device_cellular] do
@@ -1246,17 +1606,21 @@ defmodule NervesHub.DevicesTest do
       device_cellular_prod = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
       device_ethernet_prod = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
-      {:ok, device_wifi_prod} = Devices.update_network_interface(device_wifi_prod, "wlan0")
       {:ok, device_wifi_prod} = Devices.update_device(device_wifi_prod, %{tags: ["production"]})
+      {:ok, device_wifi_prod} = Devices.update_network_interface(device_wifi_prod.id, "wlan0")
+      device_wifi_prod = Repo.reload(device_wifi_prod)
 
-      {:ok, device_wifi_prod} = Devices.update_network_interface(device_wifi_prod, "wlan0")
       {:ok, device_wifi_dev} = Devices.update_device(device_wifi_dev, %{tags: ["development"]})
+      {:ok, device_wifi_dev} = Devices.update_network_interface(device_wifi_dev.id, "wlan0")
+      device_wifi_dev = Repo.reload(device_wifi_dev)
 
-      {:ok, device_cellular_prod} = Devices.update_network_interface(device_cellular_prod, "wwan0")
       {:ok, device_cellular_prod} = Devices.update_device(device_cellular_prod, %{tags: ["production"]})
+      {:ok, device_cellular_prod} = Devices.update_network_interface(device_cellular_prod.id, "wwan0")
+      device_cellular_prod = Repo.reload(device_cellular_prod)
 
-      {:ok, device_ethernet_prod} = Devices.update_network_interface(device_ethernet_prod, "eth0")
       {:ok, device_ethernet_prod} = Devices.update_device(device_ethernet_prod, %{tags: ["production"]})
+      {:ok, device_ethernet_prod} = Devices.update_network_interface(device_ethernet_prod.id, "eth0")
+      device_ethernet_prod = Repo.reload(device_ethernet_prod)
 
       # Set up connections and different firmware versions for all devices
       for device <- [device_wifi_prod, device_wifi_dev, device_cellular_prod, device_ethernet_prod] do
@@ -2039,44 +2403,60 @@ defmodule NervesHub.DevicesTest do
     test "updates device.network_interface", %{device: device} do
       refute device.network_interface
 
-      {:ok, device} = Devices.update_network_interface(device, "eth0")
+      {:ok, device} = Devices.update_network_interface(device.id, "eth0")
       assert device.network_interface == :ethernet
 
-      {:ok, device} = Devices.update_network_interface(device, "en0")
+      {:ok, device} = Devices.update_network_interface(device.id, "en0")
       assert device.network_interface == :ethernet
 
-      {:ok, device} = Devices.update_network_interface(device, "wlan0")
+      {:ok, device} = Devices.update_network_interface(device.id, "wlan0")
       assert device.network_interface == :wifi
 
-      {:ok, device} = Devices.update_network_interface(device, "wwan0")
+      {:ok, device} = Devices.update_network_interface(device.id, "wwan0")
       assert device.network_interface == :cellular
     end
 
     test "sets to 'unknown' for invalid values", %{device: device} do
-      {:ok, device} = Devices.update_network_interface(device, "foobarbaz")
+      {:ok, device} = Devices.update_network_interface(device.id, "foobarbaz")
       assert device.network_interface == :unknown
     end
 
     test "cannot be explicitly set to nil", %{device: device} do
-      {:error, changeset} = Devices.update_network_interface(device, nil)
+      {:error, changeset} = Devices.update_network_interface(device.id, nil)
       {"cannot be set to nil", []} = changeset.errors[:network_interface]
     end
   end
 
   describe "remove_many_from_deployment_group/2" do
     test "removes deployment group from devices that have one", %{
-      user: user,
-      org: org,
       product: product,
       device: device,
       device2: device2,
       deployment_group: deployment_group
     } do
-      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
       Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
       Repo.update!(Changeset.change(device2, deployment_id: deployment_group.id))
 
-      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id, device2.id])
+      %{ok: count} = BulkActions.remove_many_from_deployment_group({[device.id, device2.id], product})
+
+      assert count == 2
+
+      assert Repo.get!(Device, device.id).deployment_id == nil
+      assert Repo.get!(Device, device2.id).deployment_id == nil
+    end
+
+    test "supports an Ecto.Query for the first argument", %{
+      device: device,
+      device2: device2,
+      deployment_group: deployment_group
+    } do
+      Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
+      Repo.update!(Changeset.change(device2, deployment_id: deployment_group.id))
+
+      %{ok: count} =
+        Device
+        |> where([d], d.id in [^device.id, ^device2.id])
+        |> BulkActions.remove_many_from_deployment_group()
 
       assert count == 2
 
@@ -2085,34 +2465,37 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "only counts devices that had a deployment group", %{
-      user: user,
-      org: org,
       product: product,
       device: device,
       device2: device2,
       deployment_group: deployment_group
     } do
-      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
       Repo.update!(Changeset.change(device, deployment_id: deployment_group.id))
       # device2 has no deployment group
 
-      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id, device2.id])
+      %{ok: count} = BulkActions.remove_many_from_deployment_group({[device.id, device2.id], product})
 
       assert count == 1
     end
 
     test "returns zero when no devices have a deployment group", %{
-      user: user,
-      org: org,
       product: product,
       device: device
     } do
-      scope = Scope.for_user(user) |> Scope.put_org(org) |> Scope.put_product(product)
       refute device.deployment_id
 
-      {:ok, count} = Devices.remove_many_from_deployment_group(scope, [device.id])
+      %{ok: count} = BulkActions.remove_many_from_deployment_group({[device.id], product})
 
       assert count == 0
     end
+  end
+
+  def to_device_info(device) do
+    %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
   end
 end

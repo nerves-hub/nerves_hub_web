@@ -209,6 +209,7 @@
       <div id="tabs" class="flex">
         <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}"} selected={@tab == :details} display="Details" />
         <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/health"} selected={@tab == :health} display="Health" />
+        <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/firmware_history"} selected={@tab == :firmware_history} display="Firmware History" />
         <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/console"} selected={@tab == :console} display="Console" />
         <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/local_shell"} selected={@tab == :local_shell} display="System Shell" />
         <.tab path={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"} selected={@tab == :logs} display="Logs" />

@@ -171,6 +171,15 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
     })
   end
 
+  defmodule DeviceBulkImport do
+    OpenApiSpex.schema(%{
+      description: "POST body for bulk creating a list of Devices",
+      type: :object,
+      properties: nil,
+      example: ["Please refer to the Microchip Trust and Go Manifest documentation"]
+    })
+  end
+
   defmodule DeviceCreationRequest do
     OpenApiSpex.schema(%{
       description: "POST body for creating a Device",

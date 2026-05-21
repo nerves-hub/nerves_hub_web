@@ -33,7 +33,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     |> assert_has("div", text: "Health over time")
-    |> assert_has("span", text: "No metrics for the selected period.")
+    |> assert_has("div", text: "No health metrics have been received from the device")
   end
 
   test "graph sections are displayed when metrics data exists", %{
@@ -47,17 +47,17 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     # Six of the default metric types are shown as charts
-    |> assert_has("canvas", count: 6)
+    |> assert_has("canvas", count: 6, timeout: 100)
     # Charts should be displayed for all time frames
     |> click_button("1 day")
-    |> assert_has("canvas", count: 6)
+    |> assert_has("canvas", count: 6, timeout: 100)
     |> click_button("7 days")
-    |> assert_has("canvas", count: 6)
+    |> assert_has("canvas", count: 6, timeout: 100)
     |> tap(fn session ->
       # Assert all default metrics except "size_mb" appears as element id:s
       for metric <- Map.keys(@metrics),
           metric != "mem_size_mb",
-          do: assert_has(session, "##{metric}")
+          do: assert_has(session, "##{metric}-chart")
     end)
   end
 
@@ -70,7 +70,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     } do
       timestamp =
         DateTime.now!("Etc/UTC")
-        |> DateTime.add(-23, :hour)
+        |> DateTime.add(-4, :hour)
         |> DateTime.truncate(:millisecond)
 
       _ = save_metrics_with_timestamp(device.id, timestamp)
@@ -78,14 +78,38 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
       # Default time frame is 1 hour, so no charts are expected.
-      |> refute_has("canvas")
+      |> then(fn socket ->
+        @metrics
+        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reduce(socket, fn {key, _}, socket ->
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+        end)
+      end)
       |> click_button("1 day")
-      |> assert_has("canvas")
+      |> then(fn socket ->
+        @metrics
+        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reduce(socket, fn {key, _}, socket ->
+          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+        end)
+      end)
       |> click_button("7 days")
-      |> assert_has("canvas")
-      # Makes sure "1 hour" button is working
-      |> click_button("1 hour")
-      |> refute_has("canvas")
+      |> then(fn socket ->
+        @metrics
+        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reduce(socket, fn {key, _}, socket ->
+          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+        end)
+      end)
+      # Makes sure "3 hours" button is working
+      |> click_button("3 hours")
+      |> then(fn socket ->
+        @metrics
+        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reduce(socket, fn {key, _}, socket ->
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+        end)
+      end)
     end
 
     test "within 7 days", %{
@@ -104,11 +128,29 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
-      |> refute_has("canvas")
+      |> then(fn socket ->
+        @metrics
+        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reduce(socket, fn {key, _}, socket ->
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+        end)
+      end)
       |> click_button("1 day")
-      |> refute_has("canvas")
+      |> then(fn socket ->
+        @metrics
+        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reduce(socket, fn {key, _}, socket ->
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+        end)
+      end)
       |> click_button("7 days")
-      |> refute_has("canvas")
+      |> then(fn socket ->
+        @metrics
+        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reduce(socket, fn {key, _}, socket ->
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+        end)
+      end)
 
       timestamp =
         DateTime.now!("Etc/UTC")
@@ -120,11 +162,29 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
-      |> refute_has("canvas")
+      |> then(fn socket ->
+        @metrics
+        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reduce(socket, fn {key, _}, socket ->
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+        end)
+      end)
       |> click_button("1 day")
-      |> refute_has("canvas")
+      |> then(fn socket ->
+        @metrics
+        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reduce(socket, fn {key, _}, socket ->
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+        end)
+      end)
       |> click_button("7 days")
-      |> assert_has("canvas")
+      |> then(fn socket ->
+        @metrics
+        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reduce(socket, fn {key, _}, socket ->
+          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+        end)
+      end)
     end
   end
 
@@ -136,7 +196,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
   } do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
-    |> refute_has("canvas")
+    |> assert_has("div", text: "No health metrics have been received from the device")
     |> unwrap(fn view ->
       assert {7, _} = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
 
@@ -148,7 +208,13 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
 
       render(view)
     end)
-    |> assert_has("canvas")
+    |> then(fn socket ->
+      @metrics
+      |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+      |> Enum.reduce(socket, fn {key, _}, socket ->
+        refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+      end)
+    end)
   end
 
   test "metrics data is correctly structured for js graphs", %{
@@ -170,15 +236,15 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
              |> DeviceMetric.save_with_timestamp()
              |> Repo.insert()
 
-    {:ok, _view, html} =
+    {:ok, lv, _html} =
       live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
 
     organized_metrics =
-      ~s([{"x":"#{now}","y":#{value}}])
+      ~s([{"x":#{DateTime.to_unix(now, :millisecond)},"y":#{value}}])
       |> html_escape()
       |> safe_to_string()
 
-    assert html =~ ~s(data-metrics="#{organized_metrics}")
+    assert render_async(lv, 1000) =~ ~s(data-metrics="#{organized_metrics}")
   end
 
   defp save_metrics_with_timestamp(device_id, timestamp) do

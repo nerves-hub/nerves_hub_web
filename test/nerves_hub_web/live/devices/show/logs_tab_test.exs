@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.LogLines
   alias NervesHub.Products.Product
@@ -81,6 +82,8 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
     Product.changeset(product, %{"extensions" => %{"logging" => true}})
     |> Repo.update()
 
+    device_info = %DeviceInfo{device_id: device.id, device_identifier: device.identifier, product_id: device.product_id}
+
     for n <- 1..5 do
       attrs = %{
         "level" => "info",
@@ -88,7 +91,7 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
         "message" => "something wicked this way comes : #{n}"
       }
 
-      {:ok, _} = LogLines.async_create(device, attrs)
+      {:ok, _} = LogLines.async_create(device_info, attrs)
     end
 
     conn
@@ -116,7 +119,9 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
       "message" => "something wicked this way comes"
     }
 
-    {:ok, _} = LogLines.async_create(device, attrs)
+    device_info = %DeviceInfo{device_id: device.id, device_identifier: device.identifier, product_id: device.product_id}
+
+    {:ok, _} = LogLines.async_create(device_info, attrs)
 
     session =
       conn
@@ -124,13 +129,15 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
       |> assert_has("div", text: "Showing the last 25 log lines.")
       |> assert_has("div", text: "something wicked this way comes")
 
+    device_info = %DeviceInfo{device_id: device.id, device_identifier: device.identifier, product_id: device.product_id}
+
     attrs = %{
       "level" => "info",
       "timestamp" => DateTime.utc_now(),
       "message" => "something wicked this way comes, again"
     }
 
-    {:ok, _} = LogLines.async_create(device, attrs)
+    {:ok, _} = LogLines.async_create(device_info, attrs)
 
     assert_has(session, "div", text: "something wicked this way comes, again")
   end
@@ -145,13 +152,15 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
     Product.changeset(product, %{"extensions" => %{"logging" => true}})
     |> Repo.update()
 
+    device_info = %DeviceInfo{device_id: device.id, device_identifier: device.identifier, product_id: device.product_id}
+
     attrs = %{
       "level" => "info",
       "timestamp" => DateTime.utc_now(),
       "message" => "something wicked this way comes"
     }
 
-    {:ok, _} = LogLines.async_create(device, attrs)
+    {:ok, _} = LogLines.async_create(device_info, attrs)
 
     session =
       conn
@@ -166,7 +175,9 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
       "message" => "something wicked this way comes, again"
     }
 
-    {:ok, _} = LogLines.async_create(device, attrs)
+    device_info = %DeviceInfo{device_id: device.id, device_identifier: device.identifier, product_id: device.product_id}
+
+    {:ok, _} = LogLines.async_create(device_info, attrs)
 
     refute_has(session, "div", text: "something wicked this way comes, again", timeout: 500)
   end
@@ -180,6 +191,8 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
     Product.changeset(product, %{"extensions" => %{"logging" => true}})
     |> Repo.update()
 
+    device_info = %DeviceInfo{device_id: device.id, device_identifier: device.identifier, product_id: device.product_id}
+
     for n <- 1..26 do
       attrs = %{
         "level" => "info",
@@ -187,7 +200,7 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
         "message" => "something wicked this way comes : #{n}"
       }
 
-      {:ok, _} = LogLines.async_create(device, attrs)
+      {:ok, _} = LogLines.async_create(device_info, attrs)
 
       Process.sleep(5)
     end
@@ -200,13 +213,15 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
       |> assert_has("div", text: "something wicked this way comes : 2")
       |> refute_has("div", text: "something wicked this way comes : 1", exact: true)
 
+    device_info = %DeviceInfo{device_id: device.id, device_identifier: device.identifier, product_id: device.product_id}
+
     attrs = %{
       "level" => "info",
       "timestamp" => DateTime.utc_now(),
       "message" => "something wicked this way comes, again"
     }
 
-    {:ok, _} = LogLines.async_create(device, attrs)
+    {:ok, _} = LogLines.async_create(device_info, attrs)
 
     session
     |> assert_has("div", text: "something wicked this way comes, again")

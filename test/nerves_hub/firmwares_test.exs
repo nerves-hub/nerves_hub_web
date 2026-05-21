@@ -502,7 +502,7 @@ defmodule NervesHub.FirmwaresTest do
       assert_enqueued(
         args: %{source_id: source_id, target_id: target_id},
         worker: FirmwareDeltaBuilder,
-        queue: :firmware_delta_builder
+        queue: :firmware
       )
 
       expect(UpdateToolDefault, :create_firmware_delta_file, fn _, _, _ ->
@@ -564,6 +564,11 @@ defmodule NervesHub.FirmwaresTest do
       _device_3 = Fixtures.device_fixture(org, product, firmware)
       {[firmware], _} = Firmwares.filter(product)
       assert firmware.install_count == 3
+    end
+
+    test "accepts a non-default sort", %{firmware: firmware, product: product} do
+      {[result], _} = Firmwares.filter(product, %{sort: "uuid", sort_direction: "asc"})
+      assert result.id == firmware.id
     end
   end
 

@@ -8,6 +8,25 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
   alias NervesHub.Repo
   alias NervesHub.Workers.FirmwareDeltaBuilder
 
+  defp capture_xdelta3_args() do
+    stub(System, :cmd, fn
+      "xdelta3" = cmd, args, opts ->
+        send(self(), {:xdelta3_args, args})
+        Mimic.call_original(System, :cmd, [cmd, args, opts])
+
+      cmd, args, opts ->
+        Mimic.call_original(System, :cmd, [cmd, args, opts])
+    end)
+  end
+
+  defp receive_xdelta3_args() do
+    receive do
+      {:xdelta3_args, args} -> args
+    after
+      0 -> flunk("expected xdelta3 to be called but it wasn't")
+    end
+  end
+
   setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
@@ -119,6 +138,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
       job = %Oban.Job{
         id: Ecto.UUID.generate(),
         attempt: 3,
+        max_attempts: 3,
         args: %{
           "source_id" => source_firmware.id,
           "target_id" => target_firmware.id
@@ -167,6 +187,120 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
 
       delta = Repo.reload(delta)
       assert delta.status == :processing, "Should remain processing for retry"
+    end
+  end
+
+  describe "perform/1 - xdelta3 source window (-B flag)" do
+    setup %{tmp_dir: tmp_dir} do
+      Req.Test.stub(NervesHub, fn conn ->
+        case Regex.run(~r|/firmware/\d+/([a-f0-9-]+)\.fw$|, conn.request_path) do
+          [_full, uuid] ->
+            firmware = Repo.get_by(Firmwares.Firmware, uuid: uuid)
+            local_path = firmware.upload_metadata["local_path"] || firmware.upload_metadata[:local_path]
+            body = File.read!(local_path)
+
+            conn
+            |> Plug.Conn.put_resp_content_type("application/octet-stream")
+            |> Plug.Conn.send_resp(200, body)
+        end
+      end)
+
+      shared_resource = "shared-resource-#{System.unique_integer([:positive])}"
+      %{shared_resource: shared_resource, tmp_dir: tmp_dir}
+    end
+
+    # NOTE: Testing actual output from xdelta3 is a bit overkill so we just check that the flag exists as expected.
+    test "passes -B <bytes> to xdelta3 when target conf has block-cache-size-mb", %{
+      org_key: org_key,
+      product: product,
+      shared_resource: shared_resource,
+      tmp_dir: tmp_dir
+    } do
+      source_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{
+          version: "1.0.0",
+          resource_name: shared_resource,
+          resource_contents: String.duplicate("source file contents ", 100),
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      target_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{
+          version: "2.0.0",
+          resource_name: shared_resource,
+          resource_contents: String.duplicate("target file contents with extra data ", 100),
+          block_cache_size_mb: 128,
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
+
+      capture_xdelta3_args()
+
+      assert :ok ==
+               FirmwareDeltaBuilder.perform(%Oban.Job{
+                 id: Ecto.UUID.generate(),
+                 attempt: 1,
+                 args: %{"source_id" => source_firmware.id, "target_id" => target_firmware.id}
+               })
+
+      delta = Repo.reload(delta)
+      assert delta.status == :completed
+
+      args = receive_xdelta3_args()
+      expected_window = Integer.to_string(128 * 1024 * 1024)
+      b_index = Enum.find_index(args, &(&1 == "-B"))
+
+      assert b_index != nil, "expected -B flag in xdelta3 args, got: #{inspect(args)}"
+      assert Enum.at(args, b_index + 1) == expected_window
+    end
+
+    test "does not pass -B to xdelta3 when target conf lacks block-cache-size-mb", %{
+      org_key: org_key,
+      product: product,
+      shared_resource: shared_resource,
+      tmp_dir: tmp_dir
+    } do
+      source_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{
+          version: "1.0.0",
+          resource_name: shared_resource,
+          resource_contents: String.duplicate("source file contents ", 100),
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      target_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{
+          version: "2.0.0",
+          resource_name: shared_resource,
+          resource_contents: String.duplicate("target file contents with extra data ", 100),
+          dir: tmp_dir
+        })
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
+
+      capture_xdelta3_args()
+
+      assert :ok ==
+               FirmwareDeltaBuilder.perform(%Oban.Job{
+                 id: Ecto.UUID.generate(),
+                 attempt: 1,
+                 args: %{"source_id" => source_firmware.id, "target_id" => target_firmware.id}
+               })
+
+      delta = Repo.reload(delta)
+      assert delta.status == :completed
+
+      args = receive_xdelta3_args()
+      refute "-B" in args, "expected no -B flag in xdelta3 args, got: #{inspect(args)}"
     end
   end
 end

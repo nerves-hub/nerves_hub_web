@@ -1,14 +1,27 @@
 export default {
   mounted() {
-    this.init()
+    this.controller = new AbortController()
+
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        const visibility = document.visibilityState === "visible"
+        try {
+          if (liveSocket.isConnected()) {
+            this.pushEvent("page_visibility_change", { visible: visibility })
+          }
+        } catch (error) {
+          console.error(
+            "Error during visibilitychange event callback with visibilityState=${visibility} : ",
+            error,
+          )
+          this.controller.abort()
+        }
+      },
+      { signal: this.controller.signal },
+    )
   },
-  init() {
-    document.addEventListener("visibilitychange", () => {
-      if (this.liveSocket.isConnected()) {
-        this.pushEvent("page_visibility_change", {
-          visible: document.visibilityState === "visible",
-        })
-      }
-    })
+  destroyed() {
+    this.controller.abort()
   },
 }

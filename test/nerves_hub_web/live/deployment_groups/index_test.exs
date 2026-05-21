@@ -137,6 +137,19 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
     end
   end
 
+  describe "sorting" do
+    test "renders the list with a non-default sort column", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups?sort=platform&sort_direction=desc")
+      |> assert_has("a", text: deployment_group.name)
+    end
+  end
+
   describe "pagination" do
     test "no pagination when less than 25 deployment groups", %{
       conn: conn,

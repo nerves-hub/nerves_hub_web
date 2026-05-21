@@ -145,18 +145,18 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     ~H"""
     <div class="flex h-full flex-col items-start gap-4 p-6">
       <div :if={@waiting_for_update_count == 0} class="bg-base-900 border-base-700 w-full items-center justify-center rounded border p-4">
-        <div class="flex h-10 items-center justify-center text-xl/6 font-medium text-neutral-50">All devices are up to date!</div>
+        <div class="text-base-50 flex h-10 items-center justify-center text-xl/6 font-medium">All devices are up to date!</div>
       </div>
 
       <div :if={@waiting_for_update_count > 0} class="bg-base-900 border-base-700 box-content flex h-24 w-full items-center justify-center rounded border">
         <div class="relative top-0 z-20 w-full items-center justify-center overflow-visible rounded">
           <div
             :if={@deployment_group.is_active}
-            class="border-success-500 absolute -top-px z-40 rounded-tl border-t"
+            class="border-success absolute -top-px z-40 rounded-tl border-t"
             role="progressbar"
             style={"width: #{deployment_group_percentage(@up_to_date_count, @deployment_group)}%"}
           >
-            <div class="bg-progress-glow h-16 w-full animate-pulse" />
+            <div class="progress-glow h-16 w-full animate-pulse" />
           </div>
 
           <div class="bg-surface-muted/20 my-1 flex flex-col items-center justify-center gap-1 p-2 text-sm font-medium">
@@ -170,7 +170,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
         <div class="flex w-1/2 flex-col gap-4">
           <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col gap-2 rounded border p-4">
             <div class="flex h-9 items-start justify-between">
-              <div class="leading-6 font-medium text-neutral-50">Current Release</div>
+              <div class="text-base-50 leading-6 font-medium">Current Release</div>
             </div>
             <div class="flex items-center gap-4">
               <span class="text-nerves-gray-500 w-16 text-sm">Firmware:</span>
@@ -206,7 +206,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
           <div :if={@deployment_group.delta_updatable or Enum.any?(@deltas)} class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col gap-2 rounded border">
             <div class="flex h-9 items-start justify-between p-4">
-              <div class="leading-6 font-medium text-neutral-50">Firmware deltas</div>
+              <div class="text-base-50 leading-6 font-medium">Firmware deltas</div>
             </div>
             <div class="flex flex-col gap-3 p-4">
               <div class="flex items-center gap-4">
@@ -312,7 +312,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
           <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col gap-2 rounded border p-4">
             <div class="flex h-9 items-start justify-between">
-              <div class="leading-6 font-medium text-neutral-50">Inflight updates</div>
+              <div class="text-base-50 leading-6 font-medium">Inflight updates</div>
             </div>
             <div class="flex flex-col gap-3">
               <div :if={@inflight_updates == []} class="flex items-center gap-4">
@@ -343,7 +343,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
         <div class="flex w-1/2 flex-col gap-4">
           <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col gap-2 rounded border p-4">
             <div class="flex h-9 items-start justify-between">
-              <div class="leading-6 font-medium text-neutral-50">Settings Overview</div>
+              <div class="text-base-50 leading-6 font-medium">Settings Overview</div>
             </div>
 
             <div class="flex items-center gap-4">
@@ -401,7 +401,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
           <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col gap-2 rounded border p-4">
             <div class="flex h-9 items-start justify-between">
-              <div class="leading-6 font-medium text-neutral-50">Device Matching Conditions</div>
+              <div class="text-base-50 leading-6 font-medium">Device Matching Conditions</div>
             </div>
             <div class="flex items-center gap-4">
               <span class="text-nerves-gray-500 w-36 text-sm">Tag selection:</span>
@@ -486,7 +486,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
           <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col gap-2 rounded border p-4">
             <div class="flex items-start justify-between">
-              <div class="leading-6 font-medium text-neutral-50">Transfer Stats</div>
+              <div class="text-base-50 leading-6 font-medium">Transfer Stats</div>
             </div>
             <div :if={is_nil(@update_stat_for_current_firmware)} class="flex items-center gap-4">
               <span class="text-nerves-gray-500 text-sm">No stats recorded for firmware {@deployment_group.current_release.firmware.version}</span>

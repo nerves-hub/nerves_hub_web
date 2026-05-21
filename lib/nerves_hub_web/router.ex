@@ -134,6 +134,7 @@ defmodule NervesHubWeb.Router do
               scope "/devices" do
                 get("/", DeviceController, :index)
                 post("/", DeviceController, :create)
+                post("/import", DeviceController, :bulk_import)
                 post("/auth", DeviceController, :auth)
 
                 scope "/:identifier" do
@@ -168,6 +169,7 @@ defmodule NervesHubWeb.Router do
                 get("/:uuid", FirmwareController, :show)
                 post("/", FirmwareController, :create)
                 delete("/:uuid", FirmwareController, :delete)
+                get("/:uuid/download", FirmwareController, :download)
               end
 
               scope "/deployments" do
@@ -296,6 +298,12 @@ defmodule NervesHubWeb.Router do
         "/org/:org_name/:product_name/devices/:device_identifier/health",
         Live.Devices.Show,
         :health
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/firmware_history",
+        Live.Devices.Show,
+        :firmware_history
       )
 
       live(

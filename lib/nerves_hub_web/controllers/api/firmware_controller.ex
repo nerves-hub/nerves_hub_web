@@ -7,7 +7,7 @@ defmodule NervesHubWeb.API.FirmwareController do
 
   require Logger
 
-  plug(:validate_role, [org: :manage] when action in [:create, :delete])
+  plug(:validate_role, [org: :manage] when action in [:create, :delete, :download])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
   tags(["Firmwares"])
@@ -56,6 +56,15 @@ defmodule NervesHubWeb.API.FirmwareController do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
          {:ok, _} <- Firmwares.delete_firmware(firmware) do
       send_resp(conn, :no_content, "")
+    end
+  end
+
+  operation(:download, summary: "Download a Firmware")
+
+  def download(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
+    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
+         {:ok, url} <- Application.get_env(:nerves_hub, :firmware_upload).download_file(firmware) do
+      redirect(conn, external: url)
     end
   end
 end

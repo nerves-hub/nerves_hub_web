@@ -14,12 +14,8 @@ defmodule NervesHub.Products do
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
   alias NervesHub.Repo
-  alias NimbleCSV.RFC4180, as: CSV
 
-  @csv_certs_sep "\n\n"
-  @csv_header ["identifier", "description", "tags", "product", "org", "certificates"]
-
-  def __csv_header__(), do: @csv_header
+  @export_certs_sep "\n\n"
 
   def get_by_name!(%Scope{} = current_scope, product_name) do
     Product
@@ -281,28 +277,34 @@ defmodule NervesHub.Products do
     |> Repo.update()
   end
 
-  @spec devices_csv(Product.t()) :: binary()
-  def devices_csv(%Product{} = product) do
+  @spec devices_export_reducer(Product.t(), any(), fun()) :: any()
+  def devices_export_reducer(%Product{} = product, acc, callback) do
     product = Repo.preload(product, [:org])
 
-    {:ok, devices} =
-      Repo.transact(fn ->
-        devices =
-          Device
-          |> where([d], d.product_id == ^product.id)
-          |> Repo.exclude_deleted()
-          |> Repo.stream(max_rows: 100)
-          |> Stream.chunk_every(100)
-          |> Stream.flat_map(&Repo.preload(&1, :device_certificates))
-          |> Stream.map(&device_csv_line(&1, product))
-          |> Enum.to_list()
+    Repo.transact(
+      fn ->
+        Device
+        |> select([d, dc], [:id, :identifier, :description, :tags, :deleted_at, :product_id])
+        |> where([d], d.product_id == ^product.id)
+        |> Repo.exclude_deleted()
+        |> Repo.stream(max_rows: 500)
+        |> Stream.chunk_every(100)
+        |> Stream.flat_map(&Repo.preload(&1, :device_certificates))
+        |> Stream.map(&device_csv_line(&1, product))
+        |> Enum.reduce_while(acc, fn line, acc ->
+          callback.(acc, line)
+          |> case do
+            {:ok, acc} ->
+              {:cont, acc}
 
-        {:ok, devices}
-      end)
-
-    [@csv_header | devices]
-    |> CSV.dump_to_iodata()
-    |> IO.iodata_to_binary()
+            {:error, _} ->
+              {:halt, acc}
+          end
+        end)
+        |> then(fn res -> {:ok, res} end)
+      end,
+      timeout: 90_000
+    )
   end
 
   defp device_csv_line(device, product) do
@@ -331,7 +333,7 @@ defmodule NervesHub.Products do
           not_after: db_cert.not_after
         }
         |> Jason.encode!()
-        |> Kernel.<>(@csv_certs_sep)
+        |> Kernel.<>(@export_certs_sep)
       end
     end
   end

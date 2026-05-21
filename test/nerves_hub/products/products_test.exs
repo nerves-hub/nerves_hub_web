@@ -73,7 +73,7 @@ defmodule NervesHub.ProductsTest do
       assert [^product] = Products.get_products_by_user_and_org(user, org)
     end
 
-    test "create devices CSV IO", %{
+    test "stream and reduce devices from a product", %{
       user: user,
       product: product,
       org: org,
@@ -98,10 +98,9 @@ defmodule NervesHub.ProductsTest do
         Fixtures.device_certificate_fixture_without_der(device, otp_cert)
 
       # Generate CSV
-      csv_io = Products.devices_csv(product)
+      {:ok, csv_io} = Products.devices_export_reducer(product, [], fn res, line -> {:ok, [line | res]} end)
 
-      [[id, desc, tags, product_name, org_name, cert_io] | _] =
-        NimbleCSV.RFC4180.parse_string(csv_io)
+      [[id, desc, tags, product_name, org_name, cert_io] | _] = csv_io
 
       assert id == device.identifier
       assert desc == device.description || ""

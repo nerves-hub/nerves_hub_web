@@ -109,7 +109,8 @@ defmodule NervesHub.Logger do
     Logger.info("Device duplicate connection detected",
       event: "nerves_hub.devices.duplicate_connection",
       ref_id: metadata[:ref_id],
-      identifier: metadata[:device].identifier
+      device_id: metadata[:device_id],
+      device_identifier: metadata[:device_identifier]
     )
   end
 
@@ -124,7 +125,8 @@ defmodule NervesHub.Logger do
     Logger.info("Device disconnected",
       event: "nerves_hub.devices.disconnect",
       ref_id: metadata[:ref_id],
-      identifier: metadata[:identifier]
+      device_id: metadata[:device_id],
+      device_identifier: metadata[:device_identifier]
     )
   end
 

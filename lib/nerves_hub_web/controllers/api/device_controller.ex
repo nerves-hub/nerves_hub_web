@@ -7,6 +7,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.UpdatePayload
@@ -29,7 +30,8 @@ defmodule NervesHubWeb.API.DeviceController do
            :upgrade,
            :penalty,
            :move,
-           :code
+           :code,
+           :bulk_import
          ]
   )
 
@@ -66,6 +68,22 @@ defmodule NervesHubWeb.API.DeviceController do
         Routes.api_device_path(conn, :show, org.name, product.name, device.identifier)
       )
       |> render(:show, device: device)
+    end
+  end
+
+  def bulk_import(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, import_list) do
+    format = get_req_header(conn, "format") |> List.first()
+    tags = get_req_header(conn, "tags") |> List.first()
+
+    with {:ok, _task_pid} <-
+           BulkActions.async_bulk_create(
+             org.id,
+             product.id,
+             import_list["_json"],
+             format || "microchip_trust_and_go",
+             tags
+           ) do
+      send_resp(conn, 201, "")
     end
   end
 

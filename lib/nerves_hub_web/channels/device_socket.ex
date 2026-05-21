@@ -2,6 +2,7 @@ defmodule NervesHubWeb.DeviceSocket do
   use Phoenix.Socket
   use OpenTelemetryDecorator
 
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
@@ -72,9 +73,9 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @decorate with_span("Channels.DeviceSocket.heartbeat")
-  defp heartbeat(%{assigns: %{device: device, reference_id: ref_id}} = socket) do
+  defp heartbeat(%{assigns: %{device_info: device_info}} = socket) do
     if update_heartbeat?(socket) do
-      Connections.device_heartbeat(device, ref_id)
+      Connections.device_heartbeat(device_info.device_identifier, device_info.connection_ref)
       update_last_heartbeat(socket)
     else
       socket
@@ -189,7 +190,7 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @impl Phoenix.Socket
-  def id(%{assigns: %{device: device}}), do: "device_socket:#{device.id}"
+  def id(%{assigns: %{device_info: device_info}}), do: "device_socket:#{device_info.device_id}"
   def id(_socket), do: nil
 
   def drainer_configuration() do
@@ -260,29 +261,35 @@ defmodule NervesHubWeb.DeviceSocket do
     # disconnect devices using the same identifier
     _ = socket.endpoint.broadcast_from(self(), "device_socket:#{device.id}", "disconnect", %{})
 
-    socket =
-      socket
-      |> assign(:device, device)
+    if device.status == :registered do
+      Devices.set_as_provisioned!(device)
+    end
 
-    {:ok, socket}
+    device_info = %DeviceInfo{
+      org_id: device.org_id,
+      product_id: device.product_id,
+      device_id: device.id,
+      device_identifier: device.identifier,
+      deployment_id: device.deployment_id,
+      firmware_metadata: device.firmware_metadata,
+      device_updates_enabled: device.updates_enabled,
+      device_updates_blocked_until: device.updates_blocked_until,
+      allowed_extensions: calculate_allowed_extensions(device)
+    }
+
+    {:ok, assign(socket, :device_info, device_info)}
   end
 
-  @decorate with_span("Channels.DeviceSocket.on_connect#registered")
-  defp on_connect(%{assigns: %{device: %{status: :registered} = device}} = socket) do
-    socket
-    |> assign(device: Devices.set_as_provisioned!(device))
-    |> on_connect()
-  end
-
-  @decorate with_span("Channels.DeviceSocket.on_connect#provisioned")
-  defp on_connect(%{assigns: %{device: device}} = socket) do
+  @decorate with_span("Channels.DeviceSocket.on_connect")
+  defp on_connect(%{assigns: %{device_info: device_info}} = socket) do
     # Report connection and use connection id as reference
-    {:ok, %DeviceConnection{id: connection_id}} = Connections.device_connecting(device)
+    {:ok, %DeviceConnection{id: connection_id}} =
+      Connections.device_connecting(device_info.device_id, device_info.device_identifier)
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: connection_id,
-      identifier: socket.assigns.device.identifier,
-      firmware_uuid: get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)])
+      identifier: device_info.device_identifier,
+      firmware_uuid: get_in(device_info, [Access.key(:firmware_metadata), Access.key(:uuid)])
     })
 
     # this is required by `DeviceJSONSerializer` which needs to update the message topic,
@@ -291,11 +298,10 @@ defmodule NervesHubWeb.DeviceSocket do
     # we could remove this and instead modify the payload in `handle_in`, but I favoured
     # this approach as it simplifies the logic in `handle_in` and keeps the topic remapping
     # logic in one place, the serializer
-    Process.put(:device_id, device.id)
+    Process.put(:device_id, device_info.device_id)
 
     socket
-    |> assign(:device, device)
-    |> assign(:reference_id, connection_id)
+    |> assign(device_info: %{device_info | connection_ref: connection_id})
     |> update_last_heartbeat()
   end
 
@@ -305,34 +311,34 @@ defmodule NervesHubWeb.DeviceSocket do
 
   @decorate with_span("Channels.DeviceSocket.on_disconnect")
   defp on_disconnect(reason, socket) do
-    %{assigns: %{device: device, reference_id: reference_id}} = socket
+    %{assigns: %{device_info: device_info}} = socket
 
     if reason == {:error, {:shutdown, :disconnected}} do
       :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
-        ref_id: reference_id,
-        device: device
+        ref_id: device_info.connection_ref,
+        device_id: device_info.device_id,
+        device_identifier: device_info.device_identifier
       })
     end
 
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
-      ref_id: reference_id,
-      identifier: device.identifier
+      ref_id: device_info.connection_ref,
+      device_id: device_info.device_id,
+      device_identifier: device_info.device_identifier
     })
 
-    case Connections.device_disconnected(device, reference_id) do
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        Logger.error(
-          "An error occurred while disconnecting device (#{device.id}), ecto update result: #{inspect(reason)}",
-          identifier: device.identifier,
-          device_id: device.id,
-          ref_id: reference_id
-        )
-    end
+    # its possible that this is a stale connection and the device has already reconnected,
+    # which means the following call might return :error, but we can ignore it
+    _ = Connections.device_disconnected(device_info.device_identifier, device_info.connection_ref)
 
     assign(socket, :disconnection_handled?, true)
+  end
+
+  defp calculate_allowed_extensions(device) do
+    for {extension, true} <- Map.from_struct(device.product.extensions),
+        {^extension, device_enabled?} <- Map.from_struct(device.extensions),
+        device_enabled? != false,
+        do: extension
   end
 
   defp last_seen_update_interval() do

@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
   alias NervesHubWeb.Components.DevicePage.DetailsTab
+  alias NervesHubWeb.Components.DevicePage.FirmwareHistoryTab
   alias NervesHubWeb.Components.DevicePage.HealthTab
   alias NervesHubWeb.Components.DevicePage.LocalShellTab
   alias NervesHubWeb.Components.DevicePage.LogsTab
@@ -22,7 +23,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   require Logger
 
-  @tab_components [ActivityTab, ConsoleTab, DetailsTab, HealthTab, LocalShellTab, LogsTab, SettingsTab]
+  @tab_components [
+    ActivityTab,
+    ConsoleTab,
+    DetailsTab,
+    FirmwareHistoryTab,
+    HealthTab,
+    LocalShellTab,
+    LogsTab,
+    SettingsTab
+  ]
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{current_scope: %{org: org, product: product, user: user} = scope} = socket.assigns
@@ -398,7 +408,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     ~H"""
     <.link
       data-selected={"#{@selected}"}
-      class="text-base-300 relative -bottom-px h-11 px-6 py-2 text-sm font-normal hover:border-b hover:border-indigo-500 data-[selected=true]:border-b data-[selected=true]:border-indigo-500 data-[selected=true]:text-neutral-50"
+      class="data-[selected=true]:text-base-50 text-base-300 relative -bottom-px h-11 px-6 py-2 text-sm font-normal hover:border-b hover:border-indigo-500 data-[selected=true]:border-b data-[selected=true]:border-indigo-500"
       phx-click={JS.set_attribute({"data-selected", "false"}, to: "#tabs a") |> JS.set_attribute({"data-selected", "true"})}
       patch={@path}
     >
@@ -418,6 +428,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     <ActivityTab.render :if={@tab == :activity} {assigns} />
     <ConsoleTab.render :if={@tab == :console} {assigns} />
     <DetailsTab.render :if={@tab == :details} {assigns} />
+    <FirmwareHistoryTab.render :if={@tab == :firmware_history} {assigns} />
     <HealthTab.render :if={@tab == :health} {assigns} />
     <LocalShellTab.render :if={@tab == :local_shell} {assigns} />
     <LogsTab.render :if={@tab == :logs} {assigns} />

@@ -6,6 +6,7 @@ defmodule NervesHub.Devices.LogLines do
   import Ecto.Query
 
   alias NervesHub.AnalyticsRepo
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.LogLine
   alias Phoenix.Channel.Server, as: ChannelServer
@@ -45,10 +46,10 @@ defmodule NervesHub.Devices.LogLines do
       %LogLine{}
 
   """
-  @spec async_create(Device.t(), log_line_payload) ::
+  @spec async_create(DeviceInfo.t(), log_line_payload) ::
           {:ok, LogLine.t()} | {:error, Ecto.Changeset.t()}
-  def async_create(%Device{} = device, attrs) do
-    changeset = LogLine.create_changeset(device, attrs)
+  def async_create(%DeviceInfo{} = device_info, attrs) do
+    changeset = LogLine.create_changeset(device_info.device_id, device_info.product_id, attrs)
 
     case Ecto.Changeset.apply_action(changeset, :create) do
       {:ok, log_line} ->
@@ -57,7 +58,7 @@ defmodule NervesHub.Devices.LogLines do
         _ =
           ChannelServer.broadcast(
             NervesHub.PubSub,
-            "device:#{device.identifier}:internal",
+            "device:#{device_info.device_identifier}:internal",
             "logs:received",
             log_line
           )

@@ -564,6 +564,32 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> select("Update status", option: "Updating")
       |> refute_has("a", text: device.identifier, timeout: 1000)
     end
+
+    test "using another select drop down filter doesn't reset the deployment group drop down filter", %{
+      conn: conn,
+      fixture: fixture
+    } do
+      %{device: device, firmware: firmware, org: org, product: product, deployment_group: deployment_group} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+      device3 = Fixtures.device_fixture(org, product, firmware, %{tags: nil})
+
+      Repo.update!(Ecto.Changeset.change(device2, deployment_id: deployment_group.id))
+      Repo.update!(Ecto.Changeset.change(device3, deployment_id: deployment_group.id))
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "3", timeout: 1000)
+      |> assert_has("div a", text: device.identifier)
+      |> assert_has("div a", text: device2.identifier)
+      |> assert_has("div a", text: device3.identifier)
+      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> select("Deployment Group", option: deployment_group.name)
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> select("Platform", option: "platform")
+      |> assert_has("#device-count", text: "2", timeout: 1_000)
+      |> assert_has("#input_deployment_id:has(> option[selected])")
+    end
   end
 
   describe "bulk actions" do
@@ -841,7 +867,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         )
         |> submit()
       end)
-      |> assert_has("div", text: "All selected devices successfully moved moved to #{other_product.name}")
+      |> assert_has("div", text: "All selected devices successfully moved to #{other_product.name}")
       |> visit("/org/#{org.name}/#{other_product.name}/devices")
       |> assert_has("div", text: "2", timeout: 1000)
 
@@ -911,6 +937,202 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       assert Repo.reload(device).updates_blocked_until |> is_nil()
       assert Repo.reload(second_device).updates_blocked_until |> is_nil()
+    end
+  end
+
+  describe "bulk actions after selecting all devices" do
+    test "move devices to a different product", %{conn: conn, fixture: fixture} do
+      %{user: user, org: org, product: product, firmware: firmware} = fixture
+
+      Repo.delete_all(Device)
+
+      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+
+      other_product = Fixtures.product_fixture(user, org)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> check("Select all devices", exact: false)
+      |> click_button("Select all")
+      |> assert_has("h4", "All devices selected")
+      |> assert_has("span", "All available devices matching the filters have been selected.")
+      |> within("form#product-move", fn session ->
+        session
+        |> select("Move device(s) to product:",
+          option: other_product.name,
+          exact_option: false
+        )
+        |> submit()
+      end)
+      |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
+      |> assert_has("div", text: "All selected devices successfully moved to the selected product.", timeout: 3_000)
+      |> visit("/org/#{org.name}/#{other_product.name}/devices")
+      |> assert_has("div", text: "75", timeout: 1000)
+
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.product_id == other_product.id end)
+    end
+
+    test "remove devices from assigned deployment groups", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, firmware: firmware, deployment_group: deployment_group} = fixture
+
+      Repo.delete_all(Device)
+
+      devices =
+        Enum.map(1..75, fn _ ->
+          Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+        end)
+
+      assert Enum.all?(devices, fn device -> device.deployment_id == deployment_group.id end)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> check("Select all devices", exact: false)
+      |> click_button("Select all")
+      |> assert_has("h4", "All devices selected")
+      |> assert_has("span", "All available devices matching the filters have been selected.")
+      |> click_button("#remove-devices-from-deployment-group", "")
+      |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
+      |> assert_has("div",
+        text: "All devices (75) were successfully removed from their deployment group.",
+        timeout: 3_000
+      )
+
+      assert Repo.reload(devices) |> Enum.all?(fn device -> is_nil(device.deployment_id) end)
+    end
+
+    test "move devices to a different deployment group", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, firmware: firmware, deployment_group: deployment_group} = fixture
+
+      Repo.delete_all(Device)
+
+      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> check("Select all devices", exact: false)
+      |> click_button("Select all")
+      |> assert_has("h4", "All devices selected")
+      |> assert_has("span", "All available devices matching the filters have been selected.")
+      |> within("form#deployment-set", fn session ->
+        session
+        |> select("Set deployment group",
+          option: deployment_group.name,
+          exact_option: false
+        )
+        |> submit()
+      end)
+      |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
+      |> assert_has("div",
+        text: "All selected devices were successfully assigned to the selected deployment group.",
+        timeout: 3_000
+      )
+
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.deployment_id == deployment_group.id end)
+    end
+
+    test "changes tags", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, firmware: firmware} = fixture
+
+      Repo.delete_all(Device)
+
+      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> check("Select all devices", exact: false)
+      |> click_button("Select all")
+      |> assert_has("h4", "All devices selected")
+      |> assert_has("span", "All available devices matching the filters have been selected.")
+      |> unwrap(fn view ->
+        render_submit(view, "tag-devices", %{"tags" => "moussaka"})
+      end)
+      |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
+      |> assert_has("div", text: "All selected devices (75) tagged successfully.", timeout: 3_000)
+
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.tags == ["moussaka"] end)
+    end
+
+    test "enables updates", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, firmware: firmware} = fixture
+
+      Repo.delete_all(Device)
+
+      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false}) end)
+
+      assert Enum.all?(devices, fn device -> not device.updates_enabled end)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> check("Select all devices", exact: false)
+      |> click_button("Select all")
+      |> assert_has("h4", "All devices selected")
+      |> assert_has("span", "All available devices matching the filters have been selected.")
+      |> click_button("Enable")
+      |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
+      |> assert_has("div", text: "Enabled updates for #{75} selected device(s).", timeout: 3_000)
+
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.updates_enabled end)
+    end
+
+    test "disable updates", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, firmware: firmware} = fixture
+
+      Repo.delete_all(Device)
+
+      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware, %{updates_enabled: true}) end)
+
+      assert Enum.all?(devices, fn device -> device.updates_enabled end)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> check("Select all devices", exact: false)
+      |> click_button("Select all")
+      |> assert_has("h4", "All devices selected")
+      |> assert_has("span", "All available devices matching the filters have been selected.")
+      |> click_button("Disable")
+      |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
+      |> assert_has("div", text: "Disabled updates for 75 selected device(s).", timeout: 3_000)
+
+      assert Repo.reload(devices) |> Enum.all?(fn device -> not device.updates_enabled end)
+    end
+
+    test "clear penalty boxes", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, firmware: firmware} = fixture
+
+      Repo.delete_all(Device)
+
+      devices =
+        Enum.map(1..75, fn _ ->
+          Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+        end)
+
+      assert Enum.all?(devices, fn device -> not is_nil(device.updates_blocked_until) end)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> check("Select all devices", exact: false)
+      |> click_button("Select all")
+      |> assert_has("h4", "All devices selected")
+      |> assert_has("span", "All available devices matching the filters have been selected.")
+      |> click_button("Clear penalty box")
+      |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
+      |> assert_has("div", text: "75 selected device(s) cleared from the penalty box.", timeout: 3_000)
+
+      assert Repo.reload(devices) |> Enum.all?(fn device -> is_nil(device.updates_blocked_until) end)
     end
   end
 
@@ -1081,6 +1303,16 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         render_submit(view, "push-firmware-to-devices", %{})
       end)
       |> assert_has("div", text: "Firmware update sent to 1 device(s)", timeout: 1_000)
+    end
+  end
+
+  describe "sorting" do
+    test "renders the device list with a non-default sort column", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices?sort=connection_established_at&sort_direction=desc")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
     end
   end
 

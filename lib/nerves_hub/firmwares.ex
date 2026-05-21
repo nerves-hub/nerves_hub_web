@@ -19,6 +19,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteFirmware
   alias NervesHub.Workers.FirmwareDeltaBuilder
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -127,7 +128,7 @@ defmodule NervesHub.Firmwares do
     sort = Map.get(opts, :sort, "inserted_at")
     sort_direction = Map.get(opts, :sort_direction, "desc")
 
-    sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
+    sort_opts = {String.to_existing_atom(sort_direction), String.to_existing_atom(sort)}
 
     flop = %Flop{
       page: String.to_integer(Map.get(opts, :page, "1")),
@@ -234,9 +235,13 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
-  @spec get_firmware_by_product_id_and_uuid(integer(), String.t()) ::
+  @spec get_firmware_by_product_id_and_uuid(integer(), String.t() | nil) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
+  def get_firmware_by_product_id_and_uuid(_product_id, nil) do
+    {:error, :not_found}
+  end
+
   def get_firmware_by_product_id_and_uuid(product_id, uuid) do
     get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid)
     |> Repo.one()
@@ -608,6 +613,17 @@ defmodule NervesHub.Firmwares do
         {:ok, %FirmwareDelta{}} ->
           {:ok, :delta_already_exists}
 
+        {:delta_insert,
+         {:error,
+          [
+            {:unique_firmware_delta,
+             {"has already been taken", [constraint: :unique, constraint_name: "source_id_target_id_unique_index"]}}
+          ]}} ->
+          # a race condition exists where multiple devices connect, are added to a deployment group, and
+          # try to create a delta, only for one to 'start' but all others fail.
+          # This should be regarded as an `:ok` response.
+          {:ok, :delta_already_exists}
+
         {:delta_insert, {:error, changeset}} ->
           Logger.warning("Failed to insert firmware delta for #{source_id} -> #{target_id}")
 
@@ -699,16 +715,12 @@ defmodule NervesHub.Firmwares do
   end
 
   defp notify_firmware_delta_target({:ok, %FirmwareDelta{} = firmware_delta}) do
-    _ =
-      NervesHubWeb.Endpoint.broadcast(
-        "firmware:#{firmware_delta.target_id}",
-        "delta/status_update",
-        %{
-          delta_id: firmware_delta.id,
-          source_firmware_id: firmware_delta.source_id,
-          status: firmware_delta.status
-        }
-      )
+    :ok =
+      ChannelServer.broadcast(NervesHub.PubSub, "firmware:#{firmware_delta.target_id}", "delta/status_update", %{
+        delta_id: firmware_delta.id,
+        source_firmware_id: firmware_delta.source_id,
+        status: firmware_delta.status
+      })
 
     {:ok, firmware_delta}
   end

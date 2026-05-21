@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Accounts.Org
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.UpdateStat
@@ -31,6 +32,7 @@ defmodule NervesHub.Devices.Device do
     :updates_blocked_until,
     :connecting_code,
     :deployment_id,
+    :current_device_firmware_id,
     :status,
     :firmware_validation_status,
     :firmware_auto_revert_detected,
@@ -45,6 +47,7 @@ defmodule NervesHub.Devices.Device do
     belongs_to(:product, Product)
     belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
     belongs_to(:latest_health, DeviceHealth)
+    belongs_to(:current_device_firmware, DeviceFirmware, type: UUIDv7)
 
     has_one(:latest_connection, DeviceConnection)
 
@@ -128,11 +131,23 @@ defmodule NervesHub.Devices.Device do
     |> put_change(:deployment_id, deployment_group.id)
   end
 
+  def clear_deployment_group(device) do
+    device
+    |> change()
+    |> put_change(:deployment_id, nil)
+  end
+
   def clear_updates_information_changeset(%Device{} = device) do
     device
     |> change()
     |> put_change(:update_attempts, [])
     |> put_change(:updates_blocked_until, nil)
+  end
+
+  def firmware_validated(%Device{} = device) do
+    device
+    |> change()
+    |> put_change(:firmware_validation_status, :validated)
   end
 
   def update_network_interface_changeset(%Device{} = device, nil) do

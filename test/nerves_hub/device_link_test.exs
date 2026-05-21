@@ -3,6 +3,7 @@ defmodule NervesHub.DeviceLinkTest do
   use Mimic
 
   alias NervesHub.DeviceLink
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Fixtures
@@ -45,7 +46,8 @@ defmodule NervesHub.DeviceLinkTest do
                |> Enum.filter(&(&1.device_id == device.id))
 
       # Call status_update with a status containing "encountered fwup error"
-      :ok = DeviceLink.status_update(device, %{"status" => "Update failed: encountered fwup error"}, true)
+      :ok =
+        DeviceLink.status_update(to_device_info(device), %{"status" => "Update failed: encountered fwup error"}, true)
 
       # Verify the inflight update was cleared
       assert [] =
@@ -70,7 +72,7 @@ defmodule NervesHub.DeviceLinkTest do
                |> Enum.filter(&(&1.device_id == device.id))
 
       # Call status_update with a status containing "FWUP error: failure of some sort"
-      :ok = DeviceLink.status_update(device, %{"status" => "FWUP error: failure of some sort"}, true)
+      :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "FWUP error: failure of some sort"}, true)
 
       # Verify the inflight update was cleared
       assert [] =
@@ -95,7 +97,12 @@ defmodule NervesHub.DeviceLinkTest do
                |> Enum.filter(&(&1.device_id == device.id))
 
       # Call status_update with a status that does not contain "fwup error"
-      :ok = DeviceLink.status_update(device, %{"status" => "Update in progress: downloading firmware"}, true)
+      :ok =
+        DeviceLink.status_update(
+          to_device_info(device),
+          %{"status" => "Update in progress: downloading firmware"},
+          true
+        )
 
       # Verify the inflight update still exists
       assert [%InflightUpdate{}] =
@@ -106,14 +113,21 @@ defmodule NervesHub.DeviceLinkTest do
     end
 
     test "'started' messages from device execute telemetry when there's a network interface mismatch", %{device: device} do
-      {:ok, device} = Devices.update_network_interface(device, "wlan0")
+      {:ok, _device} = Devices.update_network_interface(device.id, "wlan0")
 
       expect(:telemetry, :execute, fn _event, _measurements, metadata ->
         assert metadata.downloader_network_interface == "eth0"
         assert metadata.device_network_interface == :wifi
       end)
 
-      :ok = DeviceLink.status_update(device, %{"status" => "started", "downloader_network_interface" => "eth0"}, false)
+      device_info = Repo.reload(device) |> to_device_info()
+
+      :ok =
+        DeviceLink.status_update(
+          device_info,
+          %{"status" => "started", "downloader_network_interface" => "eth0"},
+          false
+        )
     end
 
     test "'started' messages from device do not blow up if downloader network interface is nil", %{device: device} do
@@ -121,7 +135,16 @@ defmodule NervesHub.DeviceLinkTest do
         assert metadata.identifier == device.identifier
       end)
 
-      :ok = DeviceLink.status_update(device, %{"status" => "started", "downloader_network_interface" => nil}, false)
+      :ok =
+        DeviceLink.status_update(
+          to_device_info(device),
+          %{"status" => "started", "downloader_network_interface" => nil},
+          false
+        )
     end
+  end
+
+  def to_device_info(device) do
+    %DeviceInfo{device_id: device.id, device_identifier: device.identifier, product_id: device.product_id}
   end
 end

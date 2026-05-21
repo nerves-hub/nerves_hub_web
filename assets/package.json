@@ -14,6 +14,7 @@
     "@xterm/xterm": "^6.0.0",
     "chart.js": "^4.5.1",
     "chartjs-adapter-date-fns": "^3.0.0",
+    "chartjs-plugin-zoom": "^2.2.0",
     "date-fns": "^4.1.0",
     "highlight.js": "^11.10.0",
     "javascript-time-ago": "^2.5.10",

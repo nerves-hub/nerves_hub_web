@@ -3,6 +3,7 @@ defmodule NervesHub.DeploymentOrchestratorEvents do
   Encapsulation of events to be sent to the Deployment Orchestrator
   """
 
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias Phoenix.Channel.Server, as: ChannelServer
@@ -32,6 +33,10 @@ defmodule NervesHub.DeploymentOrchestratorEvents do
   end
 
   def topic(%Device{deployment_id: id}) do
+    "orchestrator:deployment:#{id}"
+  end
+
+  def topic(%DeviceInfo{deployment_id: id}) do
     "orchestrator:deployment:#{id}"
   end
 

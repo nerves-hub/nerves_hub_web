@@ -1,15 +1,11 @@
-## Customize flags given to the VM: http://erlang.org/doc/man/erl.html
-## -mode/-name/-sname/-setcookie are configured via env vars, do not set them here
+## Allocator strategy: address-order best-fit, helps fragmentation
++MBas aoffcbf
++MHas aoffcbf
++MBacul 0
++MHacul 0
 
-## Number of dirty schedulers doing IO work (file, sockets, etc)
-##+SDio 5
-
-## Increase number of concurrent ports/sockets
-##+Q 65536
-
-## Tweak GC to run more often
-##-env ERL_FULLSWEEP_AFTER 10
-
-## Use "address order best fit" for binary_alloc, and eheap_alloc
-+MBas aobf
-+MHas aobf
+## Reduce sys_alloc calls by sizing carriers appropriately
++MBlmbcs 512
++MHlmbcs 512
++MBsmbcs 256
++MHsmbcs 256

@@ -27,6 +27,7 @@
         } else {
           document.documentElement.setAttribute("data-theme", "dark");
         }
+        window.dispatchEvent(new Event("themeUpdated"))
       }
       window.handleThemeChangeEvent = handleThemeChangeEvent
 
@@ -40,6 +41,8 @@
         }
 
         lightModeQuery.addEventListener('change', window.handleThemeChangeEvent);
+
+        window.dispatchEvent(new Event("themeUpdated"))
       }
 
       function removeThemeEventListener() {
@@ -47,14 +50,17 @@
         lightModeQuery.removeEventListener('change', window.handleThemeChangeEvent);
       }
 
-      if (localStorage.theme === null) {
-        document.documentElement.setAttribute("data-theme", "dark");
+      if (localStorage.theme === "dark" || localStorage.theme === "light") {
+        document.documentElement.setAttribute("data-theme", localStorage.theme);
       } else if (localStorage.theme === "system") {
         setupSystemTheme()
       } else {
-        document.documentElement.setAttribute("data-theme", localStorage.theme);
+        // use the dark theme as our default
+        localStorage.theme = "dark"
+        document.documentElement.setAttribute("data-theme", "dark");
       }
     </script>
+    <.featurebase_sdk current_scope={assigns[:current_scope]} app_id={Application.get_env(:nerves_hub, :featurebase_app_id)} />
   </head>
   <body class="h-full">
     {@inner_content}
