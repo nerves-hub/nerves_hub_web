@@ -67,9 +67,10 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
         "name" => name,
         "deployment" => deployment_group_params
       })
-      when is_map_key(deployment_group_params, "firmware_id") or is_map_key(deployment_group_params, "archive_id") do
-    firmware = Firmwares.get_by_id(product, deployment_group_params["firmware_id"])
-    archive = Archives.get_by_id(product, deployment_group_params["archive_id"])
+      when is_map_key(deployment_group_params, "firmware_id") or is_map_key(deployment_group_params, "archive_id") or
+             is_map_key(deployment_group_params, "firmware") or is_map_key(deployment_group_params, "archive") do
+    firmware = resolve_firmware(product, deployment_group_params)
+    archive = resolve_archive(product, deployment_group_params)
 
     with {:ok, deployment_group} <-
            ManagedDeployments.get_deployment_group_by_name(product, name),
@@ -93,7 +94,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
       }) do
     with {:ok, deployment_group} <-
            ManagedDeployments.get_deployment_group_by_name(product, name),
-         params = update_params(product, deployment_group_params),
+         params = maybe_active_from_state(deployment_group_params),
          {:ok, updated_deployment_group} <-
            ManagedDeployments.update_deployment_group(deployment_group, params, user) do
       DeploymentGroupTemplates.audit_deployment_updated(user, deployment_group)
@@ -112,12 +113,6 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
     end
   end
 
-  defp update_params(product, params) do
-    params
-    |> maybe_active_from_state()
-    |> maybe_firmware_id(product)
-  end
-
   defp maybe_active_from_state(%{"state" => state} = params) do
     active? = if String.downcase(state) == "on", do: true, else: false
     Map.put(params, "is_active", active?)
@@ -125,15 +120,29 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   defp maybe_active_from_state(params), do: params
 
-  defp maybe_firmware_id(%{"firmware" => uuid} = params, product) do
-    case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
-      {:ok, firmware} ->
-        Map.put(params, "firmware_id", firmware.id)
+  defp resolve_firmware(product, %{"firmware_id" => id}) when not is_nil(id) and id != "" do
+    Firmwares.get_by_id(product, id)
+  end
 
-      _ ->
-        params
+  defp resolve_firmware(product, %{"firmware" => uuid}) when is_binary(uuid) do
+    case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+      {:ok, firmware} -> firmware
+      _ -> nil
     end
   end
 
-  defp maybe_firmware_id(params, _product), do: params
+  defp resolve_firmware(_product, _params), do: nil
+
+  defp resolve_archive(product, %{"archive_id" => id}) when not is_nil(id) and id != "" do
+    Archives.get_by_id(product, id)
+  end
+
+  defp resolve_archive(product, %{"archive" => uuid}) when is_binary(uuid) do
+    case Archives.get(product, uuid) do
+      {:ok, archive} -> archive
+      _ -> nil
+    end
+  end
+
+  defp resolve_archive(_product, _params), do: nil
 end

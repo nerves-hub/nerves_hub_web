@@ -275,6 +275,42 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
       assert json_response(conn, 200)["data"]["firmware_uuid"] == new_firmware.uuid
     end
 
+    test "can change firmware by uuid to release new firmware", %{
+      conn: conn,
+      deployment_group: deployment_group,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      update_path =
+        Routes.api_deployment_group_path(
+          conn,
+          :update,
+          org.name,
+          product.name,
+          deployment_group.name
+        )
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1", dir: tmp_dir})
+
+      conn = put(conn, update_path, deployment: %{"firmware" => new_firmware.uuid})
+      assert json_response(conn, 200)["data"]["firmware_uuid"] == new_firmware.uuid
+
+      show_path =
+        Routes.api_deployment_group_path(
+          conn,
+          :show,
+          org.name,
+          product.name,
+          deployment_group.name
+        )
+
+      conn = get(conn, show_path)
+      assert json_response(conn, 200)["data"]["firmware_uuid"] == new_firmware.uuid
+      assert json_response(conn, 200)["data"]["releases_count"] == 2
+    end
+
     test "when changing the archive id, the firmware id is also required", %{
       conn: conn,
       deployment_group: deployment_group,
