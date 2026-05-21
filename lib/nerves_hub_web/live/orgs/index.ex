@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Live.Orgs.Index do
   use NervesHubWeb, :live_view
 
+  import Number.Delimit, only: [number_to_delimited: 2]
+
   alias NervesHub.Accounts
   alias NervesHub.Devices
   alias NervesHub.Products
