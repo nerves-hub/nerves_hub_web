@@ -4,7 +4,7 @@ defmodule NervesHub.Repo.Migrations.AddProgressAndUpdatedAtToInflightUpdates do
   def change() do
     alter table(:inflight_updates) do
       add(:progress, :integer)
-      timestamps(inserted_at: false)
+      add(:updated_at, :utc_datetime, null: false, default: fragment("NOW()"))
     end
   end
 end
