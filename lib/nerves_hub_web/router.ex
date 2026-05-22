@@ -19,6 +19,7 @@ defmodule NervesHubWeb.Router do
   alias NervesHubWeb.API.Plugs.FetchCurrentUser
   alias NervesHubWeb.API.Plugs.Product
   alias NervesHubWeb.API.Plugs.RequireAuthenticatedUser
+  alias NervesHubWeb.Mounts.AssignBannerUrl
   alias NervesHubWeb.Mounts.CurrentPath
   alias NervesHubWeb.Mounts.EnrichSentryContext
   alias NervesHubWeb.Plugs.ServerAuth
@@ -263,6 +264,7 @@ defmodule NervesHubWeb.Router do
         {NervesHubWeb.Auth, :assign_org_to_scope},
         {NervesHubWeb.Auth, :assign_product_to_scope},
         {NervesHubWeb.Auth, :require_authenticated},
+        AssignBannerUrl,
         EnrichSentryContext,
         CurrentPath
       ] do

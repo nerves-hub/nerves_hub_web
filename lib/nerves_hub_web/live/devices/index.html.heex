@@ -2,50 +2,50 @@
   <div class="bg-surface-muted border-base-700 flex h-14 justify-end border-b"></div>
 
   <div id="device-container" class="h-0 flex-1 overflow-y-auto" phx-hook="PageVisible">
-    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
+    <NervesHubWeb.Components.PageHeader.simple banner_url={@banner_url}>
       <h1 :if={!@devices.ok?} class="text-base-50 text-xl leading-[30px] font-semibold">Loading...</h1>
       <h1 :if={@devices.ok?} id="devices-header" class="text-base-50 hidden text-xl leading-[30px] font-semibold" phx-mounted={fade_in("#devices-header")}>
         All Devices
       </h1>
-      <div class="mr-auto">
-        <div :if={@devices.ok?} id="device-count" class="bg-base-800 text-base-300 mr-auto hidden rounded-sm px-1.5 py-0.5 text-xs" phx-mounted={fade_in("#device-count")}>
-          {Number.Delimit.number_to_delimited(@total_entries, precision: 0)}
-        </div>
+      <div :if={@devices.ok?} id="device-count" class="bg-base-800 text-base-300 hidden rounded-sm px-1.5 py-0.5 text-xs" phx-mounted={fade_in("#device-count")}>
+        {Number.Delimit.number_to_delimited(@total_entries, precision: 0)}
       </div>
-      <form :if={has_results?(@devices, @currently_filtering)} class="flex h-full items-center" phx-change="update-filters">
-        <div class="grid h-full grid-cols-1">
-          <input
-            type="text"
-            class="bg-surface-muted border-base-600 text-base-400 col-start-1 row-start-1 block size-full gap-2 rounded border px-3 py-1 text-sm font-normal"
-            name="search"
-            id="device_search_top"
-            placeholder="Search..."
-            title="Search"
-            value={@current_filters[:search]}
-            phx-debounce="500"
-          />
-
-          <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path
-              d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
-              stroke="#A1A1AA"
-              stroke-width="1.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+      <:actions>
+        <form :if={has_results?(@devices, @currently_filtering)} class="flex h-full items-center" phx-change="update-filters">
+          <div class="grid h-full grid-cols-1">
+            <input
+              type="text"
+              class="bg-surface-muted border-base-600 text-base-400 col-start-1 row-start-1 block size-full gap-2 rounded border px-3 py-1 text-sm font-normal"
+              name="search"
+              id="device_search_top"
+              placeholder="Search..."
+              title="Search"
+              value={@current_filters[:search]}
+              phx-debounce="500"
             />
-          </svg>
-        </div>
-      </form>
-      <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export"} download>
-        <.icon name="export" /> Export
-      </.button>
-      <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
-        <.icon name="add" /> Add Device
-      </.button>
-      <.button :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist} type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
-        <.icon name="filter" /> Filters
-      </.button>
-    </div>
+
+            <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
+                stroke="#A1A1AA"
+                stroke-width="1.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+        </form>
+        <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export"} download>
+          <.icon name="export" /> Export
+        </.button>
+        <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
+          <.icon name="add" /> Add Device
+        </.button>
+        <.button :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist} type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
+          <.icon name="filter" /> Filters
+        </.button>
+      </:actions>
+    </NervesHubWeb.Components.PageHeader.simple>
 
     <.async_result :let={devices} assign={@devices}>
       <:loading>

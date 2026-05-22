@@ -1,0 +1,125 @@
+{
+  "source": "pexels",
+  "banners": {
+    "automotive": {
+      "file": "automotive.jpg",
+      "original": "pexels-mike-van-schoonderwalt-1884800-5484518.jpg",
+      "pexels_id": "5484518",
+      "pexels_url": "https://www.pexels.com/photo/car-under-cloudy-sky-5484518/",
+      "title": "Rear view of classic vintage car with chrome finish under cloudy sky",
+      "photographer": "Mike van Schoonderwalt"
+    },
+    "blocks": {
+      "file": "blocks.jpg",
+      "original": "pexels-steve-29525883.jpg",
+      "pexels_id": "29525883",
+      "pexels_url": "https://www.pexels.com/photo/modern-geometric-abstract-design-with-blue-patterns-29525883/",
+      "title": "Modern Geometric Abstract Design with Blue Patterns",
+      "photographer": "Steve A Johnson"
+    },
+    "circuitry": {
+      "file": "circuitry.jpg",
+      "original": "pexels-tima-miroshnichenko-6755081.jpg",
+      "pexels_id": "6755081",
+      "pexels_url": "https://www.pexels.com/photo/6755081/",
+      "title": "Close-Up Shot of a Chip",
+      "photographer": "Tima Miroshnichenko"
+    },
+    "cloud": {
+      "file": "cloud.jpg",
+      "original": "pexels-krista-glizdeniece-2150567376-32050400.jpg",
+      "pexels_id": "32050400",
+      "pexels_url": "https://www.pexels.com/photo/32050400/",
+      "title": "Ethereal Golden Clouds at Dusk",
+      "photographer": "Krista Glīzdeniece"
+    },
+    "connect": {
+      "file": "connect.jpg",
+      "original": "pexels-brett-sayles-4486718.jpg",
+      "pexels_id": "4486718",
+      "pexels_url": "https://www.pexels.com/photo/patch-cables-plugged-in-patch-panel-4486718/",
+      "title": "Detailed view of fiber optic patch cables connecting to a blue patch panel in a data center.",
+      "photographer": "Brett Sayles"
+    },
+    "diy": {
+      "file": "diy.jpg",
+      "original": "pexels-davidtumpal-36002226.jpg",
+      "pexels_id": "36002226",
+      "pexels_url": "https://www.pexels.com/photo/rustic-outdoor-setup-with-vintage-televisions-36002226/",
+      "title": "Rustic outdoor setup with vintage televisions",
+      "photographer": "David Tumpal"
+    },
+    "drive": {
+      "file": "drive.jpg",
+      "original": "pexels-marcin-jozwiak-199600-14046247.jpg",
+      "pexels_id": "14046247",
+      "pexels_url": "https://www.pexels.com/photo/abstract-red-and-white-waves-background-subtle-gradients-flow-liquid-lines-design-element-14046247/",
+      "title": "Abstract red and white waves background. Subtle gradients, flow liquid lines. Design element.",
+      "photographer": "Marcin Jozwiak"
+    },
+    "flight": {
+      "file": "flight.jpg",
+      "original": "pexels-marcin-jozwiak-199600-8013513.jpg",
+      "pexels_id": "8013513",
+      "pexels_url": "https://www.pexels.com/photo/top-view-shot-of-a-snow-covered-land-8013513/",
+      "title": "Top-down aerial view of a snow-covered industrial area in Poznań, Poland during winter",
+      "photographer": "Marcin Jozwiak"
+    },
+    "glitz": {
+      "file": "glitz.jpg",
+      "original": "pexels-marcin-jozwiak-199600-14602406.jpg",
+      "pexels_id": "14602406",
+      "pexels_url": "https://www.pexels.com/photo/abstract-amber-and-gold-paint-splatter-background-fluid-shapes-dynamic-composition-design-element-14602406/",
+      "title": "Abstract amber and gold paint splatter background. Fluid shapes, dynamic composition. Design element.",
+      "photographer": "Marcin Jozwiak"
+    },
+    "lights": {
+      "file": "lights.jpg",
+      "original": "pexels-photograph-10075565.jpg",
+      "pexels_id": "10075565",
+      "pexels_url": "https://www.pexels.com/photo/10075565/",
+      "title": "Dynamic abstract image of colorful light trails swirling in a dark background",
+      "photographer": "photoGraph"
+    },
+    "liquid": {
+      "file": "liquid.jpg",
+      "original": "pexels-thales13-36271430.jpg",
+      "pexels_id": "36271430",
+      "pexels_url": "https://www.pexels.com/photo/vibrant-abstract-liquid-art-with-swirling-colors-36271430/",
+      "title": "Vibrant Abstract Liquid Art with Swirling Colors",
+      "photographer": "Rafael Minguet Delgado"
+    },
+    "manufact": {
+      "file": "manufact.jpg",
+      "original": "pexels-optlasers-7097230.jpg",
+      "pexels_id": "7097230",
+      "pexels_url": "https://www.pexels.com/photo/close-up-shot-of-circuit-board-components-7097230/",
+      "title": "Detailed image of electronic microprocessor boards with components in focus.",
+      "photographer": "Opt Lasers from Poland"
+    },
+    "power": {
+      "file": "power.jpg",
+      "original": "pexels-edgar-snzz-673563365-28048720.jpg",
+      "pexels_id": "28048720",
+      "pexels_url": "https://www.pexels.com/photo/rotor-28048720/",
+      "title": "Close-up of heavy industrial rotor machinery in a Guadalajara workshop",
+      "photographer": "Edgar Snzz"
+    },
+    "robotics": {
+      "file": "robotics.jpg",
+      "original": "pexels-tara-winstead-8386369.jpg",
+      "pexels_id": "8386369",
+      "pexels_url": "https://www.pexels.com/photo/robot-fingers-on-blue-background-8386369/",
+      "title": "Robot fingers on blue background",
+      "photographer": "Tara Winstead"
+    },
+    "voltage": {
+      "file": "voltage.jpg",
+      "original": "pexels-badun-18241245.jpg",
+      "pexels_id": "18241245",
+      "pexels_url": "https://www.pexels.com/photo/yellow-warning-sign-high-voltage-18241245/",
+      "title": "Close-up of a yellow high voltage warning sign mounted on a wall.",
+      "photographer": "Anastasiya Badun"
+    }
+  }
+}

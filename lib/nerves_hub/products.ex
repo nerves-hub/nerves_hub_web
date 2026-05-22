@@ -14,6 +14,7 @@ defmodule NervesHub.Products do
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
   alias NervesHub.Repo
+  alias NervesHub.Uploads
 
   @export_certs_sep "\n\n"
 
@@ -205,6 +206,107 @@ defmodule NervesHub.Products do
     |> Product.delete_changeset()
     |> Repo.update()
   end
+
+  @spec update_product_banner(Product.t(), String.t()) ::
+          {:ok, Product.t()} | {:error, any()}
+  def update_product_banner(%Product{} = product, file_path) do
+    ext = Path.extname(file_path)
+    key = "products/#{product.id}/banner#{ext}"
+    old_key = product.banner_upload_key
+
+    with :ok <- Uploads.upload(file_path, key),
+         {:ok, product} <-
+           product
+           |> Product.banner_changeset(%{banner_upload_key: key})
+           |> Repo.update() do
+      if old_key && old_key != key do
+        maybe_delete_banner_upload(old_key)
+      end
+
+      {:ok, product}
+    end
+  end
+
+  @spec remove_product_banner(Product.t()) :: {:ok, Product.t()} | {:error, any()}
+  def remove_product_banner(%Product{banner_upload_key: nil} = product), do: {:ok, product}
+
+  def remove_product_banner(%Product{} = product) do
+    old_key = product.banner_upload_key
+
+    product
+    |> Product.banner_changeset(%{banner_upload_key: nil})
+    |> Repo.update()
+    |> case do
+      {:ok, product} ->
+        maybe_delete_banner_upload(old_key)
+        {:ok, product}
+
+      error ->
+        error
+    end
+  end
+
+  # Default banners are shared static assets — never delete those.
+  defp maybe_delete_banner_upload("default/" <> _), do: :ok
+  defp maybe_delete_banner_upload(key), do: Uploads.delete(key)
+
+  @banners_json Path.join(:code.priv_dir(:nerves_hub), "static/images/default_banners/banners.json")
+  @external_resource @banners_json
+
+  @default_banners @banners_json
+                   |> File.read!()
+                   |> Jason.decode!()
+                   |> Map.fetch!("banners")
+                   |> Enum.map(fn {name, meta} ->
+                     %{
+                       key: Map.fetch!(meta, "file"),
+                       label: name |> String.capitalize(),
+                       photographer: Map.fetch!(meta, "photographer"),
+                       pexels_url: Map.fetch!(meta, "pexels_url")
+                     }
+                   end)
+                   |> Enum.sort_by(& &1.label)
+
+  @default_banner_keys Enum.map(@default_banners, & &1.key)
+
+  @spec banner_url(Product.t(), boolean()) :: String.t() | nil
+  def banner_url(product, bust_cache? \\ false)
+
+  def banner_url(%Product{banner_upload_key: nil}, _bust_cache?), do: nil
+
+  def banner_url(%Product{banner_upload_key: "default/" <> name}, _bust_cache?) do
+    if name in @default_banner_keys do
+      "/images/default_banners/#{name}"
+    end
+  end
+
+  def banner_url(%Product{banner_upload_key: key}, bust_cache?) do
+    if bust_cache? do
+      ts = System.unique_integer()
+      "#{Uploads.url(key)}?v=#{ts}"
+    else
+      Uploads.url(key)
+    end
+  end
+
+  @spec default_banners() :: [
+          %{key: String.t(), label: String.t(), photographer: String.t(), pexels_url: String.t()}
+        ]
+  def default_banners(), do: @default_banners
+
+  @spec set_default_banner(Product.t(), String.t()) ::
+          {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
+  def set_default_banner(%Product{} = product, name) when is_binary(name) and name != "" do
+    if Enum.any?(@default_banners, &(&1.key == name)) do
+      product
+      |> Product.banner_changeset(%{banner_upload_key: "default/#{name}"})
+      |> Repo.update()
+    else
+      {:ok, product}
+    end
+  end
+
+  def set_default_banner(%Product{} = product, _), do: {:ok, product}
 
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking product changes.

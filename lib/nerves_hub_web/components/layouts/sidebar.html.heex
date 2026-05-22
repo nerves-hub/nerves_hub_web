@@ -49,8 +49,14 @@
               </.link>
               <div class="flex flex-col gap-1.5">
                 <div :for={product <- org.products}>
-                  <.link navigate={~p"/org/#{org}/#{product}/devices"} class="product-picker-product">
-                    {product.name}
+                  <% banner_url = NervesHub.Products.banner_url(product) %>
+                  <.link
+                    navigate={~p"/org/#{org}/#{product}/devices"}
+                    class="product-picker-product relative overflow-hidden bg-cover bg-center"
+                    style={banner_url && "background-image: url('#{banner_url}');"}
+                  >
+                    <div :if={banner_url} class="from-base-900 to-base-900/0 absolute inset-0 bg-linear-to-r"></div>
+                    <span class="relative">{product.name}</span>
                   </.link>
                 </div>
               </div>
@@ -149,6 +155,8 @@
   <div class="flex size-full flex-col">
     <.flash_group flash={@flash} />
 
-    {render_slot(@inner_block)}
+    <div class="flex min-h-0 flex-1 flex-col">
+      {render_slot(@inner_block)}
+    </div>
   </div>
 </div>

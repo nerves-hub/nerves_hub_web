@@ -2,16 +2,16 @@
   <div class="bg-surface-muted border-base-700 flex h-[56px] justify-end border-b"></div>
 
   <div class="h-0 flex-1 overflow-y-auto">
-    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 class="text-base-50 text-xl leading-[30px] font-semibold">All Support Scripts</h1>
-      <div class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs">
+    <NervesHubWeb.Components.PageHeader.simple title="All Support Scripts" banner_url={@banner_url}>
+      <div class="bg-base-800 text-base-300 rounded-sm px-1.5 py-0.5 text-xs">
         {@pager_meta.total_count}
       </div>
-
-      <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/new"} aria-label="Add a support script">
-        <.icon name="add" />Add Support Script
-      </.button>
-    </div>
+      <:actions>
+        <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/new"} aria-label="Add a support script">
+          <.icon name="add" />Add Support Script
+        </.button>
+      </:actions>
+    </NervesHubWeb.Components.PageHeader.simple>
 
     <div :if={Enum.any?(@scripts)} class="listing">
       <table>

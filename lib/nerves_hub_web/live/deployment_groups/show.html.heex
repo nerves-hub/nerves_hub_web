@@ -24,8 +24,8 @@
   </div>
 
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
-    <div class="flex h-[90px] shrink-0 justify-between p-6">
-      <div class="flex items-center gap-3">
+    <NervesHubWeb.Components.PageHeader.detail banner_url={@banner_url} fade_bottom={true}>
+      <:status>
         <svg
           data-is-active={(@deployment_group.is_active && "true") || "false"}
           class="data-[is-active=false]:fill-base-500 data-[is-active=true]:fill-success size-3"
@@ -35,6 +35,8 @@
         >
           <circle cx="3" cy="3" r="3" />
         </svg>
+      </:status>
+      <:title>
         <h1 class="text-base-50 text-xl leading-[30px] font-semibold">
           {@deployment_group.name}
         </h1>
@@ -52,9 +54,8 @@
         >
           Error: Deltas failed to generate
         </div>
-      </div>
-
-      <div class="flex items-center gap-2">
+      </:title>
+      <:actions>
         <.link
           navigate={~p"/org/#{@org}/#{@product}/devices?deployment_id=#{@deployment_group.id}"}
           class="bg-base-800 hover:bg-base-700 flex h-7 cursor-pointer items-center rounded px-2 py-1 transition-colors"
@@ -80,8 +81,8 @@
             <span class="text-base-300 mr-1 text-sm">{@deployment_group.current_release.firmware.platform}</span>
           </div>
         </div>
-      </div>
-    </div>
+      </:actions>
+    </NervesHubWeb.Components.PageHeader.detail>
 
     <div class="border-base-700 flex w-full justify-between border-b px-6">
       <div class="flex">
