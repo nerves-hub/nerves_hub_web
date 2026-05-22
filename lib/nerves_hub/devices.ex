@@ -1295,6 +1295,7 @@ defmodule NervesHub.Devices do
   def up_to_date_count(%DeploymentGroup{} = deployment_group) do
     Device
     |> where([d], d.deployment_id == ^deployment_group.id)
+    |> where([d], d.updates_enabled == true)
     |> where([d], d.firmware_metadata["uuid"] == ^deployment_group.current_release.firmware.uuid)
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
@@ -1311,11 +1312,30 @@ defmodule NervesHub.Devices do
   def waiting_for_update_count(%DeploymentGroup{} = deployment_group) do
     Device
     |> where([d], d.deployment_id == ^deployment_group.id)
+    |> where([d], d.updates_enabled == true)
     |> where(
       [d],
       is_nil(d.firmware_metadata) or
         d.firmware_metadata["uuid"] != ^deployment_group.current_release.firmware.uuid
     )
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
+  end
+
+  @spec updates_disabled_count(DeploymentGroup.t()) :: non_neg_integer()
+  def updates_disabled_count(%DeploymentGroup{id: id}) do
+    Device
+    |> where([d], d.deployment_id == ^id)
+    |> where([d], d.updates_enabled == false)
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
+  end
+
+  @spec in_penalty_box_count(DeploymentGroup.t(), DateTime.t()) :: non_neg_integer()
+  def in_penalty_box_count(%DeploymentGroup{id: id}, now \\ DateTime.utc_now()) do
+    Device
+    |> where([d], d.deployment_id == ^id)
+    |> where([d], not is_nil(d.updates_blocked_until) and d.updates_blocked_until > ^now)
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
   end
