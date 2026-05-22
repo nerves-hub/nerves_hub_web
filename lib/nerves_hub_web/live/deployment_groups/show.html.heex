@@ -41,7 +41,7 @@
         <div
           :if={@deployment_group.status == :preparing}
           phx-remove={JS.hide(transition: {"ease-in duration-1000", "opacity-100", "opacity-0"}, blocking: false)}
-          class="bg-warning border-base-700 pulsing-div flex items-center gap-1 rounded-full border py-0.5 pr-3 pl-2.5"
+          class="bg-notice border-base-700 pulsing-div flex items-center gap-1 rounded-full border py-0.5 pr-3 pl-2.5"
         >
           <span class="text-base-50 text-xs">Preparing: Generating Deltas</span>
         </div>
