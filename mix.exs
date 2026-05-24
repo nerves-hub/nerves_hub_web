@@ -122,7 +122,9 @@ defmodule NervesHub.MixProject do
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.13.0"},
+      {:eqrcode, "~> 0.2.1"},
       {:nimble_csv, "~> 1.1"},
+      {:nimble_totp, "~> 1.0"},
       {:number, "~> 1.0.5"},
       {:oban, "~> 2.11"},
       {:oban_web, "~> 2.11"},
@@ -177,6 +179,8 @@ defmodule NervesHub.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases() do
     [
+      "assets.install": ["cmd pnpm install --dir assets"],
+      "assets.build": ["esbuild default", "tailwind default"],
       "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"],
       "assets.setup": ["assets.install", "assets.build"],
       "ecto.setup": [

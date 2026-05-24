@@ -1,0 +1,60 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Enter authentication code
+  </:title>
+  <:subheader>
+    Open your authenticator app, or enter one of your saved recovery codes.
+  </:subheader>
+
+  <div :if={assigns[:error_message]} role="alert" class="bg-alert-soft fill-alert ring-alert text-alert-content mt-4 mr-2 w-full rounded-sm p-3 shadow-md ring-1">
+    <p class="mt-1 text-sm/5">{@error_message}</p>
+  </div>
+
+  <div class="mt-6">
+    <.form :let={f} for={@form} as={:mfa} id="mfa_form" action={~p"/login/mfa"} class="space-y-6">
+      <div class="space-y-3">
+        <label for="mfa_code" class="text-base-300 block text-sm/6 font-medium">Authentication code</label>
+
+        <input
+          id="mfa_code"
+          name={f[:code].name}
+          value={Phoenix.HTML.Form.input_value(f, :code)}
+          type="text"
+          autocomplete="one-time-code"
+          class="sr-only"
+          data-mfa-code-hidden
+        />
+
+        <div id="mfa-code-inputs" data-mfa-code-input phx-hook="MfaCodeInput" class="flex justify-between gap-2">
+          <input
+            :for={index <- 1..6}
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="1"
+            aria-label={"Authentication code digit #{index}"}
+            data-mfa-code-digit
+            class="border-base-600 bg-base-800 text-base-50 focus:ring-primary h-14 w-12 rounded border text-center text-xl font-semibold focus:ring-2 focus:outline-none sm:h-16 sm:w-14"
+          />
+        </div>
+
+        <p class="text-base-400 text-sm">
+          Paste a six-digit code into any box to fill the code automatically.
+        </p>
+
+        <div class="text-base-400 text-sm">
+          <.input field={f[:recovery_code]} label="Recovery code" placeholder="XXXX-XXXX" autocomplete="one-time-code" />
+        </div>
+      </div>
+
+      <div>
+        <button
+          type="submit"
+          class="text-base-50 flex w-full justify-center rounded-md bg-indigo-500 px-3 py-1.5 text-sm/6 font-semibold shadow-sm hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+        >
+          Verify
+        </button>
+      </div>
+    </.form>
+  </div>
+</Layouts.auth>

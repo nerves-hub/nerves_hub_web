@@ -16,6 +16,7 @@ import HighlightCode from "./hooks/highlightCode.js"
 import LocalShell from "./hooks/localShell.js"
 import LocalTime from "./hooks/localTime.js"
 import LogLineLocalTime from "./hooks/logLineLocalTime.js"
+import MfaCodeInput, { setupMfaCodeInput } from "./hooks/mfaCodeInput.js"
 import PageVisible from "./hooks/pageVisible.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
 import SimpleDate from "./hooks/simpleDate.js"
@@ -50,6 +51,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     LocalShell,
     LocalTime,
     LogLineLocalTime,
+    MfaCodeInput,
     PageVisible,
     SharedSecretClipboardClick,
     SimpleDate,
@@ -119,6 +121,8 @@ window.liveSocket = liveSocket
 document.querySelectorAll(".date-time").forEach((d) => {
   d.innerHTML = dates.formatDateTime(d.innerHTML)
 })
+
+document.querySelectorAll("[data-mfa-code-input]").forEach(setupMfaCodeInput)
 
 window.addEventListener("ca:edit:jitp", () => {
   const checked = document.getElementById("jitp_toggle_ui").checked

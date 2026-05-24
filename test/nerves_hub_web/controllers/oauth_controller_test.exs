@@ -4,6 +4,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
 
   import Swoosh.TestAssertions
 
+  alias NervesHub.Accounts
   alias NervesHub.Accounts.User
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -38,6 +39,33 @@ defmodule NervesHubWeb.OAuthControllerTest do
       |> assert_has("div", with: "Welcome back!")
 
       assert_email_sent(subject: "NervesHub: Welcome Jane Person!")
+    end
+
+    test "requires a TOTP code after Google authentication when MFA is enabled" do
+      user =
+        %{name: "Jane Person", email: "jane@person.com", password: "JohnRingoPaulGeorge"}
+        |> Fixtures.user_fixture()
+
+      {:ok, setup} = Accounts.start_mfa_setup(user, "JohnRingoPaulGeorge")
+
+      {:ok, _user, _recovery_codes} =
+        Accounts.confirm_mfa_setup(user, setup.secret, NimbleTOTP.verification_code(setup.secret))
+
+      user = Accounts.get_user_by_email("jane@person.com") |> elem(1)
+      {:ok, _user} = user |> Ecto.Changeset.change(%{mfa_last_used_at: nil}) |> Repo.update()
+
+      Mimic.stub(Ueberauth, :call, fn conn, _routes ->
+        google_auth = Fixtures.ueberauth_google_success_fixture()
+        assigns = Map.put(conn.assigns, :ueberauth_auth, google_auth)
+        %{conn | assigns: assigns}
+      end)
+
+      build_conn()
+      |> visit(~p"/auth/google/callback?state=dummy&code=dummy&scope=email+profile&prompt=none")
+      |> assert_path(~p"/login/mfa")
+      |> fill_in("Authentication code", with: NimbleTOTP.verification_code(setup.secret))
+      |> submit()
+      |> assert_path(~p"/orgs")
     end
 
     test "shows the failure page if an error occurs" do

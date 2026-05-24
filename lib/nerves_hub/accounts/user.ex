@@ -31,6 +31,11 @@ defmodule NervesHub.Accounts.User do
 
     field(:profile_picture_url, :string)
 
+    field(:mfa_enabled_at, :utc_datetime)
+    field(:mfa_last_used_at, :utc_datetime)
+    field(:mfa_recovery_codes, {:array, :string}, default: [])
+    field(:mfa_secret, :string, redact: true)
+
     field(:google_id, :string)
     field(:google_hd, :string)
     field(:google_last_synced_at, :naive_datetime)
