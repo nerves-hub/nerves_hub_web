@@ -5,8 +5,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
@@ -80,37 +82,210 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("circle[fill='#{offline_indicator_color}']", timeout: 1000)
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
+          topic: "internal:device:#{device.id}",
           event: "connection:change",
-          payload: %{device_id: device.identifier, status: "online"}
+          payload: %{status: "online"}
         })
 
         render(view)
       end)
       |> assert_has("circle[fill='#{online_indicator_color}']")
     end
+  end
 
-    test "connection:status", %{
+  describe "device firmware updates" do
+    test "shows information when the update is requested", %{
       conn: conn,
-      fixture: fixture,
-      offline_indicator_color: offline_indicator_color,
-      online_indicator_color: online_indicator_color
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
     } do
-      %{device: device, org: org, product: product} = fixture
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
 
       conn
-      |> visit(~p"/org/#{org}/#{product}/devices")
-      |> assert_has("circle[fill='#{offline_indicator_color}']", timeout: 1000)
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> assert_has("span", text: "requested")
+    end
+
+    test "shows information when the update is received by the device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "received", nil, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> assert_has("span", text: "received")
+    end
+
+    test "shows information when the update is being downloaded by the device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "downloading", 50, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> assert_has("span", text: "downloading")
+    end
+
+    test "shows information when the update is being applied by the device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "updating", 50, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> assert_has("span", text: "updating")
+    end
+
+    test "shows information when the update 'expires'", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "expired", nil, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> assert_has("span", text: "expired")
+    end
+
+    test "shows information when the update completes successfully", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "completed", nil, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> assert_has("span", text: "completed")
+    end
+
+    test "responds to pubsub updates", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "requested", nil, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "requested")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "received", nil, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "received")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "started", nil, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "started")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "downloading", 35, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "downloading")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "updating", 70, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "updating")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "completed", nil, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "completed")
+    end
+
+    test "hides banner after the device has restarted", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "completed", nil, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1_000)
+      |> assert_has("div", text: "completed")
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
-          event: "connection:status",
-          payload: %{device_id: device.identifier, status: "online"}
+          topic: "internal:device:#{device.id}",
+          event: "connection:change",
+          payload: %{status: "offline"}
         })
 
         render(view)
       end)
-      |> assert_has("circle[fill='#{online_indicator_color}']")
+      |> assert_has("div", text: "completed")
+      |> unwrap(fn view ->
+        Repo.delete_all(InflightUpdate)
+
+        send(view.pid, %Broadcast{
+          topic: "internal:device:#{device.id}",
+          event: "connection:change",
+          payload: %{status: "online"}
+        })
+
+        render(view)
+      end)
+      |> refute_has("div", text: "completed")
     end
   end
 
@@ -550,7 +725,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> select("Update status", option: "Updating")
       |> refute_has("a", text: device.identifier, timeout: 1000)
 
-      {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(device.id, deployment_group)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")

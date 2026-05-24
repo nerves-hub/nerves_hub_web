@@ -27,6 +27,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
     |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
     |> assign(:updating_count, Devices.updating_count(deployment_group))
+    |> assign(:updates_disabled_count, Devices.updates_disabled_count(deployment_group))
+    |> assign(:in_penalty_box_count, Devices.in_penalty_box_count(deployment_group))
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
     |> ok()
   end
@@ -72,6 +74,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
     |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
     |> assign(:updating_count, updating_count)
+    |> assign(:updates_disabled_count, Devices.updates_disabled_count(deployment_group))
+    |> assign(:in_penalty_box_count, Devices.in_penalty_box_count(deployment_group))
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:firmware, deployment_group.current_release.firmware)
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
@@ -145,23 +149,34 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     ~H"""
     <div class="flex h-full flex-col items-start gap-4 p-6">
       <div :if={@waiting_for_update_count == 0} class="bg-base-900 border-base-700 w-full items-center justify-center rounded border p-4">
-        <div class="text-base-50 flex h-10 items-center justify-center text-xl/6 font-medium">All devices are up to date!</div>
+        <div class="text-base-50 flex h-10 items-center justify-center text-xl/6 font-medium">
+          {if @updates_disabled_count > 0, do: "All eligible devices are up to date!", else: "All devices are up to date!"}
+        </div>
+        <div :if={@updates_disabled_count > 0} class="text-nerves-gray-500 flex items-center justify-center text-sm">
+          {@updates_disabled_count} device(s) have updates disabled and were not counted.
+        </div>
       </div>
 
-      <div :if={@waiting_for_update_count > 0} class="bg-base-900 border-base-700 box-content flex h-24 w-full items-center justify-center rounded border">
+      <div :if={@waiting_for_update_count > 0} class="bg-base-900 border-base-700 box-content flex w-full items-center justify-center rounded border">
         <div class="relative top-0 z-20 w-full items-center justify-center overflow-visible rounded">
           <div
             :if={@deployment_group.is_active}
             class="border-success absolute -top-px z-40 rounded-tl border-t"
             role="progressbar"
-            style={"width: #{deployment_group_percentage(@up_to_date_count, @deployment_group)}%"}
+            style={"width: #{deployment_group_percentage(@up_to_date_count, @waiting_for_update_count)}%"}
           >
             <div class="progress-glow h-16 w-full animate-pulse" />
           </div>
 
           <div class="bg-surface-muted/20 my-1 flex flex-col items-center justify-center gap-1 p-2 text-sm font-medium">
-            <div class="text-base">{deployment_group_percentage(@up_to_date_count, @deployment_group)}% of devices updated</div>
+            <div class="text-base">{deployment_group_percentage(@up_to_date_count, @waiting_for_update_count)}% of eligible devices updated</div>
             <div>{@updating_count} device(s) updating - {@waiting_for_update_count} device(s) waiting</div>
+            <div :if={@in_penalty_box_count > 0} class="text-nerves-gray-500">
+              {@in_penalty_box_count} device(s) currently in the penalty box.
+            </div>
+            <div :if={@updates_disabled_count > 0} class="text-nerves-gray-500">
+              {@updates_disabled_count} device(s) have updates disabled and were not counted.
+            </div>
           </div>
         </div>
       </div>
@@ -351,10 +366,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span class="text-base-300 text-sm">{@deployment_group.concurrent_updates}</span>
             </div>
             <div class="flex items-center gap-4">
-              <span class="text-nerves-gray-500 text-sm">Minutes before expiring updates:</span>
-              <span class="text-base-300 text-sm">{@deployment_group.inflight_update_expiration_minutes}</span>
-            </div>
-            <div class="flex items-center gap-4">
               <span class="text-nerves-gray-500 text-sm">Device failure rate:</span>
               <span class="text-base-300 text-sm">
                 <span class="font-bold">{@deployment_group.device_failure_rate_amount}</span> failures per <span class="font-bold">{@deployment_group.device_failure_rate_seconds}</span> seconds
@@ -535,10 +546,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     """
   end
 
-  defp deployment_group_percentage(_up_to_date_count, %{device_count: 0}), do: 0.0
+  defp deployment_group_percentage(0, 0), do: 0.0
 
-  defp deployment_group_percentage(up_to_date_count, deployment_group) do
-    floor(up_to_date_count / deployment_group.device_count * 100)
+  defp deployment_group_percentage(up_to_date_count, waiting_for_update_count) do
+    floor(up_to_date_count / (up_to_date_count + waiting_for_update_count) * 100)
   end
 
   defp assign_update_stats(socket, deployment_group) do

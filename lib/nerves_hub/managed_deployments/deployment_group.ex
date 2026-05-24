@@ -25,7 +25,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :device_failure_rate_seconds,
     :device_failure_rate_amount,
     :failure_threshold,
-    :inflight_update_expiration_minutes,
     :penalty_timeout_minutes
   ]
 
@@ -61,7 +60,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:concurrent_updates, :integer, default: 10)
     field(:total_updating_devices, :integer, default: 0)
     field(:current_updated_devices, :integer, default: 0)
-    field(:inflight_update_expiration_minutes, :integer, default: 60)
+
     field(:queue_management, Ecto.Enum, values: [:FIFO, :LIFO], default: :FIFO)
 
     field(:delta_updatable, :boolean, default: true)
@@ -244,7 +243,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> validate_number(:device_failure_rate_seconds, greater_than_or_equal_to: 60)
     |> validate_number(:device_failure_rate_amount, greater_than: 0)
     |> validate_number(:failure_threshold, greater_than: 0)
-    |> validate_number(:inflight_update_expiration_minutes, greater_than_or_equal_to: 30)
     |> validate_number(:penalty_timeout_minutes, greater_than_or_equal_to: 60)
     |> normalize_priority_queue_threshold()
     |> validate_priority_queue_version_threshold()

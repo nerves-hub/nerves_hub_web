@@ -513,8 +513,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 </button>
               </div>
               <div :if={script.output} class="bg-base-950 border-base-700 mt-2 rounded border p-2">
-                <div id="support-script" phx-hook="SupportScriptOutput" class="overflow-x-scroll"></div>
-                <div id="support-script-output" class="hidden" phx-no-format>{script.output}</div>
+                <div id={"support-script-#{script.id}"} phx-hook="SupportScriptOutput" data-output-id={"support-script-output-#{script.id}"} class="overflow-x-scroll"></div>
+                <div id={"support-script-output-#{script.id}"} class="hidden" phx-no-format>{script.output}</div>
               </div>
             </div>
           </div>
@@ -638,7 +638,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     %{device: device, user: user} = socket.assigns
 
-    case Devices.told_to_update(device, device.deployment_group, user: user) do
+    case DeviceEvents.schedule_update(device.id, device.deployment_group, user: user) do
       {:ok, _inflight_update} ->
         socket
         |> put_flash(:info, "Pushing available firmware update.")

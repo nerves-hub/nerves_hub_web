@@ -10,6 +10,7 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdateStat
   alias NervesHub.Extensions.DeviceExtensionsSetting
   alias NervesHub.Firmwares.FirmwareMetadata
@@ -50,6 +51,7 @@ defmodule NervesHub.Devices.Device do
     belongs_to(:current_device_firmware, DeviceFirmware, type: UUIDv7)
 
     has_one(:latest_connection, DeviceConnection)
+    has_one(:inflight_update, InflightUpdate)
 
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)

@@ -413,23 +413,8 @@ defmodule NervesHub.Fixtures do
     %{fixture | db_cert: db_cert}
   end
 
-  def inflight_update(device, deployment_group, params \\ %{}) do
-    expires_at =
-      DateTime.utc_now()
-      |> DateTime.shift(hour: 1)
-      |> DateTime.truncate(:second)
-
-    defaults = %{
-      "device_id" => device.id,
-      "deployment_id" => deployment_group.id,
-      "firmware_id" => deployment_group.current_release.firmware_id,
-      "firmware_uuid" => deployment_group.current_release.firmware.uuid,
-      "expires_at" => expires_at
-    }
-
-    defaults
-    |> Map.merge(params)
-    |> InflightUpdate.create_changeset()
+  def inflight_update(device, deployment_group) do
+    InflightUpdate.deployment_requested_changeset(deployment_group, device.id, false)
     |> Repo.insert()
   end
 

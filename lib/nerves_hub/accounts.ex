@@ -415,8 +415,12 @@ defmodule NervesHub.Accounts do
     |> Repo.one!()
   end
 
-  def get_org_user(org, user) do
-    get_org_user_query(org, user.id)
+  def get_org_user(org, %User{id: id}) do
+    get_org_user(org, id)
+  end
+
+  def get_org_user(org, user_id) do
+    get_org_user_query(org, user_id)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}

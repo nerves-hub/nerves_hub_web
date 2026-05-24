@@ -6,6 +6,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
+  alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
@@ -340,16 +341,14 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      subscribe_for_updates(%Device{identifier: identifier})
-
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.join_and_wait(socket, params)
 
       assert device = Repo.get_by(Device, identifier: identifier)
 
-      assert_connection_change()
       assert_online_and_available(device)
 
+      subscribe_for_updates(device)
       close_socket_cleanly(socket)
     end
 
@@ -375,16 +374,14 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      subscribe_for_updates(%Device{identifier: identifier})
-
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.join_and_wait(socket, params)
 
       assert device = Repo.get_by(Device, identifier: identifier)
 
-      assert_connection_change()
       assert_online_and_available(device)
 
+      subscribe_for_updates(device)
       close_socket_cleanly(socket)
     end
 
@@ -564,14 +561,12 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      subscribe_for_updates(%Device{identifier: identifier})
-
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.join_and_wait(socket, params)
 
-      assert_connection_change()
-
       assert device = Repo.get_by(Device, identifier: identifier)
+
+      subscribe_for_updates(device)
 
       assert_online_and_available(device)
 
@@ -619,13 +614,9 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      subscribe_for_updates(%Device{identifier: identifier})
-
       {:ok, socket} = SocketClient.start_link(opts)
 
       SocketClient.join_and_wait(socket, params)
-
-      assert_connection_change()
 
       assert device = Repo.get_by(Device, identifier: identifier)
       assert device_connection = Connections.get_latest_for_device(device.id)
@@ -1025,7 +1016,7 @@ defmodule NervesHubWeb.WebsocketTest do
         )
 
       deployment_group = Repo.preload(deployment_group, :org)
-      {:ok, _} = Devices.told_to_update(device, deployment_group)
+      {:ok, _inflight_update} = DeviceEvents.schedule_update(device.id, deployment_group)
 
       assert Enum.count(Devices.inflight_updates_for(deployment_group)) == 1
 

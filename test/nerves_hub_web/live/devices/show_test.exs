@@ -197,8 +197,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit(device_show_path(fixture))
       |> assert_has("svg[data-connection-status=unknown]")
       |> unwrap(fn view ->
-        {:ok, connection} = Connections.device_connecting(fixture.device.id, fixture.device.identifier)
-        :ok = Connections.device_connected(fixture.device.identifier, connection.id)
+        {:ok, connection} = Connections.device_connecting(fixture.device.id)
+        :ok = Connections.device_connected(connection.id)
         render(view)
       end)
       |> assert_has("svg[data-connection-status=connected]")
@@ -220,8 +220,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       # Set device status to :provisioned for deployment group eligibility
       %{status: :provisioned} = device = Devices.set_as_provisioned!(device)
 
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
 
       # mismatch device and deployment group firmware so "Send Update" form doesn't display
       original_firmware_platform = device.firmware_metadata.platform
@@ -243,7 +243,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "No device health information has been received.")
       |> refute_has("div", text: "CPU use")
       |> unwrap(fn view ->
-        :ok = Connections.device_disconnected(device, connection.id)
+        :ok = Connections.device_disconnected(connection.id)
         render(view)
       end)
       |> assert_has("svg[data-connection-status=disconnected]")
@@ -261,8 +261,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 22})
 
-        {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-        :ok = Connections.device_connected(device.identifier, connection.id)
+        {:ok, connection} = Connections.device_connecting(device.id)
+        :ok = Connections.device_connected(connection.id)
 
         topic = "device:#{device.id}:extensions"
         ChannelServer.broadcast!(NervesHub.PubSub, topic, "health_check_report", %{})
@@ -277,8 +277,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
-  describe "fwup progress" do
-    test "no fwup progress", %{conn: conn, org: org, product: product, device: device} do
+  describe "firmware update progress" do
+    test "no firmware update progress", %{conn: conn, org: org, product: product, device: device} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
@@ -286,36 +286,119 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> refute_has("div.progress")
     end
 
-    test "some fwup progress", %{conn: conn, org: org, product: product, device: device} do
+    test "shows information when the update is requested", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> unwrap(fn view ->
-        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 50}})
-        render(view)
-      end)
-      |> assert_has("div", text: "Updating firmware 50%")
+      |> assert_has("div", text: "Firmware update request sent to the device")
     end
 
-    test "complete fwup progress", %{conn: conn, org: org, product: product, device: device} do
+    test "shows information when the update is received by the device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "received", nil, true)
+
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> unwrap(fn view ->
-        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 50}})
-        render(view)
-      end)
-      |> assert_has("div", text: "Updating firmware 50%")
-      |> unwrap(fn view ->
-        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 100}})
-        render(view)
-      end)
-      |> refute_has("div", text: "Progress")
-      |> refute_has("div.progress")
-      |> assert_has("div", text: "Update complete: The device will reboot shortly.")
+      |> assert_has("div", text: "Firmware update request received by the device")
     end
 
-    test "hides flash after the device has restarted", %{
+    test "shows information when the update is being downloaded by the device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "downloading", 50, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Downloading firmware : 50%")
+    end
+
+    test "shows information when the update is being applied by the device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "updating", 50, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Updating firmware : 50%")
+    end
+
+    test "shows information when the update 'expires'", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "expired", nil, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Firmware update aborted - no updates received")
+    end
+
+    test "shows information when the update completes successfully", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "completed", nil, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
+    end
+
+    test "responds to pubsub updates", %{
       conn: conn,
       org: org,
       product: product,
@@ -323,33 +406,77 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
       |> unwrap(fn view ->
-        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 100}})
+        Devices.update_inflight_update(device.id, "requested", nil, false)
         render(view)
       end)
-      |> refute_has("div", text: "Progress")
-      |> refute_has("div.progress")
-      |> assert_has("div", text: "Update complete: The device will reboot shortly.")
+      |> assert_has("div", text: "Firmware update request sent to the device")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "received", nil, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "Firmware update request received by the device")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "started", nil, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "Firmware update started...")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "downloading", 35, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "Downloading firmware : 35%")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "updating", 70, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "Updating firmware : 70%")
+      |> unwrap(fn view ->
+        Devices.update_inflight_update(device.id, "completed", nil, false)
+        render(view)
+      end)
+      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
+    end
+
+    test "hides banner after the device has restarted", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      firmware: firmware
+    } do
+      {:ok, _inflight_update} =
+        InflightUpdate.manual_requested_changeset(device.id, firmware)
+        |> Repo.insert()
+
+      Devices.update_inflight_update(device.id, "completed", nil, true)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
       |> unwrap(fn view ->
         send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
+          topic: "internal:device:#{device.id}",
           event: "connection:change",
           payload: %{status: "offline"}
         })
 
         render(view)
       end)
-      |> assert_has("div", text: "Update complete: The device will reboot shortly.")
+      |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
       |> unwrap(fn view ->
+        Repo.delete_all(InflightUpdate)
+
         send(view.pid, %Broadcast{
-          topic: "device:#{device.identifier}:internal",
+          topic: "internal:device:#{device.id}",
           event: "connection:change",
           payload: %{status: "online"}
         })
 
         render(view)
       end)
-      |> refute_has("div", text: "Update complete: The device will reboot shortly.")
+      |> refute_has("div", text: "Firmware update complete, waiting for device to restart")
     end
   end
 
@@ -374,8 +501,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{}})
 
       conn
@@ -391,8 +518,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{"latitude" => nil, "longitude" => nil}})
 
       conn
@@ -408,8 +535,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{"latitude" => "", "longitude" => ""}})
 
       conn
@@ -424,8 +551,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "location" => %{"error_code" => "BOOP", "error_description" => "BEEP"}
       }
 
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, metadata)
 
       conn
@@ -446,8 +573,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         }
       }
 
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, metadata)
 
       conn
@@ -671,8 +798,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
 
       {:ok, {_release, deployment_group}} =
         ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
@@ -714,8 +841,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
         |> Repo.update!()
 
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
@@ -942,8 +1069,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
 
       conn
@@ -976,8 +1103,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -1029,8 +1156,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -1079,8 +1206,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       Devices.update_device(device, %{firmware_metadata: metadata})
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device.id, device.identifier)
-      :ok = Connections.device_connected(device.identifier, connection.id)
+      {:ok, connection} = Connections.device_connecting(device.id)
+      :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})

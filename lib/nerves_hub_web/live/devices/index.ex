@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.BulkActions
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
@@ -24,7 +25,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   require OpenTelemetry.Tracer, as: Tracer
 
-  @list_refresh_time 10_000
+  @list_refresh_time 60_000
   # Delay frequent refresh triggers to this interval
   @refresh_delay 1000
 
@@ -147,7 +148,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:sort_direction, Map.get(unsigned_params, "sort_direction", "asc"))
     |> assign(:current_filters, filters)
     |> assign(:paginate_opts, pagination_opts)
-    |> assign(:progress, socket.assigns[:progress] || %{})
     |> assign(:currently_filtering, filters != @default_filters)
     |> assign(:params, unsigned_params)
     |> assign_display_devices()
@@ -631,42 +631,51 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
-    socket
-    |> assign(
-      :received_connection_change_identifiers,
-      Map.put(socket.assigns.received_connection_change_identifiers, payload.device_id, payload)
-    )
-    |> safe_refresh()
-    |> update_device_statuses(payload)
-  end
+  def handle_info(%Broadcast{topic: topic, event: "connection:change", payload: %{status: "online"}}, socket) do
+    device_id = parse_device_id(topic)
 
-  def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
     socket
-    |> assign(
-      :received_connection_change_identifiers,
-      Map.put(socket.assigns.received_connection_change_identifiers, payload.device_id, payload)
-    )
+    |> update(:received_connection_change_identifiers, &Map.put(&1, device_id, "online"))
     |> safe_refresh()
-    |> update_device_statuses(payload)
-  end
-
-  def handle_info(%Broadcast{event: "fwup_progress", payload: %{device_id: device_id, percent: percent}}, socket)
-      when percent > 99 do
-    socket
-    |> assign(:progress, Map.delete(socket.assigns.progress, device_id))
-    |> safe_refresh()
+    |> update_device_statuses(device_id, "online")
+    |> update_firmware_progress(device_id)
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "fwup_progress", payload: %{device_id: device_id, percent: percent}}, socket) do
+  def handle_info(%Broadcast{topic: topic, event: "connection:change", payload: %{status: "offline"}}, socket) do
+    device_id = parse_device_id(topic)
+
     socket
-    |> assign(:progress, Map.put(socket.assigns.progress, device_id, percent))
-    |> safe_refresh()
+    |> update(:received_connection_change_identifiers, &Map.put(&1, device_id, "offline"))
+    |> update_device_statuses(device_id, "offline")
     |> noreply()
   end
 
-  # Unknown broadcasts get ignored, likely from the device:id:internal channel
+  def handle_info(%Broadcast{topic: topic, event: "firmware_update_progress", payload: %{stage: "expired"}}, socket) do
+    device_id = parse_device_id(topic)
+
+    socket
+    |> update(:progress, &Map.put(&1, device_id, %{stage: "update aborted", percent: 0}))
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{topic: topic, event: "firmware_update_progress", payload: %{stage: "completed"}}, socket) do
+    device_id = parse_device_id(topic)
+
+    socket
+    |> update(:progress, &Map.put(&1, device_id, %{stage: "completed, restarting", percent: 100}))
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{topic: topic, event: "firmware_update_progress", payload: payload}, socket) do
+    device_id = parse_device_id(topic)
+
+    socket
+    |> update(:progress, &Map.put(&1, device_id, %{stage: payload.stage, percent: payload[:percent] || 0}))
+    |> noreply()
+  end
+
+  # Unknown broadcasts get ignored, likely from the internal:device:id channel
   def handle_info(%Broadcast{}, socket) do
     socket
     |> safe_refresh()
@@ -690,8 +699,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def handle_info(:live_refresh, socket) do
     if socket.assigns.visible? and socket.assigns.live_refresh_pending? do
       Tracer.with_span "NervesHubWeb.Live.Devices.Index.live_refresh_device_list" do
-        socket
-        |> assign_display_devices()
+        assign_display_devices(socket)
       end
     else
       socket
@@ -737,20 +745,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     Enum.each(
       old_devices.result || [],
-      fn device -> socket.endpoint.unsubscribe("device:#{device.identifier}:internal") end
+      fn device -> socket.endpoint.unsubscribe("internal:device:#{device.id}") end
     )
 
     updated_device_statuses =
       Map.new(updated_devices, fn device ->
-        socket.endpoint.subscribe("device:#{device.identifier}:internal")
+        socket.endpoint.subscribe("internal:device:#{device.id}")
 
-        payload = socket.assigns.received_connection_change_identifiers[device.identifier]
+        status = socket.assigns.received_connection_change_identifiers[device.id]
 
-        if payload do
-          {payload.device_id, payload.status}
-        else
-          {device.identifier, Tracker.connection_status(device)}
-        end
+        {device.id, status || Tracker.connection_status(device)}
       end)
 
     socket
@@ -758,6 +762,21 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:device_statuses, AsyncResult.ok(old_device_statuses, updated_device_statuses))
     |> assign(:received_connection_change_identifiers, %{})
     |> device_pagination_assigns(paginate_opts, pager)
+    |> then(fn socket ->
+      progress =
+        Enum.reduce(updated_devices, %{}, fn device, acc ->
+          if device.inflight_update do
+            Map.put(acc, device.id, %{
+              stage: to_string(device.inflight_update.status),
+              percent: device.inflight_update.progress || 0
+            })
+          else
+            acc
+          end
+        end)
+
+      assign(socket, :progress, progress)
+    end)
     |> noreply()
   end
 
@@ -767,7 +786,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     message =
       "Live.Devices.Index.handle_async:update_device_list failed due to exit: #{inspect(reason)}"
 
-    {:ok, _} = Sentry.capture_message(message, result: :none)
+    _ = Sentry.capture_message(message, result: :none)
 
     socket
     |> assign(:devices, AsyncResult.failed(devices, {:exit, reason}))
@@ -955,16 +974,22 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp transform_deployment_filter(filters), do: %{filters | deployment_id: String.to_integer(filters.deployment_id)}
 
-  defp update_device_statuses(socket, payload) do
-    updated_device_statuses =
-      Map.replace(socket.assigns.device_statuses.result, payload.device_id, payload.status)
+  defp update_device_statuses(socket, device_id, status) do
+    updated_statuses = Map.replace(socket.assigns.device_statuses.result, device_id, status)
 
-    {:noreply,
-     assign(
-       socket,
-       :device_statuses,
-       AsyncResult.ok(updated_device_statuses)
-     )}
+    assign(socket, :device_statuses, AsyncResult.ok(updated_statuses))
+  end
+
+  defp update_firmware_progress(%{assigns: %{progress: progress}} = socket, device_id) do
+    %Device{id: device_id}
+    |> Devices.inflight_update_for()
+    |> case do
+      nil -> Map.delete(progress, device_id)
+      ifu -> Map.put(progress, device_id, %{stage: ifu.status, percent: ifu.progress})
+    end
+    |> then(fn progresses ->
+      assign(socket, :progress, progresses)
+    end)
   end
 
   defp firmware_versions(product_id) do
@@ -1075,12 +1100,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     nil
   end
 
-  defp progress_style(progress) do
+  defp progress_style(progress_info) do
     """
      background-repeat: no-repeat, no-repeat;
      background-image: linear-gradient(90deg, rgba(16, 185, 129, 1.00) 0%, rgba(16, 185, 129, 1.0) 100%),
                         radial-gradient(circle at 0%, rgba(16, 185, 129, 0.12) 0, rgba(16, 185, 129, 0.12) 60%, rgba(16, 185, 129, 0.0) 100%);
-     background-size: #{progress}% 1px, #{progress * 1.1}% 100%;
+     background-size: #{progress_info[:percent]}% 1px, #{progress_info[:percent] * 1.1}% 100%;
     """
   end
 
@@ -1175,9 +1200,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> assign(:live_refresh_timer, Process.send_after(self(), :live_refresh, @refresh_delay))
     else
       # a timer is already pending, we flag the pending request
-      socket
-      |> assign(:live_refresh_pending?, true)
+      assign(socket, :live_refresh_pending?, true)
     end
+  end
+
+  defp parse_device_id(topic) do
+    "internal:device:" <> device_id = topic
+    String.to_integer(device_id)
   end
 
   defp onboarding_nhl_host() do

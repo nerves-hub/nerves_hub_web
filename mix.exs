@@ -86,7 +86,7 @@ defmodule NervesHub.MixProject do
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 1.0.0"},
       {:comeonin, "~> 5.3"},
-      {:confuse, "~> 0.3.1"},
+      {:confuse, "~> 0.4.0"},
       {:contex, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:crontab, "~> 1.1"},
@@ -107,7 +107,7 @@ defmodule NervesHub.MixProject do
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
       {:hackney, "~> 1.16"},
-      {:hammer, "~> 7.3.0"},
+      {:hammer, "~> 7.4.0"},
       {:hlclock, "~> 1.0"},
       {:process_hub, "~> 0.5.0-beta"},
       {:jason, "~> 1.2", override: true},
@@ -117,7 +117,7 @@ defmodule NervesHub.MixProject do
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.14.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.16.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
@@ -150,7 +150,7 @@ defmodule NervesHub.MixProject do
       {:phoenix_test, "~> 0.8", only: :test},
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
-      {:quokka, "~> 2.12.1", only: [:dev, :test]},
+      {:quokka, "~> 2.13.1", only: [:dev, :test]},
       {:req, "~> 0.5"},
       {:sentry, "~> 13.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
