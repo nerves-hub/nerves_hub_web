@@ -25,6 +25,7 @@
     "Dockerfile",
     "config",
     "assets/{node_modules,static,vendor}",
+    "assets/pnpm-lock.yaml",
     "mix.exs",
     "priv",
     "rel",
