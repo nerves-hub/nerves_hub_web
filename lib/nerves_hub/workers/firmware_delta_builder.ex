@@ -4,7 +4,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
     max_attempts: 3,
     unique: [
       period: 60 * 10,
-      states: [:available, :scheduled, :executing],
+      states: [:available, :scheduled, :executing, :suspended, :retryable],
       keys: [:source_id, :target_id],
       fields: [:worker, :args]
     ]
