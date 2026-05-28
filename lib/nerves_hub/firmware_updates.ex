@@ -17,6 +17,12 @@ defmodule NervesHub.FirmwareUpdates do
 
   @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
+  def firmware_update_successful(%Device{firmware_metadata: nil} = device, _previous_metadata) do
+    # Nothing meaningful to record — the device joined without a usable
+    # firmware uuid (see update_firmware_metadata/4 with nil metadata).
+    {:ok, device}
+  end
+
   def firmware_update_successful(device, previous_metadata) do
     :telemetry.execute([:nerves_hub, :devices, :update, :successful], %{count: 1}, %{
       identifier: device.identifier,
