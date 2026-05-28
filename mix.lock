@@ -50,7 +50,7 @@
   "ham": {:hex, :ham, "0.3.2", "02ae195f49970ef667faf9d01bc454fb80909a83d6c775bcac724ca567aeb7b3", [:mix], [], "hexpm", "b71cc684c0e5a3d32b5f94b186770551509e93a9ae44ca1c1a313700f2f6a69a"},
   "hammer": {:hex, :hammer, "7.4.0", "7ec06643280583b73245d360c6c8797c080ad6cc45788206abc4358eadd70414", [:mix], [], "hexpm", "ae50e0cadd17c68e2379eb8bf06b63bc882a2f9bd6350f8a2c2727c56d082b3d"},
   "hash_ring": {:hex, :hash_ring, "0.4.2", "65d7e84ee911c2f07e53193711013ec9b9761c5eb180720e31224b776c98f502", [:rebar3], [], "hexpm", "c327d99b1e2af41b50e5c4803a9bee7932db2c0f39ad7854a9fdad7e42444066"},
-  "hlclock": {:hex, :hlclock, "1.0.0", "7a72fc7a20a9382499216227edf97a8b118e21fc3fcad0e81b8d10c616ce1431", [:mix], [], "hexpm", "d3f994336a7fcbc68bf08b14b2101b61e57bef82c032a6e05c1cdc753612c941"},
+  "hlclock": {:hex, :hlclock, "1.1.0", "276cdc204f89915ad45b1223968d37b59a483edce779704cba29cff18b5c4ebd", [:mix], [], "hexpm", "41c8c3655850fec9c523e00af679b2282baa70ee7c959a6d01f33140302bcd94"},
   "hpack": {:hex, :hpack_erl, "0.3.0", "2461899cc4ab6a0ef8e970c1661c5fc6a52d3c25580bc6dd204f84ce94669926", [:rebar3], [], "hexpm", "d6137d7079169d8c485c6962dfe261af5b9ef60fbc557344511c1e65e3d95fb0"},
   "hpax": {:hex, :hpax, "1.0.3", "ed67ef51ad4df91e75cc6a1494f851850c0bd98ebc0be6e81b026e765ee535aa", [:mix], [], "hexpm", "8eab6e1cfa8d5918c2ce4ba43588e894af35dbd8e91e6e55c817bca5847df34a"},
   "idna": {:hex, :idna, "6.1.1", "8a63070e9f7d0c62eb9d9fcb360a7de382448200fbbd1b106cc96d3d8099df8d", [:rebar3], [{:unicode_util_compat, "~> 0.7.0", [hex: :unicode_util_compat, repo: "hexpm", optional: false]}], "hexpm", "92376eb7894412ed19ac475e4a86f7b413c1b9fbb5bd16dccd57934157944cea"},
