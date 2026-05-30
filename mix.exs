@@ -179,8 +179,6 @@ defmodule NervesHub.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases() do
     [
-      "assets.install": ["cmd pnpm install --dir assets"],
-      "assets.build": ["esbuild default", "tailwind default"],
       "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"],
       "assets.setup": ["assets.install", "assets.build"],
       "ecto.setup": [

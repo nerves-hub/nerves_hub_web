@@ -18,7 +18,6 @@ config :bun, :version, "1.2.18"
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.2",
-  tool: :pnpm,
   default: [
     args:
       ~w(js/app.js --bundle --target=es2021 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --loader:.png=file),
