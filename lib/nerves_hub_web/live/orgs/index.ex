@@ -28,6 +28,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
       |> assign(:page_title, "Organizations")
       |> assign(:show_all_pinned?, false)
       |> assign(:orgs, orgs)
+      |> assign(:banner_urls, banner_urls(orgs))
       |> assign(:pinned_devices, pinned_devices)
       |> assign(:device_statuses, statuses)
       |> assign(:device_limit, @pinned_devices_limit)
@@ -44,11 +45,29 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     |> noreply()
   end
 
+  def handle_event("select-onboarding-banner", %{"banner" => ""}, socket) do
+    {:noreply, assign(socket, :selected_banner, nil)}
+  end
+
+  def handle_event("select-onboarding-banner", %{"banner" => banner}, socket) do
+    {:noreply, assign(socket, :selected_banner, banner)}
+  end
+
+  def handle_event("validate-onboarding", params, socket) do
+    socket =
+      socket
+      |> assign(:org_name, params["org_name"] || socket.assigns.org_name)
+      |> assign(:product_name, params["product_name"] || socket.assigns.product_name)
+
+    {:noreply, socket}
+  end
+
   def handle_event("save_onboarding", %{"org_name" => org_name, "product_name" => product_name}, socket) do
     user = socket.assigns.current_scope.user
 
     with {:ok, org} <- Accounts.create_org(user, %{name: org_name}),
          {:ok, product} <- Products.create_product(%{name: product_name, org_id: org.id}),
+         {:ok, product} <- apply_onboarding_banner(socket, product),
          {:ok, _shared_secret} <- Products.create_shared_secret_auth(product) do
       socket
       |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
@@ -58,6 +77,28 @@ defmodule NervesHubWeb.Live.Orgs.Index do
         socket
         |> assign(:onboarding_error, changeset_error_message(changeset))
         |> noreply()
+    end
+  end
+
+  defp apply_onboarding_banner(socket, product) do
+    case socket.assigns.uploads.banner.entries do
+      [_entry | _] ->
+        [filepath] =
+          consume_uploaded_entries(socket, :banner, fn %{path: path}, entry ->
+            ext = Path.extname(entry.client_name)
+            dest = Path.join(System.tmp_dir(), "banner_#{product.id}#{ext}")
+            File.cp!(path, dest)
+            {:ok, dest}
+          end)
+
+        try do
+          Products.update_product_banner(product, filepath)
+        after
+          File.rm(filepath)
+        end
+
+      [] ->
+        Products.set_default_banner(product, socket.assigns[:selected_banner])
     end
   end
 
@@ -103,6 +144,13 @@ defmodule NervesHubWeb.Live.Orgs.Index do
       |> assign(:org_name, org_name)
       |> assign(:product_name, product_name)
       |> assign(:onboarding_error, nil)
+      |> assign(:default_banners, Products.default_banners())
+      |> assign(:selected_banner, nil)
+      |> allow_upload(:banner,
+        accept: ~w(.jpg .jpeg .png .webp),
+        max_entries: 1,
+        max_file_size: 5_000_000
+      )
     else
       assign(socket, :onboarding, false)
     end
@@ -117,5 +165,14 @@ defmodule NervesHubWeb.Live.Orgs.Index do
     |> Enum.map_join(", ", fn {field, errors} ->
       "#{field} #{Enum.join(errors, ", ")}"
     end)
+  end
+
+  defp banner_urls(orgs) do
+    for org <- orgs,
+        product <- org.products,
+        url = Products.banner_url(product),
+        into: %{} do
+      {product.id, url}
+    end
   end
 end

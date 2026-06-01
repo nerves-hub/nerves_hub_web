@@ -2,38 +2,38 @@
   <div class="bg-surface-muted border-base-700 flex h-[56px] justify-end border-b"></div>
 
   <div class="h-0 flex-1 overflow-y-auto" phx-drop-target={@uploads.archive.ref}>
-    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 class="text-base-50 text-xl leading-[30px] font-semibold">All Archives</h1>
-      <div class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs">
+    <NervesHubWeb.Components.PageHeader.simple title="All Archives" banner_url={@banner_url}>
+      <div class="bg-base-800 text-base-300 rounded-sm px-1.5 py-0.5 text-xs">
         {@pager_meta.total_count}
       </div>
+      <:actions>
+        <div :for={entry <- @uploads.archive.entries} class="flex w-2/5 flex-col items-center pr-2 pl-4">
+          <div class="mb-1 flex justify-between">
+            <span class="font-base text-sm text-indigo-500 dark:text-white">Uploading archive... </span>
+            <span class="font-base text-sm text-indigo-500 dark:text-white">{entry.progress}%</span>
+          </div>
+          <div class="h-2.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+            <div class="h-2.5 animate-pulse rounded-full bg-indigo-500" style={"width: #{entry.progress}%"}></div>
+          </div>
+        </div>
 
-      <div :for={entry <- @uploads.archive.entries} class="flex w-2/5 flex-col items-center pr-2 pl-4">
-        <div class="mb-1 flex justify-between">
-          <span class="font-base text-sm text-indigo-500 dark:text-white">Uploading archive... </span>
-          <span class="font-base text-sm text-indigo-500 dark:text-white">{entry.progress}%</span>
-        </div>
-        <div class="h-2.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-          <div class="h-2.5 animate-pulse rounded-full bg-indigo-500" style={"width: #{entry.progress}%"}></div>
-        </div>
-      </div>
-
-      <form phx-change="validate-firmware" class={[Enum.any?(@uploads.archive.entries) && "hidden"]}>
-        <div class="bg-base-800 border-base-600 flex gap-2 rounded border px-3 py-1.5 hover:cursor-pointer">
-          <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
-            <path
-              d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
-              stroke="#A1A1AA"
-              stroke-width="1.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-          <label for={@uploads.archive.ref} class="text-base-300 text-sm font-medium hover:cursor-pointer">Upload Archive</label>
-          <.live_file_input upload={@uploads.archive} class="hidden" />
-        </div>
-      </form>
-    </div>
+        <form phx-change="validate-firmware" class={[Enum.any?(@uploads.archive.entries) && "hidden"]}>
+          <div class="bg-base-800 border-base-600 flex gap-2 rounded border px-3 py-1.5 hover:cursor-pointer">
+            <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
+                stroke="#A1A1AA"
+                stroke-width="1.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <label for={@uploads.archive.ref} class="text-base-300 text-sm font-medium hover:cursor-pointer">Upload Archive</label>
+            <.live_file_input upload={@uploads.archive} class="hidden" />
+          </div>
+        </form>
+      </:actions>
+    </NervesHubWeb.Components.PageHeader.simple>
     <%= if Enum.any?(@archives) do %>
       <div class="listing">
         <table>

@@ -13,9 +13,7 @@
   </div>
 
   <div class="h-0 flex-1 overflow-y-auto">
-    <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 class="text-base-50 text-base font-semibold">{@script.name}</h1>
-    </div>
+    <NervesHubWeb.Components.PageHeader.simple title={@script.name} banner_url={@banner_url} size={:small} />
 
     <div class="flex flex-col items-start justify-between gap-4 p-6">
       <.form id="script-form" for={@form} class="w-full" phx-change="validate" phx-submit="update-script">

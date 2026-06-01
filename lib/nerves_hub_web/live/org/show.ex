@@ -11,9 +11,18 @@ defmodule NervesHubWeb.Live.Org.Show do
     |> page_title("Products - #{scope.org.name}")
     |> assign(:org, scope.org)
     |> assign(:products, products)
+    |> assign(:banner_urls, banner_urls(products))
     |> assign(:product_device_info, %{})
     |> sidebar_tab(:products)
     |> ok()
+  end
+
+  defp banner_urls(products) do
+    for product <- products,
+        url = Products.banner_url(product),
+        into: %{} do
+      {product.id, url}
+    end
   end
 
   def fade_in(selector) do

@@ -13,12 +13,114 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> assign(:page_title, "#{product.name} Settings")
       |> sidebar_tab(:settings)
       |> assign(:product, product)
+      |> assign(:banner_url, Products.banner_url(product, true))
+      |> assign(:selected_banner, selected_banner(product))
+      |> assign(:custom_banner_url, custom_banner_url(product))
       |> assign(:shared_secrets, product.shared_secret_auths)
       |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
       |> assign(:form, to_form(Ecto.Changeset.change(product)))
       |> assign(:available_extensions, extensions())
+      |> allow_upload(:banner,
+        accept: ~w(.jpg .jpeg .png .webp),
+        max_entries: 1,
+        max_file_size: 5_000_000,
+        auto_upload: true,
+        progress: &handle_progress/3
+      )
 
     {:ok, socket}
+  end
+
+  defp selected_banner(%{banner_upload_key: nil}), do: nil
+
+  defp selected_banner(%{banner_upload_key: "default/" <> name}) do
+    if Enum.any?(Products.default_banners(), &(&1.key == name)), do: name
+  end
+
+  defp selected_banner(_), do: :custom
+
+  defp custom_banner_url(%{banner_upload_key: nil}), do: nil
+  defp custom_banner_url(%{banner_upload_key: "default/" <> _}), do: nil
+  defp custom_banner_url(product), do: Products.banner_url(product, true)
+
+  def handle_progress(:banner, entry, socket) do
+    if entry.done? do
+      authorized!(:"product:update", socket.assigns.current_scope)
+
+      product = socket.assigns.product
+
+      [filepath] =
+        consume_uploaded_entries(socket, :banner, fn %{path: path}, entry ->
+          ext = Path.extname(entry.client_name)
+          dest = Path.join(System.tmp_dir(), "banner_#{product.id}#{ext}")
+          File.cp!(path, dest)
+          {:ok, dest}
+        end)
+
+      socket =
+        try do
+          case Products.update_product_banner(product, filepath) do
+            {:ok, product} ->
+              socket
+              |> assign(:product, product)
+              |> assign(:banner_url, Products.banner_url(product, true))
+              |> assign(:selected_banner, :custom)
+              |> assign(:custom_banner_url, custom_banner_url(product))
+              |> put_flash(:info, "Banner image uploaded successfully.")
+
+            {:error, _} ->
+              put_flash(socket, :error, "Failed to upload banner image.")
+          end
+        after
+          File.rm(filepath)
+        end
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("validate-banner", _params, socket), do: {:noreply, socket}
+
+  def handle_event("select-banner", %{"banner" => ""}, socket) do
+    authorized!(:"product:update", socket.assigns.current_scope)
+
+    case Products.remove_product_banner(socket.assigns.product) do
+      {:ok, product} ->
+        socket
+        |> assign(:product, product)
+        |> assign(:banner_url, nil)
+        |> assign(:selected_banner, nil)
+        |> assign(:custom_banner_url, nil)
+        |> put_flash(:info, "Banner removed.")
+        |> noreply()
+
+      {:error, _} ->
+        socket
+        |> put_flash(:error, "Failed to remove banner.")
+        |> noreply()
+    end
+  end
+
+  def handle_event("select-banner", %{"banner" => banner}, socket) do
+    authorized!(:"product:update", socket.assigns.current_scope)
+
+    case Products.set_default_banner(socket.assigns.product, banner) do
+      {:ok, product} ->
+        socket
+        |> assign(:product, product)
+        |> assign(:banner_url, Products.banner_url(product, true))
+        |> assign(:selected_banner, banner)
+        |> assign(:custom_banner_url, nil)
+        |> put_flash(:info, "Banner updated.")
+        |> noreply()
+
+      {:error, _} ->
+        socket
+        |> put_flash(:error, "Failed to update banner.")
+        |> noreply()
+    end
   end
 
   def handle_event("add-shared-secret", _params, socket) do

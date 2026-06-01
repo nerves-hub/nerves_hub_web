@@ -53,8 +53,8 @@
       </div>
     </div>
 
-    <div class="flex h-[89px] shrink-0 justify-between gap-2 p-6">
-      <div class="flex shrink-0 items-center gap-3">
+    <NervesHubWeb.Components.PageHeader.detail banner_url={@banner_url} fade_bottom={true}>
+      <:status>
         <svg
           data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
           class="data-[connection-status=connected]:fill-success data-[connection-status=connecting]:fill-primary-500 data-[connection-status=disconnected]:fill-base-500 data-[connection-status=unknown]:fill-base-500 size-3 shrink-0 data-[connection-status=connecting]:animate-pulse"
@@ -64,12 +64,13 @@
         >
           <circle cx="3" cy="3" r="3" />
         </svg>
+      </:status>
+      <:title>
         <h1 class="text-base-50 shrink-0 font-mono text-xl leading-[30px] font-semibold">
           {@device.identifier}
         </h1>
-      </div>
-
-      <div class="flex items-center gap-2">
+      </:title>
+      <:actions>
         <div :if={show_firmware_status_box(@device)} class="bg-base-800 flex items-center rounded px-2 py-1">
           <span class="text-base-400 mr-1 hidden text-sm lg:block">Firmware:</span>
 
@@ -202,8 +203,8 @@
               </button>
           <% end %>
         </div>
-      </div>
-    </div>
+      </:actions>
+    </NervesHubWeb.Components.PageHeader.detail>
 
     <div class="border-base-700 flex w-full justify-between border-b px-6">
       <div id="tabs" class="flex">
