@@ -1016,8 +1016,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp connection_established_at_status(latest_connection),
     do: "Last connected at #{connection_established_at_formatted(latest_connection)}"
 
-  defp connection_established_at(nil), do: ""
-
   defp connection_established_at(latest_connection), do: connection_established_at_formatted(latest_connection)
 
   defp connection_established_at_formatted(latest_connection) do
