@@ -716,18 +716,27 @@ defmodule NervesHub.Devices do
         firmware_auto_revert_detected: auto_revert_detected?
       }
 
-      firmware_metadata = Map.from_struct(device.firmware_metadata)
-
       attrs =
-        DeviceFirmwares.add_or_update_reported_firmware(
-          device,
-          firmware_metadata,
-          validation_status,
-          auto_revert_detected?
-        )
-        |> case do
-          :ok -> attrs
-          {:ok, df} -> Map.put(attrs, :current_device_firmware_id, df.id)
+        case device.firmware_metadata do
+          nil ->
+            # Device joined without any known firmware metadata (e.g. its
+            # uboot env had no `nerves_fw_uuid`). Nothing to report against,
+            # so just persist the device-level values.
+            attrs
+
+          current_metadata ->
+            firmware_metadata = Map.from_struct(current_metadata)
+
+            DeviceFirmwares.add_or_update_reported_firmware(
+              device,
+              firmware_metadata,
+              validation_status,
+              auto_revert_detected?
+            )
+            |> case do
+              :ok -> attrs
+              {:ok, df} -> Map.put(attrs, :current_device_firmware_id, df.id)
+            end
         end
 
       update_device(device, attrs)
@@ -1238,6 +1247,12 @@ defmodule NervesHub.Devices do
 
   @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
+  def firmware_update_successful(%Device{firmware_metadata: nil} = device, _previous_metadata) do
+    # Nothing meaningful to record — the device joined without a usable
+    # firmware uuid (see update_firmware_metadata/4 with nil metadata).
+    {:ok, device}
+  end
+
   def firmware_update_successful(device, previous_metadata) do
     :telemetry.execute([:nerves_hub, :devices, :update, :successful], %{count: 1}, %{
       identifier: device.identifier,
