@@ -11,8 +11,6 @@ defmodule NervesHubWeb.DeviceSocket do
   alias Phoenix.Socket.Transport
   alias Plug.Crypto
 
-  require Logger
-
   channel("console", NervesHubWeb.ConsoleChannel)
   channel("device:*", NervesHubWeb.DeviceChannel)
   channel("extensions", NervesHubWeb.ExtensionsChannel)
