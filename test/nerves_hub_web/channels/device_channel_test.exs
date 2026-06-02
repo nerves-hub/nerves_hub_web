@@ -407,29 +407,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
     close_cleanly(device_channel)
   end
 
-  test "the first fwup_progress marks an update as happening", %{tmp_dir: tmp_dir} do
-    user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-
-    {:ok, socket} =
-      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-    {:ok, _join_reply, device_channel} =
-      subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
-
-    assert_online_and_available(device)
-
-    push(device_channel, "fwup_progress", %{"value" => 10})
-
-    # Since fwup_progress doesn't reply, we need to use sys to grab the socket
-    # _after_ the handle_in has run
-    state = :sys.get_state(device_channel.channel_pid)
-    assert state.assigns.update_started?
-
-    close_cleanly(device_channel)
-  end
-
   test "set connection types for the device", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)

@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
   alias NervesHub.Devices.BulkActions
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
@@ -245,7 +246,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     %{assigns: %{deployment_group: deployment_group}} = socket
 
-    inflight_updates = Devices.inflight_updates_for(deployment_group)
+    inflight_updates = FirmwareUpdates.inflight_updates_for(deployment_group)
 
     send_update(SummaryTab, id: "deployment_group_summary", event: :update_inflight_info)
 

@@ -42,7 +42,6 @@ defmodule NervesHubWeb.DeviceChannel do
         socket =
           socket
           |> assign(:currently_downloading_uuid, params["currently_downloading_uuid"])
-          |> assign(:update_started?, !!params["currently_downloading_uuid"])
           |> assign(:device_api_version, params["device_api_version"])
           |> update_device_info(device_info)
 
@@ -169,19 +168,9 @@ defmodule NervesHubWeb.DeviceChannel do
         {stage, _} -> {stage, percent}
       end
 
-    last_progress = socket.assigns[:last_firmware_update_progress]
-    now = System.monotonic_time(:second)
+    DeviceLink.status_update(device_info, %{"status" => stage, "progress" => percent})
 
-    {persist_progress?, socket} =
-      if last_progress == nil or abs(last_progress - now) > 10 do
-        {true, assign(socket, :last_firmware_update_progress, now)}
-      else
-        {false, socket}
-      end
-
-    DeviceLink.firmware_update_progress(device_info, stage, percent, persist_progress?)
-
-    {:noreply, maybe_update_update_attempts(socket)}
+    {:noreply, socket}
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_in:connection_types")
@@ -195,16 +184,8 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_in:status_update")
-  def handle_in("status_update", %{"stage" => "started"} = params, socket) do
-    socket = maybe_update_update_attempts(socket)
-
-    DeviceLink.status_update(socket.assigns.device_info, params, socket.assigns.update_started?)
-
-    {:noreply, socket}
-  end
-
   def handle_in("status_update", params, socket) do
-    DeviceLink.status_update(socket.assigns.device_info, params, socket.assigns.update_started?)
+    DeviceLink.status_update(socket.assigns.device_info, params)
 
     {:noreply, socket}
   end
@@ -294,19 +275,6 @@ defmodule NervesHubWeb.DeviceChannel do
   defp maybe_sanitize_device_api_version(params) do
     Logger.warning("[DeviceChannel] device_api_version is missing from the connection params")
     Map.put(params, "device_api_version", "1.0.0")
-  end
-
-  # if we know the update has already started, we can move on
-  def maybe_update_update_attempts(%{assigns: %{update_started?: true}} = socket), do: socket
-
-  # if this is the first fwup we see, and we didn't know the update had already started,
-  # then mark it as an update attempt
-  #
-  # we don't need to store the result as this information isn't used anywhere else
-  def maybe_update_update_attempts(socket) do
-    :ok = Devices.update_attempted(socket.assigns.device_info)
-
-    assign(socket, :update_started?, true)
   end
 
   defp send_connecting_code(nil, _, _), do: :ok

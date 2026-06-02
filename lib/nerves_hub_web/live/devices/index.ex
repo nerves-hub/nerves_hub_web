@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
   alias NervesHub.Tracker
@@ -982,7 +983,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp update_firmware_progress(%{assigns: %{progress: progress}} = socket, device_id) do
     %Device{id: device_id}
-    |> Devices.inflight_update_for()
+    |> FirmwareUpdates.inflight_update_for()
     |> case do
       nil -> Map.delete(progress, device_id)
       ifu -> Map.put(progress, device_id, %{stage: ifu.status, percent: ifu.progress})
@@ -1094,9 +1095,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     )
   end
 
-  defp progress_style(nil) do
-    nil
-  end
+  defp progress_style(nil), do: nil
+  defp progress_style(%{percent: nil}), do: nil
 
   defp progress_style(progress_info) do
     """

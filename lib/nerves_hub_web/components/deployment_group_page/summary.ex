@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias Phoenix.Naming
 
@@ -20,7 +21,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def update(%{event: :update_inflight_info}, socket) do
     %{deployment_group: deployment_group} = socket.assigns
 
-    inflight_updates = Devices.inflight_updates_for(deployment_group)
+    inflight_updates = FirmwareUpdates.inflight_updates_for(deployment_group)
 
     socket
     |> assign(:inflight_updates, inflight_updates)
@@ -60,7 +61,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def update(assigns, socket) do
     %{deployment_group: deployment_group} = assigns
 
-    inflight_updates = Devices.inflight_updates_for(deployment_group)
+    inflight_updates = FirmwareUpdates.inflight_updates_for(deployment_group)
     updating_count = Devices.updating_count(deployment_group)
 
     socket

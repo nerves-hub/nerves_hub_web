@@ -4,6 +4,8 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHub.Repo
@@ -60,9 +62,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     }
 
     # taken from `DeviceChannel`, I don't love just stealing this, but it will do for now
-    with {:ok, metadata} <- NervesHub.Firmwares.metadata_from_device(params, product.id),
-         {:ok, device} <- NervesHub.Devices.update_firmware_metadata(device, metadata, :unknown, false) do
-      NervesHub.Devices.firmware_update_successful(device, device.firmware_metadata)
+    with {:ok, metadata} <- Firmwares.metadata_from_device(params, product.id),
+         {:ok, device} <- Devices.update_firmware_metadata(device, metadata, :unknown, false) do
+      FirmwareUpdates.firmware_update_successful(device, device.firmware_metadata)
     end
 
     assert {:ok, ["health"], extensions_channel} =

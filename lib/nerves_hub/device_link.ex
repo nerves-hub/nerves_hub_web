@@ -9,10 +9,9 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias Phoenix.Channel.Server, as: ChannelServer
-
-  require Logger
 
   defmodule DeviceInfo do
     defstruct [
@@ -111,58 +110,29 @@ defmodule NervesHub.DeviceLink do
     Connections.merge_update_metadata(reference_id, metadata)
   end
 
-  @spec status_update(device_info :: DeviceInfo.t(), status :: map(), update_started? :: boolean()) ::
-          :ok
-  def status_update(device_info, %{"status" => "started", "downloader_network_interface" => nil}, _update_started?) do
-    :telemetry.execute([:nerves_hub, :devices, :downloader_network_interface_nil], %{count: 1}, %{
-      identifier: device_info.device_identifier
-    })
+  @spec status_update(device_info :: DeviceInfo.t(), status :: map()) :: :ok
+  def status_update(device_info, %{"status" => "started"} = status_info) do
+    firmware_update_start_telemetry(device_info, status_info)
 
-    Devices.update_inflight_update(device_info.device_id, "started")
+    :ok = FirmwareUpdates.status_update("started", device_info.device_id)
 
     :ok
   end
 
-  def status_update(
-        %{device_network_interface: device_network_interface} = device_info,
-        %{"status" => "started", "downloader_network_interface" => downloader_network_interface},
-        _update_started?
-      ) do
-    Devices.update_inflight_update(device_info.device_id, "started")
+  def status_update(device_info, %{"status" => status} = status_info) do
+    cond do
+      String.contains?(String.downcase(status), "fwup error") ->
+        # a temporary hook into failed updates
+        :ok = FirmwareUpdates.status_update("failed", device_info.device_id, %{"reason" => "fwup error"})
 
-    if is_nil(device_network_interface) or
-         device_network_interface == Device.humanized_network_interface_name(downloader_network_interface) do
-      :ok
-    else
-      :telemetry.execute([:nerves_hub, :devices, :network_interface_mismatch], %{count: 1}, %{
-        downloader_network_interface: downloader_network_interface,
-        device_network_interface: device_info.device_network_interface,
-        identifier: device_info.device_identifier
-      })
+      status in ["ignored", "rescheduled", "failed"] ->
+        :ok = FirmwareUpdates.status_update(status, device_info.device_id, status_info)
 
-      :ok
+      true ->
+        :ok = FirmwareUpdates.status_update(status, device_info.device_id, status_info)
     end
-  end
 
-  def status_update(device_info, %{"status" => status}, update_started?) do
-    # a temporary hook into failed updates
-    if String.contains?(String.downcase(status), "fwup error") do
-      # if there was an error during updating
-      # mark the attempt
-      _ =
-        if update_started? do
-          Devices.update_attempted(device_info)
-        end
-
-      Devices.update_inflight_update(device_info.device_id, "failed", nil, false)
-
-      # clear the inflight update
-      Devices.clear_inflight_update(device_info)
-      :ok
-    else
-      Devices.update_inflight_update(device_info.device_id, status)
-      :ok
-    end
+    :ok
   end
 
   @spec firmware_update_progress(
@@ -172,7 +142,7 @@ defmodule NervesHub.DeviceLink do
           persist_progress :: boolean()
         ) :: :ok
   def firmware_update_progress(device_info, stage, percent, persist_progress? \\ true) do
-    Devices.update_inflight_update(device_info.device_id, stage, percent, persist_progress?)
+    FirmwareUpdates.update_inflight_update(device_info.device_id, stage, percent, persist_progress?)
   end
 
   @spec maybe_send_archive(
@@ -253,7 +223,7 @@ defmodule NervesHub.DeviceLink do
        when is_binary(uuid) and byte_size(uuid) > 0, do: :ok
 
   defp maybe_clear_inflight_update(device, _) do
-    Devices.clear_inflight_update(device)
+    FirmwareUpdates.clear_inflight_update(device)
     :ok
   end
 
@@ -287,7 +257,7 @@ defmodule NervesHub.DeviceLink do
              validation_status,
              auto_revert_detected?
            ) do
-      Devices.firmware_update_successful(device, previous_metadata)
+      FirmwareUpdates.firmware_update_successful(device, previous_metadata)
     end
   end
 
@@ -306,6 +276,33 @@ defmodule NervesHub.DeviceLink do
     params
     |> Map.get("meta", %{})
     |> Map.get("firmware_auto_revert_detected", false)
+  end
+
+  defp firmware_update_start_telemetry(%{device_identifier: identifier}, interface_info)
+       when not is_map_key(interface_info, "downloader_network_interface") do
+    :telemetry.execute([:nerves_hub, :devices, :downloader_network_interface_nil], %{count: 1}, %{
+      identifier: identifier
+    })
+  end
+
+  defp firmware_update_start_telemetry(%{device_identifier: identifier}, %{"downloader_network_interface" => nil}) do
+    :telemetry.execute([:nerves_hub, :devices, :downloader_network_interface_nil], %{count: 1}, %{
+      identifier: identifier
+    })
+  end
+
+  defp firmware_update_start_telemetry(%{device_identifier: identifier, device_network_interface: device_interface}, %{
+         "downloader_network_interface" => downloader_interface
+       }) do
+    if is_nil(device_interface) or device_interface == Device.humanized_network_interface_name(downloader_interface) do
+      :ok
+    else
+      :telemetry.execute([:nerves_hub, :devices, :network_interface_mismatch], %{count: 1}, %{
+        downloader_network_interface: downloader_interface,
+        device_network_interface: device_interface,
+        identifier: identifier
+      })
+    end
   end
 
   defp topic(%DeviceInfo{device_id: id}) do

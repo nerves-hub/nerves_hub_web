@@ -12,6 +12,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Firmwares.Upload.File
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
@@ -166,7 +167,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     {:ok, device} =
       Devices.update_device(device, %{firmware_metadata: %{"uuid" => deployment_group.current_release.firmware.uuid}})
 
-    Devices.firmware_update_successful(device, device.firmware_metadata)
+    FirmwareUpdates.firmware_update_successful(device, device.firmware_metadata)
 
     # sent by the device after its updated
     assert_receive %Broadcast{topic: ^topic1, event: "updated"}, 500
@@ -1028,17 +1029,17 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       :ok = Connections.device_connected(conn1.id)
       :ok = Connections.device_connected(conn2.id)
       :ok = Connections.device_connected(conn3.id)
-      assert Devices.count_inflight_priority_updates_for(deployment_group) == 0
+      assert FirmwareUpdates.count_inflight_priority_updates_for(deployment_group) == 0
 
       {:ok, _inflight_update} = DeviceEvents.schedule_update(old_device1.id, deployment_group, priority_queue: true)
-      assert Devices.count_inflight_priority_updates_for(deployment_group) == 1
+      assert FirmwareUpdates.count_inflight_priority_updates_for(deployment_group) == 1
 
       {:ok, _inflight_update} = DeviceEvents.schedule_update(new_device.id, deployment_group, priority_queue: false)
       # Should still be 1, not counting normal queue
-      assert Devices.count_inflight_priority_updates_for(deployment_group) == 1
+      assert FirmwareUpdates.count_inflight_priority_updates_for(deployment_group) == 1
 
       {:ok, _inflight_update} = DeviceEvents.schedule_update(old_device2.id, deployment_group, priority_queue: true)
-      assert Devices.count_inflight_priority_updates_for(deployment_group) == 2
+      assert FirmwareUpdates.count_inflight_priority_updates_for(deployment_group) == 2
     end
 
     test "count_inflight_updates_for/1 counts only normal queue updates", %{
@@ -1090,14 +1091,14 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
       :ok = Connections.device_connected(conn1.id)
       :ok = Connections.device_connected(conn2.id)
-      assert Devices.count_inflight_updates_for(deployment_group) == 0
+      assert FirmwareUpdates.count_inflight_updates_for(deployment_group) == 0
 
       {:ok, _inflight_update} = DeviceEvents.schedule_update(new_device.id, deployment_group, priority_queue: false)
-      assert Devices.count_inflight_updates_for(deployment_group) == 1
+      assert FirmwareUpdates.count_inflight_updates_for(deployment_group) == 1
 
       {:ok, _inflight_update} = DeviceEvents.schedule_update(old_device1.id, deployment_group, priority_queue: true)
       # Should still be 1, not counting priority queue
-      assert Devices.count_inflight_updates_for(deployment_group) == 1
+      assert FirmwareUpdates.count_inflight_updates_for(deployment_group) == 1
     end
 
     test "priority queue empty when threshold is nil", %{org: org, product: product, firmware: firmware, user: user} do

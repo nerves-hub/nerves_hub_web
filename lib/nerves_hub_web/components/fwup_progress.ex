@@ -5,40 +5,11 @@ defmodule NervesHubWeb.Components.FwupProgress do
   attr(:stage, :any)
 
   def render(assigns) do
-    assigns = assign(assigns, :stage, to_string(assigns.stage))
-
     assigns =
-      if assigns.stage in ["downloading", "updating"] do
-        assigns
-      else
-        assign(assigns, :progress, 100)
-      end
-
-    message =
-      case assigns.stage do
-        "requested" ->
-          "Firmware update request sent to the device"
-
-        "received" ->
-          "Firmware update request received by the device"
-
-        "started" ->
-          "Firmware update started..."
-
-        stage when stage in ["downloading", "updating"] ->
-          "#{String.capitalize(assigns.stage)} firmware : #{assigns.progress}%"
-
-        "completed" ->
-          "Firmware update complete, waiting for device to restart"
-
-        "expired" ->
-          "Firmware update aborted - no updates received"
-
-        _ ->
-          ""
-      end
-
-    assigns = assign(assigns, :message, message)
+      assigns
+      |> assign(:stage, to_string(assigns.stage))
+      |> assign_progress()
+      |> assign_message()
 
     ~H"""
     <div class="relative -top-[11px] z-100 flex h-0 w-full justify-center">
@@ -50,5 +21,26 @@ defmodule NervesHubWeb.Components.FwupProgress do
       </div>
     </div>
     """
+  end
+
+  defp assign_message(assigns) do
+    assign(assigns, :message, format_message(assigns))
+  end
+
+  defp format_message(%{stage: "requested"}), do: "Firmware update request sent to the device"
+  defp format_message(%{stage: "rescheduled"}), do: "The device has requested firmware updates be delayed"
+  defp format_message(%{stage: "ignored"}), do: "The device has ignored the firmware update request"
+  defp format_message(%{stage: "received"}), do: "Firmware update request received by the device"
+  defp format_message(%{stage: "started"}), do: "Firmware update started..."
+  defp format_message(%{stage: "completed"}), do: "Firmware update complete, waiting for device to restart"
+  defp format_message(%{stage: "expired"}), do: "Firmware update aborted - no updates received"
+  defp format_message(%{stage: stage, progress: progress}), do: "#{String.capitalize(stage)} firmware : #{progress}%"
+
+  defp assign_progress(assigns) do
+    if assigns.stage in ["downloading", "updating"] do
+      assigns
+    else
+      assign(assigns, :progress, 100)
+    end
   end
 end

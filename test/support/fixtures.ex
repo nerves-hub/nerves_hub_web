@@ -413,7 +413,12 @@ defmodule NervesHub.Fixtures do
     %{fixture | db_cert: db_cert}
   end
 
-  def inflight_update(device, deployment_group) do
+  def inflight_update(device, %Firmwares.Firmware{} = firmware) do
+    InflightUpdate.manual_requested_changeset(device.id, firmware)
+    |> Repo.insert()
+  end
+
+  def inflight_update(device, %ManagedDeployments.DeploymentGroup{} = deployment_group) do
     InflightUpdate.deployment_requested_changeset(deployment_group, device.id, false)
     |> Repo.insert()
   end
