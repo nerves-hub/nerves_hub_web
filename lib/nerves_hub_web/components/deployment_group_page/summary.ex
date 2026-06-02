@@ -398,13 +398,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span class="text-base-300 text-sm">{@deployment_group.priority_queue_firmware_version_threshold || "Not set"}</span>
             </div>
 
-            <div :if={!@deployment_group.connecting_code} class="flex items-center gap-4">
+            <div :if={is_nil(@deployment_group.connecting_code)} class="flex items-center gap-4">
               <span class="text-nerves-gray-500 text-sm">Code sent on device connection:</span>
               <span class="text-base-300 text-sm">No code configured</span>
             </div>
-            <div :if={@deployment_group.connecting_code} class="flex items-start gap-2">
+            <div :if={not is_nil(@deployment_group.connecting_code)} class="flex items-start gap-2">
               <span class="text-nerves-gray-500 text-sm">Code sent on device connection:</span>
-              <pre :if={!@deployment_group.connecting_code} class="text-base-300 text-sm">
+              <pre class="text-base-300 text-sm">
     {@deployment_group.connecting_code}
               </pre>
             </div>
