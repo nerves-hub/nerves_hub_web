@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
@@ -122,7 +123,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "received", nil, true)
+      FirmwareUpdates.update_inflight_update(device.id, "received", nil, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
@@ -141,7 +142,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "downloading", 50, true)
+      FirmwareUpdates.update_inflight_update(device.id, "downloading", 50, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
@@ -160,7 +161,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "updating", 50, true)
+      FirmwareUpdates.update_inflight_update(device.id, "updating", 50, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
@@ -179,7 +180,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "expired", nil, true)
+      FirmwareUpdates.update_inflight_update(device.id, "expired", nil, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
@@ -198,7 +199,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "completed", nil, true)
+      FirmwareUpdates.update_inflight_update(device.id, "completed", nil, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
@@ -216,32 +217,32 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: device.identifier, timeout: 1_000)
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "requested", nil, false)
+        FirmwareUpdates.update_inflight_update(device.id, "requested", nil, false)
         render(view)
       end)
       |> assert_has("div", text: "requested")
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "received", nil, false)
+        FirmwareUpdates.update_inflight_update(device.id, "received", nil, false)
         render(view)
       end)
       |> assert_has("div", text: "received")
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "started", nil, false)
+        FirmwareUpdates.update_inflight_update(device.id, "started", nil, false)
         render(view)
       end)
       |> assert_has("div", text: "started")
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "downloading", 35, false)
+        FirmwareUpdates.update_inflight_update(device.id, "downloading", 35, false)
         render(view)
       end)
       |> assert_has("div", text: "downloading")
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "updating", 70, false)
+        FirmwareUpdates.update_inflight_update(device.id, "updating", 70, false)
         render(view)
       end)
       |> assert_has("div", text: "updating")
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "completed", nil, false)
+        FirmwareUpdates.update_inflight_update(device.id, "completed", nil, false)
         render(view)
       end)
       |> assert_has("div", text: "completed")
@@ -258,7 +259,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "completed", nil, true)
+      FirmwareUpdates.update_inflight_update(device.id, "completed", nil, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
@@ -732,7 +733,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> select("Update status", option: "Updating")
       |> assert_has("a", text: device.identifier, timeout: 1000)
 
-      {:ok, _device} = Devices.firmware_update_successful(device, device.firmware_metadata)
+      {:ok, _device} = FirmwareUpdates.firmware_update_successful(device, device.firmware_metadata)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")

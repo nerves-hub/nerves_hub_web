@@ -9,13 +9,13 @@ defmodule NervesHub.Workers.ExpireInflightUpdates do
     queue: :cleanup,
     max_attempts: 1
 
-  alias NervesHub.Devices
+  alias NervesHub.FirmwareUpdates
 
   require Logger
 
   @impl Oban.Worker
   def perform(_) do
-    count = Devices.delete_expired_inflight_updates()
+    count = FirmwareUpdates.delete_expired_inflight_updates()
 
     if count > 0 && prod?() do
       Logger.info("Expired #{count} inflight updates")

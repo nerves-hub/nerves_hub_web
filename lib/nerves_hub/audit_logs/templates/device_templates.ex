@@ -77,11 +77,76 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(device, device, description)
   end
 
+  @spec audit_firmware_upgrade_ignored(Device.t(), DeploymentGroup.t() | nil, String.t() | nil) :: :ok
+  def audit_firmware_upgrade_ignored(device, nil, reason) do
+    description = """
+    Device #{device.identifier} ignored the manual firmware upgrade request#{reason && " because of \"#{reason}\""}.
+    """
+
+    AuditLogs.audit!(device, device, description)
+  end
+
+  def audit_firmware_upgrade_ignored(device, deployment_group, reason) do
+    description = """
+    Device #{device.identifier} ignored the scheduled firmware upgrade request#{reason && " because of \"#{reason}\""}.
+    Firmware upgrades are blocked for #{deployment_group.penalty_timeout_minutes} minutes.
+    """
+
+    AuditLogs.audit!(deployment_group, device, description)
+  end
+
   @spec audit_firmware_upgrade_blocked(DeploymentGroup.t(), Device.t()) :: :ok
   def audit_firmware_upgrade_blocked(deployment_group, device) do
     description = """
     Device #{device.identifier} automatically blocked firmware upgrades for #{deployment_group.penalty_timeout_minutes} minutes.
     Device failure rate met for firmware #{deployment_group.current_release.firmware.uuid} in deployment group #{deployment_group.name}.
+    """
+
+    AuditLogs.audit!(deployment_group, device, description)
+  end
+
+  @spec audit_firmware_upgrade_rescheduled(Device.t(), NaiveDateTime.t(), String.t() | nil) :: :ok
+  def audit_firmware_upgrade_rescheduled(
+        %{inflight_update: %{deployment_group: deployment_group}} = device,
+        blocked_until,
+        reason
+      )
+      when is_nil(deployment_group) do
+    description = """
+    During a manual firmware update request, device #{device.identifier} requested firmware upgrades be rescheduled #{Timex.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
+    The update will not be automatically retried.
+    """
+
+    AuditLogs.audit!(device, device, description)
+  end
+
+  def audit_firmware_upgrade_rescheduled(
+        %{inflight_update: %{deployment_group: deployment_group}} = device,
+        blocked_until,
+        reason
+      ) do
+    description = """
+    During an update request from \"#{deployment_group.name}\", device #{device.identifier} requested firmware upgrades be rescheduled #{Timex.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
+    """
+
+    AuditLogs.audit!(deployment_group, device, description)
+  end
+
+  @spec audit_firmware_upgrade_failed(Device.t(), String.t() | nil, Keyword.t()) :: :ok
+  def audit_firmware_upgrade_failed(device, reason, opts \\ [])
+
+  def audit_firmware_upgrade_failed(%{inflight_update: %{deployment_group: deployment_group}} = device, reason, _)
+      when is_nil(deployment_group) do
+    description = """
+    Device #{device.identifier} reported an error #{reason && "(\"#{reason}\") "}while trying to update its firmware.
+    """
+
+    AuditLogs.audit!(device, device, description)
+  end
+
+  def audit_firmware_upgrade_failed(%{inflight_update: %{deployment_group: deployment_group}} = device, reason, opts) do
+    description = """
+    Device #{device.identifier} reported an error #{reason && "(\"#{reason}\") "}while trying to update its firmware during a deployment release. Updates will be blocked for #{opts[:penalty_timeout_minutes]} minutes.
     """
 
     AuditLogs.audit!(deployment_group, device, description)

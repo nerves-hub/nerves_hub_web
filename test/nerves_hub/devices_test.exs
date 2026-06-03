@@ -20,6 +20,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentRelease
@@ -807,7 +808,7 @@ defmodule NervesHub.DevicesTest do
       device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 1
 
-      {:ok, device} = Devices.firmware_update_successful(device, device.firmware_metadata)
+      {:ok, device} = FirmwareUpdates.firmware_update_successful(device, device.firmware_metadata)
       assert Enum.empty?(device.update_attempts)
     end
 
@@ -819,7 +820,7 @@ defmodule NervesHub.DevicesTest do
 
       {:ok, inflight_update} = DeviceEvents.schedule_update(device.id, deployment_group)
 
-      {:ok, _device} = Devices.firmware_update_successful(device, device.firmware_metadata)
+      {:ok, _device} = FirmwareUpdates.firmware_update_successful(device, device.firmware_metadata)
 
       inflight_update = Repo.reload(inflight_update)
       assert is_nil(inflight_update)
@@ -835,7 +836,7 @@ defmodule NervesHub.DevicesTest do
 
       {:ok, _inflight_update} = DeviceEvents.schedule_update(device.id, deployment_group)
 
-      {:ok, _device} = Devices.firmware_update_successful(device, device.firmware_metadata)
+      {:ok, _device} = FirmwareUpdates.firmware_update_successful(device, device.firmware_metadata)
 
       deployment_group = Repo.reload(deployment_group)
       assert deployment_group.current_updated_devices == 1
@@ -925,7 +926,7 @@ defmodule NervesHub.DevicesTest do
 
       assert device.updates_blocked_until
       assert device.update_attempts == []
-      assert Devices.count_inflight_updates_for(deployment_group) == 0
+      assert FirmwareUpdates.count_inflight_updates_for(deployment_group) == 0
     end
 
     test "device should be rejected for updates based on attempt rate and have it's inflight updates cleared",
@@ -951,7 +952,7 @@ defmodule NervesHub.DevicesTest do
 
       assert device.updates_blocked_until
       assert device.update_attempts == []
-      assert Devices.count_inflight_updates_for(deployment_group) == 0
+      assert FirmwareUpdates.count_inflight_updates_for(deployment_group) == 0
     end
 
     test "device in penalty box should be rejected for updates and have it's inflight updates cleared",
@@ -970,7 +971,7 @@ defmodule NervesHub.DevicesTest do
       {:error, :updates_blocked, _device} =
         Devices.verify_update_eligibility(device, deployment_group, now)
 
-      assert Devices.count_inflight_updates_for(deployment_group) == 0
+      assert FirmwareUpdates.count_inflight_updates_for(deployment_group) == 0
 
       # now
       device = %{device | updates_blocked_until: now}
@@ -1047,9 +1048,9 @@ defmodule NervesHub.DevicesTest do
 
       refute_receive %Broadcast{topic: ^topic, event: "firmware_update_progress", payload: %{stage: "expired"}}, 1_000
 
-      assert 0 = Devices.delete_expired_inflight_updates()
+      assert 0 = FirmwareUpdates.delete_expired_inflight_updates()
 
-      Devices.clear_inflight_update(device)
+      FirmwareUpdates.clear_inflight_update(device)
 
       Fixtures.inflight_update(device, deployment_group)
 
@@ -1063,7 +1064,7 @@ defmodule NervesHub.DevicesTest do
                |> where([i], i.device_id == ^device.id)
                |> Repo.update_all(set: [updated_at: updated_at])
 
-      task = Task.async(fn -> Devices.delete_expired_inflight_updates() end)
+      task = Task.async(fn -> FirmwareUpdates.delete_expired_inflight_updates() end)
 
       assert 1 = Task.await(task)
 

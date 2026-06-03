@@ -12,6 +12,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.UpdateStat
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
@@ -1018,7 +1019,7 @@ defmodule NervesHubWeb.WebsocketTest do
       deployment_group = Repo.preload(deployment_group, :org)
       {:ok, _inflight_update} = DeviceEvents.schedule_update(device.id, deployment_group)
 
-      assert Enum.count(Devices.inflight_updates_for(deployment_group)) == 1
+      assert Enum.count(FirmwareUpdates.inflight_updates_for(deployment_group)) == 1
 
       Fixtures.device_certificate_fixture(device)
 
@@ -1038,7 +1039,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert_online_and_available(device)
 
-      assert Devices.inflight_updates_for(deployment_group) == []
+      assert FirmwareUpdates.inflight_updates_for(deployment_group) == []
 
       close_socket_cleanly(socket)
     end
