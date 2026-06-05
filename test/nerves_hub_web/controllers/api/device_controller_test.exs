@@ -133,7 +133,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                ],
                "pagination" => %{
                  "page_number" => 1,
-                 "page_size" => nil,
+                 "page_size" => 10,
                  "total_entries" => 1,
                  "total_pages" => 1
                }
