@@ -138,8 +138,8 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       size_b = size_b * 512
       data_a = File.read!(img_a)
       data_b = File.read!(img_b)
-      <<_::binary-size(offset_a), d1::binary-size(size_a), _::binary>> = data_a
-      <<_::binary-size(offset_b), d2::binary-size(size_b), _::binary>> = data_b
+      <<_::binary-size(^offset_a), d1::binary-size(^size_a), _::binary>> = data_a
+      <<_::binary-size(^offset_b), d2::binary-size(^size_b), _::binary>> = data_b
       compare_data?(d1, d2, 0, true)
     end
 
