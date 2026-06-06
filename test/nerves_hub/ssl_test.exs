@@ -414,7 +414,7 @@ defmodule NervesHub.SSLTest do
 
   defp flip_bit(bin) do
     len = byte_size(bin) - 1
-    <<a::binary-size(len), b::7, c::1>> = bin
+    <<a::binary-size(^len), b::7, c::1>> = bin
     flipped = if c == 1, do: 0, else: 1
     <<a::binary, b::7, flipped::1>>
   end
