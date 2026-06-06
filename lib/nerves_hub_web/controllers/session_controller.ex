@@ -70,6 +70,18 @@ defmodule NervesHubWeb.SessionController do
     end
   end
 
+  def cli(conn, %{"token" => token}) do
+    conn.assigns.current_scope.user
+    |> Accounts.verify_cli_session_token(token)
+    |> case do
+      :ok ->
+        render(conn, :cli)
+
+      {:error, :not_found} ->
+        raise NervesHubWeb.NotFoundError
+    end
+  end
+
   defp resend_confirmation_email(conn, user, message) do
     {:ok, _} =
       Accounts.deliver_user_confirmation_instructions(

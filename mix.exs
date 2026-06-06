@@ -119,6 +119,7 @@ defmodule NervesHub.MixProject do
         :lucide,
         github: "lucide-icons/lucide", tag: "1.17.0", sparse: "icons", app: false, compile: false, depth: 1
       },
+      {:memento, "~> 0.5.0"},
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.13.0"},
@@ -147,6 +148,7 @@ defmodule NervesHub.MixProject do
       {:phoenix_view, "~> 2.0"},
       {:phoenix_test, "~> 0.8", only: :test},
       {:plug, "~> 1.7"},
+      {:plug_attack, "~> 0.4.2"},
       {:postgrex, "~> 0.14"},
       {:quokka, "~> 2.13.1", only: [:dev, :test]},
       {:req, "~> 0.5"},

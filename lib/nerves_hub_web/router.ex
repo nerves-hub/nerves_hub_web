@@ -70,6 +70,9 @@ defmodule NervesHubWeb.Router do
   scope("/api", NervesHubWeb.API, as: :api) do
     pipe_through(:api)
 
+    post("/auth/cli_session", UserController, :cli_session)
+    get("/auth/cli_session/:token", UserController, :check_cli_session)
+
     post("/users/auth", UserController, :auth)
     post("/users/login", UserController, :login)
 
@@ -207,6 +210,8 @@ defmodule NervesHubWeb.Router do
     pipe_through([:browser, :require_authenticated_user])
 
     get("/logout", SessionController, :delete)
+
+    get("/auth/cli/:token", SessionController, :cli)
   end
 
   scope "/", NervesHubWeb do
