@@ -144,7 +144,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
              end)
     end
 
-    test "lists devices with a deployment group", %{conn: conn, user: user, tmp_dir: tmp_dir} do
+    test "includes deployment group information", %{conn: conn, user: user, tmp_dir: tmp_dir} do
       org = Fixtures.org_fixture(user, %{name: "DeployedOrg"})
       product = Fixtures.product_fixture(user, org, %{name: "deployed_product"})
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
@@ -161,6 +161,119 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert %{"data" => [device_data]} = json_response(conn, 200)
       assert device_data["identifier"] == device.identifier
       assert device_data["deployment_group"]["name"] == deployment_group.name
+    end
+
+    test "allows for page size and current page to be specified", %{conn: conn, user: user, tmp_dir: tmp_dir} do
+      org = Fixtures.org_fixture(user, %{name: "DeployedOrg"})
+      product = Fixtures.product_fixture(user, org, %{name: "deployed_product"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      for _ <- 1..20 do
+        Fixtures.device_fixture(org, product, firmware)
+      end
+
+      conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name, %{pagination: %{page_size: 5}}))
+
+      assert %{"pagination" => %{"total_entries" => 20, "page_size" => 5, "page_number" => 1, "total_pages" => 4}} =
+               json_response(conn, 200)
+
+      conn =
+        get(
+          conn,
+          Routes.api_device_path(conn, :index, org.name, product.name, %{pagination: %{page_size: 10, page: 2}})
+        )
+
+      assert %{"pagination" => %{"total_entries" => 20, "page_size" => 10, "page_number" => 2, "total_pages" => 2}} =
+               json_response(conn, 200)
+    end
+
+    test "allows for sorting to be specified", %{conn: conn, user: user, tmp_dir: tmp_dir} do
+      org = Fixtures.org_fixture(user, %{name: "DeployedOrg"})
+      product = Fixtures.product_fixture(user, org, %{name: "deployed_product"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      for num <- 1..20 do
+        Fixtures.device_fixture(org, product, firmware, %{identifier: "sorting-#{num}"})
+      end
+
+      conn =
+        get(
+          conn,
+          Routes.api_device_path(conn, :index, org.name, product.name, %{sort: "identifier", sort_direction: "asc"})
+        )
+
+      assert %{"data" => [first_device | _], "pagination" => %{"total_entries" => 20}} = json_response(conn, 200)
+      assert first_device["identifier"] == "sorting-1"
+
+      conn =
+        get(
+          conn,
+          Routes.api_device_path(conn, :index, org.name, product.name, %{sort: "identifier", sort_direction: "desc"})
+        )
+
+      assert %{"data" => [first_device | _], "pagination" => %{"total_entries" => 20}} = json_response(conn, 200)
+      assert first_device["identifier"] == "sorting-9"
+    end
+
+    test "allows for filtering: identifier", %{conn: conn, user: user, tmp_dir: tmp_dir} do
+      org = Fixtures.org_fixture(user, %{name: "DeployedOrg"})
+      product = Fixtures.product_fixture(user, org, %{name: "deployed_product"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      for num <- 1..20 do
+        Fixtures.device_fixture(org, product, firmware, %{identifier: "identifier-filtering-#{num}"})
+      end
+
+      conn =
+        get(
+          conn,
+          Routes.api_device_path(conn, :index, org.name, product.name, %{
+            filters: %{identifier: "identifier-filtering-1"}
+          })
+        )
+
+      assert %{"pagination" => %{"total_entries" => 11}} = json_response(conn, 200)
+    end
+
+    test "allows for filtering: connection", %{conn: conn, user: user, tmp_dir: tmp_dir} do
+      org = Fixtures.org_fixture(user, %{name: "DeployedOrg"})
+      product = Fixtures.product_fixture(user, org, %{name: "deployed_product"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      for _ <- 1..20 do
+        Fixtures.device_fixture(org, product, firmware)
+      end
+
+      conn =
+        get(
+          conn,
+          Routes.api_device_path(conn, :index, org.name, product.name, %{filters: %{connection: "not_seen"}})
+        )
+
+      assert %{"pagination" => %{"total_entries" => 20}} = json_response(conn, 200)
+    end
+
+    test "allows for filtering: health_status", %{conn: conn, user: user, tmp_dir: tmp_dir} do
+      org = Fixtures.org_fixture(user, %{name: "DeployedOrg"})
+      product = Fixtures.product_fixture(user, org, %{name: "deployed_product"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      for num <- 1..20 do
+        Fixtures.device_fixture(org, product, firmware, %{identifier: "health-status-#{num}"})
+      end
+
+      conn =
+        get(
+          conn,
+          Routes.api_device_path(conn, :index, org.name, product.name, %{filters: %{health_status: "unknown"}})
+        )
+
+      assert %{"pagination" => %{"total_entries" => 20}} = json_response(conn, 200)
     end
 
     test "does not return soft-deleted devices", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
