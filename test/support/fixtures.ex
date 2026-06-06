@@ -278,7 +278,7 @@ defmodule NervesHub.Fixtures do
         firmware_metadata: Map.put(metadata, :fwup_version, fwup_version),
         identifier: "device-#{counter()}"
       }
-      |> Enum.into(params)
+      |> Map.merge(params)
       |> Enum.into(@device_params)
       |> Devices.create_device()
 

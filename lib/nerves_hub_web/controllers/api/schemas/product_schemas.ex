@@ -9,27 +9,13 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
-        id: %Schema{type: :integer},
         name: %Schema{
           type: :string,
           pattern: ~r/[a-zA-Z][a-zA-Z0-9_]+/
-        },
-        inserted_at: %Schema{
-          type: :string,
-          description: "Creation timestamp",
-          format: :"date-time"
-        },
-        updated_at: %Schema{
-          type: :string,
-          description: "Last updated timestamp",
-          format: :"date-time"
         }
       },
       example: %{
-        "id" => 123,
-        "name" => "Example Product",
-        "inserted_at" => "2017-09-12T12:34:55Z",
-        "updated_at" => "2017-09-12T12:34:55Z"
+        "name" => "Example Product"
       }
     })
   end
@@ -44,16 +30,10 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
       example: %{
         "data" => [
           %{
-            "id" => 123,
-            "name" => "Example Product",
-            "inserted_at" => "2017-09-12T12:34:55Z",
-            "updated_at" => "2017-09-13T10:11:12Z"
+            "name" => "Example Product"
           },
           %{
-            "id" => 246,
-            "name" => "Another Example Product",
-            "inserted_at" => "2019-09-12T12:34:55Z",
-            "updated_at" => "2019-09-13T10:11:12Z"
+            "name" => "Another Example Product"
           }
         ]
       }

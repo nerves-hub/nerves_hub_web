@@ -31,6 +31,70 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     example: "abc123"
   }
 
+  @pagination_parameter %OpenApiSpex.Parameter{
+    name: :pagination,
+    description: "Pagination",
+    in: :query,
+    required: false,
+    style: :deepObject,
+    schema: %OpenApiSpex.Schema{
+      type: :object,
+      properties: %{
+        page: %OpenApiSpex.Schema{type: :integer, default: 1, example: "5"},
+        page_size: %OpenApiSpex.Schema{type: :integer, default: 10, example: "20"}
+      }
+    }
+  }
+
+  @sort_by_parameter %OpenApiSpex.Parameter{
+    name: :sort,
+    description: "Sort By",
+    in: :query,
+    required: false,
+    schema: %OpenApiSpex.Schema{type: :string},
+    example: "identifier"
+  }
+
+  @sort_direction_parameter %OpenApiSpex.Parameter{
+    name: :sort_direction,
+    description: "Sort Direction",
+    in: :query,
+    required: false,
+    schema: %OpenApiSpex.Schema{type: :string},
+    example: "asc"
+  }
+
+  @filters_parameter %OpenApiSpex.Parameter{
+    name: :filters,
+    description: "Filtering",
+    in: :query,
+    style: :deepObject,
+    required: false,
+    schema: %OpenApiSpex.Schema{
+      type: :object,
+      properties: %{
+        alarm: %OpenApiSpex.Schema{type: :string, required: false, example: "SomeAlarm"},
+        alarm_status: %OpenApiSpex.Schema{type: :string, required: false, enum: ["with", "without"]},
+        connection: %OpenApiSpex.Schema{type: :string, required: false, enum: ["connected", "disconnected", "not_seen"]},
+        deployment_id: %OpenApiSpex.Schema{type: :string, required: false, example: "12"},
+        display_deleted: %OpenApiSpex.Schema{type: :string, required: false, enum: ["include", "exclude", "only"]},
+        firmware_version: %OpenApiSpex.Schema{type: :string, required: false, example: "1.10.0"},
+        has_no_tags: %OpenApiSpex.Schema{type: :string, required: false, enum: ["true", "false"]},
+        health_status: %OpenApiSpex.Schema{
+          type: :string,
+          required: false,
+          enum: ["healthy", "unhealthy", "warning", "unknown"]
+        },
+        identifier: %OpenApiSpex.Schema{type: :string, required: false, example: "sn123"},
+        only_updating: %OpenApiSpex.Schema{type: :string, required: false, enum: ["true", "false"]},
+        platform: %OpenApiSpex.Schema{type: :string, required: false, example: "rpi4"},
+        search: %OpenApiSpex.Schema{type: :string, required: false, example: "sn123"},
+        tags: %OpenApiSpex.Schema{type: :string, required: false, example: "prod,staging"},
+        updates: %OpenApiSpex.Schema{type: :string, required: false, enum: ["enabled", "disabled", "penalty-box"]}
+      }
+    }
+  }
+
   @device_response %{
     200 => response("Device Response", "application/json", DeviceSchemas.Device)
   }
@@ -122,7 +186,14 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
           device_operation(
             "List Devices",
             :index,
-            [@organization_parameter, @product_parameter],
+            [
+              @organization_parameter,
+              @product_parameter,
+              @sort_by_parameter,
+              @sort_direction_parameter,
+              @pagination_parameter,
+              @filters_parameter
+            ],
             ["Devices"],
             response: @device_list_response
           )

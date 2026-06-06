@@ -104,7 +104,10 @@ defmodule NervesHub.Devices do
   end
 
   def get_devices_by_org_id_and_product_id_with_pager(org_id, product_id, opts) do
-    pagination = Map.get(opts, :pagination, %{page: 1, page_size: 10})
+    pagination =
+      %{page: 1, page_size: 10}
+      |> Map.merge(Map.get(opts, :pagination, %{}))
+
     sorting = Map.get(opts, :sort, {:asc, :identifier})
     filters = Map.get(opts, :filters, %{})
 
