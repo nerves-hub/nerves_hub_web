@@ -66,7 +66,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       for key <- Map.keys(params) do
         case Map.get(deployment_group, key) do
-          value when %Conditions{} == value ->
+          %Conditions{} = value ->
             Map.from_struct(value) == Map.get(params, key)
 
           value ->
