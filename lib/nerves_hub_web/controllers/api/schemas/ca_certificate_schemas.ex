@@ -4,8 +4,6 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
   require OpenApiSpex
 
   defmodule CACertificate do
-    require OpenApiSpex
-
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
