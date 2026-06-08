@@ -78,6 +78,10 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Firmware uploading and management"
         },
         %Tag{
+          name: "Organizations",
+          description: "Organization User membership"
+        },
+        %Tag{
           name: "Organization Members",
           description: "Organization User membership"
         },
