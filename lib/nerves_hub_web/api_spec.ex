@@ -2,6 +2,7 @@ defmodule NervesHubWeb.ApiSpec do
   @behaviour OpenApiSpex.OpenApi
 
   alias NervesHubWeb.API.OpenAPI.DeviceControllerSpecs
+  alias NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Plugs.ImAlive
   alias NervesHubWeb.Router
@@ -104,6 +105,7 @@ defmodule NervesHubWeb.ApiSpec do
       ]
     }
     |> DeviceControllerSpecs.add_operations()
+    |> SupportScriptControllerSpecs.add_operations()
     # Discover request/response schemas from path specs
     |> OpenApiSpex.resolve_schema_modules()
   end

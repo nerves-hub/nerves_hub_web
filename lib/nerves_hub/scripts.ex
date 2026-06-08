@@ -46,14 +46,23 @@ defmodule NervesHub.Scripts do
     Repo.get_by!(Script, id: id, product_id: product.id)
   end
 
-  def get(product, id) do
-    case Repo.get_by(Script, id: id, product_id: product.id) do
+  def get(%Product{} = product, id) when is_integer(id) do
+    Script
+    |> where([c], c.id == ^id and c.product_id == ^product.id)
+    |> join(:left, [s], cb in assoc(s, :created_by))
+    |> preload([s, cb], created_by: cb)
+    |> Repo.one()
+    |> case do
       nil ->
         {:error, :not_found}
 
       command ->
         {:ok, command}
     end
+  end
+
+  def get(_, _) do
+    {:error, :not_found}
   end
 
   def get_by_product_and_name(product, name) do
