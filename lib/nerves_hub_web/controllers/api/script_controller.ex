@@ -16,6 +16,7 @@ defmodule NervesHubWeb.API.ScriptController do
   plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
 
   # OpenAPI specs for :index can be found in SupportScriptControllerSpecs
+  operation(:index, [])
 
   # You can list scripts by a product or device scope:
   # /api/orgs/:org_name/products/:product_name/scripts
