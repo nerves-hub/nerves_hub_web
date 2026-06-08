@@ -463,7 +463,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     %OpenApiSpex.Operation{
       tags: tags,
       summary: summary,
-      operationId: "NervesHubWeb.API.Devices.#{operation_id}",
+      operationId: "NervesHubWeb.API.DevicesController.#{operation_id}",
       parameters: parameters,
       requestBody: opts[:request_body],
       responses: opts[:response],
