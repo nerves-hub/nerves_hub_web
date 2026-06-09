@@ -1089,7 +1089,7 @@ defmodule NervesHub.Accounts do
 
     with %UserCLISession{} = cli_session <- Memento.transaction!(fetch_cli_session),
          %{status: :waiting} <- cli_session do
-      user_token = create_user_api_token(user, "")
+      user_token = create_user_api_token(user, cli_session.note)
 
       Memento.transaction!(fn ->
         Memento.Query.write(%UserCLISession{token: token, user_token: user_token, status: :ready, user_id: user.id})
@@ -1108,7 +1108,7 @@ defmodule NervesHub.Accounts do
     end
   end
 
-  def generate_cli_session_token() do
+  def generate_cli_session_token(note) do
     token = Ecto.UUID.generate()
 
     expires_at =
@@ -1122,7 +1122,8 @@ defmodule NervesHub.Accounts do
           token: token,
           status: :waiting,
           expires_at: expires_at,
-          confirmation_code: Enum.random(100_000..999_999)
+          confirmation_code: Enum.random(100_000..999_999),
+          note: note
         }
         |> Memento.Query.write()
       end
