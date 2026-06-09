@@ -49,7 +49,7 @@ export default {
   mounted() {
     // socket + channel setup to receive device console data
     this.socket = new Socket("/socket", {
-      params: { token: this.el.dataset.userToken }
+      params: { session_token: this.el.dataset.userToken }
     })
     this.socket.connect()
 

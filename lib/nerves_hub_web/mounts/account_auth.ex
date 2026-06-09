@@ -16,6 +16,7 @@ defmodule NervesHubWeb.Mounts.AccountAuth do
       end)
 
     if socket.assigns.user do
+      socket = assign(socket, :user_token, Base.url_encode64(user_token))
       {:cont, socket}
     else
       {:halt, redirect(socket, to: "/login")}

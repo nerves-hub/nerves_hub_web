@@ -75,10 +75,6 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   end
 
   def render(assigns) do
-    token = Phoenix.Token.sign(NervesHubWeb.Endpoint, "user salt", assigns.user.id)
-
-    assigns = Map.put(assigns, :user_token, token)
-
     ~H"""
     <div
       id="console-tab"
