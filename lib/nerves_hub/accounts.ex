@@ -1118,7 +1118,12 @@ defmodule NervesHub.Accounts do
 
     Memento.transaction!(fn ->
       with {:fetch, nil} <- {:fetch, Memento.Query.read(UserCLISession, token)} do
-        %UserCLISession{token: token, status: :waiting, expires_at: expires_at}
+        %UserCLISession{
+          token: token,
+          status: :waiting,
+          expires_at: expires_at,
+          confirmation_code: Enum.random(100_000..999_999)
+        }
         |> Memento.Query.write()
       end
     end)
@@ -1127,6 +1132,21 @@ defmodule NervesHub.Accounts do
         {:error, :invalid_request}
 
       %UserCLISession{} = cli_session ->
+        {:ok, cli_session}
+
+      _ ->
+        {:error, :invalid_request}
+    end
+  end
+
+  def cli_session_waiting?(user, token) do
+    fetch_cli_session = fn -> Memento.Query.read(UserCLISession, token) end
+
+    with %UserCLISession{} = cli_session <- Memento.transaction!(fetch_cli_session),
+         %{status: :waiting} <- cli_session do
+      {:ok, cli_session}
+    else
+      %{user_id: user_id} = cli_session when user_id == user.id ->
         {:ok, cli_session}
 
       _ ->

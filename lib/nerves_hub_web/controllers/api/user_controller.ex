@@ -69,7 +69,11 @@ defmodule NervesHubWeb.API.UserController do
     Accounts.generate_cli_session_token()
     |> case do
       {:ok, cli_session} ->
-        render(conn, token: cli_session.token, url: url(conn, ~p"/auth/cli/#{cli_session.token}"))
+        render(conn,
+          token: cli_session.token,
+          url: url(conn, ~p"/auth/cli/#{cli_session.token}"),
+          confirmation_code: cli_session.confirmation_code
+        )
 
       {:error, :invalid_request} ->
         raise NervesHubWeb.InvalidRequestError, info: "token invalid"

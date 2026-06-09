@@ -13,8 +13,8 @@ defmodule NervesHubWeb.API.UserJSON do
     %{data: user(user)}
   end
 
-  def cli_session(%{token: token, url: url}) do
-    %{data: %{token: token, url: url}}
+  def cli_session(%{token: token, url: url, confirmation_code: confirmation_code}) do
+    %{data: %{token: token, url: url, confirmation_code: confirmation_code}}
   end
 
   def check_cli_session(%{status: :ready, user_token: user_token}) do

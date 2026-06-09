@@ -212,6 +212,7 @@ defmodule NervesHubWeb.Router do
     get("/logout", SessionController, :delete)
 
     get("/auth/cli/:token", SessionController, :cli)
+    post("/auth/cli/:token", SessionController, :cli_confirm)
   end
 
   scope "/", NervesHubWeb do
