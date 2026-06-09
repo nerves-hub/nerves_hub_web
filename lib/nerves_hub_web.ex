@@ -17,7 +17,7 @@ defmodule NervesHubWeb do
   and import those modules here.
   """
 
-  def static_paths(), do: ~w(assets fonts images favicon.ico robots.txt)
+  def static_paths(), do: ~w(assets fonts images favicon.ico robots.txt swagger)
 
   def plug() do
     quote do

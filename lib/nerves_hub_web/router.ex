@@ -21,10 +21,10 @@ defmodule NervesHubWeb.Router do
   alias NervesHubWeb.API.Plugs.RequireAuthenticatedUser
   alias NervesHubWeb.Mounts.CurrentPath
   alias NervesHubWeb.Mounts.EnrichSentryContext
+  alias NervesHubWeb.Plugs.OpenApiSpec
   alias NervesHubWeb.Plugs.ServerAuth
   alias NervesHubWeb.Plugs.SetLocale
   alias OpenApiSpex.Plug.PutApiSpec
-  alias OpenApiSpex.Plug.RenderSpec
   alias OpenApiSpex.Plug.SwaggerUI
   alias Plug.Swoosh.MailboxPreview
 
@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Router do
 
   scope "/api" do
     pipe_through(:api)
-    get("/openapi", RenderSpec, [])
+    get("/openapi", OpenApiSpec, [])
   end
 
   scope("/api", NervesHubWeb.API, as: :api) do
@@ -201,7 +201,12 @@ defmodule NervesHubWeb.Router do
     # Use the default browser stack
     pipe_through(:browser)
 
-    get("/swaggerui", SwaggerUI, path: "/api/openapi")
+    get("/swaggerui", SwaggerUI,
+      path: "/api/openapi",
+      swagger_ui_js_bundle_url: "/swagger/swagger-ui-bundle.js",
+      swagger_ui_js_standalone_preset_url: "/swagger/swagger-ui-standalone-preset.js",
+      swagger_ui_css_url: "/swagger/swagger-ui.css"
+    )
   end
 
   scope "/", NervesHubWeb do
