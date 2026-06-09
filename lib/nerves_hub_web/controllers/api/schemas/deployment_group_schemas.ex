@@ -4,8 +4,6 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
   require OpenApiSpex
 
   defmodule Firmware do
-    require OpenApiSpex
-
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -24,8 +22,6 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
   end
 
   defmodule CurrentRelease do
-    require OpenApiSpex
-
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -49,8 +45,6 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
   end
 
   defmodule Conditions do
-    require OpenApiSpex
-
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -65,8 +59,6 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
   end
 
   defmodule DeploymentGroup do
-    require OpenApiSpex
-
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
