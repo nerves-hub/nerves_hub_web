@@ -1,3 +1,4 @@
+Mimic.copy(Ecto.UUID)
 Mimic.copy(ProcessHub)
 Mimic.copy(ProcessHub.Future)
 Mimic.copy(ProcessHub.StartResult)

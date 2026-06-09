@@ -7,4 +7,10 @@ defmodule NervesHubWeb.SessionHTML do
   use NervesHubWeb, :html
 
   embed_templates("session_html/*")
+
+  defp confirmation_code_list(code) do
+    code
+    |> to_string()
+    |> String.split("", trim: true)
+  end
 end

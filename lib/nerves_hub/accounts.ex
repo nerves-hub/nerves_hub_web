@@ -11,6 +11,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.UserCLISession
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Devices
@@ -1071,6 +1072,108 @@ defmodule NervesHub.Accounts do
 
       {:error, :user, changeset, _} ->
         {:error, changeset}
+    end
+  end
+
+  def delete_expired_cli_session_records() do
+    now = DateTime.utc_now() |> DateTime.to_unix()
+
+    Memento.transaction!(fn ->
+      Memento.Query.select(UserCLISession, {:<, :expires_at, now})
+      |> Enum.each(&Memento.Query.delete_record/1)
+    end)
+  end
+
+  def verify_cli_session_token(user, token) do
+    fetch_cli_session = fn -> Memento.Query.read(UserCLISession, token) end
+
+    with %UserCLISession{} = cli_session <- Memento.transaction!(fetch_cli_session),
+         %{status: :waiting} <- cli_session do
+      user_token = create_user_api_token(user, cli_session.note)
+
+      Memento.transaction!(fn ->
+        Memento.Query.write(%UserCLISession{token: token, user_token: user_token, status: :ready, user_id: user.id})
+      end)
+
+      :ok
+    else
+      %{status: :ready, user_id: user_id} when user_id == user.id ->
+        :ok
+
+      %{status: :ready} ->
+        {:error, :already_verified}
+
+      _ ->
+        {:error, :not_found}
+    end
+  end
+
+  def generate_cli_session_token(note) do
+    token = Ecto.UUID.generate()
+
+    expires_at =
+      DateTime.utc_now()
+      |> DateTime.add(5, :minute)
+      |> DateTime.to_unix()
+
+    Memento.transaction!(fn ->
+      with {:fetch, nil} <- {:fetch, Memento.Query.read(UserCLISession, token)} do
+        %UserCLISession{
+          token: token,
+          status: :waiting,
+          expires_at: expires_at,
+          confirmation_code: Enum.random(100_000..999_999),
+          note: note
+        }
+        |> Memento.Query.write()
+      end
+    end)
+    |> case do
+      {:fetch, _} ->
+        {:error, :invalid_request}
+
+      %UserCLISession{} = cli_session ->
+        {:ok, cli_session}
+
+      _ ->
+        {:error, :invalid_request}
+    end
+  end
+
+  def cli_session_waiting?(user, token) do
+    fetch_cli_session = fn -> Memento.Query.read(UserCLISession, token) end
+
+    with %UserCLISession{} = cli_session <- Memento.transaction!(fetch_cli_session),
+         %{status: :waiting} <- cli_session do
+      {:ok, cli_session}
+    else
+      %{user_id: user_id} = cli_session when user_id == user.id ->
+        {:ok, cli_session}
+
+      _ ->
+        {:error, :invalid_request}
+    end
+  end
+
+  def check_cli_session_ready(token) do
+    fetch_cli_session = fn -> Memento.Query.read(UserCLISession, token) end
+
+    with %UserCLISession{} = cli_session <- Memento.transaction!(fetch_cli_session),
+         %{status: :ready} <- cli_session do
+      Memento.transaction!(fn ->
+        Memento.Query.write(%{cli_session | status: :verified})
+      end)
+
+      {:ok, cli_session}
+    else
+      %{status: :waiting} = cli_session ->
+        {:ok, cli_session}
+
+      %{status: :verified} ->
+        {:error, :not_found}
+
+      nil ->
+        {:error, :not_found}
     end
   end
 end

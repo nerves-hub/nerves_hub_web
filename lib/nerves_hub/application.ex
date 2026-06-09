@@ -1,9 +1,12 @@
 defmodule NervesHub.Application do
   use Application
 
+  alias NervesHub.Accounts.UserCLISession
   alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
+  alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.RateLimit.LogLines
   alias NervesHub.Telemetry.Customizations
+  alias PlugAttack.Storage.Ets, as: PlugAttackEts
 
   require Logger
 
@@ -18,6 +21,9 @@ defmodule NervesHub.Application do
 
     setup_open_telemetry()
     _ = setup_logging()
+
+    # used for CLI session token exchange
+    setup_memento()
 
     children =
       [{Finch, name: Swoosh.Finch}] ++
@@ -35,6 +41,8 @@ defmodule NervesHub.Application do
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
           {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
+          NervesHubWeb.RateLimitPubSub,
+          {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
           {PartitionSupervisor, child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
         ] ++
         deployments_orchestrator(deploy_env()) ++
@@ -61,6 +69,16 @@ defmodule NervesHub.Application do
       :logger.add_primary_filter(:filter_ssl_handshake, {&NervesHub.Logger.ssl_log_filter/2, []})
 
     NervesHub.Logger.attach()
+  end
+
+  defp setup_memento() do
+    _ =
+      case Application.get_env(:nerves_hub, :app) do
+        "device" -> :ok
+        _ -> Memento.Table.create(UserCLISession)
+      end
+
+    :ok
   end
 
   defp setup_open_telemetry() do
