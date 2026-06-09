@@ -85,7 +85,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
 
   def hooked_info(_event, socket), do: {:cont, socket}
 
-  def render(%{analytics_enabled: analytics_enabled} = assigns) when analytics_enabled == false do
+  def render(%{analytics_enabled: false} = assigns) do
     ~H"""
     <div class="size-full p-12">
       <div class="text-medium flex size-full flex-col items-center justify-center gap-6 p-6 font-mono">
@@ -96,7 +96,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
     """
   end
 
-  def render(%{product: %{extensions: %{logging: logging}}} = assigns) when logging == false do
+  def render(%{product: %{extensions: %{logging: false}}} = assigns) do
     ~H"""
     <div class="size-full p-12">
       <div class="text-medium flex size-full flex-col items-center justify-center gap-6 p-6 font-mono">
@@ -107,12 +107,26 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
     """
   end
 
-  def render(%{device: %{extensions: %{logging: logging}}} = assigns) when logging == false do
+  def render(%{device: %{extensions: %{logging: false}}} = assigns) do
     ~H"""
     <div class="size-full p-12">
       <div class="text-medium flex size-full flex-col items-center justify-center gap-6 p-6 font-mono">
         <div class="font-bold">Device logs aren't enabled.</div>
         <div>Please check the device settings.</div>
+      </div>
+    </div>
+    """
+  end
+
+  def render(%{has_logs: false} = assigns) do
+    ~H"""
+    <div
+      id="logs-tab"
+      phx-mounted={JS.remove_class("opacity-0")}
+      class="bg-base-950 phx-click-loading:opacity-50 tab-content size-full pb-10 opacity-0 transition-all duration-500"
+    >
+      <div class="text-medium flex size-full items-center justify-center gap-6 p-6 font-mono">
+        <div>No logs have been received yet.</div>
       </div>
     </div>
     """
@@ -125,10 +139,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
       phx-mounted={JS.remove_class("opacity-0")}
       class="bg-base-950 phx-click-loading:opacity-50 tab-content size-full pb-10 opacity-0 transition-all duration-500"
     >
-      <div :if={!@has_logs} class="text-medium flex size-full items-center justify-center gap-6 p-6 font-mono">
-        <div>No logs have been received yet.</div>
-      </div>
-      <div :if={@has_logs} class="size-full">
+      <div class="size-full">
         <div class="border-base-700 flex h-11 flex-row items-center justify-between border-b px-12">
           <div>
             <span class="text-base-400 text-sm">Live log streaming :</span>
@@ -156,7 +167,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
           </div>
           <span class="text-base-400 text-sm font-extralight">Showing the last 25 log lines.</span>
         </div>
-        <div :if={@has_logs} class="relative size-full pb-10">
+        <div class="relative size-full pb-10">
           <div id="log_lines" phx-update="stream" class="scrollable-inner flex h-full max-w-0 min-w-full flex-col items-start gap-3 overflow-x-auto overflow-y-visible px-12 pt-10">
             <div :for={{dom_id, line} <- @streams.log_lines} id={dom_id} phx-mounted={@log_inserted && fade_in()} class="flex w-full flex-row gap-2 font-mono text-sm">
               <div id={"#{DateTime.to_unix(line.timestamp, :microsecond)}-log-line-localtime"} phx-hook="LogLineLocalTime" class="min-w-fit">

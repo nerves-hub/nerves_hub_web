@@ -9,7 +9,7 @@ defmodule NervesHub.MixProject do
       deps: deps(),
       aliases: aliases(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixir: "~> 1.19.0",
+      elixir: "~> 1.20.0",
       listeners: listeners(Mix.env()),
       releases: [
         nerves_hub: [
@@ -95,7 +95,7 @@ defmodule NervesHub.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:canonical_tailwind, "~> 0.1.0", only: [:dev, :test], runtime: false},
       {:ecto, "~> 3.8", override: true},
-      {:ecto_ch, "~> 0.9.2"},
+      {:ecto_ch, "~> 0.10.0"},
       {:ecto_psql_extras, "~> 0.7"},
       {:ecto_sql, "~> 3.0"},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
@@ -117,8 +117,9 @@ defmodule NervesHub.MixProject do
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.16.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.17.0", sparse: "icons", app: false, compile: false, depth: 1
       },
+      {:memento, "~> 0.5.0"},
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.13.0"},
@@ -138,6 +139,7 @@ defmodule NervesHub.MixProject do
        branch: "update-obans-semantic-conventions", subdir: "instrumentation/opentelemetry_oban"},
       {:opentelemetry_bandit, "~> 0.3.0"},
       {:open_telemetry_decorator, "~> 1.5"},
+      {:ordered_collections, "~> 0.3.3"},
       {:phoenix, "~> 1.8.4"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 4.0"},
@@ -149,6 +151,7 @@ defmodule NervesHub.MixProject do
       {:phoenix_view, "~> 2.0"},
       {:phoenix_test, "~> 0.8", only: :test},
       {:plug, "~> 1.7"},
+      {:plug_attack, "~> 0.4.2"},
       {:postgrex, "~> 0.14"},
       {:quokka, "~> 2.13.1", only: [:dev, :test]},
       {:req, "~> 0.5"},

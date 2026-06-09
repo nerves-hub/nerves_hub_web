@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias Phoenix.Naming
 
@@ -20,7 +21,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def update(%{event: :update_inflight_info}, socket) do
     %{deployment_group: deployment_group} = socket.assigns
 
-    inflight_updates = Devices.inflight_updates_for(deployment_group)
+    inflight_updates = FirmwareUpdates.inflight_updates_for(deployment_group)
 
     socket
     |> assign(:inflight_updates, inflight_updates)
@@ -60,7 +61,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def update(assigns, socket) do
     %{deployment_group: deployment_group} = assigns
 
-    inflight_updates = Devices.inflight_updates_for(deployment_group)
+    inflight_updates = FirmwareUpdates.inflight_updates_for(deployment_group)
     updating_count = Devices.updating_count(deployment_group)
 
     socket
@@ -398,13 +399,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span class="text-base-300 text-sm">{@deployment_group.priority_queue_firmware_version_threshold || "Not set"}</span>
             </div>
 
-            <div :if={!@deployment_group.connecting_code} class="flex items-center gap-4">
+            <div :if={is_nil(@deployment_group.connecting_code)} class="flex items-center gap-4">
               <span class="text-nerves-gray-500 text-sm">Code sent on device connection:</span>
               <span class="text-base-300 text-sm">No code configured</span>
             </div>
-            <div :if={@deployment_group.connecting_code} class="flex items-start gap-2">
+            <div :if={not is_nil(@deployment_group.connecting_code)} class="flex items-start gap-2">
               <span class="text-nerves-gray-500 text-sm">Code sent on device connection:</span>
-              <pre :if={!@deployment_group.connecting_code} class="text-base-300 text-sm">
+              <pre class="text-base-300 text-sm">
     {@deployment_group.connecting_code}
               </pre>
             </div>

@@ -13,6 +13,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias Phoenix.PubSub
@@ -173,7 +174,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   def available_priority_slots(deployment_group) do
     # Just in case inflight goes higher than concurrent, limit it to 0
     (deployment_group.priority_queue_concurrent_updates -
-       Devices.count_inflight_priority_updates_for(deployment_group))
+       FirmwareUpdates.count_inflight_priority_updates_for(deployment_group))
     |> max(0)
     |> round()
   end
@@ -185,7 +186,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   @spec available_slots(DeploymentGroup.t()) :: non_neg_integer()
   def available_slots(deployment_group) do
     # Just in case inflight goes higher than concurrent, limit it to 0
-    (deployment_group.concurrent_updates - Devices.count_inflight_updates_for(deployment_group))
+    (deployment_group.concurrent_updates - FirmwareUpdates.count_inflight_updates_for(deployment_group))
     |> max(0)
     |> round()
   end

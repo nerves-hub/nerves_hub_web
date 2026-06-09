@@ -3,6 +3,7 @@ import Config
 alias NervesHub.Accounts.Scope
 alias NervesHub.Workers.CleanStaleDeviceConnections
 alias NervesHub.Workers.CleanUpSoftDeletedDevices
+alias NervesHub.Workers.DeleteExpiredCLISessionRecords
 alias NervesHub.Workers.DeviceHealthTruncation
 alias NervesHub.Workers.ExpireInflightUpdates
 alias NervesHub.Workers.FirmwareDeltaTimeout
@@ -88,7 +89,8 @@ config :nerves_hub, Oban,
        {"* * * * *", FirmwareDeltaTimeout},
        {"*/5 * * * *", ExpireInflightUpdates},
        {"*/15 * * * *", DeviceHealthTruncation},
-       {"*/15 * * * *", CleanUpSoftDeletedDevices}
+       {"*/15 * * * *", CleanUpSoftDeletedDevices},
+       {"*/1 * * * *", DeleteExpiredCLISessionRecords}
      ]}
   ]
 

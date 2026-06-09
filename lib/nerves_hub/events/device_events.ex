@@ -131,12 +131,18 @@ defmodule NervesHub.DeviceEvents do
         firmware_meta: meta
       }
 
-      broadcast(device, "update", payload)
-
       :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
 
-      {:ok, device}
+      {:ok, {device, payload}}
     end)
+    |> case do
+      {:ok, {device, payload}} ->
+        broadcast(device, "update", payload)
+        {:ok, device}
+
+      res ->
+        res
+    end
   end
 
   def topic(%Device{id: id}) do

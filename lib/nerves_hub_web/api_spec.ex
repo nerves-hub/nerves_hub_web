@@ -2,6 +2,7 @@ defmodule NervesHubWeb.ApiSpec do
   @behaviour OpenApiSpex.OpenApi
 
   alias NervesHubWeb.API.OpenAPI.DeviceControllerSpecs
+  alias NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Plugs.ImAlive
   alias NervesHubWeb.Router
@@ -71,15 +72,19 @@ defmodule NervesHubWeb.ApiSpec do
         },
         %Tag{
           name: "Deployment Groups",
-          description: "Operations related to Deployment Groups"
+          description: "Deployment Group and release management"
         },
         %Tag{
           name: "Firmwares",
           description: "Firmware uploading and management"
         },
         %Tag{
+          name: "Organizations",
+          description: "Organization management"
+        },
+        %Tag{
           name: "Organization Members",
-          description: "Organization User membership"
+          description: "Organization User membership management"
         },
         %Tag{
           name: "Products",
@@ -91,15 +96,16 @@ defmodule NervesHubWeb.ApiSpec do
         },
         %Tag{
           name: "Status",
-          description: "Application healthcheck"
+          description: "Platform healthcheck"
         },
         %Tag{
           name: "Support Scripts",
-          description: "Organization Support Script management"
+          description: "Product Support Script management"
         }
       ]
     }
     |> DeviceControllerSpecs.add_operations()
+    |> SupportScriptControllerSpecs.add_operations()
     # Discover request/response schemas from path specs
     |> OpenApiSpex.resolve_schema_modules()
   end

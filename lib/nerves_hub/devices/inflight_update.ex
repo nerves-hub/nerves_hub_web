@@ -19,13 +19,31 @@ defmodule NervesHub.Devices.InflightUpdate do
     field(:priority_queue, :boolean, default: false)
 
     field(:status, Ecto.Enum,
-      values: [:requested, :received, :started, :downloading, :updating, :completed, :expired],
+      values: [
+        :requested,
+        :rescheduled,
+        :ignored,
+        :received,
+        :started,
+        :downloading,
+        :updating,
+        :completed,
+        :failed,
+        :expired
+      ],
       default: :requested
     )
 
     field(:progress, :integer)
 
     timestamps()
+  end
+
+  def empty_requested_changeset(device_id) do
+    %InflightUpdate{}
+    |> change(%{device_id: device_id})
+    |> validate_required([:device_id])
+    |> unique_constraint(:device_id, name: :inflight_updates_device_id_index)
   end
 
   def manual_requested_changeset(device_id, firmware) do
@@ -50,5 +68,9 @@ defmodule NervesHub.Devices.InflightUpdate do
     })
     |> validate_required([:device_id, :deployment_id, :firmware_id, :firmware_uuid])
     |> unique_constraint(:device_id, name: :inflight_updates_device_id_index)
+  end
+
+  def update_status_changeset(inflight_update, status, progress) do
+    cast(inflight_update, %{status: status, progress: progress}, [:status, :progress])
   end
 end

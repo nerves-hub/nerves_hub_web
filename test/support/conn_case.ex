@@ -66,6 +66,7 @@ defmodule NervesHubWeb.APIConnCase do
   using do
     quote do
       use DefaultMocks
+      use NervesHubWeb, :verified_routes
 
       import NervesHubWeb.APIConnCase, only: [build_auth_conn: 1]
       import Phoenix.ConnTest

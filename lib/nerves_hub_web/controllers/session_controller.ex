@@ -106,6 +106,39 @@ defmodule NervesHubWeb.SessionController do
     end
   end
 
+  def cli(conn, %{"token" => token}) do
+    conn.assigns.current_scope.user
+    |> Accounts.cli_session_waiting?(token)
+    |> case do
+      {:ok, %{status: :ready}} ->
+        conn
+        |> assign(:page_title, "CLI Session Confirmed")
+        |> render(:cli_confirmed)
+
+      {:ok, cli_session} ->
+        conn
+        |> assign(:page_title, "CLI Session Confirmation")
+        |> assign(:token, token)
+        |> assign(:confirmation_code, cli_session.confirmation_code)
+        |> render(:cli)
+
+      {:error, _} ->
+        render(conn, :cli_invalid)
+    end
+  end
+
+  def cli_confirm(conn, %{"token" => token}) do
+    conn.assigns.current_scope.user
+    |> Accounts.verify_cli_session_token(token)
+    |> case do
+      :ok ->
+        redirect(conn, to: ~p"/auth/cli/#{token}")
+
+      {:error, :not_found} ->
+        raise NervesHubWeb.NotFoundError
+    end
+  end
+
   defp resend_confirmation_email(conn, user, message) do
     {:ok, _} =
       Accounts.deliver_user_confirmation_instructions(

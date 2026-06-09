@@ -145,14 +145,280 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
     end
   end
 
+  describe "show" do
+    test "returns a script by id", %{conn: conn, org: org, product: product, user: user} do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      conn = get(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}")
+
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["name"] == "test-script"
+      assert data["created_by"]["name"] == user.name
+    end
+
+    test "shows a 404 when script not found", %{conn: conn, org: org, product: product} do
+      conn = get(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/boopsnoot")
+
+      assert json_response(conn, 404)
+    end
+
+    test "returns a 404 when is not accessible", %{conn2: conn, user: user, org: org, product: product} do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      assert_raise Ecto.NoResultsError, fn ->
+        get(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}")
+      end
+    end
+  end
+
+  describe "create" do
+    test "succeeds with all required fields", %{conn: conn, org: org, product: product, user: user} do
+      conn =
+        post(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts", %{
+          name: "test-script",
+          text: "Boop.snoot()"
+        })
+
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["name"] == "test-script"
+      assert data["text"] == "Boop.snoot()"
+      assert data["created_by"]["name"] == user.name
+    end
+
+    test "422 error if name or text are missing", %{conn: conn, org: org, product: product} do
+      conn = post(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts")
+
+      assert %{"errors" => errors} = json_response(conn, 422)
+      assert "can't be blank" in errors["name"]
+      assert "can't be blank" in errors["text"]
+    end
+
+    test "raises an NervesHubWeb.UnauthorizedError when user has :view role", %{
+      conn2: conn,
+      user2: user,
+      org: org,
+      product: product
+    } do
+      NervesHub.Accounts.add_org_user(org, user, %{role: :view})
+
+      assert_raise NervesHubWeb.UnauthorizedError, fn ->
+        post(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts", %{
+          name: "test-script",
+          text: "Boop.snoot()"
+        })
+      end
+    end
+
+    test "does not raises an Ecto.NoResultsError when user has :manage role", %{
+      conn2: conn,
+      user2: user,
+      org: org,
+      product: product
+    } do
+      NervesHub.Accounts.add_org_user(org, user, %{role: :manage})
+
+      conn =
+        post(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts", %{
+          name: "test-script",
+          text: "Boop.snoot()"
+        })
+
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["name"] == "test-script"
+      assert data["text"] == "Boop.snoot()"
+      assert data["created_by"]["name"] == user.name
+    end
+
+    test "does not raises an Ecto.NoResultsError when user has :admin role", %{
+      conn2: conn,
+      user2: user,
+      org: org,
+      product: product
+    } do
+      NervesHub.Accounts.add_org_user(org, user, %{role: :admin})
+
+      conn =
+        post(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts", %{
+          name: "test-script",
+          text: "Boop.snoot()"
+        })
+
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["name"] == "test-script"
+      assert data["text"] == "Boop.snoot()"
+      assert data["created_by"]["name"] == user.name
+    end
+
+    test "raises an Ecto.NoResultsError when user is not part of the org", %{conn2: conn, org: org, product: product} do
+      assert_raise Ecto.NoResultsError, fn ->
+        post(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts", %{
+          name: "test-script",
+          text: "Boop.snoot()"
+        })
+      end
+    end
+  end
+
+  describe "update" do
+    test "can update name, text, and tags", %{conn: conn, org: org, product: product, user: user} do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      conn =
+        put(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}", %{
+          name: "test-script-updated",
+          text: "Boop.snoot()",
+          tags: "boop"
+        })
+
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["name"] == "test-script-updated"
+      assert data["text"] == "Boop.snoot()"
+      assert data["tags"] == ["boop"]
+    end
+
+    test "cannot have empty name or text", %{conn: conn, org: org, product: product, user: user} do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      conn = put(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}", %{name: "", text: ""})
+
+      assert %{"errors" => errors} = json_response(conn, 422)
+      assert "can't be blank" in errors["name"]
+      assert "can't be blank" in errors["text"]
+    end
+
+    test "raises an NervesHubWeb.UnauthorizedError when user has :view role", %{
+      conn2: conn,
+      user2: user,
+      org: org,
+      product: product
+    } do
+      NervesHub.Accounts.add_org_user(org, user, %{role: :view})
+
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      assert_raise NervesHubWeb.UnauthorizedError, fn ->
+        put(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}", %{
+          name: "boop",
+          text: "snoot()"
+        })
+      end
+    end
+
+    test "users with :manage role can update support scripts", %{conn2: conn, user2: user, org: org, product: product} do
+      {:ok, _} = NervesHub.Accounts.add_org_user(org, user, %{role: :manage})
+
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      conn =
+        put(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}", %{
+          name: "test-script-updated",
+          text: "Boop.snoot()",
+          tags: "boop"
+        })
+
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["name"] == "test-script-updated"
+      assert data["text"] == "Boop.snoot()"
+      assert data["tags"] == ["boop"]
+    end
+
+    test "users with :admin role can update support scripts", %{conn2: conn, user2: user, org: org, product: product} do
+      {:ok, _} = NervesHub.Accounts.add_org_user(org, user, %{role: :admin})
+
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      conn =
+        put(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}", %{
+          name: "test-script-updated",
+          text: "Boop.snoot()",
+          tags: "boop"
+        })
+
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["name"] == "test-script-updated"
+      assert data["text"] == "Boop.snoot()"
+      assert data["tags"] == ["boop"]
+    end
+
+    test "raises an Ecto.NoResultsError when user is not part of the org", %{
+      conn2: conn,
+      user2: user,
+      org: org,
+      product: product
+    } do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      assert_raise Ecto.NoResultsError, fn ->
+        put(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}")
+      end
+    end
+  end
+
+  describe "delete" do
+    test "can delete a support script", %{conn: conn, org: org, product: product, user: user} do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      conn = delete(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}")
+
+      assert response(conn, 204) == ""
+    end
+
+    test "raises an NervesHubWeb.UnauthorizedError when user has :view role", %{
+      conn2: conn,
+      user2: user,
+      org: org,
+      product: product
+    } do
+      NervesHub.Accounts.add_org_user(org, user, %{role: :view})
+
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      assert_raise NervesHubWeb.UnauthorizedError, fn ->
+        delete(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}")
+      end
+    end
+
+    test "users with :manage role can delete support scripts", %{conn2: conn, user2: user, org: org, product: product} do
+      {:ok, _} = NervesHub.Accounts.add_org_user(org, user, %{role: :manage})
+
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      conn = delete(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}")
+
+      assert response(conn, 204) == ""
+    end
+
+    test "users with :admin role can update support scripts", %{conn2: conn, user2: user, org: org, product: product} do
+      {:ok, _} = NervesHub.Accounts.add_org_user(org, user, %{role: :admin})
+
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      conn = delete(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}")
+
+      assert response(conn, 204) == ""
+    end
+
+    test "raises an Ecto.NoResultsError when user is not part of the org", %{
+      conn2: conn,
+      user: user,
+      org: org,
+      product: product
+    } do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+
+      assert_raise Ecto.NoResultsError, fn ->
+        delete(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}")
+      end
+    end
+  end
+
   describe "send" do
     test "sends script to device by name", %{conn: conn, device: device, product: product, user: user} do
       script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
 
       path = Routes.api_script_path(conn, :send, device, script.name)
 
-      Runner
-      |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
+      expect(Runner, :send, fn _, _, _ -> {:ok, "hello"} end)
 
       conn
       |> post(path)
@@ -164,8 +430,7 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
 
       path = Routes.api_script_path(conn, :send, device, script.id)
 
-      Runner
-      |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
+      expect(Runner, :send, fn _, _, _ -> {:ok, "hello"} end)
 
       conn
       |> post(path)

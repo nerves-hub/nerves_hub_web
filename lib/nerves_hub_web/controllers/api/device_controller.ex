@@ -38,10 +38,20 @@ defmodule NervesHubWeb.API.DeviceController do
   plug(:validate_role, [org: :view] when action in [:index, :show, :auth])
 
   def index(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
+    filters = Map.get(params, "filters", %{}) |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)
+
     opts = %{
       pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
-      filters: Map.get(params, "filters", %{})
+      filters: filters
     }
+
+    opts =
+      if sort_field = Map.get(params, "sort") do
+        sort_direction = Map.get(params, "sort_direction", "asc")
+        Map.put(opts, :sort, {String.to_atom(sort_direction), String.to_existing_atom(sort_field)})
+      else
+        opts
+      end
 
     {devices, page} =
       Devices.get_devices_by_org_id_and_product_id_with_pager(org.id, product.id, opts)

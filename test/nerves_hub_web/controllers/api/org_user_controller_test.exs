@@ -18,13 +18,11 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       assert json_response(conn, 200)["data"] ==
                [%{"email" => user.email, "role" => "admin", "name" => user.name}]
     end
-  end
 
-  describe "index roles" do
     for role <- [:manage, :view] do
       @role role
 
-      test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
+      test "error: org #{@role} cannot list org members", %{conn2: conn, org: org, user2: user} do
         Accounts.add_org_user(org, user, %{role: @role})
 
         assert_error_sent(401, fn ->
@@ -35,7 +33,29 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
     end
   end
 
-  describe "add org_users" do
+  describe "show" do
+    test "view member details", %{conn: conn, org: org, user: user} do
+      conn = get(conn, Routes.api_org_user_path(conn, :show, org.name, user.email))
+
+      assert json_response(conn, 200)["data"] ==
+               %{"email" => user.email, "role" => "admin", "name" => user.name}
+    end
+
+    for role <- [:manage, :view] do
+      @role role
+
+      test "error: org #{@role} cannot view member details", %{conn2: conn, org: org, user2: user} do
+        Accounts.add_org_user(org, user, %{role: @role})
+
+        assert_error_sent(401, fn ->
+          get(conn, Routes.api_org_user_path(conn, :show, org.name, user.email))
+        end)
+        |> assert_authorization_error()
+      end
+    end
+  end
+
+  describe "add user" do
     test "renders org_user when data is valid", %{conn: conn, org: org, user2: user2} do
       org_user = %{"email" => user2.email, "role" => "manage"}
       conn = post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
@@ -53,9 +73,31 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       conn = post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
       assert json_response(conn, 422)["errors"] != %{}
     end
+
+    test "invites a user to the org if they don't have an account", %{conn: conn, org: org} do
+      org_user = %{"email" => "bogus@example.com", "role" => "manage"}
+      conn = post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
+      assert response(conn, 204)
+
+      assert_email_sent()
+    end
+
+    for role <- [:manage, :view] do
+      @role role
+
+      test "error: user with #{@role} cannot add a user", %{conn2: conn, org: org, user2: user} do
+        Accounts.add_org_user(org, user, %{role: @role})
+        org_user = %{"username" => "1234", "role" => "admin"}
+
+        assert_error_sent(401, fn ->
+          post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
+        end)
+        |> assert_authorization_error()
+      end
+    end
   end
 
-  describe "invite org_users" do
+  describe "invite user" do
     test "renders org_user when data is valid", %{conn: conn, org: org} do
       org_user = %{"email" => "bogus@example.com", "role" => "manage"}
       conn = post(conn, Routes.api_org_user_path(conn, :invite, org.name), org_user)
@@ -72,37 +114,35 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       assert %{"role" => ["is invalid"]} = json_response(conn, 422)["errors"]
     end
 
-    test "renders errors when user already has an account", %{conn: conn, org: org, user2: user2} do
-      org_user = %{"email" => user2.email, "role" => "bogus"}
+    test "add the user to the org if the user has an account", %{conn: conn, org: org, user2: user2} do
+      org_user = %{"email" => user2.email, "role" => "admin"}
 
       conn = post(conn, Routes.api_org_user_path(conn, :invite, org.name), org_user)
 
-      assert %{
-               "detail" => "A user with that email address already exists, please use the add user api endpoint."
-             } = json_response(conn, 422)["errors"]
+      assert json_response(conn, 201)["data"]["name"] == user2.name
+      assert json_response(conn, 201)["data"]["email"] == user2.email
+      assert json_response(conn, 201)["data"]["role"] == "admin"
     end
-  end
 
-  describe "add role" do
     for role <- [:manage, :view] do
       @role role
 
-      test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
+      test "error: user with #{@role} cannot invite a user", %{conn2: conn, org: org, user2: user} do
         Accounts.add_org_user(org, user, %{role: @role})
         org_user = %{"username" => "1234", "role" => "admin"}
 
         assert_error_sent(401, fn ->
-          post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
+          post(conn, Routes.api_org_user_path(conn, :invite, org.name), org_user)
         end)
         |> assert_authorization_error()
       end
     end
   end
 
-  describe "remove org_user" do
-    setup [:create_org_user]
-
+  describe "remove member" do
     test "remove existing user", %{conn: conn, org: org, user2: user} do
+      Accounts.add_org_user(org, user, %{role: :admin})
+
       conn = delete(conn, Routes.api_org_user_path(conn, :remove, org.name, user.email))
       assert response(conn, 204)
 
@@ -112,13 +152,11 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       conn = get(conn, Routes.api_org_user_path(conn, :show, org.name, user.email))
       assert response(conn, 404)
     end
-  end
 
-  describe "remove role" do
     for role <- [:manage, :view] do
       @role role
 
-      test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
+      test "error: user with #{@role} role cannot remove a member", %{conn2: conn, org: org, user2: user} do
         Accounts.add_org_user(org, user, %{role: @role})
 
         assert_error_sent(401, fn ->
@@ -129,10 +167,10 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
     end
   end
 
-  describe "update org_user role" do
-    setup [:create_org_user]
-
+  describe "update member role" do
     test "renders org_user when data is valid", %{conn: conn, org: org, user2: user} do
+      Accounts.add_org_user(org, user, %{role: :admin})
+
       conn =
         put(conn, Routes.api_org_user_path(conn, :update, org.name, user.email), role: "manage")
 
@@ -142,13 +180,11 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       conn = get(conn, path)
       assert json_response(conn, 200)["data"]["role"] == "manage"
     end
-  end
 
-  describe "update role" do
     for role <- [:manage, :view] do
       @role role
 
-      test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
+      test "error: user with #{@role} role cannot update a member's role", %{conn2: conn, org: org, user2: user} do
         Accounts.add_org_user(org, user, %{role: @role})
 
         assert_error_sent(401, fn ->
@@ -157,10 +193,5 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
         |> assert_authorization_error()
       end
     end
-  end
-
-  defp create_org_user(%{user2: user, org: org}) do
-    {:ok, org_user} = Accounts.add_org_user(org, user, %{role: :admin})
-    {:ok, %{org_user: org_user}}
   end
 end

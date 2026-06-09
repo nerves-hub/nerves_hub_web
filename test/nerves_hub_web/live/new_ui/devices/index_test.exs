@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
@@ -304,7 +305,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> select("Update status", option: "Updating")
       |> assert_has("a", text: device.identifier, timeout: 1000)
 
-      {:ok, _device} = Devices.firmware_update_successful(device, device.firmware_metadata)
+      {:ok, _device} = FirmwareUpdates.firmware_update_successful(device, device.firmware_metadata)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")

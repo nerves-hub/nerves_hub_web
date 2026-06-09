@@ -27,7 +27,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.UpdatePayload
-  alias NervesHub.Devices.UpdateStats
   alias NervesHub.Extensions
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
@@ -35,6 +34,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.UpdateTool.Fwup
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
@@ -104,7 +104,10 @@ defmodule NervesHub.Devices do
   end
 
   def get_devices_by_org_id_and_product_id_with_pager(org_id, product_id, opts) do
-    pagination = Map.get(opts, :pagination, %{page: 1, page_size: 10})
+    pagination =
+      %{page: 1, page_size: 10}
+      |> Map.merge(Map.get(opts, :pagination, %{}))
+
     sorting = Map.get(opts, :sort, {:asc, :identifier})
     filters = Map.get(opts, :filters, %{})
 
@@ -703,10 +706,10 @@ defmodule NervesHub.Devices do
   end
 
   @spec update_firmware_metadata(
-          Device.t(),
-          FirmwareMetadata.t() | nil,
-          Device.firmware_validation_statuses(),
-          boolean()
+          device :: Device.t(),
+          connecting_metadata :: FirmwareMetadata.t() | nil,
+          validation_status :: Device.firmware_validation_statuses(),
+          auto_revert_detected? :: boolean()
         ) ::
           {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def update_firmware_metadata(device, nil, validation_status, auto_revert_detected?) do
@@ -1176,7 +1179,7 @@ defmodule NervesHub.Devices do
         {:error, :up_to_date, device}
 
       updates_blocked?(device, now) ->
-        clear_inflight_update(device)
+        FirmwareUpdates.clear_inflight_update(device)
 
         {:error, :updates_blocked, device}
 
@@ -1202,7 +1205,7 @@ defmodule NervesHub.Devices do
       |> DateTime.add(deployment_group.penalty_timeout_minutes * 60, :second)
 
     :ok = DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device)
-    _ = clear_inflight_update(device)
+    _ = FirmwareUpdates.clear_inflight_update(device)
 
     Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}")
 
@@ -1234,44 +1237,6 @@ defmodule NervesHub.Devices do
       err ->
         err
     end
-  end
-
-  @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
-          {:ok, Device.t()} | {:error, Changeset.t()}
-  def firmware_update_successful(device, previous_metadata) do
-    :telemetry.execute([:nerves_hub, :devices, :update, :successful], %{count: 1}, %{
-      identifier: device.identifier,
-      firmware_uuid: device.firmware_metadata.uuid
-    })
-
-    DeviceTemplates.audit_firmware_updated(device)
-
-    # Clear the inflight update, no longer inflight!
-    inflight_update =
-      Repo.get_by(InflightUpdate,
-        device_id: device.id,
-        firmware_uuid: device.firmware_metadata.uuid
-      )
-
-    _ =
-      if inflight_update do
-        if inflight_update.deployment_id do
-          DeploymentGroup
-          |> where([d], d.id == ^inflight_update.deployment_id)
-          |> Repo.update_all(inc: [current_updated_devices: 1])
-        end
-
-        Repo.delete(inflight_update)
-
-        # let the orchestrator know that an inflight update completed
-        DeploymentOrchestratorEvents.device_updated(device)
-      end
-
-    _ = UpdateStats.log_update(device, previous_metadata)
-
-    device
-    |> Device.clear_updates_information_changeset()
-    |> Repo.update()
   end
 
   def deployment_device_online(%DeviceInfo{deployment_id: nil}) do
@@ -1676,98 +1641,6 @@ defmodule NervesHub.Devices do
     |> where([d], d.product_id == ^product_id)
     |> order_by([d], fragment("?->>'platform'", d.firmware_metadata))
     |> Repo.all()
-  end
-
-  def update_inflight_update(device_id, status, progress \\ nil, persist_update? \\ true)
-
-  def update_inflight_update(device_id, status, progress, true) do
-    updated_at = DateTime.utc_now() |> DateTime.truncate(:second)
-
-    InflightUpdate
-    |> where(device_id: ^device_id)
-    |> Repo.update_all(set: [status: status, progress: progress, updated_at: updated_at])
-    |> case do
-      {1, _} -> broadcast_inflight_update(device_id, status, progress)
-      _ -> true
-    end
-
-    :ok
-  end
-
-  def update_inflight_update(device_id, status, progress, false) do
-    broadcast_inflight_update(device_id, status, progress)
-    :ok
-  end
-
-  defp broadcast_inflight_update(device_id, status, progress) do
-    topic = "internal:device:#{device_id}"
-    payload = %{stage: status, percent: progress}
-    :ok = ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, "firmware_update_progress", payload)
-  end
-
-  def clear_inflight_update(%DeviceInfo{device_id: id}) do
-    clear_inflight_update(id)
-  end
-
-  def clear_inflight_update(%Device{id: id}) do
-    clear_inflight_update(id)
-  end
-
-  def clear_inflight_update(device_id) do
-    InflightUpdate
-    |> where([iu], iu.device_id == ^device_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_expired_inflight_updates() :: integer
-  def delete_expired_inflight_updates() do
-    {counts, results} =
-      InflightUpdate
-      |> join(:inner, [iu], d in assoc(iu, :device))
-      |> where([iu], iu.updated_at < fragment("NOW() - INTERVAL '30 minutes'"))
-      |> select([iu, d], %{device_id: d.id})
-      |> Repo.delete_all()
-
-    Enum.each(results, fn result ->
-      update_inflight_update(result.device_id, "expired", nil, false)
-    end)
-
-    counts
-  end
-
-  def inflight_update_for(%Device{id: device_id}) when not is_nil(device_id) do
-    InflightUpdate
-    |> where([iu], iu.device_id == ^device_id)
-    |> Repo.one()
-  end
-
-  def inflight_updates_for(%DeploymentGroup{} = deployment_group) do
-    InflightUpdate
-    |> where([iu], iu.deployment_id == ^deployment_group.id)
-    |> preload([:device])
-    |> Repo.all()
-  end
-
-  @doc """
-  Count inflight updates for a deployment group, excluding priority queue updates.
-  This ensures normal queue capacity is calculated independently.
-  """
-  def count_inflight_updates_for(%DeploymentGroup{} = deployment_group) do
-    InflightUpdate
-    |> where([iu], iu.deployment_id == ^deployment_group.id)
-    |> where([iu], iu.priority_queue == false)
-    |> Repo.aggregate(:count)
-  end
-
-  @doc """
-  Count inflight updates that are in the priority queue for a deployment group.
-  """
-  @spec count_inflight_priority_updates_for(DeploymentGroup.t()) :: non_neg_integer()
-  def count_inflight_priority_updates_for(%DeploymentGroup{} = deployment_group) do
-    InflightUpdate
-    |> where([iu], iu.deployment_id == ^deployment_group.id)
-    |> where([iu], iu.priority_queue == true)
-    |> Repo.aggregate(:count)
   end
 
   def fetch_connecting_code(device_id) do

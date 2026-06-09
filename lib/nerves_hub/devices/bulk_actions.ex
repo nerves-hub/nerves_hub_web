@@ -15,8 +15,6 @@ defmodule NervesHub.Devices.BulkActions do
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
-  require Logger
-
   def async_bulk_create(org_id, product_id, import_list, format, tags \\ [])
 
   def async_bulk_create(org_id, product_id, import_list, format, tags) when not is_binary(import_list) do

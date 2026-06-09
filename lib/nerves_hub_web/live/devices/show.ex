@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Extensions.Health
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
@@ -333,7 +334,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp load_inprogress_firmware_update(socket) do
     socket.assigns.device
-    |> Devices.inflight_update_for()
+    |> FirmwareUpdates.inflight_update_for()
     |> case do
       nil ->
         socket

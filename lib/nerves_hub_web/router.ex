@@ -21,10 +21,10 @@ defmodule NervesHubWeb.Router do
   alias NervesHubWeb.API.Plugs.RequireAuthenticatedUser
   alias NervesHubWeb.Mounts.CurrentPath
   alias NervesHubWeb.Mounts.EnrichSentryContext
+  alias NervesHubWeb.Plugs.OpenApiSpec
   alias NervesHubWeb.Plugs.ServerAuth
   alias NervesHubWeb.Plugs.SetLocale
   alias OpenApiSpex.Plug.PutApiSpec
-  alias OpenApiSpex.Plug.RenderSpec
   alias OpenApiSpex.Plug.SwaggerUI
   alias Plug.Swoosh.MailboxPreview
 
@@ -64,11 +64,14 @@ defmodule NervesHubWeb.Router do
 
   scope "/api" do
     pipe_through(:api)
-    get("/openapi", RenderSpec, [])
+    get("/openapi", OpenApiSpec, [])
   end
 
   scope("/api", NervesHubWeb.API, as: :api) do
     pipe_through(:api)
+
+    post("/auth/cli_session", UserController, :cli_session)
+    get("/auth/cli_session/:token", UserController, :check_cli_session)
 
     post("/users/auth", UserController, :auth)
     post("/users/login", UserController, :login)
@@ -180,7 +183,13 @@ defmodule NervesHubWeb.Router do
                 delete("/:name", DeploymentGroupController, :delete)
               end
 
-              get("/scripts", ScriptController, :index)
+              scope "/scripts" do
+                get("/", ScriptController, :index)
+                get("/:id", ScriptController, :show)
+                post("/", ScriptController, :create)
+                put("/:id", ScriptController, :update)
+                delete("/:id", ScriptController, :delete)
+              end
             end
           end
         end
@@ -192,7 +201,12 @@ defmodule NervesHubWeb.Router do
     # Use the default browser stack
     pipe_through(:browser)
 
-    get("/swaggerui", SwaggerUI, path: "/api/openapi")
+    get("/swaggerui", SwaggerUI,
+      path: "/api/openapi",
+      swagger_ui_js_bundle_url: "/swagger/swagger-ui-bundle.js",
+      swagger_ui_js_standalone_preset_url: "/swagger/swagger-ui-standalone-preset.js",
+      swagger_ui_css_url: "/swagger/swagger-ui.css"
+    )
   end
 
   scope "/", NervesHubWeb do
@@ -207,6 +221,9 @@ defmodule NervesHubWeb.Router do
     pipe_through([:browser, :require_authenticated_user])
 
     get("/logout", SessionController, :delete)
+
+    get("/auth/cli/:token", SessionController, :cli)
+    post("/auth/cli/:token", SessionController, :cli_confirm)
   end
 
   scope "/", NervesHubWeb do

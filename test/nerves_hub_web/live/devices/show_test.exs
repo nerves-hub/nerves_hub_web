@@ -17,6 +17,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
@@ -314,7 +315,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "received", nil, true)
+      FirmwareUpdates.update_inflight_update(device.id, "received", nil, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -333,7 +334,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "downloading", 50, true)
+      FirmwareUpdates.update_inflight_update(device.id, "downloading", 50, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -352,7 +353,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "updating", 50, true)
+      FirmwareUpdates.update_inflight_update(device.id, "updating", 50, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -371,7 +372,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "expired", nil, true)
+      FirmwareUpdates.update_inflight_update(device.id, "expired", nil, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -390,7 +391,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "completed", nil, true)
+      FirmwareUpdates.update_inflight_update(device.id, "completed", nil, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -408,32 +409,32 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "requested", nil, false)
+        FirmwareUpdates.update_inflight_update(device.id, "requested", nil, false)
         render(view)
       end)
       |> assert_has("div", text: "Firmware update request sent to the device")
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "received", nil, false)
+        FirmwareUpdates.update_inflight_update(device.id, "received", nil, false)
         render(view)
       end)
       |> assert_has("div", text: "Firmware update request received by the device")
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "started", nil, false)
+        FirmwareUpdates.update_inflight_update(device.id, "started", nil, false)
         render(view)
       end)
       |> assert_has("div", text: "Firmware update started...")
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "downloading", 35, false)
+        FirmwareUpdates.update_inflight_update(device.id, "downloading", 35, false)
         render(view)
       end)
       |> assert_has("div", text: "Downloading firmware : 35%")
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "updating", 70, false)
+        FirmwareUpdates.update_inflight_update(device.id, "updating", 70, false)
         render(view)
       end)
       |> assert_has("div", text: "Updating firmware : 70%")
       |> unwrap(fn view ->
-        Devices.update_inflight_update(device.id, "completed", nil, false)
+        FirmwareUpdates.update_inflight_update(device.id, "completed", nil, false)
         render(view)
       end)
       |> assert_has("div", text: "Firmware update complete, waiting for device to restart")
@@ -450,7 +451,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         InflightUpdate.manual_requested_changeset(device.id, firmware)
         |> Repo.insert()
 
-      Devices.update_inflight_update(device.id, "completed", nil, true)
+      FirmwareUpdates.update_inflight_update(device.id, "completed", nil, true)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
