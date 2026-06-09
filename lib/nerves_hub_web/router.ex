@@ -183,7 +183,13 @@ defmodule NervesHubWeb.Router do
                 delete("/:name", DeploymentGroupController, :delete)
               end
 
-              get("/scripts", ScriptController, :index)
+              scope "/scripts" do
+                get("/", ScriptController, :index)
+                get("/:id", ScriptController, :show)
+                post("/", ScriptController, :create)
+                put("/:id", ScriptController, :update)
+                delete("/:id", ScriptController, :delete)
+              end
             end
           end
         end
