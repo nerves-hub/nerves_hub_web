@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.API.UserControllerTest do
   use NervesHubWeb.APIConnCase, async: false
 
+  import PhoenixTest
+
   alias NervesHub.Fixtures
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.Repo
@@ -149,6 +151,29 @@ defmodule NervesHubWeb.API.UserControllerTest do
       assert data["user_token"] =~ "nhu_"
     end
 
+    test "the cli session must be confirmed before it is verified", %{conn: conn, user: user} do
+      conn = post(conn, ~p"/api/auth/cli_session")
+
+      assert %{"token" => token, "confirmation_code" => _} = json_response(conn, 200)["data"]
+
+      conn = get(conn, ~p"/api/auth/cli_session/#{token}")
+      data = json_response(conn, 200)["data"]
+
+      assert data["status"] == "waiting"
+
+      user_token = NervesHub.Accounts.create_user_session_token(user)
+
+      http_conn = build_conn() |> init_test_session(%{"user_token" => user_token})
+
+      http_conn
+      |> visit(~p"/auth/cli/#{token}")
+      |> assert_has("h1", text: "CLI Login")
+      |> assert_has("p", text: "Please confirm that the code below matches the code display by the CLI")
+      |> click_button("Confirm login")
+      |> assert_path(~p"/auth/cli/#{token}")
+      |> assert_has("h1", text: "You're all set to use the CLI")
+    end
+
     test "a user can refresh the verify token page and still see the success message", %{conn: conn, user: user} do
       conn = post(conn, ~p"/api/auth/cli_session")
 
@@ -163,11 +188,59 @@ defmodule NervesHubWeb.API.UserControllerTest do
 
       http_conn = build_conn() |> init_test_session(%{"user_token" => user_token})
 
-      http_conn = get(http_conn, ~p"/auth/cli/#{token}")
-      assert html_response(http_conn, 200) =~ "You're all set to use the CLI"
+      http_conn
+      |> visit(~p"/auth/cli/#{token}")
+      |> assert_has("h1", text: "CLI Login")
+      |> assert_has("p", text: "Please confirm that the code below matches the code display by the CLI")
+      |> click_button("Confirm login")
+      |> assert_path(~p"/auth/cli/#{token}")
+      |> assert_has("h1", text: "You're all set to use the CLI")
 
-      http_conn = get(http_conn, ~p"/auth/cli/#{token}")
-      assert html_response(http_conn, 200) =~ "You're all set to use the CLI"
+      http_conn
+      |> visit(~p"/auth/cli/#{token}")
+      |> assert_has("h1", text: "You're all set to use the CLI")
+    end
+
+    test "a user can refresh the verify token page and still see the success message, but only if they created the token",
+         %{conn: conn, user: user, user2: other_user} do
+      conn = post(conn, ~p"/api/auth/cli_session")
+
+      token = json_response(conn, 200)["data"]["token"]
+
+      conn = get(conn, ~p"/api/auth/cli_session/#{token}")
+      data = json_response(conn, 200)["data"]
+
+      assert data["status"] == "waiting"
+
+      user_token = NervesHub.Accounts.create_user_session_token(user)
+
+      http_conn = build_conn() |> init_test_session(%{"user_token" => user_token})
+
+      http_conn
+      |> visit(~p"/auth/cli/#{token}")
+      |> assert_has("h1", text: "CLI Login")
+      |> assert_has("p", text: "Please confirm that the code below matches the code display by the CLI")
+      |> click_button("Confirm login")
+      |> assert_path(~p"/auth/cli/#{token}")
+      |> assert_has("h1", text: "You're all set to use the CLI")
+
+      other_user_token = NervesHub.Accounts.create_user_session_token(other_user)
+
+      http_conn = build_conn() |> init_test_session(%{"user_token" => other_user_token})
+
+      http_conn
+      |> visit(~p"/auth/cli/#{token}")
+      |> assert_has("h1", text: "CLI authentication failed :(")
+    end
+
+    test "a message confirming a failed handshake is shown if the token is not found", %{user: user} do
+      user_token = NervesHub.Accounts.create_user_session_token(user)
+
+      http_conn = build_conn() |> init_test_session(%{"user_token" => user_token})
+
+      http_conn
+      |> visit(~p"/auth/cli/abc")
+      |> assert_has("h1", text: "CLI authentication failed :(")
     end
 
     test "cannot share the same token", %{conn: conn} do

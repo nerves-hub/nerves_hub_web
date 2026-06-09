@@ -12,11 +12,13 @@ defmodule NervesHubWeb.API.Schemas.UserAuthCLISessionResponse do
       type: :object,
       properties: %{
         token: %Schema{type: :string, description: "Auth token"},
+        confirmation_code: %Schema{type: :string, description: "Confirmation code to help verify a valid auth exchange"},
         url: %Schema{type: :string, description: "URL to complete the auth exchange"}
       },
       required: [:token, :url],
       example: %{
         "token" => "218ed524-eb74-47d7-aedc-11e386961b72",
+        "confirmation_code" => "312812",
         "url" => "https://manage.nervescloud.com/auth/cli/218ed524-eb74-47d7-aedc-11e386961b72"
       }
     })
