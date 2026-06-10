@@ -51,7 +51,7 @@ defmodule NervesHubWeb.CoreComponents do
 
     ~H"""
     <%= cond do %>
-      <% @logo_url_light && @logo_url_dark -> %>
+      <% @logo_url_light && @logo_url_dark && (@logo_url_light != @logo_url_dark) -> %>
         <img src={@logo_url_light} alt="Logo" class={[@class, "dark:hidden"]} />
         <img src={@logo_url_dark} alt="Logo" class={[@class, "hidden dark:block"]} />
       <% @logo_url_light || @logo_url_dark -> %>
