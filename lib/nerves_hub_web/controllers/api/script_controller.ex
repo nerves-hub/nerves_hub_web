@@ -4,13 +4,17 @@ defmodule NervesHubWeb.API.ScriptController do
 
   alias NervesHub.Scripts
   alias NervesHubWeb.API.ErrorJSON
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.PaginationHelpers
+  alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.SupportScriptSchemas.SupportScriptCreationRequest
   alias NervesHubWeb.API.Schemas.SupportScriptSchemas.SupportScriptShowResponse
   alias NervesHubWeb.API.Schemas.SupportScriptSchemas.SupportScriptUpdateRequest
 
   security([%{}, %{"bearer_auth" => []}])
   tags(["Support Scripts"])
+
+  @auth_error_responses SchemaHelpers.auth_error_responses()
 
   plug(:validate_role, [org: :view] when action in [:index, :send])
   plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
@@ -42,16 +46,18 @@ defmodule NervesHubWeb.API.ScriptController do
         type: :string,
         example: "example_product"
       ],
-      script_id: [
+      id: [
         in: :path,
         description: "Script ID",
         type: :string,
         example: "123"
       ]
     ],
-    responses: [
-      ok: {"Support Scripts", "application/json", SupportScriptShowResponse}
-    ]
+    responses:
+      [
+        ok: {"Support Scripts", "application/json", SupportScriptShowResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def show(%{assigns: %{current_scope: scope}} = conn, params) do
@@ -89,9 +95,11 @@ defmodule NervesHubWeb.API.ScriptController do
       SupportScriptCreationRequest,
       required: true
     },
-    responses: [
-      ok: {"Support Scripts", "application/json", SupportScriptShowResponse}
-    ]
+    responses:
+      [
+        ok: {"Support Scripts", "application/json", SupportScriptShowResponse},
+        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def create(%{assigns: %{current_scope: scope}} = conn, params) do
@@ -115,7 +123,7 @@ defmodule NervesHubWeb.API.ScriptController do
         type: :string,
         example: "example_product"
       ],
-      support_script_id: [
+      id: [
         in: :path,
         description: "Support Script ID",
         type: :string,
@@ -128,9 +136,12 @@ defmodule NervesHubWeb.API.ScriptController do
       SupportScriptUpdateRequest,
       required: true
     },
-    responses: [
-      ok: {"Support Scripts", "application/json", SupportScriptShowResponse}
-    ]
+    responses:
+      [
+        ok: {"Support Scripts", "application/json", SupportScriptShowResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse},
+        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def update(%{assigns: %{current_scope: scope}} = conn, params) do
@@ -186,16 +197,18 @@ defmodule NervesHubWeb.API.ScriptController do
         type: :string,
         example: "example_product"
       ],
-      script_id: [
+      id: [
         in: :path,
         description: "Script ID",
         type: :string,
         example: "123"
       ]
     ],
-    responses: [
-      no_content: "Empty response"
-    ]
+    responses:
+      [
+        no_content: "Empty response",
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def delete(%{assigns: %{current_scope: scope}} = conn, params) do

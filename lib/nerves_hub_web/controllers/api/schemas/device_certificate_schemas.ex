@@ -10,8 +10,8 @@ defmodule NervesHubWeb.API.Schemas.DeviceCertificateSchemas do
       type: :object,
       properties: %{
         serial: %Schema{type: :string},
-        not_before: %Schema{type: :string},
-        not_after: %Schema{type: :string}
+        not_before: %Schema{type: :string, format: :"date-time"},
+        not_after: %Schema{type: :string, format: :"date-time"}
       },
       example: %{
         "not_after" => "2052-12-15T21:00:00Z",

@@ -20,6 +20,21 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
     })
   end
 
+  defmodule ProductShowResponse do
+    OpenApiSpex.schema(%{
+      description: "Response schema for a single Product",
+      type: :object,
+      properties: %{
+        data: Product
+      },
+      example: %{
+        "data" => %{
+          "name" => "Example Product"
+        }
+      }
+    })
+  end
+
   defmodule ProductListResponse do
     OpenApiSpex.schema(%{
       description: "Response schema for multiple products",

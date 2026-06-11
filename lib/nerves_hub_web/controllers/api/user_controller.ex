@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.UserController do
   use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Accounts
+  alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.UserAuthCLISessionRequest
   alias NervesHubWeb.API.Schemas.UserAuthCLISessionResponse
   alias NervesHubWeb.API.Schemas.UserAuthCLISessionStatusResponse
@@ -17,7 +18,8 @@ defmodule NervesHubWeb.API.UserController do
   operation(:me,
     summary: "Show details of the currently logged in user",
     responses: [
-      ok: {"User response", "application/json", UserResponse}
+      ok: {"User response", "application/json", UserResponse},
+      unauthorized: {"Unauthorized", "application/json", ErrorSchemas.ErrorResponse}
     ],
     security: [%{}, %{"bearer_auth" => []}]
   )
@@ -30,7 +32,8 @@ defmodule NervesHubWeb.API.UserController do
     summary: "Authenticate a user",
     request_body: {"Authentication attributes", "application/json", UserAuthWithNoteRequest, required: true},
     responses: [
-      ok: {"User response", "application/json", UserResponse}
+      ok: {"User response", "application/json", UserResponse},
+      unauthorized: {"Unauthorized", "application/json", ErrorSchemas.ErrorResponse}
     ],
     security: []
   )
@@ -46,7 +49,8 @@ defmodule NervesHubWeb.API.UserController do
     summary: "Authenticate a user (deprecated)",
     request_body: {"Authentication attributes", "application/json", UserAuthWithNoteRequest, required: true},
     responses: [
-      ok: {"User response", "application/json", UserResponse}
+      ok: {"User response", "application/json", UserResponse},
+      unauthorized: {"Unauthorized", "application/json", ErrorSchemas.ErrorResponse}
     ],
     security: []
   )
@@ -84,8 +88,17 @@ defmodule NervesHubWeb.API.UserController do
 
   operation(:check_cli_session,
     summary: "Check the CLI authentication progress",
+    parameters: [
+      token: [
+        in: :path,
+        description: "CLI Session Token",
+        type: :string,
+        example: "abc123token"
+      ]
+    ],
     responses: [
-      ok: {"Auth CLI session token response", "application/json", UserAuthCLISessionStatusResponse}
+      ok: {"Auth CLI session token response", "application/json", UserAuthCLISessionStatusResponse},
+      not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
     ],
     security: []
   )

@@ -7,7 +7,7 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
-        serial: %Schema{type: :integer},
+        serial: %Schema{type: :string},
         description: %Schema{
           type: :string,
           pattern: ~r/[a-zA-Z][a-zA-Z0-9_]+/
@@ -22,7 +22,8 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
               type: :string
             },
             tags: %Schema{
-              type: :string
+              type: :array,
+              items: %Schema{type: :string}
             }
           }
         },
@@ -57,6 +58,29 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
         "not_after" => "2050-04-20T00:33:09Z",
         "not_before" => "2025-04-20T00:28:09Z",
         "serial" => "4016688295714810857"
+      }
+    })
+  end
+
+  defmodule CACertificateShowResponse do
+    OpenApiSpex.schema(%{
+      description: "Response schema for a single CA Certificate",
+      type: :object,
+      properties: %{
+        data: CACertificate
+      },
+      example: %{
+        "data" => %{
+          "description" => "Example CA",
+          "jitp" => %{
+            "description" => "Production",
+            "product_name" => "ExampleProduct",
+            "tags" => ["prod"]
+          },
+          "not_after" => "2050-04-20T00:33:09Z",
+          "not_before" => "2025-04-20T00:28:09Z",
+          "serial" => "4016688295714810857"
+        }
       }
     })
   end

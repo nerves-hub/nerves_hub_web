@@ -4,10 +4,14 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.DeviceCertificateSchemas
+  alias NervesHubWeb.API.Schemas.ErrorSchemas
 
   security([%{}, %{"bearer_auth" => []}])
   tags(["Device Certificates"])
+
+  @auth_error_responses SchemaHelpers.auth_error_responses()
 
   plug(:validate_role, [org: :manage] when action in [:create, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
@@ -27,17 +31,19 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
         type: :string,
         example: "example_product"
       ],
-      device_identifier: [
+      identifier: [
         in: :path,
         description: "Device Identifier",
         type: :string,
         example: "example_device"
       ]
     ],
-    responses: [
-      ok:
-        {"Device Certificate list response", "application/json", DeviceCertificateSchemas.DeviceCertificateListResponse}
-    ]
+    responses:
+      [
+        ok:
+          {"Device Certificate list response", "application/json",
+           DeviceCertificateSchemas.DeviceCertificateListResponse}
+      ] ++ @auth_error_responses
   )
 
   def index(%{assigns: %{current_scope: scope}} = conn, %{"identifier" => identifier}) do
@@ -62,23 +68,26 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
         type: :string,
         example: "example_product"
       ],
-      device_identifier: [
+      identifier: [
         in: :path,
         description: "Device Identifier",
         type: :string,
         example: "example_device"
       ],
-      certificate_serial: [
+      serial: [
         in: :path,
         description: "Certificate Serial",
         type: :string,
         example: "123456789101112"
       ]
     ],
-    responses: [
-      ok:
-        {"Device Certificate show response", "application/json", DeviceCertificateSchemas.DeviceCertificateShowResponse}
-    ]
+    responses:
+      [
+        ok:
+          {"Device Certificate show response", "application/json",
+           DeviceCertificateSchemas.DeviceCertificateShowResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def show(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
@@ -103,7 +112,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
         type: :string,
         example: "example_product"
       ],
-      device_identifier: [
+      identifier: [
         in: :path,
         description: "Device Identifier",
         type: :string,
@@ -115,10 +124,13 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
       "application/json",
       DeviceCertificateSchemas.DeviceCertificateCreateRequest
     },
-    responses: [
-      ok:
-        {"Device Certificate show response", "application/json", DeviceCertificateSchemas.DeviceCertificateShowResponse}
-    ]
+    responses:
+      [
+        ok:
+          {"Device Certificate show response", "application/json",
+           DeviceCertificateSchemas.DeviceCertificateShowResponse},
+        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def create(%{assigns: %{current_scope: %{org: org, product: product}, device: device}} = conn, %{"cert" => cert64}) do
@@ -175,22 +187,24 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
         type: :string,
         example: "example_product"
       ],
-      device_identifier: [
+      identifier: [
         in: :path,
         description: "Device Identifier",
         type: :string,
         example: "example_device"
       ],
-      certificate_serial: [
+      serial: [
         in: :path,
         description: "Certificate Serial",
         type: :string,
         example: "123456789101112"
       ]
     ],
-    responses: [
-      no_content: "Empty response"
-    ]
+    responses:
+      [
+        no_content: "Empty response",
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def delete(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
