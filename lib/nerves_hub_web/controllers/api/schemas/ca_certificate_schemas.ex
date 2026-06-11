@@ -121,7 +121,7 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
           }
         }
       },
-      required: [:description, :cert],
+      required: [:cert],
       example: %{
         "product" => %{
           "description" => "Example CA",
