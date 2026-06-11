@@ -11,6 +11,10 @@ defmodule NervesHubWeb.API.CACertificateJSON do
     %{data: ca_certificate(ca)}
   end
 
+  def verification_token(%{token: token}) do
+    %{data: %{verification_token: token}}
+  end
+
   def ca_certificate(ca_certificate) do
     %{
       serial: ca_certificate.serial,

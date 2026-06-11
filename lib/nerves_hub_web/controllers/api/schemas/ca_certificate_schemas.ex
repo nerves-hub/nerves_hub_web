@@ -61,6 +61,33 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
     })
   end
 
+  defmodule CACertificateVerificationToken do
+    OpenApiSpex.schema(%{
+      type: :object,
+      properties: %{
+        verification_token: %Schema{type: :string}
+      },
+      example: %{
+        "verification_token" => "abc.doerayme.boop_snoot"
+      }
+    })
+  end
+
+  defmodule CACertificateVerificationTokenResponse do
+    OpenApiSpex.schema(%{
+      description: "Response schema for requesting a CA Certificate verification token",
+      type: :object,
+      properties: %{
+        data: CACertificateVerificationToken
+      },
+      example: %{
+        "data" => %{
+          "verification_token" => "abc.doerayme.boop_snoot"
+        }
+      }
+    })
+  end
+
   defmodule CACertificateListResponse do
     OpenApiSpex.schema(%{
       description: "Response schema for multiple CA Certificates",
@@ -106,31 +133,27 @@ defmodule NervesHubWeb.API.Schemas.CACertificateSchemas do
       description: "POST body for creating a CA Certificate",
       type: :object,
       properties: %{
-        ca_certificate: %Schema{
+        description: %Schema{type: :string},
+        cert: %Schema{type: :string},
+        verification_cert: %Schema{type: :string},
+        jitp: %Schema{
+          type: :object,
           properties: %{
             description: %Schema{type: :string},
-            cert: %Schema{type: :string},
-            jitp: %Schema{
-              type: :object,
-              properties: %{
-                description: %Schema{type: :string},
-                product_id: %Schema{type: :integer},
-                tags: %Schema{type: :array, items: %Schema{type: :string}}
-              }
-            }
+            product_id: %Schema{type: :integer},
+            tags: %Schema{type: :array, items: %Schema{type: :string}}
           }
         }
       },
-      required: [:description, :cert],
+      required: [:cert, :verification_cert],
       example: %{
-        "product" => %{
-          "description" => "Example CA",
-          "cert" => "base64 encoded certificate",
-          "jitp" => %{
-            "description" => "Production",
-            "tags" => ["prod"],
-            "product_id" => 33_438
-          }
+        "description" => "Example CA",
+        "cert" => "base64 encoded certificate",
+        "verification_cert" => "base64 encoded verification certificate",
+        "jitp" => %{
+          "description" => "Production",
+          "tags" => ["prod"],
+          "product_id" => 33_438
         }
       }
     })

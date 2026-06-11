@@ -41,6 +41,13 @@ defmodule NervesHub.Certificate do
     end
   end
 
+  def get_san(otp_certificate) do
+    case X509.Certificate.extension(otp_certificate, :subject_alt_name) do
+      {:Extension, {2, 5, 29, 17}, false, [uniformResourceIdentifier: uri]} -> to_string(uri)
+      _ -> :invalid_san
+    end
+  end
+
   def get_common_name(otp_certificate) do
     {:rdnSequence, attributes} = X509.Certificate.subject(otp_certificate)
 

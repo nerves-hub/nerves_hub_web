@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Devices.CACertificate.CSR
   alias NervesHub.Fixtures
   alias NervesHubWeb.Components.Utils
 
@@ -30,7 +31,9 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> visit("/org/#{org.name}/settings/certificates/new")
       |> assert_has("h1", text: "New Certificate Authority")
       |> unwrap(fn view ->
-        code = registration_code(view)
+        # its a bit tricky to extract the registration code from the view,
+        # so lets generate a new one and use that instead
+        code = CSR.generate_verification_token(org)
 
         %{verification_cert_crt: verification_cert_crt} =
           Fixtures.generate_certificate_authority_csr(
@@ -66,7 +69,9 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> visit("/org/#{org.name}/settings/certificates/new")
       |> assert_has("h1", text: "New Certificate Authority")
       |> unwrap(fn view ->
-        code = registration_code(view)
+        # its a bit tricky to extract the registration code from the view,
+        # so lets generate a new one and use that instead
+        code = CSR.generate_verification_token(org)
 
         %{verification_cert_crt: verification_cert_crt} =
           Fixtures.generate_certificate_authority_csr(
@@ -129,7 +134,9 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> visit("/org/#{org.name}/settings/certificates/new")
       |> assert_has("h1", text: "New Certificate Authority")
       |> unwrap(fn view ->
-        code = registration_code(view)
+        # its a bit tricky to extract the registration code from the view,
+        # so lets generate a new one and use that instead
+        code = CSR.generate_verification_token(org)
 
         %{verification_cert_crt: verification_cert_crt} =
           Fixtures.generate_certificate_authority_csr(
@@ -214,16 +221,6 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> assert_has("div", text: "Error updating certificate")
       |> assert_has("span", text: "can't be blank")
     end
-  end
-
-  defp registration_code(view) do
-    view
-    |> render()
-    |> Floki.parse_fragment!()
-    |> Floki.find("#registration_code > code")
-    |> Enum.map(&Floki.text(&1, sep: " "))
-    |> List.first()
-    |> String.trim()
   end
 
   defp upload_file(view, file_name, file_path, form_field) do

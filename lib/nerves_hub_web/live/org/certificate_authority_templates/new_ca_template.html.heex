@@ -18,39 +18,40 @@
 
         <div class="mb-6">
           <h3 class="text-base-50 mb-2 text-base font-semibold">Step 1</h3>
-          <p class="text-base-400 mb-2 text-sm">Generate a key pair for the private key verification certificate</p>
-          <pre class="bg-base-900 border-base-700 overflow-x-auto rounded border p-3"><code class="text-xs text-base-300" phx-hook="HighlightCode" id="step-1">$ openssl genrsa -out verificationCert.key 2048</code></pre>
+          <p class="text-base-400 text-sm">Generate a CA Certificate pair (you can skip this if you already have one)</p>
+          <p class="text-base-400 mb-2 text-sm italic">Save the generated `rootCA.key` and `rootCA.crt` files for later use.</p>
+          <pre class="bg-base-900 border-base-700 overflow-x-auto rounded border p-3"><code class="text-xs text-base-300" phx-hook="HighlightCode" id="step-1">$ openssl genrsa -out rootCA.key 4096
+
+$ openssl req -new -x509 -key rootCA.key -sha256 -days 3650 \
+    -subj "/CN=Root CA/O=Org Name" \
+    -addext "basicConstraints=critical,CA:TRUE" \
+    -addext "keyUsage=critical,keyCertSign,cRLSign" \
+    -addext "subjectKeyIdentifier=hash" \
+    -out rootCA.crt</code></pre>
         </div>
 
         <div class="mb-6">
           <h3 class="text-base-50 mb-2 text-base font-semibold">Step 2</h3>
-          <p class="text-base-400 mb-2 text-sm">Copy this registration code to your clipboard</p>
-          <pre class="bg-base-900 border-base-700 overflow-x-auto rounded border p-3" id="registration_code"><code class="text-xs text-base-300" phx-hook="HighlightCode" id="step-2"><%= @registration_code %></code></pre>
+          <p class="text-base-400 mb-2 text-sm">Generate a key pair for the private key verification certificate</p>
+          <pre class="bg-base-900 border-base-700 overflow-x-auto rounded border p-3"><code class="text-xs text-base-300" phx-hook="HighlightCode" id="step-2">$ openssl genrsa -out verificationCert.key 4096</code></pre>
         </div>
 
         <div class="mb-6">
           <h3 class="text-base-50 mb-2 text-base font-semibold">Step 3</h3>
-          <p class="text-base-400 mb-2 text-sm">Create a CSR with this registration code</p>
-          <pre class="bg-base-900 border-base-700 mb-2 overflow-x-auto rounded border p-3"><code class="text-xs text-base-300" phx-hook="HighlightCode" id="step-3">$ openssl req -new -key verificationCert.key -out verificationCert.csr</code></pre>
-          <p class="text-base-400 mb-2 text-sm">Put the registration code in the <strong>Common Name</strong> field</p>
-          <pre class="bg-base-900 border-base-700 mb-2 overflow-x-auto rounded border p-3"><code class="text-xs text-base-300" phx-hook="HighlightCode" id="step-3-details">Country Name (2 letter code) [AU]:
-State or Province Name (full name) [Some-State]:
-Locality Name (eg, city) []:
-Organization Name (eg, company) [Internet Widgets Pty Ltd]:
-Organizational Unit Name (eg, section) []:
-Common Name (e.g. server FQDN or YOUR name) []: <%= @registration_code %>
-Email Address []:</code></pre>
-          <p class="text-base-400 mb-2 text-sm">Or you can do this in one line with</p>
-          <pre class="bg-base-900 border-base-700 overflow-x-auto rounded border p-3"><code class="text-xs text-base-300" phx-hook="HighlightCode" id="step-3-alt">$ openssl req -new -key verificationCert.key -out verificationCert.csr \
-    -subj /CN=<%= @registration_code %></code></pre>
+          <p class="text-base-400 mb-2 text-sm">Create a CSR with the generated registration code in the <strong>Subject Alternative Name (SAN)</strong> field</p>
+          <pre class="bg-base-900 border-base-700 overflow-x-auto rounded border p-3"><code class="text-xs text-base-300" phx-hook="HighlightCode" id="step-3">$ openssl req -new -key verificationCert.key -out verificationCert.csr \
+    -subj "/CN=certificate-verification"
+    -addext "subjectAltName=URI:urn:nerveshub:verify:{@registration_code}"</code></pre>
         </div>
 
         <div class="mb-6">
           <h3 class="text-base-50 mb-2 text-base font-semibold">Step 4</h3>
           <p class="text-base-400 mb-2 text-sm">Use the CSR that was signed with the CA private key to create a private key verification certificate</p>
           <pre class="bg-base-900 border-base-700 overflow-x-auto rounded border p-3"><code class="text-xs text-base-300" phx-hook="HighlightCode" id="step-4">$ openssl x509 -req -in verificationCert.csr \
-    -CA rootCA.pem -CAkey rootCA.key -CAcreateserial \
-    -out verificationCert.crt -days 500 -sha256</code></pre>
+    -CA rootCA.crt -CAkey rootCA.key -CAcreateserial \
+    -days 365 -sha256 \
+    -copy_extensions copy \
+    -out verificationCert.crt</code></pre>
         </div>
 
         <div class="border-base-700 mb-6 border-t pt-6">
@@ -130,7 +131,7 @@ Email Address []:</code></pre>
                 Selected Certificate File: <span class="text-base-400">{Enum.map(@uploads.cert.entries, fn e -> e.client_name end)}</span>
               </label>
             <% else %>
-              <label class="text-base-300 mb-2 block text-sm font-medium" for={@uploads.cert.ref}>Upload a Certificate Authority file (rootCA.pem)</label>
+              <label class="text-base-300 mb-2 block text-sm font-medium" for={@uploads.cert.ref}>Upload a Certificate Authority file (rootCA.crt)</label>
             <% end %>
             <.live_file_input
               upload={@uploads.cert}
@@ -150,7 +151,7 @@ Email Address []:</code></pre>
                 Selected CSR File: <span class="text-base-400">{Enum.map(@uploads.csr.entries, fn e -> e.client_name end)}</span>
               </label>
             <% else %>
-              <label class="text-base-300 mb-2 block text-sm font-medium" for={@uploads.csr.ref}>Upload a Certificate Authority file (verificationCert.crt)</label>
+              <label class="text-base-300 mb-2 block text-sm font-medium" for={@uploads.csr.ref}>Upload a signed Certificate used for ownership verification (verificationCert.crt)</label>
             <% end %>
             <.live_file_input
               upload={@uploads.csr}

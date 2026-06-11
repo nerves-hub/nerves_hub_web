@@ -16,8 +16,7 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:error, changeset: changeset)
   end
 
-  def call(conn, {:error, {key, message}})
-      when key in [:no_firmware_uuid, :no_firmware_uploaded, :certificate_decoding_error] do
+  def call(conn, {:error, {_key, message}}) do
     conn
     |> put_status(:unprocessable_entity)
     |> put_view(ChangesetJSON)
