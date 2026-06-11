@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHubWeb.API.Schemas.DeviceCertificateSchemas
 
   security([%{}, %{"bearer_auth" => []}])
   tags(["Device Certificates"])
@@ -11,7 +12,33 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
   plug(:validate_role, [org: :manage] when action in [:create, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
-  operation(:index, summary: "List all Certificates for a Device")
+  operation(:index,
+    summary: "List all Certificates for a Device",
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ],
+      product_name: [
+        in: :path,
+        description: "Product Name",
+        type: :string,
+        example: "example_product"
+      ],
+      device_identifier: [
+        in: :path,
+        description: "Device Identifier",
+        type: :string,
+        example: "example_device"
+      ]
+    ],
+    responses: [
+      ok:
+        {"Device Certificate list response", "application/json", DeviceCertificateSchemas.DeviceCertificateListResponse}
+    ]
+  )
 
   def index(%{assigns: %{current_scope: scope}} = conn, %{"identifier" => identifier}) do
     with {:ok, device} <- Devices.get_by_identifier(scope, identifier) do
@@ -20,7 +47,39 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
     end
   end
 
-  operation(:show, summary: "Show a Certificate for a Device")
+  operation(:show,
+    summary: "Show a Certificate for a Device",
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ],
+      product_name: [
+        in: :path,
+        description: "Product Name",
+        type: :string,
+        example: "example_product"
+      ],
+      device_identifier: [
+        in: :path,
+        description: "Device Identifier",
+        type: :string,
+        example: "example_device"
+      ],
+      certificate_serial: [
+        in: :path,
+        description: "Certificate Serial",
+        type: :string,
+        example: "123456789101112"
+      ]
+    ],
+    responses: [
+      ok:
+        {"Device Certificate show response", "application/json", DeviceCertificateSchemas.DeviceCertificateShowResponse}
+    ]
+  )
 
   def show(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
     with {:ok, device_certificate} <-
@@ -29,7 +88,38 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
     end
   end
 
-  operation(:create, summary: "Create a Certificate for a Device")
+  operation(:create,
+    summary: "Create a Certificate for a Device",
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ],
+      product_name: [
+        in: :path,
+        description: "Product Name",
+        type: :string,
+        example: "example_product"
+      ],
+      device_identifier: [
+        in: :path,
+        description: "Device Identifier",
+        type: :string,
+        example: "example_device"
+      ]
+    ],
+    request_body: {
+      "Device Certificate create request",
+      "application/json",
+      DeviceCertificateSchemas.DeviceCertificateCreateRequest
+    },
+    responses: [
+      ok:
+        {"Device Certificate show response", "application/json", DeviceCertificateSchemas.DeviceCertificateShowResponse}
+    ]
+  )
 
   def create(%{assigns: %{current_scope: %{org: org, product: product}, device: device}} = conn, %{"cert" => cert64}) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
@@ -70,7 +160,38 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
     end
   end
 
-  operation(:delete, summary: "Delete a Device's Certificate")
+  operation(:delete,
+    summary: "Delete a Device's Certificate",
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ],
+      product_name: [
+        in: :path,
+        description: "Product Name",
+        type: :string,
+        example: "example_product"
+      ],
+      device_identifier: [
+        in: :path,
+        description: "Device Identifier",
+        type: :string,
+        example: "example_device"
+      ],
+      certificate_serial: [
+        in: :path,
+        description: "Certificate Serial",
+        type: :string,
+        example: "123456789101112"
+      ]
+    ],
+    responses: [
+      no_content: "Empty response"
+    ]
+  )
 
   def delete(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
     with {:ok, device_certificate} <-
