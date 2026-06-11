@@ -94,6 +94,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   }
 
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
+    socket = authorize!(socket, :"device:list", scope.product)
     product = Products.load_shared_secret_auth(scope.product)
 
     socket
@@ -139,6 +140,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> ok()
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_params(unsigned_params, _uri, socket) do
     filters = Map.merge(@default_filters, filter_changes(unsigned_params))
     changes = pagination_changes(unsigned_params)
@@ -185,6 +187,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # For this case, we switch the sorting direction of same field
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
+    socket = authorize!(socket, :"device:list", socket.assigns.current_scope.product)
     %{sort_direction: sort_direction} = socket.assigns
 
     # switch sort direction for column because
@@ -198,6 +201,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # User has clicked a new column to sort
   def handle_event("sort", %{"sort" => value}, socket) do
+    socket = authorize!(socket, :"device:list", socket.assigns.current_scope.product)
     params = %{sort_direction: "asc", sort: value}
 
     socket
@@ -205,6 +209,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
 
@@ -213,6 +218,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -221,11 +227,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
     {:noreply, assign(socket, :show_filters, toggle != "true")}
   end
 
-  def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
+  @decorate requires_permission(:"device:list")
+  def handle_event("update-filters", params, socket) do
+    %{paginate_opts: paginate_opts} = socket.assigns
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
     socket
@@ -235,7 +244,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_event("reset-filters", _, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
+  @decorate requires_permission(:"device:list")
+  def handle_event("reset-filters", _, socket) do
+    %{paginate_opts: paginate_opts} = socket.assigns
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
     socket
@@ -244,7 +255,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:list")
   def handle_event("select", %{"id" => id_str}, socket) do
     %{selected_devices: selected_devices, devices: devices} = socket.assigns
 
@@ -268,7 +279,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:list")
   def handle_event("select-all", _, socket) do
     %{selected_devices: selected_devices, devices: devices} = socket.assigns
 
@@ -292,7 +303,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
-  @decorate requires_permission(:"device:update")
+  @decorate requires_permission(:"device:list")
   def handle_event("deselect-all", _, socket) do
     socket
     |> assign(%{
@@ -317,6 +328,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("validate-tags", %{"tags" => tags}, socket) do
     if String.contains?(tags, " ") do
       {:noreply, assign(socket, valid_tags: false, device_tags: tags)}
@@ -361,6 +373,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("target-product", %{"product_id" => ""}, socket) do
     {:noreply, assign(socket, target_product: nil)}
   end
@@ -376,10 +389,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_permission(:"device:update")
   def handle_event("target-deployment-group", params, socket) when not is_map_key(params, "deployment_group") do
     {:noreply, assign(socket, target_deployment_group: nil)}
   end
 
+  @decorate requires_permission(:"device:update")
   def handle_event("target-deployment-group", %{"deployment_group" => ""}, socket) do
     {:noreply, assign(socket, target_deployment_group: nil)}
   end
@@ -611,6 +626,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  @decorate requires_permission(:"device:list")
   def handle_event("page_visibility_change", %{"visible" => visible?}, socket) do
     socket
     |> then(fn socket ->

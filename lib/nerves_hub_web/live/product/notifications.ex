@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   alias Phoenix.Socket.Broadcast
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:view")
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     if connected?(socket) do
       ProductNotifications.subscribe(scope.product.id)
@@ -19,6 +20,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   end
 
   @impl Phoenix.LiveView
+  @decorate requires_permission(:"product:view")
   def handle_params(params, _uri, socket) do
     page_number = String.to_integer(Map.get(params, "page_number", "1"))
     page_size = String.to_integer(Map.get(params, "page_size", "25"))
@@ -29,6 +31,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   end
 
   @impl Phoenix.LiveView
+  @decorate special_permission(:enforced_by_authorized_bang)
   def handle_event("dismiss-all", _params, %{assigns: %{current_scope: scope}} = socket) do
     authorized!(:"product:notifications:dismiss", scope)
 
@@ -40,6 +43,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:view")
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, %{assigns: %{current_scope: scope}} = socket) do
     params = %{"page_size" => page_size, "page_number" => "1"}
 
@@ -48,6 +52,7 @@ defmodule NervesHubWeb.Live.Product.Notifications do
     |> noreply()
   end
 
+  @decorate requires_permission(:"product:view")
   def handle_event("paginate", %{"page" => page_num}, %{assigns: %{current_scope: scope}} = socket) do
     params = %{"page_size" => socket.assigns.result_meta.page_size, "page_number" => page_num}
 

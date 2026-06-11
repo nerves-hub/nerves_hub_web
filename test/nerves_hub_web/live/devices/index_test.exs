@@ -795,7 +795,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       assert Enum.empty?(state.socket.assigns.selected_devices)
     end
 
-    test "users with the :view role cannot select devices", %{
+    test "users with the :view role can select devices", %{
       conn: conn,
       fixture: fixture
     } do
@@ -814,14 +814,13 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       assert length(state.socket.assigns.devices.result) == 1
       assert Enum.empty?(state.socket.assigns.selected_devices)
 
-      assert render_click(view, :select, %{id: "#{device.id}"}) =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+      render_click(view, :select, %{id: "#{device.id}"})
 
       state = :sys.get_state(view.pid)
-      assert Enum.empty?(state.socket.assigns.selected_devices)
+      assert device.id in state.socket.assigns.selected_devices
     end
 
-    test "users with the :view role cannot select all devices", %{
+    test "users with the :view role can select all devices", %{
       conn: conn,
       fixture: fixture
     } do
@@ -840,11 +839,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       assert length(state.socket.assigns.devices.result) == 1
       assert Enum.empty?(state.socket.assigns.selected_devices)
 
-      assert render_click(view, "select-all") =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+      render_click(view, "select-all")
 
       state = :sys.get_state(view.pid)
-      assert Enum.empty?(state.socket.assigns.selected_devices)
+      assert length(state.socket.assigns.selected_devices) == 1
     end
 
     test "users with the :view role have the select checkboxs disabled", %{conn: conn, fixture: fixture} do
@@ -904,7 +902,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       assert render_click(view, "target-product", %{
                "product_id" => "#{product.id}"
              }) =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+               "Sorry. You were denied access. Please check your role or contact your support."
 
       state = :sys.get_state(view.pid)
       assert is_nil(state.socket.assigns.target_product)
@@ -940,7 +938,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       render_async(view, 300)
 
       assert render_click(view, "tag-devices", %{"tags" => ["Boop"]}) =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+               "Sorry. You were denied access. Please check your role or contact your support."
     end
 
     test "users with the :view role cannot select a deployment group", %{conn: conn, fixture: fixture} do
@@ -956,7 +954,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       render_async(view, 300)
 
       assert render_click(view, "target-deployment-group", %{"deployment_group" => ["1"]}) =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+               "Sorry. You were denied access. Please check your role or contact your support."
     end
 
     test "users with the :view role cannot move devices to another product", %{conn: conn, fixture: fixture} do
@@ -972,7 +970,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       render_async(view, 300)
 
       assert render_click(view, "move-devices-product", %{"deployment_group" => ["1"]}) =~
-               "Sorry, you don't have the required role" |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+               "Sorry. You were denied access. Please check your role or contact your support."
     end
 
     test "add multiple devices to deployment",
