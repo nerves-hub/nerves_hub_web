@@ -33,10 +33,10 @@ defmodule NervesHubWeb.Plugs.ImAlive do
     %{
       @default_status_path => %OpenApiSpex.PathItem{
         get: %OpenApiSpex.Operation{
-          summary: "Check application status",
+          summary: "Check platform status",
           description:
             "Provides a simple health check to verify that the application is running, responsive, and can connect to the database.",
-          tags: ["Status"],
+          tags: ["Platform Status"],
           operationId: "Status.alive",
           responses: %{
             "200" => %OpenApiSpex.Response{
