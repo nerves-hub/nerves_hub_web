@@ -25,7 +25,7 @@ import ToolTip from "./hooks/toolTip.js"
 import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
 import WorldMap from "./hooks/worldMap.js"
 
-import dates from "./dates"
+import dates from "./helpers/dates"
 
 TimeAgo.addDefaultLocale(en)
 
