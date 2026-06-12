@@ -38,12 +38,12 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
 
     socket
     |> page_title("Add Certificate Authorities - #{socket.assigns.org.name}")
-    |> assign(:registration_code, CSR.generate_code())
+    |> assign(:registration_code, CSR.generate_verification_token(scope.org))
     |> assign(:products, products)
     |> assign(:form, to_form(CACertificate.changeset(%CACertificate{}, %{})))
     |> assign(:show_jitp_form, false)
-    |> allow_upload(:cert, accept: ~w(.pem), max_entries: 1, auto_upload: true)
-    |> allow_upload(:csr, accept: ~w(.crt), max_entries: 1, auto_upload: true)
+    |> allow_upload(:cert, accept: ~w(.pem .crt), max_entries: 1, auto_upload: true)
+    |> allow_upload(:csr, accept: ~w(.pem .crt), max_entries: 1, auto_upload: true)
     |> sidebar_tab(:certificates)
     |> render_with(&new_ca_template/1)
   end
@@ -127,9 +127,11 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
 
     socket = set_show_jitp_form(socket, params)
 
+    org = socket.assigns.current_scope.org
+
     with {:ok, cert} <- uploaded_cert(socket),
          {:ok, csr} <- uploaded_csr(socket),
-         :ok <- CSR.validate_csr(socket.assigns.registration_code, cert, csr),
+         :ok <- CSR.validate_cert_ownership(org, cert, csr),
          serial = Certificate.get_serial_number(cert),
          aki = Certificate.get_aki(cert),
          ski = Certificate.get_ski(cert),

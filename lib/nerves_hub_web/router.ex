@@ -119,6 +119,7 @@ defmodule NervesHubWeb.Router do
 
           scope "/ca_certificates" do
             get("/", CACertificateController, :index)
+            get("/verification_token", CACertificateController, :verification_token)
             post("/", CACertificateController, :create)
             get("/:serial", CACertificateController, :show)
             delete("/:serial", CACertificateController, :delete)

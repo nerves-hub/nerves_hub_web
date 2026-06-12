@@ -308,12 +308,12 @@ defmodule NervesHub.Fixtures do
     openssl(~w(genrsa -out #{verification_cert_key} 2048), dir)
 
     openssl(
-      ~w(req -new -key #{verification_cert_key} -out #{verification_cert_csr} -subj /CN=#{code}),
+      ~w(req -new -key #{verification_cert_key} -out #{verification_cert_csr} -subj /CN=certificate-verification -addext subjectAltName=URI:urn:nerveshub:verify:#{code}),
       dir
     )
 
     openssl(
-      ~w(x509 -req -in #{verification_cert_csr} -CA #{ca_file} -CAkey #{ca_key_file} -CAcreateserial -out #{verification_cert_crt} -days 500 -sha256),
+      ~w(x509 -req -in #{verification_cert_csr} -CA #{ca_file} -CAkey #{ca_key_file} -CAcreateserial -out #{verification_cert_crt} -days 500 -sha256 -copy_extensions copy),
       dir
     )
 
