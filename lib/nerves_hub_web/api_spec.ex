@@ -46,7 +46,7 @@ defmodule NervesHubWeb.ApiSpec do
       },
       security: [
         %{
-          "bearer" => []
+          "bearer_auth" => []
         }
       ],
       tags: [
