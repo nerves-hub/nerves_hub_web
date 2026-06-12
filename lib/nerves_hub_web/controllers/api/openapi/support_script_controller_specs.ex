@@ -70,7 +70,7 @@ defmodule NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs do
       requestBody: opts[:request_body],
       responses: Map.merge(@common_errors, opts[:response] || %{}),
       callbacks: %{},
-      security: [%{}, %{"bearer_auth" => []}],
+      security: [%{"bearer_auth" => []}],
       extensions: %{}
     }
   end

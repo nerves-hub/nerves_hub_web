@@ -21,7 +21,7 @@ defmodule NervesHubWeb.API.UserController do
       ok: {"User response", "application/json", UserResponse},
       unauthorized: {"Unauthorized", "application/json", ErrorSchemas.ErrorResponse}
     ],
-    security: [%{}, %{"bearer_auth" => []}]
+    security: [%{"bearer_auth" => []}]
   )
 
   def me(%{assigns: %{current_scope: scope}} = conn, _params) do

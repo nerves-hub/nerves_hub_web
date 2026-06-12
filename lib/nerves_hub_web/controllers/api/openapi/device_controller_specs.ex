@@ -287,7 +287,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     move_operation =
       device_operation(
-        "Move a Device to a different Product in the same or different Organization",
+        "Move a Device to a different Product",
         :move,
         opts.parameters ++ query_parameters,
         opts.tags,
@@ -460,7 +460,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
       requestBody: opts[:request_body],
       responses: Map.merge(@common_errors, opts[:response] || %{}),
       callbacks: %{},
-      security: [%{}, %{"bearer_auth" => []}],
+      security: [%{"bearer_auth" => []}],
       extensions: %{}
     }
   end
@@ -474,7 +474,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
       requestBody: opts[:request_body],
       responses: Map.merge(@common_errors, opts[:response] || %{}),
       callbacks: %{},
-      security: [%{}, %{"bearer_auth" => []}],
+      security: [%{"bearer_auth" => []}],
       extensions: %{}
     }
   end
