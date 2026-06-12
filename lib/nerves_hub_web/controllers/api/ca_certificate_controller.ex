@@ -5,7 +5,6 @@ defmodule NervesHubWeb.API.CACertificateController do
   alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate.CSR
-
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.CACertificateSchemas
   alias NervesHubWeb.API.Schemas.ErrorSchemas
