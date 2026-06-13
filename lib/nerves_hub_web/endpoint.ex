@@ -20,7 +20,7 @@ defmodule NervesHubWeb.Endpoint do
   ]
 
   if Application.compile_env(:nerves_hub, :deploy_env) == "prod" do
-    plug Plug.SSL, rewrite_on: [:x_forwarded_proto], exclude: ["localhost"]
+    plug(Plug.SSL, rewrite_on: [:x_forwarded_proto], exclude: ["localhost"])
   end
 
   plug(ImAlive)
