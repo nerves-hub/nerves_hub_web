@@ -514,4 +514,4 @@ if System.get_env("GOOGLE_CLIENT_ID") do
 end
 
 config :mnesia,
-  dir: ~c".mnesia/#{Mix.env()}/#{node()}"
+  dir: ~c".mnesia/#{config_env()}/#{node()}"
