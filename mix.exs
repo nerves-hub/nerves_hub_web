@@ -180,8 +180,15 @@ defmodule NervesHub.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases() do
     [
-      "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"],
-      "assets.setup": ["assets.install", "assets.build"],
+      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
+      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.build": ["compile", "tailwind default", "esbuild default", "esbuild stoplight"],
+      "assets.deploy": [
+        "tailwind default --minify",
+        "esbuild default --minify",
+        "esbuild stoplight --minify",
+        "phx.digest"
+      ],
       "ecto.setup": [
         "ecto.create",
         "ecto.migrate",

@@ -1,4 +1,4 @@
-import dates from "../dates"
+import dates from "../helpers/dates"
 
 export default {
   mounted() {
