@@ -4,12 +4,16 @@ defmodule NervesHubWeb.API.OrgUserController do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.UserNotifier
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
+  alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.OrgUserSchemas
 
   plug(:validate_role, org: :admin)
 
   security([%{}, %{"bearer_auth" => []}])
   tags(["Organization Members"])
+
+  @auth_error_responses SchemaHelpers.auth_error_responses()
 
   operation(:index,
     summary: "List all members of an Organization",
@@ -21,9 +25,10 @@ defmodule NervesHubWeb.API.OrgUserController do
         example: "example_org"
       ]
     ],
-    responses: [
-      ok: {"Organization users list response", "application/json", OrgUserSchemas.OrgUserListResponse}
-    ]
+    responses:
+      [
+        ok: {"Organization users list response", "application/json", OrgUserSchemas.OrgUserListResponse}
+      ] ++ @auth_error_responses
   )
 
   def index(%{assigns: %{current_scope: %{org: org}}} = conn, _params) do
@@ -47,10 +52,13 @@ defmodule NervesHubWeb.API.OrgUserController do
       OrgUserSchemas.OrgUserCreationRequest,
       required: true
     },
-    responses: [
-      ok: {"Organization User - User is added to the organization", "application/json", OrgUserSchemas.OrgUser},
-      no_content: "Empty response - User is invited to the organization"
-    ],
+    responses:
+      [
+        ok:
+          {"Organization User - User is added to the organization", "application/json",
+           OrgUserSchemas.OrgUserShowResponse},
+        no_content: "Empty response - User is invited to the organization"
+      ] ++ @auth_error_responses,
     deprecated: true
   )
 
@@ -74,10 +82,13 @@ defmodule NervesHubWeb.API.OrgUserController do
       OrgUserSchemas.OrgUserCreationRequest,
       required: true
     },
-    responses: [
-      ok: {"Organization User - User is added to the organization", "application/json", OrgUserSchemas.OrgUser},
-      no_content: "Empty response - User is invited to the organization"
-    ]
+    responses:
+      [
+        ok:
+          {"Organization User - User is added to the organization", "application/json",
+           OrgUserSchemas.OrgUserShowResponse},
+        no_content: "Empty response - User is invited to the organization"
+      ] ++ @auth_error_responses
   )
 
   def invite(%{assigns: %{current_scope: %{user: invited_by, org: org}}} = conn, %{"email" => email, "role" => role}) do
@@ -138,9 +149,11 @@ defmodule NervesHubWeb.API.OrgUserController do
         example: "jane@person.com"
       ]
     ],
-    responses: [
-      ok: {"Organization User", "application/json", OrgUserSchemas.OrgUser}
-    ]
+    responses:
+      [
+        ok: {"Organization User", "application/json", OrgUserSchemas.OrgUserShowResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def show(%{assigns: %{current_scope: %{org: org}}} = conn, %{"user_email" => user_email}) do
@@ -166,9 +179,11 @@ defmodule NervesHubWeb.API.OrgUserController do
         example: "jane@person.com"
       ]
     ],
-    responses: [
-      no_content: "Empty response"
-    ]
+    responses:
+      [
+        no_content: "Empty response",
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def remove(%{assigns: %{current_scope: %{user: user, org: org}}} = conn, %{"user_email" => user_email}) do
@@ -205,9 +220,12 @@ defmodule NervesHubWeb.API.OrgUserController do
       OrgUserSchemas.OrgUserUpdateRequest,
       required: true
     },
-    responses: [
-      ok: {"Organization User", "application/json", OrgUserSchemas.OrgUser}
-    ]
+    responses:
+      [
+        ok: {"Organization User", "application/json", OrgUserSchemas.OrgUserShowResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse},
+        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def update(%{assigns: %{current_scope: %{org: org}}} = conn, %{"user_email" => user_email} = params) do

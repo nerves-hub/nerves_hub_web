@@ -9,22 +9,12 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
-        identifier: %Schema{type: :integer},
+        identifier: %Schema{type: :string},
         description: %Schema{type: :string},
         tags: %Schema{type: :string},
         online: %Schema{type: :boolean},
         connection_status: %Schema{type: :string, enum: ["connected", "disconnected"]},
         firmware_metadata: %Schema{
-          type: :object,
-          properties: %{
-            name: %Schema{type: :string},
-            is_active: %Schema{type: :boolean},
-            firmware_uuid: %Schema{type: :string},
-            firmware_version: %Schema{type: :string}
-          }
-        },
-        version: %Schema{type: :string},
-        deployment_group: %Schema{
           type: :object,
           properties: %{
             id: %Schema{type: :string},
@@ -38,6 +28,16 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             architecture: %Schema{type: :string},
             fwup_version: %Schema{type: :string},
             vcs_identifier: %Schema{type: :string}
+          }
+        },
+        version: %Schema{type: :string},
+        deployment_group: %Schema{
+          type: :object,
+          properties: %{
+            name: %Schema{type: :string},
+            is_active: %Schema{type: :boolean},
+            firmware_uuid: %Schema{type: :string},
+            firmware_version: %Schema{type: :string}
           }
         },
         updates_enabled: %Schema{type: :boolean},
@@ -89,6 +89,50 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
     })
   end
 
+  defmodule DeviceResponse do
+    OpenApiSpex.schema(%{
+      description: "Response schema for a single Device",
+      type: :object,
+      properties: %{
+        data: Device
+      },
+      example: %{
+        "data" => %{
+          "identifier" => "abc123",
+          "description" => "A great device",
+          "tags" => "prod, customerABC",
+          "online" => true,
+          "connection_status" => "connected",
+          "firmware_metadata" => %{
+            "id" => "3f2264c3-cc52-2ba9-b77d-e441f8bb91b6",
+            "misc" => "extra comments",
+            "uuid" => "6fd2bbc8-52b8-4826-5c2a-189968d0de23",
+            "author" => "",
+            "product" => "AmazingProduct",
+            "version" => "1.2.3",
+            "platform" => "rpi5",
+            "description" => "Prod Firmware",
+            "architecture" => "arm",
+            "fwup_version" => "1.10.1",
+            "vcs_identifier" => ""
+          },
+          "version" => "1.2.3",
+          "deployment_group" => %{
+            "firmware_uuid" => "6fd2bbc8-52b8-4826-5c2a-189968d0de23",
+            "firmware_version" => "1.2.3",
+            "is_active" => true,
+            "name" => "Prod Deployment"
+          },
+          "updates_enabled" => true,
+          "updates_blocked_until" => "2050-04-20T00:33:09Z",
+          "org_name" => "BigCompany",
+          "product_name" => "AmazingProduct",
+          "last_communication" => "2050-04-20T00:33:09Z"
+        }
+      }
+    })
+  end
+
   defmodule DeviceListResponse do
     OpenApiSpex.schema(%{
       description: "Response schema for multiple Devices",
@@ -98,6 +142,15 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
           description: "The Device schema",
           type: :array,
           items: Device
+        },
+        pagination: %Schema{
+          type: :object,
+          properties: %{
+            page_number: %Schema{type: :integer},
+            page_size: %Schema{type: :integer},
+            total_pages: %Schema{type: :integer},
+            total_entries: %Schema{type: :integer}
+          }
         }
       },
       example: %{
@@ -230,6 +283,34 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
           "deployment_group_id" => 1,
           "updates_enabled" => false
         }
+      }
+    })
+  end
+
+  defmodule DeviceCodeRequest do
+    OpenApiSpex.schema(%{
+      description: "POST body for sending Elixir code to a Device's console",
+      type: :object,
+      properties: %{
+        code: %Schema{type: :string, description: "Elixir code to execute"}
+      },
+      required: [:code],
+      example: %{
+        "code" => "NervesHub.version()"
+      }
+    })
+  end
+
+  defmodule DeviceUpgradeRequest do
+    OpenApiSpex.schema(%{
+      description: "POST body for upgrading a Device to a specific Firmware",
+      type: :object,
+      properties: %{
+        uuid: %Schema{type: :string, description: "Target firmware UUID", format: :uuid}
+      },
+      required: [:uuid],
+      example: %{
+        "uuid" => "d9f8c63a-1234-5678-abcd-ef0123456789"
       }
     })
   end

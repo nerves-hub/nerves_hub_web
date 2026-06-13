@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Endpoint do
     at: "/",
     from: :nerves_hub,
     gzip: false,
-    only: ~w(assets css fonts images js favicon.ico robots.txt geo swagger)
+    only: ~w(assets css fonts images js favicon.ico robots.txt geo)
   )
 
   plug(ConfigureUploads)

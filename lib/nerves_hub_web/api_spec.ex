@@ -26,7 +26,15 @@ defmodule NervesHubWeb.ApiSpec do
       ],
       info: %Info{
         title: "#{Application.get_env(:nerves_hub, :support_email_platform_name)} API",
-        version: "2.0.0"
+        version: "2.0.0",
+        description: ~s"""
+        The #{Application.get_env(:nerves_hub, :support_email_platform_name)} API gives users full access to their
+        Orgs, Products, and corresponding Device fleets.
+
+        The API can be used to integrate with your own systems, providing full access to your Product and Device data.
+
+        The API is documented using the OpenAPI 3.0 specification.
+        """
       },
       # Populate the paths from a phoenix router
       paths: set_paths(),
@@ -46,7 +54,7 @@ defmodule NervesHubWeb.ApiSpec do
       },
       security: [
         %{
-          "bearer" => []
+          "bearer_auth" => []
         }
       ],
       tags: [
@@ -95,12 +103,12 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Organization Signing Key management"
         },
         %Tag{
-          name: "Status",
-          description: "Platform healthcheck"
-        },
-        %Tag{
           name: "Support Scripts",
           description: "Product Support Script management"
+        },
+        %Tag{
+          name: "Platform Status",
+          description: "Platform healthcheck"
         }
       ]
     }

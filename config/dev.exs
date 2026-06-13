@@ -61,7 +61,8 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   check_origin: false,
   watchers: [
     tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]},
-    esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]}
+    esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]},
+    esbuild_stoplight: {Esbuild, :install_and_run, [:stoplight, ~w(--sourcemap=inline --watch)]}
   ],
   live_reload: [
     patterns: [

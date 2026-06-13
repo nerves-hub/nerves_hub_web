@@ -14,6 +14,21 @@ defmodule NervesHubWeb.API.Schemas.OrgUserSchemas do
         role: %Schema{type: :string, enum: ["admin", "manage", "view"]}
       },
       example: %{
+        "name" => "Jane Person",
+        "email" => "jane@person.com",
+        "role" => "admin"
+      }
+    })
+  end
+
+  defmodule OrgUserShowResponse do
+    OpenApiSpex.schema(%{
+      description: "Response schema for a single Organization User",
+      type: :object,
+      properties: %{
+        data: OrgUser
+      },
+      example: %{
         "data" => %{
           "name" => "Jane Person",
           "email" => "jane@person.com",

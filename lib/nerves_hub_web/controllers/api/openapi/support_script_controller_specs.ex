@@ -1,49 +1,13 @@
 defmodule NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs do
   import OpenApiSpex.Operation, only: [response: 3]
 
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.SupportScriptSchemas
 
-  @organization_parameter %OpenApiSpex.Parameter{
-    name: :org_name,
-    in: :path,
-    description: "Organization Name",
-    required: true,
-    schema: %OpenApiSpex.Schema{type: :string},
-    example: "example_org"
-  }
-
-  @product_parameter %OpenApiSpex.Parameter{
-    name: :product_name,
-    in: :path,
-    description: "Product Name",
-    required: true,
-    schema: %OpenApiSpex.Schema{type: :string},
-    example: "example_product"
-  }
-
-  @device_parameter %OpenApiSpex.Parameter{
-    name: :identifier,
-    in: :path,
-    description: "Device Identifier",
-    required: true,
-    schema: %OpenApiSpex.Schema{type: :string},
-    example: "abc123"
-  }
-
-  @pagination_parameter %OpenApiSpex.Parameter{
-    name: :pagination,
-    description: "Pagination",
-    in: :query,
-    required: false,
-    style: :deepObject,
-    schema: %OpenApiSpex.Schema{
-      type: :object,
-      properties: %{
-        page: %OpenApiSpex.Schema{type: :integer, default: 1, example: "5"},
-        page_size: %OpenApiSpex.Schema{type: :integer, default: 10, example: "20"}
-      }
-    }
-  }
+  @organization_parameter SchemaHelpers.org_param()
+  @product_parameter SchemaHelpers.product_param()
+  @device_parameter SchemaHelpers.device_param()
+  @pagination_parameter SchemaHelpers.pagination_param()
 
   @path_structures %{
     short: %{
@@ -95,6 +59,8 @@ defmodule NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs do
     add_to_paths(openapi, opts.path_prefix, :get, list_operation)
   end
 
+  @common_errors SchemaHelpers.common_errors()
+
   defp support_script_operation(summary, operation_id, parameters, tags, opts) do
     %OpenApiSpex.Operation{
       tags: tags,
@@ -102,9 +68,9 @@ defmodule NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs do
       operationId: operation_id,
       parameters: parameters,
       requestBody: opts[:request_body],
-      responses: opts[:response],
+      responses: Map.merge(@common_errors, opts[:response] || %{}),
       callbacks: %{},
-      security: [%{}, %{"bearer_auth" => []}],
+      security: [%{"bearer_auth" => []}],
       extensions: %{}
     }
   end

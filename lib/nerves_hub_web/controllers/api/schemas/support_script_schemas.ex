@@ -23,18 +23,16 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
         }
       },
       example: %{
-        "data" => %{
+        "id" => "1",
+        "name" => "Clean Disk",
+        "text" => "Clean.disk()",
+        "tags" => "cleanup",
+        "inserted_at" => "2026-03-28T08:10:20Z",
+        "updated_at" => "2026-06-23T08:10:20Z",
+        "created_by" => %{
           "id" => "1",
-          "name" => "Clean Disk",
-          "text" => "Clean.disk()",
-          "tags" => "cleanup",
-          "inserted_at" => "2026-03-28T08:10:20Z",
-          "updated_at" => "2026-06-23T08:10:20Z",
-          "created_by" => %{
-            "id" => "1",
-            "name" => "Waffles t'Doggo",
-            "email" => "waffles@doggo.com"
-          }
+          "name" => "Waffles t'Doggo",
+          "email" => "waffles@doggo.com"
         }
       }
     })
@@ -49,11 +47,9 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
         tags: %Schema{type: :string}
       },
       example: %{
-        "data" => %{
-          "id" => "1",
-          "name" => "Clean Disk",
-          "tags" => "cleanup"
-        }
+        "id" => "1",
+        "name" => "Clean Disk",
+        "tags" => "cleanup"
       }
     })
   end

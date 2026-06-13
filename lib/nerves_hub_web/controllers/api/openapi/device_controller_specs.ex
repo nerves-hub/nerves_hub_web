@@ -1,50 +1,14 @@
 defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   import OpenApiSpex.Operation, only: [request_body: 4, response: 3]
 
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.DeviceCertificateSchemas
   alias NervesHubWeb.API.Schemas.DeviceSchemas
 
-  @organization_parameter %OpenApiSpex.Parameter{
-    name: :org_name,
-    in: :path,
-    description: "Organization Name",
-    required: true,
-    schema: %OpenApiSpex.Schema{type: :string},
-    example: "example_org"
-  }
-
-  @product_parameter %OpenApiSpex.Parameter{
-    name: :product_name,
-    in: :path,
-    description: "Product Name",
-    required: true,
-    schema: %OpenApiSpex.Schema{type: :string},
-    example: "example_product"
-  }
-
-  @device_parameter %OpenApiSpex.Parameter{
-    name: :identifier,
-    in: :path,
-    description: "Device Identifier",
-    required: true,
-    schema: %OpenApiSpex.Schema{type: :string},
-    example: "abc123"
-  }
-
-  @pagination_parameter %OpenApiSpex.Parameter{
-    name: :pagination,
-    description: "Pagination",
-    in: :query,
-    required: false,
-    style: :deepObject,
-    schema: %OpenApiSpex.Schema{
-      type: :object,
-      properties: %{
-        page: %OpenApiSpex.Schema{type: :integer, default: 1, example: "5"},
-        page_size: %OpenApiSpex.Schema{type: :integer, default: 10, example: "20"}
-      }
-    }
-  }
+  @organization_parameter SchemaHelpers.org_param()
+  @product_parameter SchemaHelpers.product_param()
+  @device_parameter SchemaHelpers.device_param()
+  @pagination_parameter SchemaHelpers.pagination_param()
 
   @sort_by_parameter %OpenApiSpex.Parameter{
     name: :sort,
@@ -96,20 +60,24 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   }
 
   @device_response %{
-    200 => response("Device Response", "application/json", DeviceSchemas.Device)
+    200 => response("Device Response", "application/json", DeviceSchemas.DeviceResponse)
   }
 
   @device_creation_response %{
-    204 => response("Device Response", "application/json", DeviceSchemas.Device)
+    201 => response("Device Response", "application/json", DeviceSchemas.DeviceResponse)
   }
 
   @device_list_response %{
     200 => response("Device List Response", "application/json", DeviceSchemas.DeviceListResponse)
   }
 
-  @empty_response %{
-    200 => %OpenApiSpex.Response{description: "Empty response"}
+  @no_content_response %{
+    204 => %OpenApiSpex.Response{description: "No content"}
   }
+
+  @common_errors SchemaHelpers.common_errors()
+  @not_found_error SchemaHelpers.not_found_error()
+  @validation_error SchemaHelpers.validation_error()
 
   @path_structures %{
     short: %{
@@ -202,11 +170,15 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   end
 
   def show_device_action(opts) do
-    device_operation("Show a Device", :show, opts.parameters, opts.tags, response: @device_response)
+    device_operation("Show a Device", :show, opts.parameters, opts.tags,
+      response: Map.merge(@device_response, @not_found_error)
+    )
   end
 
   def delete_device_action(opts) do
-    device_operation("Delete a Device", :delete, opts.parameters, opts.tags, response: @empty_response)
+    device_operation("Delete a Device", :delete, opts.parameters, opts.tags,
+      response: Map.merge(@no_content_response, @not_found_error)
+    )
   end
 
   def create_device_action(opts) do
@@ -220,7 +192,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     device_operation("Create a Device", :create, opts.parameters, opts.tags,
       request_body: request_body,
-      response: @device_creation_response
+      response: Map.merge(@device_creation_response, @validation_error)
     )
   end
 
@@ -242,7 +214,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         [@organization_parameter, @product_parameter],
         opts.tags,
         request_body: request_body,
-        response: @empty_response
+        response: Map.merge(@no_content_response, @validation_error)
       )
 
     add_to_paths(openapi, "/api/orgs/{org_name}/products/{product_name}/devices/import", %OpenApiSpex.PathItem{
@@ -261,12 +233,20 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     device_operation("Update a Device", :update, opts.parameters, opts.tags,
       request_body: request_body,
-      response: @device_response
+      response: Map.merge(@device_response, Map.merge(@not_found_error, @validation_error))
     )
   end
 
   def code_action(openapi, path_structure) do
     opts = @path_structures[path_structure]
+
+    request_body =
+      request_body(
+        "Code execution request body",
+        "application/json",
+        DeviceSchemas.DeviceCodeRequest,
+        required: true
+      )
 
     code_operation =
       device_operation(
@@ -274,7 +254,8 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         :code,
         opts.parameters,
         opts.tags,
-        response: @empty_response
+        request_body: request_body,
+        response: Map.merge(@no_content_response, @not_found_error)
       )
 
     add_to_paths(openapi, "#{opts.path_prefix}/code", %OpenApiSpex.PathItem{
@@ -306,11 +287,11 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     move_operation =
       device_operation(
-        "Move a Device to a different Product in the same or different Organization",
+        "Move a Device to a different Product",
         :move,
         opts.parameters ++ query_parameters,
         opts.tags,
-        response: @device_response
+        response: Map.merge(@device_response, @not_found_error)
       )
 
     add_to_paths(openapi, "#{opts.path_prefix}/move", %OpenApiSpex.PathItem{
@@ -327,7 +308,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         :reboot,
         opts.parameters,
         opts.tags,
-        response: @empty_response
+        response: Map.merge(@no_content_response, @not_found_error)
       )
 
     add_to_paths(openapi, "#{opts.path_prefix}/reboot", %OpenApiSpex.PathItem{
@@ -344,7 +325,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         :reconnect,
         opts.parameters,
         opts.tags,
-        response: @empty_response
+        response: Map.merge(@no_content_response, @not_found_error)
       )
 
     add_to_paths(openapi, "#{opts.path_prefix}/reconnect", %OpenApiSpex.PathItem{
@@ -355,13 +336,22 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   def upgrade_action(openapi, path_structure) do
     opts = @path_structures[path_structure]
 
+    request_body =
+      request_body(
+        "Firmware upgrade request body",
+        "application/json",
+        DeviceSchemas.DeviceUpgradeRequest,
+        required: true
+      )
+
     upgrade_operation =
       device_operation(
         "Request a Device upgrade to a different Firmware",
         :upgrade,
         opts.parameters,
         opts.tags,
-        response: @empty_response
+        request_body: request_body,
+        response: Map.merge(@no_content_response, Map.merge(@not_found_error, @validation_error))
       )
 
     add_to_paths(openapi, "#{opts.path_prefix}/upgrade", %OpenApiSpex.PathItem{
@@ -378,7 +368,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         :penalty,
         opts.parameters,
         opts.tags,
-        response: @empty_response
+        response: Map.merge(@no_content_response, @not_found_error)
       )
 
     add_to_paths(openapi, "#{opts.path_prefix}/penalty", %OpenApiSpex.PathItem{
@@ -413,9 +403,11 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
       }
     ]
 
-    response = %{
-      200 => response("Script output", "text/plain", nil)
-    }
+    response =
+      Map.merge(
+        %{200 => response("Script output", "text/plain", nil)},
+        @not_found_error
+      )
 
     send_script_operation =
       script_operation(
@@ -466,9 +458,9 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
       operationId: "NervesHubWeb.API.DevicesController.#{operation_id}",
       parameters: parameters,
       requestBody: opts[:request_body],
-      responses: opts[:response],
+      responses: Map.merge(@common_errors, opts[:response] || %{}),
       callbacks: %{},
-      security: [%{}, %{"bearer_auth" => []}],
+      security: [%{"bearer_auth" => []}],
       extensions: %{}
     }
   end
@@ -480,9 +472,9 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
       operationId: "NervesHubWeb.API.ScriptController.#{operation_id}",
       parameters: parameters,
       requestBody: opts[:request_body],
-      responses: opts[:response],
+      responses: Map.merge(@common_errors, opts[:response] || %{}),
       callbacks: %{},
-      security: [%{}, %{"bearer_auth" => []}],
+      security: [%{"bearer_auth" => []}],
       extensions: %{}
     }
   end

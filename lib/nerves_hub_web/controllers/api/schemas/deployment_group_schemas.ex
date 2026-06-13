@@ -118,4 +118,55 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
       }
     })
   end
+
+  defmodule DeploymentGroupCreationRequest do
+    OpenApiSpex.schema(%{
+      description: "POST body for creating a Deployment Group",
+      type: :object,
+      properties: %{
+        name: %Schema{type: :string},
+        firmware: %Schema{type: :string, description: "Firmware UUID"},
+        conditions: Conditions,
+        state: %Schema{type: :string, enum: ["on", "off"]},
+        delta_updatable: %Schema{type: :boolean}
+      },
+      required: [:name, :firmware],
+      example: %{
+        "name" => "production",
+        "firmware" => "d9f8c63a-1234-5678-abcd-ef0123456789",
+        "conditions" => %{
+          "version" => ">= 1.0.0",
+          "tags" => ["prod"]
+        },
+        "state" => "on"
+      }
+    })
+  end
+
+  defmodule DeploymentGroupUpdateRequest do
+    OpenApiSpex.schema(%{
+      description: "PUT body for updating a Deployment Group",
+      type: :object,
+      properties: %{
+        deployment: %Schema{
+          type: :object,
+          properties: %{
+            firmware: %Schema{type: :string, description: "Firmware UUID"},
+            conditions: Conditions,
+            state: %Schema{type: :string, enum: ["on", "off"]},
+            delta_updatable: %Schema{type: :boolean}
+          }
+        }
+      },
+      example: %{
+        "deployment" => %{
+          "state" => "on",
+          "conditions" => %{
+            "version" => ">= 1.0.0",
+            "tags" => ["prod"]
+          }
+        }
+      }
+    })
+  end
 end
