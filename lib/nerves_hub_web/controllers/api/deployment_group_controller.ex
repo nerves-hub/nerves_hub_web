@@ -6,19 +6,28 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.DeploymentGroupSchemas
+  alias NervesHubWeb.API.Schemas.ErrorSchemas
 
   security([%{}, %{"bearer_auth" => []}])
   tags(["Deployment Groups"])
+
+  @auth_error_responses SchemaHelpers.auth_error_responses()
 
   plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
   operation(:index,
     summary: "List all Deployment Groups for a Product",
-    responses: [
-      ok: {"Deployment Group list response", "application/json", DeploymentGroupSchemas.DeploymentGroupListResponse}
-    ]
+    parameters: [
+      org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
+      product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"]
+    ],
+    responses:
+      [
+        ok: {"Deployment Group list response", "application/json", DeploymentGroupSchemas.DeploymentGroupListResponse}
+      ] ++ @auth_error_responses
   )
 
   def index(%{assigns: %{current_scope: %{product: product}}} = conn, _params) do
@@ -26,7 +35,24 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
     render(conn, :index, deployment_groups: deployment_groups)
   end
 
-  operation(:create, summary: "Create a new Deployment Group for a Product")
+  operation(:create,
+    summary: "Create a new Deployment Group for a Product",
+    parameters: [
+      org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
+      product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"]
+    ],
+    request_body: {
+      "Deployment Group creation request body",
+      "application/json",
+      DeploymentGroupSchemas.DeploymentGroupCreationRequest,
+      required: true
+    },
+    responses:
+      [
+        created: {"Deployment Group response", "application/json", DeploymentGroupSchemas.DeploymentGroupResponse},
+        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+      ] ++ @auth_error_responses
+  )
 
   def create(%{assigns: %{current_scope: %{org: org, product: product, user: user}}} = conn, params) do
     firmware = Firmwares.get_by_uuid(product, Map.get(params, "firmware"))
@@ -50,9 +76,16 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   operation(:show,
     summary: "Show a Deployment Group",
-    responses: [
-      ok: {"Deployment Group response", "application/json", DeploymentGroupSchemas.DeploymentGroupResponse}
-    ]
+    parameters: [
+      org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
+      product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"],
+      name: [in: :path, description: "Deployment Group Name", type: :string, example: "production"]
+    ],
+    responses:
+      [
+        ok: {"Deployment Group response", "application/json", DeploymentGroupSchemas.DeploymentGroupResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def show(%{assigns: %{current_scope: %{product: product}}} = conn, %{"name" => name}) do
@@ -61,7 +94,26 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
     end
   end
 
-  operation(:update, summary: "Update a Deployment Group")
+  operation(:update,
+    summary: "Update a Deployment Group",
+    parameters: [
+      org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
+      product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"],
+      name: [in: :path, description: "Deployment Group Name", type: :string, example: "production"]
+    ],
+    request_body: {
+      "Deployment Group update request body",
+      "application/json",
+      DeploymentGroupSchemas.DeploymentGroupUpdateRequest,
+      required: true
+    },
+    responses:
+      [
+        ok: {"Deployment Group response", "application/json", DeploymentGroupSchemas.DeploymentGroupResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse},
+        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+      ] ++ @auth_error_responses
+  )
 
   def update(%{assigns: %{current_scope: %{product: product, user: user}}} = conn, %{
         "name" => name,
@@ -103,7 +155,19 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
     end
   end
 
-  operation(:delete, summary: "Delete a Product's Deployment Group")
+  operation(:delete,
+    summary: "Delete a Product's Deployment Group",
+    parameters: [
+      org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
+      product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"],
+      name: [in: :path, description: "Deployment Group Name", type: :string, example: "production"]
+    ],
+    responses:
+      [
+        no_content: "Empty response",
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
+  )
 
   def delete(%{assigns: %{current_scope: %{product: product}}} = conn, %{"name" => name}) do
     with {:ok, deployment_group} <-

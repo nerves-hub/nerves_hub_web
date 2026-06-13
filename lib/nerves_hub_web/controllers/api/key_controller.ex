@@ -4,10 +4,14 @@ defmodule NervesHubWeb.API.KeyController do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgKey
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
+  alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.KeySchemas
 
   security([%{}, %{"bearer_auth" => []}])
   tags(["Signing Keys"])
+
+  @auth_error_responses SchemaHelpers.auth_error_responses()
 
   plug(:validate_role, [org: :manage] when action in [:create, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
@@ -22,9 +26,10 @@ defmodule NervesHubWeb.API.KeyController do
         example: "example_org"
       ]
     ],
-    responses: [
-      ok: {"Signing Keys", "application/json", KeySchemas.SigningKeyIndexResponse}
-    ]
+    responses:
+      [
+        ok: {"Signing Keys", "application/json", KeySchemas.SigningKeyIndexResponse}
+      ] ++ @auth_error_responses
   )
 
   def index(%{assigns: %{current_scope: scope}} = conn, _params) do
@@ -48,9 +53,11 @@ defmodule NervesHubWeb.API.KeyController do
       KeySchemas.SigningKeyCreationRequest,
       required: true
     },
-    responses: [
-      ok: {"Signing Key", "application/json", KeySchemas.SigningKeyShowResponse}
-    ]
+    responses:
+      [
+        created: {"Signing Key", "application/json", KeySchemas.SigningKeyShowResponse},
+        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def create(%{assigns: %{current_scope: %{user: user, org: org}}} = conn, params) do
@@ -75,16 +82,18 @@ defmodule NervesHubWeb.API.KeyController do
         type: :string,
         example: "example_org"
       ],
-      key_name: [
+      name: [
         in: :path,
         description: "Signing Key Name",
         type: :string,
         example: "example_key"
       ]
     ],
-    responses: [
-      ok: {"Signing Key", "application/json", KeySchemas.SigningKeyShowResponse}
-    ]
+    responses:
+      [
+        ok: {"Signing Key", "application/json", KeySchemas.SigningKeyShowResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def show(%{assigns: %{current_scope: %{org: org}}} = conn, %{"name" => name}) do
@@ -102,16 +111,18 @@ defmodule NervesHubWeb.API.KeyController do
         type: :string,
         example: "example_org"
       ],
-      key_name: [
+      name: [
         in: :path,
         description: "Signing Key Name",
         type: :string,
         example: "example_key"
       ]
     ],
-    responses: [
-      no_content: "Empty response"
-    ]
+    responses:
+      [
+        no_content: "Empty response",
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def delete(%{assigns: %{current_scope: %{org: org}}} = conn, %{"name" => name}) do

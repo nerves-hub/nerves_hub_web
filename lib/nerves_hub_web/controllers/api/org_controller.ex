@@ -4,12 +4,15 @@ defmodule NervesHubWeb.API.OrgController do
 
   alias NervesHub.Accounts
   alias NervesHub.Repo
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.OrgSchemas.OrgListResponse
 
   @valid_includes ~w(products)
 
   tags(["Organizations"])
   security([%{}, %{"bearer_auth" => []}])
+
+  @auth_error_responses SchemaHelpers.auth_error_responses()
 
   operation(:index,
     summary: "List all Organizations the authenticated user belongs to",
@@ -21,9 +24,10 @@ defmodule NervesHubWeb.API.OrgController do
         required: false
       ]
     ],
-    responses: [
-      ok: {"Organization list response", "application/json", OrgListResponse}
-    ]
+    responses:
+      [
+        ok: {"Organization list response", "application/json", OrgListResponse}
+      ] ++ @auth_error_responses
   )
 
   def index(%{assigns: %{current_scope: %{user: user}}} = conn, params) do

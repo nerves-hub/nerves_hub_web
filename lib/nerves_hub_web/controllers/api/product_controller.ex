@@ -4,10 +4,14 @@ defmodule NervesHubWeb.API.ProductController do
 
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
+  alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.ProductSchemas
 
   tags(["Products"])
   security([%{}, %{"bearer_auth" => []}])
+
+  @auth_error_responses SchemaHelpers.auth_error_responses()
 
   plug(:validate_role, [org: :admin] when action in [:create, :delete])
   plug(:validate_role, [org: :view] when action in [:show])
@@ -22,9 +26,10 @@ defmodule NervesHubWeb.API.ProductController do
         example: "example_org"
       ]
     ],
-    responses: [
-      ok: {"Product list response", "application/json", ProductSchemas.ProductListResponse}
-    ]
+    responses:
+      [
+        ok: {"Product list response", "application/json", ProductSchemas.ProductListResponse}
+      ] ++ @auth_error_responses
   )
 
   def index(%{assigns: %{current_scope: scope}} = conn, _params) do
@@ -48,9 +53,11 @@ defmodule NervesHubWeb.API.ProductController do
       ProductSchemas.ProductCreationRequest,
       required: true
     },
-    responses: [
-      ok: {"Product response", "application/json", ProductSchemas.Product}
-    ]
+    responses:
+      [
+        created: {"Product response", "application/json", ProductSchemas.ProductShowResponse},
+        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def create(%{assigns: %{current_scope: %{org: org}}} = conn, params) do
@@ -83,9 +90,11 @@ defmodule NervesHubWeb.API.ProductController do
         example: "example_product"
       ]
     ],
-    responses: [
-      ok: {"Product response", "application/json", ProductSchemas.Product}
-    ]
+    responses:
+      [
+        ok: {"Product response", "application/json", ProductSchemas.ProductShowResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def show(%{assigns: %{product: product}} = conn, _params) do
@@ -108,9 +117,11 @@ defmodule NervesHubWeb.API.ProductController do
         example: "example_product"
       ]
     ],
-    responses: [
-      no_content: "Empty response"
-    ]
+    responses:
+      [
+        no_content: "Empty response",
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def delete(%{assigns: %{product: product}} = conn, _params) do

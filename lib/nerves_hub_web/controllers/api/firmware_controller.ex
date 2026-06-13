@@ -4,6 +4,9 @@ defmodule NervesHubWeb.API.FirmwareController do
 
   alias NervesHub.Firmwares
   alias NervesHub.Repo
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
+  alias NervesHubWeb.API.Schemas.ErrorSchemas
+  alias NervesHubWeb.API.Schemas.FirmwareSchemas
 
   require Logger
 
@@ -13,14 +16,38 @@ defmodule NervesHubWeb.API.FirmwareController do
   tags(["Firmwares"])
   security([%{}, %{"bearer_auth" => []}])
 
-  operation(:index, summary: "List all Firmwares for a Product")
+  @auth_error_responses SchemaHelpers.auth_error_responses()
+
+  operation(:index,
+    summary: "List all Firmwares for a Product",
+    parameters: [
+      org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
+      product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"]
+    ],
+    responses:
+      [
+        ok: {"Firmware list response", "application/json", FirmwareSchemas.FirmwareListResponse}
+      ] ++ @auth_error_responses
+  )
 
   def index(%{assigns: %{product: product}} = conn, _params) do
     firmwares = Firmwares.get_firmwares_by_product(product.id)
     render(conn, :index, firmwares: firmwares)
   end
 
-  operation(:create, summary: "Upload a Firmware for a Product")
+  operation(:create,
+    summary: "Upload a Firmware for a Product",
+    parameters: [
+      org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
+      product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"]
+    ],
+    request_body: {"Firmware file upload", "multipart/form-data", nil},
+    responses:
+      [
+        created: {"Firmware response", "application/json", FirmwareSchemas.FirmwareResponse},
+        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+      ] ++ @auth_error_responses
+  )
 
   def create(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     Logger.info("System Memory:" <> inspect(:memsup.get_system_memory_data()))
@@ -42,7 +69,19 @@ defmodule NervesHubWeb.API.FirmwareController do
     end
   end
 
-  operation(:show, summary: "Show a Firmware")
+  operation(:show,
+    summary: "Show a Firmware",
+    parameters: [
+      org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
+      product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"],
+      uuid: [in: :path, description: "Firmware UUID", type: :string, example: "d9f8c63a-1234-5678-abcd-ef0123456789"]
+    ],
+    responses:
+      [
+        ok: {"Firmware response", "application/json", FirmwareSchemas.FirmwareResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
+  )
 
   def show(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
@@ -50,7 +89,19 @@ defmodule NervesHubWeb.API.FirmwareController do
     end
   end
 
-  operation(:delete, summary: "Delete a Firmware")
+  operation(:delete,
+    summary: "Delete a Firmware",
+    parameters: [
+      org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
+      product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"],
+      uuid: [in: :path, description: "Firmware UUID", type: :string, example: "d9f8c63a-1234-5678-abcd-ef0123456789"]
+    ],
+    responses:
+      [
+        no_content: "Empty response",
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
+  )
 
   def delete(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
@@ -59,7 +110,19 @@ defmodule NervesHubWeb.API.FirmwareController do
     end
   end
 
-  operation(:download, summary: "Download a Firmware")
+  operation(:download,
+    summary: "Download a Firmware",
+    parameters: [
+      org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
+      product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"],
+      uuid: [in: :path, description: "Firmware UUID", type: :string, example: "d9f8c63a-1234-5678-abcd-ef0123456789"]
+    ],
+    responses:
+      [
+        found: "Redirect to firmware download URL",
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
+  )
 
   def download(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),

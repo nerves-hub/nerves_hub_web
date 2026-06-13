@@ -13,10 +13,8 @@ defmodule NervesHubWeb.API.Schemas.KeySchemas do
         key: %Schema{type: :string}
       },
       example: %{
-        "data" => %{
-          "name" => "CI",
-          "key" => "abc123="
-        }
+        "name" => "CI",
+        "key" => "abc123="
       }
     })
   end

@@ -5,10 +5,14 @@ defmodule NervesHubWeb.API.CACertificateController do
   alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate.CSR
+  alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.CACertificateSchemas
+  alias NervesHubWeb.API.Schemas.ErrorSchemas
 
   tags(["CA Certificates"])
   security([%{}, %{"bearer_auth" => []}])
+
+  @auth_error_responses SchemaHelpers.auth_error_responses()
 
   plug(:validate_role, [org: :manage] when action in [:create, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
@@ -23,9 +27,10 @@ defmodule NervesHubWeb.API.CACertificateController do
         example: "example_org"
       ]
     ],
-    responses: [
-      ok: {"CA Certificate list response", "application/json", CACertificateSchemas.CACertificateListResponse}
-    ]
+    responses:
+      [
+        ok: {"CA Certificate list response", "application/json", CACertificateSchemas.CACertificateListResponse}
+      ] ++ @auth_error_responses
   )
 
   def index(%{assigns: %{current_scope: %{org: org}}} = conn, _params) do
@@ -49,9 +54,11 @@ defmodule NervesHubWeb.API.CACertificateController do
         example: "5111552077003819958"
       ]
     ],
-    responses: [
-      ok: {"CA Certificate response", "application/json", CACertificateSchemas.CACertificate}
-    ]
+    responses:
+      [
+        ok: {"CA Certificate response", "application/json", CACertificateSchemas.CACertificateShowResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def show(%{assigns: %{current_scope: %{org: org}}} = conn, %{"serial" => serial}) do
@@ -71,11 +78,12 @@ defmodule NervesHubWeb.API.CACertificateController do
         example: "example_org"
       ]
     ],
-    responses: [
-      ok:
-        {"CA Certificate verification token response", "application/json",
-         CACertificateSchemas.CACertificateVerificationTokenResponse}
-    ]
+    responses:
+      [
+        ok:
+          {"CA Certificate verification token response", "application/json",
+           CACertificateSchemas.CACertificateVerificationTokenResponse}
+      ] ++ @auth_error_responses
   )
 
   def verification_token(%{assigns: %{current_scope: %{org: org}}} = conn, _params) do
@@ -98,9 +106,11 @@ defmodule NervesHubWeb.API.CACertificateController do
       CACertificateSchemas.CACertificateCreationRequest,
       required: true
     },
-    responses: [
-      ok: {"CA Certificate response", "application/json", CACertificateSchemas.CACertificate}
-    ]
+    responses:
+      [
+        ok: {"CA Certificate response", "application/json", CACertificateSchemas.CACertificateShowResponse},
+        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def create(
@@ -163,9 +173,11 @@ defmodule NervesHubWeb.API.CACertificateController do
         example: "5111552077003819958"
       ]
     ],
-    responses: [
-      no_content: "Empty response"
-    ]
+    responses:
+      [
+        no_content: "Empty response",
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse}
+      ] ++ @auth_error_responses
   )
 
   def delete(%{assigns: %{current_scope: %{org: org}}} = conn, %{"serial" => serial}) do
