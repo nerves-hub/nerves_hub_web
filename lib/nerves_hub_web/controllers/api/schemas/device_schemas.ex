@@ -219,7 +219,13 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             "product_name" => "AmazingProduct",
             "last_communication" => "2050-04-20T00:33:09Z"
           }
-        ]
+        ],
+        "pagination" => %{
+          "page_number" => 1,
+          "page_size" => 10,
+          "total_pages" => 1,
+          "total_entries" => 2
+        }
       }
     })
   end

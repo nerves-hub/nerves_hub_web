@@ -7,7 +7,7 @@ defmodule NervesHubWeb.API.Schemas.UserAuthCLISessionStatusResponse do
     require OpenApiSpex
 
     OpenApiSpex.schema(%{
-      title: "CLISession",
+      title: "CLISessionStatus",
       description: "CLI auth exchange session status",
       type: :object,
       properties: %{

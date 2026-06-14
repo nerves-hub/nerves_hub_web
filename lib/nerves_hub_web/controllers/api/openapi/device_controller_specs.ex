@@ -405,7 +405,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
 
     response =
       Map.merge(
-        %{200 => response("Script output", "text/plain", nil)},
+        %{200 => response("Script output", "text/plain", %OpenApiSpex.Schema{type: :string})},
         @not_found_error
       )
 

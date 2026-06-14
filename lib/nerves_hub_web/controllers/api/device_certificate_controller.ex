@@ -126,7 +126,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
     },
     responses:
       [
-        ok:
+        created:
           {"Device Certificate show response", "application/json",
            DeviceCertificateSchemas.DeviceCertificateShowResponse},
         unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}

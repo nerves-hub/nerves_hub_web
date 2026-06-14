@@ -54,7 +54,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     },
     responses:
       [
-        ok:
+        created:
           {"Organization User - User is added to the organization", "application/json",
            OrgUserSchemas.OrgUserShowResponse},
         no_content: "Empty response - User is invited to the organization"
@@ -84,7 +84,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     },
     responses:
       [
-        ok:
+        created:
           {"Organization User - User is added to the organization", "application/json",
            OrgUserSchemas.OrgUserShowResponse},
         no_content: "Empty response - User is invited to the organization"

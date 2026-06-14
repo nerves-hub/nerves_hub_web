@@ -97,7 +97,7 @@ defmodule NervesHubWeb.API.ScriptController do
     },
     responses:
       [
-        ok: {"Support Scripts", "application/json", SupportScriptShowResponse},
+        created: {"Support Scripts", "application/json", SupportScriptShowResponse},
         unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
       ] ++ @auth_error_responses
   )

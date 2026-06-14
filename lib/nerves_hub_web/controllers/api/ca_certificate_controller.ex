@@ -108,7 +108,7 @@ defmodule NervesHubWeb.API.CACertificateController do
     },
     responses:
       [
-        ok: {"CA Certificate response", "application/json", CACertificateSchemas.CACertificateShowResponse},
+        created: {"CA Certificate response", "application/json", CACertificateSchemas.CACertificateShowResponse},
         unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
       ] ++ @auth_error_responses
   )
