@@ -10,9 +10,12 @@ defmodule NervesHubWeb.UserLocalShellChannel do
 
   def join("user:local_shell:identifier-" <> identifier, _, socket) do
     if device = authorized?(socket.assigns.user, identifier) do
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "user:local_shell:#{device.id}")
+
       topic = "device:#{device.id}:extensions"
       message = {LocalShell, {:connect, self()}}
       _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic, message)
+
       {:ok, assign(socket, :device_id, device.id)}
     else
       {:error, %{reason: "unauthorized"}}
