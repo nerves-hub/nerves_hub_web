@@ -93,7 +93,7 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
               class="relative flex grow gap-6 p-12"
               style="background-color: rgb(14, 16, 25);"
             >
-              <div id="local-shell" phx-hook="LocalShell" data-user-token={@user_token} data-device-id={@device.id} class="z-10 size-full"></div>
+              <div id="local-shell" phx-hook="LocalShell" data-user-token={@user_token} data-device-identifier={@device.identifier} class="z-10 size-full"></div>
               <div id="immersive-device" class="text-base-800 pointer-events-none absolute top-4 left-6 z-20 hidden">
                 <div class="flex items-center gap-3">
                   <svg
