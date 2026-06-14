@@ -95,8 +95,7 @@ config :nerves_hub, Oban,
        {"* * * * *", FirmwareDeltaTimeout},
        {"*/5 * * * *", ExpireInflightUpdates},
        {"*/15 * * * *", DeviceHealthTruncation},
-       {"*/15 * * * *", CleanUpSoftDeletedDevices},
-       {"*/1 * * * *", DeleteExpiredCLISessionRecords}
+       {"*/15 * * * *", CleanUpSoftDeletedDevices}
      ]}
   ]
 
