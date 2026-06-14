@@ -1,10 +1,10 @@
-defmodule NervesHubWeb.UserConsoleChannelTest do
+defmodule NervesHubWeb.UserLocalShellChannelTest do
   use NervesHubWeb.ChannelCase
 
   alias NervesHub.Accounts
   alias NervesHub.Fixtures
   alias NervesHubWeb.APISocket
-  alias NervesHubWeb.UserConsoleChannel
+  alias NervesHubWeb.UserLocalShellChannel
 
   describe "API Token : join/3" do
     test "authorized users can join the device channel", %{tmp_dir: tmp_dir} do
@@ -19,8 +19,8 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
       assert {:ok, _reply, _channel} =
                subscribe_and_join(
                  socket,
-                 UserConsoleChannel,
-                 "user:console:identifier-#{device.identifier}"
+                 UserLocalShellChannel,
+                 "user:local_shell:identifier-#{device.identifier}"
                )
     end
 
@@ -38,8 +38,8 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
       assert {:error, %{reason: _reason}} =
                subscribe_and_join(
                  socket,
-                 UserConsoleChannel,
-                 "user:console:identifier-#{device.identifier}"
+                 UserLocalShellChannel,
+                 "user:local_shell:identifier-#{device.identifier}"
                )
     end
   end
