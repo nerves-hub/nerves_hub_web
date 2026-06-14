@@ -20,7 +20,7 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
                subscribe_and_join(
                  socket,
                  UserConsoleChannel,
-                 "user:console:#{device.identifier}"
+                 "user:console:identifier-#{device.identifier}"
                )
     end
 
@@ -39,7 +39,7 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
                subscribe_and_join(
                  socket,
                  UserConsoleChannel,
-                 "user:console:#{device.identifier}"
+                 "user:console:identifier-#{device.identifier}"
                )
     end
   end
