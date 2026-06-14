@@ -512,6 +512,3 @@ if System.get_env("GOOGLE_CLIENT_ID") do
     client_id: System.get_env("GOOGLE_CLIENT_ID"),
     client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
 end
-
-config :mnesia,
-  dir: ~c".mnesia/#{config_env()}/#{node()}"

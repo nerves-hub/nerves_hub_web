@@ -1,3 +1,11 @@
 defmodule NervesHub.Accounts.UserCLISession do
-  use Memento.Table, attributes: [:token, :status, :expires_at, :user_token, :user_id, :confirmation_code, :note]
+  defstruct [
+    :confirmation_code,
+    :expires_at,
+    :note,
+    :status,
+    :token,
+    :user_id,
+    :user_token
+  ]
 end

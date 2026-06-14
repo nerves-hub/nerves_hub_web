@@ -1,7 +1,6 @@
 defmodule NervesHub.Application do
   use Application
 
-  alias NervesHub.Accounts.UserCLISession
   alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.RateLimit.LogLines
@@ -21,9 +20,6 @@ defmodule NervesHub.Application do
 
     setup_open_telemetry()
     _ = setup_logging()
-
-    # used for CLI session token exchange
-    setup_memento()
 
     children =
       [{Finch, name: Swoosh.Finch}] ++
@@ -45,6 +41,7 @@ defmodule NervesHub.Application do
           {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
           {PartitionSupervisor, child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
         ] ++
+        cli_session_cache() ++
         deployments_orchestrator(deploy_env()) ++
         endpoints(deploy_env())
 
@@ -71,14 +68,11 @@ defmodule NervesHub.Application do
     NervesHub.Logger.attach()
   end
 
-  defp setup_memento() do
-    _ =
-      case Application.get_env(:nerves_hub, :app) do
-        "device" -> :ok
-        _ -> Memento.Table.create(UserCLISession)
-      end
-
-    :ok
+  defp cli_session_cache() do
+    case Application.get_env(:nerves_hub, :app) do
+      "device" -> []
+      _ -> [NervesHub.CLISessionCache]
+    end
   end
 
   defp setup_open_telemetry() do
