@@ -2,14 +2,20 @@ defmodule NervesHubWeb.UserConsoleChannel do
   use NervesHubWeb, :channel
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Scope
+  alias NervesHub.Devices
   alias NervesHubWeb.Helpers.Authorization
   alias Phoenix.Socket.Broadcast
 
-  def join("user:console:" <> device_id, _, socket) do
-    if authorized?(socket.assigns.user, device_id) do
-      topic = "device:console:#{device_id}"
+  def join("user:console:identifier-" <> identifier, _, socket) do
+    if device = authorized?(socket.assigns.user, identifier) do
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "user:console:#{device.id}")
+
+      topic = "device:console:#{device.id}"
       _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic, {:connect, self()})
-      {:ok, assign(socket, :device_id, device_id)}
+
+      {:ok, assign(socket, :device_id, device.id)}
     else
       {:error, %{reason: "unauthorized"}}
     end
@@ -77,13 +83,16 @@ defmodule NervesHubWeb.UserConsoleChannel do
     socket
   end
 
-  defp authorized?(user, device_id) do
-    case Accounts.find_org_user_with_device(user, device_id) do
-      nil ->
-        false
+  defp authorized?(user, identifier) do
+    scope = Scope.for_user(user)
 
-      org_user ->
-        Authorization.authorized?(:"device:console", org_user)
+    with {:ok, device} <- Devices.get_by_identifier(scope, identifier),
+         %OrgUser{} = org_user <- Accounts.find_org_user_with_device(user, device.id),
+         true <- Authorization.authorized?(:"device:console", org_user) do
+      device
+    else
+      _ ->
+        nil
     end
   end
 end
