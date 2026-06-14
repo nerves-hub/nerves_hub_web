@@ -19,11 +19,11 @@ defmodule NervesHubWeb.Endpoint do
     signing_salt: {__MODULE__, :fetch_signing_salt, []}
   ]
 
+  plug(ImAlive)
+
   if Application.compile_env(:nerves_hub, :env) == :prod do
     plug(Plug.SSL, rewrite_on: [:x_forwarded_proto], exclude: ["localhost"])
   end
-
-  plug(ImAlive)
 
   socket("/live", Socket, websocket: [connect_info: [session: @session_options]])
 
