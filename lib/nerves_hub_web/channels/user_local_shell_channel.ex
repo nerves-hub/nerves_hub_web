@@ -7,6 +7,7 @@ defmodule NervesHubWeb.UserLocalShellChannel do
   alias NervesHub.Devices
   alias NervesHub.Extensions.LocalShell
   alias NervesHubWeb.Helpers.Authorization
+  alias Phoenix.Socket.Broadcast
 
   def join("user:local_shell:identifier-" <> identifier, _, socket) do
     if device = authorized?(socket.assigns.user, identifier) do
@@ -33,6 +34,11 @@ defmodule NervesHubWeb.UserLocalShellChannel do
   def handle_in("window_size", payload, socket) do
     topic = "device:#{socket.assigns.device_id}:extensions"
     socket.endpoint.broadcast!(topic, "local_shell:window_size", payload)
+    {:noreply, socket}
+  end
+
+  def handle_info(%Broadcast{event: "output", payload: payload}, socket) do
+    push(socket, "output", payload)
     {:noreply, socket}
   end
 
