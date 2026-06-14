@@ -54,8 +54,11 @@ export default {
     })
     this.socket.connect()
 
-    const deviceId = this.el.dataset.deviceId
-    const channel = this.socket.channel(`user:console:${deviceId}`, {})
+    const deviceIdentifier = this.el.dataset.deviceIdentifier
+    const channel = this.socket.channel(
+      `user:console:identifier-${deviceIdentifier}`,
+      {},
+    )
 
     // init terminal, load addons
     // use previous scrollback if available, default to 1000 lines
