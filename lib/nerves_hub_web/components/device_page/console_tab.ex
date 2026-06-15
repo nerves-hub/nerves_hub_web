@@ -103,7 +103,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
           </:failed>
           <div id="console-and-chat" class="flex size-full bg-black" phx-update="ignore" style="background-color: rgb(14, 16, 25);">
             <div :if={authorized?(:"device:console", @current_scope) && online?} id="dropzone" class="relative flex grow gap-6 p-12" style="background-color: rgb(14, 16, 25);">
-              <div id="console" phx-hook="Console" data-user-token={@user_token} data-device-id={@device.id} class="z-10 size-full"></div>
+              <div id="console" phx-hook="Console" data-user-token={@user_token} data-device-identifier={@device.identifier} class="z-10 size-full"></div>
               <div id="immersive-device" class="text-base-800 pointer-events-none absolute top-4 left-6 z-20 hidden">
                 <div class="flex items-center gap-3">
                   <%= if Map.get(@device_connection || %{}, :status) == :connected do %>
