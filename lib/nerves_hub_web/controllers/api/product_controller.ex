@@ -9,7 +9,7 @@ defmodule NervesHubWeb.API.ProductController do
   alias NervesHubWeb.API.Schemas.ProductSchemas
 
   tags(["Products"])
-  security([%{}, %{"bearer_auth" => []}])
+  security([%{"bearer_auth" => []}])
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 

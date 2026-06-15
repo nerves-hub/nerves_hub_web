@@ -10,7 +10,7 @@ defmodule NervesHubWeb.API.OrgUserController do
 
   plug(:validate_role, org: :admin)
 
-  security([%{}, %{"bearer_auth" => []}])
+  security([%{"bearer_auth" => []}])
   tags(["Organization Members"])
 
   @auth_error_responses SchemaHelpers.auth_error_responses()

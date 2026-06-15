@@ -10,7 +10,7 @@ defmodule NervesHubWeb.API.OrgController do
   @valid_includes ~w(products)
 
   tags(["Organizations"])
-  security([%{}, %{"bearer_auth" => []}])
+  security([%{"bearer_auth" => []}])
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 

@@ -11,7 +11,7 @@ defmodule NervesHubWeb.API.ScriptController do
   alias NervesHubWeb.API.Schemas.SupportScriptSchemas.SupportScriptShowResponse
   alias NervesHubWeb.API.Schemas.SupportScriptSchemas.SupportScriptUpdateRequest
 
-  security([%{}, %{"bearer_auth" => []}])
+  security([%{"bearer_auth" => []}])
   tags(["Support Scripts"])
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
