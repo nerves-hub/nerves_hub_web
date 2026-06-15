@@ -160,6 +160,9 @@ config :tailwind,
     cd: Path.expand("..", __DIR__)
   ]
 
+# disable tzdata auto updates as it is currently broken in 1.1.3
+config :tzdata, :autoupdate, :disabled
+
 config :ueberauth, Ueberauth,
   providers: [
     google: {Google, [default_scope: "email profile openid"]}

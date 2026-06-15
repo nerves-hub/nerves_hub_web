@@ -19,6 +19,12 @@ defmodule NervesHubWeb.Endpoint do
     signing_salt: {__MODULE__, :fetch_signing_salt, []}
   ]
 
+  plug(ImAlive)
+
+  if Application.compile_env(:nerves_hub, :env) == :prod do
+    plug(Plug.SSL, rewrite_on: [:x_forwarded_proto], exclude: ["localhost"])
+  end
+
   socket("/live", Socket, websocket: [connect_info: [session: @session_options]])
 
   socket("/socket", NervesHubWeb.UserSocket, websocket: [connect_info: [session: @session_options]])
@@ -69,8 +75,6 @@ defmodule NervesHubWeb.Endpoint do
     param_key: "request_logger",
     cookie_key: "request_logger"
   )
-
-  plug(ImAlive)
 
   plug(Plug.RequestId)
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])

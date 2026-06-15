@@ -5,9 +5,6 @@ config :logger, level: :info
 
 config :nerves_hub, NervesHub.Repo, pool_size: 20
 config :nerves_hub, NervesHubWeb.DeviceEndpoint, server: true
-
-config :nerves_hub, NervesHubWeb.Endpoint,
-  server: true,
-  force_ssl: [rewrite_on: [:x_forwarded_proto]]
+config :nerves_hub, NervesHubWeb.Endpoint, server: true
 
 config :phoenix, logger: false
