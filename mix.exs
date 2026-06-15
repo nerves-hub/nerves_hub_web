@@ -198,6 +198,7 @@ defmodule NervesHub.MixProject do
       "ecto.migrate.reset": ["ecto.drop", "ecto.create", "ecto.migrate"],
       "ecto.migrate.redo": ["ecto.rollback", "ecto.migrate"],
       test: ["ecto.create --quiet", "ecto.migrate", "test"],
+      "test.setup": ["deps.get", "ecto.setup", "ecto.create --quiet", "ecto.migrate"],
       # Runs most of the non-test CI checks for you
       check: [
         "compile --warnings-as-errors",
