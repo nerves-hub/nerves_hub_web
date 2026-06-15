@@ -10,7 +10,7 @@ defmodule NervesHubWeb.API.CACertificateController do
   alias NervesHubWeb.API.Schemas.ErrorSchemas
 
   tags(["CA Certificates"])
-  security([%{}, %{"bearer_auth" => []}])
+  security([%{"bearer_auth" => []}])
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 

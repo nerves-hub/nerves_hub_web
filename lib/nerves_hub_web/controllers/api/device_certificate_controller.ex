@@ -8,7 +8,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
   alias NervesHubWeb.API.Schemas.DeviceCertificateSchemas
   alias NervesHubWeb.API.Schemas.ErrorSchemas
 
-  security([%{}, %{"bearer_auth" => []}])
+  security([%{"bearer_auth" => []}])
   tags(["Device Certificates"])
 
   @auth_error_responses SchemaHelpers.auth_error_responses()

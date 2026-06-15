@@ -10,7 +10,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   alias NervesHubWeb.API.Schemas.DeploymentGroupSchemas
   alias NervesHubWeb.API.Schemas.ErrorSchemas
 
-  security([%{}, %{"bearer_auth" => []}])
+  security([%{"bearer_auth" => []}])
   tags(["Deployment Groups"])
 
   @auth_error_responses SchemaHelpers.auth_error_responses()

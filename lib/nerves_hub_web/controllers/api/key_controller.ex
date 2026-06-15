@@ -8,7 +8,7 @@ defmodule NervesHubWeb.API.KeyController do
   alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.KeySchemas
 
-  security([%{}, %{"bearer_auth" => []}])
+  security([%{"bearer_auth" => []}])
   tags(["Signing Keys"])
 
   @auth_error_responses SchemaHelpers.auth_error_responses()

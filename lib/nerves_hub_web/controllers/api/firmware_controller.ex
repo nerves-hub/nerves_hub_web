@@ -14,7 +14,7 @@ defmodule NervesHubWeb.API.FirmwareController do
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
   tags(["Firmwares"])
-  security([%{}, %{"bearer_auth" => []}])
+  security([%{"bearer_auth" => []}])
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
