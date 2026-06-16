@@ -93,7 +93,7 @@ defmodule NervesHub.MixProject do
       {:decimal, "~> 3.0", override: true},
       {:decorator, "~> 1.2"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:canonical_tailwind, "~> 0.1.0", only: [:dev, :test], runtime: false},
+      {:canonical_tailwind, "~> 0.2.0", only: [:dev, :test], runtime: false},
       {:ecto, "~> 3.8", override: true},
       {:ecto_ch, "~> 0.10.0"},
       {:ecto_psql_extras, "~> 0.7"},
@@ -117,7 +117,7 @@ defmodule NervesHub.MixProject do
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.17.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.20.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},

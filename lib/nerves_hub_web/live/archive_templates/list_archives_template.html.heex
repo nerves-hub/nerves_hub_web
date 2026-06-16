@@ -18,7 +18,7 @@
         </div>
       </div>
 
-      <form phx-change="validate-firmware" class={[Enum.any?(@uploads.archive.entries) && "hidden"]}>
+      <form id="archive-form" phx-change="validate-firmware" class={[Enum.any?(@uploads.archive.entries) && "hidden"]}>
         <div class="bg-base-800 border-base-600 flex gap-2 rounded border px-3 py-1.5 hover:cursor-pointer">
           <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
             <path

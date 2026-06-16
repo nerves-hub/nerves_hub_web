@@ -7,7 +7,7 @@
     </div>
 
     <div class="max-w-[900px] px-6 py-4">
-      <.form :let={f} for={@form} phx-submit="add_certificate_authority" phx-change="validate_new_certificate_authority">
+      <.form :let={f} id="new-ca-form" for={@form} phx-submit="add_certificate_authority" phx-change="validate_new_certificate_authority">
         <div :if={f.action && !Keyword.has_key?(f.errors, :serial)} class="mb-4 rounded border border-red-800 bg-red-900/20 p-4 text-sm text-red-400">
           <p>Something went wrong! Please check the errors below.</p>
         </div>

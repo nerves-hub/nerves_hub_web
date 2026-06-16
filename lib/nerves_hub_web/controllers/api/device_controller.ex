@@ -4,19 +4,19 @@ defmodule NervesHubWeb.API.DeviceController do
   import Ecto.Query
 
   alias NervesHub.Accounts
-  alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
-  alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHubWeb.API.PaginationHelpers
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Helpers.RoleValidateHelpers
+
+  require Logger
 
   plug(
     :validate_role,
@@ -169,29 +169,22 @@ defmodule NervesHubWeb.API.DeviceController do
     raise NervesHubWeb.InvalidRequestError, info: "code or body parameter required"
   end
 
-  def upgrade(%{assigns: %{device: device, current_scope: %{user: user}}} = conn, %{"uuid" => uuid}) do
+  def upgrade(%{assigns: %{device: device, current_scope: scope}} = conn, %{"uuid" => uuid}) do
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(device.product, uuid)
 
-    {:ok, url} = Firmwares.get_firmware_url(firmware)
-    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
+    Logger.info("Manually sending full firmware",
+      firmware_uuid: firmware.uuid,
+      device_identifier: device.identifier
+    )
 
-    {:ok, device} = Devices.disable_updates(device, user)
-    device = Repo.preload(device, [:device_certificates])
+    opts =
+      if proxy_url = get_in(scope.org.settings.firmware_proxy_url) do
+        [firmware_proxy_url: proxy_url]
+      else
+        []
+      end
 
-    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
-
-    payload = %UpdatePayload{
-      update_available: true,
-      firmware_url: url,
-      firmware_meta: meta
-    }
-
-    _ =
-      NervesHubWeb.Endpoint.broadcast(
-        "device:#{device.id}",
-        "deployments/update",
-        payload
-      )
+    {:ok, _device} = DeviceEvents.manual_update(device, firmware, scope.user, opts)
 
     send_resp(conn, :no_content, "")
   end

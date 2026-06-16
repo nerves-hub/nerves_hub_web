@@ -21,7 +21,7 @@ defmodule NervesHub.CLISessionCacheTest do
 
     assert CLISessionCache.count() == 1
 
-    create_cli_session(-6)
+    create_cli_session(-7)
 
     assert CLISessionCache.count() == 2
 

@@ -5,7 +5,7 @@
     <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
       <h1 class="text-base-50 text-xl leading-[30px] font-semibold">All Deployment Groups</h1>
       <div class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs">{@pager_meta.total_count}</div>
-      <form :if={Enum.any?(@entries) || @currently_filtering} class="flex h-full items-center" phx-change="update-filters">
+      <form :if={Enum.any?(@entries) || @currently_filtering} id="deployment-filters-form" class="flex h-full items-center" phx-change="update-filters">
         <div class="grid h-full grid-cols-1">
           <input
             type="text"

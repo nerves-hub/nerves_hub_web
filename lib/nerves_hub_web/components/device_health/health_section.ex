@@ -28,8 +28,7 @@ defmodule NervesHubWeb.Components.HealthSection do
             data-unit={Jason.encode!(@chart.unit)}
             data-max={Jason.encode!(@chart.max)}
             data-metrics={Jason.encode!(@chart.data)}
-          >
-          </canvas>
+          ></canvas>
         </div>
       </div>
     </div>
