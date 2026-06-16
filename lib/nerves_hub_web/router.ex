@@ -44,7 +44,7 @@ defmodule NervesHubWeb.Router do
   end
 
   pipeline :api do
-    plug(:accepts, ["json"])
+    plug(:accepts, ["json", "text"])
     plug(PutApiSpec, module: NervesHubWeb.ApiSpec)
     plug(FetchCurrentUser)
     plug(:assign_org_to_scope)
