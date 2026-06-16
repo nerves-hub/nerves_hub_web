@@ -15,6 +15,10 @@ defmodule NervesHubWeb.Live.Account do
     |> assign(:access_tokens, Accounts.get_user_api_tokens(scope.user))
     |> assign(:access_token_form, to_form(Ecto.Changeset.change(%UserToken{})))
     |> assign(:user, scope.user)
+    |> assign(:mfa_setup, nil)
+    |> assign(:mfa_recovery_codes, nil)
+    |> assign(:mfa_password_form, to_form(%{}, as: :mfa))
+    |> assign(:mfa_code_form, to_form(%{}, as: :mfa))
     |> assign(:new_token, nil)
     |> ok()
   end
@@ -123,6 +127,60 @@ defmodule NervesHubWeb.Live.Account do
         socket
         |> put_flash(:error, "Could not delete token, please contact support.")
         |> assign(:new_token, nil)
+        |> noreply()
+    end
+  end
+
+  def handle_event("start-mfa-setup", %{"mfa" => %{"current_password" => current_password}}, socket) do
+    case Accounts.start_mfa_setup(socket.assigns.user, current_password) do
+      {:ok, setup} ->
+        socket
+        |> assign(:mfa_setup, setup)
+        |> assign(:mfa_recovery_codes, nil)
+        |> noreply()
+
+      {:error, :invalid_password} ->
+        socket
+        |> put_flash(:error, "Current password is not correct")
+        |> noreply()
+    end
+  end
+
+  def handle_event("confirm-mfa-setup", _params, %{assigns: %{mfa_setup: nil}} = socket) do
+    socket
+    |> put_flash(:error, "Start MFA setup before confirming a code")
+    |> noreply()
+  end
+
+  def handle_event("confirm-mfa-setup", %{"mfa" => %{"code" => code}}, socket) do
+    case Accounts.confirm_mfa_setup(socket.assigns.user, socket.assigns.mfa_setup.secret, code) do
+      {:ok, user, recovery_codes} ->
+        socket
+        |> assign(:user, user)
+        |> assign(:mfa_setup, nil)
+        |> assign(:mfa_recovery_codes, recovery_codes)
+        |> put_flash(:info, "MFA enabled")
+        |> noreply()
+
+      {:error, :invalid_code} ->
+        socket
+        |> put_flash(:error, "Invalid authentication code")
+        |> noreply()
+    end
+  end
+
+  def handle_event("disable-mfa", %{"mfa" => %{"current_password" => current_password}}, socket) do
+    case Accounts.disable_mfa(socket.assigns.user, current_password) do
+      {:ok, user} ->
+        socket
+        |> assign(:user, user)
+        |> assign(:mfa_recovery_codes, nil)
+        |> put_flash(:info, "MFA disabled")
+        |> noreply()
+
+      {:error, :invalid_password} ->
+        socket
+        |> put_flash(:error, "Current password is not correct")
         |> noreply()
     end
   end

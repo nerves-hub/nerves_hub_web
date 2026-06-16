@@ -19,6 +19,10 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+  alias NervesHubWeb.Endpoint
+
+  @mfa_secret_salt "user mfa secret"
+  @mfa_recovery_code_count 10
 
   @spec create_org(User.t(), map) ::
           {:ok, Org.t()}
@@ -144,6 +148,189 @@ defmodule NervesHub.Accounts do
       {:error, changeset} ->
         {:error, changeset}
     end
+  end
+
+  def start_mfa_setup(%User{} = user, current_password) do
+    if User.valid_password?(user, current_password) do
+      secret = NimbleTOTP.secret()
+      issuer = mfa_issuer()
+      label = "#{issuer}:#{user.email}"
+      otpauth_uri = NimbleTOTP.otpauth_uri(label, secret, issuer: issuer)
+
+      {:ok,
+       %{
+         secret: secret,
+         otpauth_uri: otpauth_uri,
+         qr_svg: otpauth_uri |> EQRCode.encode() |> EQRCode.svg(width: 240),
+         manual_key: Base.encode32(secret, padding: false)
+       }}
+    else
+      {:error, :invalid_password}
+    end
+  end
+
+  def confirm_mfa_setup(%User{} = user, secret, code) when is_binary(secret) and is_binary(code) do
+    if used_at = accepted_totp_time(secret, code) do
+      recovery_codes = generate_recovery_codes()
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      Multi.new()
+      |> Multi.update(
+        :user,
+        Changeset.change(user, %{
+          mfa_enabled_at: now,
+          mfa_last_used_at: used_at,
+          mfa_secret: encrypt_mfa_secret(secret),
+          mfa_recovery_codes: Enum.map(recovery_codes, &Bcrypt.hash_pwd_salt/1)
+        })
+      )
+      |> Multi.run(:session_tokens, fn repo, _ ->
+        session_tokens = repo.all(UserToken.by_user_and_contexts_query(user, ["session"]))
+
+        Enum.each(session_tokens, fn session_token ->
+          Endpoint.broadcast("users_sessions:#{Base.url_encode64(session_token.token)}", "disconnect", %{})
+        end)
+
+        {deleted_count, _} = repo.delete_all(UserToken.by_user_and_contexts_query(user, ["session"]))
+
+        {:ok, deleted_count}
+      end)
+      |> Repo.transact()
+      |> case do
+        {:ok, %{user: user}} -> {:ok, user, recovery_codes}
+        {:error, :user, changeset, _} -> {:error, changeset}
+      end
+    else
+      {:error, :invalid_code}
+    end
+  end
+
+  def verify_mfa_code(user, code, opts \\ [])
+
+  def verify_mfa_code(%User{mfa_enabled_at: nil}, _code, _opts), do: {:error, :mfa_not_enabled}
+
+  def verify_mfa_code(%User{} = user, code, opts) when is_binary(code) do
+    Repo.transact(fn ->
+      user =
+        User
+        |> where(id: ^user.id)
+        |> lock("FOR UPDATE")
+        |> Repo.one!()
+
+      case decrypt_mfa_secret(user.mfa_secret) do
+        {:ok, secret} ->
+          cond do
+            used_at = accepted_totp_time(secret, code, Keyword.put(opts, :since, user.mfa_last_used_at)) ->
+              mark_mfa_used(user, used_at)
+              {:ok, :totp}
+
+            recovery_code_format?(code) ->
+              consume_recovery_code(user, code)
+
+            true ->
+              Repo.rollback(:invalid_code)
+          end
+
+        :error ->
+          Repo.rollback(:invalid_code)
+      end
+    end)
+    |> case do
+      {:ok, method} -> {:ok, method}
+      {:error, :invalid_code} -> {:error, :invalid_code}
+    end
+  end
+
+  def disable_mfa(%User{} = user, current_password) do
+    if User.valid_password?(user, current_password) do
+      user
+      |> Changeset.change(%{
+        mfa_enabled_at: nil,
+        mfa_last_used_at: nil,
+        mfa_secret: nil,
+        mfa_recovery_codes: []
+      })
+      |> Repo.update()
+    else
+      {:error, :invalid_password}
+    end
+  end
+
+  def mfa_enabled?(%User{mfa_enabled_at: enabled_at}), do: not is_nil(enabled_at)
+
+  defp accepted_totp_time(secret, code, opts \\ []) do
+    time = Keyword.get(opts, :time, System.os_time(:second))
+    since = Keyword.get(opts, :since)
+
+    cond do
+      NimbleTOTP.valid?(secret, code, time: time, since: since) ->
+        unix_time_to_datetime(time)
+
+      NimbleTOTP.valid?(secret, code, time: time - 30, since: since) ->
+        unix_time_to_datetime(time - 30)
+
+      true ->
+        nil
+    end
+  end
+
+  defp encrypt_mfa_secret(secret) do
+    Phoenix.Token.encrypt(Endpoint, @mfa_secret_salt, secret, max_age: :infinity)
+  end
+
+  defp decrypt_mfa_secret(nil), do: :error
+
+  defp decrypt_mfa_secret(secret) do
+    Phoenix.Token.decrypt(Endpoint, @mfa_secret_salt, secret, max_age: :infinity)
+  end
+
+  defp generate_recovery_codes() do
+    for _ <- 1..@mfa_recovery_code_count do
+      code =
+        5
+        |> :crypto.strong_rand_bytes()
+        |> Base.encode32(case: :upper, padding: false)
+        |> binary_part(0, 8)
+
+      String.slice(code, 0, 4) <> "-" <> String.slice(code, 4, 4)
+    end
+  end
+
+  defp matching_recovery_code_index(recovery_code_hashes, code) do
+    Enum.find_index(recovery_code_hashes, &Bcrypt.verify_pass(code, &1))
+  end
+
+  defp recovery_code_format?(code), do: String.match?(code, ~r/^[A-Z0-9]{4}-[A-Z0-9]{4}$/)
+
+  defp consume_recovery_code(%User{} = user, code) do
+    case matching_recovery_code_index(user.mfa_recovery_codes || [], code) do
+      nil ->
+        Repo.rollback(:invalid_code)
+
+      recovery_code_index ->
+        remaining_codes = List.delete_at(user.mfa_recovery_codes || [], recovery_code_index)
+
+        user
+        |> Changeset.change(%{mfa_recovery_codes: remaining_codes})
+        |> Repo.update!()
+
+        {:ok, :recovery_code}
+    end
+  end
+
+  defp mark_mfa_used(%User{} = user, used_at) do
+    user
+    |> Changeset.change(%{mfa_last_used_at: used_at})
+    |> Repo.update!()
+  end
+
+  defp unix_time_to_datetime(time) do
+    {:ok, used_at} = DateTime.from_unix(time)
+    DateTime.truncate(used_at, :second)
+  end
+
+  defp mfa_issuer() do
+    "NervesHub #{Endpoint.url()}"
   end
 
   @doc ~S"""

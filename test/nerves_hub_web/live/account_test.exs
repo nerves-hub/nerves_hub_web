@@ -6,6 +6,13 @@ defmodule NervesHubWeb.Live.AccountTest do
   alias NervesHub.Accounts
 
   describe "update" do
+    test "shows per-user MFA setup on the account page", %{conn: conn} do
+      conn
+      |> visit("/account")
+      |> assert_has("h2", text: "Multi-factor authentication")
+      |> assert_has("button", text: "Start MFA Setup")
+    end
+
     test "can update username", %{conn: conn, user: user} do
       conn
       |> visit("/account")

@@ -13,9 +13,13 @@ defmodule NervesHubWeb.OAuthController do
   def callback(%{assigns: %{ueberauth_auth: auth}} = conn, _params) do
     case Accounts.update_or_create_user_from_ueberauth(auth) do
       {:ok, user} ->
-        conn
-        |> put_flash(:info, "Welcome back!")
-        |> Auth.log_in_user(user)
+        if Accounts.mfa_enabled?(user) do
+          NervesHubWeb.SessionController.begin_mfa_login(conn, user)
+        else
+          conn
+          |> put_flash(:info, "Welcome back!")
+          |> Auth.log_in_user(user)
+        end
 
       {:error, _reason} ->
         render(conn, :auth_failure)
