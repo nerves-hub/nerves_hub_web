@@ -28,7 +28,7 @@
         </div>
       </div>
 
-      <.form :let={f} for={@form} phx-submit="delete">
+      <.form id="delete-account-form" :let={f} for={@form} phx-submit="delete">
         <div class="mb-6">
           <label for="email_input" class="text-base-300 mb-2 block text-sm font-medium">
             Please type <span class="bg-base-800 rounded px-2 py-0.5 font-mono text-white">{@user.email}</span> to confirm.

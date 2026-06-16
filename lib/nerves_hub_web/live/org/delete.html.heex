@@ -13,7 +13,7 @@
         <p class="text-sm text-red-300">This action cannot be undone. This will permanently delete the <strong>{@org.name}</strong> organization.</p>
       </div>
 
-      <.form :let={f} for={@form} phx-submit="delete">
+      <.form id="delete-org-form" :let={f} for={@form} phx-submit="delete">
         <div class="mb-6">
           <label for="org_name_input" class="text-base-300 mb-2 block text-sm font-medium">
             Please type <strong>{@org.name}</strong> to confirm.

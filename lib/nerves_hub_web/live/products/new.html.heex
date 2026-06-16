@@ -8,7 +8,7 @@
     </div>
 
     <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <.form :let={f} for={@form} phx-submit="create_product" class="flex w-full flex-col gap-4">
+      <.form id="new-product-form" :let={f} for={@form} phx-submit="create_product" class="flex w-full flex-col gap-4">
         <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">General settings</div>

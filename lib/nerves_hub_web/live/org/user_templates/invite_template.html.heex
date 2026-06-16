@@ -9,7 +9,7 @@
     <div class="max-w-[650px] px-6 py-4">
       <p class="text-base-400 mb-6 text-sm">An invitation will be sent to join {@org.name}. Invites expire in 48 hours.</p>
 
-      <.form :let={f} for={@form} phx-submit="send_invite">
+      <.form id="invite-form" :let={f} for={@form} phx-submit="send_invite">
         <%= if f.action do %>
           <div class="mb-4 rounded border border-red-800 bg-red-900/20 p-4 text-sm text-red-400">
             <p>Something went wrong, please check the errors below.</p>

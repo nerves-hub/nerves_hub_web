@@ -506,7 +506,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             <div :if={@update_stat_for_current_firmware} class="flex flex-col gap-2">
               <%= with {_uuid, stats} <- @update_stat_for_current_firmware do %>
                 <div class="flex w-1/4 flex-col gap-6">
-                  <form phx-change="select_version_for_stat" phx-target={@myself}>
+                  <form id="update-stats-version-form" phx-change="select_version_for_stat" phx-target={@myself}>
                     <.input
                       label="Version"
                       hide_label={true}

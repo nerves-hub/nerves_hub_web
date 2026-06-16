@@ -7,7 +7,7 @@
     </div>
 
     <div class="max-w-[650px] px-6 py-4">
-      <.form :let={f} for={@form} phx-submit="update_certificate_authority">
+      <.form id="edit-ca-form" :let={f} for={@form} phx-submit="update_certificate_authority">
         <div class="mb-4">
           <label for="description_input" class="text-base-300 mb-2 block text-sm font-medium">Description</label>
           {text_input(f, :description,
