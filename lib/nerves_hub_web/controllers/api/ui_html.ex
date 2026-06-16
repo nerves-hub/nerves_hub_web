@@ -19,6 +19,7 @@ defmodule NervesHubWeb.API.UIHTML do
           apiDescriptionUrl="/api/openapi"
           router="hash"
           logo="/images/favicon-96x96.png"
+          layout="responsive"
         />
       </body>
     </html>
