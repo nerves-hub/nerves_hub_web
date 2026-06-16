@@ -156,4 +156,10 @@ defmodule NervesHub.ProductNotifications do
 
     notification
   end
+
+  def count(product) do
+    Notification
+    |> where(product_id: ^product.id)
+    |> Repo.aggregate(:count)
+  end
 end

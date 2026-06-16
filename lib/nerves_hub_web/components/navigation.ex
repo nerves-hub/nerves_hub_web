@@ -2,11 +2,21 @@ defmodule NervesHubWeb.Components.Navigation do
   use NervesHubWeb, :component
 
   alias NervesHub.Accounts.Scope
+  alias NervesHub.ProductNotifications
 
   attr(:scope, Scope, required: false)
   attr(:selected_tab, :any)
 
   def sidebar(%{scope: %{product: product}} = assigns) when not is_nil(product) do
+    count =
+      ProductNotifications.count(product)
+      |> case do
+        0 -> nil
+        n -> n
+      end
+
+    assigns = assign(assigns, :notifications_count, count)
+
     ~H"""
     <ul role="list">
       <.nav_link
@@ -41,6 +51,7 @@ defmodule NervesHubWeb.Components.Navigation do
       />
       <.nav_link
         label="Notifications"
+        badge={@notifications_count}
         path={~p"/org/#{@scope.org}/#{@scope.product}/notifications"}
         selected={:notifications == @selected_tab}
         icon="data-[selected=false]:lucide-bell--light data-[selected=true]:lucide-bell"
@@ -78,6 +89,7 @@ defmodule NervesHubWeb.Components.Navigation do
   end
 
   attr(:label, :any)
+  attr(:badge, :any, default: nil)
   attr(:path, :any)
   attr(:selected, :any)
   attr(:icon, :any)
@@ -96,6 +108,7 @@ defmodule NervesHubWeb.Components.Navigation do
           class={"size-5 #{@icon} data-[selected=false]:text-base-500 data-[selected=true]:text-primary"}
         />
         <span class={["hidden lg:inline", @selected && "text-base-50 font-semibold"]}>{@label}</span>
+        <span :if={@badge} class="bg-base-800 ml-1 rounded-full px-1.5 py-0.5 text-xs">{@badge}</span>
       </.link>
     </li>
     """
