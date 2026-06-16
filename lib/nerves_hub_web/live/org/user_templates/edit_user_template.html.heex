@@ -7,7 +7,7 @@
     </div>
 
     <div class="max-w-[650px] px-6 py-4">
-      <.form :let={f} for={@form} phx-submit="update-org-user">
+      <.form :let={f} id="edit-user-form" for={@form} phx-submit="update-org-user">
         <div class="mb-6">
           <label for="role_input" class="text-base-300 mb-2 block text-sm font-medium">Role</label>
           {select(f, :role, Utils.role_options(),

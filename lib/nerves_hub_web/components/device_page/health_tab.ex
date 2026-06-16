@@ -262,8 +262,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                   data-mintime={Jason.encode!(@charts_from_timestamp)}
                   data-maxtime={Jason.encode!(@charts_until_timestamp)}
                   data-unit="minute"
-                >
-                </canvas>
+                ></canvas>
                 <div :if={not assigns[has_chart_data_key(key)] && Enum.empty?(chart_data)} class="bg-base-900/70 absolute inset-0 flex items-center justify-center">
                   <span class="text-base-500 font-extralight">No metrics for {key} found for the selected period.</span>
                 </div>

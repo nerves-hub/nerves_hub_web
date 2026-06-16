@@ -125,8 +125,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                       (@auto_refresh_health && "translate-x-3") || "translate-x-0",
                       "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
                     ]}
-                  >
-                  </span>
+                  ></span>
                 </button>
               </div>
             </div>

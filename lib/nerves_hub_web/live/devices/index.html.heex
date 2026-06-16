@@ -12,7 +12,7 @@
           {Number.Delimit.number_to_delimited(@total_entries, precision: 0)}
         </div>
       </div>
-      <form :if={has_results?(@devices, @currently_filtering)} class="flex h-full items-center" phx-change="update-filters">
+      <form :if={has_results?(@devices, @currently_filtering)} id="device-filters-form" class="flex h-full items-center" phx-change="update-filters">
         <div class="grid h-full grid-cols-1">
           <input
             type="text"

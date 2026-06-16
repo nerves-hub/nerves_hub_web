@@ -5,7 +5,7 @@
     </div>
 
     <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <.form :let={f} for={@form} phx-submit="save_org" class="flex w-full flex-col gap-4">
+      <.form :let={f} id="new-org-form" for={@form} phx-submit="save_org" class="flex w-full flex-col gap-4">
         <div class="flex w-1/2 flex-col gap-6">
           <.input field={f[:name]} label="Name" hint="Must be one word" />
         </div>
