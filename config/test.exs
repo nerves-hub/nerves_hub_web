@@ -74,9 +74,8 @@ config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
 
+config :phoenix_live_view, :test_warnings, missing_form_id: :raise
+
 config :phoenix_test, :endpoint, NervesHubWeb.Endpoint
 
 config :sentry, environment_name: :test
-
-config :phoenix_live_view, :test_warnings,
-  missing_form_id: :raise

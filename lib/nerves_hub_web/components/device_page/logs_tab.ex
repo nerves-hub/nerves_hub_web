@@ -161,8 +161,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
                   (@streaming_enabled && "translate-x-3") || "translate-x-0",
                   "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
                 ]}
-              >
-              </span>
+              ></span>
             </button>
           </div>
           <span class="text-base-400 text-sm font-extralight">Showing the last 25 log lines.</span>
