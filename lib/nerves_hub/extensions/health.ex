@@ -34,7 +34,7 @@ defmodule NervesHub.Extensions.Health do
 
     send(self(), {__MODULE__, :check})
 
-    timer =
+    {:ok, timer} =
       health_interval
       |> :timer.minutes()
       |> :timer.send_interval({__MODULE__, :check})
