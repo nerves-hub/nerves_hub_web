@@ -109,7 +109,10 @@ RUN git clone https://github.com/fwup-home/fwup /tmp/fwup
 
 WORKDIR /tmp/fwup
 
-RUN git checkout v1.16.0 && \
+# pin to a fwup commit which fixes the flakey zlib download
+# https://github.com/fwup-home/fwup/commit/df840f192cfbb0d6bca0df7e9873753082f139b9
+
+RUN git checkout df840f1 && \
     ./scripts/download_deps.sh && \
     ./scripts/build_deps.sh && \
     ./autogen.sh && \
@@ -149,7 +152,7 @@ FROM ${RUNNER_IMAGE} AS app
 
 RUN apt-get update -y && \
     apt-get upgrade -y && \
-    apt-get install -y openssl ca-certificates locales bash xdelta3 zip unzip && \
+    apt-get install -y openssl ca-certificates locales bash xdelta3 zip unzip libsctp1 && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
