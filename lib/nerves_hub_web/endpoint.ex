@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Endpoint do
 
   alias NervesHub.Helpers.WebsocketConnectionError
   alias NervesHubWeb.Channels.DeviceJSONSerializer
+  alias NervesHubWeb.Channels.DeviceMsgPackSerializer
   alias NervesHubWeb.Plugs.ConfigureUploads
   alias NervesHubWeb.Plugs.ImAlive
   alias Phoenix.LiveDashboard.RequestLogger
@@ -42,7 +43,7 @@ defmodule NervesHubWeb.Endpoint do
       timeout: 180_000,
       fullsweep_after: 0,
       error_handler: {WebsocketConnectionError, :handle_error, []},
-      serializer: [{DeviceJSONSerializer, "~> 2.0.0"}]
+      serializer: [{DeviceMsgPackSerializer, "~> 3.0.0"}, {DeviceJSONSerializer, "~> 2.0.0"}]
     ]
   )
 
