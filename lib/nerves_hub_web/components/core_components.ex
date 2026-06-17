@@ -73,6 +73,45 @@ defmodule NervesHubWeb.CoreComponents do
   end
 
   @doc """
+  Renders a user's avatar.
+
+  Shows the user's profile picture when one is set, otherwise their initials in
+  a circle.
+
+  ## Examples
+
+      <.user_avatar user={@current_scope.user} />
+  """
+  attr(:user, :map, required: true, doc: "a user with `name` and `profile_picture_url`")
+  attr(:class, :string, default: nil)
+
+  def user_avatar(assigns) do
+    ~H"""
+    <div
+      :if={!@user.profile_picture_url}
+      class={[
+        "bg-base-800 dark:bg-base-600 relative inline-flex size-8 items-center justify-center overflow-hidden rounded-full pt-0.5",
+        @class
+      ]}
+    >
+      <span class="dark:text-base-300 text-base-400 font-medium">{user_initials(@user.name)}</span>
+    </div>
+    <div
+      :if={@user.profile_picture_url}
+      class={["relative inline-flex size-8 items-center justify-center overflow-hidden", @class]}
+    >
+      <img src={@user.profile_picture_url} alt="User Profile Picture" class="size-full rounded-full object-cover" />
+    </div>
+    """
+  end
+
+  defp user_initials(name) do
+    name
+    |> String.split()
+    |> Enum.map_join(&String.at(&1, 0))
+  end
+
+  @doc """
   Renders a modal.
 
   ## Examples
@@ -469,7 +508,7 @@ defmodule NervesHubWeb.CoreComponents do
       <select
         id={@id}
         name={@name}
-        class="bg-base-900 border-base-600 ext-base-400 focus:border-base-400 mt-2 block w-full rounded border px-2 py-1 shadow-sm focus:ring-0 sm:text-sm"
+        class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 mt-2 block w-full rounded border px-2 py-1 shadow-sm focus:ring-0 sm:text-sm"
         multiple={@multiple}
         {@rest}
       >

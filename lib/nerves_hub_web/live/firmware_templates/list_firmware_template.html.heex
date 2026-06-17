@@ -10,8 +10,8 @@
 
       <div :for={entry <- @uploads.firmware.entries} class="flex w-2/5 flex-col items-center pr-2 pl-4">
         <div class="mb-1 flex justify-between">
-          <span class="font-base text-sm text-indigo-500 dark:text-white">Uploading firmware... </span>
-          <span class="font-base text-sm text-indigo-500 dark:text-white">{entry.progress}%</span>
+          <span class="text-sm text-indigo-500 dark:text-white">Uploading firmware... </span>
+          <span class="text-sm text-indigo-500 dark:text-white">{entry.progress}%</span>
         </div>
         <div class="h-2.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
           <div class="h-2.5 animate-pulse rounded-full bg-indigo-500" style={"width: #{entry.progress}%"}></div>

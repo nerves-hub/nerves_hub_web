@@ -75,12 +75,7 @@
     </div>
 
     <a id="user-menu-toggle" href="#" class="text-base-50 mx-3 my-0.5 flex items-center gap-x-2.5 p-2 text-sm/6 font-semibold hover:rounded-lg hover:bg-indigo-500/10" phx-click={toggle_user_menu()}>
-      <div :if={!@current_scope.user.profile_picture_url} class="bg-base-800 dark:bg-base-600 relative inline-flex size-8 items-center justify-center overflow-hidden rounded-full pt-0.5">
-        <span class="font-medium text-gray-600 dark:text-gray-300">{String.split(@current_scope.user.name) |> Enum.map(fn w -> String.at(w, 0) end)}</span>
-      </div>
-      <div :if={@current_scope.user.profile_picture_url} class="relative inline-flex size-8 items-center justify-center overflow-hidden">
-        <img src={@current_scope.user.profile_picture_url} alt="User Profile Picture" class="size-full rounded-full object-cover" />
-      </div>
+      <.user_avatar user={@current_scope.user} />
 
       <div class="">
         <div class="sr-only">Your profile</div>

@@ -57,9 +57,21 @@
   --color-alert: var(--color-red-500);
   --color-alert-content: var(--color-red-900);
   --color-alert-soft: var(--color-red-50);
+}
 
+/*
+ * Themed box-shadows are intentionally NOT defined as @theme tokens.
+ * Tailwind inlines a @theme `--shadow-*` value directly into the generated
+ * utility (to support the `shadow-<color>` modifier), so a [data-theme]
+ * override of the variable never takes effect — both themes would render the
+ * default value. Defining them as plain custom properties and applying them
+ * via the @utility rules below makes the utility read the variable at runtime,
+ * so the light-mode override actually applies.
+ */
+:root {
   --shadow-filter-slider: -16px 0px 32px -4px #141417, 0px 4px 4px -4px #141417;
-  --shadow-device-details-content: 0 16 32 -4 #141417, 0 14 4 -4 #141417;
+  --shadow-device-details-content:
+    0 16px 32px -4px #141417, 0 14px 4px -4px #141417;
 }
 
 /* Light mode overrides */
@@ -81,8 +93,9 @@
   --color-base-900: var(--color-zinc-100); /* currently unused */
   --color-base-950: var(--color-zinc-50); /* currently unused */
 
-  /*--shadow-filter-slider: -16px 0px 32px -4px #ebebe8, 0px 4px 4px -4px #ebebe8;
-  --shadow-device-details-content: 0 16 32 -4 #ebebe8, 0 14 4 -4 #ebebe8;*/
+  --shadow-filter-slider: -16px 0px 32px -4px #ebebe8, 0px 4px 4px -4px #ebebe8;
+  --shadow-device-details-content:
+    0 16px 32px -4px #ebebe8, 0 8px 4px -4px #ebebe8;
 }
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
@@ -91,6 +104,12 @@
 @custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
 @custom-variant phx-no-feedback (.phx-no-feedback&, .phx-no-feedback &);
 
+@utility shadow-filter-slider {
+  box-shadow: var(--shadow-filter-slider);
+}
+@utility shadow-device-details-content {
+  box-shadow: var(--shadow-device-details-content);
+}
 @utility light-sidebar-item-hover {
   background-image: linear-gradient(
     90deg,
@@ -304,7 +323,6 @@ body {
 }
 
 .title {
-  line-height: 30px;
   font-style: normal;
   font-weight: 600;
   line-height: 24px;
