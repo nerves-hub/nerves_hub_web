@@ -120,6 +120,14 @@
   --tint-primary-weak: rgb(var(--primary-rgb) / 0.1);
   --tint-primary-soft: rgb(var(--primary-rgb) / 0.2);
 
+  /* Fixed layout rails — semantic dimensions for the app chrome (theme-independent).
+     Exposed as w-sidebar / h-topbar / h-header / h-row / h-nav-item utilities below. */
+  --sidebar-width: 264px;
+  --topbar-height: 56px;
+  --header-height: 90px;
+  --row-height: 52px;
+  --nav-item-height: 44px;
+
   --shadow-filter-slider: -16px 0px 32px -4px #141417, 0px 4px 4px -4px #141417;
   --shadow-device-details-content:
     0 16px 32px -4px #141417, 0 14px 4px -4px #141417;
@@ -187,6 +195,21 @@
 }
 @utility shadow-device-details-content {
   box-shadow: var(--shadow-device-details-content);
+}
+@utility w-sidebar {
+  width: var(--sidebar-width);
+}
+@utility h-topbar {
+  height: var(--topbar-height);
+}
+@utility h-header {
+  height: var(--header-height);
+}
+@utility h-row {
+  height: var(--row-height);
+}
+@utility h-nav-item {
+  height: var(--nav-item-height);
 }
 @utility light-sidebar-item-hover {
   background-image: linear-gradient(
@@ -321,7 +344,7 @@ body {
 }
 
 .listing tbody tr {
-  @apply h-13;
+  @apply h-row;
 }
 
 .listing th {

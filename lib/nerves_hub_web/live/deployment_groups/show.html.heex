@@ -1,5 +1,5 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="bg-surface-muted border-base-700 flex h-14 shrink-0 items-center justify-end border-b pl-6">
+  <div class="bg-surface-muted border-base-700 h-topbar flex shrink-0 items-center justify-end border-b pl-6">
     <.breadcrumb navigate={~p"/org/#{@org}/#{@product}/deployment_groups"} root_label="All Deployment Groups">
       <:crumb>{@deployment_group.name}</:crumb>
     </.breadcrumb>
@@ -17,7 +17,7 @@
   </div>
 
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
-    <div class="flex h-[90px] shrink-0 justify-between p-6">
+    <div class="h-header flex shrink-0 justify-between p-6">
       <div class="flex items-center gap-3">
         <svg
           data-is-active={(@deployment_group.is_active && "true") || "false"}

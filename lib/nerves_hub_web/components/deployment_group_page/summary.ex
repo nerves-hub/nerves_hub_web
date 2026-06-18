@@ -149,7 +149,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def render(assigns) do
     ~H"""
     <div class="flex h-full flex-col items-start gap-4 p-6">
-      <div :if={@waiting_for_update_count == 0} class="bg-surface-raised border-base-700 w-full items-center justify-center rounded border p-4">
+      <div :if={@waiting_for_update_count == 0} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border p-4">
         <div class="text-base-50 flex h-10 items-center justify-center text-xl/6 font-medium">
           {if @updates_disabled_count > 0, do: "All eligible devices are up to date!", else: "All devices are up to date!"}
         </div>
@@ -158,7 +158,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
         </div>
       </div>
 
-      <div :if={@waiting_for_update_count > 0} class="bg-surface-raised border-base-700 box-content flex w-full items-center justify-center rounded border">
+      <div :if={@waiting_for_update_count > 0} class="bg-surface-raised border-base-700 shadow-device-details-content box-content flex w-full items-center justify-center rounded border">
         <div class="relative top-0 z-20 w-full items-center justify-center overflow-visible rounded">
           <div
             :if={@deployment_group.is_active}
@@ -169,7 +169,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             <div class="progress-glow h-16 w-full animate-pulse" />
           </div>
 
-          <div class="bg-surface-muted/20 my-1 flex flex-col items-center justify-center gap-1 p-2 text-sm font-medium">
+          <div class="my-1 flex flex-col items-center justify-center gap-1 p-2 text-sm font-medium">
             <div class="text-base">{deployment_group_percentage(@up_to_date_count, @waiting_for_update_count)}% of eligible devices updated</div>
             <div>{@updating_count} device(s) updating - {@waiting_for_update_count} device(s) waiting</div>
             <div :if={@in_penalty_box_count > 0} class="text-nerves-gray-500">
