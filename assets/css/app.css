@@ -388,6 +388,18 @@ body {
   text-align: left;
 }
 
+/* Light theme: the near-white canvas gives the table almost no structure, so
+   the header tint and the inverted row dividers (zinc-200) nearly disappear.
+   Strengthen the header rule and row dividers in light only — dark keeps its
+   contrast from the dark surfaces and is untouched. */
+[data-theme="light"] .listing thead tr {
+  @apply border-base-700 border-b;
+}
+
+[data-theme="light"] .listing tbody tr {
+  @apply border-base-700;
+}
+
 .tag {
   @apply bg-base-800 rounded-md;
   display: flex;
