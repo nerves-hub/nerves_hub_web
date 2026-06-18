@@ -347,14 +347,20 @@ defmodule NervesHubWeb.CoreComponents do
     ~H"""
     <button
       type={@type}
-      class={[
-        "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5",
-        "active:bg-primary-active bg-primary disabled:bg-base-800 hover:bg-primary-hover",
-        "disabled:bg-base-800 disabled:border-base-600 disabled:rounded disabled:border",
-        "disabled:stroke-base-500 stroke-primary-content",
-        "disabled:text-base-500 text-primary-content text-sm font-medium",
-        @class
-      ]}
+      class={
+        [
+          "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5",
+          "focus-visible:outline-focus-ring focus-visible:outline-2 focus-visible:outline-offset-2",
+          "active:bg-primary-active bg-primary disabled:bg-base-800 hover:bg-primary-hover",
+          "disabled:bg-base-800 disabled:border-base-600 disabled:rounded disabled:border",
+          "disabled:stroke-base-500 stroke-primary-content",
+          "disabled:text-base-500 text-primary-content text-sm font-medium",
+          # Light-theme contrast: indigo-500 sits at the AA floor on white, so the design system
+          # darkens the fill to indigo-600 (hover 500 / active 700); disabled stays grey.
+          "light:active:bg-indigo-700 light:bg-indigo-600 light:disabled:bg-base-800 light:hover:bg-indigo-500",
+          @class
+        ]
+      }
       {@rest}
     >
       {render_slot(@inner_block)}
@@ -366,14 +372,20 @@ defmodule NervesHubWeb.CoreComponents do
     ~H"""
     <button
       type={@type}
-      class={[
-        "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
-        "active:bg-primary bg-base-800 disabled:bg-base-800 hover:bg-base-700",
-        "active:border-primary border-base-600 rounded border",
-        "active:stroke-primary-content disabled:stroke-base-600 stroke-base-400",
-        "active:text-primary-content disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
-        @class
-      ]}
+      class={
+        [
+          "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
+          "focus-visible:outline-focus-ring focus-visible:outline-2 focus-visible:outline-offset-2",
+          "active:bg-primary bg-base-800 disabled:bg-base-800 hover:bg-base-700",
+          "active:border-primary border-base-600 rounded border",
+          "active:stroke-primary-content disabled:stroke-base-600 stroke-base-400",
+          "active:text-primary-content disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
+          # Light-theme contrast: the grey border is too faint on white, so the design system
+          # gives it a defined ~zinc-500 edge (zinc-600 on hover).
+          "light:border-base-500 light:hover:border-base-400",
+          @class
+        ]
+      }
       {@rest}
     >
       {render_slot(@inner_block)}

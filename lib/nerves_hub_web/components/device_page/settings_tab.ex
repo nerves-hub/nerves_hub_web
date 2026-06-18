@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">General settings</div>
             <%= if authorized?(:"device:update", @current_scope) do %>
-              <.button style="secondary" type="submit">
+              <.button style="primary" type="submit">
                 <.icon name="save" /> Save changes
               </.button>
             <% end %>

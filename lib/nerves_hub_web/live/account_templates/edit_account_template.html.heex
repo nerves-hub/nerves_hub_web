@@ -8,7 +8,7 @@
     </div>
 
     <div class="flex flex-col gap-6">
-      <div class="bg-surface-raised border-base-700 rounded border p-6">
+      <div class="bg-surface-raised border-base-700 shadow-device-details-content rounded border p-6">
         <h2 class="text-base-50 mb-4 text-lg font-semibold">Account Details</h2>
         <.form :let={f} id="details-form" for={@form} phx-submit="update-details">
           <div class="flex flex-col gap-4">
@@ -55,7 +55,7 @@
         </.form>
       </div>
 
-      <div class="bg-surface-raised border-base-700 rounded border p-6">
+      <div class="bg-surface-raised border-base-700 shadow-device-details-content rounded border p-6">
         <h2 class="text-base-50 mb-4 text-lg font-semibold">Change Password</h2>
         <.form :let={f} id="password-form" for={@password_changeset} phx-submit="update-password">
           <div class="flex flex-col gap-4">
@@ -102,7 +102,7 @@
         </.form>
       </div>
 
-      <div class="bg-surface-raised border-base-700 rounded border p-6">
+      <div class="bg-surface-raised border-base-700 shadow-device-details-content rounded border p-6">
         <div class="flex justify-between">
           <h2 class="text-base-50 mb-4 text-lg font-semibold">Access tokens</h2>
           <div>
@@ -183,7 +183,7 @@
           </div>
 
           <div>
-            <.button style="secondary" type="submit">
+            <.button style="primary" type="submit">
               <.icon name="save" /> Create access token
             </.button>
           </div>

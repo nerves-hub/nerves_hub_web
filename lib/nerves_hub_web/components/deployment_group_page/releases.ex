@@ -213,7 +213,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
             <.rollout_options show_rollout_options={@show_rollout_options} myself={@myself} />
 
             <div>
-              <.button style="secondary" type="submit">
+              <.button style="primary" type="submit">
                 <.icon name="save" /> Create release
               </.button>
             </div>

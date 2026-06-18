@@ -233,7 +233,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex items-center justify-between gap-6 border-t p-6">
-            <.button style="secondary" type="submit">
+            <.button style="primary" type="submit">
               <.icon name="save" /> Save changes
             </.button>
 
