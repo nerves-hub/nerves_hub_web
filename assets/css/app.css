@@ -344,12 +344,22 @@ body {
   @apply h-11;
 }
 
+/* Tables within raised boxes should have a slight bottom border */
+.bg-surface-raised .listing thead tr {
+  @apply border-base-700 border-b;
+}
+
 .listing tbody tr {
   @apply h-row;
 }
 
 .listing th {
   @apply bg-surface-muted text-base-400 px-4 py-1.5 text-left text-sm font-medium;
+}
+
+/* Table headers within raised divs should use the matching background color */
+.bg-surface-raised .listing th {
+  @apply bg-surface-raised;
 }
 
 .listing tr th:first-child {
@@ -410,18 +420,6 @@ body {
 .listing td {
   padding: 6px 16px;
   text-align: left;
-}
-
-/* Light theme: the near-white canvas gives the table almost no structure, so
-   the header tint and the inverted row dividers (zinc-200) nearly disappear.
-   Strengthen the header rule and row dividers in light only — dark keeps its
-   contrast from the dark surfaces and is untouched. */
-[data-theme="light"] .listing thead tr {
-  @apply border-base-700 border-b;
-}
-
-[data-theme="light"] .listing tbody tr {
-  @apply border-base-700;
 }
 
 .tag {
