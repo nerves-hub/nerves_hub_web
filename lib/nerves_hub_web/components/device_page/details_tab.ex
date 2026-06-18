@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   use NervesHubWeb, tab_component: :details
 
+  import Number.Delimit, only: [number_to_delimited: 2]
+
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
@@ -140,8 +142,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}%</span>
                 <span class="text-success text-base">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
-              <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="flex items-end justify-between">
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}%</span>
+              <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]}>
+                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}</span>
+                <span class="text-base-50 text-lg leading-[30px]">%</span>
               </div>
               <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
                 <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_temp"])}°</span>
@@ -151,8 +154,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <div class="border-warning health-warning flex h-16 grow flex-col rounded border-b px-3 py-2">
               <span class="text-base-400 text-xs tracking-wide">Memory used</span>
               <div :if={@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["mem_used_mb"])}MB</span>
-                <span class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}%</span>
+                <div>
+                  <span class="text-base-50 text-xl leading-[30px]">{number_to_delimited(@latest_metrics["mem_used_mb"], precision: 0)}</span>
+                  <span class="text-base-50 text-sm leading-[30px]">MB</span>
+                </div>
+                <div>
+                  <span class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}</span>
+                  <span class="text-warning text-sm">%</span>
+                </div>
               </div>
               <div :if={!@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
                 <span class="text-nerves-gray-500 text-xl leading-[30px]">Not reported</span>
