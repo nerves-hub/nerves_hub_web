@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
       class="phx-click-loading:opacity-50 tab-content flex h-full flex-col items-start justify-between gap-4 opacity-0 transition-all duration-500"
     >
       <div class="w-full p-6">
-        <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex w-full flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Reported Installed Firmwares</div>
           </div>
