@@ -274,7 +274,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "Update available")
       |> assert_has("option", text: "Select a version")
       |> refute_has("div", text: "No device health information has been received.")
-      |> assert_has("div", text: "22%")
+      |> assert_has("div", text: "22")
     end
   end
 
@@ -667,8 +667,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "Load avg")
       |> assert_has("span", text: "0.0", exact: true, count: 3)
       |> assert_has("div", text: "Memory used")
-      |> assert_has("span", text: "100MB")
-      |> assert_has("span", text: "60%")
+      |> assert_has("span", text: "100")
+      |> assert_has("span", text: "60")
       |> assert_has("div", text: "CPU")
       |> assert_has("span", text: "30°")
     end
@@ -699,8 +699,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "4.56")
       |> assert_has("span", text: "7.89")
       |> assert_has("div", text: "Memory used")
-      |> assert_has("span", text: "100MB")
-      |> assert_has("span", text: "60%")
+      |> assert_has("span", text: "100")
+      |> assert_has("span", text: "60")
       |> assert_has("span", text: "Last updated:")
       |> assert_has("time", text: "now")
     end

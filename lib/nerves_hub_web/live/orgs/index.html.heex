@@ -7,7 +7,7 @@
           Create your first organization and product to start managing devices.
         </p>
 
-        <div :if={@onboarding_error} class="mb-4 rounded border border-red-700 bg-red-900/30 p-3 text-sm text-red-300">
+        <div :if={@onboarding_error} class="bg-alert-soft border-alert text-alert-content mb-4 rounded border p-3 text-sm">
           {@onboarding_error}
         </div>
 
@@ -20,7 +20,7 @@
               id="org_name"
               value={@org_name}
               required
-              class="bg-base-900 border-base-700 text-base-50 w-full rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              class="bg-surface-raised border-base-700 focus:border-focus-ring focus:ring-focus-ring text-base-50 w-full rounded border px-3 py-2 text-sm focus:ring-1"
             />
             <p class="text-base-500 text-xs">Can be changed later.</p>
           </div>
@@ -33,14 +33,14 @@
               id="product_name"
               value={@product_name}
               required
-              class="bg-base-900 border-base-700 text-base-50 w-full rounded border px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              class="bg-surface-raised border-base-700 focus:border-focus-ring focus:ring-focus-ring text-base-50 w-full rounded border px-3 py-2 text-sm focus:ring-1"
             />
             <p class="text-base-500 text-xs">Cannot be changed later.</p>
           </div>
 
           <button
             type="submit"
-            class="text-base-50 mt-2 flex w-full items-center justify-center rounded bg-indigo-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-indigo-500"
+            class="bg-primary hover:bg-primary-hover text-primary-content mt-2 flex w-full items-center justify-center rounded px-4 py-2 text-sm font-medium transition-colors"
           >
             Create & Get Started
           </button>
@@ -61,7 +61,7 @@
         <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Organizations</h1>
         <.link
           navigate={~p"/orgs/new"}
-          class="active:text-base-50 bg-base-800 border-base-600 hover:bg-base-700 hover:text-base-50 text-base-300 flex items-center justify-center gap-2 rounded border px-3 py-1.5 text-sm font-medium transition-colors active:border-indigo-500 active:bg-indigo-500"
+          class="active:bg-primary active:border-primary active:text-primary-content bg-base-800 border-base-600 hover:bg-base-700 hover:text-base-50 text-base-300 flex items-center justify-center gap-2 rounded border px-3 py-1.5 text-sm font-medium transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="size-4 stroke-current" viewBox="0 0 16 16" fill="none" stroke-width="1.5">
             <path d="M8 3.33334V12.6667M3.33334 8H12.6667" stroke-linecap="round" stroke-linejoin="round" />
@@ -70,7 +70,7 @@
         </.link>
       </div>
       <div class="flex flex-col gap-4">
-        <div :for={org <- @orgs} class="bg-base-900 border-base-700 rounded border">
+        <div :for={org <- @orgs} class="bg-surface-raised border-base-700 rounded border">
           <div class="flex h-14 items-center justify-between px-4">
             <div class="flex items-center gap-3">
               <.link navigate={~p"/org/#{org}"} class="contents">
@@ -83,11 +83,11 @@
             <div class="flex items-center gap-6 text-sm">
               <div class="flex items-center gap-4">
                 <div class="flex items-center gap-1.5">
-                  <div class="size-2 rounded-full bg-green-500"></div>
+                  <div class="bg-status-online size-2 rounded-full"></div>
                   <span id={"org-connected-devices-count-#{org.id}"} class="text-base-300">{number_to_delimited(org.connected_devices_count, precision: 0)}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
-                  <div class="bg-base-500 size-2 rounded-full"></div>
+                  <div class="bg-status-offline size-2 rounded-full"></div>
                   <span id={"org-disconnected-devices-count-#{org.id}"} class="text-base-400">{number_to_delimited(org.disconnected_devices_count, precision: 0)}</span>
                 </div>
               </div>
@@ -139,11 +139,11 @@
                 </div>
                 <div class="flex gap-4 text-sm font-medium">
                   <div class="flex items-center gap-1.5">
-                    <div class="size-2 rounded-full bg-green-500"></div>
+                    <div class="bg-status-online size-2 rounded-full"></div>
                     <span class="product-connected-devices-count text-base-300">{number_to_delimited(product.connected_devices_count, precision: 0)}</span>
                   </div>
                   <div class="flex items-center gap-1.5">
-                    <div class="bg-base-500 size-2 rounded-full"></div>
+                    <div class="bg-status-offline size-2 rounded-full"></div>
                     <span class="product-disconnected-devices-count text-base-400">{number_to_delimited(product.disconnected_devices_count, precision: 0)}</span>
                   </div>
                 </div>

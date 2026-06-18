@@ -428,7 +428,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     ~H"""
     <.link
       data-selected={"#{@selected}"}
-      class="data-[selected=true]:text-base-50 text-base-300 relative -bottom-px h-11 px-6 py-2 text-sm font-normal hover:border-b hover:border-indigo-500 data-[selected=true]:border-b data-[selected=true]:border-indigo-500"
+      class="data-[selected=true]:border-primary data-[selected=true]:text-base-50 hover:border-primary text-base-300 relative -bottom-px h-11 px-6 py-2 text-sm font-normal hover:border-b data-[selected=true]:border-b"
       phx-click={JS.set_attribute({"data-selected", "false"}, to: "#tabs a") |> JS.set_attribute({"data-selected", "true"})}
       patch={@path}
     >

@@ -25,104 +25,225 @@
 @theme {
   --default-font-family: "Inter", var(--font-sans);
 
-  --color-surface: #141417;
-  --color-surface-muted: #18181b;
+  /* Surfaces — elevation reads as "brighter" in both themes */
+  --color-surface: #141417; /* app canvas / page background */
+  --color-surface-muted: #18181b; /* sidebar, panels, table head */
+  --color-surface-raised: #1c1c1f; /* cards, chips, inputs — between surface-muted and zinc-800 */
+  --color-surface-overlay: #18181b; /* menus, popovers, modals */
 
+  /* Neutral ramp — low = bright text, high = recessed surface; inverts in light */
   --color-base-50: var(--color-zinc-50);
   --color-base-100: var(--color-zinc-100);
-  --color-base-200: var(--color-zinc-200); /* currently unused */
+  --color-base-200: var(--color-zinc-200);
   --color-base-300: var(--color-zinc-300);
   --color-base-400: var(--color-zinc-400);
-  --color-base-500: oklch(0.5599 0.0012 17.2);
+  --color-base-500: oklch(
+    0.5599 0.0012 17.2
+  ); /* shared across themes — does not invert */
   --color-base-600: var(--color-zinc-600);
   --color-base-700: var(--color-zinc-700);
   --color-base-800: var(--color-zinc-800);
-  --color-base-900: var(--color-zinc-900); /* currently unused */
-  --color-base-950: var(--color-zinc-950); /* currently unused */
+  --color-base-900: var(--color-zinc-900);
+  --color-base-950: var(--color-zinc-950);
 
+  /* Brand / interactive */
   --color-primary: var(--color-indigo-500);
+  --color-primary-hover: var(--color-indigo-400);
+  --color-primary-active: var(--color-indigo-600);
+  --color-primary-content: var(
+    --color-zinc-50
+  ); /* text/icon on a primary fill */
+  --color-focus-ring: var(--color-indigo-500);
 
+  /* State — solid / content (text on the soft tint) / soft (tint background).
+     DARK: bright -400 content + a translucent brand tint over the dark canvas. */
   --color-notice: var(--color-indigo-500);
-  --color-notice-content: var(--color-indigo-900);
-  --color-notice-soft: var(--color-indigo-100);
+  --color-notice-content: var(--color-indigo-400);
+  --color-notice-soft: rgb(var(--primary-rgb) / 0.15);
 
   --color-success: var(--color-emerald-500);
-  --color-success-content: var(--color-emerald-900);
-  --color-success-soft: var(--color-emerald-50);
+  --color-success-content: var(--color-emerald-400);
+  --color-success-soft: rgb(var(--success-rgb) / 0.15);
 
   --color-warning: var(--color-amber-500);
-  --color-warning-content: var(--color-amber-900);
-  --color-warning-soft: var(--color-amber-100);
+  --color-warning-content: var(--color-amber-400);
+  --color-warning-soft: rgb(var(--warning-rgb) / 0.15);
 
   --color-alert: var(--color-red-500);
-  --color-alert-content: var(--color-red-900);
-  --color-alert-soft: var(--color-red-50);
+  --color-alert-content: var(--color-red-400);
+  --color-alert-soft: rgb(var(--alert-rgb) / 0.15);
 
-  --shadow-filter-slider: -16px 0px 32px -4px #141417, 0px 4px 4px -4px #141417;
-  --shadow-device-details-content: 0 16 32 -4 #141417, 0 14 4 -4 #141417;
+  /* Danger — solid destructive CTAs (e.g. "Delete account"). Distinct from
+     `alert` (red-500 feedback/state): a heavier red-600 fill with white text,
+     identical in both themes. */
+  --color-danger: var(--color-red-600);
+  --color-danger-hover: var(--color-red-700);
+  --color-danger-content: #ffffff;
+
+  /* Device status dots */
+  --color-status-online: var(--color-emerald-500);
+  --color-status-offline: var(--color-zinc-500);
+  --color-status-connecting: var(--color-indigo-500);
 }
 
-/* Light mode overrides */
-[data-theme="light"] {
-  --color-surface: #ffffff;
-  --color-surface-muted: #f6f6f7;
+/*
+ * Plain custom properties (NOT @theme tokens). A token lives here when:
+ *
+ *   • It is a channel token (`--*-rgb`): space-separated RGB channels used in
+ *     rgb(var(--x) / <alpha>) for the translucent state tints above and the
+ *     gradient utilities below. `--veil-rgb` is the neutral hover veil and
+ *     inverts in light; the brand/state channels do not.
+ *   • It is a semantic text/border role mirroring the design system's named
+ *     foundation, available for var() use / component adoption (templates today
+ *     lean on the base-* ramp directly).
+ *   • It is a themed box-shadow: Tailwind inlines @theme --shadow-* values into
+ *     the generated utility, so a [data-theme] override would be ignored. The
+ *     @utility rules below read these at runtime instead.
+ */
+:root {
+  --primary-rgb: 99 102 241;
+  --success-rgb: 16 185 129;
+  --warning-rgb: 245 158 11;
+  --alert-rgb: 239 68 68;
+  --veil-rgb: 63 63 70;
 
-  --color-content-header: var(--color-base-900);
+  --text-strong: #fafafa; /* zinc-50  — headings, key values */
+  --text-body: #d4d4d8; /* zinc-300 — default body text */
+  --text-muted: #a1a1aa; /* zinc-400 — secondary / labels */
+  --text-faint: #71717a; /* zinc-500 — placeholder / disabled */
+
+  --border: #3f3f46; /* zinc-700 — default hairline */
+  --border-strong: #52525b; /* zinc-600 — inputs, buttons */
+  --border-subtle: #27272a; /* zinc-800 — faint divider */
+
+  --hover-row: rgb(var(--primary-rgb) / 0.06);
+  --tint-primary-weak: rgb(var(--primary-rgb) / 0.1);
+  --tint-primary-soft: rgb(var(--primary-rgb) / 0.2);
+
+  /* Fixed layout rails — semantic dimensions for the app chrome (theme-independent).
+     Exposed as w-sidebar / h-topbar / h-header / h-row / h-nav-item utilities below. */
+  --sidebar-width: 264px;
+  --topbar-height: 56px;
+  --header-height: 90px;
+  --row-height: 52px;
+  --nav-item-height: 44px;
+
+  --shadow-filter-slider: -16px 0px 32px -4px #141417, 0px 4px 4px -4px #141417;
+  --shadow-device-details-content:
+    0 16px 32px -4px #141417, 0 14px 4px -4px #141417;
+}
+
+/* Light mode overrides — invert the neutral ramp, re-point surfaces, and swap
+   the dark translucent state tints for light pastel fills with deep text. */
+[data-theme="light"] {
+  --color-surface: #fcfcfc;
+  --color-surface-muted: #f4f4f5;
+  --color-surface-raised: #ffffff;
+  --color-surface-overlay: #ffffff;
 
   --color-base-50: var(--color-zinc-950);
   --color-base-100: var(--color-zinc-900);
-  --color-base-200: var(--color-zinc-800); /* currently unused */
+  --color-base-200: var(--color-zinc-800);
   --color-base-300: var(--color-zinc-700);
   --color-base-400: var(--color-zinc-600);
-  --color-base-500: oklch(0.5599 0.0012 17.2);
+  --color-base-500: oklch(
+    0.5599 0.0012 17.2
+  ); /* shared across themes — does not invert */
   --color-base-600: var(--color-zinc-400);
   --color-base-700: var(--color-zinc-300);
   --color-base-800: var(--color-zinc-200);
-  --color-base-900: var(--color-zinc-100); /* currently unused */
-  --color-base-950: var(--color-zinc-50); /* currently unused */
+  --color-base-900: var(--color-zinc-100);
+  --color-base-950: var(--color-zinc-50);
 
-  /*--shadow-filter-slider: -16px 0px 32px -4px #ebebe8, 0px 4px 4px -4px #ebebe8;
-  --shadow-device-details-content: 0 16 32 -4 #ebebe8, 0 14 4 -4 #ebebe8;*/
+  --color-primary-content: #ffffff;
+
+  /* Light: deep -900 text on light pastel -50/-100 fills */
+  --color-notice-content: var(--color-indigo-900);
+  --color-notice-soft: var(--color-indigo-100);
+  --color-success-content: var(--color-emerald-900);
+  --color-success-soft: var(--color-emerald-50);
+  --color-warning-content: var(--color-amber-900);
+  --color-warning-soft: var(--color-amber-100);
+  --color-alert-content: var(--color-red-900);
+  --color-alert-soft: var(--color-red-50);
+
+  /* Semantic roles + neutral veil flip on the light canvas */
+  --text-strong: #18181b; /* zinc-900 */
+  --text-body: #3f3f46; /* zinc-700 */
+  --text-muted: #52525b; /* zinc-600 */
+  --text-faint: #71717a; /* zinc-500 (shared) */
+
+  --border: #e4e4e7; /* zinc-200 */
+  --border-strong: #d4d4d8; /* zinc-300 */
+  --border-subtle: #ececee;
+
+  --veil-rgb: 228 228 231;
+
+  --shadow-filter-slider: -16px 0px 32px -4px #ebebe8, 0px 4px 4px -4px #ebebe8;
+  --shadow-device-details-content:
+    0 1px 2px rgb(24 24 27 / 0.04), 0 2px 6px rgb(24 24 27 / 0.06);
 }
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+@custom-variant light (&:where([data-theme=light], [data-theme=light] *));
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
 @custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
 @custom-variant phx-no-feedback (.phx-no-feedback&, .phx-no-feedback &);
 
+@utility shadow-filter-slider {
+  box-shadow: var(--shadow-filter-slider);
+}
+@utility shadow-device-details-content {
+  box-shadow: var(--shadow-device-details-content);
+}
+@utility w-sidebar {
+  width: var(--sidebar-width);
+}
+@utility h-topbar {
+  height: var(--topbar-height);
+}
+@utility h-header {
+  height: var(--header-height);
+}
+@utility h-row {
+  height: var(--row-height);
+}
+@utility h-nav-item {
+  height: var(--nav-item-height);
+}
 @utility light-sidebar-item-hover {
   background-image: linear-gradient(
     90deg,
     rgba(246, 246, 247, 1) 0%,
-    rgba(99, 102, 241, 0.2) 100%
+    rgb(var(--primary-rgb) / 0.2) 100%
   );
 }
 @utility dark-sidebar-item-hover {
   background-image: linear-gradient(
     90deg,
-    rgba(63, 63, 70, 0.24) 0%,
-    rgba(63, 63, 70, 0.48) 100%
+    rgb(var(--veil-rgb) / 0.24) 0%,
+    rgb(var(--veil-rgb) / 0.48) 100%
   );
 }
 @utility light-sidebar-item-selected {
   background-image: linear-gradient(
     90deg,
     rgba(246, 246, 247, 1) 0%,
-    rgba(99, 102, 241, 0.2) 100%
+    rgb(var(--primary-rgb) / 0.2) 100%
   );
 }
 @utility dark-sidebar-item-selected {
   background-image:
     linear-gradient(
       90deg,
-      rgba(99, 102, 241, 0) 50%,
-      rgba(99, 102, 241, 0.08) 100%
+      rgb(var(--primary-rgb) / 0) 50%,
+      rgb(var(--primary-rgb) / 0.08) 100%
     ),
     linear-gradient(
       90deg,
-      rgba(63, 63, 70, 0.24) 0%,
-      rgba(63, 63, 70, 0.48) 100%
+      rgb(var(--veil-rgb) / 0.24) 0%,
+      rgb(var(--veil-rgb) / 0.48) 100%
     );
 }
 @utility tab-selected {
@@ -224,7 +345,7 @@ body {
 }
 
 .listing tbody tr {
-  @apply h-13;
+  @apply h-row;
 }
 
 .listing th {
@@ -291,6 +412,18 @@ body {
   text-align: left;
 }
 
+/* Light theme: the near-white canvas gives the table almost no structure, so
+   the header tint and the inverted row dividers (zinc-200) nearly disappear.
+   Strengthen the header rule and row dividers in light only — dark keeps its
+   contrast from the dark surfaces and is untouched. */
+[data-theme="light"] .listing thead tr {
+  @apply border-base-700 border-b;
+}
+
+[data-theme="light"] .listing tbody tr {
+  @apply border-base-700;
+}
+
 .tag {
   @apply bg-base-800 rounded-md;
   display: flex;
@@ -304,7 +437,6 @@ body {
 }
 
 .title {
-  line-height: 30px;
   font-style: normal;
   font-weight: 600;
   line-height: 24px;
@@ -401,7 +533,7 @@ body {
 }
 
 .menu-box {
-  @apply bg-surface-muted border-base-700 rounded-md border px-4 py-3;
+  @apply bg-surface-overlay border-base-700 rounded-md border px-4 py-3;
 }
 
 .org-selector-title {

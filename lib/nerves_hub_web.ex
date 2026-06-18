@@ -88,6 +88,7 @@ defmodule NervesHubWeb do
 
   defp live_view_imports() do
     quote do
+      import NervesHubWeb.Components.Breadcrumb
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1, logo: 1]
       import NervesHubWeb.Helpers.Authorization

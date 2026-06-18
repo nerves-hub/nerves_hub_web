@@ -15,7 +15,7 @@ defmodule NervesHubWeb.Components.PinnedDevices do
       <div class="mt-12 flex h-[88px] items-center justify-between py-6">
         <h1 class="text-base-50 text-xl leading-[30px] font-semibold">My Pinned Devices</h1>
       </div>
-      <div class="bg-base-900 border-base-700 rounded border">
+      <div class="bg-surface-raised border-base-700 rounded border">
         <div class="flex flex-col">
           <div class="listing">
             <table class="">

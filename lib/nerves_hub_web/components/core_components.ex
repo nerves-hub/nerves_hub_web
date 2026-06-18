@@ -73,6 +73,45 @@ defmodule NervesHubWeb.CoreComponents do
   end
 
   @doc """
+  Renders a user's avatar.
+
+  Shows the user's profile picture when one is set, otherwise their initials in
+  a circle.
+
+  ## Examples
+
+      <.user_avatar user={@current_scope.user} />
+  """
+  attr(:user, :map, required: true, doc: "a user with `name` and `profile_picture_url`")
+  attr(:class, :string, default: nil)
+
+  def user_avatar(assigns) do
+    ~H"""
+    <div
+      :if={!@user.profile_picture_url}
+      class={[
+        "bg-base-800 dark:bg-base-600 relative inline-flex size-8 items-center justify-center overflow-hidden rounded-full pt-0.5",
+        @class
+      ]}
+    >
+      <span class="dark:text-base-300 text-base-400 font-medium">{user_initials(@user.name)}</span>
+    </div>
+    <div
+      :if={@user.profile_picture_url}
+      class={["relative inline-flex size-8 items-center justify-center overflow-hidden", @class]}
+    >
+      <img src={@user.profile_picture_url} alt="User Profile Picture" class="size-full rounded-full object-cover" />
+    </div>
+    """
+  end
+
+  defp user_initials(name) do
+    name
+    |> String.split()
+    |> Enum.map_join(&String.at(&1, 0))
+  end
+
+  @doc """
   Renders a modal.
 
   ## Examples
@@ -272,10 +311,10 @@ defmodule NervesHubWeb.CoreComponents do
     <.link
       class={[
         "phx-submit-loading:opacity-75 flex items-center justify-center gap-2 rounded px-3 py-1.5",
-        "bg-base-800 disabled:bg-base-800 hover:bg-base-700 active:bg-indigo-500",
-        "border-base-600 rounded border active:border-indigo-500",
-        "active:stroke-base-100 disabled:stroke-base-600 stroke-base-400",
-        "active:text-base-50 disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
+        "active:bg-primary bg-base-800 disabled:bg-base-800 hover:bg-base-700",
+        "active:border-primary border-base-600 rounded border",
+        "active:stroke-primary-content disabled:stroke-base-600 stroke-base-400",
+        "active:text-primary-content disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
         @class
       ]}
       {@rest}
@@ -308,14 +347,20 @@ defmodule NervesHubWeb.CoreComponents do
     ~H"""
     <button
       type={@type}
-      class={[
-        "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5",
-        "disabled:bg-base-800 bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600",
-        "disabled:bg-base-800 disabled:border-base-600 disabled:rounded disabled:border",
-        "disabled:stroke-base-500 stroke-base-50",
-        "disabled:text-base-500 text-base-50 text-sm font-medium",
-        @class
-      ]}
+      class={
+        [
+          "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
+          "focus-visible:outline-focus-ring focus-visible:outline-2 focus-visible:outline-offset-2",
+          "active:bg-primary-active bg-primary disabled:bg-base-800 hover:bg-primary-hover",
+          "disabled:bg-base-800 disabled:border-base-600 disabled:rounded disabled:border",
+          "disabled:stroke-base-500 stroke-primary-content",
+          "disabled:text-base-500 text-primary-content text-sm font-medium",
+          # Light-theme contrast: indigo-500 sits at the AA floor on white, so the design system
+          # darkens the fill to indigo-600 (hover 500 / active 700); disabled stays grey.
+          "light:active:bg-indigo-700 light:bg-indigo-600 light:disabled:bg-base-800 light:hover:bg-indigo-500",
+          @class
+        ]
+      }
       {@rest}
     >
       {render_slot(@inner_block)}
@@ -327,14 +372,20 @@ defmodule NervesHubWeb.CoreComponents do
     ~H"""
     <button
       type={@type}
-      class={[
-        "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
-        "bg-base-800 disabled:bg-base-800 hover:bg-base-700 active:bg-indigo-500",
-        "border-base-600 rounded border active:border-indigo-500",
-        "active:stroke-base-100 disabled:stroke-base-600 stroke-base-400",
-        "active:text-base-50 disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
-        @class
-      ]}
+      class={
+        [
+          "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
+          "focus-visible:outline-focus-ring focus-visible:outline-2 focus-visible:outline-offset-2",
+          "active:bg-primary bg-base-800 disabled:bg-base-800 hover:bg-base-700",
+          "active:border-primary border-base-600 rounded border",
+          "active:stroke-primary-content disabled:stroke-base-600 stroke-base-400",
+          "active:text-primary-content disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
+          # Light-theme contrast: the grey border is too faint on white, so the design system
+          # gives it a defined ~zinc-500 edge (zinc-600 on hover).
+          "light:border-base-500 light:hover:border-base-400",
+          @class
+        ]
+      }
       {@rest}
     >
       {render_slot(@inner_block)}
@@ -347,7 +398,7 @@ defmodule NervesHubWeb.CoreComponents do
     <button
       type={@type}
       class={[
-        "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5",
+        "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
         "active:bg-base-600 bg-base-800 hover:bg-base-700",
         "border-alert rounded border",
         "stroke-alert",
@@ -451,7 +502,7 @@ defmodule NervesHubWeb.CoreComponents do
     <div phx-feedback-for={@name}>
       <span class="text-base-300 flex items-center gap-4 text-sm/6 font-medium">
         <input type="hidden" name={@name} value="false" />
-        <input type="checkbox" id={@name} name={@name} value="true" checked={@checked} class="border-base-700 text-base-400 rounded checked:bg-indigo-500 focus:ring-0" {@rest} />
+        <input type="checkbox" id={@name} name={@name} value="true" checked={@checked} class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0" {@rest} />
         <label for={@name}>{@label}</label>
       </span>
       <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-base-400 text-xs">
@@ -469,7 +520,7 @@ defmodule NervesHubWeb.CoreComponents do
       <select
         id={@id}
         name={@name}
-        class="bg-base-900 border-base-600 ext-base-400 focus:border-base-400 mt-2 block w-full rounded border px-2 py-1 shadow-sm focus:ring-0 sm:text-sm"
+        class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 mt-2 block w-full rounded border px-2 py-1 shadow-sm focus:ring-0 sm:text-sm"
         multiple={@multiple}
         {@rest}
       >

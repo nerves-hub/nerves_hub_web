@@ -3,7 +3,7 @@
     Sign in to your account
   </:title>
   <:subheader>
-    Don't have an account? <.link href="/register" class="font-semibold text-indigo-500 hover:text-indigo-400">Sign up for free</.link>
+    Don't have an account? <.link href="/register" class="hover:text-primary-hover text-primary font-semibold">Sign up for free</.link>
   </:subheader>
 
   <div :if={assigns[:error_message]} role="alert" class="bg-alert-soft fill-alert ring-alert text-alert-content mt-4 mr-2 w-full rounded-sm p-3 shadow-md ring-1">
@@ -35,14 +35,14 @@
           </div>
 
           <div class="text-sm/6">
-            <a href="/password-reset" class="font-semibold text-indigo-500 hover:text-indigo-400">Forgot password?</a>
+            <a href="/password-reset" class="hover:text-primary-hover text-primary font-semibold">Forgot password?</a>
           </div>
         </div>
 
         <div>
           <button
             type="submit"
-            class="text-base-50 flex w-full justify-center rounded-md bg-indigo-500 px-3 py-1.5 text-sm/6 font-semibold shadow-sm hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+            class="bg-primary focus-visible:outline-focus-ring hover:bg-primary-hover text-primary-content flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             Sign in
           </button>
