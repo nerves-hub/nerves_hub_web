@@ -18,6 +18,7 @@ import LocalTime from "./hooks/localTime.js"
 import LogLineLocalTime from "./hooks/logLineLocalTime.js"
 import PageVisible from "./hooks/pageVisible.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
+import SidebarToggle from "./hooks/sidebarToggle.js"
 import SimpleDate from "./hooks/simpleDate.js"
 import SupportScriptOutput from "./hooks/supportScriptOutput.js"
 import ThemeSwitcher from "./hooks/themeSwitcher.js"
@@ -52,6 +53,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     LogLineLocalTime,
     PageVisible,
     SharedSecretClipboardClick,
+    SidebarToggle,
     SimpleDate,
     SupportScriptOutput,
     ThemeSwitcher,

@@ -186,6 +186,16 @@
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 @custom-variant light (&:where([data-theme=light], [data-theme=light] *));
+/* The sidebar collapses to an icon rail when the user toggles it
+   (`data-sidebar="collapsed"`) OR whenever the viewport is below `lg`. */
+@custom-variant collapsed {
+  &:where([data-sidebar=collapsed], [data-sidebar=collapsed] *) {
+    @slot;
+  }
+  @media (width < 64rem) {
+    @slot;
+  }
+}
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
 @custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
