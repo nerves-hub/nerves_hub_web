@@ -128,7 +128,7 @@
 /* Light mode overrides — invert the neutral ramp, re-point surfaces, and swap
    the dark translucent state tints for light pastel fills with deep text. */
 [data-theme="light"] {
-  --color-surface: #fafafa;
+  --color-surface: #fcfcfc;
   --color-surface-muted: #f4f4f5;
   --color-surface-raised: #ffffff;
   --color-surface-overlay: #ffffff;
