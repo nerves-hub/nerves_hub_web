@@ -95,39 +95,39 @@
               aria-label="Light theme"
               phx-hook="ThemeSwitcher"
               data-theme-option="light"
-              class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-indigo-500 data-[selected=true]:border-indigo-500"
+              class="data-[selected=true]:border-primary group hover:border-primary theme-selectors relative flex size-6 items-center justify-center rounded-full"
               type="button"
             >
               <div class="bg-primary/10 absolute inset-0 hidden rounded-full group-data-[selected=true]:flex"></div>
-              <span class="lucide-sun--light text-base-600 size-5 group-hover:cursor-pointer group-hover:text-indigo-500 group-data-[selected=true]:text-indigo-500" />
+              <span class="group-data-[selected=true]:text-primary group-hover:text-primary lucide-sun--light text-base-600 size-5 group-hover:cursor-pointer" />
             </button>
             <button
               id="theme-dark"
               aria-label="Dark theme"
               phx-hook="ThemeSwitcher"
               data-theme-option="dark"
-              class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-indigo-500 data-[selected=true]:border-indigo-500"
+              class="data-[selected=true]:border-primary group hover:border-primary theme-selectors relative flex size-6 items-center justify-center rounded-full"
               type="button"
             >
               <div class="bg-primary/10 absolute inset-0 hidden rounded-full group-data-[selected=true]:flex"></div>
-              <span class="lucide-moon--light text-base-600 size-5 group-hover:cursor-pointer group-hover:text-indigo-500 group-data-[selected=true]:text-indigo-500" />
+              <span class="group-data-[selected=true]:text-primary group-hover:text-primary lucide-moon--light text-base-600 size-5 group-hover:cursor-pointer" />
             </button>
             <button
               id="theme-system"
               aria-label="System theme"
               phx-hook="ThemeSwitcher"
               data-theme-option="system"
-              class="group theme-selectors relative flex size-6 items-center justify-center rounded-full hover:border-indigo-500 data-[selected=true]:border-indigo-500"
+              class="data-[selected=true]:border-primary group hover:border-primary theme-selectors relative flex size-6 items-center justify-center rounded-full"
               type="button"
             >
               <div class="bg-primary/10 absolute inset-0 hidden rounded-full group-data-[selected=true]:flex"></div>
-              <span class="lucide-monitor--light text-base-600 size-4.5 group-hover:cursor-pointer group-hover:text-indigo-500 group-data-[selected=true]:text-indigo-500" />
+              <span class="group-data-[selected=true]:text-primary group-hover:text-primary lucide-monitor--light text-base-600 size-4.5 group-hover:cursor-pointer" />
             </button>
           </div>
         </div>
       </div>
 
-      <a id="user-menu-toggle" href="#" class="text-base-50 mx-3 my-0.5 flex items-center gap-x-2.5 p-2 text-sm/6 font-semibold hover:rounded-lg hover:bg-indigo-500/10" phx-click={toggle_user_menu()}>
+      <a id="user-menu-toggle" href="#" class="hover:bg-primary/10 text-base-50 mx-3 my-0.5 flex items-center gap-x-2.5 p-2 text-sm/6 font-semibold hover:rounded-lg" phx-click={toggle_user_menu()}>
         <.user_avatar user={@current_scope.user} />
 
         <div class="">

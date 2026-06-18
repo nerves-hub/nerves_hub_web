@@ -111,8 +111,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   type="button"
                   phx-click="toggle-health-check-auto-refresh"
                   class={[
-                    "border-1.5 relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-1 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none",
-                    (@auto_refresh_health && "bg-indigo-500") || "bg-gray-200"
+                    "border-1.5 focus:ring-focus-ring relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-1 focus:ring-offset-2 focus:outline-none",
+                    (@auto_refresh_health && "bg-primary") || "bg-gray-200"
                   ]}
                   role="switch"
                   aria-checked="false"
@@ -280,7 +280,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                     phx-click="remove-tag"
                     phx-value-tag={tag}
                     aria-label={"Remove tag #{tag}"}
-                    class="text-base-500 ml-1 hover:text-red-400"
+                    class="hover:text-alert-content text-base-500 ml-1"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 20 20" fill="none">
                       <path d="M10 10L6 6M10 10L14 14M10 10L14 6M10 10L6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -301,7 +301,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   type="button"
                   aria-label="Cancel adding tag"
                   style="display: none"
-                  class="bg-base-800 border-base-700 hover:bg-base-700 text-base-500 flex size-7 items-center justify-center rounded border hover:text-red-400"
+                  class="bg-base-800 border-base-700 hover:bg-base-700 hover:text-alert-content text-base-500 flex size-7 items-center justify-center rounded border"
                   phx-click={JS.hide(to: "#add-tag-form") |> JS.hide(to: "#add-tag-close") |> JS.show(to: "#add-tag-open")}
                 >
                   <span class="lucide-x--light size-3.5" />
@@ -318,7 +318,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                     id="add_tag_input"
                     name="tag"
                     placeholder="Add tag..."
-                    class="bg-base-900 border-base-600 text-base-400 w-24 rounded border px-2 py-1 text-xs focus:outline focus:-outline-offset-1 focus:outline-indigo-500"
+                    class="bg-base-900 border-base-600 focus:outline-focus-ring text-base-400 w-24 rounded border px-2 py-1 text-xs focus:outline focus:-outline-offset-1"
                     phx-debounce="300"
                   />
                   <button type="submit" aria-label="Add tag" class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-2 py-1 text-xs">
@@ -398,7 +398,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 <select
                   id="deployment_group"
                   name="deployment_id"
-                  class="bg-base-900 border-base-600 text-base-400 col-start-1 row-start-1 appearance-none rounded border py-1.5 pr-8 pl-3 text-sm focus:outline focus:-outline-offset-1 focus:outline-indigo-500"
+                  class="bg-base-900 border-base-600 focus:outline-focus-ring text-base-400 col-start-1 row-start-1 appearance-none rounded border py-1.5 pr-8 pl-3 text-sm focus:outline focus:-outline-offset-1"
                 >
                   <option value="">Select a deployment group</option>
                   <option :for={deployment_group <- @deployment_groups} value={deployment_group.id}>
@@ -430,7 +430,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 <select
                   id="firmware"
                   name="uuid"
-                  class="bg-base-900 border-base-600 text-base-400 col-start-1 row-start-1 appearance-none rounded border py-1.5 pr-8 pl-3 text-sm focus:outline focus:-outline-offset-1 focus:outline-indigo-500"
+                  class="bg-base-900 border-base-600 focus:outline-focus-ring text-base-400 col-start-1 row-start-1 appearance-none rounded border py-1.5 pr-8 pl-3 text-sm focus:outline focus:-outline-offset-1"
                 >
                   <option value="">Select a version</option>
                   <option :for={firmware <- @firmwares} value={firmware.uuid} selected={@selected_firmware && firmware.uuid == @selected_firmware}>
@@ -489,13 +489,13 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <div class="flex items-center gap-4">
                 <span class="text-base-300 text-base">{script.name}</span>
 
-                <button :if={!script.running?} class="bg-base-800 rounded-full border border-green-500 p-1" type="button" phx-click="run-script" phx-value-id={script.id}>
-                  <svg class="size-3 stroke-green-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <button :if={!script.running?} class="bg-base-800 border-success rounded-full border p-1" type="button" phx-click="run-script" phx-value-id={script.id}>
+                  <svg class="stroke-success size-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M8 19V5L18 12L8 19Z" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </button>
 
-                <svg :if={script.running?} class="mr-3 -ml-1 size-5 animate-spin text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg :if={script.running?} class="text-primary mr-3 -ml-1 size-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>

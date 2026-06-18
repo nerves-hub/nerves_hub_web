@@ -40,7 +40,7 @@
           <% end %>
         </div>
 
-        <%= link to: "https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys", class: "inline-flex items-center gap-2 mt-4 text-sm text-indigo-500 hover:text-indigo-400", target: "_blank", rel: "noopener noreferrer" do %>
+        <%= link to: "https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys", class: "inline-flex items-center gap-2 mt-4 text-sm text-primary hover:text-primary-hover", target: "_blank", rel: "noopener noreferrer" do %>
           <span>How to generate a signing key -&gt;</span>
         <% end %>
       </div>
@@ -58,21 +58,21 @@
       <div class="max-w-[650px] px-6 py-4">
         <.form :let={f} id="signing_key_form" for={@form} phx-submit="save">
           <%= if @form.action do %>
-            <div class="mb-4 rounded border border-red-800 bg-red-900/20 p-4 text-sm text-red-400">
+            <div class="bg-alert-soft border-alert text-alert-content mb-4 rounded border p-4 text-sm">
               <p>Something went wrong! Please check the errors below.</p>
             </div>
           <% end %>
 
           <div class="mb-4">
             {label(f, :name, for: "name_input", class: "block text-sm font-medium text-base-300 mb-2")}
-            {text_input(f, :name, class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "name_input")}
-            <div class="mt-1 text-sm text-red-400">{error_tag(f, :name)}</div>
+            {text_input(f, :name, class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring", id: "name_input")}
+            <div class="text-alert-content mt-1 text-sm">{error_tag(f, :name)}</div>
           </div>
 
           <div class="mb-6">
             {label(f, :key, for: "key_input", class: "block text-sm font-medium text-base-300 mb-2")}
-            {text_input(f, :key, class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-blue-500", id: "key_input")}
-            <div class="mt-1 text-sm text-red-400">{error_tag(f, :key)}</div>
+            {text_input(f, :key, class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring", id: "key_input")}
+            <div class="text-alert-content mt-1 text-sm">{error_tag(f, :key)}</div>
           </div>
 
           <div class="flex gap-3">

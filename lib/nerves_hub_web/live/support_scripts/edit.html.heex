@@ -1,5 +1,5 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="bg-surface-muted border-base-700 flex h-[56px] shrink-0 items-center justify-between border-b pl-6">
+  <div class="bg-surface-muted border-base-700 flex h-14 shrink-0 items-center justify-between border-b pl-6">
     <.breadcrumb navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts"} root_label="All Support Scripts">
       <:crumb>{@script.name}</:crumb>
     </.breadcrumb>

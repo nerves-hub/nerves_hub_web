@@ -182,7 +182,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                 <span class="text-nerves-gray-500 text-xl leading-[30px]">Not reported</span>
               </div>
             </div>
-            <div class="health-neutral flex h-16 grow flex-col rounded border-b border-indigo-500 px-3 py-2">
+            <div class="border-primary health-neutral flex h-16 grow flex-col rounded border-b px-3 py-2">
               <span class="text-base-400 text-xs tracking-wide">Load avg</span>
               <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex items-center justify-between">
                 <span :if={@latest_metrics["load_1min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_1min"]}</span>

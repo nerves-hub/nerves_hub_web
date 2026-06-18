@@ -11,7 +11,7 @@
 
       <.form :let={f} id="invite-form" for={@form} phx-submit="send_invite">
         <%= if f.action do %>
-          <div class="mb-4 rounded border border-red-800 bg-red-900/20 p-4 text-sm text-red-400">
+          <div class="bg-alert-soft border-alert text-alert-content mb-4 rounded border p-4 text-sm">
             <p>Something went wrong, please check the errors below.</p>
           </div>
         <% end %>
@@ -19,12 +19,12 @@
         <div class="mb-4">
           <label for="email_input" class="text-base-300 mb-2 block text-sm font-medium">Email</label>
           {email_input(f, :email,
-            class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-blue-500",
+            class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
             id: "email_input",
             value: assigns[:email]
           )}
-          <div class="mt-1 text-sm text-red-400">{error_tag(f, :email)}</div>
-          <div class="mt-1 text-sm text-red-400">{error_tag(f, :org_users)}</div>
+          <div class="text-alert-content mt-1 text-sm">{error_tag(f, :email)}</div>
+          <div class="text-alert-content mt-1 text-sm">{error_tag(f, :org_users)}</div>
         </div>
 
         <div class="mb-6">
@@ -33,7 +33,7 @@
           </label>
           {select(f, :role, Utils.role_options(),
             selected: :view,
-            class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring"
           )}
         </div>
 

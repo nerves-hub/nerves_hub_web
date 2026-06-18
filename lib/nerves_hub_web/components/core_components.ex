@@ -311,10 +311,10 @@ defmodule NervesHubWeb.CoreComponents do
     <.link
       class={[
         "phx-submit-loading:opacity-75 flex items-center justify-center gap-2 rounded px-3 py-1.5",
-        "bg-base-800 disabled:bg-base-800 hover:bg-base-700 active:bg-indigo-500",
-        "border-base-600 rounded border active:border-indigo-500",
-        "active:stroke-base-100 disabled:stroke-base-600 stroke-base-400",
-        "active:text-base-50 disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
+        "active:bg-primary bg-base-800 disabled:bg-base-800 hover:bg-base-700",
+        "active:border-primary border-base-600 rounded border",
+        "active:stroke-primary-content disabled:stroke-base-600 stroke-base-400",
+        "active:text-primary-content disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
         @class
       ]}
       {@rest}
@@ -349,10 +349,10 @@ defmodule NervesHubWeb.CoreComponents do
       type={@type}
       class={[
         "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5",
-        "disabled:bg-base-800 bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600",
+        "active:bg-primary-active bg-primary disabled:bg-base-800 hover:bg-primary-hover",
         "disabled:bg-base-800 disabled:border-base-600 disabled:rounded disabled:border",
-        "disabled:stroke-base-500 stroke-base-50",
-        "disabled:text-base-500 text-base-50 text-sm font-medium",
+        "disabled:stroke-base-500 stroke-primary-content",
+        "disabled:text-base-500 text-primary-content text-sm font-medium",
         @class
       ]}
       {@rest}
@@ -368,10 +368,10 @@ defmodule NervesHubWeb.CoreComponents do
       type={@type}
       class={[
         "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
-        "bg-base-800 disabled:bg-base-800 hover:bg-base-700 active:bg-indigo-500",
-        "border-base-600 rounded border active:border-indigo-500",
-        "active:stroke-base-100 disabled:stroke-base-600 stroke-base-400",
-        "active:text-base-50 disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
+        "active:bg-primary bg-base-800 disabled:bg-base-800 hover:bg-base-700",
+        "active:border-primary border-base-600 rounded border",
+        "active:stroke-primary-content disabled:stroke-base-600 stroke-base-400",
+        "active:text-primary-content disabled:text-base-500 hover:text-base-50 text-base-300 text-sm font-medium",
         @class
       ]}
       {@rest}
@@ -490,7 +490,7 @@ defmodule NervesHubWeb.CoreComponents do
     <div phx-feedback-for={@name}>
       <span class="text-base-300 flex items-center gap-4 text-sm/6 font-medium">
         <input type="hidden" name={@name} value="false" />
-        <input type="checkbox" id={@name} name={@name} value="true" checked={@checked} class="border-base-700 text-base-400 rounded checked:bg-indigo-500 focus:ring-0" {@rest} />
+        <input type="checkbox" id={@name} name={@name} value="true" checked={@checked} class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0" {@rest} />
         <label for={@name}>{@label}</label>
       </span>
       <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-base-400 text-xs">

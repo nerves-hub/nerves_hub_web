@@ -1,5 +1,5 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="bg-surface-muted border-base-700 flex h-[56px] justify-end border-b"></div>
+  <div class="bg-surface-muted border-base-700 flex h-14 justify-end border-b"></div>
 
   <div class="h-0 flex-1 overflow-y-auto" phx-drop-target={@uploads.archive.ref}>
     <div class="border-base-700 flex h-[90px] items-center gap-4 border-b px-6 py-7 text-sm font-medium">
@@ -10,11 +10,11 @@
 
       <div :for={entry <- @uploads.archive.entries} class="flex w-2/5 flex-col items-center pr-2 pl-4">
         <div class="mb-1 flex justify-between">
-          <span class="text-sm text-indigo-500 dark:text-white">Uploading archive... </span>
-          <span class="text-sm text-indigo-500 dark:text-white">{entry.progress}%</span>
+          <span class="text-primary text-sm dark:text-white">Uploading archive... </span>
+          <span class="text-primary text-sm dark:text-white">{entry.progress}%</span>
         </div>
         <div class="h-2.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-          <div class="h-2.5 animate-pulse rounded-full bg-indigo-500" style={"width: #{entry.progress}%"}></div>
+          <div class="bg-primary h-2.5 animate-pulse rounded-full" style={"width: #{entry.progress}%"}></div>
         </div>
       </div>
 
@@ -54,7 +54,7 @@
           <tbody>
             <tr :for={archive <- @archives} class="border-base-800 border-b">
               <td>
-                <div class="flex items-center gap-[8px]">
+                <div class="flex items-center gap-2">
                   <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/archives/#{archive}"}>
                     {archive.uuid}
                   </.link>
@@ -62,7 +62,7 @@
               </td>
 
               <td>
-                <div class="flex items-center gap-[8px]">
+                <div class="flex items-center gap-2">
                   {archive.version}
                 </div>
               </td>
@@ -102,7 +102,7 @@
                     />
                   </svg>
                 </a>
-                <div class="hidden absolute right-[24px] menu-box" id={"actions-menu-#{device.id}"} phx-click-away={hide_menu("actions-menu-#{device.id}")} phx-key="escape" )}>
+                <div class="hidden absolute right-6 menu-box" id={"actions-menu-#{device.id}"} phx-click-away={hide_menu("actions-menu-#{device.id}")} phx-key="escape" )}>
                   <.link phx-click="reboot-device" phx-value-device_identifier={device.identifier} class="dropdown-item">
                     Reboot
                   </.link>

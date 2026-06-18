@@ -63,10 +63,10 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
 
                     <span :if={entry.firmware_validation_status == :unknown} class="text-base-300 font-mono text-sm">Unknown validation status</span>
                     <span :if={entry.firmware_validation_status == :validated} class="text-base-300 font-mono text-sm">Validated</span>
-                    <span :if={entry.firmware_validation_status == :not_validated} class="font-mono text-sm text-red-300">Not validated</span>
+                    <span :if={entry.firmware_validation_status == :not_validated} class="text-alert-content font-mono text-sm">Not validated</span>
                   </div>
                   <div :if={entry.firmware_auto_revert_detected} class="bg-base-800 flex items-center rounded px-2 py-1">
-                    <span class="font-mono text-sm text-red-300">Revert detected</span>
+                    <span class="text-alert-content font-mono text-sm">Revert detected</span>
                   </div>
                 </div>
                 <div class="flex gap-2">

@@ -7,10 +7,10 @@
     </div>
 
     <div class="max-w-[650px] px-6 py-4">
-      <div class="mb-6 rounded border border-red-800 bg-red-900/20 p-4">
-        <h3 class="mb-2 text-base font-semibold text-red-400">Are you absolutely sure?</h3>
-        <p class="mb-2 text-sm text-red-300">Unexpected bad things will happen if you don't read this!</p>
-        <p class="text-sm text-red-300">This action cannot be undone. This will permanently delete the <strong>{@org.name}</strong> organization.</p>
+      <div class="bg-alert-soft border-alert mb-6 rounded border p-4">
+        <h3 class="text-alert-content mb-2 text-base font-semibold">Are you absolutely sure?</h3>
+        <p class="text-alert-content mb-2 text-sm">Unexpected bad things will happen if you don't read this!</p>
+        <p class="text-alert-content text-sm">This action cannot be undone. This will permanently delete the <strong>{@org.name}</strong> organization.</p>
       </div>
 
       <.form :let={f} id="delete-org-form" for={@form} phx-submit="delete">
