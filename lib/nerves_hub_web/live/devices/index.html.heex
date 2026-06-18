@@ -129,7 +129,7 @@
               <p class="text-base-400 mb-6 text-sm">Get started by adding <code class="text-base-300">nerves_hub_link</code> to your Nerves project.</p>
               <% active_secret = Enum.find(@product.shared_secret_auths, &is_nil(&1.deactivated_at)) %>
               <%= if active_secret do %>
-                <div class="bg-base-900 border-base-700 rounded-lg border p-4">
+                <div class="bg-surface-raised border-base-700 rounded-lg border p-4">
                   <h3 class="text-base-300 mb-3 text-sm font-semibold">1. Add the dependency to your <code>mix.exs</code></h3>
                   <pre class="bg-base-950 mb-4 overflow-x-auto rounded p-3 font-mono text-sm text-green-400"><code>&#123;:nerves_hub_link, "~&gt; 2.0"&#125;</code></pre>
 
@@ -153,7 +153,7 @@
                 </p>
               <% end %>
 
-              <div class="bg-base-900/50 border-base-700/50 mt-6 rounded-lg border p-4">
+              <div class="bg-surface-raised/50 border-base-700/50 mt-6 rounded-lg border p-4">
                 <h3 class="text-base-300 mb-2 text-sm font-semibold">Production authentication</h3>
                 <p class="text-base-400 text-xs">
                   For production applications, we recommend mTLS authentication using a local certificate or dedicated secure hardware.

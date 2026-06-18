@@ -17,7 +17,7 @@
         <div class="space-y-3">
           <%= for signing_key <- @signing_keys do %>
             <div class="border-base-700 from-base-800/50 to-base-800 flex items-start gap-4 rounded border bg-linear-to-r p-4">
-              <img src="/images/icons/key.svg" alt="key" class="mt-1 size-6" />
+              <span class="lucide-key-round--light mt-1 size-6"></span>
               <div class="min-w-0 flex-1">
                 <h3 class="text-base-50 mb-2 text-sm font-semibold">
                   {signing_key.name}

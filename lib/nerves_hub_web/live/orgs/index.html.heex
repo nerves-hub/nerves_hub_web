@@ -20,7 +20,7 @@
               id="org_name"
               value={@org_name}
               required
-              class="bg-base-900 border-base-700 focus:border-focus-ring focus:ring-focus-ring text-base-50 w-full rounded border px-3 py-2 text-sm focus:ring-1"
+              class="bg-surface-raised border-base-700 focus:border-focus-ring focus:ring-focus-ring text-base-50 w-full rounded border px-3 py-2 text-sm focus:ring-1"
             />
             <p class="text-base-500 text-xs">Can be changed later.</p>
           </div>
@@ -33,7 +33,7 @@
               id="product_name"
               value={@product_name}
               required
-              class="bg-base-900 border-base-700 focus:border-focus-ring focus:ring-focus-ring text-base-50 w-full rounded border px-3 py-2 text-sm focus:ring-1"
+              class="bg-surface-raised border-base-700 focus:border-focus-ring focus:ring-focus-ring text-base-50 w-full rounded border px-3 py-2 text-sm focus:ring-1"
             />
             <p class="text-base-500 text-xs">Cannot be changed later.</p>
           </div>
@@ -70,7 +70,7 @@
         </.link>
       </div>
       <div class="flex flex-col gap-4">
-        <div :for={org <- @orgs} class="bg-base-900 border-base-700 rounded border">
+        <div :for={org <- @orgs} class="bg-surface-raised border-base-700 rounded border">
           <div class="flex h-14 items-center justify-between px-4">
             <div class="flex items-center gap-3">
               <.link navigate={~p"/org/#{org}"} class="contents">

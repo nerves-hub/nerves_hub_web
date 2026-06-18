@@ -28,7 +28,7 @@
   /* Surfaces — elevation reads as "brighter" in both themes */
   --color-surface: #141417; /* app canvas / page background */
   --color-surface-muted: #18181b; /* sidebar, panels, table head */
-  --color-surface-raised: var(--color-zinc-800); /* cards, chips, inputs */
+  --color-surface-raised: #1c1c1f; /* cards, chips, inputs — between surface-muted and zinc-800 */
   --color-surface-overlay: #18181b; /* menus, popovers, modals */
 
   /* Neutral ramp — low = bright text, high = recessed surface; inverts in light */
@@ -497,7 +497,7 @@ body {
 }
 
 .menu-box {
-  @apply bg-surface-muted border-base-700 rounded-md border px-4 py-3;
+  @apply bg-surface-overlay border-base-700 rounded-md border px-4 py-3;
 }
 
 .org-selector-title {

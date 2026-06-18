@@ -22,7 +22,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     ~H"""
     <div class="flex flex-col items-start justify-between gap-4 p-6">
       <.form id="deployment-form" for={@form} class="flex w-full flex-col gap-4" phx-change="validate-deployment-group" phx-submit="update-deployment-group" phx-target={@myself}>
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">General settings</div>
           </div>
@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Device matching conditions</div>
           </div>
@@ -67,7 +67,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Device queue settings</div>
           </div>
@@ -85,7 +85,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Rolling updates</div>
           </div>
@@ -102,7 +102,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Priority queue</div>
           </div>
@@ -143,7 +143,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Device penalty box logic</div>
           </div>
@@ -210,7 +210,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">First Connect Code</div>
           </div>
@@ -231,7 +231,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex items-center justify-between gap-6 border-t p-6">
             <.button style="secondary" type="submit">
               <.icon name="save" /> Save changes

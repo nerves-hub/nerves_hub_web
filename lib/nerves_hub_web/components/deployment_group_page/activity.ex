@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
     ~H"""
     <div class="flex h-full flex-col items-start justify-between gap-4">
       <div class="w-full p-6">
-        <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Latest activity</div>
 

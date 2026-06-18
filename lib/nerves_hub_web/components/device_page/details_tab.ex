@@ -78,7 +78,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       class="phx-click-loading:opacity-50 tab-content flex items-start justify-between gap-4 p-6 opacity-0 transition-all duration-500"
     >
       <div class="flex w-1/2 flex-col gap-4">
-        <div :if={!@product.extensions.health || !@device.extensions.health} class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
+        <div :if={!@product.extensions.health || !@device.extensions.health} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
             <div class="text-base-50 leading-6 font-medium">Health and Alerting</div>
           </div>
@@ -92,7 +92,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
         </div>
 
-        <div :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health} class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
+        <div
+          :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health}
+          class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border"
+        >
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
             <div class="flex items-center gap-2">
               <div class="text-base-50 leading-6 font-medium">Health</div>
@@ -180,7 +183,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
         </div>
 
-        <div :if={Enum.empty?(@latest_metrics) && @product.extensions.health && @device.extensions.health} class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
+        <div
+          :if={Enum.empty?(@latest_metrics) && @product.extensions.health && @device.extensions.health}
+          class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border"
+        >
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
             <div class="text-base-50 leading-6 font-medium">Health</div>
           </div>
@@ -195,7 +201,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
         </div>
 
-        <div :if={@alarms && @product.extensions.health && @device.extensions.health} class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
+        <div :if={@alarms && @product.extensions.health && @device.extensions.health} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
             <div class="text-base-50 leading-6 font-medium">Alarms</div>
           </div>
@@ -216,7 +222,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
         </div>
 
-        <div :if={!@alarms && @product.extensions.health && @device.extensions.health} class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
+        <div :if={!@alarms && @product.extensions.health && @device.extensions.health} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
             <div class="text-base-50 leading-6 font-medium">No Alarms Received</div>
           </div>
@@ -228,7 +234,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border pb-4">
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border pb-4">
           <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
             General Info
           </div>
@@ -346,7 +352,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
             Deployment Groups
           </div>
@@ -466,7 +472,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       </div>
 
       <div class="flex w-1/2 flex-col gap-4">
-        <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col items-start rounded border">
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col items-start rounded border">
           <DeviceLocation.render
             enabled_product={@product.extensions.geo}
             enabled_device={@device.extensions.geo}
@@ -475,7 +481,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           />
         </div>
 
-        <div class="bg-base-900 border-base-700 shadow-device-details-content flex flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
             Support Scripts
           </div>
