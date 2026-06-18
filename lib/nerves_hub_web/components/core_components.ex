@@ -349,7 +349,7 @@ defmodule NervesHubWeb.CoreComponents do
       type={@type}
       class={
         [
-          "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5",
+          "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
           "focus-visible:outline-focus-ring focus-visible:outline-2 focus-visible:outline-offset-2",
           "active:bg-primary-active bg-primary disabled:bg-base-800 hover:bg-primary-hover",
           "disabled:bg-base-800 disabled:border-base-600 disabled:rounded disabled:border",
@@ -398,7 +398,7 @@ defmodule NervesHubWeb.CoreComponents do
     <button
       type={@type}
       class={[
-        "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5",
+        "phx-submit-loading:opacity-75 flex gap-2 rounded px-3 py-1.5 hover:cursor-pointer",
         "active:bg-base-600 bg-base-800 hover:bg-base-700",
         "border-alert rounded border",
         "stroke-alert",
