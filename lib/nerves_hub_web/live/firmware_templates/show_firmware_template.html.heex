@@ -45,36 +45,36 @@
           </div>
           <div class="flex flex-col gap-3">
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Author:</span>
+              <span class="text-base-500 text-sm">Author:</span>
               <span class="text-base-300 text-sm">{@firmware.author}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Description:</span>
+              <span class="text-base-500 text-sm">Description:</span>
               <span :if={@firmware.description} class="text-base-300 text-sm">{@firmware.description}</span>
               <span :if={!@firmware.description} class="text-base-400 text-sm">No description</span>
             </div>
 
             <div :if={@firmware.misc} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Misc:</span>
+              <span class="text-base-500 text-sm">Misc:</span>
               <span class="text-base-300 text-sm">{@firmware.misc}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Install count:</span>
+              <span class="text-base-500 text-sm">Install count:</span>
               <span :if={@firmware.install_count} class="text-base-300 text-sm">{@firmware.install_count}</span>
               <span :if={!@firmware.install_count} class="text-base-400 text-sm">No installations</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Signed with:</span>
+              <span class="text-base-500 text-sm">Signed with:</span>
               <span class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-3 pl-2.5">
                 <code class="text-base-300 text-xs">{format_signed(@firmware, @org_keys)}</code>
               </span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Uploaded on:</span>
+              <span class="text-base-500 text-sm">Uploaded on:</span>
               <span class="text-base-300 text-sm">{Calendar.strftime(@firmware.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}</span>
             </div>
           </div>
@@ -88,27 +88,27 @@
           </div>
           <div class="flex flex-col gap-3">
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Version:</span>
+              <span class="text-base-500 text-sm">Version:</span>
               <span class="text-base-300 text-sm">{@firmware.version}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Architecture:</span>
+              <span class="text-base-500 text-sm">Architecture:</span>
               <span class="text-base-300 text-sm">{@firmware.architecture}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Platform:</span>
+              <span class="text-base-500 text-sm">Platform:</span>
               <span class="text-base-300 text-sm">{@firmware.platform}</span>
             </div>
 
             <div :if={@firmware.vcs_identifier} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">VCS ID:</span>
+              <span class="text-base-500 text-sm">VCS ID:</span>
               <span class="text-base-300 text-sm">{@firmware.vcs_identifier}</span>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Size:</span>
+              <span class="text-base-500 text-sm">Size:</span>
               <span class="text-base-300 text-sm">{format_file_size(@firmware.size)}</span>
             </div>
           </div>

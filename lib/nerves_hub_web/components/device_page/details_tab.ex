@@ -84,7 +84,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
             <div class="text-base-50 leading-6 font-medium">Health and Alerting</div>
           </div>
-          <div class="text-nerves-gray-500 flex items-center gap-2 px-4 pt-2 pb-4">
+          <div class="text-base-500 flex items-center gap-2 px-4 pt-2 pb-4">
             Reporting is not enabled {if(!@product.extensions.health, do: "for your product", else: "for your device")}.
           </div>
           <div class="px-4 pb-4">
@@ -104,7 +104,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <HealthStatus.render device_id={@device.id} health={@device.latest_health} tooltip_position="right" />
             </div>
             <div class="flex items-center gap-2">
-              <div class="text-nerves-gray-500 text-xs tracking-wide">
+              <div class="text-base-500 text-xs tracking-wide">
                 <span>Last updated: </span>
                 <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
                   {Timex.from_now(@latest_metrics["timestamp"])}
@@ -149,7 +149,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
                 <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
-              <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
+              <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-base-500 text-xl leading-[30px]">NA</span>
             </div>
             <div class="border-warning health-warning flex h-16 grow flex-col rounded border-b px-3 py-2">
               <span class="text-base-400 text-xs tracking-wide">Memory used</span>
@@ -164,23 +164,23 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 </div>
               </div>
               <div :if={!@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
-                <span class="text-nerves-gray-500 text-xl leading-[30px]">Not reported</span>
+                <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
               </div>
             </div>
             <div class="border-notice health-neutral flex h-16 grow flex-col rounded border-b px-3 py-2">
               <span class="text-base-400 text-xs tracking-wide">Load avg</span>
               <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex items-center justify-between">
                 <span :if={@latest_metrics["load_1min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_1min"]}</span>
-                <span :if={!@latest_metrics["load_1min"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
+                <span :if={!@latest_metrics["load_1min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
                 <span class="bg-base-700 h-4 w-px"></span>
                 <span :if={@latest_metrics["load_5min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_5min"]}</span>
-                <span :if={!@latest_metrics["load_5min"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
+                <span :if={!@latest_metrics["load_5min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
                 <span class="bg-base-700 h-4 w-px"></span>
                 <span :if={@latest_metrics["load_15min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_15min"]}</span>
-                <span :if={!@latest_metrics["load_15min"]} class="text-nerves-gray-500 text-xl leading-[30px]">NA</span>
+                <span :if={!@latest_metrics["load_15min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
               </div>
               <div :if={!@latest_metrics["load_1min"] && !@latest_metrics["load_5min"] && !@latest_metrics["load_15min"]} class="flex items-center">
-                <span class="text-nerves-gray-500 text-xl leading-[30px]">Not reported</span>
+                <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
               </div>
             </div>
           </div>
@@ -199,7 +199,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           <div class="flex h-14 items-center justify-between pr-3 pl-4">
             <div class="text-base-50 leading-6 font-medium">Health</div>
           </div>
-          <div class="text-nerves-gray-500 flex items-center gap-2 px-4 pt-2 pb-4">
+          <div class="text-base-500 flex items-center gap-2 px-4 pt-2 pb-4">
             No device health information has been received.
           </div>
           <div class="text-base-400 px-4 pb-4 text-xs font-normal">
@@ -219,7 +219,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <div :for={{alarm, description} <- @alarms} class="flex items-center gap-3">
               <code class="bg-base-800 border-alert text-alert rounded border px-2 py-1 text-sm">{alarm}</code>
               <code :if={has_description?(description)}>{description}</code>
-              <span :if={!has_description?(description)} class="text-nerves-gray-500">No description</span>
+              <span :if={!has_description?(description)} class="text-base-500">No description</span>
             </div>
           </div>
 
@@ -249,12 +249,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
           <div class="flex flex-col gap-3">
             <div :if={not is_nil(@device.description) && @device.description != ""} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Description:</span>
+              <span class="text-base-500 text-sm">Description:</span>
               <span class="text-base-300 text-sm">{@device.description}</span>
             </div>
 
             <div :if={@device.latest_connection && @device.latest_connection.status == :disconnected} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Last Seen:</span>
+              <span class="text-base-500 text-sm">Last Seen:</span>
               <span class="text-base-300 text-sm">
                 <time
                   id="connection-established-at"
@@ -267,7 +267,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             </div>
 
             <div :if={@device.latest_connection && @device.latest_connection.status != :disconnected} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Connected:</span>
+              <span class="text-base-500 text-sm">Connected:</span>
               <span class="text-base-300 text-sm">
                 <time
                   id="connection-established-at"
@@ -280,14 +280,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Added:</span>
+              <span class="text-base-500 text-sm">Added:</span>
               <span class="text-base-300 text-sm">{@device.inserted_at |> NaiveDateTime.to_date() |> Date.to_string()}</span>
             </div>
 
             <div class="relative flex min-h-7 items-start gap-4 px-4">
-              <span class="text-nerves-gray-500 pt-1 text-sm">Tags:</span>
+              <span class="text-base-500 pt-1 text-sm">Tags:</span>
               <div class="flex flex-wrap items-center gap-1">
-                <span :if={is_nil(@device.tags) || Enum.empty?(@device.tags)} class="text-nerves-gray-500 pt-1 text-sm">No Tags</span>
+                <span :if={is_nil(@device.tags) || Enum.empty?(@device.tags)} class="text-base-500 pt-1 text-sm">No Tags</span>
                 <span :for={tag <- @device.tags || []} class="bg-base-800 border-base-800 text-base-300 flex items-center gap-1 rounded border px-2 py-1 text-sm">
                   {tag}
                   <button
@@ -344,7 +344,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             </div>
 
             <div :if={!Enum.empty?(@metadata)} class="flex min-h-7 gap-4 px-4">
-              <span class="text-nerves-gray-500 pt-1 text-sm">Metadata:</span>
+              <span class="text-base-500 pt-1 text-sm">Metadata:</span>
               <span class="flex flex-col gap-1">
                 <span :for={{key, value} <- Map.filter(@metadata, fn {_key, val} -> val != "" end)} class="bg-base-800 border-base-800 text-base-300 rounded border px-2 py-1 text-sm">
                   <span>{key |> String.replace("_", " ") |> String.capitalize()}: {value}</span>
@@ -353,7 +353,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             </div>
 
             <div :if={@extension_overrides != []} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-nerves-gray-500 text-sm">Disabled extensions:</span>
+              <span class="text-base-500 text-sm">Disabled extensions:</span>
               <span class="flex gap-1">
                 <span :for={extension <- @extension_overrides} class="bg-base-800 border-base-800 text-alert rounded border px-2 py-1 text-sm" class="">{extension}</span>
               </span>
@@ -367,12 +367,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
 
           <div :if={is_nil(@device.deployment_group) && Enum.empty?(@deployment_groups)} class="flex items-center gap-4 px-4 pt-2 pb-6">
-            <span class="text-nerves-gray-500 text-sm">No deployment groups match the devices platform and architecture.</span>
+            <span class="text-base-500 text-sm">No deployment groups match the devices platform and architecture.</span>
           </div>
 
           <div :if={@device.deployment_group} class="flex flex-col gap-4 px-4 pt-2 pb-6">
             <div class="flex items-center gap-4 pt-2">
-              <span class="text-nerves-gray-500 text-sm">Assigned deployment group:</span>
+              <span class="text-base-500 text-sm">Assigned deployment group:</span>
               <.link
                 navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@device.deployment_group}"}
                 class="bg-base-800 border-base-700 flex items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5"
@@ -403,7 +403,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
 
           <div :if={@device.status == :registered && @device.deployment_id} class="flex items-center gap-4 px-4 pt-2 pb-6">
-            <span class="text-nerves-gray-500 text-sm">Please note: The device will be removed from the deployment group upon connection if the arch and platform don't match.</span>
+            <span class="text-base-500 text-sm">Please note: The device will be removed from the deployment group upon connection if the arch and platform don't match.</span>
           </div>
 
           <div :if={is_nil(@device.deployment_group) && Enum.any?(@deployment_groups)} class="border-base-700 flex items-center gap-4 border-t p-4">
@@ -430,7 +430,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           <div :if={@update_information.update_available && @device.deployment_id} class="border-base-700 flex items-center justify-between gap-4 border-t p-4">
             <div class="flex flex-col">
               <span>Update available</span>
-              <span class="text-nerves-gray-500 text-sm">An update is available in the assigned deployment group.</span>
+              <span class="text-base-500 text-sm">An update is available in the assigned deployment group.</span>
             </div>
 
             <.button phx-click="push-available-update" aria-label="Send available update" data-confirm="Are you sure you want to skip the queue?" disabled={disconnected?(@device_connection)}>
@@ -496,7 +496,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
 
           <div :if={Enum.empty?(@support_scripts)} class="flex items-center gap-4 px-4 pt-2 pb-6">
-            <span class="text-nerves-gray-500 text-sm">No support scripts have been configured.</span>
+            <span class="text-base-500 text-sm">No support scripts have been configured.</span>
           </div>
 
           <div :if={Enum.any?(@support_scripts)} class="flex flex-col gap-2 px-4 pt-2 pb-6">
