@@ -7,6 +7,7 @@ defmodule NervesHub.Accounts.User do
   alias __MODULE__
   alias Ecto.Changeset
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.User.DisplayPreferences
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Repo
 
@@ -44,6 +45,8 @@ defmodule NervesHub.Accounts.User do
 
     # Platform authentication for routes like the Oban dashboard
     field(:server_role, Ecto.Enum, values: [:admin, :view])
+
+    embeds_one :display_preferences, DisplayPreferences, on_replace: :update
 
     timestamps()
   end
@@ -87,6 +90,14 @@ defmodule NervesHub.Accounts.User do
     |> validate_required([:google_id])
     |> put_change(:google_last_synced_at, now)
     |> maybe_add_confirmed_at()
+  end
+
+  def update_selected_default_columns_changeset(user, column_set, selected_columns) do
+    attrs = %{column_set => selected_columns}
+
+    user
+    |> cast(%{display_preferences: attrs}, [])
+    |> cast_embed(:display_preferences, required: true)
   end
 
   defp maybe_add_confirmed_at(%{data: %{confirmed_at: confirmed_at}} = changeset) when is_nil(confirmed_at) do

@@ -36,14 +36,17 @@
           </svg>
         </div>
       </form>
-      <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export"} download>
-        <.icon name="export" /> Export
-      </.button>
       <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
-        <.icon name="add" /> Add Device
+        <span class="lucide-plus--light text-base-300 size-5" /> Add Device
+      </.button>
+      <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export"} download>
+        <span class="lucide-download--light text-base-300 size-5" />
       </.button>
       <.button :if={has_results?(@devices, @currently_filtering) || @soft_deleted_devices_exist} type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
-        <.icon name="filter" /> Filters
+        <.icon name="filter" />
+      </.button>
+      <.button type="button" phx-click="toggle-settings" phx-value-toggle={to_string(@show_settings)}>
+        <span class="lucide-settings--light text-base-300 size-5" />
       </.button>
     </div>
 
@@ -195,18 +198,23 @@
                   <th phx-click="sort" phx-value-sort="identifier" class="cursor-pointer">
                     <Sorting.sort_icon text="Identifier" field="identifier" selected_field={@current_sort} selected_direction={@sort_direction} />
                   </th>
-                  <th class="w-24">
+                  <th :if={show_column?(@current_scope.user, :health)} class="w-24">
                     <div class="flex justify-center">
                       <span>Health</span>
                     </div>
                   </th>
-                  <th>Firmware</th>
-                  <th>Platform</th>
-                  <th phx-click="sort" phx-value-sort="connection_established_at" class="cursor-pointer">
+                  <th :if={show_column?(@current_scope.user, :firmware)}>Firmware</th>
+                  <th :if={show_column?(@current_scope.user, :platform)}>Platform</th>
+                  <th
+                    :if={show_column?(@current_scope.user, :connected_info)}
+                    phx-click="sort"
+                    phx-value-sort="connection_established_at"
+                    class="cursor-pointer"
+                  >
                     <Sorting.sort_icon text="Connected for" field="connection_established_at" selected_field={@current_sort} selected_direction={@sort_direction} />
                   </th>
-                  <th>Deployment Group</th>
-                  <th phx-click="sort" phx-value-sort="tags" class="cursor-pointer">
+                  <th :if={show_column?(@current_scope.user, :deployment_group)}>Deployment Group</th>
+                  <th :if={show_column?(@current_scope.user, :tags)} phx-click="sort" phx-value-sort="tags" class="cursor-pointer">
                     <Sorting.sort_icon text="Tags" field="tags" selected_field={@current_sort} selected_direction={@sort_direction} />
                   </th>
                 </tr>
@@ -284,13 +292,13 @@
                     </div>
                   </td>
 
-                  <td>
+                  <td :if={show_column?(@current_scope.user, :health)}>
                     <div class="flex items-center justify-center gap-2">
                       <HealthStatus.render device_id={device.id} health={device.latest_health} tooltip_position="top" />
                     </div>
                   </td>
 
-                  <td>
+                  <td :if={show_column?(@current_scope.user, :firmware)}>
                     <div class="flex items-center gap-2">
                       <span class="font-mono">
                         <%= if is_nil(device.firmware_metadata) do %>
@@ -303,7 +311,7 @@
                     </div>
                   </td>
 
-                  <td>
+                  <td :if={show_column?(@current_scope.user, :platform)}>
                     <span>
                       <%= if is_nil(device.firmware_metadata) do %>
                         Unknown
@@ -313,13 +321,13 @@
                     </span>
                   </td>
 
-                  <td>
+                  <td :if={show_column?(@current_scope.user, :connected_info)}>
                     <div :if={device.latest_connection} title={connection_established_at(device.latest_connection)}>
                       {connection_established_at(device.latest_connection)}
                     </div>
                   </td>
 
-                  <td>
+                  <td :if={show_column?(@current_scope.user, :deployment_group)}>
                     <span :if={device.deployment_id} class="bg-base-800 border-base-700 flex w-fit items-center gap-1 rounded-full border py-0.5 pr-2.5 pl-1.5">
                       <svg class="size-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="3" cy="3" r="3" fill="#10B981" />
@@ -328,7 +336,7 @@
                     </span>
                   </td>
 
-                  <td>
+                  <td :if={show_column?(@current_scope.user, :tags)}>
                     <div class="flex items-center gap-1 text-nowrap">
                       <%= if !is_nil(device.tags) do %>
                         <%= for tag <- device.tags do %>
@@ -425,6 +433,12 @@
     />
     <:filter attr="only_updating" label="Update status" type={:select} values={[{"All", "false"}, {"Updating", "true"}]} />
   </FilterSidebar.render>
+
+  <ListSettingsSidebar.render
+    show={@show_settings}
+    available_columns={NervesHub.Accounts.User.DisplayPreferences.device_list_columns()}
+    selected_columns={get_in(@current_scope.user.display_preferences.device_list_columns)}
+  />
 
   <div class="pointer-events-none fixed inset-y-0 right-0 z-40 mb-[119px] flex max-w-full pl-10 sm:pl-16">
     <div class={[

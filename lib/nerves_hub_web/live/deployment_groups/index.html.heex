@@ -1,7 +1,7 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
   <div class="bg-surface-muted border-base-700 h-topbar flex justify-end border-b"></div>
 
-  <div class="h-0 flex-1 overflow-y-auto">
+  <div id="deployment-groups-container" class="h-0 flex-1 overflow-y-auto">
     <div class="border-base-700 h-header flex items-center gap-4 border-b px-6 py-7 text-sm font-medium">
       <h1 class="text-base-50 text-xl leading-[30px] font-semibold">All Deployment Groups</h1>
       <div class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs">{@pager_meta.total_count}</div>
@@ -33,7 +33,10 @@
         <.icon name="add" /> Create Deployment Group
       </.button>
       <.button type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
-        <.icon name="filter" /> Filters
+        <.icon name="filter" />
+      </.button>
+      <.button type="button" phx-click="toggle-settings" phx-value-toggle={to_string(@show_settings)}>
+        <span class="lucide-settings--light text-base-300 size-5" />
       </.button>
     </div>
 
@@ -50,25 +53,25 @@
               <th phx-click="sort" phx-value-sort="name" class="w-1/5 cursor-pointer">
                 <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
-              <th phx-click="sort" phx-value-sort="platform" class="cursor-pointer">
+              <th :if={show_column?(@current_scope.user, :platform)} phx-click="sort" phx-value-sort="platform" class="cursor-pointer">
                 <Sorting.sort_icon text="Platform" field="platform" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
-              <th phx-click="sort" phx-value-sort="architecture" class="cursor-pointer">
+              <th :if={show_column?(@current_scope.user, :architecture)} phx-click="sort" phx-value-sort="architecture" class="cursor-pointer">
                 <Sorting.sort_icon text="Architecture" field="architecture" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
-              <th phx-click="sort" phx-value-sort="device_count" class="cursor-pointer">
+              <th :if={show_column?(@current_scope.user, :device_count)} phx-click="sort" phx-value-sort="device_count" class="cursor-pointer">
                 <Sorting.sort_icon text="Devices" field="device_count" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
-              <th phx-click="sort" phx-value-sort="releases_count" class="cursor-pointer">
+              <th :if={show_column?(@current_scope.user, :release_count)} phx-click="sort" phx-value-sort="releases_count" class="cursor-pointer">
                 <Sorting.sort_icon text="Releases" field="releases_count" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
-              <th phx-click="sort" phx-value-sort="firmware_version" class="min-w-fit cursor-pointer">
+              <th :if={show_column?(@current_scope.user, :firmware_version)} phx-click="sort" phx-value-sort="firmware_version" class="min-w-fit cursor-pointer">
                 <Sorting.sort_icon text="Firmware version" field="firmware_version" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
-              <th>
+              <th :if={show_column?(@current_scope.user, :tags)}>
                 Device Tags
               </th>
-              <th>
+              <th :if={show_column?(@current_scope.user, :version_constraint)}>
                 Version Constraint
               </th>
             </tr>
@@ -77,7 +80,7 @@
             <tr :for={deployment_group <- @entries} class={["border-base-800 border-b"]}>
               <td>
                 <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/deployment_groups/#{deployment_group}"}>
-                  <div class="flex h-[40px] w-full items-center gap-[8px]">
+                  <div class="flex h-10 w-full items-center gap-2">
                     <svg class={["size-1.5", (deployment_group.is_active && "fill-success") || "fill-base-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
                       <circle cx="3" cy="3" r="3" />
                     </svg>
@@ -87,23 +90,23 @@
                 </.link>
               </td>
 
-              <td>
+              <td :if={show_column?(@current_scope.user, :platform)}>
                 {deployment_group.platform}
               </td>
 
-              <td>
+              <td :if={show_column?(@current_scope.user, :architecture)}>
                 {deployment_group.architecture}
               </td>
 
-              <td>
+              <td :if={show_column?(@current_scope.user, :device_count)}>
                 {deployment_group.device_count || 0}
               </td>
 
-              <td>
+              <td :if={show_column?(@current_scope.user, :release_count)}>
                 {deployment_group.releases_count || 0}
               </td>
 
-              <td class="min-w-fit">
+              <td :if={show_column?(@current_scope.user, :firmware_version)} class="min-w-fit">
                 <span class="bg-base-800 inline-block items-center rounded px-2 py-1 whitespace-nowrap">
                   <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/firmware/#{deployment_group.current_release.firmware}"} class="flex items-center">
                     <span class="text-base-300 mr-1 text-sm">
@@ -122,8 +125,8 @@
                 </span>
               </td>
 
-              <td>
-                <div class="flex items-center gap-[4px]">
+              <td :if={show_column?(@current_scope.user, :tags)}>
+                <div class="flex items-center gap-1">
                   <%= if Enum.count(tags(deployment_group)) > 0 do %>
                     <%= for tag <- tags(deployment_group) do %>
                       <span class="badge">
@@ -136,7 +139,7 @@
                 </div>
               </td>
 
-              <td>
+              <td :if={show_column?(@current_scope.user, :version_contraint)}>
                 {version(deployment_group)}
               </td>
             </tr>
@@ -151,6 +154,12 @@
     <:filter attr="platform" label="Platform" type={:select} values={[{"All", ""} | Enum.map(@platforms, &{if(&1, do: &1, else: "Unknown"), &1})]} />
     <:filter attr="architecture" label="Architecture" type={:select} values={[{"All", ""} | Enum.map(@architectures, &{if(&1, do: &1, else: "Unknown"), &1})]} />
   </FilterSidebar.render>
+
+  <ListSettingsSidebar.render
+    show={@show_settings}
+    available_columns={NervesHub.Accounts.User.DisplayPreferences.deployment_group_list_columns()}
+    selected_columns={get_in(@current_scope.user.display_preferences.deployment_group_list_columns)}
+  />
 
   <Pager.render_with_page_sizes pager={@pager_meta} page_sizes={@paginate_opts.page_sizes} />
 </NervesHubWeb.Layouts.sidebar>
