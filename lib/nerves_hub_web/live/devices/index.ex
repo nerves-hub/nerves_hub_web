@@ -17,6 +17,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.HealthStatus
+  alias NervesHubWeb.Components.ListSettingsSidebar
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
@@ -107,6 +108,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:firmware_versions, firmware_versions(product.id))
     |> assign(:platforms, [])
     |> assign(:show_filters, false)
+    |> assign(:show_settings, false)
     |> assign(:current_filters, @default_filters)
     |> assign(:currently_filtering, false)
     |> assign(:selected_devices, [])
@@ -242,6 +244,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:selected_devices, [])
     |> push_patch(to: self_path(socket, Map.merge(@default_filters, page_params)))
     |> noreply()
+  end
+
+  def handle_event("toggle-settings", %{"toggle" => toggle}, socket) do
+    {:noreply, assign(socket, :show_settings, toggle != "true")}
+  end
+
+  def handle_event("update-settings", params, %{assigns: %{current_scope: scope}} = socket) do
+    {:ok, user} = ListSettingsSidebar.update_displayed_columns(scope.user, :device_list_columns, params)
+    {:noreply, assign(socket, :current_scope, %{scope | user: user})}
   end
 
   @decorate requires_permission(:"device:update")
@@ -1205,6 +1216,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp parse_device_id(topic) do
     "internal:device:" <> device_id = topic
     String.to_integer(device_id)
+  end
+
+  defp show_column?(user, column) do
+    ListSettingsSidebar.show_column?(user.display_preferences, :device_list_columns, column)
   end
 
   defp onboarding_nhl_host() do

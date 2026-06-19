@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHubWeb.Components.ListSettingsSidebar
 
   test "no deployment groups", %{conn: conn, user: user, org: org} do
     product = Fixtures.product_fixture(user, org, %{name: "Spaghetti"})
@@ -134,6 +135,80 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
         render_change(view, "reset-filters", %{})
       end)
       |> assert_has("a", text: deployment_group.name)
+    end
+  end
+
+  describe "customize columns listed" do
+    test "all columns are shown, as the default", %{conn: conn, fixture: fixture} do
+      %{user: user} = fixture
+
+      assert is_nil(user.display_preferences)
+
+      conn
+      |> visit("/org/#{fixture.org.name}/#{fixture.product.name}/deployment_groups")
+      |> assert_has("th", text: "Platform")
+      |> assert_has("th", text: "Architecture")
+      |> assert_has("th", text: "Devices")
+      |> assert_has("th", text: "Releases")
+      |> assert_has("th", text: "Firmware version")
+      |> assert_has("th", text: "Device Tags")
+      |> assert_has("th", text: "Version Constraint")
+    end
+
+    for {column, label} <- [
+          {:platform, "Platform"},
+          {:architecture, "Architecture"},
+          {:device_count, "Devices"},
+          {:release_count, "Releases"},
+          {:firmware_version, "Firmware version"},
+          {:tags, "Tags"},
+          {:version_constraint, "Version Constraint"}
+        ] do
+      @column column
+      @label label
+      @friendly_column_name to_string(@column) |> String.split("_") |> Enum.map_join(" ", &String.capitalize/1)
+
+      test "#{column} column can be removed", %{conn: conn, fixture: fixture} do
+        %{user: user} = fixture
+
+        assert is_nil(user.display_preferences)
+
+        conn
+        |> visit("/org/#{fixture.org.name}/#{fixture.product.name}/deployment_groups")
+        |> assert_has("th", text: @label)
+        |> click_button("#deployment-groups-container button[phx-click=toggle-settings]", "")
+        |> uncheck(@friendly_column_name)
+        |> refute_has("th", text: @label, timeout: 1_000)
+      end
+
+      test "#{column} column can be added", %{conn: conn, fixture: %{user: user} = fixture} do
+        assert is_nil(user.display_preferences)
+
+        default_column_payload = %{
+          "_target" => [to_string(@column)],
+          "architecture" => true,
+          "device_count" => true,
+          "firmware_version" => true,
+          "platform" => true,
+          "release_count" => true,
+          "tags" => true,
+          "version_constraint" => true
+        }
+
+        {:ok, _user} =
+          ListSettingsSidebar.update_displayed_columns(
+            user,
+            :deployment_group_list_columns,
+            Map.put(default_column_payload, to_string(@column), "false")
+          )
+
+        conn
+        |> visit("/org/#{fixture.org.name}/#{fixture.product.name}/deployment_groups")
+        |> refute_has("th", text: @label)
+        |> click_button("#deployment-groups-container button[phx-click=toggle-settings]", "")
+        |> check(@friendly_column_name)
+        |> assert_has("th", text: @label, timeout: 1_000)
+      end
     end
   end
 
