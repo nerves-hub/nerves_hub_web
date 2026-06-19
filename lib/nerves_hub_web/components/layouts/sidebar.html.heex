@@ -165,6 +165,33 @@
   <div class="flex size-full flex-col">
     <.flash_group flash={@flash} />
 
+    <div class="bg-surface-muted border-base-700 h-topbar flex shrink-0 items-center justify-between border-b pl-6">
+      {if(assigns[:top_bar], do: render_slot(@top_bar))}
+    </div>
+
+    <div :if={assigns[:header]} id="header" class="border-base-700 h-header flex items-center gap-4 border-b px-6 py-8 text-sm font-medium">
+      {render_slot(@header)}
+    </div>
+
+    <div :if={assigns[:big_header]} id="header" class="h-header flex shrink-0 justify-between p-6">
+      {render_slot(@big_header)}
+    </div>
+
+    <div :if={assigns[:tabbed_nav]} class="border-base-700 -mt-px flex w-full justify-between border-b px-6">
+      <div class="flex">
+        <.link
+          :for={nav <- @tabbed_nav}
+          data-selected={nav.selected}
+          class="data-selected:border-primary data-selected:tab-selected data-selected:text-base-300 hover:border-primary text-base-50 relative -bottom-px h-11 px-6 py-2 text-sm font-normal hover:border-b data-selected:border-b"
+          patch={nav.path}
+        >
+          {nav.label}
+        </.link>
+      </div>
+    </div>
+
     {render_slot(@inner_block)}
+
+    <Pager.render_with_page_sizes :for={pagination <- assigns[:pagination] || []} :if={assigns[:pagination]} pager={pagination.pager} page_sizes={pagination.page_sizes} />
   </div>
 </div>

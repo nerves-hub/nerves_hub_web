@@ -189,7 +189,7 @@
 /* The sidebar collapses to an icon rail when the user toggles it
    (`data-sidebar="collapsed"`) OR whenever the viewport is below `lg`. */
 @custom-variant collapsed {
-  &:where([data-sidebar=collapsed], [data-sidebar=collapsed] *) {
+  &:where([data-sidebar="collapsed"], [data-sidebar="collapsed"] *) {
     @slot;
   }
   @media (width < 64rem) {

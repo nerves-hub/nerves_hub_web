@@ -148,7 +148,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   @impl Phoenix.LiveComponent
   def render(assigns) do
     ~H"""
-    <div class="flex h-full flex-col items-start gap-4 p-6">
+    <div class="flex w-full flex-col items-start gap-4 p-6">
       <div :if={@waiting_for_update_count == 0} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border p-4">
         <div class="text-base-50 flex h-10 items-center justify-center text-xl/6 font-medium">
           {if @updates_disabled_count > 0, do: "All eligible devices are up to date!", else: "All devices are up to date!"}

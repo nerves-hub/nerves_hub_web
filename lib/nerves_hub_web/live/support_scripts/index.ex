@@ -3,7 +3,6 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
 
   alias NervesHub.Repo
   alias NervesHub.Scripts
-  alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
 
   @default_page 1

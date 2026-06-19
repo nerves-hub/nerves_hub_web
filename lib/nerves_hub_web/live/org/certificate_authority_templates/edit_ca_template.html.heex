@@ -1,92 +1,88 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="bg-surface-muted border-base-700 h-topbar flex justify-end border-b"></div>
+  <:header>
+    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Edit Certificate Authority</h1>
+  </:header>
 
-  <div class="h-0 flex-1 overflow-y-auto">
-    <div class="border-base-700 h-header flex items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Edit Certificate Authority</h1>
-    </div>
+  <div class="max-w-[650px] px-6 py-4">
+    <.form :let={f} id="edit-ca-form" for={@form} phx-submit="update_certificate_authority">
+      <div class="mb-4">
+        <label for="description_input" class="text-base-300 mb-2 block text-sm font-medium">Description</label>
+        {text_input(f, :description,
+          class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
+          id: "description_input"
+        )}
+        <div class="text-alert-content mt-1 text-sm">{error_tag(f, :description)}</div>
+      </div>
 
-    <div class="max-w-[650px] px-6 py-4">
-      <.form :let={f} id="edit-ca-form" for={@form} phx-submit="update_certificate_authority">
-        <div class="mb-4">
-          <label for="description_input" class="text-base-300 mb-2 block text-sm font-medium">Description</label>
-          {text_input(f, :description,
-            class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
-            id: "description_input"
-          )}
-          <div class="text-alert-content mt-1 text-sm">{error_tag(f, :description)}</div>
-        </div>
+      <div class="mb-4 flex items-center gap-2">
+        {checkbox(f, :check_expiration, class: "w-4 h-4 bg-base-900 border-base-700 rounded", id: "check_expiration_input")}
+        <label for="check_expiration_input" class="text-base-300 text-sm">Check expiration</label>
+        <CAHelpers.check_expiration_tooltip />
+        <div class="text-alert-content text-sm">{error_tag(f, :check_expiration)}</div>
+      </div>
 
-        <div class="mb-4 flex items-center gap-2">
-          {checkbox(f, :check_expiration, class: "w-4 h-4 bg-base-900 border-base-700 rounded", id: "check_expiration_input")}
-          <label for="check_expiration_input" class="text-base-300 text-sm">Check expiration</label>
-          <CAHelpers.check_expiration_tooltip />
-          <div class="text-alert-content text-sm">{error_tag(f, :check_expiration)}</div>
-        </div>
+      <%= inputs_for f, :jitp, fn fp -> %>
+        <div class="mb-6">
+          <div class="mb-4 flex items-center gap-2">
+            {hidden_input(fp, :delete, id: "jitp-delete")}
+            <input
+              id="jitp_toggle_ui"
+              type="checkbox"
+              value="true"
+              name="ca_certificate[jitp][jitp_toggle]"
+              checked={@show_jitp_form}
+              phx-click={JS.dispatch("ca:edit:jitp")}
+              class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
+            />
+            <label for="jitp_toggle_ui" class="text-base-300 text-sm">Enable Just In Time Provisioning</label>
+          </div>
 
-        <%= inputs_for f, :jitp, fn fp -> %>
-          <div class="mb-6">
-            <div class="mb-4 flex items-center gap-2">
-              {hidden_input(fp, :delete, id: "jitp-delete")}
-              <input
-                id="jitp_toggle_ui"
-                type="checkbox"
-                value="true"
-                name="ca_certificate[jitp][jitp_toggle]"
-                checked={@show_jitp_form}
-                phx-click={JS.dispatch("ca:edit:jitp")}
-                class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
-              />
-              <label for="jitp_toggle_ui" class="text-base-300 text-sm">Enable Just In Time Provisioning</label>
+          <div class={if !@show_jitp_form, do: "hidden"} id="jitp_form">
+            <div class="mb-4">
+              <label for="jitp_description_input" class="text-base-300 mb-2 block text-sm font-medium">
+                JITP Description <span class="text-base-500 ml-2 text-xs">(Device Description)</span>
+              </label>
+              {text_input(fp, :description,
+                class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
+                id: "jitp_description_input"
+              )}
+              <div class="text-alert-content mt-1 text-sm">{error_tag(fp, :description)}</div>
             </div>
 
-            <div class={if !@show_jitp_form, do: "hidden"} id="jitp_form">
-              <div class="mb-4">
-                <label for="jitp_description_input" class="text-base-300 mb-2 block text-sm font-medium">
-                  JITP Description <span class="text-base-500 ml-2 text-xs">(Device Description)</span>
-                </label>
-                {text_input(fp, :description,
-                  class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
-                  id: "jitp_description_input"
-                )}
-                <div class="text-alert-content mt-1 text-sm">{error_tag(fp, :description)}</div>
-              </div>
+            <div class="mb-4">
+              <label for="tag_input" class="text-base-300 mb-2 block text-sm font-medium">
+                JITP Tags <span class="text-base-500 ml-2 text-xs">(Tags are used by deployments to target a device)</span>
+              </label>
+              {text_input(fp, :tags,
+                class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
+                id: "tag_input"
+              )}
+              <div class="text-alert-content mt-1 text-sm">{error_tag(fp, :tags)}</div>
+            </div>
 
-              <div class="mb-4">
-                <label for="tag_input" class="text-base-300 mb-2 block text-sm font-medium">
-                  JITP Tags <span class="text-base-500 ml-2 text-xs">(Tags are used by deployments to target a device)</span>
-                </label>
-                {text_input(fp, :tags,
-                  class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
-                  id: "tag_input"
-                )}
-                <div class="text-alert-content mt-1 text-sm">{error_tag(fp, :tags)}</div>
-              </div>
-
-              <div class="mb-4">
-                <label for="product_input" class="text-base-300 mb-2 block text-sm font-medium">
-                  JITP Product <span class="text-base-500 ml-2 text-xs">(JITP must be configured to use a particular product)</span>
-                </label>
-                {select(fp, :product_id, Enum.map(@products, &{&1.name, &1.id}),
-                  class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
-                  id: "product_input",
-                  prompt: "Select Product"
-                )}
-                <div class="text-alert-content mt-1 text-sm">{error_tag(fp, :product_id)}</div>
-              </div>
+            <div class="mb-4">
+              <label for="product_input" class="text-base-300 mb-2 block text-sm font-medium">
+                JITP Product <span class="text-base-500 ml-2 text-xs">(JITP must be configured to use a particular product)</span>
+              </label>
+              {select(fp, :product_id, Enum.map(@products, &{&1.name, &1.id}),
+                class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
+                id: "product_input",
+                prompt: "Select Product"
+              )}
+              <div class="text-alert-content mt-1 text-sm">{error_tag(fp, :product_id)}</div>
             </div>
           </div>
-        <% end %>
-
-        <div class="flex gap-3">
-          <.button style="primary" type="submit">
-            Update Certificate
-          </.button>
-          <.button style="secondary" type="link" patch={~p"/org/#{@org}/settings/certificates"}>
-            Cancel
-          </.button>
         </div>
-      </.form>
-    </div>
+      <% end %>
+
+      <div class="flex gap-3">
+        <.button style="primary" type="submit">
+          Update Certificate
+        </.button>
+        <.button style="secondary" type="link" patch={~p"/org/#{@org}/settings/certificates"}>
+          Cancel
+        </.button>
+      </div>
+    </.form>
   </div>
 </NervesHubWeb.Layouts.sidebar>

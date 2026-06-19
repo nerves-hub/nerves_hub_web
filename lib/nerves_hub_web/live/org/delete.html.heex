@@ -1,38 +1,34 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="bg-surface-muted border-base-700 h-topbar flex justify-end border-b"></div>
+  <:header>
+    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Delete Organization</h1>
+  </:header>
 
-  <div class="h-0 flex-1 overflow-y-auto">
-    <div class="border-base-700 h-header flex items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Delete Organization</h1>
+  <div class="max-w-[650px] px-6 py-4">
+    <div class="bg-alert-soft border-alert mb-6 rounded border p-4">
+      <h3 class="text-alert-content mb-2 text-base font-semibold">Are you absolutely sure?</h3>
+      <p class="text-alert-content mb-2 text-sm">Unexpected bad things will happen if you don't read this!</p>
+      <p class="text-alert-content text-sm">This action cannot be undone. This will permanently delete the <strong>{@org.name}</strong> organization.</p>
     </div>
 
-    <div class="max-w-[650px] px-6 py-4">
-      <div class="bg-alert-soft border-alert mb-6 rounded border p-4">
-        <h3 class="text-alert-content mb-2 text-base font-semibold">Are you absolutely sure?</h3>
-        <p class="text-alert-content mb-2 text-sm">Unexpected bad things will happen if you don't read this!</p>
-        <p class="text-alert-content text-sm">This action cannot be undone. This will permanently delete the <strong>{@org.name}</strong> organization.</p>
+    <.form :let={f} id="delete-org-form" for={@form} phx-submit="delete">
+      <div class="mb-6">
+        <label for="org_name_input" class="text-base-300 mb-2 block text-sm font-medium">
+          Please type <strong>{@org.name}</strong> to confirm.
+        </label>
+        {text_input(f, :confirm_name,
+          class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-alert",
+          id: "org_name_input"
+        )}
       </div>
 
-      <.form :let={f} id="delete-org-form" for={@form} phx-submit="delete">
-        <div class="mb-6">
-          <label for="org_name_input" class="text-base-300 mb-2 block text-sm font-medium">
-            Please type <strong>{@org.name}</strong> to confirm.
-          </label>
-          {text_input(f, :confirm_name,
-            class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-alert",
-            id: "org_name_input"
-          )}
-        </div>
-
-        <div class="flex gap-3">
-          <.button style="danger" type="submit">
-            I understand the consequences, delete this organization.
-          </.button>
-          <.button style="secondary" type="link" patch={~p"/org/#{@org}/settings"}>
-            Cancel
-          </.button>
-        </div>
-      </.form>
-    </div>
+      <div class="flex gap-3">
+        <.button style="danger" type="submit">
+          I understand the consequences, delete this organization.
+        </.button>
+        <.button style="secondary" type="link" patch={~p"/org/#{@org}/settings"}>
+          Cancel
+        </.button>
+      </div>
+    </.form>
   </div>
 </NervesHubWeb.Layouts.sidebar>
