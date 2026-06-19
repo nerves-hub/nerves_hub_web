@@ -9,11 +9,11 @@
         {Number.Delimit.number_to_delimited(@total_entries, precision: 0)}
       </div>
     </div>
-    <form :if={has_results?(@devices, @currently_filtering)} id="device-filters-form" class="flex h-full items-center" phx-change="update-filters">
-      <div class="grid h-full grid-cols-1">
+    <form :if={has_results?(@devices, @currently_filtering)} id="device-filters-form" class="flex items-center" phx-change="update-filters">
+      <div class="grid grid-cols-1">
         <input
           type="text"
-          class="bg-surface-muted border-base-600 text-base-400 col-start-1 row-start-1 block size-full gap-2 rounded border px-3 py-1 text-sm font-normal"
+          class="bg-surface-muted border-base-600 text-base-400 col-start-1 row-start-1 block h-9 w-64 gap-2 rounded border px-3 py-1 text-sm font-normal"
           name="search"
           id="device_search_top"
           placeholder="Search..."
