@@ -42,6 +42,8 @@
   </:top_bar>
 
   <:big_header>
+    <FwupProgress.render :if={@firmware_update_stage} stage={@firmware_update_stage} progress={@firmware_update_progress} />
+
     <div class="flex shrink-0 items-center gap-3">
       <svg
         data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
@@ -198,8 +200,6 @@
   <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"} selected={@tab == :logs} label="Logs" />
   <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"} selected={@tab == :activity} label="Activity" />
   <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"} selected={@tab == :settings} label="Settings" />
-
-  <FwupProgress.render :if={@firmware_update_stage} stage={@firmware_update_stage} progress={@firmware_update_progress} />
 
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
     <div :if={@device.deleted_at} class="bg-alert-soft flex h-[89px] shrink-0 items-center justify-center p-4">
