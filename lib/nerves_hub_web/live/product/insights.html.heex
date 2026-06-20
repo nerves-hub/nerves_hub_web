@@ -94,7 +94,7 @@
       </div>
     </div> --%>
 
-    <div class="grid grid-cols-[1.55fr_1fr] gap-4">
+    <div class="grid grid-cols-2 gap-4">
       <div class="flex flex-col gap-4">
         <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col gap-5 rounded border p-5">
           <div class="text-base-50 flex items-center leading-6 font-medium">
@@ -141,7 +141,7 @@
         </div> --%>
       </div>
 
-      <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col gap-4.5 rounded border p-5">
+      <div class="bg-surface-raised border-base-700 shadow-device-details-content flex grow-0 flex-col gap-4.5 rounded border p-5">
         <div class="flex items-center justify-between">
           <div class="text-base-50 leading-6 font-medium">
             Notifications <span class="border-b-default ml-2.5 inline-flex items-center gap-1.5 rounded-full border py-0.5 pr-2.5 pl-2 text-xs/4 tracking-tight">{@notification_count}</span>
@@ -168,7 +168,7 @@
                 {entry.title}
               </div>
               <div class="text-content-faint font-mono text-xs">
-                {entry.occurrence_count} {if entry.occurrence_count == 1, do: "occurrence", else: "occurrences"}
+                {Number.Delimit.number_to_delimited(entry.occurrence_count, precision: 0)} {if entry.occurrence_count == 1, do: "occurrence", else: "occurrences"}
               </div>
             </div>
             <span class="text-content-muted shrink-0 text-xs">{Timex.from_now(entry.last_occurred_at)}</span>
