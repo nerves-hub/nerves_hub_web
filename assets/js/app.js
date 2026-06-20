@@ -9,6 +9,7 @@ import en from "javascript-time-ago/locale/en"
 
 import Chart from "./hooks/chart.js"
 import Console from "./hooks/console.js"
+import CrossFadeOnUpdate from "./hooks/crossFadeOnUpdate.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
 import Flash from "./hooks/flash.js"
@@ -44,6 +45,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
   hooks: {
     Chart,
     Console,
+    CrossFadeOnUpdate,
     DeviceLocationMap,
     DeviceLocationMapWithGeocoder,
     Flash,
