@@ -47,11 +47,11 @@
     </.button>
   </:header>
 
-  <div id="device-container" class="h-0 flex-1 overflow-y-auto" phx-hook="PageVisible">
+  <div id="device-container" class="h-0 flex-1 overflow-auto" phx-hook="PageVisible">
     <.async_result :let={devices} assign={@devices}>
       <:loading>
         <div class="listing">
-          <table>
+          <table class="min-w-max [&_th]:sticky [&_th]:top-0 [&_th]:z-10">
             <thead>
               <tr>
                 <th class="checkbox">
@@ -172,7 +172,7 @@
           </div>
         <% true -> %>
           <div id="device-list" class="listing hidden" phx-mounted={fade_in("#device-list")}>
-            <table>
+            <table class="min-w-max [&_th]:sticky [&_th]:top-0 [&_th]:z-10">
               <thead>
                 <tr>
                   <th class="checkbox">
