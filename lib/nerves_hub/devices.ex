@@ -1813,6 +1813,54 @@ defmodule NervesHub.Devices do
     |> Repo.exists?()
   end
 
+  def online_count(product) do
+    Device
+    |> join(:left, [d], lc in assoc(d, :latest_connection))
+    |> where(product_id: ^product.id)
+    |> where([_, lc], lc.status == :connected)
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
+  end
+
+  def offline_count(product) do
+    Device
+    |> join(:left, [d], lc in assoc(d, :latest_connection))
+    |> where(product_id: ^product.id)
+    |> where([_, lc], lc.status != :connected or is_nil(lc))
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
+  end
+
+  def not_seen_in_x_days_count(product, days) do
+    x_days_ago = NaiveDateTime.utc_now() |> NaiveDateTime.add(-days, :day)
+
+    Device
+    |> join(:left, [d], lc in assoc(d, :latest_connection))
+    |> where(product_id: ^product.id)
+    |> where(
+      [_, lc],
+      is_nil(lc) or (lc.status != :connected and lc.disconnected_at < ^x_days_ago)
+    )
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
+  end
+
+  def total_count(product) do
+    Device
+    |> where(product_id: ^product.id)
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
+  end
+
+  def health_status_count(product, status) do
+    Device
+    |> join(:inner, [d], lh in assoc(d, :latest_health))
+    |> where(product_id: ^product.id)
+    |> where([_, lh], lh.status == ^status)
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
+  end
+
   defp update_tool() do
     Application.get_env(
       :nerves_hub,
