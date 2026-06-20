@@ -159,7 +159,7 @@
         </div>
         <div :if={Enum.any?(@notifications)} class="divide-b-subtle flex flex-col divide-y">
           <div :for={entry <- @notifications} class="flex items-center gap-2.5 py-2.5">
-            <span data-level={entry.level} class="data-[level=error]:bg-alert data-[level=info]:bg-notice data-[level=warning]:bg-warning/85 skrink-0 size-2 rounded-full"></span>
+            <span data-level={entry.level} class="data-[level=error]:bg-alert data-[level=info]:bg-notice data-[level=warning]:bg-warning/85 size-2 shrink-0 rounded-full"></span>
             <div class="min-w-0 flex-[1_1_0%]">
               <div class="truncate font-mono text-sm font-normal">
                 {entry.title}
