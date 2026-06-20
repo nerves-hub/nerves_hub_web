@@ -170,8 +170,8 @@
   /* Semantic roles + neutral veil flip on the light canvas */
   --color-content-strong: var(--color-zinc-900); /* zinc-900 */
   --color-content-body: var(--color-zinc-700); /* zinc-700 */
-  --color-content-muted: var(--color-zinc-500); /* zinc-600 */
-  --color-content-faint: var(--color-zinc-300); /* zinc-500 (shared) */
+  --color-content-muted: var(--color-zinc-600); /* zinc-600 */
+  --color-content-faint: var(--color-zinc-500); /* zinc-500 (shared) */
 
   --color-b-default: #e4e4e7; /* zinc-200 */
   --color-b-strong: #d4d4d8; /* zinc-300 */
