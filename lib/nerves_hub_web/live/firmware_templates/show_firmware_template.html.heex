@@ -1,9 +1,9 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="bg-surface-muted border-base-700 h-topbar flex shrink-0 items-center justify-between border-b pl-6">
+  <:top_bar>
     <.breadcrumb patch={~p"/org/#{@current_scope.org}/#{@product}/firmware"} root_label="All Firmware">
       <:crumb>{@firmware.uuid}</:crumb>
     </.breadcrumb>
-  </div>
+  </:top_bar>
 
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
     <div class="border-base-700 h-header flex shrink-0 justify-between border-b p-6">

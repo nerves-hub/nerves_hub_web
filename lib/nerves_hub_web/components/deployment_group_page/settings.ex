@@ -61,6 +61,16 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
               </div>
 
               <div class="w-1/2">
+                <.input
+                  field={conditions[:tag_operator]}
+                  type="select"
+                  options={[[value: "and", key: "Require all"], [value: "or", key: "Allow any"]]}
+                  label="Tag matching"
+                  hint="“Allow any” matches devices with at least one of the tags. “Require all” matches only devices that have every tag."
+                />
+              </div>
+
+              <div class="w-1/2">
                 <.input field={conditions[:version]} label="Version requirement" placeholder="eg. 1.2.3" />
               </div>
             </.inputs_for>

@@ -6,7 +6,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.ListSettingsSidebar
-  alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
 
   @default_filters %{

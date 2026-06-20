@@ -970,6 +970,58 @@ defmodule NervesHub.ManagedDeploymentsTest do
       ] =
         ManagedDeployments.matching_deployment_groups(device)
     end
+
+    test "'Allow any' matches devices that have at least one of the tags", state do
+      %{user: user, org: org, product: product, firmware: firmware} = state
+
+      %{id: any_deployment_group_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "any",
+          conditions: %{"tags" => ["unique-a", "unique-b"], "version" => "", "tag_operator" => "or"},
+          user: user
+        })
+
+      # device has only one of the two tags, which is enough for "Allow any"
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["unique-a"]})
+
+      assert [%{id: ^any_deployment_group_id}] =
+               ManagedDeployments.matching_deployment_groups(device)
+    end
+
+    test "'Require all' only matches devices that have every tag", state do
+      %{user: user, org: org, product: product, firmware: firmware} = state
+
+      %{id: all_deployment_group_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "all",
+          conditions: %{"tags" => ["unique-a", "unique-b"], "version" => "", "tag_operator" => "and"},
+          user: user
+        })
+
+      # device only has one of the two required tags
+      partial_device = Fixtures.device_fixture(org, product, firmware, %{tags: ["unique-a"]})
+      assert [] = ManagedDeployments.matching_deployment_groups(partial_device)
+
+      # device has all of the required tags (plus an extra)
+      full_device =
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["unique-a", "unique-b", "extra"]})
+
+      assert [%{id: ^all_deployment_group_id}] =
+               ManagedDeployments.matching_deployment_groups(full_device)
+    end
+
+    test "tag matching defaults to 'Require all'", state do
+      %{user: user, firmware: firmware} = state
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "defaulted",
+          conditions: %{"tags" => ["beta"], "version" => ""},
+          user: user
+        })
+
+      assert deployment_group.conditions.tag_operator == :and
+    end
   end
 
   describe "verify_deployment_group_membership/1" do
@@ -1139,6 +1191,42 @@ defmodule NervesHub.ManagedDeploymentsTest do
         )
 
       assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 1
+    end
+
+    test "'Allow any' counts devices with any of the tags", %{
+      user: user,
+      deployment_group: deployment_group
+    } do
+      # setup devices: one ["foo"], two ["beta", "rpi"]
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            conditions: %{"tags" => ["foo", "beta"], "version" => "", "tag_operator" => "or"}
+          },
+          user
+        )
+
+      # ["foo"] matches via foo, both ["beta", "rpi"] match via beta
+      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 3
+    end
+
+    test "'Require all' only counts devices that have every tag", %{
+      user: user,
+      deployment_group: deployment_group
+    } do
+      # setup devices: one ["foo"], two ["beta", "rpi"]
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            conditions: %{"tags" => ["beta", "rpi"], "version" => "", "tag_operator" => "and"}
+          },
+          user
+        )
+
+      # only the two ["beta", "rpi"] devices have both tags
+      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 2
     end
 
     test "accounts for devices outside of deployment group", %{
@@ -1374,7 +1462,8 @@ defmodule NervesHub.ManagedDeploymentsTest do
             name: "Deployment 123",
             conditions: %{
               "version" => "",
-              "tags" => ["beta", "rpi"]
+              "tags" => ["beta", "rpi"],
+              "tag_operator" => "or"
             }
           },
           product,

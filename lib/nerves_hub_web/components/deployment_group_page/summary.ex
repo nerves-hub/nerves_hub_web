@@ -148,7 +148,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   @impl Phoenix.LiveComponent
   def render(assigns) do
     ~H"""
-    <div class="flex h-full flex-col items-start gap-4 p-6">
+    <div class="flex w-full flex-col items-start gap-4 p-6">
       <div :if={@waiting_for_update_count == 0} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border p-4">
         <div class="text-base-50 flex h-10 items-center justify-center text-xl/6 font-medium">
           {if @updates_disabled_count > 0, do: "All eligible devices are up to date!", else: "All devices are up to date!"}
@@ -444,6 +444,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span :if={Enum.empty?(@deployment_group.conditions.tags || [])} class="text-base-500 text-sm">No tags configured</span>
               <span :if={Enum.any?(@deployment_group.conditions.tags || [])} class="flex gap-1">
                 <span :for={tag <- @deployment_group.conditions.tags} class="bg-base-800 border-base-800 text-base-300 rounded border px-2 py-1 text-sm">{tag}</span>
+              </span>
+            </div>
+            <div :if={Enum.any?(@deployment_group.conditions.tags || [])} class="flex items-center gap-4">
+              <span class="text-base-500 w-36 text-sm">Tag matching:</span>
+              <span class="text-base-300 font-mono text-sm">
+                {if @deployment_group.conditions.tag_operator == :and, do: "Require all", else: "Allow any"}
               </span>
             </div>
             <div class="flex items-center gap-4 pb-2">

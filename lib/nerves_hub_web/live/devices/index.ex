@@ -14,11 +14,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
   alias NervesHub.Tracker
+  alias NervesHubWeb.Components.BulkActionsSidebar
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.ListSettingsSidebar
-  alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
   alias Phoenix.LiveView.AsyncResult
@@ -1020,9 +1020,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # MOVE TO COMPONENTS
   #
 
-  defp target_selected?(%{name: name}, value) when name == value, do: [selected: true]
-  defp target_selected?(_, _), do: []
-
   defp connection_established_at_status(nil), do: "Not seen yet"
 
   defp connection_established_at_status(latest_connection),
@@ -1034,20 +1031,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     latest_connection
     |> Map.get(:established_at)
     |> DateTimeFormat.from_now()
-  end
-
-  defp move_alert(nil), do: ""
-
-  defp move_alert(%{name: product_name}) do
-    """
-    This will move the selected device(s) to the #{product_name} product
-
-    Any existing signing keys the devices may use will attempt to be migrated if they do not exist on the target organization.
-
-    Moving devices may also trigger an update if there are matching deployments on the new product. It is up to the user to ensure any required signing keys are on the device before migrating them to a new product with a new firmware or the device may fail to update.
-
-    Do you wish to continue?
-    """
   end
 
   defp pagination_changes(params) do

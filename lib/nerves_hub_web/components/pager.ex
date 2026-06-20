@@ -52,7 +52,7 @@ defmodule NervesHubWeb.Components.Pager do
           phx-click="set-paginate-opts"
           phx-value-page-size={size}
           {@rest}
-          class={"pager-button #{if size == @pager.page_size, do: "active-page"}"}
+          class={"pager-button cursor-pointer #{if size == @pager.page_size, do: "active-page"}"}
         >
           {size}
         </button>

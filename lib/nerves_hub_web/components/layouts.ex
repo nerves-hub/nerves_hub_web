@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Layouts do
   use NervesHubWeb, :html
 
   alias NervesHubWeb.Components.Navigation
+  alias NervesHubWeb.Components.Pager
   alias Phoenix.LiveView.JS
 
   defp toggle_user_menu(js \\ %JS{}) do
