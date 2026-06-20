@@ -27,7 +27,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
   end
 
   def handle_event("toggle-auto-refresh", _params, %{assigns: %{polling_pid: polling_pid}} = socket) do
-    Process.cancel_timer(polling_pid)
+    _ = Process.cancel_timer(polling_pid)
 
     socket
     |> assign(:polling_pid, nil)
