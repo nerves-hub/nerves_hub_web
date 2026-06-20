@@ -58,19 +58,20 @@
           <span class="text-base-300 mr-1 text-sm">{@deployment_group.device_count || 0}</span>
         </div>
       </.link>
-      <div class="bg-base-800 flex h-7 items-center rounded px-2 py-1">
-        <span class="text-base-400 mr-1 text-sm">Arch:</span>
-
-        <div class="flex items-center">
-          <span class="text-base-300 mr-1 text-sm">{@deployment_group.current_release.firmware.architecture}</span>
-        </div>
-      </div>
 
       <div class="bg-base-800 flex h-7 items-center rounded px-2 py-1">
         <span class="text-base-400 mr-1 text-sm">Platform:</span>
 
         <div class="flex items-center">
-          <span class="text-base-300 mr-1 text-sm">{@deployment_group.current_release.firmware.platform}</span>
+          <span class="text-base-300 mr-1 font-mono text-sm">{@deployment_group.current_release.firmware.platform}</span>
+        </div>
+      </div>
+
+      <div class="bg-base-800 flex h-7 items-center rounded px-2 py-1">
+        <span class="text-base-400 mr-1 text-sm">Arch:</span>
+
+        <div class="flex items-center">
+          <span class="text-base-300 mr-1 font-mono text-sm">{@deployment_group.current_release.firmware.architecture}</span>
         </div>
       </div>
     </div>
