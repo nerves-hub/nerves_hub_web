@@ -31,6 +31,11 @@
   --color-surface-raised: #1c1c1f; /* cards, chips, inputs — between surface-muted and zinc-800 */
   --color-surface-overlay: #18181b; /* menus, popovers, modals */
 
+  --color-strong: #fafafa; /* zinc-50  — headings, key values */
+  --color-body: #d4d4d8; /* zinc-300 — default body text */
+  --color-muted: #a1a1aa; /* zinc-400 — secondary / labels */
+  --color-faint: #71717a; /* zinc-500 — placeholder / disabled */
+
   /* Neutral ramp — low = bright text, high = recessed surface; inverts in light */
   --color-base-50: var(--color-zinc-50);
   --color-base-100: var(--color-zinc-100);
@@ -107,11 +112,6 @@
   --alert-rgb: 239 68 68;
   --veil-rgb: 63 63 70;
 
-  --text-strong: #fafafa; /* zinc-50  — headings, key values */
-  --text-body: #d4d4d8; /* zinc-300 — default body text */
-  --text-muted: #a1a1aa; /* zinc-400 — secondary / labels */
-  --text-faint: #71717a; /* zinc-500 — placeholder / disabled */
-
   --border: #3f3f46; /* zinc-700 — default hairline */
   --border-strong: #52525b; /* zinc-600 — inputs, buttons */
   --border-subtle: #27272a; /* zinc-800 — faint divider */
@@ -168,10 +168,10 @@
   --color-alert-soft: var(--color-red-50);
 
   /* Semantic roles + neutral veil flip on the light canvas */
-  --text-strong: #18181b; /* zinc-900 */
-  --text-body: #3f3f46; /* zinc-700 */
-  --text-muted: #52525b; /* zinc-600 */
-  --text-faint: #71717a; /* zinc-500 (shared) */
+  --color-strong: var(--color-zinc-900); /* zinc-900 */
+  --color-body: var(--color-zinc-700); /* zinc-700 */
+  --color-muted: var(--color-zinc-500); /* zinc-600 */
+  --color-faint: var(--color-zinc-300); /* zinc-500 (shared) */
 
   --border: #e4e4e7; /* zinc-200 */
   --border-strong: #d4d4d8; /* zinc-300 */
@@ -189,7 +189,7 @@
 /* The sidebar collapses to an icon rail when the user toggles it
    (`data-sidebar="collapsed"`) OR whenever the viewport is below `lg`. */
 @custom-variant collapsed {
-  &:where([data-sidebar=collapsed], [data-sidebar=collapsed] *) {
+  &:where([data-sidebar="collapsed"], [data-sidebar="collapsed"] *) {
     @slot;
   }
   @media (width < 64rem) {
