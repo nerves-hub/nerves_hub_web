@@ -43,6 +43,11 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     embeds_one :conditions, __MODULE__.Conditions, primary_key: false, on_replace: :update do
       field(:version, :string, default: "")
       field(:tags, Tag, default: [])
+
+      # Controls how device tags are matched against the conditions tags:
+      #   :and - "Require all", a device matches only if it has all of the tags
+      #   :or  - "Allow any", a device matches if it has any of the tags
+      field(:tag_operator, Ecto.Enum, values: [:and, :or], default: :and)
     end
 
     field(:platform, :string, writable: :insert)
@@ -327,7 +332,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
   def conditions_changeset(conditions, attrs) do
     conditions
-    |> cast(attrs, [:tags, :version], empty_values: [""])
+    |> cast(attrs, [:tags, :version, :tag_operator], empty_values: [""])
     |> then(fn changeset ->
       if Map.has_key?(changeset.changes, :version) && is_nil(changeset.changes.version) do
         put_change(changeset, :version, "")

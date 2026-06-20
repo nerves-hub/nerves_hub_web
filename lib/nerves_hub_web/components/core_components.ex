@@ -515,7 +515,7 @@ defmodule NervesHubWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div phx-feedback-for={@name} class="flex flex-col gap-2">
+    <div phx-feedback-for={@name} class="flex flex-col">
       <.label for={@id} hide={@hide_label}>{@label}</.label>
       <select
         id={@id}
@@ -527,7 +527,7 @@ defmodule NervesHubWeb.CoreComponents do
         <option :if={@prompt} value="">{@prompt}</option>
         {Phoenix.HTML.Form.options_for_select(@options, @value)}
       </select>
-      <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-base-400 text-xs">
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-base-400 mt-2 text-xs">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
       </div>
       <.error :for={msg <- @errors}>{msg}</.error>
