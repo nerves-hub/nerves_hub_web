@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHubWeb.Components.FilterSidebar
+  alias NervesHubWeb.Components.ListSettingsSidebar
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
 
@@ -67,6 +68,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     |> assign(:current_filters, @default_filters)
     |> assign(:currently_filtering, false)
     |> assign(:show_filters, false)
+    |> assign(:show_settings, false)
     |> ok()
   end
 
@@ -125,6 +127,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     socket
     |> push_patch(to: self_path(socket, @default_filters))
     |> noreply()
+  end
+
+  def handle_event("toggle-settings", %{"toggle" => toggle}, socket) do
+    {:noreply, assign(socket, :show_settings, toggle != "true")}
+  end
+
+  def handle_event("update-settings", params, %{assigns: %{current_scope: scope}} = socket) do
+    {:ok, user} = ListSettingsSidebar.update_displayed_columns(scope.user, :deployment_group_list_columns, params)
+    {:noreply, assign(socket, :current_scope, %{scope | user: user})}
   end
 
   # Handles event of user clicking the same field that is already sorted
@@ -220,4 +231,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   defp version(%DeploymentGroup{conditions: %{version: version}}), do: version
 
   defp tags(%DeploymentGroup{conditions: %{tags: tags}}), do: tags
+
+  defp show_column?(user, column) do
+    ListSettingsSidebar.show_column?(user.display_preferences, :deployment_group_list_columns, column)
+  end
 end

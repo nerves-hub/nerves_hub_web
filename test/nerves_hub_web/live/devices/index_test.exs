@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias NervesHubWeb.Components.ListSettingsSidebar
   alias NervesHubWeb.Endpoint
   alias Phoenix.Socket.Broadcast
 
@@ -301,7 +302,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> fill_in("Identifier", with: device.identifier)
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
@@ -317,7 +318,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> fill_in("Identifier", with: "foo")
       |> assert_has("#device-count", text: "0", timeout: 1000)
     end
@@ -328,7 +329,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> fill_in("Identifier", with: "device-")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
@@ -342,7 +343,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> fill_in("Identifier", with: just_the_tail)
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
@@ -354,7 +355,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> fill_in("Identifier", with: "ice-")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
@@ -425,11 +426,11 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
-      |> fill_in("Tags", with: "filter-test-no-show")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
+      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test-no-show")
       |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
-      |> fill_in("Tags", with: "filter-test")
+      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
     end
@@ -451,7 +452,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> select("Metrics", option: "cpu_temp")
       |> assert_has("label", text: "Operator", timeout: 1000)
       |> select("Metrics Operator", option: "Greater Than")
@@ -483,14 +484,14 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
-      |> fill_in("Tags", with: "filter-test-no-show")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
+      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test-no-show")
       |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
-      |> fill_in("Tags", with: "filter-test")
+      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
-      |> fill_in("Tags", with: "filter-test, test-filter")
+      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test, test-filter")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
     end
@@ -504,8 +505,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
-      |> fill_in("Tags", with: "does_not_matter")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
+      |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "does_not_matter")
       |> assert_has("#device-count", text: "0", timeout: 1000)
       |> refute_has("div a", text: device2.identifier)
     end
@@ -522,7 +523,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
       |> assert_has("div a", text: device3.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> select("Untagged", option: "Only untagged")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
@@ -542,7 +543,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> select("Alarm Status", option: "Has Alarms")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
@@ -562,7 +563,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> select("Alarm Status", option: "No Alarms")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
@@ -583,7 +584,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> select("Alarm", option: alarm)
       |> assert_path(device_index_path(fixture), query_params: %{alarm: alarm})
       |> assert_has("#device-count", text: "1", timeout: 1000)
@@ -610,7 +611,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> select("Deployment Group", option: deployment_group.name)
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
@@ -623,7 +624,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("button", text: "Filters", timeout: 1000)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> select("Deployment Group", option: "All")
       |> assert_has("#device-count", text: "1", timeout: 1000)
     end
@@ -759,12 +760,86 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
       |> assert_has("div a", text: device3.identifier)
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> select("Deployment Group", option: deployment_group.name)
       |> assert_has("#device-count", text: "2", timeout: 1_000)
       |> select("Platform", option: "platform")
       |> assert_has("#device-count", text: "2", timeout: 1_000)
       |> assert_has("#input_deployment_id:has(> option[selected])")
+    end
+  end
+
+  describe "customize columns listed" do
+    test "all columns are shown, as the default", %{conn: conn, fixture: fixture} do
+      %{user: user} = fixture
+
+      assert is_nil(user.display_preferences)
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> assert_has("th", text: "Health")
+      |> assert_has("th", text: "Firmware")
+      |> assert_has("th", text: "Platform")
+      |> assert_has("th", text: "Connected for")
+      |> assert_has("th", text: "Deployment Group")
+      |> assert_has("th", text: "Tags")
+    end
+
+    for {column, label} <- [
+          {:health, "Health"},
+          {:firmware, "Firmware"},
+          {:platform, "Platform"},
+          {:connected_info, "Connected for"},
+          {:deployment_group, "Deployment Group"},
+          {:tags, "Tags"}
+        ] do
+      @column column
+      @label label
+      @friendly_column_name to_string(@column) |> String.split("_") |> Enum.map_join(" ", &String.capitalize/1)
+
+      test "#{column} column can be removed", %{conn: conn, fixture: fixture} do
+        %{user: user} = fixture
+
+        assert is_nil(user.display_preferences)
+
+        conn
+        |> visit(device_index_path(fixture))
+        |> assert_has("#device-count", text: "1", timeout: 1000)
+        |> assert_has("th", text: @label)
+        |> click_button("#device-container button[phx-click=toggle-settings]", "")
+        |> uncheck(@friendly_column_name)
+        |> refute_has("th", text: @label, timeout: 1_000)
+      end
+
+      test "#{column} column can be added", %{conn: conn, fixture: %{user: user} = fixture} do
+        assert is_nil(user.display_preferences)
+
+        default_column_payload = %{
+          "_target" => [to_string(@column)],
+          "connected_info" => "true",
+          "deployment_group" => "true",
+          "firmware" => "true",
+          "health" => "true",
+          "platform" => "true",
+          "tags" => "true"
+        }
+
+        {:ok, _user} =
+          ListSettingsSidebar.update_displayed_columns(
+            user,
+            :device_list_columns,
+            Map.put(default_column_payload, to_string(@column), "false")
+          )
+
+        conn
+        |> visit(device_index_path(fixture))
+        |> assert_has("#device-count", text: "1", timeout: 1000)
+        |> refute_has("th", text: @label)
+        |> click_button("#device-container button[phx-click=toggle-settings]", "")
+        |> check(@friendly_column_name)
+        |> assert_has("th", text: @label, timeout: 1_000)
+      end
     end
   end
 
@@ -1463,7 +1538,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1_000)
       # Filter by platform to reveal the firmware push option
-      |> click_button("button[phx-click=toggle-filters]", "Filters")
+      |> click_button("#device-container button[phx-click=toggle-filters]", "")
       |> select("Platform", option: "platform")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       # Select the device
