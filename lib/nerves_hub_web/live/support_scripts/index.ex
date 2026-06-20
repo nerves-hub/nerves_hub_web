@@ -25,6 +25,14 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   @default_sorting %{sort_direction: "asc", sort: "name"}
   @sort_types %{sort_direction: :string, sort: :string}
 
+  @default_filters %{
+    search: ""
+  }
+
+  @filter_types %{
+    search: :string
+  }
+
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     socket
@@ -32,6 +40,8 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:sort_direction, @default_sorting.sort_direction)
     |> assign(:current_sort, @default_sorting.sort)
+    |> assign(:current_filters, @default_filters)
+    |> assign(:currently_filtering, false)
     |> sidebar_tab(:support_scripts)
     |> ok()
   end
@@ -40,12 +50,15 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   def handle_params(params, _uri, socket) do
     pagination_changes = pagination_changes(params)
     pagination_opts = Map.merge(@default_pagination, pagination_changes)
+    filters = Map.merge(@default_filters, filter_changes(params))
 
     socket
     |> assign(:params, params)
     |> assign(:paginate_opts, pagination_opts)
     |> assign(:current_sort, Map.get(params, "sort", @default_sorting.sort))
     |> assign(:sort_direction, Map.get(params, "sort_direction", @default_sorting.sort_direction))
+    |> assign(:current_filters, filters)
+    |> assign(:currently_filtering, filters != @default_filters)
     |> assign_scripts_with_pagination()
     |> noreply()
   end
@@ -65,6 +78,15 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
 
     socket
     |> push_patch(to: self_path(socket, params))
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
+    page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
+
+    socket
+    |> push_patch(to: self_path(socket, Map.merge(params, page_params)))
     |> noreply()
   end
 
@@ -116,13 +138,15 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
         current_scope: scope,
         paginate_opts: paginate_opts,
         sort_direction: sort_direction,
-        current_sort: current_sort
+        current_sort: current_sort,
+        current_filters: current_filters
       }
     } = socket
 
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
-      sort: {String.to_existing_atom(sort_direction), String.to_existing_atom(current_sort)}
+      sort: {String.to_existing_atom(sort_direction), String.to_existing_atom(current_sort)},
+      filters: current_filters
     }
 
     {entries, pager_meta} = Scripts.filter(scope, opts)
@@ -136,9 +160,12 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
     params = Enum.into(stringify_keys(new_params), socket.assigns.params)
     pagination = pagination_changes(params)
     sort = sort_changes(params)
+    filter = filter_changes(params)
 
     query =
-      Map.merge(pagination, sort)
+      filter
+      |> Map.merge(pagination)
+      |> Map.merge(sort)
 
     ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.current_scope.product}/scripts?#{query}"
   end
@@ -153,6 +180,10 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
 
   defp sort_changes(params) do
     Ecto.Changeset.cast({@default_sorting, @sort_types}, params, Map.keys(@default_sorting)).changes
+  end
+
+  defp filter_changes(params) do
+    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters), empty_values: []).changes
   end
 
   defp stringify_keys(params) do

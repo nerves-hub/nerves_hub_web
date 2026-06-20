@@ -446,6 +446,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 <span :for={tag <- @deployment_group.conditions.tags} class="bg-base-800 border-base-800 text-base-300 rounded border px-2 py-1 text-sm">{tag}</span>
               </span>
             </div>
+            <div :if={Enum.any?(@deployment_group.conditions.tags || [])} class="flex items-center gap-4">
+              <span class="text-base-500 w-36 text-sm">Tag matching:</span>
+              <span class="text-base-300 font-mono text-sm">
+                {if @deployment_group.conditions.tag_operator == :and, do: "Require all", else: "Allow any"}
+              </span>
+            </div>
             <div class="flex items-center gap-4 pb-2">
               <span class="text-base-500 w-36 text-sm">Version requirement:</span>
               <code class="text-base-300 text-sm">{@deployment_group.conditions.version}</code>

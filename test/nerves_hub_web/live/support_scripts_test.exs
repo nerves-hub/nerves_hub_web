@@ -34,6 +34,77 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
     end
   end
 
+  describe "filtering" do
+    test "search filters scripts by name", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, _} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+      {:ok, _} = Scripts.create(product, user, %{name: "Reboot", text: "Nerves.Runtime.reboot()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts")
+      |> assert_has("td", text: "MOTD")
+      |> assert_has("td", text: "Reboot")
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"search" => "MOTD"})
+      end)
+      |> assert_has("td", text: "MOTD")
+      |> refute_has("td", text: "Reboot")
+    end
+
+    test "search filters scripts by tags", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, _} =
+        Scripts.create(product, user, %{
+          name: "MOTD",
+          text: "NervesMOTD.print()",
+          tags: ["info"]
+        })
+
+      {:ok, _} =
+        Scripts.create(product, user, %{
+          name: "Reboot",
+          text: "Nerves.Runtime.reboot()",
+          tags: ["danger"]
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts")
+      |> assert_has("td", text: "MOTD")
+      |> assert_has("td", text: "Reboot")
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"search" => "danger"})
+      end)
+      |> assert_has("td", text: "Reboot")
+      |> refute_has("td", text: "MOTD")
+    end
+
+    test "shows a message when no scripts match the search", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, _} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts")
+      |> assert_has("td", text: "MOTD")
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"search" => "nope"})
+      end)
+      |> refute_has("td", text: "MOTD")
+      |> assert_has("span", text: "No Support Scripts match the current filters")
+    end
+  end
+
   describe "pagination" do
     test "no pagination when less than 25 support scripts", %{
       conn: conn,
