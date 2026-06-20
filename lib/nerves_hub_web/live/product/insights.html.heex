@@ -107,30 +107,38 @@
             <div :if={@unknown_count > 0} class="bg-base-600" style={"width: #{@unknown_count / @total_health_count * 100}%;"}></div>
           </div>
           <div class="divide-b-subtle flex flex-col divide-y">
-            <div class="flex items-center gap-3 py-3">
-              <span title="healthy"><.icon name="healthy" /></span>
-              <span class="text-content-body flex-1 text-sm">Healthy</span>
-              <span class="text-content-strong text-right font-mono text-sm">{@healthy_count}</span>
-              <span class="text-content-muted w-12 text-right font-mono text-sm">{percentage(@healthy_count, @total_health_count)}%</span>
-            </div>
-            <div class="flex items-center gap-3 py-3">
-              <span title="warning"><.icon name="warning" /></span>
-              <span class="text-content-body flex-1 text-sm">Warning</span>
-              <span class="text-content-strong text-right font-mono text-sm">{@warning_count}</span>
-              <span class="text-content-muted w-12 text-right font-mono text-sm">{percentage(@warning_count, @total_health_count)}%</span>
-            </div>
-            <div class="flex items-center gap-3 py-3">
-              <span title="unhealthy"><.icon name="unhealthy" /></span>
-              <span class="text-content-body flex-1 text-sm">Unhealthy</span>
-              <span class="text-content-strong text-right font-mono text-sm">{@unhealthy_count}</span>
-              <span class="text-content-muted w-12 text-right font-mono text-sm">{percentage(@unhealthy_count, @total_health_count)}%</span>
-            </div>
-            <div class="flex items-center gap-3 py-3">
-              <span title="unknown"><.icon name="unknown" /></span>
-              <span class="text-content-body flex-1 text-sm">Unknown</span>
-              <span class="text-content-strong text-right font-mono text-sm">{@unknown_count}</span>
-              <span class="text-content-muted w-12 text-right font-mono text-sm">{percentage(@unknown_count, @total_health_count)}%</span>
-            </div>
+            <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?health_status=healthy"}>
+              <div class="group flex items-center gap-3 py-3">
+                <span title="healthy"><.icon name="healthy" /></span>
+                <span class="text-content-body flex-1 text-sm group-hover:underline">Healthy</span>
+                <span class="text-content-strong text-right font-mono text-sm">{@healthy_count}</span>
+                <span class="text-content-muted w-12 text-right font-mono text-sm">{percentage(@healthy_count, @total_health_count)}%</span>
+              </div>
+            </.link>
+            <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?health_status=warning"}>
+              <div class="group flex items-center gap-3 py-3">
+                <span title="warning"><.icon name="warning" /></span>
+                <span class="text-content-body flex-1 text-sm group-hover:underline">Warning</span>
+                <span class="text-content-strong text-right font-mono text-sm">{@warning_count}</span>
+                <span class="text-content-muted w-12 text-right font-mono text-sm">{percentage(@warning_count, @total_health_count)}%</span>
+              </div>
+            </.link>
+            <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?health_status=unhealthy"}>
+              <div class="group flex items-center gap-3 py-3">
+                <span title="unhealthy"><.icon name="unhealthy" /></span>
+                <span class="text-content-body flex-1 text-sm group-hover:underline">Unhealthy</span>
+                <span class="text-content-strong text-right font-mono text-sm">{@unhealthy_count}</span>
+                <span class="text-content-muted w-12 text-right font-mono text-sm">{percentage(@unhealthy_count, @total_health_count)}%</span>
+              </div>
+            </.link>
+            <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?health_status=unknown"}>
+              <div class="group flex items-center gap-3 py-3">
+                <span title="unknown"><.icon name="unknown" /></span>
+                <span class="text-content-body flex-1 text-sm group-hover:underline">Unknown</span>
+                <span class="text-content-strong text-right font-mono text-sm">{@unknown_count}</span>
+                <span class="text-content-muted w-12 text-right font-mono text-sm">{percentage(@unknown_count, @total_health_count)}%</span>
+              </div>
+            </.link>
           </div>
         </div>
 
