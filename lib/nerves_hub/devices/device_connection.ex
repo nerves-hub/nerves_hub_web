@@ -31,8 +31,7 @@ defmodule NervesHub.Devices.DeviceConnection do
     field(:lib, :string)
     field(:lib_version, :string)
 
-    field(:interface, :string)
-    field(:available_interfaces, :string)
+    field(:network_interface, Ecto.Enum, values: [:wifi, :ethernet, :cellular, :unknown])
   end
 
   def connecting_changeset(org_id, product_id, device_id) do
@@ -46,5 +45,19 @@ defmodule NervesHub.Devices.DeviceConnection do
     |> put_change(:established_at, now)
     |> put_change(:last_seen_at, now)
     |> put_change(:status, :connecting)
+  end
+
+  @spec humanized_network_interface_name(any()) :: :wifi | :ethernet | :cellular | :unknown
+  def humanized_network_interface_name(interface) when is_binary(interface) do
+    cond do
+      String.starts_with?(interface, "wlan") -> :wifi
+      String.starts_with?(interface, "eth") or String.starts_with?(interface, "en") -> :ethernet
+      String.starts_with?(interface, "wwan") -> :cellular
+      true -> :unknown
+    end
+  end
+
+  def humanized_network_interface_name(_interface) do
+    :unknown
   end
 end

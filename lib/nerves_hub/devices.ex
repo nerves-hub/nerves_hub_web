@@ -811,13 +811,6 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec update_network_interface(pos_integer(), binary()) :: {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
-  def update_network_interface(device_id, network_interface) do
-    %Device{id: device_id}
-    |> Device.update_network_interface_changeset(network_interface)
-    |> Repo.update()
-  end
-
   @doc """
   Fetch devices associated with a deployment for updating.
 
@@ -921,7 +914,7 @@ defmodule NervesHub.Devices do
   end
 
   defp maybe_filter_by_network_interfaces(query, interfaces) do
-    where(query, [d], d.network_interface in ^interfaces)
+    where(query, [latest_connection: lc], lc.network_interface in ^interfaces)
   end
 
   defp maybe_version_threshold(query, nil), do: query

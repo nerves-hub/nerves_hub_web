@@ -24,7 +24,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
     field(:lib, Ch, type: "LowCardinality(String)")
     field(:lib_version, Ch, type: "LowCardinality(String)")
 
-    field(:interface, Ch, type: "LowCardinality(String)")
+    field(:network_interface, Ch, type: "LowCardinality(String)")
 
     field(:version, Ch, type: "UInt64")
   end
@@ -42,7 +42,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
     |> put_change(:disconnected_reason, connection.disconnected_reason)
     |> put_change(:lib, connection.lib)
     |> put_change(:lib_version, connection.lib_version)
-    |> put_change(:interface, connection.interface)
+    |> put_change(:network_interface, to_string(connection.network_interface))
     |> put_change(:version, DateTime.to_unix(connection.last_seen_at))
   end
 end

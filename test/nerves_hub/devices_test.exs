@@ -1488,23 +1488,21 @@ defmodule NervesHub.DevicesTest do
       device_cellular = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
       device_unknown = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
-      # Set network interfaces and prepare for updates
-      {:ok, device_wifi} = Devices.update_network_interface(device_wifi.id, "wlan0")
-      device_wifi = Repo.reload(device_wifi)
-      {:ok, device_ethernet} = Devices.update_network_interface(device_ethernet.id, "eth0")
-      device_ethernet = Repo.reload(device_ethernet)
-      {:ok, device_cellular} = Devices.update_network_interface(device_cellular.id, "wwan0")
-      device_cellular = Repo.reload(device_cellular)
-      {:ok, device_unknown} = Devices.update_network_interface(device_unknown.id, "hmmmmmmm")
-      device_unknown = Repo.reload(device_unknown)
+      # Set up connections, interfaces, and different firmware versions for all devices
+      for {device, interface} <- [
+            {device_wifi, "wlan0"},
+            {device_ethernet, "eth0"},
+            {device_cellular, "wwan0"},
+            {device_unknown, "hmmmmmmm"}
+          ] do
+        humanized = DeviceConnection.humanized_network_interface_name(interface)
 
-      # Set up connections and different firmware versions for all devices
-      for device <- [device_wifi, device_ethernet, device_cellular, device_unknown] do
         Ecto.Changeset.change(%DeviceConnection{}, %{
           device_id: device.id,
           established_at: DateTime.utc_now(),
           last_seen_at: DateTime.utc_now(),
-          status: :connected
+          status: :connected,
+          network_interface: humanized
         })
         |> Repo.insert!()
 
@@ -1545,19 +1543,16 @@ defmodule NervesHub.DevicesTest do
       device_wifi = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
       device_cellular = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
-      {:ok, device_wifi} = Devices.update_network_interface(device_wifi.id, "wlan0")
-      device_wifi = Repo.reload(device_wifi)
-
-      {:ok, device_cellular} = Devices.update_network_interface(device_cellular.id, "wwan0")
-      device_cellular = Repo.reload(device_cellular)
-
       # Set up connections and different firmware versions
-      for device <- [device_wifi, device_cellular] do
+      for {device, interface} <- [{device_wifi, "wlan0"}, {device_cellular, "wwan0"}] do
+        humanized = DeviceConnection.humanized_network_interface_name(interface)
+
         Ecto.Changeset.change(%DeviceConnection{}, %{
           device_id: device.id,
           established_at: DateTime.utc_now(),
           last_seen_at: DateTime.utc_now(),
-          status: :connected
+          status: :connected,
+          network_interface: humanized
         })
         |> Repo.insert!()
 
@@ -1715,28 +1710,25 @@ defmodule NervesHub.DevicesTest do
       device_ethernet_prod = Fixtures.device_fixture(org, product, deployment_group.current_release.firmware)
 
       {:ok, device_wifi_prod} = Devices.update_device(device_wifi_prod, %{tags: ["production"]})
-      {:ok, device_wifi_prod} = Devices.update_network_interface(device_wifi_prod.id, "wlan0")
-      device_wifi_prod = Repo.reload(device_wifi_prod)
-
       {:ok, device_wifi_dev} = Devices.update_device(device_wifi_dev, %{tags: ["development"]})
-      {:ok, device_wifi_dev} = Devices.update_network_interface(device_wifi_dev.id, "wlan0")
-      device_wifi_dev = Repo.reload(device_wifi_dev)
-
       {:ok, device_cellular_prod} = Devices.update_device(device_cellular_prod, %{tags: ["production"]})
-      {:ok, device_cellular_prod} = Devices.update_network_interface(device_cellular_prod.id, "wwan0")
-      device_cellular_prod = Repo.reload(device_cellular_prod)
-
       {:ok, device_ethernet_prod} = Devices.update_device(device_ethernet_prod, %{tags: ["production"]})
-      {:ok, device_ethernet_prod} = Devices.update_network_interface(device_ethernet_prod.id, "eth0")
-      device_ethernet_prod = Repo.reload(device_ethernet_prod)
 
       # Set up connections and different firmware versions for all devices
-      for device <- [device_wifi_prod, device_wifi_dev, device_cellular_prod, device_ethernet_prod] do
+      for {device, interface} <- [
+            {device_wifi_prod, "wlan0"},
+            {device_wifi_dev, "wlan0"},
+            {device_cellular_prod, "wwan0"},
+            {device_ethernet_prod, "eth0"}
+          ] do
+        humanized = DeviceConnection.humanized_network_interface_name(interface)
+
         Ecto.Changeset.change(%DeviceConnection{}, %{
           device_id: device.id,
           established_at: DateTime.utc_now(),
           last_seen_at: DateTime.utc_now(),
-          status: :connected
+          status: :connected,
+          network_interface: humanized
         })
         |> Repo.insert!()
 
@@ -2504,34 +2496,6 @@ defmodule NervesHub.DevicesTest do
       {:ok, url} = Firmwares.get_firmware_url(firmware)
 
       assert String.ends_with?(url, "#{target_firmware.uuid}.fw")
-    end
-  end
-
-  describe "update_network_interface/2" do
-    test "updates device.network_interface", %{device: device} do
-      refute device.network_interface
-
-      {:ok, device} = Devices.update_network_interface(device.id, "eth0")
-      assert device.network_interface == :ethernet
-
-      {:ok, device} = Devices.update_network_interface(device.id, "en0")
-      assert device.network_interface == :ethernet
-
-      {:ok, device} = Devices.update_network_interface(device.id, "wlan0")
-      assert device.network_interface == :wifi
-
-      {:ok, device} = Devices.update_network_interface(device.id, "wwan0")
-      assert device.network_interface == :cellular
-    end
-
-    test "sets to 'unknown' for invalid values", %{device: device} do
-      {:ok, device} = Devices.update_network_interface(device.id, "foobarbaz")
-      assert device.network_interface == :unknown
-    end
-
-    test "cannot be explicitly set to nil", %{device: device} do
-      {:error, changeset} = Devices.update_network_interface(device.id, nil)
-      {"cannot be set to nil", []} = changeset.errors[:network_interface]
     end
   end
 
