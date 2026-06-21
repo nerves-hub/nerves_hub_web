@@ -128,4 +128,63 @@ defmodule NervesHub.ProductsTest do
       end)
     end
   end
+
+  describe "custom health metric labels" do
+    setup do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+
+      %{user: user, org: org, product: product}
+    end
+
+    test "returns an empty map when no labels are set", %{product: product} do
+      assert Products.custom_health_metrics_labels(product) == %{}
+    end
+
+    test "setting a label inserts and is returned as a map", %{product: product} do
+      assert {:ok, label} = Products.set_custom_health_metrics_label(product, "cpu_temp", "CPU Heat")
+
+      assert label.key == "cpu_temp"
+      assert label.label == "CPU Heat"
+      assert Products.custom_health_metrics_labels(product) == %{"cpu_temp" => "CPU Heat"}
+    end
+
+    test "setting a label trims surrounding whitespace", %{product: product} do
+      assert {:ok, label} =
+               Products.set_custom_health_metrics_label(product, "cpu_temp", "  CPU Heat  ")
+
+      assert label.label == "CPU Heat"
+    end
+
+    test "setting a label again updates the existing label", %{product: product} do
+      {:ok, _} = Products.set_custom_health_metrics_label(product, "cpu_temp", "CPU Heat")
+      {:ok, _} = Products.set_custom_health_metrics_label(product, "cpu_temp", "Processor Temp")
+
+      assert Products.custom_health_metrics_labels(product) == %{"cpu_temp" => "Processor Temp"}
+    end
+
+    test "setting a blank label removes the custom label", %{product: product} do
+      {:ok, _} = Products.set_custom_health_metrics_label(product, "cpu_temp", "CPU Heat")
+
+      assert {:ok, nil} = Products.set_custom_health_metrics_label(product, "cpu_temp", "   ")
+      assert Products.custom_health_metrics_labels(product) == %{}
+    end
+
+    test "deleting a label removes it", %{product: product} do
+      {:ok, _} = Products.set_custom_health_metrics_label(product, "cpu_temp", "CPU Heat")
+
+      assert :ok = Products.delete_custom_health_metrics_label(product, "cpu_temp")
+      assert Products.custom_health_metrics_labels(product) == %{}
+    end
+
+    test "labels are scoped to a single product", %{user: user, org: org, product: product} do
+      other_product = Fixtures.product_fixture(user, org, %{name: "Other"})
+
+      {:ok, _} = Products.set_custom_health_metrics_label(product, "cpu_temp", "CPU Heat")
+
+      assert Products.custom_health_metrics_labels(product) == %{"cpu_temp" => "CPU Heat"}
+      assert Products.custom_health_metrics_labels(other_product) == %{}
+    end
+  end
 end
