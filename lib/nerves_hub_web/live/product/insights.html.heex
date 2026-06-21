@@ -104,11 +104,24 @@
       </div>
     </div>
 
-    <%!-- <div class="bg-surface-raised border-base-700 shadow-device-details-content flex h-[132px] flex-col rounded border">
-      <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
-        Devices Seen — Last 14 Days
+    <div :if={@device_connections_graph_enabled} class="bg-surface-raised border-base-700 shadow-device-details-content flex h-[250px] flex-col gap-5 rounded border p-5">
+      <div class="text-base-50 flex items-center leading-6 font-medium">
+        Connected Devices — Last 14 Days
       </div>
-    </div> --%>
+
+      <div class="h-[230]">
+        <canvas
+          id="daily-device-counts-chart"
+          phx-hook="BarChart"
+          phx-update="ignore"
+          data-metrics={Jason.encode!(@device_connections_graph_data)}
+          data-title=""
+          data-mindate={Jason.encode!(@device_connections_graph_from)}
+          data-maxdate={Jason.encode!(@device_connections_graph_to)}
+          data-unit="day"
+        ></canvas>
+      </div>
+    </div>
 
     <div class="grid grid-cols-2 gap-4">
       <div class="flex flex-col gap-4">

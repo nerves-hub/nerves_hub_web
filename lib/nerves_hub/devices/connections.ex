@@ -5,6 +5,7 @@ defmodule NervesHub.Devices.Connections do
   import Ecto.Query
 
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Repo
   alias NervesHub.Tracker
 
@@ -21,9 +22,9 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Creates a device connection, reported from device socket
   """
-  @spec device_connecting(pos_integer()) ::
+  @spec device_connecting(pos_integer(), pos_integer(), pos_integer()) ::
           {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
-  def device_connecting(device_id) do
+  def device_connecting(org_id, product_id, device_id) do
     conflict_query =
       DeviceConnection
       |> update([ldc],
@@ -38,10 +39,12 @@ defmodule NervesHub.Devices.Connections do
         ]
       )
 
-    DeviceConnection.connecting_changeset(device_id)
+    DeviceConnection.connecting_changeset(org_id, product_id, device_id)
     |> Repo.insert(on_conflict: conflict_query, conflict_target: [:device_id])
     |> case do
       {:ok, device_connection} ->
+        async_device_connection_history_insert(device_connection)
+
         Tracker.connecting(device_id)
 
         {:ok, device_connection}
@@ -59,7 +62,7 @@ defmodule NervesHub.Devices.Connections do
     DeviceConnection
     |> where(id: ^connection_id)
     |> where([dc], not (dc.status == :disconnected))
-    |> select([dc], %{device_id: dc.device_id})
+    |> select([dc], dc)
     |> Repo.update_all(
       set: [
         last_seen_at: DateTime.utc_now(),
@@ -67,8 +70,11 @@ defmodule NervesHub.Devices.Connections do
       ]
     )
     |> case do
-      {1, [%{device_id: device_id}]} ->
+      {1, [%{device_id: device_id} = device_connection]} ->
+        async_device_connection_history_insert(device_connection)
+
         Tracker.online(device_id)
+
         :ok
 
       _ ->
@@ -84,7 +90,7 @@ defmodule NervesHub.Devices.Connections do
     DeviceConnection
     |> where([dc], dc.id == ^id)
     |> where([dc], not (dc.status == :disconnected))
-    |> select([dc], %{device_id: dc.device_id})
+    |> select([dc], dc)
     |> Repo.update_all(
       set: [
         status: :connected,
@@ -92,8 +98,11 @@ defmodule NervesHub.Devices.Connections do
       ]
     )
     |> case do
-      {1, [%{device_id: device_id}]} ->
+      {1, [%{device_id: device_id} = device_connection]} ->
+        async_device_connection_history_insert(device_connection)
+
         Tracker.heartbeat(device_id)
+
         :ok
 
       _ ->
@@ -111,7 +120,7 @@ defmodule NervesHub.Devices.Connections do
 
     DeviceConnection
     |> where(id: ^ref_id)
-    |> select([dc], %{device_id: dc.device_id})
+    |> select([dc], dc)
     |> Repo.update_all(
       set: [
         last_seen_at: now,
@@ -121,13 +130,42 @@ defmodule NervesHub.Devices.Connections do
       ]
     )
     |> case do
-      {1, [%{device_id: device_id}]} ->
+      {1, [%{device_id: device_id} = device_connection]} ->
+        async_device_connection_history_insert(device_connection)
+
         Tracker.offline(device_id)
+
         :ok
 
       res ->
         {:error, res}
     end
+  end
+
+  defp async_device_connection_history_insert(device_connections) when is_list(device_connections) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      Enum.each(device_connections, fn device_connection ->
+        async_device_connection_history_insert(device_connection)
+      end)
+    end
+
+    :ok
+  end
+
+  defp async_device_connection_history_insert(device_connection) do
+    _ =
+      if Application.get_env(:nerves_hub, :analytics_enabled) do
+        Task.Supervisor.start_child(
+          {:via, PartitionSupervisor, {NervesHub.AnalyticsEventsProcessing, self()}},
+          fn ->
+            {:ok, _} =
+              DeviceConnectionHistory.changeset(device_connection)
+              |> NervesHub.AnalyticsRepo.insert()
+          end
+        )
+      end
+
+    :ok
   end
 
   @doc """
@@ -143,6 +181,41 @@ defmodule NervesHub.Devices.Connections do
       {1, _} -> :ok
       result -> {:error, result}
     end
+  end
+
+  def device_connections_by_date(org_id, product_id, from) do
+    window_start = Date.add(from, -1)
+    window_end = Date.utc_today()
+
+    inner =
+      from c in "device_connection_history",
+        where: c.org_id == ^org_id,
+        where: c.product_id == ^product_id,
+        where: c.established_at < fragment("? + 1", type(^window_end, :date)),
+        where: is_nil(c.disconnected_at) or c.disconnected_at >= type(^window_start, :date),
+        select: %{
+          device_id: c.device_id,
+          day:
+            fragment(
+              "toDate(arrayJoin(range(toUInt32(greatest(toDate(?), ?)), toUInt32(least(coalesce(toDate(?), ?), ?)) + 1)))",
+              c.established_at,
+              type(^window_start, :date),
+              c.disconnected_at,
+              type(^window_end, :date),
+              type(^window_end, :date)
+            )
+        }
+
+    query =
+      from s in subquery(inner),
+        group_by: s.day,
+        order_by: s.day,
+        select: %{
+          day: s.day,
+          count: fragment("uniqExact(?)", s.device_id)
+        }
+
+    NervesHub.AnalyticsRepo.all(query)
   end
 
   def clean_stale_connections() do
@@ -164,7 +237,8 @@ defmodule NervesHub.Devices.Connections do
 
     {update_count, _} =
       DeviceConnection
-      |> where([d], d.id in subquery(query))
+      |> where([dc], dc.id in subquery(query))
+      |> select([dc], dc)
       |> Repo.update_all(
         [
           set: [
@@ -175,6 +249,12 @@ defmodule NervesHub.Devices.Connections do
         ],
         timeout: 60_000
       )
+      |> case do
+        {_count, device_connections} = results ->
+          async_device_connection_history_insert(device_connections)
+
+          results
+      end
 
     if update_count > 0 do
       :telemetry.execute([:nerves_hub, :devices, :stale_connections], %{count: update_count})

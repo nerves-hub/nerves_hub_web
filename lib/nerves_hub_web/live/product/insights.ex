@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
   use NervesHubWeb, :live_view
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
 
@@ -12,6 +13,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
     socket
     |> assign(:product, product)
     |> update_information()
+    |> maybe_assign_device_connections_graph()
     |> fleet_health_information()
     |> assign_notifications()
     |> assign(:page_title, "#{scope.product.name} Insights")
@@ -52,6 +54,22 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> assign(:not_seen_in_7_days, Devices.not_seen_in_x_days_count(scope.product, 7))
     |> assign(:not_seen_in_14_days, Devices.not_seen_in_x_days_count(scope.product, 14))
     |> assign(:fleet_size, Devices.total_count(scope.product))
+  end
+
+  defp maybe_assign_device_connections_graph(%{assigns: %{current_scope: scope}} = socket) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      from = Date.utc_today() |> Date.add(-14)
+
+      data = Connections.device_connections_by_date(scope.org.id, scope.product.id, from)
+
+      socket
+      |> assign(:device_connections_graph_from, from)
+      |> assign(:device_connections_graph_to, Date.utc_today())
+      |> assign(:device_connections_graph_enabled, true)
+      |> assign(:device_connections_graph_data, data)
+    else
+      assign(socket, :device_connections_graph_enabled, false)
+    end
   end
 
   defp fleet_health_information(%{assigns: %{current_scope: scope}} = socket) do
