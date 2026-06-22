@@ -4,70 +4,72 @@
     <div class="mr-auto"></div>
   </:header>
 
-  <div class="flex flex-col items-start justify-between gap-4 p-6">
-    <.form :let={f} id="new-product-form" for={@form} phx-submit="create_product" class="flex w-full flex-col gap-4">
-      <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
-        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-          <div class="text-base-50 text-base font-medium">General settings</div>
-        </div>
-        <div class="flex gap-6 p-6">
-          <div class="flex w-1/2 flex-col gap-6">
-            <.input field={f[:name]} label="Name" hint="Once created, a product name cannot be changed" />
+  <div class="h-0 flex-1 overflow-y-auto">
+    <div class="flex flex-col items-start justify-between gap-4 p-6">
+      <.form :let={f} id="new-product-form" for={@form} phx-submit="create_product" class="flex w-full flex-col gap-4">
+        <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
+          <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+            <div class="text-base-50 text-base font-medium">General settings</div>
           </div>
-        </div>
-      </div>
-
-      <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
-        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-          <div class="text-base-50 text-base font-medium">Device Extensions</div>
-        </div>
-
-        <div class="flex flex-col gap-3 p-6">
-          <div class="flex flex-col gap-3">
-            <p class="w-2/3 text-sm">
-              Isolated channels for various device behaviours and extension messaging not crucial to firmware updates but are useful for managing, monitoring, and introspecting on wide fleets of devices.
-            </p>
-            <p class="w-2/3 text-sm">
-              When enabled, NervesHub will request the extensions a device currently supports and then check against product and device settings to see if the extension should be attached to the connection.
-            </p>
-            <p class="w-2/3 text-sm">
-              Extensions most be allowed at the product level. They can also be configured at the device level for more granular control when needed.
-            </p>
-          </div>
-
-          <div :for={{key, description} <- @available_extensions} class="flex h-16 items-center gap-6 p-2">
-            <div class="bg-base-800 border-base-700 flex h-8 items-center rounded-full border px-2 py-1">
-              <input
-                id={"extension-#{key}"}
-                name={"product[extensions][#{key}]"}
-                type="checkbox"
-                class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
-                checked
-                value="true"
-              />
+          <div class="flex gap-6 p-6">
+            <div class="flex w-1/2 flex-col gap-6">
+              <.input field={f[:name]} label="Name" hint="Once created, a product name cannot be changed" />
             </div>
-            <div class="flex flex-col">
-              <div class="flex gap-2">
-                <div class="text-base-300 w-14 font-medium">
-                  {String.capitalize(to_string(key))}
+          </div>
+        </div>
+
+        <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
+          <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+            <div class="text-base-50 text-base font-medium">Device Extensions</div>
+          </div>
+
+          <div class="flex flex-col gap-3 p-6">
+            <div class="flex flex-col gap-3">
+              <p class="w-2/3 text-sm">
+                Isolated channels for various device behaviours and extension messaging not crucial to firmware updates but are useful for managing, monitoring, and introspecting on wide fleets of devices.
+              </p>
+              <p class="w-2/3 text-sm">
+                When enabled, NervesHub will request the extensions a device currently supports and then check against product and device settings to see if the extension should be attached to the connection.
+              </p>
+              <p class="w-2/3 text-sm">
+                Extensions most be allowed at the product level. They can also be configured at the device level for more granular control when needed.
+              </p>
+            </div>
+
+            <div :for={{key, description} <- @available_extensions} class="flex h-16 items-center gap-6 p-2">
+              <div class="bg-base-800 border-base-700 flex h-8 items-center rounded-full border px-2 py-1">
+                <input
+                  id={"extension-#{key}"}
+                  name={"product[extensions][#{key}]"}
+                  type="checkbox"
+                  class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
+                  checked
+                  value="true"
+                />
+              </div>
+              <div class="flex flex-col">
+                <div class="flex gap-2">
+                  <div class="text-base-300 w-14 font-medium">
+                    {String.capitalize(to_string(key))}
+                  </div>
+                </div>
+                <div class="text-base-400 text-xs">
+                  {description}
                 </div>
               </div>
-              <div class="text-base-400 text-xs">
-                {description}
-              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="flex gap-3">
-        <.button style="primary" type="submit">
-          Create Product
-        </.button>
-        <.button style="secondary" type="link" navigate={~p"/orgs"}>
-          Cancel
-        </.button>
-      </div>
-    </.form>
+        <div class="flex gap-3">
+          <.button style="primary" type="submit">
+            Create Product
+          </.button>
+          <.button style="secondary" type="link" navigate={~p"/orgs"}>
+            Cancel
+          </.button>
+        </div>
+      </.form>
+    </div>
   </div>
 </NervesHubWeb.Layouts.sidebar>
