@@ -11,8 +11,8 @@
         aria-label="Collapse or expand the sidebar"
         class="hover:text-base-50 text-base-400 flex size-7 shrink-0 items-center justify-center rounded hover:cursor-pointer"
       >
-        <span class="collapsed:hidden lucide-panel-left-close--light text-muted size-5"></span>
-        <span class="collapsed:block lucide-panel-left-open--light text-muted hidden size-5"></span>
+        <span class="collapsed:hidden lucide-panel-left-close--light text-content-muted size-5"></span>
+        <span class="collapsed:block lucide-panel-left-open--light text-content-muted hidden size-5"></span>
       </button>
     </div>
 
@@ -62,7 +62,7 @@
               </.link>
               <div class="flex flex-col gap-1.5">
                 <div :for={product <- org.products}>
-                  <.link navigate={~p"/org/#{org}/#{product}/devices"} class="product-picker-product">
+                  <.link navigate={~p"/org/#{org}/#{product}/insights"} class="product-picker-product">
                     {product.name}
                   </.link>
                 </div>

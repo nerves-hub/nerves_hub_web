@@ -281,7 +281,8 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.on_connect")
   defp on_connect(%{assigns: %{device_info: device_info}} = socket) do
     # Report connection and use connection id as reference
-    {:ok, %DeviceConnection{id: connection_id}} = Connections.device_connecting(device_info.device_id)
+    {:ok, %DeviceConnection{id: connection_id}} =
+      Connections.device_connecting(device_info.org_id, device_info.product_id, device_info.device_id)
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: connection_id,

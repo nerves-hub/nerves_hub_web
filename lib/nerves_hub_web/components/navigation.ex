@@ -20,6 +20,12 @@ defmodule NervesHubWeb.Components.Navigation do
     ~H"""
     <ul role="list">
       <.nav_link
+        label="Insights"
+        path={~p"/org/#{@scope.org}/#{@scope.product}/insights"}
+        selected={:insights == @selected_tab}
+        icon="data-[selected=false]:lucide-activity--light data-[selected=true]:lucide-activity"
+      />
+      <.nav_link
         label="Devices"
         path={~p"/org/#{@scope.org}/#{@scope.product}/devices"}
         selected={:devices == @selected_tab}

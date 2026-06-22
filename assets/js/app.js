@@ -7,8 +7,10 @@ import "chartjs-adapter-date-fns"
 import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
+import BarChart from "./hooks/barChart.js"
 import Chart from "./hooks/chart.js"
 import Console from "./hooks/console.js"
+import CrossFadeOnUpdate from "./hooks/crossFadeOnUpdate.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
 import Flash from "./hooks/flash.js"
@@ -42,8 +44,10 @@ let csrfToken = document
 let liveSocket = new LiveSocket("/live", Socket, {
   params: { _csrf_token: csrfToken },
   hooks: {
+    BarChart,
     Chart,
     Console,
+    CrossFadeOnUpdate,
     DeviceLocationMap,
     DeviceLocationMapWithGeocoder,
     Flash,

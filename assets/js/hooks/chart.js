@@ -36,7 +36,9 @@ export default {
       options: {
         plugins: {
           title: {
-            display: true,
+            // the label is rendered as editable HTML above the chart, so only
+            // show the canvas title when one is explicitly provided
+            display: !!title,
             align: "start",
             text: title,
             font: {

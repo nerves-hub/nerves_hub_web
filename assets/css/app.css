@@ -31,10 +31,9 @@
   --color-surface-raised: #1c1c1f; /* cards, chips, inputs — between surface-muted and zinc-800 */
   --color-surface-overlay: #18181b; /* menus, popovers, modals */
 
-  --color-strong: #fafafa; /* zinc-50  — headings, key values */
-  --color-body: #d4d4d8; /* zinc-300 — default body text */
-  --color-muted: #a1a1aa; /* zinc-400 — secondary / labels */
-  --color-faint: #71717a; /* zinc-500 — placeholder / disabled */
+  --color-b-default: #3f3f46; /* zinc-700 — default hairline */
+  --color-b-strong: #52525b; /* zinc-600 — inputs, buttons */
+  --color-b-subtle: #27272a; /* zinc-800 — faint divider */
 
   /* Neutral ramp — low = bright text, high = recessed surface; inverts in light */
   --color-base-50: var(--color-zinc-50);
@@ -89,6 +88,11 @@
   --color-status-online: var(--color-emerald-500);
   --color-status-offline: var(--color-zinc-500);
   --color-status-connecting: var(--color-indigo-500);
+
+  --color-content-strong: #fafafa; /* zinc-50  — headings, key values */
+  --color-content-body: #d4d4d8; /* zinc-300 — default body text */
+  --color-content-muted: #a1a1aa; /* zinc-400 — secondary / labels */
+  --color-content-faint: #71717a; /* zinc-500 — placeholder / disabled */
 }
 
 /*
@@ -111,10 +115,6 @@
   --warning-rgb: 245 158 11;
   --alert-rgb: 239 68 68;
   --veil-rgb: 63 63 70;
-
-  --border: #3f3f46; /* zinc-700 — default hairline */
-  --border-strong: #52525b; /* zinc-600 — inputs, buttons */
-  --border-subtle: #27272a; /* zinc-800 — faint divider */
 
   --hover-row: rgb(var(--primary-rgb) / 0.06);
   --tint-primary-weak: rgb(var(--primary-rgb) / 0.1);
@@ -168,14 +168,14 @@
   --color-alert-soft: var(--color-red-50);
 
   /* Semantic roles + neutral veil flip on the light canvas */
-  --color-strong: var(--color-zinc-900); /* zinc-900 */
-  --color-body: var(--color-zinc-700); /* zinc-700 */
-  --color-muted: var(--color-zinc-500); /* zinc-600 */
-  --color-faint: var(--color-zinc-300); /* zinc-500 (shared) */
+  --color-content-strong: var(--color-zinc-900); /* zinc-900 */
+  --color-content-body: var(--color-zinc-700); /* zinc-700 */
+  --color-content-muted: var(--color-zinc-600); /* zinc-600 */
+  --color-content-faint: var(--color-zinc-500); /* zinc-500 (shared) */
 
-  --border: #e4e4e7; /* zinc-200 */
-  --border-strong: #d4d4d8; /* zinc-300 */
-  --border-subtle: #ececee;
+  --color-b-default: #e4e4e7; /* zinc-200 */
+  --color-b-strong: #d4d4d8; /* zinc-300 */
+  --color-b-subtle: #ececee;
 
   --veil-rgb: 228 228 231;
 
