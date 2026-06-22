@@ -1077,22 +1077,28 @@ defmodule NervesHub.Accounts do
   end
 
   def verify_cli_session_token(user, token) do
-    with {:ok, cli_session} <- CLISessionCache.get(token),
-         %{status: :waiting} <- cli_session,
-         user_token = create_user_api_token(user, cli_session.note),
-         cli_session = %{cli_session | status: :ready, user_id: user.id, user_token: user_token},
-         :ok <- CLISessionCache.put(token, cli_session) do
-      :ok
-    else
-      %{status: :ready, user_id: user_id} when user_id == user.id ->
-        :ok
+    CLISessionCache.get_and_update(token, fn
+      {:ok, %{status: :waiting} = cli_session} ->
+        user_token = create_user_api_token(user, cli_session.note)
 
-      %{status: :ready} ->
-        {:error, :already_verified}
+        cli_session = %{
+          cli_session
+          | status: :ready,
+            user_id: user.id,
+            user_token: user_token
+        }
+
+        {:ok, {:put, cli_session}}
+
+      {:ok, %{status: :ready, user_id: user_id}} when user_id == user.id ->
+        {:ok, :noop}
+
+      {:ok, %{status: :ready}} ->
+        {{:error, :already_verified}, :noop}
 
       _ ->
-        {:error, :not_found}
-    end
+        {{:error, :not_found}, :noop}
+    end)
   end
 
   def generate_cli_session_token(note) do
@@ -1103,20 +1109,18 @@ defmodule NervesHub.Accounts do
       |> DateTime.add(5, :minute)
       |> DateTime.to_unix()
 
-    with :error <- CLISessionCache.get(token),
-         cli_session = %UserCLISession{
-           token: token,
-           status: :waiting,
-           expires_at: expires_at,
-           confirmation_code: Enum.random(100_000..999_999),
-           note: note
-         },
-         :ok <- CLISessionCache.put(token, cli_session) do
-      {:ok, cli_session}
-    else
-      _ ->
-        {:error, :invalid_request}
-    end
+    cli_session = %UserCLISession{
+      token: token,
+      status: :waiting,
+      expires_at: expires_at,
+      confirmation_code: Enum.random(100_000..999_999),
+      note: note
+    }
+
+    CLISessionCache.get_and_update(token, fn
+      :error -> {{:ok, cli_session}, {:put, cli_session}}
+      {:ok, _existing} -> {{:error, :invalid_request}, :noop}
+    end)
   end
 
   def cli_session_waiting?(user, token) do
@@ -1131,17 +1135,16 @@ defmodule NervesHub.Accounts do
   end
 
   def check_cli_session_ready(token) do
-    with {:ok, cli_session} <- CLISessionCache.get(token),
-         %{status: status} = cli_session when status == :ready <- cli_session,
-         cli_session = %{cli_session | status: :verified},
-         :ok <- CLISessionCache.put(token, cli_session) do
-      {:ok, cli_session}
-    else
-      %{status: :waiting} = cli_session ->
-        {:ok, cli_session}
+    CLISessionCache.get_and_update(token, fn
+      {:ok, %{status: :ready} = cli_session} ->
+        cli_session = %{cli_session | status: :verified}
+        {{:ok, cli_session}, {:put, cli_session}}
+
+      {:ok, %{status: :waiting} = cli_session} ->
+        {{:ok, cli_session}, :noop}
 
       _ ->
-        {:error, :not_found}
-    end
+        {{:error, :not_found}, :noop}
+    end)
   end
 end

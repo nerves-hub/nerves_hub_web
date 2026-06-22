@@ -28,8 +28,17 @@ defmodule NervesHub.CLISessionCache do
     {:ok, %{}}
   end
 
-  def handle_info({:put, key, value}, state) do
-    _ = put(key, value)
+  def handle_info({:put, origin, _key, _value}, state) when origin == node() do
+    # Our own write echoed back over PubSub. The ETS table was already updated
+    # synchronously in `put/2`, so there is nothing to do.
+    {:noreply, state}
+  end
+
+  def handle_info({:put, _origin, key, value}, state) do
+    # A write from a peer node. Apply it locally, but do NOT re-broadcast:
+    # otherwise every node re-emits every message it receives and they
+    # ping-pong across the cluster forever.
+    :ets.insert(@table, {key, value, value.expires_at})
     {:noreply, state}
   end
 
@@ -41,8 +50,57 @@ defmodule NervesHub.CLISessionCache do
 
   def put(key, cli_session) do
     :ets.insert(@table, {key, cli_session, cli_session.expires_at})
-    _ = Phoenix.PubSub.broadcast_from(NervesHub.PubSub, self(), "cli_session_cache", {:put, key, cli_session})
+
+    _ =
+      Phoenix.PubSub.broadcast(
+        NervesHub.PubSub,
+        "cli_session_cache",
+        {:put, node(), key, cli_session}
+      )
+
     :ok
+  end
+
+  @doc """
+  Atomically read a session and conditionally write it back.
+
+  Runs `fun` inside the cache process so concurrent callers on this node cannot
+  interleave a read and a write (e.g. a double-clicked confirmation or a retried
+  request). `fun` receives the current value as `{:ok, cli_session}` or `:error`
+  and must return `{return_value, action}` where `action` is `{:put, cli_session}`
+  or `:noop`.
+
+  Note: this serializes within a node only. Two different nodes can still race
+  on their node-local ETS copies until the PubSub write propagates between them,
+  matching the cache's best-effort cross-node consistency. Closing that window
+  fully would require single-owner routing per token or a DB-level uniqueness
+  guard on the minted token.
+  """
+  def get_and_update(key, fun) do
+    case GenServer.call(__MODULE__, {:get_and_update, key, fun}) do
+      {:raise, exception, stacktrace} -> reraise(exception, stacktrace)
+      return -> return
+    end
+  end
+
+  def handle_call({:get_and_update, key, fun}, _from, state) do
+    current = get(key)
+
+    try do
+      case fun.(current) do
+        {return, {:put, cli_session}} ->
+          _ = put(key, cli_session)
+          {:reply, return, state}
+
+        {return, :noop} ->
+          {:reply, return, state}
+      end
+    rescue
+      exception ->
+        # Never let a caller-supplied function crash the cache process; that
+        # would destroy the ETS table (it has no heir) and drop every session.
+        {:reply, {:raise, exception, __STACKTRACE__}, state}
+    end
   end
 
   def get(key) do
