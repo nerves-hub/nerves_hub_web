@@ -36,6 +36,8 @@ defmodule NervesHub.Database.IndexTest do
     "invites.invited_by_id",
     "invites.org_id",
     "jitp.product_id",
+    "latest_device_connections.org_id",
+    "latest_device_connections.product_id",
     "org_keys.created_by_id",
     "org_users.org_id",
     "org_users.user_id",
