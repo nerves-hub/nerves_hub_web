@@ -9,8 +9,7 @@ defmodule NervesHub.Repo.Migrations.UpdateLatestDeviceConnectionsTable do
       add(:lib, :string)
       add(:lib_version, :string)
 
-      add(:interface, :string)
-      add(:available_interfaces, {:array, :string})
+      add(:network_interface, :string)
     end
   end
 end

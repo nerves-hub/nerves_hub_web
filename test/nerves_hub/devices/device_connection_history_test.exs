@@ -23,7 +23,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
         disconnected_reason: "Stale connection",
         lib: "nerves_hub_link",
         lib_version: "2.0.0",
-        interface: "eth0",
+        network_interface: "eth0",
         status: :disconnected
       }
 
@@ -38,7 +38,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
       assert changes.disconnected_reason == "Stale connection"
       assert changes.lib == "nerves_hub_link"
       assert changes.lib_version == "2.0.0"
-      assert changes.interface == "eth0"
+      assert changes.network_interface == "eth0"
       assert changes.ref == ref
     end
 

@@ -168,6 +168,24 @@ defmodule NervesHub.Devices.Connections do
     :ok
   end
 
+  def update_network_interface(ref_id, network_interface) do
+    humanized = DeviceConnection.humanized_network_interface_name(network_interface)
+
+    DeviceConnection
+    |> where(id: ^ref_id)
+    |> select([dc], dc)
+    |> update([dc], set: [network_interface: ^humanized])
+    |> Repo.update_all([])
+    |> case do
+      {1, [device_connection]} ->
+        async_device_connection_history_insert(device_connection)
+        {:ok, device_connection}
+
+      res ->
+        {:error, res}
+    end
+  end
+
   @doc """
   Updates the connection `metadata` by merging in new metadata.
   """

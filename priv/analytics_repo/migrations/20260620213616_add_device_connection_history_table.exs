@@ -27,7 +27,7 @@ defmodule NervesHub.AnalyticsRepo.Migrations.AddDeviceConnectionHistoryTable do
       add(:lib, :"LowCardinality(String)")
       add(:lib_version, :"LowCardinality(String)")
 
-      add(:interface, :"LowCardinality(String)")
+      add(:network_interface, :"LowCardinality(String)")
 
       add(:version, :UInt64)
     end
