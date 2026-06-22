@@ -112,6 +112,9 @@ export default {
         ],
       },
       options: {
+        layout: {
+          padding: { top: 24 }, // room so labels aren't clipped
+        },
         plugins: {
           title: {
             display: false,
@@ -151,7 +154,6 @@ export default {
             max: maxDate,
           },
           y: {
-            grace: "10%",
             grid: {
               display: false,
               color: null,

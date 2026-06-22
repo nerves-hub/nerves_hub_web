@@ -104,12 +104,12 @@
       </div>
     </div>
 
-    <div :if={@device_connections_graph_enabled} class="bg-surface-raised border-base-700 shadow-device-details-content flex h-[250px] flex-col gap-5 rounded border p-5">
+    <div :if={@device_connections_graph_enabled} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col gap-5 rounded border p-5">
       <div class="text-base-50 flex items-center leading-6 font-medium">
         Connected Devices — Last 14 Days
       </div>
 
-      <div class="h-[230]">
+      <div class="h-[160px] grow">
         <canvas
           id="daily-device-counts-chart"
           phx-hook="BarChart"
