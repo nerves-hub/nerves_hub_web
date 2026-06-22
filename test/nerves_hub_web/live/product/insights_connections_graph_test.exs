@@ -35,7 +35,7 @@ defmodule NervesHubWeb.Live.Product.InsightsConnectionsGraphTest do
 
     {:ok, _} =
       connection
-      |> DeviceConnectionHistory.changeset()
+      |> DeviceConnectionHistory.from_device_connection_changeset()
       |> AnalyticsRepo.insert()
   end
 

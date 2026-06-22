@@ -27,7 +27,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
         status: :disconnected
       }
 
-      changes = DeviceConnectionHistory.changeset(connection).changes
+      changes = DeviceConnectionHistory.from_device_connection_changeset(connection).changes
 
       assert changes.org_id == 1
       assert changes.product_id == 2
@@ -54,30 +54,33 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
           established_at: DateTime.utc_now(),
           last_seen_at: DateTime.utc_now()
         }
-        |> DeviceConnectionHistory.changeset()
+        |> DeviceConnectionHistory.from_device_connection_changeset()
         |> Map.fetch!(:changes)
 
       assert changes.ref == ref
     end
 
-    test "the version is derived from the connection's last_seen_at so newer rows win" do
-      last_seen_at = ~U[2026-06-20 10:05:00.000000Z]
-
+    test "the version is set from the insert time so the most recently written row wins" do
       connection = %DeviceConnection{
         id: UUIDv7.generate(),
         org_id: 1,
         product_id: 2,
         device_id: 3,
-        established_at: ~U[2026-06-20 10:00:00.000000Z],
-        last_seen_at: last_seen_at
+        # an old last_seen_at must not drag the version backwards
+        established_at: ~U[2020-01-01 00:00:00.000000Z],
+        last_seen_at: ~U[2020-01-01 00:05:00.000000Z]
       }
 
-      changes = DeviceConnectionHistory.changeset(connection).changes
+      before = DateTime.utc_now() |> DateTime.to_unix()
+      changes = DeviceConnectionHistory.from_device_connection_changeset(connection).changes
+      later = DateTime.utc_now() |> DateTime.to_unix()
 
-      assert changes.version == DateTime.to_unix(last_seen_at)
+      # version tracks the current time at insert, independent of last_seen_at
+      assert changes.version >= before
+      assert changes.version <= later
     end
 
-    test "a later last_seen_at produces a higher version" do
+    test "the version does not depend on last_seen_at" do
       base = %DeviceConnection{
         id: UUIDv7.generate(),
         org_id: 1,
@@ -86,10 +89,17 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
         established_at: ~U[2026-06-20 10:00:00.000000Z]
       }
 
-      earlier = DeviceConnectionHistory.changeset(%{base | last_seen_at: ~U[2026-06-20 10:00:00Z]})
-      later = DeviceConnectionHistory.changeset(%{base | last_seen_at: ~U[2026-06-20 10:05:00Z]})
+      now = DateTime.utc_now() |> DateTime.to_unix()
 
-      assert later.changes.version > earlier.changes.version
+      old_last_seen =
+        DeviceConnectionHistory.from_device_connection_changeset(%{base | last_seen_at: ~U[2020-01-01 00:00:00Z]})
+
+      new_last_seen =
+        DeviceConnectionHistory.from_device_connection_changeset(%{base | last_seen_at: ~U[2026-06-20 10:05:00Z]})
+
+      # both are versioned by insert time, not by their (very different) last_seen_at
+      assert_in_delta old_last_seen.changes.version, now, 2
+      assert_in_delta new_last_seen.changes.version, now, 2
     end
   end
 end

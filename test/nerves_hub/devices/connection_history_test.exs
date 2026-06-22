@@ -26,7 +26,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
   end
 
   defp history_for(ref) do
-    AnalyticsRepo.all(DeviceConnectionHistory)
+    AnalyticsRepo.all(DeviceConnectionHistory, settings: [final: 1])
     |> Enum.filter(&(&1.ref == ref))
   end
 
@@ -119,6 +119,102 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
     end
   end
 
+  describe "clean_stale_connections_from_analytics/0" do
+    # an open connection is one whose latest history row has no disconnected_at
+    defp insert_open_connection(device, last_seen_at) do
+      ref = UUIDv7.generate()
+
+      connection = %DeviceConnection{
+        id: ref,
+        org_id: device.org_id,
+        product_id: device.product_id,
+        device_id: device.id,
+        established_at: DateTime.add(last_seen_at, -1, :hour),
+        last_seen_at: last_seen_at,
+        disconnected_at: nil
+      }
+
+      {:ok, _} =
+        connection
+        |> DeviceConnectionHistory.from_device_connection_changeset()
+        |> AnalyticsRepo.insert()
+
+      ref
+    end
+
+    defp stale_time() do
+      interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+      jitter = Application.get_env(:nerves_hub, :device_last_seen_update_interval_jitter_seconds)
+      max_jitter = ceil(jitter / 60)
+      DateTime.add(DateTime.utc_now(), -(interval + max_jitter + 2), :minute)
+    end
+
+    test "records a disconnected history row for stale open connections", %{device: device} do
+      ref = insert_open_connection(device, stale_time())
+
+      :ok = Connections.clean_stale_connections_from_analytics()
+
+      assert_eventually(
+        Enum.any?(history_for(ref), fn h ->
+          not is_nil(h.disconnected_at) and h.disconnected_reason == "Stale connection"
+        end)
+      )
+    end
+
+    test "carries the original connection's ref and established_at forward", %{device: device} do
+      last_seen_at = stale_time()
+      ref = insert_open_connection(device, last_seen_at)
+      [open] = history_for(ref)
+
+      :ok = Connections.clean_stale_connections_from_analytics()
+
+      assert_eventually(
+        Enum.any?(history_for(ref), fn h ->
+          not is_nil(h.disconnected_at) and h.established_at == open.established_at
+        end)
+      )
+    end
+
+    test "leaves recently seen open connections untouched", %{device: device} do
+      ref = insert_open_connection(device, DateTime.add(DateTime.utc_now(), -1, :minute))
+
+      :ok = Connections.clean_stale_connections_from_analytics()
+
+      # allow any (incorrectly) spawned insert to run before asserting absence
+      Process.sleep(200)
+
+      refute Enum.any?(history_for(ref), fn h -> not is_nil(h.disconnected_at) end)
+    end
+
+    test "ignores connections that are already disconnected", %{device: device} do
+      ref = UUIDv7.generate()
+      now = DateTime.utc_now()
+
+      connection = %DeviceConnection{
+        id: ref,
+        org_id: device.org_id,
+        product_id: device.product_id,
+        device_id: device.id,
+        established_at: DateTime.add(now, -2, :hour),
+        # stale last_seen_at, but the connection is already closed
+        last_seen_at: stale_time(),
+        disconnected_at: DateTime.add(now, -1, :hour),
+        disconnected_reason: "Original reason"
+      }
+
+      {:ok, _} =
+        connection
+        |> DeviceConnectionHistory.from_device_connection_changeset()
+        |> AnalyticsRepo.insert()
+
+      :ok = Connections.clean_stale_connections_from_analytics()
+
+      Process.sleep(200)
+
+      refute Enum.any?(history_for(ref), fn h -> h.disconnected_reason == "Stale connection" end)
+    end
+  end
+
   describe "device_connections_by_date/3" do
     setup %{org: org, product: product, firmware: firmware} do
       device_a = Fixtures.device_fixture(org, product, firmware)
@@ -144,7 +240,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
 
       {:ok, _} =
         connection
-        |> DeviceConnectionHistory.changeset()
+        |> DeviceConnectionHistory.from_device_connection_changeset()
         |> AnalyticsRepo.insert()
     end
 
