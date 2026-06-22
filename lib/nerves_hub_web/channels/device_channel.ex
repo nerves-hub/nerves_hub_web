@@ -24,7 +24,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   alias NervesHub.DeviceLink
   alias NervesHub.Devices
-  alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Connections
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -231,12 +231,13 @@ defmodule NervesHubWeb.DeviceChannel do
         %{"interface" => interface},
         %{assigns: %{device_info: device_info}} = socket
       ) do
-    if Device.humanized_network_interface_name(interface) == device_info.device_network_interface do
+    if Devices.DeviceConnection.humanized_network_interface_name(interface) == device_info.device_network_interface do
       {:noreply, socket}
     else
-      case Devices.update_network_interface(device_info.device_id, interface) do
-        {:ok, device} ->
-          {:noreply, assign(socket, :device_info, %{device_info | device_network_interface: device.network_interface})}
+      case Connections.update_network_interface(device_info.connection_ref, interface) do
+        {:ok, device_connection} ->
+          {:noreply,
+           assign(socket, :device_info, %{device_info | device_network_interface: device_connection.network_interface})}
 
         {:error, changeset} ->
           Logger.warning(
