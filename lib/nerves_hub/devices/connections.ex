@@ -30,12 +30,17 @@ defmodule NervesHub.Devices.Connections do
       |> update([ldc],
         set: [
           id: fragment("EXCLUDED.id"),
+          org_id: fragment("EXCLUDED.org_id"),
+          product_id: fragment("EXCLUDED.product_id"),
           established_at: fragment("EXCLUDED.established_at"),
           last_seen_at: fragment("EXCLUDED.last_seen_at"),
           disconnected_at: fragment("EXCLUDED.disconnected_at"),
           disconnected_reason: fragment("EXCLUDED.disconnected_reason"),
           metadata: fragment("EXCLUDED.metadata"),
-          status: fragment("EXCLUDED.status")
+          status: fragment("EXCLUDED.status"),
+          lib: fragment("EXCLUDED.lib"),
+          lib_version: fragment("EXCLUDED.lib_version"),
+          network_interface: fragment("EXCLUDED.network_interface")
         ]
       )
 
