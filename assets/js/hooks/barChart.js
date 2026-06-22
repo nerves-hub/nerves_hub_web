@@ -5,7 +5,7 @@ const valueLabels = {
   afterDatasetsDraw(chart, _args, opts) {
     const { ctx } = chart
     const o = {
-      font: "12px ui-monospace, SF Mono",
+      font: "11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
       color: "#71717a",
       offset: 10,
       formatter: (v) => v,
@@ -82,6 +82,9 @@ export default {
               xAxisKey: "day",
               yAxisKey: "count",
             },
+            borderColor: "rgba(99, 102, 241, 0.65)",
+            borderWidth: 1,
+            borderRadius: 3,
             backgroundColor: function (context) {
               const chart = context.chart
               const { ctx, chartArea } = chart
@@ -100,8 +103,8 @@ export default {
                 chartArea.bottom,
               )
 
-              gradient.addColorStop(0, "rgba(97, 95, 255, 1)")
-              gradient.addColorStop(1, "rgba(97, 95, 255, 0.1)")
+              gradient.addColorStop(0, "rgba(99, 102, 241, 0.85)")
+              gradient.addColorStop(1, "rgba(99, 102, 241, 0.35)")
 
               return gradient
             },
@@ -138,11 +141,17 @@ export default {
               source: "auto",
               display: true,
               autoSkip: false,
+              font: {
+                family:
+                  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+                size: 11,
+              },
             },
             min: minDate,
             max: maxDate,
           },
           y: {
+            grace: "10%",
             grid: {
               display: false,
               color: null,
