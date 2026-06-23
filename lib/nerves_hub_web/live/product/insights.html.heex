@@ -171,6 +171,38 @@
           </div>
         </div>
 
+        <div :if={@flapping_connections_enabled} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col gap-5 rounded border p-5">
+          <div class="flex justify-between">
+            <div class="text-base-50 flex items-center leading-6 font-medium">
+              Flapping Connections
+            </div>
+            <div class="relative z-20 ml-4" id="flapping-connections-tooltip" phx-hook="ToolTip" data-placement="top">
+              <span class="lucide-info--light size-4" />
+              <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border px-2 py-1.5 text-xs">
+                <p class="pb-2">Devices that have reconnected 10 times or more in the last hour.</p>
+                <p>
+                  These devices might have issues with connection stability, <br />or underlying errors which are causing the devices to crash.
+                </p>
+                <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+              </div>
+            </div>
+          </div>
+          <div class="divide-b-subtle flex flex-col divide-y">
+            <.link
+              :for={{device, connection_count} <- @flapping_connections}
+              :if={Enum.any?(@flapping_connections)}
+              navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{device.identifier}"}
+            >
+              <div class="group flex items-center gap-3 py-3">
+                <span class="text-content-body flex-1 font-mono text-sm group-hover:underline">{device.identifier}</span>
+                <span class="text-content-strong text-right font-mono text-sm">{connection_count} p/hour</span>
+              </div>
+            </.link>
+            <div :if={Enum.empty?(@flapping_connections)} class="inline-flex h-20 items-center justify-center">
+              <span class="text-content-faint font-mono">No flapping connections detected</span>
+            </div>
+          </div>
+        </div>
         <%!-- <div class="bg-surface-raised border-base-700 shadow-device-details-content flex h-[132px] flex-col rounded border">
           <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
             Device Alarms
@@ -178,7 +210,7 @@
         </div> --%>
       </div>
 
-      <div class="bg-surface-raised border-base-700 shadow-device-details-content flex grow-0 flex-col gap-4.5 rounded border p-5">
+      <div class="bg-surface-raised border-base-700 shadow-device-details-content flex h-fit grow-0 flex-col gap-4.5 rounded border p-5">
         <div class="flex items-center justify-between">
           <div class="text-base-50 leading-6 font-medium">
             Notifications <span class="border-b-default ml-2.5 inline-flex items-center gap-1.5 rounded-full border py-0.5 pr-2.5 pl-2 text-xs/4 tracking-tight">{@notification_count}</span>
@@ -193,7 +225,7 @@
           </.link>
         </div>
 
-        <div :if={Enum.empty?(@notifications)} class="flex h-full flex-col items-center justify-center font-mono">
+        <div :if={Enum.empty?(@notifications)} class="text-content-faint flex h-[200px] flex-col items-center justify-center gap-2 font-mono">
           <div>You have no notifications</div>
           <div>Nothing to see here</div>
         </div>
