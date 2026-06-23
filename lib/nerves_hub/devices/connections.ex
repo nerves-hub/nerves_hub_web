@@ -157,15 +157,20 @@ defmodule NervesHub.Devices.Connections do
     :ok
   end
 
-  defp async_device_connection_history_insert(device_connection) do
+  defp async_device_connection_history_insert(%DeviceConnection{} = device_connection) do
+    device_connection
+    |> DeviceConnectionHistory.from_device_connection_changeset()
+    |> async_device_connection_history_insert()
+  end
+
+  defp async_device_connection_history_insert(%Ecto.Changeset{data: %DeviceConnectionHistory{}} = device_connection) do
     _ =
       if Application.get_env(:nerves_hub, :analytics_enabled) do
         Task.Supervisor.start_child(
           {:via, PartitionSupervisor, {NervesHub.AnalyticsEventsProcessing, self()}},
           fn ->
             {:ok, _} =
-              DeviceConnectionHistory.changeset(device_connection)
-              |> NervesHub.AnalyticsRepo.insert()
+              NervesHub.AnalyticsRepo.insert(device_connection)
           end
         )
       end
@@ -284,11 +289,36 @@ defmodule NervesHub.Devices.Connections do
     end
 
     if update_count < update_limit do
-      :ok
+      # Once the DB is cleaned, we can clean Analytics
+      clean_stale_connections_from_analytics()
     else
       # relax stress on Ecto pool and go again
       Process.sleep(2000)
       clean_stale_connections()
     end
+  end
+
+  def clean_stale_connections_from_analytics() do
+    _ =
+      if Application.get_env(:nerves_hub, :analytics_enabled) do
+        interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+        jitter = Application.get_env(:nerves_hub, :device_last_seen_update_interval_jitter_seconds)
+
+        max_jitter = ceil(jitter / 60)
+        some_time_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + max_jitter + 1))
+
+        DeviceConnectionHistory
+        |> where([dc], is_nil(dc.disconnected_at))
+        |> where([d], d.last_seen_at < ^some_time_ago)
+        |> select([dc], dc)
+        |> NervesHub.AnalyticsRepo.all(settings: [final: 1])
+        |> Enum.each(fn connection ->
+          connection
+          |> DeviceConnectionHistory.mark_as_stale_and_disconnected_changeset()
+          |> async_device_connection_history_insert()
+        end)
+      end
+
+    :ok
   end
 end
