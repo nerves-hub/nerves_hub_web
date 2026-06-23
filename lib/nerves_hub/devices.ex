@@ -1378,6 +1378,22 @@ defmodule NervesHub.Devices do
     update_device_with_audit(device, params, user, description)
   end
 
+  @doc """
+  Returns the sorted, distinct list of tags used by all devices in a product.
+
+  Used to power tag autocomplete suggestions when tagging devices or targeting
+  deployment groups.
+  """
+  @spec distinct_tags_for_product(Product.t()) :: [String.t()]
+  def distinct_tags_for_product(%Product{} = product) do
+    Device
+    |> where([d], d.product_id == ^product.id)
+    |> where([d], not is_nil(d.tags))
+    |> select([d], fragment("distinct unnest(?)", d.tags))
+    |> Repo.all()
+    |> Enum.sort()
+  end
+
   @spec add_tag(Device.t(), User.t(), String.t()) :: {:ok, Device.t()} | {:error, any()} | {:error, any(), any(), any()}
   def add_tag(%Device{} = device, user, tag) do
     tag = String.trim(tag)

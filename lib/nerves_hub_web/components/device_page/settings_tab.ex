@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
     socket
     |> assign(:settings_form, to_form(changeset))
+    |> assign(:available_tags, Devices.distinct_tags_for_product(socket.assigns.current_scope.product))
     |> allow_upload(:certificate,
       accept: :any,
       auto_upload: true,
@@ -70,7 +71,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
               <.input field={@settings_form[:description]} label="Description" placeholder="eg. sensor hub at customer X" phx-debounce="blur" />
 
-              <.input field={@settings_form[:tags]} value={Utils.tags_to_string(@settings_form[:tags])} label="Tags" placeholder="eg. batch-123" phx-debounce="blur" />
+              <.tag_input field={@settings_form[:tags]} label="Tags" placeholder="eg. batch-123" available_tags={@available_tags} />
             </div>
 
             <div class="flex w-1/2 flex-col gap-2">

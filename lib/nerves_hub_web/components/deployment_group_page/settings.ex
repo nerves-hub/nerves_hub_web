@@ -3,9 +3,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
+  alias NervesHub.Devices
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     socket
     |> assign(assigns)
     |> assign(:form, to_form(changeset))
+    |> assign(:available_tags, Devices.distinct_tags_for_product(assigns.current_scope.product))
     |> ok()
   end
 
@@ -57,7 +58,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             </div>
             <.inputs_for :let={conditions} field={@form[:conditions]}>
               <div class="w-1/2">
-                <.input field={conditions[:tags]} value={Utils.tags_to_string(conditions[:tags])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+                <.tag_input field={conditions[:tags]} label="Tag(s) distributed to" placeholder="eg. batch-123" available_tags={@available_tags} />
               </div>
 
               <div class="w-1/2">

@@ -129,4 +129,29 @@ defmodule NervesHub.ScriptsTest do
       assert script.tags == script1.tags
     end
   end
+
+  describe "distinct_tags_for_product/1" do
+    test "returns sorted, deduplicated tags across a product's scripts", %{product: product, user: user} do
+      {:ok, _} = Scripts.create(product, user, %{name: "One", text: "x", tags: "info, reboot"})
+      {:ok, _} = Scripts.create(product, user, %{name: "Two", text: "x", tags: "info, network"})
+      {:ok, _} = Scripts.create(product, user, %{name: "Three", text: "x"})
+
+      assert Scripts.distinct_tags_for_product(product) == ["info", "network", "reboot"]
+    end
+
+    test "is scoped to the given product", %{user: user, org: org} do
+      product_a = Fixtures.product_fixture(user, org, %{name: "Product A"})
+      product_b = Fixtures.product_fixture(user, org, %{name: "Product B"})
+
+      {:ok, _} = Scripts.create(product_a, user, %{name: "A", text: "x", tags: "alpha"})
+      {:ok, _} = Scripts.create(product_b, user, %{name: "B", text: "x", tags: "beta"})
+
+      assert Scripts.distinct_tags_for_product(product_a) == ["alpha"]
+      assert Scripts.distinct_tags_for_product(product_b) == ["beta"]
+    end
+
+    test "returns an empty list when no scripts have tags", %{product: product} do
+      assert Scripts.distinct_tags_for_product(product) == []
+    end
+  end
 end

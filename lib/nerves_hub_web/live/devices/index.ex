@@ -117,6 +117,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:progress, %{})
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
+    |> assign(:available_tags, Devices.distinct_tags_for_product(product))
     |> assign(:total_entries, 0)
     |> assign(:visible?, true)
     |> assign(:live_refresh_timer, nil)
