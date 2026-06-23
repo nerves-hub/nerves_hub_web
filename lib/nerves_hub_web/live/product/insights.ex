@@ -16,6 +16,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> maybe_assign_device_connections_graph()
     |> fleet_health_information()
     |> assign_notifications()
+    |> maybe_assign_flapping_connections()
     |> assign(:page_title, "#{scope.product.name} Insights")
     |> sidebar_tab(:insights)
     |> ok()
@@ -69,6 +70,18 @@ defmodule NervesHubWeb.Live.Product.Insights do
       |> assign(:device_connections_graph_data, data)
     else
       assign(socket, :device_connections_graph_enabled, false)
+    end
+  end
+
+  defp maybe_assign_flapping_connections(%{assigns: %{current_scope: scope}} = socket) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      connections = Connections.flapping_connections(scope.product)
+
+      socket
+      |> assign(:flapping_connections, connections)
+      |> assign(:flapping_connections_enabled, true)
+    else
+      assign(socket, :flapping_connections_enabled, false)
     end
   end
 
