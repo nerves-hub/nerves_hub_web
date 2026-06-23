@@ -23,6 +23,7 @@ import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
 import SidebarToggle from "./hooks/sidebarToggle.js"
 import SimpleDate from "./hooks/simpleDate.js"
 import SupportScriptOutput from "./hooks/supportScriptOutput.js"
+import TagAutocomplete from "./hooks/tagAutocomplete.js"
 import ThemeSwitcher from "./hooks/themeSwitcher.js"
 import ToolTip from "./hooks/toolTip.js"
 import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
@@ -60,6 +61,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     SidebarToggle,
     SimpleDate,
     SupportScriptOutput,
+    TagAutocomplete,
     ThemeSwitcher,
     ToolTip,
     UpdatingTimeAgo,

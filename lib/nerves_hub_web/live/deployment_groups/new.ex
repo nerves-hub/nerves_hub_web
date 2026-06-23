@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.New do
   use NervesHubWeb, :live_view
 
+  alias NervesHub.Devices
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
@@ -24,6 +25,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
       |> assign(:platform, nil)
       |> assign(:architecture, nil)
       |> assign(:firmwares, [])
+      |> assign(:available_tags, Devices.distinct_tags_for_product(scope.product))
       |> assign(:form, to_form(ManagedDeployments.new_deployment_group()))
       |> ok()
     end

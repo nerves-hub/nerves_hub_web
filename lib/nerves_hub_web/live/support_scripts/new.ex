@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
     |> page_title("New Support Script - #{socket.assigns.current_scope.org.name}")
     |> sidebar_tab(:support_scripts)
     |> assign(:form, to_form(Ecto.Changeset.change(%Script{})))
+    |> assign(:available_tags, Scripts.distinct_tags_for_product(socket.assigns.current_scope.product))
     |> ok()
   end
 

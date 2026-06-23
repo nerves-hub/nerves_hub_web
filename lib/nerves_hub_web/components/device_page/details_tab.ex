@@ -24,7 +24,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     :update_information,
     :alarms,
     :extension_overrides,
-    :deployment_groups
+    :deployment_groups,
+    :available_tags
   ]
 
   def tab_params(_params, _uri, %{assigns: %{device: device}} = socket) do
@@ -37,6 +38,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> assign(:extension_overrides, extension_overrides(device, device.product))
     |> assign(:delta_available?, false)
     |> assign(:selected_firmware, "")
+    |> assign_available_tags()
     |> assign_metadata()
     |> assign_deployment_groups()
     |> cont()
@@ -58,6 +60,13 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       |> Enum.map(&Map.merge(&1, %{output: nil, running?: false}))
 
     assign(socket, :support_scripts, scripts)
+  end
+
+  # Tags already on the device are excluded so the "add tag" suggestions only
+  # offer tags that can actually be added.
+  defp assign_available_tags(%{assigns: %{product: product, device: device}} = socket) do
+    available_tags = Devices.distinct_tags_for_product(product) -- (device.tags || [])
+    assign(socket, :available_tags, available_tags)
   end
 
   defp assign_deployment_groups(%{assigns: %{device: %{status: :provisioned} = device}} = socket) do
@@ -307,7 +316,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   type="button"
                   aria-label="Add tag"
                   class="bg-base-800 border-base-700 hover:bg-base-700 hover:text-base-200 text-base-400 flex size-7 items-center justify-center rounded border"
-                  phx-click={JS.show(to: "#add-tag-form") |> JS.show(to: "#add-tag-close") |> JS.hide(to: "#add-tag-open")}
+                  phx-click={
+                    JS.remove_class("hidden", to: "#add-tag-form")
+                    |> JS.add_class("inline-flex", to: "#add-tag-form")
+                    |> JS.show(to: "#add-tag-close")
+                    |> JS.hide(to: "#add-tag-open")
+                  }
                 >
                   <span class="lucide-plus--light size-3.5" />
                 </button>
@@ -317,25 +331,54 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   aria-label="Cancel adding tag"
                   style="display: none"
                   class="bg-base-800 border-base-700 hover:bg-base-700 hover:text-alert-content text-base-500 flex size-7 items-center justify-center rounded border"
-                  phx-click={JS.hide(to: "#add-tag-form") |> JS.hide(to: "#add-tag-close") |> JS.show(to: "#add-tag-open")}
+                  phx-click={
+                    JS.remove_class("inline-flex", to: "#add-tag-form")
+                    |> JS.add_class("hidden", to: "#add-tag-form")
+                    |> JS.hide(to: "#add-tag-close")
+                    |> JS.show(to: "#add-tag-open")
+                  }
                 >
                   <span class="lucide-x--light size-3.5" />
                 </button>
                 <form
                   id="add-tag-form"
-                  phx-submit={JS.push("add-tag") |> JS.hide(to: "#add-tag-form") |> JS.hide(to: "#add-tag-close") |> JS.show(to: "#add-tag-open")}
-                  style="display: none"
-                  class="inline-flex items-center gap-1"
+                  phx-submit={
+                    JS.push("add-tag")
+                    |> JS.remove_class("inline-flex", to: "#add-tag-form")
+                    |> JS.add_class("hidden", to: "#add-tag-form")
+                    |> JS.hide(to: "#add-tag-close")
+                    |> JS.show(to: "#add-tag-open")
+                  }
+                  class="hidden items-center gap-1"
                 >
                   <label for="add_tag_input" class="hidden">Add tag</label>
-                  <input
-                    type="text"
-                    id="add_tag_input"
-                    name="tag"
-                    placeholder="Add tag..."
-                    class="bg-base-900 border-base-600 focus:outline-focus-ring text-base-400 w-24 rounded border px-2 py-1 text-xs focus:outline focus:-outline-offset-1"
-                    phx-debounce="300"
-                  />
+                  <div
+                    id="add-tag-autocomplete"
+                    class="relative"
+                    phx-hook="TagAutocomplete"
+                    data-single
+                    data-available-tags={Jason.encode!(@available_tags)}
+                  >
+                    <input
+                      type="text"
+                      id="add_tag_input"
+                      name="tag"
+                      placeholder="Add tag..."
+                      autocomplete="off"
+                      data-tag-input
+                      class="bg-base-900 border-base-600 focus:outline-focus-ring text-base-400 w-24 rounded border px-2 py-1 text-xs focus:outline focus:-outline-offset-1"
+                      phx-debounce="300"
+                    />
+                    <ul
+                      id="add_tag_input-suggestions"
+                      phx-update="ignore"
+                      data-tag-suggestions
+                      role="listbox"
+                      hidden
+                      class="bg-base-900 border-base-600 absolute z-10 mt-1 max-h-56 w-40 overflow-y-auto rounded border py-1 shadow-lg"
+                    >
+                    </ul>
+                  </div>
                   <button type="submit" aria-label="Add tag" class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-2 py-1 text-xs">
                     Add
                   </button>
@@ -797,6 +840,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       {:ok, device} ->
         socket
         |> assign(:device, device)
+        |> assign_available_tags()
         |> put_flash(:info, "Tag \"#{tag}\" added successfully.")
         |> halt()
 
@@ -813,6 +857,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       {:ok, device} ->
         socket
         |> assign(:device, device)
+        |> assign_available_tags()
         |> put_flash(:info, "Tag \"#{tag}\" removed successfully.")
         |> halt()
 

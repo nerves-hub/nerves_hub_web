@@ -311,6 +311,35 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "distinct_tags_for_product/1" do
+    test "returns the sorted, distinct union of device tags for the product", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      # setup already created three devices tagged ["beta", "beta-edge"]
+      _ = Fixtures.device_fixture(org, product, firmware, %{tags: ["prod", "beta"]})
+
+      assert Devices.distinct_tags_for_product(product) == ["beta", "beta-edge", "prod"]
+    end
+
+    test "is scoped to the given product", %{org: org, user: user, firmware: firmware} do
+      other_product = Fixtures.product_fixture(user, org, %{name: "Other Product"})
+
+      _ = Fixtures.device_fixture(org, other_product, firmware, %{tags: ["alpha"]})
+
+      assert Devices.distinct_tags_for_product(other_product) == ["alpha"]
+    end
+
+    test "ignores devices without tags", %{org: org, user: user, firmware: firmware} do
+      product = Fixtures.product_fixture(user, org, %{name: "Tagless Product"})
+
+      _ = Fixtures.device_fixture(org, product, firmware, %{tags: []})
+
+      assert Devices.distinct_tags_for_product(product) == []
+    end
+  end
+
   describe "disable_updates_for_devices/2" do
     test "can disable updates for multiple devices", %{
       user: user,

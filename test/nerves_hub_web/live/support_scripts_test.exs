@@ -200,6 +200,21 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
       |> assert_has("span", text: "hello")
       |> assert_has("span", text: "world")
     end
+
+    test "a tag added via the UI is included in distinct_tags_for_product/1", %{conn: conn, org: org, product: product} do
+      refute "world" in Scripts.distinct_tags_for_product(product)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/new")
+      |> fill_in("Name", with: "MOTD")
+      |> fill_in("Script code", with: "NervesMOTD.print()")
+      |> fill_in("Tags", with: "hello,world")
+      |> click_button("Save changes")
+      |> assert_path("/org/#{org.name}/#{product.name}/scripts")
+
+      assert "hello" in Scripts.distinct_tags_for_product(product)
+      assert "world" in Scripts.distinct_tags_for_product(product)
+    end
   end
 
   describe "edit" do
