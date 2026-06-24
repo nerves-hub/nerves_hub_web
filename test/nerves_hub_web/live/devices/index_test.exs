@@ -7,7 +7,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.Accounts.Scope
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
@@ -413,6 +415,117 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> refute_has("a", text: device2.identifier)
       |> select("Health Status", option: "Healthy")
       |> assert_has("a", text: device2.identifier, timeout: 1000)
+      |> refute_has("a", text: device.identifier)
+    end
+
+    test "by connected, disconnect, and all", %{conn: conn, fixture: fixture} do
+      %{
+        device: device,
+        org: org,
+        product: product,
+        firmware: firmware
+      } = fixture
+
+      assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
+               Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      Connections.device_connected(ref)
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      assert {:ok, %DeviceConnection{id: ref2, status: :connecting}} =
+               Connections.device_connecting(device2.org_id, device2.product_id, device2.id)
+
+      Connections.device_connected(ref2)
+      Connections.device_disconnected(ref2)
+
+      device3 = Fixtures.device_fixture(org, product, firmware)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+      |> assert_has("a", text: device2.identifier)
+      |> assert_has("a", text: device3.identifier)
+      |> select("Connection", option: "Connected")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+      |> refute_has("a", text: device2.identifier)
+      |> refute_has("a", text: device3.identifier)
+      |> select("Connection", option: "Disconnected")
+      |> assert_has("a", text: device2.identifier, timeout: 1000)
+      |> refute_has("a", text: device.identifier)
+      |> refute_has("a", text: device3.identifier)
+      |> select("Connection", option: "All")
+      |> assert_has("a", text: device2.identifier, timeout: 1000)
+      |> assert_has("a", text: device.identifier)
+      |> assert_has("a", text: device3.identifier)
+    end
+
+    test "by connection not seen in 7 days, not seen in 14 days, and not seen at all", %{conn: conn, fixture: fixture} do
+      %{
+        device: device,
+        org: org,
+        product: product,
+        firmware: firmware
+      } = fixture
+
+      # first device was last seen 8 days ago
+
+      Device
+      |> where(id: ^device.id)
+      |> NervesHub.Repo.update_all(set: [status: :provisioned])
+
+      assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
+               Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      Connections.device_connected(ref)
+      Connections.device_disconnected(ref)
+
+      eight_days_ago = DateTime.utc_now() |> DateTime.add(-8, :day)
+
+      DeviceConnection
+      |> where(id: ^ref)
+      |> NervesHub.Repo.update_all(
+        set: [established_at: eight_days_ago, disconnected_at: eight_days_ago, last_seen_at: eight_days_ago]
+      )
+
+      # device2 was last seen 16 days ago
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
+
+      assert {:ok, %DeviceConnection{id: ref2, status: :connecting}} =
+               Connections.device_connecting(device2.org_id, device2.product_id, device2.id)
+
+      Connections.device_connected(ref2)
+      Connections.device_disconnected(ref2)
+
+      sixteen_days_ago = DateTime.utc_now() |> DateTime.add(-16, :day)
+
+      DeviceConnection
+      |> where(id: ^ref2)
+      |> NervesHub.Repo.update_all(
+        set: [established_at: sixteen_days_ago, disconnected_at: sixteen_days_ago, last_seen_at: sixteen_days_ago]
+      )
+
+      # device3 was has never been seen
+
+      device3 = Fixtures.device_fixture(org, product, firmware)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+      |> assert_has("a", text: device2.identifier)
+      |> assert_has("a", text: device3.identifier)
+      |> select("Connection", option: "Not seen in 7 days")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+      |> assert_has("a", text: device2.identifier)
+      |> refute_has("a", text: device3.identifier)
+      |> select("Connection", option: "Not seen in 14 days")
+      |> assert_has("a", text: device2.identifier, timeout: 1000)
+      |> refute_has("a", text: device.identifier)
+      |> refute_has("a", text: device3.identifier)
+      |> select("Connection", option: "Not Seen")
+      |> assert_has("a", text: device3.identifier, timeout: 1000)
+      |> refute_has("a", text: device2.identifier)
       |> refute_has("a", text: device.identifier)
     end
 
