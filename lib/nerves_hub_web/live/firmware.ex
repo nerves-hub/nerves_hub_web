@@ -43,7 +43,8 @@ defmodule NervesHubWeb.Live.Firmware do
       max_entries: 1,
       auto_upload: true,
       max_file_size: max_file_size(),
-      progress: &handle_progress/3
+      progress: &handle_progress/3,
+      writer: fn _name, _entry, _socket -> {NervesHubWeb.FirmwareUploadWriter, parent: self()} end
     )
     |> assign_firmware_with_pagination()
     |> render_with(&list_firmware_template/1)
@@ -200,9 +201,7 @@ defmodule NervesHubWeb.Live.Firmware do
     if entry.done? do
       [filepath] =
         consume_uploaded_entries(socket, :firmware, fn %{path: path}, _entry ->
-          {:ok, dest} = Briefly.create()
-          File.copy!(path, dest)
-          {:ok, dest}
+          {:ok, path}
         end)
 
       socket
