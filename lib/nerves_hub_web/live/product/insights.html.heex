@@ -47,61 +47,68 @@
 
   <div :if={@fleet_size > 0} class="flex h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
     <div class="grid h-[132px] grid-cols-4 gap-4">
-      <div class="bg-surface-raised border-base-700 shadow-device-details-content relative flex h-[132px] flex-col overflow-hidden rounded border px-5 py-4.5">
-        <div class="bg-success absolute inset-y-0 left-0 w-[3.5px]"></div>
-        <div class="mb-3.5 flex items-center gap-2">
-          <span class="bg-success size-1.5 shrink rounded-full"></span>
-          <span class="text-content-muted font-sans text-sm">Online now</span>
+      <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=connected"}>
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content relative flex h-[132px] flex-col overflow-hidden rounded border px-5 py-4.5">
+          <div class="bg-success absolute inset-y-0 left-0 w-[3.5px]"></div>
+          <div class="mb-3.5 flex items-center gap-2">
+            <span class="bg-success size-1.5 shrink rounded-full"></span>
+            <span class="text-content-muted font-sans text-sm">Online now</span>
+          </div>
+          <div id="online-count" phx-hook="CrossFadeOnUpdate" class="text-content-strong font-mono text-3xl leading-none tracking-tight">
+            {Number.Delimit.number_to_delimited(@online_count, precision: 0)}
+          </div>
+          <div id="online-percentage" phx-hook="CrossFadeOnUpdate" class="text-success-content mt-2 font-mono text-sm">
+            {percentage(@online_count, @fleet_size)}% of fleet
+          </div>
         </div>
-        <div id="online-count" phx-hook="CrossFadeOnUpdate" class="text-content-strong font-mono text-3xl leading-none tracking-tight">
-          {Number.Delimit.number_to_delimited(@online_count, precision: 0)}
-        </div>
-        <div id="online-percentage" phx-hook="CrossFadeOnUpdate" class="text-success-content mt-2 font-mono text-sm">
-          {percentage(@online_count, @fleet_size)}% of fleet
-        </div>
-      </div>
+      </.link>
 
-      <div class="bg-surface-raised border-base-700 shadow-device-details-content relative flex h-[132px] flex-col overflow-hidden rounded border px-5 py-4.5">
-        <div class="bg-base-600 absolute inset-y-0 left-0 w-[3.5px]"></div>
-        <div class="mb-3.5 flex items-center gap-2">
-          <span class="bg-base-600 size-1.5 shrink rounded-full"></span>
-          <span class="text-content-muted font-sans text-sm">Offline</span>
+      <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=disconnected"}>
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content relative flex h-[132px] flex-col overflow-hidden rounded border px-5 py-4.5">
+          <div class="bg-base-600 absolute inset-y-0 left-0 w-[3.5px]"></div>
+          <div class="mb-3.5 flex items-center gap-2">
+            <span class="bg-base-600 size-1.5 shrink rounded-full"></span>
+            <span class="text-content-muted font-sans text-sm">Offline</span>
+          </div>
+          <div id="offline-count" phx-hook="CrossFadeOnUpdate" class="text-content-strong font-mono text-3xl leading-none tracking-tight">
+            {Number.Delimit.number_to_delimited(@offline_count, precision: 0)}
+          </div>
+          <div id="offline-percentage" phx-hook="CrossFadeOnUpdate" class="text-base-400 mt-2 font-mono text-sm">
+            {percentage(@offline_count, @fleet_size)}% of fleet
+          </div>
         </div>
-        <div id="offline-count" phx-hook="CrossFadeOnUpdate" class="text-content-strong font-mono text-3xl leading-none tracking-tight">
-          {Number.Delimit.number_to_delimited(@offline_count, precision: 0)}
-        </div>
-        <div id="offline-percentage" phx-hook="CrossFadeOnUpdate" class="text-base-400 mt-2 font-mono text-sm">
-          {percentage(@offline_count, @fleet_size)}% of fleet
-        </div>
-      </div>
+      </.link>
 
-      <div class="bg-surface-raised border-base-700 shadow-device-details-content relative flex h-[132px] flex-col overflow-hidden rounded border px-5 py-4.5">
-        <div class="bg-warning absolute inset-y-0 left-0 w-[3.5px]"></div>
-        <div class="mb-3.5 flex items-center gap-2">
-          <span class="lucide-clock-alert--light text-warning size-4 shrink"></span>
-          <span class="text-content-muted font-sans text-sm">Not seen in 7 days</span>
+      <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=not_seen_in_seven_days"}>
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content relative flex h-[132px] flex-col overflow-hidden rounded border px-5 py-4.5">
+          <div class="bg-warning absolute inset-y-0 left-0 w-[3.5px]"></div>
+          <div class="mb-3.5 flex items-center gap-2">
+            <span class="lucide-clock-alert--light text-warning size-4 shrink"></span>
+            <span class="text-content-muted font-sans text-sm">Not seen in 7 days</span>
+          </div>
+          <div id="not-seen-7-days-count" phx-hook="CrossFadeOnUpdate" class="text-content-strong font-mono text-3xl leading-none tracking-tight">
+            {Number.Delimit.number_to_delimited(@not_seen_in_7_days, precision: 0)}
+          </div>
+          <div id="not-seen-7-days-percentage" phx-hook="CrossFadeOnUpdate" class="text-warning-content mt-2 font-mono text-sm">
+            {percentage(@not_seen_in_7_days, @fleet_size)}% of fleet
+          </div>
         </div>
-        <div id="not-seen-7-days-count" phx-hook="CrossFadeOnUpdate" class="text-content-strong font-mono text-3xl leading-none tracking-tight">
-          {Number.Delimit.number_to_delimited(@not_seen_in_7_days, precision: 0)}
+      </.link>
+      <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?connection=not_seen_in_fourteen_days"}>
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content relative flex h-[132px] flex-col overflow-hidden rounded border px-5 py-4.5">
+          <div class="bg-danger absolute inset-y-0 left-0 w-[3.5px]"></div>
+          <div class="mb-3.5 flex items-center gap-2">
+            <span class="lucide-triangle-alert--light text-danger size-4 shrink"></span>
+            <span class="text-content-muted font-sans text-sm">Not seen in 14 days</span>
+          </div>
+          <div id="not-seen-14-days-count" phx-hook="CrossFadeOnUpdate" class="text-content-strong font-mono text-3xl leading-none tracking-tight">
+            {Number.Delimit.number_to_delimited(@not_seen_in_14_days, precision: 0)}
+          </div>
+          <div id="not-seen-14-days-percentage" phx-hook="CrossFadeOnUpdate" class="text-danger mt-2 font-mono text-sm">
+            {percentage(@not_seen_in_14_days, @fleet_size)}% of fleet
+          </div>
         </div>
-        <div id="not-seen-7-days-percentage" phx-hook="CrossFadeOnUpdate" class="text-warning-content mt-2 font-mono text-sm">
-          {percentage(@not_seen_in_7_days, @fleet_size)}% of fleet
-        </div>
-      </div>
-
-      <div class="bg-surface-raised border-base-700 shadow-device-details-content relative flex h-[132px] flex-col overflow-hidden rounded border px-5 py-4.5">
-        <div class="bg-danger absolute inset-y-0 left-0 w-[3.5px]"></div>
-        <div class="mb-3.5 flex items-center gap-2">
-          <span class="lucide-triangle-alert--light text-danger size-4 shrink"></span>
-          <span class="text-content-muted font-sans text-sm">Not seen in 14 days</span>
-        </div>
-        <div id="not-seen-14-days-count" phx-hook="CrossFadeOnUpdate" class="text-content-strong font-mono text-3xl leading-none tracking-tight">
-          {Number.Delimit.number_to_delimited(@not_seen_in_14_days, precision: 0)}
-        </div>
-        <div id="not-seen-14-days-percentage" phx-hook="CrossFadeOnUpdate" class="text-danger mt-2 font-mono text-sm">
-          {percentage(@not_seen_in_14_days, @fleet_size)}% of fleet
-        </div>
-      </div>
+      </.link>
     </div>
 
     <div :if={@device_connections_graph_enabled} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col gap-5 rounded border p-5">

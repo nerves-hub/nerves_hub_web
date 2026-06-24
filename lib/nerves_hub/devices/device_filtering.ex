@@ -58,6 +58,26 @@ defmodule NervesHub.Devices.DeviceFiltering do
     where(query, [latest_health: lh], lh.status == ^value)
   end
 
+  def filter(query, _filters, :connection, "not_seen") do
+    where(query, [d], d.status == :registered)
+  end
+
+  def filter(query, _filters, :connection, "not_seen_in_seven_days") do
+    seven_days_ago = DateTime.utc_now() |> DateTime.add(-7, :day)
+
+    query
+    |> where([latest_connection: lc], lc.status == :disconnected)
+    |> where([latest_connection: lc], lc.last_seen_at < ^seven_days_ago)
+  end
+
+  def filter(query, _filters, :connection, "not_seen_in_fourteen_days") do
+    fourteen_days_ago = DateTime.utc_now() |> DateTime.add(-14, :day)
+
+    query
+    |> where([latest_connection: lc], lc.status == :disconnected)
+    |> where([latest_connection: lc], lc.last_seen_at < ^fourteen_days_ago)
+  end
+
   def filter(query, _filters, :connection, value) do
     if value == "not_seen" do
       where(query, [d], d.status == :registered)
