@@ -20,6 +20,7 @@ import LocalShell from "./hooks/localShell.js"
 import LocalTime from "./hooks/localTime.js"
 import LogLineLocalTime from "./hooks/logLineLocalTime.js"
 import PageVisible from "./hooks/pageVisible.js"
+import ScriptAutocomplete from "./hooks/scriptAutocomplete.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
 import SidebarToggle from "./hooks/sidebarToggle.js"
 import SimpleDate from "./hooks/simpleDate.js"
@@ -61,6 +62,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     PageVisible,
     SharedSecretClipboardClick,
     SidebarToggle,
+    ScriptAutocomplete,
     SimpleDate,
     SupportScriptOutput,
     TagAutocomplete,

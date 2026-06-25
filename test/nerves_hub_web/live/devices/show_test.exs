@@ -889,8 +889,35 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("div", text: "Support Scripts")
-      |> assert_has("div", text: "MOTD")
-      |> assert_has("button[phx-value-id=\"#{script.id}\"]")
+      |> assert_has("select#script_id option[value=\"#{script.id}\"]", text: "MOTD")
+      # No script is selected by default, so a placeholder option is shown
+      # and the run button stays disabled.
+      |> assert_has("select#script_id option[value=\"\"]", text: "Select a support script")
+      |> assert_has("button[disabled]", text: "Run script")
+      # With a small number of scripts, the native dropdown is used (no search).
+      |> refute_has("#script-autocomplete")
+    end
+
+    test "more than 10 scripts switches to a searchable autocomplete", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      for i <- 1..11 do
+        {:ok, _script} =
+          NervesHub.Scripts.create(product, user, %{name: "Script #{i}", text: "ignored"})
+      end
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Support Scripts")
+      # The native <select> is replaced by the searchable combobox.
+      |> refute_has("select#script_id")
+      |> assert_has("#script-autocomplete[phx-hook=\"ScriptAutocomplete\"]")
+      |> assert_has("input#script_search")
+      |> assert_has("button", text: "Run script")
     end
   end
 

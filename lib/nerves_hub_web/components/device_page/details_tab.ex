@@ -20,6 +20,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   @keys_to_cleanup [
     :support_scripts,
+    :selected_support_script,
+    :support_script_running,
+    :recently_run_support_script,
+    :recently_run_support_script_output,
     :firmwares,
     :update_information,
     :alarms,
@@ -53,13 +57,15 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     assign(socket, :metadata, Map.drop(metadata, standard_keys(device)))
   end
 
-  defp assign_support_scripts(socket) do
-    scripts =
-      socket.assigns.product
-      |> Scripts.all_by_product()
-      |> Enum.map(&Map.merge(&1, %{output: nil, running?: false}))
+  defp assign_support_scripts(%{assigns: %{product: product}} = socket) do
+    scripts = Scripts.all_by_product(product)
 
-    assign(socket, :support_scripts, scripts)
+    socket
+    |> assign(:support_scripts, scripts)
+    |> assign(:selected_support_script, nil)
+    |> assign(:support_script_running, false)
+    |> assign(:recently_run_support_script, nil)
+    |> assign(:recently_run_support_script_output, nil)
   end
 
   # Tags already on the device are excluded so the "add tag" suggestions only
@@ -542,23 +548,76 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <span class="text-base-500 text-sm">No support scripts have been configured.</span>
           </div>
 
-          <div :if={Enum.any?(@support_scripts)} class="flex flex-col gap-2 px-4 pt-2 pb-6">
-            <div :for={script <- @support_scripts} class="flex flex-col gap-2">
-              <div class="flex items-center gap-4">
-                <span class="text-base-300 text-base">{script.name}</span>
+          <% searchable_scripts? = length(@support_scripts) > 10 %>
+          <div :if={Enum.any?(@support_scripts)} class="flex flex-col gap-3 px-4 pt-2 pb-6">
+            <div class="flex w-full items-center gap-2">
+              <form :if={!searchable_scripts?} id="run-script-form" phx-change="select-script" class="grid grow grid-cols-1">
+                <label for="script_id" class="hidden">Support script</label>
+                <select
+                  id="script_id"
+                  name="script_id"
+                  class="bg-base-900 border-base-600 focus:outline-focus-ring text-base-400 col-start-1 row-start-1 appearance-none rounded border py-1.5 pr-8 pl-3 text-sm focus:outline focus:-outline-offset-1"
+                >
+                  <option value="" selected={is_nil(@selected_support_script)}>Select a support script</option>
+                  <option :for={script <- @support_scripts} value={script.id} selected={@selected_support_script && script.id == @selected_support_script.id}>
+                    {script.name}
+                  </option>
+                </select>
+              </form>
 
-                <button :if={!script.running?} class="bg-base-800 border-success rounded-full border p-1" type="button" phx-click="run-script" phx-value-id={script.id}>
-                  <svg class="stroke-success size-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M8 19V5L18 12L8 19Z" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </button>
+              <div
+                :if={searchable_scripts?}
+                id="script-autocomplete"
+                class="relative grow"
+                phx-hook="ScriptAutocomplete"
+                data-scripts={Jason.encode!(Enum.map(@support_scripts, &%{id: &1.id, name: &1.name}))}
+                data-selected-id={@selected_support_script && @selected_support_script.id}
+              >
+                <label for="script_search" class="hidden">Search support scripts</label>
+                <input
+                  type="text"
+                  id="script_search"
+                  data-script-search
+                  autocomplete="off"
+                  placeholder="Search support scripts..."
+                  value={@selected_support_script && @selected_support_script.name}
+                  class="bg-base-900 border-base-600 focus:outline-focus-ring text-base-400 w-full rounded border px-3 py-1.5 text-sm focus:outline focus:-outline-offset-1"
+                />
+                <ul
+                  id="script_search-suggestions"
+                  data-script-suggestions
+                  phx-update="ignore"
+                  role="listbox"
+                  hidden
+                  class="bg-base-900 border-base-600 absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border py-1 shadow-lg"
+                >
+                </ul>
+              </div>
 
-                <svg :if={script.running?} class="text-primary mr-3 -ml-1 size-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <.button
+                type="button"
+                aria-label="Run support script"
+                phx-click="run-script"
+                phx-value-id={@selected_support_script && @selected_support_script.id}
+                disabled={is_nil(@selected_support_script) || @support_script_running || disconnected?(@device_connection)}
+              >
+                <svg :if={@selected_support_script && @support_script_running} class="-ml-1 size-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
+                Run script
+              </.button>
+            </div>
 
-                <button :if={script.output} class="bg-base-800 border-alert rounded-full border p-1" type="button" phx-click="clear-script-output" phx-value-id={script.id}>
+            <div :if={@recently_run_support_script && @recently_run_support_script_output} class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-base-500 text-sm">Output for "{@recently_run_support_script.name}"</span>
+                <button
+                  class="bg-base-800 border-alert rounded-full border p-1"
+                  type="button"
+                  aria-label="Clear script output"
+                  phx-click="clear-script-output"
+                >
                   <svg class="stroke-alert size-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                       d="M8 8H16M16 12H8M8 16H12M20 13V6C20 4.89543 19.1046 4 18 4H6C4.89543 4 4 4.89543 4 6V18C4 19.1046 4.89543 20 6 20H13M19 19L21 17M19 19L17 17M19 19L21 21M19 19L17 21"
@@ -569,17 +628,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   </svg>
                 </button>
               </div>
-              <div :if={script.output} class="bg-base-950 border-base-700 mt-2 rounded border p-2">
-                <div id={"support-script-#{script.id}"} phx-hook="SupportScriptOutput" data-output-id={"support-script-output-#{script.id}"} class="overflow-x-scroll"></div>
-                <div id={"support-script-output-#{script.id}"} class="hidden" phx-no-format>{script.output}</div>
+              <div class="bg-base-950 border-base-700 rounded border p-2">
+                <div id="support-script-term" phx-update="ignore" phx-hook="SupportScriptOutput" class="min-h-44 overflow-x-scroll"></div>
+                <div id="support-script-output" class="hidden" phx-no-format>{@recently_run_support_script_output}</div>
               </div>
             </div>
-          </div>
-
-          <div class="border-base-700 flex items-center gap-4 border-t p-4">
-            <.button type="link" navigate={~p"/org/#{@org}/#{@product}/scripts/new"} aria-label="Add a support script">
-              <.icon name="add" />Add a support script
-            </.button>
           </div>
         </div>
       </div>
@@ -813,24 +866,38 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
-  def hooked_event("run-script", %{"id" => id}, socket) do
-    %{assigns: %{device: device, support_scripts: scripts, current_scope: scope}} = socket
-
-    authorized!(:"support_script:run", scope)
-
-    script = Enum.find(scripts, fn script -> script.id == String.to_integer(id) end)
-
+  def hooked_event("select-script", %{"script_id" => ""}, socket) do
     socket
-    |> start_async({:run_script, id}, fn -> Scripts.Runner.send(device, script) end)
-    |> assign(:support_scripts, update_script(scripts, id, %{output: nil, running?: true}))
+    |> assign(:selected_support_script, nil)
     |> halt()
   end
 
-  def hooked_event("clear-script-output", %{"id" => id}, socket) do
-    %{assigns: %{support_scripts: scripts}} = socket
+  def hooked_event("select-script", %{"script_id" => id}, %{assigns: %{support_scripts: scripts}} = socket) do
+    script = Enum.find(scripts, fn script -> script.id == String.to_integer(id) end)
 
     socket
-    |> assign(:support_scripts, update_script(scripts, id, %{output: nil, running?: false}))
+    |> assign(:selected_support_script, script)
+    |> halt()
+  end
+
+  def hooked_event("run-script", _params, socket) do
+    %{assigns: %{device: device, selected_support_script: script, current_scope: scope}} = socket
+
+    authorized!(:"support_script:run", scope)
+
+    socket
+    |> start_async(:run_script, fn -> Scripts.Runner.send(device, script) end)
+    |> assign(:support_script_running, true)
+    |> assign(:recently_run_support_script, script)
+    |> assign(:recently_run_support_script_output, nil)
+    |> halt()
+  end
+
+  def hooked_event("clear-script-output", _params, socket) do
+    socket
+    |> assign(:support_script_running, false)
+    |> assign(:recently_run_support_script, nil)
+    |> assign(:recently_run_support_script_output, nil)
     |> halt()
   end
 
@@ -916,9 +983,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   def hooked_info(_event, socket), do: {:cont, socket}
 
-  def hooked_async({:run_script, id}, result, socket) do
-    %{assigns: %{support_scripts: scripts}} = socket
-
+  def hooked_async(:run_script, result, socket) do
     output =
       case result do
         {:ok, {:ok, output}} ->
@@ -931,10 +996,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           inspect(e)
       end
 
-    scripts = update_script(scripts, id, %{output: output, running?: false})
-
     socket
-    |> assign(:support_scripts, scripts)
+    |> assign(:support_script_running, false)
+    |> assign(:recently_run_support_script_output, output)
     |> halt()
   end
 
@@ -951,18 +1015,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp health_extension_enabled?(product, device) do
     product.extensions.health and device.extensions.health
-  end
-
-  defp update_script(scripts, id, new_info) when is_binary(id) do
-    update_script(scripts, String.to_integer(id), new_info)
-  end
-
-  defp update_script(scripts, id, new_info) do
-    index = Enum.find_index(scripts, fn script -> script.id == id end)
-
-    List.update_at(scripts, index, fn script ->
-      Map.merge(script, new_info)
-    end)
   end
 
   # TODO: this is duplicated code, find a new way to reuse it
