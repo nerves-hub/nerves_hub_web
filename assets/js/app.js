@@ -7,6 +7,7 @@ import "chartjs-adapter-date-fns"
 import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
+import AdvancedQueryEditor from "./hooks/advancedQueryEditor.js"
 import BarChart from "./hooks/barChart.js"
 import Chart from "./hooks/chart.js"
 import Console from "./hooks/console.js"
@@ -45,6 +46,7 @@ let csrfToken = document
 let liveSocket = new LiveSocket("/live", Socket, {
   params: { _csrf_token: csrfToken },
   hooks: {
+    AdvancedQueryEditor,
     BarChart,
     Chart,
     Console,

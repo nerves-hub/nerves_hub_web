@@ -1652,6 +1652,30 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
+  @doc """
+  Get distinct device architectures based on the product
+  """
+  def architectures(product_id) do
+    Device
+    |> select([d], fragment("?->>'architecture'", d.firmware_metadata))
+    |> distinct(true)
+    |> where([d], d.product_id == ^product_id)
+    |> order_by([d], fragment("?->>'architecture'", d.firmware_metadata))
+    |> Repo.all()
+  end
+
+  @doc """
+  Get distinct tags currently used across devices in the product
+  """
+  def distinct_tags(product_id) do
+    Device
+    |> select([d], fragment("unnest(?)", d.tags))
+    |> distinct(true)
+    |> where([d], d.product_id == ^product_id)
+    |> order_by([d], fragment("unnest(?)", d.tags))
+    |> Repo.all()
+  end
+
   def fetch_connecting_code(device_id) do
     Device
     |> join(:left, [d], dp in assoc(d, :deployment_group))
