@@ -55,6 +55,12 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
       operators: ["=", "!="],
       values: &__MODULE__.connection_values/1
     },
+    # The value is a relative time; `last_seen > "7 days ago"` means the device's
+    # last connection is more recent than 7 days ago, `<` means older (stale).
+    "last_seen" => %{
+      operators: [">", "<"],
+      values: &__MODULE__.last_seen_values/1
+    },
     "tags" => %{
       operators: ["contains", "not_contains"],
       values: &__MODULE__.tag_values/1
@@ -190,6 +196,9 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
 
   @doc false
   def connection_values(_product_id), do: ["connected", "disconnected", "not_seen"]
+
+  @doc false
+  def last_seen_values(_product_id), do: ["3 days ago", "7 days ago", "14 days ago", "4 weeks ago"]
 
   @doc false
   def health_status_values(_product_id), do: ["unknown", "healthy", "warning", "unhealthy"]

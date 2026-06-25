@@ -800,6 +800,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
         "platform" => Enum.reject(assigns.platforms, &is_nil/1),
         "architecture" => Enum.reject(assigns.architectures, &is_nil/1),
         "connection" => AdvancedQuery.Schema.connection_values(nil),
+        "last_seen" => AdvancedQuery.Schema.last_seen_values(nil),
         "tags" => assigns.advanced_query_tags ++ [AdvancedQuery.Schema.not_set_value()],
         "health_status" => AdvancedQuery.Schema.health_status_values(nil),
         "connection_type" => AdvancedQuery.Schema.connection_type_values(nil),
