@@ -130,6 +130,34 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
       assert run(product, ~s|connection != "not_seen"|) == ["connected"]
     end
 
+    test "last_seen compares the device's last connection time", %{
+      product: product,
+      org: org,
+      firmware: firmware,
+      untagged: untagged
+    } do
+      # "connected" was seen ~now; give "untagged" a stale connection (10 days ago).
+      # "tagged"/"never_connected" never connected (null last_seen, match neither).
+      Fixtures.device_connection_fixture(untagged, %{
+        status: :disconnected,
+        last_seen_at: DateTime.add(DateTime.utc_now(), -10, :day)
+      })
+
+      disconnected =
+        Fixtures.device_fixture(org, product, firmware, %{identifier: "disconnected", tags: [], status: :provisioned})
+
+      Fixtures.device_connection_fixture(disconnected, %{
+        status: :disconnected,
+        metadata: %{"connection_types" => ["wifi"]},
+        last_seen_at: DateTime.add(DateTime.utc_now(), -5, :day)
+      })
+
+      assert run(product, ~s|last_seen > "7 days ago"|) == ["disconnected"]
+      assert run(product, ~s|last_seen < "7 days ago"|) == ["untagged"]
+      # "untagged" (10 days ago) is more recent than 14 days ago, so neither matches it as stale
+      assert run(product, ~s|last_seen < "14 days ago"|) == []
+    end
+
     test "health_status equality", %{product: product} do
       assert run(product, ~s|health_status = "healthy"|) == ["tagged"]
       assert run(product, ~s|health_status = "warning"|) == ["connected"]

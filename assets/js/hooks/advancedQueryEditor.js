@@ -480,7 +480,9 @@ export default {
     // Suggestion/clear clicks use mousedown+preventDefault so focus never
     // leaves the editor, but this is a small safety net against focus-shift
     // timing quirks across browsers.
-    this.placeholder.classList.remove("hidden")
+    if (this.value() == "") {
+      this.placeholder.classList.remove("hidden")
+    }
     this.collapseTimer = setTimeout(() => this.collapse(), COLLAPSE_DELAY)
   },
 

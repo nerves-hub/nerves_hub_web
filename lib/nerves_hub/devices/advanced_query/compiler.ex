@@ -174,6 +174,15 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     dynamic([latest_connection: lc], is_nil(lc.status) or lc.status != ^status)
   end
 
+  # `last_seen > "7 days ago"` => last connection more recent than the cutoff;
+  # `<` => older. Devices that have never connected have a null last_seen_at and
+  # match neither.
+  defp comparison_dynamic("last_seen", ">", value),
+    do: dynamic([latest_connection: lc], lc.last_seen_at > ^last_seen_cutoff(value) and lc.status == :disconnected)
+
+  defp comparison_dynamic("last_seen", "<", value),
+    do: dynamic([latest_connection: lc], lc.last_seen_at < ^last_seen_cutoff(value) and lc.status == :disconnected)
+
   # A device with no health record reads as "unknown", matching the sidebar filter.
   defp comparison_dynamic("health_status", "=", "unknown"),
     do: dynamic([latest_health: lh], lh.status == :unknown or is_nil(lh))
@@ -266,4 +275,10 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
 
   defp update_status_dynamic(true), do: dynamic([inflight_update: ifu], not is_nil(ifu))
   defp update_status_dynamic(false), do: dynamic([inflight_update: ifu], is_nil(ifu))
+
+  # Only the schema-whitelisted relative-time values reach here.
+  defp last_seen_cutoff("3 days ago"), do: DateTime.add(DateTime.utc_now(), -3, :day)
+  defp last_seen_cutoff("7 days ago"), do: DateTime.add(DateTime.utc_now(), -7, :day)
+  defp last_seen_cutoff("14 days ago"), do: DateTime.add(DateTime.utc_now(), -14, :day)
+  defp last_seen_cutoff("4 weeks ago"), do: DateTime.add(DateTime.utc_now(), -28, :day)
 end

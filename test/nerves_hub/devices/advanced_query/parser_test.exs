@@ -38,6 +38,17 @@ defmodule NervesHub.Devices.AdvancedQuery.ParserTest do
                Parser.parse(~s|metric:load_15min <= 1.5|, product.id)
     end
 
+    test "parses last_seen with a multi-word relative-time value", %{product: product} do
+      assert {:ok, {:comparison, "last_seen", ">", "7 days ago"}} =
+               Parser.parse(~s|last_seen > "7 days ago"|, product.id)
+
+      assert {:ok, {:comparison, "last_seen", "<", "4 weeks ago"}} =
+               Parser.parse(~s|last_seen < "4 weeks ago"|, product.id)
+
+      assert {:error, message, _position} = Parser.parse(~s|last_seen > "1 day ago"|, product.id)
+      assert message =~ "not a valid value"
+    end
+
     test "parses the two-word `is not` operator (case-insensitively)", %{product: product} do
       assert {:ok, {:comparison, "update_status", "is", "updating"}} =
                Parser.parse(~s|update_status is "updating"|, product.id)
