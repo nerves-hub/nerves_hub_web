@@ -183,6 +183,17 @@ defmodule NervesHub.Firmwares do
     |> Enum.reverse()
   end
 
+  @doc """
+  The product's firmwares as `%{version, uuid}` maps, newest version first.
+  """
+  def firmware_versions_and_uuids(product_id) do
+    Firmware
+    |> where([f], f.product_id == ^product_id)
+    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> select([f], %{version: f.version, uuid: f.uuid})
+    |> Repo.all()
+  end
+
   @spec get_firmware(Org.t() | Product.t(), integer()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}

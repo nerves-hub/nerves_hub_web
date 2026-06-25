@@ -1680,6 +1680,65 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     end
   end
 
+  describe "advanced search" do
+    test "renders the search field as a rich text editor", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", timeout: 1000)
+      |> assert_has("#advanced-query-input[contenteditable=true]")
+    end
+
+    test "applying a valid query filters the device list and persists the value", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["prod"]})
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> assert_has("div a", text: device.identifier)
+      |> assert_has("div a", text: device2.identifier)
+      |> unwrap(fn view ->
+        render_hook(view, "apply-advanced-query", %{"query" => ~s|tags contains "prod"|})
+      end)
+      |> assert_has(~s|#advanced-query-editor-wrapper[data-value='tags contains "prod"']|, timeout: 1000)
+      |> assert_has("#device-count", text: "1")
+      |> assert_has("div a", text: device2.identifier)
+      |> refute_has("div a", text: device.identifier)
+    end
+
+    test "an invalid query shows an inline error and does not change the filter", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> unwrap(fn view ->
+        render_hook(view, "apply-advanced-query", %{"query" => ~s|bogus_column = "x"|})
+      end)
+      |> assert_has("p", text: "not a valid column", timeout: 1000)
+      |> assert_has("#device-count", text: "1")
+      |> assert_has("div a", text: device.identifier)
+    end
+
+    test "clearing an applied query removes the filter", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["prod"]})
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices?#{%{advanced_query: ~s|tags contains "prod"|}}")
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> assert_has("div a", text: device2.identifier)
+      |> unwrap(fn view ->
+        render_hook(view, "clear-advanced-query", %{})
+      end)
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> assert_has("div a", text: device.identifier)
+      |> assert_has("div a", text: device2.identifier)
+    end
+  end
+
   def device_index_path(%{org: org, product: product}) do
     ~p"/org/#{org}/#{product}/devices"
   end

@@ -64,6 +64,19 @@ defmodule NervesHub.Devices.Metrics do
     |> Repo.all()
   end
 
+  @doc """
+  Distinct metric keys reported by devices in the product, sorted.
+  """
+  def distinct_keys(product_id) do
+    DeviceMetric
+    |> join(:inner, [dm], d in assoc(dm, :device))
+    |> where([_, d], d.product_id == ^product_id)
+    |> distinct(true)
+    |> order_by([dm], asc: dm.key)
+    |> select([dm], dm.key)
+    |> Repo.all()
+  end
+
   def get_product_metrics_by_key(product_id, key) do
     DeviceMetric
     |> join(:left, [dm], d in assoc(dm, :device))

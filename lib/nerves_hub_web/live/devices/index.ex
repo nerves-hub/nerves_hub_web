@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Device
@@ -14,6 +15,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
   alias NervesHub.Tracker
+  alias NervesHubWeb.Components.AdvancedSearch
   alias NervesHubWeb.Components.BulkActionsSidebar
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.FilterSidebar
@@ -51,7 +53,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     is_pinned: false,
     search: "",
     display_deleted: "exclude",
-    only_updating: false
+    only_updating: false,
+    advanced_query: ""
   }
 
   @filter_types %{
@@ -74,7 +77,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     is_pinned: :boolean,
     search: :string,
     display_deleted: :string,
-    only_updating: :boolean
+    only_updating: :boolean,
+    advanced_query: :string
   }
 
   @default_page 1
@@ -107,6 +111,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:firmware_versions, firmware_versions(product.id))
     |> assign(:platforms, [])
+    |> assign(:architectures, [])
+    |> assign(:advanced_query_tags, [])
+    |> assign(:advanced_query_metric_keys, [])
+    |> assign(:advanced_query_firmwares, [])
+    |> assign(:advanced_query_schema_json, "{}")
+    |> assign(:advanced_query_error, nil)
     |> assign(:show_filters, false)
     |> assign(:show_settings, false)
     |> assign(:current_filters, @default_filters)
@@ -142,7 +152,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> ok()
   end
 
-  def handle_params(unsigned_params, _uri, socket) do
+  def handle_params(unsigned_params, _uri, %{assigns: %{product: product}} = socket) do
     filters = Map.merge(@default_filters, filter_changes(unsigned_params))
     changes = pagination_changes(unsigned_params)
     pagination_opts = Map.merge(@default_pagination, changes)
@@ -151,6 +161,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:current_sort, Map.get(unsigned_params, "sort", "identifier"))
     |> assign(:sort_direction, Map.get(unsigned_params, "sort_direction", "asc"))
     |> assign(:current_filters, filters)
+    |> assign(:advanced_query_error, advanced_query_error(filters.advanced_query, product.id))
     |> assign(:paginate_opts, pagination_opts)
     |> assign(:currently_filtering, filters != @default_filters)
     |> assign(:params, unsigned_params)
@@ -245,6 +256,27 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:selected_devices, [])
     |> push_patch(to: self_path(socket, Map.merge(@default_filters, page_params)))
     |> noreply()
+  end
+
+  def handle_event("apply-advanced-query", %{"query" => raw_query}, %{assigns: %{current_scope: scope}} = socket) do
+    query = String.trim(raw_query)
+
+    case query != "" && AdvancedQuery.parse(query, scope.product.id) do
+      false ->
+        apply_advanced_query(socket, query)
+
+      {:ok, _ast} ->
+        apply_advanced_query(socket, query)
+
+      {:error, message, _position} ->
+        socket
+        |> assign(:advanced_query_error, message)
+        |> noreply()
+    end
+  end
+
+  def handle_event("clear-advanced-query", _, socket) do
+    apply_advanced_query(socket, "")
   end
 
   def handle_event("toggle-settings", %{"toggle" => toggle}, socket) do
@@ -729,8 +761,64 @@ defmodule NervesHubWeb.Live.Devices.Index do
         current_alarms: Alarms.get_current_alarm_types(product.id),
         metrics_keys: Metrics.default_metrics(),
         deployment_groups: ManagedDeployments.get_deployment_groups_by_product(product),
-        platforms: Devices.platforms(product.id)
+        platforms: Devices.platforms(product.id),
+        architectures: Devices.architectures(product.id),
+        advanced_query_tags: Devices.distinct_tags(product.id),
+        advanced_query_metric_keys: Metrics.distinct_keys(product.id),
+        advanced_query_firmwares: Firmwares.firmware_versions_and_uuids(product.id)
       ]
+    end)
+  end
+
+  defp apply_advanced_query(%{assigns: %{paginate_opts: paginate_opts}} = socket, query) do
+    page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
+
+    socket
+    |> assign(:advanced_query_error, nil)
+    |> push_patch(to: self_path(socket, Map.merge(%{"advanced_query" => query}, page_params)))
+    |> noreply()
+  end
+
+  defp advanced_query_error(query, product_id) do
+    case query != "" && AdvancedQuery.parse(query, product_id) do
+      false -> nil
+      {:ok, _ast} -> nil
+      {:error, message, _position} -> message
+    end
+  end
+
+  defp advanced_query_schema_json(assigns) do
+    metric_columns =
+      Enum.map(assigns.advanced_query_metric_keys, &(AdvancedQuery.Schema.metric_prefix() <> &1))
+
+    columns = AdvancedQuery.Schema.columns() ++ metric_columns
+
+    Jason.encode!(%{
+      columns: columns,
+      operators: Map.new(columns, &{&1, AdvancedQuery.Schema.operators(&1)}),
+      values: %{
+        "platform" => Enum.reject(assigns.platforms, &is_nil/1),
+        "architecture" => Enum.reject(assigns.architectures, &is_nil/1),
+        "connection" => AdvancedQuery.Schema.connection_values(nil),
+        "tags" => assigns.advanced_query_tags ++ [AdvancedQuery.Schema.not_set_value()],
+        "health_status" => AdvancedQuery.Schema.health_status_values(nil),
+        "connection_type" => AdvancedQuery.Schema.connection_type_values(nil),
+        "updates" => AdvancedQuery.Schema.updates_values(nil),
+        "alarm_status" => AdvancedQuery.Schema.alarm_status_values(nil),
+        "alarm" => assigns.current_alarms,
+        "deleted" => AdvancedQuery.Schema.boolean_values(nil),
+        "update_status" => AdvancedQuery.Schema.update_status_values(nil),
+        "firmware" => firmware_suggestion_values(assigns.advanced_query_firmwares),
+        "deployment_group" => Enum.map(assigns.deployment_groups, & &1.name) ++ [AdvancedQuery.Schema.not_set_value()]
+      }
+    })
+  end
+
+  # Firmware autosuggest shows a friendly "<version> - <short uuid>" label, but
+  # the query value is the full UUID.
+  defp firmware_suggestion_values(firmwares) do
+    Enum.map(firmwares, fn %{version: version, uuid: uuid} ->
+      %{label: "#{version} - #{String.slice(uuid, 0, 7)}", value: uuid}
     end)
   end
 
@@ -808,9 +896,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_async(:update_filter_data, {:ok, new_assigns}, socket) do
+    socket = assign(socket, new_assigns)
+
     socket
-    |> assign(new_assigns)
     |> assign(:filters_ready?, true)
+    |> assign(:advanced_query_schema_json, advanced_query_schema_json(socket.assigns))
     |> noreply()
   end
 
