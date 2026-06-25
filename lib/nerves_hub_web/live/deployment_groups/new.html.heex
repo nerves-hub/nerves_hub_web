@@ -86,7 +86,7 @@
               <.inputs_for :let={conditions} field={@form[:conditions]}>
                 <div class="flex gap-6">
                   <div class="w-1/2">
-                    <.input field={conditions[:tags]} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+                    <.tag_input field={conditions[:tags]} label="Tag(s) distributed to" placeholder="eg. batch-123" available_tags={@available_tags} />
                   </div>
 
                   <div class="w-1/2">

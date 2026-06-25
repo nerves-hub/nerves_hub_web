@@ -1565,6 +1565,25 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "beta")
     end
 
+    test "a tag added via the UI is included in distinct_tags_for_product/1", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      refute "new-tag" in Devices.distinct_tags_for_product(product)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> fill_in("Add tag", with: "new-tag")
+      |> click_button("Add")
+      |> assert_has("div", text: "Tag \"new-tag\" added successfully.", timeout: 1_000)
+      |> assert_has("span", text: "new-tag")
+
+      assert "new-tag" in Devices.distinct_tags_for_product(product)
+    end
+
     test "removes a tag from the device", %{conn: conn, org: org, product: product, device: device} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")

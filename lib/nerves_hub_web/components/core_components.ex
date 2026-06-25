@@ -610,6 +610,82 @@ defmodule NervesHubWeb.CoreComponents do
   end
 
   @doc """
+  Renders a comma-separated tags text input with an autocomplete dropdown.
+
+  Suggestions are filtered client-side (via the `TagAutocomplete` JS hook) from
+  the `available_tags` list, matching the token currently being typed after the
+  last comma. Tags already present in the input are excluded from suggestions.
+
+  ## Examples
+
+      <.tag_input field={@form[:tags]} label="Tags" available_tags={@available_tags} />
+  """
+  attr(:id, :any, default: nil)
+  attr(:name, :any)
+  attr(:label, :string, default: nil)
+  attr(:value, :any)
+  attr(:available_tags, :list, default: [], doc: "existing tags to offer as autocomplete suggestions")
+  attr(:field, FormField, doc: "a form field struct retrieved from the form, for example: @form[:tags]")
+  attr(:errors, :list, default: [])
+  attr(:rest, :global, include: ~w(placeholder))
+
+  def tag_input(%{field: %FormField{} = field} = assigns) do
+    errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
+
+    assigns
+    |> assign(field: nil, id: assigns.id || field.id)
+    |> assign(:errors, Enum.map(errors, &translate_error/1))
+    |> assign_new(:name, fn -> field.name end)
+    |> assign_new(:value, fn -> field.value end)
+    |> tag_input()
+  end
+
+  def tag_input(assigns) do
+    assigns = assign(assigns, :value, tag_value_to_string(assigns.value))
+
+    ~H"""
+    <div phx-feedback-for={@name}>
+      <.label for={@id}>{@label}</.label>
+      <div
+        id={"#{@id}-autocomplete"}
+        class="relative mt-2"
+        phx-hook="TagAutocomplete"
+        data-available-tags={Jason.encode!(@available_tags)}
+      >
+        <input
+          type="text"
+          name={@name}
+          id={@id}
+          value={@value}
+          autocomplete="off"
+          data-tag-input
+          class={[
+            "bg-base-900 text-base-400 block w-full rounded px-2 py-1.5 focus:ring-0 sm:text-sm",
+            "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
+            @errors == [] && "border-base-600 focus:border-base-700",
+            @errors != [] && "border-alert focus:border-alert"
+          ]}
+          {@rest}
+        />
+        <ul
+          id={"#{@id}-suggestions"}
+          phx-update="ignore"
+          data-tag-suggestions
+          role="listbox"
+          hidden
+          class="bg-base-900 border-base-600 absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border py-1 shadow-lg"
+        >
+        </ul>
+      </div>
+      <.error :for={msg <- @errors}>{msg}</.error>
+    </div>
+    """
+  end
+
+  defp tag_value_to_string(value) when is_list(value), do: Enum.join(value, ", ")
+  defp tag_value_to_string(value), do: value
+
+  @doc """
   Renders a label.
   """
   attr(:for, :string, default: nil)
