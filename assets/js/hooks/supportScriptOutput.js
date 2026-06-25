@@ -30,8 +30,8 @@ const defaultTermOptions = {
     cyan: "#00D8EB",
     brightCyan: "#67FFF0",
     white: "#FFFFFF",
-    brightWhite: "#FFFFFF"
-  }
+    brightWhite: "#FFFFFF",
+  },
 }
 
 export default {
@@ -41,7 +41,7 @@ export default {
     let contentRows = content.split("\n")
 
     if (contentRows.length <= 20) {
-      defaultTermOptions["rows"] = contentRows.length + 1
+      defaultTermOptions["rows"] = 15
     }
 
     const term = new Terminal(defaultTermOptions)
@@ -52,5 +52,5 @@ export default {
     term.open(this.el)
 
     term.writeln(contentRows.join("\n\r"))
-  }
+  },
 }
