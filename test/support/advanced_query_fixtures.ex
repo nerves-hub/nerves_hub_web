@@ -42,7 +42,7 @@ defmodule NervesHub.AdvancedQueryFixtures do
     connected =
       Fixtures.device_fixture(org, product, firmware, %{identifier: "connected", tags: [], status: :provisioned})
 
-    Fixtures.device_connection_fixture(connected, %{status: :connected, metadata: %{"connection_types" => ["wifi"]}})
+    Fixtures.device_connection_fixture(connected, %{status: :connected, network_interface: :wifi})
 
     never_connected =
       Fixtures.device_fixture(org, product, firmware, %{

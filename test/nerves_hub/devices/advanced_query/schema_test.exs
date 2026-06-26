@@ -24,6 +24,7 @@ defmodule NervesHub.Devices.AdvancedQuery.SchemaTest do
   describe "operators/1 and operator?/2" do
     test "returns the operators for known columns" do
       assert Schema.operators("platform") == ["=", "!="]
+      assert Schema.operators("connection_type") == ["=", "!="]
       assert Schema.operators("tags") == ["contains", "not_contains"]
       assert Schema.operators("update_status") == ["is", "is not"]
       assert Schema.operators("identifier") == ["like", "not like"]
@@ -58,6 +59,14 @@ defmodule NervesHub.Devices.AdvancedQuery.SchemaTest do
       assert Schema.value?("identifier", "anything", 1)
       assert Schema.value?("identifier", "%wild_card%", 1)
       refute Schema.value?("identifier", "", 1)
+    end
+
+    test "connection_type accepts the network interfaces and unknown" do
+      for value <- ["cellular", "ethernet", "wifi", "unknown"] do
+        assert Schema.value?("connection_type", value, 1)
+      end
+
+      refute Schema.value?("connection_type", "bogus", 1)
     end
   end
 
