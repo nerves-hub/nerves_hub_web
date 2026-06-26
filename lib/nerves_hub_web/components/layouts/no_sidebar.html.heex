@@ -15,7 +15,7 @@
   </div>
 
   <div class="fixed bottom-0">
-    <div id="user-menu-container" class="hidden" phx-click-away={toggle_user_menu()} phx-window-keydown={toggle_user_menu()} phx-key="escape">
+    <div id="user-menu-container" class="hidden" phx-click-away={hide_user_menu()} phx-window-keydown={hide_user_menu()} phx-key="escape">
       <div id="user-menu" class="bg-surface-overlay border-base-700 mx-3.5 mb-4 flex flex-col rounded-md border p-2 shadow-lg">
         <div class="hover:bg-primary/20 justify-left flex items-center gap-1.5 p-2 hover:rounded-md">
           <span class="lucide-user-round--light text-base-300 size-5" />

@@ -3,11 +3,10 @@ defmodule NervesHubWeb.Components.ListSettingsSidebar do
 
   alias NervesHub.Accounts.User
   alias NervesHub.Repo
+  alias Phoenix.LiveView.JS
 
-  attr(:show, :boolean, required: true)
   attr(:available_columns, :list, required: true)
   attr(:selected_columns, :list, required: true)
-  attr(:on_toggle, :any, default: "toggle-settings")
   attr(:on_update, :any, default: "update-settings")
 
   def render(assigns) do
@@ -22,16 +21,17 @@ defmodule NervesHubWeb.Components.ListSettingsSidebar do
 
     ~H"""
     <div class="pointer-events-none fixed inset-y-0 right-0 z-40 flex max-w-full pl-10 sm:pl-16">
-      <div class={[
-        "bg-surface-muted border-base-700 shadow-filter-slider pointer-events-auto mt-[55px] flex h-full w-screen max-w-80 flex-col border-t border-l transition-transform",
-        !@show && "translate-x-full",
-        !@show && "invisible"
-      ]}>
+      <div
+        id="settings-sidebar"
+        class="bg-surface-muted border-base-700 shadow-filter-slider pointer-events-auto mt-[55px] hidden h-full w-screen max-w-80 flex-col border-t border-l transition-transform"
+        phx-window-keydown={hide_settings_sidebar()}
+        phx-key="escape"
+      >
         <div class="h-0 flex-1 overflow-y-auto">
           <div class="border-base-700 flex h-14 items-center border-b px-4 py-3">
             <h4 class="text-base font-semibold">Settings</h4>
 
-            <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click={@on_toggle} phx-value-toggle={to_string(@show)}>
+            <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click={hide_settings_sidebar()}>
               <span class="lucide-x--light text-base-300 size-5" />
             </button>
           </div>
@@ -87,5 +87,24 @@ defmodule NervesHubWeb.Components.ListSettingsSidebar do
     else
       to_string(column) in selected_columns
     end
+  end
+
+  defp hide_settings_sidebar() do
+    JS.hide(
+      to: "#settings-sidebar",
+      transition: {"transition-transform duration-150 ease-in-out", "translate-x-0", "translate-x-full"},
+      time: 150,
+      blocking: false
+    )
+  end
+
+  def show_settings_sidebar() do
+    JS.show(
+      to: "#settings-sidebar",
+      display: "flex",
+      transition: {"transition-transform duration-150 ease-in-out", "translate-x-full", "translate-x-0"},
+      time: 150,
+      blocking: false
+    )
   end
 end
