@@ -112,20 +112,47 @@
     </div>
 
     <div :if={@device_connections_graph_enabled} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col gap-5 rounded border p-5">
-      <div class="text-base-50 flex items-center leading-6 font-medium">
-        Connected Devices — Last 14 Days
+      <div class="flex justify-between">
+        <div class="text-base-50 flex items-center leading-6 font-medium">
+          Connected Device History
+        </div>
+
+        <div role="tablist" class="bg-surface-muted border-b-default border-t-default inline-flex gap-0.5 rounded-md border p-0.5">
+          <button
+            role="tab"
+            data-selected={@connected_devices_period == :twenty_four_hours}
+            phx-click="select-graph-time-period"
+            phx-value-period="twenty_four_hours"
+            class="text-content-muted cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap shadow-none transition-colors duration-120 hover:bg-indigo-500/80 hover:text-white data-selected:bg-indigo-500 data-selected:font-semibold data-selected:text-white data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+          >Last 24 hours</button>
+          <button
+            role="tab"
+            data-selected={@connected_devices_period == :fourteen_days}
+            phx-click="select-graph-time-period"
+            phx-value-period="fourteen_days"
+            class="text-content-muted cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap shadow-none transition-colors duration-120 hover:bg-indigo-500/80 hover:text-white data-selected:bg-indigo-500 data-selected:font-semibold data-selected:text-white data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+          >14 days</button>
+          <button
+            role="tab"
+            phx-click="select-graph-time-period"
+            phx-value-period="four_weeks"
+            data-selected={@connected_devices_period == :four_weeks}
+            class="text-content-muted cursor-pointer appearance-none rounded-sm border-0 bg-transparent px-3 py-1.5 text-xs leading-none font-medium whitespace-nowrap shadow-none transition-colors duration-120 hover:bg-indigo-500/80 hover:text-white data-selected:bg-indigo-500 data-selected:font-semibold data-selected:text-white data-selected:shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+          >4 weeks</button>
+        </div>
       </div>
 
       <div class="h-[160px] grow">
         <canvas
-          id="daily-device-counts-chart"
+          id={"daily-device-counts-chart-#{@connected_devices_period}"}
           phx-hook="BarChart"
           phx-update="ignore"
           data-metrics={Jason.encode!(@device_connections_graph_data)}
           data-title=""
           data-mindate={Jason.encode!(@device_connections_graph_from)}
           data-maxdate={Jason.encode!(@device_connections_graph_to)}
-          data-unit="day"
+          data-unit={@device_connections_graph_unit}
+          data-period={@connected_devices_period}
         ></canvas>
       </div>
     </div>

@@ -326,4 +326,103 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       assert Connections.device_connections_by_date(org.id, product.id, from) == []
     end
   end
+
+  describe "device_connections_by_hour/3" do
+    setup %{org: org, product: product, firmware: firmware} do
+      device_a = Fixtures.device_fixture(org, product, firmware)
+      device_b = Fixtures.device_fixture(org, product, firmware)
+
+      %{device_a: device_a, device_b: device_b}
+    end
+
+    defp hours_ago(n), do: DateTime.add(DateTime.utc_now(), -n, :hour)
+
+    test "buckets unique connected devices per hour across the window", %{
+      org: org,
+      product: product,
+      device_a: device_a,
+      device_b: device_b
+    } do
+      # device_a was connected from 5 hours ago until 3 hours ago
+      insert_history(device_a, hours_ago(5), hours_ago(3))
+      # device_b connected 2 hours ago and is still connected
+      insert_history(device_b, hours_ago(2), nil)
+
+      from = DateTime.add(DateTime.utc_now(), -24, :hour)
+      results = Connections.device_connections_by_hour(org.id, product.id, from)
+
+      counts =
+        Map.new(results, fn %{day: hour, count: count} ->
+          {NaiveDateTime.truncate(hour, :second), count}
+        end)
+
+      hour = fn n ->
+        DateTime.utc_now()
+        |> DateTime.add(-n, :hour)
+        |> DateTime.to_naive()
+        |> NaiveDateTime.truncate(:second)
+        |> Map.put(:minute, 0)
+        |> Map.put(:second, 0)
+      end
+
+      # device_a present on the -5, -4 and -3 hour buckets
+      assert counts[hour.(5)] == 1
+      assert counts[hour.(4)] == 1
+      assert counts[hour.(3)] == 1
+
+      # device_b present on the -2, -1 and current hour buckets
+      assert counts[hour.(2)] == 1
+      assert counts[hour.(1)] == 1
+      assert counts[hour.(0)] == 1
+    end
+
+    test "counts each device once per hour even with overlapping connections", %{
+      org: org,
+      product: product,
+      device_a: device_a,
+      device_b: device_b
+    } do
+      insert_history(device_a, hours_ago(0), nil)
+      insert_history(device_b, hours_ago(0), nil)
+      # device_a has a second (overlapping) connection this hour
+      insert_history(device_a, hours_ago(0), nil)
+
+      from = DateTime.add(DateTime.utc_now(), -24, :hour)
+      results = Connections.device_connections_by_hour(org.id, product.id, from)
+
+      total = results |> Enum.map(& &1.count) |> Enum.max(fn -> 0 end)
+
+      # two unique devices, despite three connection rows
+      assert total == 2
+    end
+
+    test "only includes connections for the requested org and product", %{
+      org: org,
+      product: product,
+      device_a: device_a,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      insert_history(device_a, hours_ago(1), nil)
+
+      other_org = Fixtures.org_fixture(user, %{name: "other-org-hourly"})
+      other_product = Fixtures.product_fixture(user, other_org)
+      other_org_key = Fixtures.org_key_fixture(other_org, user, tmp_dir)
+      other_firmware = Fixtures.firmware_fixture(other_org_key, other_product, %{dir: tmp_dir})
+      other_device = Fixtures.device_fixture(other_org, other_product, other_firmware)
+      insert_history(other_device, hours_ago(1), nil)
+
+      from = DateTime.add(DateTime.utc_now(), -24, :hour)
+      results = Connections.device_connections_by_hour(org.id, product.id, from)
+
+      # every bucket only ever sees device_a — the other org/product is excluded
+      assert Enum.all?(results, &(&1.count == 1))
+      refute results == []
+    end
+
+    test "returns no rows when there is no connection history", %{org: org, product: product} do
+      from = DateTime.add(DateTime.utc_now(), -24, :hour)
+      assert Connections.device_connections_by_hour(org.id, product.id, from) == []
+    end
+  end
 end

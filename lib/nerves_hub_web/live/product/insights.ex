@@ -6,6 +6,8 @@ defmodule NervesHubWeb.Live.Product.Insights do
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
 
+  @graph_periods ~w(twenty_four_hours fourteen_days four_weeks)
+
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     product = Products.load_shared_secret_auth(scope.product)
@@ -37,6 +39,18 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> noreply()
   end
 
+  def handle_event("select-graph-time-period", %{"period" => period}, socket) when period in @graph_periods do
+    socket
+    |> maybe_assign_device_connections_graph(String.to_existing_atom(period))
+    |> noreply()
+  end
+
+  def handle_event("select-graph-time-period", _params, socket) do
+    socket
+    |> put_flash(:error, "Invalid graph period selected")
+    |> noreply()
+  end
+
   @impl Phoenix.LiveView
   def handle_info(:poll_device_counts, socket) do
     socket
@@ -57,20 +71,45 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> assign(:fleet_size, Devices.total_count(scope.product))
   end
 
-  defp maybe_assign_device_connections_graph(%{assigns: %{current_scope: scope}} = socket) do
-    if Application.get_env(:nerves_hub, :analytics_enabled) do
-      from = Date.utc_today() |> Date.add(-14)
+  defp maybe_assign_device_connections_graph(socket, period \\ :fourteen_days)
 
-      data = Connections.device_connections_by_date(scope.org.id, scope.product.id, from)
+  defp maybe_assign_device_connections_graph(%{assigns: %{current_scope: scope}} = socket, period) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      {from, to, unit, data} = device_connections_graph(scope, period)
 
       socket
-      |> assign(:device_connections_graph_from, from)
-      |> assign(:device_connections_graph_to, Date.utc_today())
       |> assign(:device_connections_graph_enabled, true)
+      |> assign(:device_connections_graph_from, from)
+      |> assign(:device_connections_graph_to, to)
+      |> assign(:device_connections_graph_unit, unit)
       |> assign(:device_connections_graph_data, data)
+      |> assign(:connected_devices_period, period)
     else
       assign(socket, :device_connections_graph_enabled, false)
     end
+  end
+
+  defp device_connections_graph(scope, :twenty_four_hours) do
+    # Snap the window to the top of the hour so the chart's axis bounds line up
+    # with the hourly buckets (which are themselves aligned via `toStartOfHour`),
+    # letting the bars sit flush against both edges.
+    to = %{DateTime.utc_now() | minute: 0, second: 0, microsecond: {0, 0}}
+    from = DateTime.add(to, -24, :hour)
+    data = Connections.device_connections_by_hour(scope.org.id, scope.product.id, from)
+
+    {from, to, "hour", data}
+  end
+
+  defp device_connections_graph(scope, :four_weeks), do: device_connections_graph_by_day(scope, 28)
+
+  defp device_connections_graph(scope, :fourteen_days), do: device_connections_graph_by_day(scope, 14)
+
+  defp device_connections_graph_by_day(scope, days) do
+    to = Date.utc_today()
+    from = Date.add(to, -days)
+    data = Connections.device_connections_by_date(scope.org.id, scope.product.id, from)
+
+    {from, to, "day", data}
   end
 
   defp maybe_assign_flapping_connections(%{assigns: %{current_scope: scope}} = socket) do
