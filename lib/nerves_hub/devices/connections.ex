@@ -249,6 +249,50 @@ defmodule NervesHub.Devices.Connections do
     NervesHub.AnalyticsRepo.all(query)
   end
 
+  @doc """
+  Buckets the count of unique connected devices per hour, from `from` (a
+  `DateTime`) up to now.
+
+  Mirrors `device_connections_by_date/3` but at hourly granularity, for the
+  shorter "last 24 hours" view of the connection history graph. The returned
+  rows use a `:day` key (holding the hour as a `NaiveDateTime`) so the chart can
+  consume both day- and hour-bucketed data without changes.
+  """
+  def device_connections_by_hour(org_id, product_id, %DateTime{} = from) do
+    window_start = from
+    window_end = DateTime.utc_now()
+
+    inner =
+      from c in "device_connection_history",
+        where: c.org_id == ^org_id,
+        where: c.product_id == ^product_id,
+        where: c.established_at <= ^window_end,
+        where: is_nil(c.disconnected_at) or c.disconnected_at >= ^window_start,
+        select: %{
+          device_id: c.device_id,
+          hour:
+            fragment(
+              "toDateTime(arrayJoin(range(toUInt32(toStartOfHour(greatest(?, ?))), toUInt32(toStartOfHour(least(coalesce(?, ?), ?))) + 3600, 3600)))",
+              c.established_at,
+              ^window_start,
+              c.disconnected_at,
+              ^window_end,
+              ^window_end
+            )
+        }
+
+    query =
+      from s in subquery(inner),
+        group_by: s.hour,
+        order_by: s.hour,
+        select: %{
+          day: s.hour,
+          count: fragment("uniqExact(?)", s.device_id)
+        }
+
+    NervesHub.AnalyticsRepo.all(query)
+  end
+
   def clean_stale_connections() do
     interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
     jitter = Application.get_env(:nerves_hub, :device_last_seen_update_interval_jitter_seconds)
