@@ -304,7 +304,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> fill_in("Identifier", with: device.identifier)
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
@@ -320,7 +320,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> fill_in("Identifier", with: "foo")
       |> assert_has("#device-count", text: "0", timeout: 1000)
     end
@@ -331,7 +331,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> fill_in("Identifier", with: "device-")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
@@ -345,7 +345,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> fill_in("Identifier", with: just_the_tail)
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
@@ -357,7 +357,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> fill_in("Identifier", with: "ice-")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
@@ -539,7 +539,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test-no-show")
       |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
@@ -565,7 +565,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> select("Metrics", option: "cpu_temp")
       |> assert_has("label", text: "Operator", timeout: 1000)
       |> select("Metrics Operator", option: "Greater Than")
@@ -597,7 +597,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "filter-test-no-show")
       |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
@@ -618,7 +618,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> fill_in("#filter-form .sidebar-text-input", "Tags", with: "does_not_matter")
       |> assert_has("#device-count", text: "0", timeout: 1000)
       |> refute_has("div a", text: device2.identifier)
@@ -636,7 +636,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
       |> assert_has("div a", text: device3.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> select("Untagged", option: "Only untagged")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
@@ -656,7 +656,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> select("Alarm Status", option: "Has Alarms")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
@@ -676,7 +676,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> select("Alarm Status", option: "No Alarms")
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
@@ -697,7 +697,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> select("Alarm", option: alarm)
       |> assert_path(device_index_path(fixture), query_params: %{alarm: alarm})
       |> assert_has("#device-count", text: "1", timeout: 1000)
@@ -724,7 +724,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "2", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> select("Deployment Group", option: deployment_group.name)
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
@@ -737,7 +737,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(device_index_path(fixture))
       |> assert_has("button", text: "Filters", timeout: 1000)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> select("Deployment Group", option: "All")
       |> assert_has("#device-count", text: "1", timeout: 1000)
     end
@@ -873,7 +873,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
       |> assert_has("div a", text: device3.identifier)
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> select("Deployment Group", option: deployment_group.name)
       |> assert_has("#device-count", text: "2", timeout: 1_000)
       |> select("Platform", option: "platform")
@@ -920,7 +920,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         |> visit(device_index_path(fixture))
         |> assert_has("#device-count", text: "1", timeout: 1000)
         |> assert_has("th", text: @label)
-        |> click_button("#header button[phx-click=toggle-settings]", "")
+        # the show settings button is shown using JS, so no `click_button` is needed
         |> uncheck(@friendly_column_name)
         |> refute_has("th", text: @label, timeout: 1_000)
       end
@@ -949,7 +949,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         |> visit(device_index_path(fixture))
         |> assert_has("#device-count", text: "1", timeout: 1000)
         |> refute_has("th", text: @label)
-        |> click_button("#header button[phx-click=toggle-settings]", "")
+        # the show settings button is shown using JS, so no `click_button` is needed
         |> check(@friendly_column_name)
         |> assert_has("th", text: @label, timeout: 1_000)
       end
@@ -1651,7 +1651,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> visit(device_index_path(fixture))
       |> assert_has("div a", text: device.identifier, timeout: 1_000)
       # Filter by platform to reveal the firmware push option
-      |> click_button("#header button[phx-click=toggle-filters]", "")
+      # the show filters button is shown using JS, so no `click_button` is needed
       |> select("Platform", option: "platform")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       # Select the device

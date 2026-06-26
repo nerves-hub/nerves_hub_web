@@ -80,8 +80,8 @@
       </nav>
     </div>
 
-    <div class="sticky bottom-0 col-start-1 col-end-2 mt-auto mb-1">
-      <div id="user-menu-container" class="hidden" phx-click-away={toggle_user_menu()} phx-window-keydown={toggle_user_menu()} phx-key="escape">
+    <div class="border-b-subtle sticky bottom-0 col-start-1 col-end-2 mt-auto border-t">
+      <div id="user-menu-container" class="hidden" phx-click-away={hide_user_menu()} phx-window-keydown={hide_user_menu()} phx-key="escape">
         <div
           id="user-menu"
           class="bg-surface-overlay border-base-700 collapsed:absolute collapsed:bottom-14 collapsed:left-2 collapsed:mx-0 collapsed:w-56 mx-3.5 mb-4 flex flex-col rounded-md border p-2 shadow-lg"
@@ -146,7 +146,7 @@
       <a
         id="user-menu-toggle"
         href="#"
-        class="collapsed:justify-center collapsed:mx-0 hover:bg-primary/10 text-base-50 mx-3 my-0.5 flex items-center gap-x-2.5 p-2 text-sm/6 font-semibold hover:rounded-lg"
+        class="collapsed:justify-center collapsed:mx-0 hover:bg-primary/10 text-base-50 flex h-16 items-center gap-x-2.5 px-3 py-2.5 text-sm/6 font-semibold"
         phx-click={toggle_user_menu()}
       >
         <.user_avatar user={@current_scope.user} />

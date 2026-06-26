@@ -117,8 +117,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:advanced_query_firmwares, [])
     |> assign(:advanced_query_schema_json, "{}")
     |> assign(:advanced_query_error, nil)
-    |> assign(:show_filters, false)
-    |> assign(:show_settings, false)
     |> assign(:current_filters, @default_filters)
     |> assign(:currently_filtering, false)
     |> assign(:selected_devices, [])
@@ -235,10 +233,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
-    {:noreply, assign(socket, :show_filters, toggle != "true")}
-  end
-
   def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
@@ -277,10 +271,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   def handle_event("clear-advanced-query", _, socket) do
     apply_advanced_query(socket, "")
-  end
-
-  def handle_event("toggle-settings", %{"toggle" => toggle}, socket) do
-    {:noreply, assign(socket, :show_settings, toggle != "true")}
   end
 
   def handle_event("update-settings", params, %{assigns: %{current_scope: scope}} = socket) do
@@ -1165,13 +1155,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def show_menu(id, js \\ %JS{}) do
-    js
-    |> JS.show(transition: "fade-in", to: "##{id}")
+    JS.show(js, transition: "fade-in", to: "##{id}")
   end
 
   def hide_menu(id, js \\ %JS{}) do
-    js
-    |> JS.hide(transition: "fade-out", to: "##{id}")
+    JS.hide(js, transition: "fade-out", to: "##{id}")
   end
 
   def fade_in(selector) do
