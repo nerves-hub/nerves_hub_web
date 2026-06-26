@@ -86,12 +86,13 @@ defmodule NervesHub.Devices.DeviceFiltering do
     end
   end
 
+  def filter(query, _filters, :connection_type, "unknown") do
+    where(query, [latest_connection: lc], lc.network_interface == :unknown or is_nil(lc.network_interface))
+  end
+
   def filter(query, _filters, :connection_type, value) do
-    where(
-      query,
-      [latest_connection: lc],
-      fragment("?::jsonb <@ ?", ^[value], lc.metadata["connection_types"])
-    )
+    interface = String.to_existing_atom(value)
+    where(query, [latest_connection: lc], lc.network_interface == ^interface)
   end
 
   def filter(query, _filters, :firmware_version, value) do

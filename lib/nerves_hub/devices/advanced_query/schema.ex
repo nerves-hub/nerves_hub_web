@@ -70,7 +70,7 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
       values: &__MODULE__.health_status_values/1
     },
     "connection_type" => %{
-      operators: ["contains", "not_contains"],
+      operators: ["=", "!="],
       values: &__MODULE__.connection_type_values/1
     },
     "updates" => %{
@@ -204,7 +204,7 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
   def health_status_values(_product_id), do: ["unknown", "healthy", "warning", "unhealthy"]
 
   @doc false
-  def connection_type_values(_product_id), do: ["cellular", "ethernet", "wifi"]
+  def connection_type_values(_product_id), do: ["cellular", "ethernet", "wifi", "unknown"]
 
   @doc false
   def updates_values(_product_id), do: ["enabled", "disabled", "penalty-box"]

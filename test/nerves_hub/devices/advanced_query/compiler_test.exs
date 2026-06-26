@@ -148,7 +148,7 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
 
       Fixtures.device_connection_fixture(disconnected, %{
         status: :disconnected,
-        metadata: %{"connection_types" => ["wifi"]},
+        network_interface: :wifi,
         last_seen_at: DateTime.add(DateTime.utc_now(), -5, :day)
       })
 
@@ -172,13 +172,19 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
       assert run(product, ~s|health_status != "healthy"|) == ["connected", "never_connected", "untagged"]
     end
 
-    test "connection_type contains", %{product: product} do
-      assert run(product, ~s|connection_type contains "wifi"|) == ["connected"]
-      assert run(product, ~s|connection_type contains "ethernet"|) == []
+    test "connection_type equality matches the latest connection's network interface", %{product: product} do
+      assert run(product, ~s|connection_type = "wifi"|) == ["connected"]
+      assert run(product, ~s|connection_type = "ethernet"|) == []
     end
 
-    test "connection_type not_contains includes devices with no connection metadata", %{product: product} do
-      assert run(product, ~s|connection_type not_contains "wifi"|) == ["never_connected", "tagged", "untagged"]
+    test "connection_type unknown matches devices with no reported interface", %{product: product} do
+      # "tagged"/"untagged"/"never_connected" have no connection (nil interface).
+      assert run(product, ~s|connection_type = "unknown"|) == ["never_connected", "tagged", "untagged"]
+      assert run(product, ~s|connection_type != "unknown"|) == ["connected"]
+    end
+
+    test "connection_type inequality includes devices with no reported interface", %{product: product} do
+      assert run(product, ~s|connection_type != "wifi"|) == ["never_connected", "tagged", "untagged"]
     end
 
     test "updates enabled/disabled", %{product: product} do

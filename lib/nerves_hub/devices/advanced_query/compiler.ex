@@ -200,16 +200,23 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     dynamic([latest_health: lh], is_nil(lh) or lh.status != ^status)
   end
 
-  # `connection_types` is a JSON array on the latest connection's metadata; a
-  # device can report more than one, so membership uses contains semantics.
-  defp comparison_dynamic("connection_type", "contains", value),
-    do: dynamic([latest_connection: lc], fragment("?::jsonb <@ ?", ^[value], lc.metadata["connection_types"]))
+  # `network_interface` is the latest connection's reported interface, humanized
+  # to one of wifi/ethernet/cellular/unknown. A device that has never connected
+  # (or never reported an interface) has no value, which reads as "unknown".
+  defp comparison_dynamic("connection_type", "=", "unknown"),
+    do: dynamic([latest_connection: lc], lc.network_interface == :unknown or is_nil(lc.network_interface))
 
-  defp comparison_dynamic("connection_type", "not_contains", value) do
-    dynamic(
-      [latest_connection: lc],
-      fragment("NOT (?::jsonb <@ COALESCE(?, '[]'::jsonb))", ^[value], lc.metadata["connection_types"])
-    )
+  defp comparison_dynamic("connection_type", "=", value) do
+    interface = String.to_existing_atom(value)
+    dynamic([latest_connection: lc], lc.network_interface == ^interface)
+  end
+
+  defp comparison_dynamic("connection_type", "!=", "unknown"),
+    do: dynamic([latest_connection: lc], not is_nil(lc.network_interface) and lc.network_interface != :unknown)
+
+  defp comparison_dynamic("connection_type", "!=", value) do
+    interface = String.to_existing_atom(value)
+    dynamic([latest_connection: lc], is_nil(lc.network_interface) or lc.network_interface != ^interface)
   end
 
   defp comparison_dynamic("updates", "=", "enabled"), do: dynamic([d], d.updates_enabled == true)
