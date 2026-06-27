@@ -23,6 +23,7 @@ defmodule NervesHubWeb.Router do
   alias NervesHubWeb.API.UI
   alias NervesHubWeb.Mounts.CurrentPath
   alias NervesHubWeb.Mounts.EnrichSentryContext
+  alias NervesHubWeb.Mounts.SetUsersTimezone
   alias NervesHubWeb.Plugs.OpenApiSpec
   alias NervesHubWeb.Plugs.Redirector
   alias NervesHubWeb.Plugs.ServerAuth
@@ -280,6 +281,7 @@ defmodule NervesHubWeb.Router do
         {NervesHubWeb.Auth, :assign_org_to_scope},
         {NervesHubWeb.Auth, :assign_product_to_scope},
         {NervesHubWeb.Auth, :require_authenticated},
+        SetUsersTimezone,
         EnrichSentryContext,
         CurrentPath
       ] do
