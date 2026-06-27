@@ -44,8 +44,16 @@ let execJS = (selector, attr) => {
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content")
+
+let time_zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+let timezone_offset = -(new Date().getTimezoneOffset() / 60)
+
 let liveSocket = new LiveSocket("/live", Socket, {
-  params: { _csrf_token: csrfToken },
+  params: {
+    _csrf_token: csrfToken,
+    time_zone: time_zone,
+    timezone_offset: timezone_offset,
+  },
   hooks: {
     AdvancedQueryEditor,
     BarChart,

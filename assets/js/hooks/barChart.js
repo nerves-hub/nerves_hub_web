@@ -184,6 +184,8 @@ export default {
           },
           tooltip: false,
           valueLabels: {
+            // hide the label for empty (zero-filled) intervals
+            display: (c) => c.value.count !== 0,
             formatter: (v) => `${v.count}`,
           },
         },

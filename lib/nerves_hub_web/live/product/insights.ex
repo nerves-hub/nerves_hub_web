@@ -74,8 +74,11 @@ defmodule NervesHubWeb.Live.Product.Insights do
   defp maybe_assign_device_connections_graph(socket, period \\ :fourteen_days)
 
   defp maybe_assign_device_connections_graph(%{assigns: %{current_scope: scope}} = socket, period) do
-    if Application.get_env(:nerves_hub, :analytics_enabled) do
-      {from, to, unit, data} = device_connections_graph(scope, period)
+    # Only load graph data on the connected mount: the disconnected (dead) render
+    # has no client timezone yet, and we'd otherwise run the ClickHouse queries
+    # twice on every page load.
+    if connected?(socket) and Application.get_env(:nerves_hub, :analytics_enabled) do
+      {from, to, unit, data} = device_connections_graph(scope, socket.assigns.time_zone, period)
 
       socket
       |> assign(:device_connections_graph_enabled, true)
@@ -89,27 +92,43 @@ defmodule NervesHubWeb.Live.Product.Insights do
     end
   end
 
-  defp device_connections_graph(scope, :twenty_four_hours) do
-    # Snap the window to the top of the hour so the chart's axis bounds line up
-    # with the hourly buckets (which are themselves aligned via `toStartOfHour`),
-    # letting the bars sit flush against both edges.
-    to = %{DateTime.utc_now() | minute: 0, second: 0, microsecond: {0, 0}}
+  defp device_connections_graph(scope, time_zone, :twenty_four_hours) do
+    {time_zone, now} = local_now(time_zone)
+
+    # Snap the window to the top of the (local) hour so the chart's axis bounds
+    # line up with the hourly buckets (aligned via `toStartOfHour`), letting the
+    # bars sit flush against both edges.
+    to = %{now | minute: 0, second: 0, microsecond: {0, 0}}
     from = DateTime.add(to, -24, :hour)
-    data = Connections.device_connections_by_hour(scope.org.id, scope.product.id, from)
+    data = Connections.device_connections_by_hour(scope.org.id, scope.product.id, from, to, time_zone)
 
     {from, to, "hour", data}
   end
 
-  defp device_connections_graph(scope, :four_weeks), do: device_connections_graph_by_day(scope, 28)
+  defp device_connections_graph(scope, time_zone, :four_weeks),
+    do: device_connections_graph_by_day(scope, time_zone, 28)
 
-  defp device_connections_graph(scope, :fourteen_days), do: device_connections_graph_by_day(scope, 14)
+  defp device_connections_graph(scope, time_zone, :fourteen_days),
+    do: device_connections_graph_by_day(scope, time_zone, 14)
 
-  defp device_connections_graph_by_day(scope, days) do
-    to = Date.utc_today()
+  defp device_connections_graph_by_day(scope, time_zone, days) do
+    {time_zone, now} = local_now(time_zone)
+
+    to = DateTime.to_date(now)
     from = Date.add(to, -days)
-    data = Connections.device_connections_by_date(scope.org.id, scope.product.id, from)
+    data = Connections.device_connections_by_date(scope.org.id, scope.product.id, from, to, time_zone)
 
     {from, to, "day", data}
+  end
+
+  # Resolves the viewer's "now" in their timezone, falling back to UTC if the
+  # timezone name isn't recognised. Returns the (validated) timezone alongside,
+  # so the same name is handed to the ClickHouse bucketing functions.
+  defp local_now(time_zone) do
+    case DateTime.now(time_zone) do
+      {:ok, now} -> {time_zone, now}
+      {:error, _} -> {"Etc/UTC", DateTime.utc_now()}
+    end
   end
 
   defp maybe_assign_flapping_connections(%{assigns: %{current_scope: scope}} = socket) do

@@ -214,9 +214,18 @@ defmodule NervesHub.Devices.Connections do
     end
   end
 
-  def device_connections_by_date(org_id, product_id, from) do
+  @doc """
+  Buckets the count of unique connected devices per day, for the (local) dates
+  in `from..to`.
+
+  Days are bucketed in `time_zone` (an IANA name, e.g. "Pacific/Auckland") so
+  the graph reflects the viewer's local calendar days. Every date in the window
+  is returned (via a `generate_series` left join), with `0` for days that had no
+  connections. The returned `:day` key holds a `Date`.
+  """
+  def device_connections_by_date(org_id, product_id, %Date{} = from, %Date{} = to, time_zone) do
     window_start = Date.add(from, -1)
-    window_end = Date.utc_today()
+    window_end = to
 
     inner =
       from c in "device_connection_history",
@@ -228,66 +237,105 @@ defmodule NervesHub.Devices.Connections do
           device_id: c.device_id,
           day:
             fragment(
-              "toDate(arrayJoin(range(toUInt32(greatest(toDate(?), ?)), toUInt32(least(coalesce(toDate(?), ?), ?)) + 1)))",
+              "toDate(arrayJoin(range(toUInt32(greatest(toDate(?, ?), ?)), toUInt32(least(coalesce(toDate(?, ?), ?), ?)) + 1)))",
               c.established_at,
+              ^time_zone,
               type(^window_start, :date),
               c.disconnected_at,
+              ^time_zone,
               type(^window_end, :date),
               type(^window_end, :date)
             )
         }
 
-    query =
+    counts =
       from s in subquery(inner),
         group_by: s.day,
-        order_by: s.day,
+        select: %{day: s.day, count: fragment("uniqExact(?)", s.device_id)}
+
+    # A row for every date in the window, so days with no connections come back
+    # as 0 rather than being absent.
+    series =
+      from g in fragment(
+             "generate_series(toUInt32(?), toUInt32(?), 1)",
+             type(^from, :date),
+             type(^to, :date)
+           ),
+           select: %{day_number: fragment("generate_series")}
+
+    query =
+      from s in subquery(series),
+        left_join: c in subquery(counts),
+        on: s.day_number == fragment("toUInt32(?)", c.day),
+        order_by: s.day_number,
         select: %{
-          day: s.day,
-          count: fragment("uniqExact(?)", s.device_id)
+          day: fragment("toDate(?)", s.day_number),
+          count: fragment("coalesce(?, 0)", c.count)
         }
 
     NervesHub.AnalyticsRepo.all(query)
   end
 
   @doc """
-  Buckets the count of unique connected devices per hour, from `from` (a
-  `DateTime`) up to now.
+  Buckets the count of unique connected devices per hour, for the window
+  `from..to` (both `DateTime`s).
 
-  Mirrors `device_connections_by_date/3` but at hourly granularity, for the
-  shorter "last 24 hours" view of the connection history graph. The returned
-  rows use a `:day` key (holding the hour as a `NaiveDateTime`) so the chart can
-  consume both day- and hour-bucketed data without changes.
+  Mirrors `device_connections_by_date/5` but at hourly granularity, for the
+  shorter "last 24 hours" view of the connection history graph. Hours are
+  bucketed in `time_zone` (an IANA name) and the `:day` key holds a zoned
+  `DateTime` in that timezone, so it serialises with its offset and the browser
+  renders it in the viewer's local time, consistent with the graph's bounds.
+  Every hour in the window is returned (via a `generate_series` left join), with
+  `0` for hours that had no connections.
   """
-  def device_connections_by_hour(org_id, product_id, %DateTime{} = from) do
-    window_start = from
-    window_end = DateTime.utc_now()
-
+  def device_connections_by_hour(org_id, product_id, %DateTime{} = from, %DateTime{} = to, time_zone) do
     inner =
       from c in "device_connection_history",
         where: c.org_id == ^org_id,
         where: c.product_id == ^product_id,
-        where: c.established_at <= ^window_end,
-        where: is_nil(c.disconnected_at) or c.disconnected_at >= ^window_start,
+        where: c.established_at <= ^to,
+        where: is_nil(c.disconnected_at) or c.disconnected_at >= ^from,
         select: %{
           device_id: c.device_id,
           hour:
             fragment(
-              "toDateTime(arrayJoin(range(toUInt32(toStartOfHour(greatest(?, ?))), toUInt32(toStartOfHour(least(coalesce(?, ?), ?))) + 3600, 3600)))",
+              "toDateTime(arrayJoin(range(toUInt32(toStartOfHour(greatest(?, ?), ?)), toUInt32(toStartOfHour(least(coalesce(?, ?), ?), ?)) + 3600, 3600)), ?)",
               c.established_at,
-              ^window_start,
+              ^from,
+              ^time_zone,
               c.disconnected_at,
-              ^window_end,
-              ^window_end
+              ^to,
+              ^to,
+              ^time_zone,
+              ^time_zone
             )
         }
 
-    query =
+    counts =
       from s in subquery(inner),
         group_by: s.hour,
-        order_by: s.hour,
+        select: %{hour: s.hour, count: fragment("uniqExact(?)", s.device_id)}
+
+    # An hour-start for every hour in the window, so hours with no connections
+    # come back as 0 rather than being absent.
+    series =
+      from g in fragment(
+             "generate_series(toUInt32(toStartOfHour(?, ?)), toUInt32(toStartOfHour(?, ?)), 3600)",
+             ^from,
+             ^time_zone,
+             ^to,
+             ^time_zone
+           ),
+           select: %{ts: fragment("generate_series")}
+
+    query =
+      from s in subquery(series),
+        left_join: c in subquery(counts),
+        on: s.ts == fragment("toUInt32(?)", c.hour),
+        order_by: s.ts,
         select: %{
-          day: s.hour,
-          count: fragment("uniqExact(?)", s.device_id)
+          day: fragment("toDateTime(?, ?)", s.ts, ^time_zone),
+          count: fragment("coalesce(?, 0)", c.count)
         }
 
     NervesHub.AnalyticsRepo.all(query)

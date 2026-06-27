@@ -87,7 +87,7 @@ defmodule NervesHubWeb.Live.Product.InsightsConnectionsGraphTest do
       assert encoded =~ "day"
     end
 
-    test "still renders the graph (with empty data) when there is no history", %{
+    test "still renders the graph (zero-filled) when there is no history", %{
       conn: conn,
       org: org,
       product: product
@@ -95,7 +95,28 @@ defmodule NervesHubWeb.Live.Product.InsightsConnectionsGraphTest do
       {:ok, view, html} = live(conn, insights_path(org, product))
 
       assert html =~ "Connected Device History"
-      assert :sys.get_state(view.pid).socket.assigns.device_connections_graph_data == []
+
+      # generate_series still returns a bucket per day, all zero
+      data = :sys.get_state(view.pid).socket.assigns.device_connections_graph_data
+      refute data == []
+      assert Enum.all?(data, &(&1.count == 0))
+    end
+
+    test "does not load the graph on the disconnected (dead) mount", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      insert_history(device, DateTime.add(DateTime.utc_now(), -2, :hour), nil)
+
+      # the static (disconnected) render must not run the analytics queries
+      html = conn |> get(insights_path(org, product)) |> html_response(200)
+      refute html =~ "daily-device-counts-chart"
+
+      # once connected, the graph loads
+      {:ok, _view, connected_html} = live(conn, insights_path(org, product))
+      assert connected_html =~ "daily-device-counts-chart"
     end
 
     test "defaults to the 14 day period", %{conn: conn, org: org, product: product} do
