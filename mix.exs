@@ -93,7 +93,7 @@ defmodule NervesHub.MixProject do
       {:decimal, "~> 3.0", override: true},
       {:decorator, "~> 1.2"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:canonical_tailwind, "~> 0.2.0", only: [:dev, :test], runtime: false},
+      {:canonical_tailwind, "~> 0.3.0", only: [:dev, :test], runtime: false},
       {:ecto, "~> 3.8", override: true},
       {:ecto_ch, "~> 0.10.0"},
       {:ecto_psql_extras, "~> 0.7"},
