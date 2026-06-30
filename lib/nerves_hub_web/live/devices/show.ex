@@ -123,7 +123,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage}}, socket)
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{"stage" => stage}}, socket)
       when stage == "expired" do
     socket
     |> put_flash(:notice, "Update aborted: No updates have been received in the last 15 minutes.")
@@ -132,7 +132,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage}}, socket)
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{"stage" => stage}}, socket)
       when stage == "completed" do
     socket
     |> put_flash(:info, "Update complete: The device will reboot shortly.")
@@ -141,7 +141,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage, percent: percent}}, socket)
+  def handle_info(
+        %Broadcast{event: "firmware_update_progress", payload: %{"stage" => stage, "progress" => percent}},
+        socket
+      )
       when stage in ["downloading", "updating"] do
     socket
     |> assign(:firmware_update_progress, percent)
@@ -149,7 +152,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage}}, socket) do
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{"stage" => stage}}, socket) do
     socket
     |> assign(:firmware_update_progress, nil)
     |> assign(:firmware_update_stage, stage)
