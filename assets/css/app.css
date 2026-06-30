@@ -623,10 +623,21 @@ body {
   width: 50px;
   height: 100%;
   z-index: 1;
+  /* fades to the dark `bg-base-950` log container background */
   background-image: linear-gradient(
     to right,
     rgba(14, 16, 25, 0),
     rgba(14, 16, 25, 1)
+  );
+}
+
+/* in the light theme the log container's `bg-base-950` is near-white (zinc-50),
+   so the mask needs to fade to that instead of the dark background */
+[data-theme="light"] .device-logs-gradient-mask {
+  background-image: linear-gradient(
+    to right,
+    rgba(250, 250, 250, 0),
+    rgba(250, 250, 250, 1)
   );
 }
 
