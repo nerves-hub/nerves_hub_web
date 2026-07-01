@@ -6,16 +6,20 @@ defmodule NervesHub.Devices.UpdatePayload do
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
-  @derive {Jason.Encoder,
-           only: [
-             :update_available,
-             :firmware_url,
-             :firmware_meta,
-             :size,
-             :checksum,
-             :partials_checksums,
-             :deployment_id
-           ]}
+  @white_listed_fields [
+    :update_available,
+    :firmware_url,
+    :firmware_meta,
+    :size,
+    :checksum,
+    :partials_checksums,
+    :deployment_id
+  ]
+
+  @derive [
+    {Jason.Encoder, only: @white_listed_fields},
+    {Msgpax.Packer, fields: @white_listed_fields}
+  ]
 
   defstruct checksum: nil,
             deployment_group: nil,

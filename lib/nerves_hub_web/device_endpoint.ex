@@ -20,7 +20,7 @@ defmodule NervesHubWeb.DeviceEndpoint do
       timeout: 180_000,
       fullsweep_after: 0,
       error_handler: {WebsocketConnectionError, :handle_error, []},
-      serializer: [{DeviceJSONSerializer, "~> 2.0.0"}]
+      serializer: [{DeviceMsgPackSerializer, "~> 3.0.0"}, {DeviceJSONSerializer, "~> 2.0.0"}]
     ],
     drainer: {NervesHubWeb.DeviceSocket, :drainer_configuration, []}
   )
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.DeviceEndpoint do
       timeout: 180_000,
       fullsweep_after: 0,
       error_handler: {WebsocketConnectionError, :handle_error, []},
-      serializer: [{DeviceJSONSerializer, "~> 2.0.0"}]
+      serializer: [{DeviceMsgPackSerializer, "~> 3.0.0"}, {DeviceJSONSerializer, "~> 2.0.0"}]
     ],
     drainer: {NervesHubWeb.DeviceSocket, :drainer_configuration, []}
   )

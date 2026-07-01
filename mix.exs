@@ -122,6 +122,7 @@ defmodule NervesHub.MixProject do
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.13.0"},
+      {:msgpax, "~> 2.0"},
       {:nimble_csv, "~> 1.1"},
       {:number, "~> 1.0.5"},
       {:oban, "~> 2.11"},
