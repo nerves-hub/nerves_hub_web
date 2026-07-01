@@ -686,7 +686,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{topic: topic, event: "firmware_update_progress", payload: %{stage: "expired"}}, socket) do
+  def handle_info(%Broadcast{topic: topic, event: "firmware_update_progress", payload: %{"stage" => "expired"}}, socket) do
     device_id = parse_device_id(topic)
 
     socket
@@ -694,7 +694,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{topic: topic, event: "firmware_update_progress", payload: %{stage: "completed"}}, socket) do
+  def handle_info(
+        %Broadcast{topic: topic, event: "firmware_update_progress", payload: %{"stage" => "completed"}},
+        socket
+      ) do
     device_id = parse_device_id(topic)
 
     socket
@@ -706,7 +709,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     device_id = parse_device_id(topic)
 
     socket
-    |> update(:progress, &Map.put(&1, device_id, %{stage: payload.stage, percent: payload[:percent] || 0}))
+    |> update(:progress, &Map.put(&1, device_id, %{stage: payload["stage"], percent: payload["progress"] || 0}))
     |> noreply()
   end
 

@@ -1075,7 +1075,8 @@ defmodule NervesHub.DevicesTest do
 
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
-      refute_receive %Broadcast{topic: ^topic, event: "firmware_update_progress", payload: %{stage: "expired"}}, 1_000
+      refute_receive %Broadcast{topic: ^topic, event: "firmware_update_progress", payload: %{"stage" => "expired"}},
+                     1_000
 
       assert 0 = FirmwareUpdates.delete_expired_inflight_updates()
 
@@ -1097,7 +1098,8 @@ defmodule NervesHub.DevicesTest do
 
       assert 1 = Task.await(task)
 
-      assert_receive %Broadcast{topic: ^topic, event: "firmware_update_progress", payload: %{stage: "expired"}}, 1_000
+      assert_receive %Broadcast{topic: ^topic, event: "firmware_update_progress", payload: %{"stage" => "expired"}},
+                     1_000
     end
   end
 
