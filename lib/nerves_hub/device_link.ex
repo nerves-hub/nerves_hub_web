@@ -178,7 +178,10 @@ defmodule NervesHub.DeviceLink do
           description: archive.description,
           platform: archive.platform,
           architecture: archive.architecture,
-          uploaded_at: archive.inserted_at,
+          # send as an ISO8601 string so both the JSON and MessagePack serializers
+          # can encode it (Msgpax has no packer for NaiveDateTime); this matches the
+          # value Jason already produced for the JSON serializer.
+          uploaded_at: NaiveDateTime.to_iso8601(archive.inserted_at),
           url: Archives.url(archive)
         })
       end

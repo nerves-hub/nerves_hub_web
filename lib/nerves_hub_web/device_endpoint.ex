@@ -8,6 +8,7 @@ defmodule NervesHubWeb.DeviceEndpoint do
   # with the web endpoint, where `/socket` is used by the `UserSocket`
 
   alias NervesHubWeb.Channels.DeviceJSONSerializer
+  alias NervesHubWeb.Channels.DeviceMsgPackSerializer
   alias NervesHubWeb.Plugs.DeviceEndpointRedirect
   alias NervesHubWeb.Plugs.ImAlive
 
