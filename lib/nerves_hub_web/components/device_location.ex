@@ -193,7 +193,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
         </div>
         <div class="relative flex justify-end">
           <button
-            class="bg-base-800 border-base-600 disabled:bg-base-800 hover:bg-base-700 rounded-sm border p-0.5 active:bg-indigo-500"
+            class="active:bg-primary bg-base-800 border-base-600 disabled:bg-base-800 hover:bg-base-700 rounded-sm border p-0.5"
             id="location-settings-button"
             aria-expanded="true"
             aria-haspopup="true"
@@ -223,7 +223,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
 
           <div
             id="location-settings-menu"
-            class="bg-base-900 border-base-700 absolute right-0 z-10 mt-6 w-48 origin-top-right rounded border shadow-lg ring-1 ring-black/5 focus:outline-none"
+            class="bg-surface-overlay border-base-700 absolute right-0 z-10 mt-6 w-48 origin-top-right rounded border shadow-lg ring-1 ring-black/5 focus:outline-none"
             role="menu"
             hidden="true"
             aria-orientation="vertical"

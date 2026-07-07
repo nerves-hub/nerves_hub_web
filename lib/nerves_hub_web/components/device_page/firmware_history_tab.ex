@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
       class="phx-click-loading:opacity-50 tab-content flex h-full flex-col items-start justify-between gap-4 opacity-0 transition-all duration-500"
     >
       <div class="w-full p-6">
-        <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex w-full flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Reported Installed Firmwares</div>
           </div>
@@ -63,10 +63,10 @@ defmodule NervesHubWeb.Components.DevicePage.FirmwareHistoryTab do
 
                     <span :if={entry.firmware_validation_status == :unknown} class="text-base-300 font-mono text-sm">Unknown validation status</span>
                     <span :if={entry.firmware_validation_status == :validated} class="text-base-300 font-mono text-sm">Validated</span>
-                    <span :if={entry.firmware_validation_status == :not_validated} class="font-mono text-sm text-red-300">Not validated</span>
+                    <span :if={entry.firmware_validation_status == :not_validated} class="text-alert-content font-mono text-sm">Not validated</span>
                   </div>
                   <div :if={entry.firmware_auto_revert_detected} class="bg-base-800 flex items-center rounded px-2 py-1">
-                    <span class="font-mono text-sm text-red-300">Revert detected</span>
+                    <span class="text-alert-content font-mono text-sm">Revert detected</span>
                   </div>
                 </div>
                 <div class="flex gap-2">

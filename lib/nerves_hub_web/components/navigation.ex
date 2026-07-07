@@ -20,6 +20,12 @@ defmodule NervesHubWeb.Components.Navigation do
     ~H"""
     <ul role="list">
       <.nav_link
+        label="Insights"
+        path={~p"/org/#{@scope.org}/#{@scope.product}/insights"}
+        selected={:insights == @selected_tab}
+        icon="data-[selected=false]:lucide-activity--light data-[selected=true]:lucide-activity"
+      />
+      <.nav_link
         label="Devices"
         path={~p"/org/#{@scope.org}/#{@scope.product}/devices"}
         selected={:devices == @selected_tab}
@@ -99,16 +105,16 @@ defmodule NervesHubWeb.Components.Navigation do
     <li
       data-selected={"#{@selected}"}
       class={[
-        "dark:data-[selected=true]:dark-sidebar-item-selected data-[selected=true]:border-primary data-[selected=true]:light-sidebar-item-selected hover:dark:dark-sidebar-item-hover hover:light-sidebar-item-hover flex h-11 items-center justify-center data-[selected=true]:border-r-2 lg:justify-start lg:px-4"
+        "collapsed:justify-center collapsed:px-0 dark:data-[selected=true]:dark-sidebar-item-selected data-[selected=true]:border-primary data-[selected=true]:light-sidebar-item-selected h-nav-item hover:dark:dark-sidebar-item-hover hover:light-sidebar-item-hover flex items-center justify-center data-[selected=true]:border-r-2 lg:justify-start lg:px-4"
       ]}
     >
-      <.link class="group text-base-300 flex size-full items-center justify-center gap-x-3 text-sm leading-[19px] font-light tracking-wide lg:justify-start" navigate={@path}>
+      <.link class="collapsed:justify-center group text-base-300 flex size-full items-center justify-center gap-x-3 text-sm leading-[19px] font-light tracking-wide lg:justify-start" navigate={@path}>
         <span
           data-selected={"#{@selected}"}
           class={"size-5 #{@icon} data-[selected=false]:text-base-500 data-[selected=true]:text-primary"}
         />
-        <span class={["hidden lg:inline", @selected && "text-base-50 font-semibold"]}>{@label}</span>
-        <span :if={@badge} class="bg-base-800 ml-1 rounded-full px-1.5 py-0.5 text-xs">{@badge}</span>
+        <span class={["collapsed:hidden hidden lg:inline", @selected && "text-base-50 font-semibold"]}>{@label}</span>
+        <span :if={@badge} class="bg-base-800 collapsed:hidden ml-1 rounded-full px-1.5 py-0.5 text-xs">{@badge}</span>
       </.link>
     </li>
     """

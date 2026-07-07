@@ -59,6 +59,11 @@
         localStorage.theme = "dark"
         document.documentElement.setAttribute("data-theme", "dark");
       }
+
+      // Restore the collapsed/expanded sidebar state before first paint (no flash).
+      if (localStorage.sidebar === "collapsed") {
+        document.documentElement.setAttribute("data-sidebar", "collapsed");
+      }
     </script>
     <.featurebase_sdk current_scope={assigns[:current_scope]} app_id={Application.get_env(:nerves_hub, :featurebase_app_id)} />
   </head>

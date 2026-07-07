@@ -45,7 +45,8 @@ defmodule NervesHubWeb.API.DeploymentGroupJSON do
   defp conditions(conditions) do
     %{
       version: conditions.version,
-      tags: conditions.tags
+      tags: conditions.tags,
+      tag_operator: conditions.tag_operator
     }
   end
 end

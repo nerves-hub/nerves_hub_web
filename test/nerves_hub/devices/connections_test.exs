@@ -27,7 +27,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
       assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
-               Connections.device_connecting(device.id)
+               Connections.device_connecting(device.org_id, device.product_id, device.id)
 
       assert %DeviceConnection{status: :connecting} = Connections.get_latest_for_device(device.id)
       assert_receive %Broadcast{topic: ^topic, event: "connection:change", payload: %{status: "connecting"}}, 500
@@ -52,7 +52,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
       assert {:ok, %DeviceConnection{id: connection_id, last_seen_at: first_seen_at} = connection} =
-               Connections.device_connecting(device.id)
+               Connections.device_connecting(device.org_id, device.product_id, device.id)
 
       assert_receive %Broadcast{topic: ^topic, event: "connection:change", payload: %{status: "connecting"}}, 500
 
@@ -72,9 +72,48 @@ defmodule NervesHub.Devices.ConnectionsTest do
     end
   end
 
+  describe "update_network_interface/2" do
+    test "updates device.network_interface", %{device: device} do
+      assert {:ok, %DeviceConnection{id: ref, status: :connecting} = connection} =
+               Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      refute connection.network_interface
+
+      {:ok, device} = Connections.update_network_interface(ref, "eth0")
+      assert device.network_interface == :ethernet
+
+      {:ok, device} = Connections.update_network_interface(ref, "en0")
+      assert device.network_interface == :ethernet
+
+      {:ok, device} = Connections.update_network_interface(ref, "wlan0")
+      assert device.network_interface == :wifi
+
+      {:ok, device} = Connections.update_network_interface(ref, "wwan0")
+      assert device.network_interface == :cellular
+    end
+
+    test "sets to 'unknown' for invalid values", %{device: device} do
+      assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
+               Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      {:ok, device} = Connections.update_network_interface(ref, "foobarbaz")
+
+      assert device.network_interface == :unknown
+    end
+
+    test "sets to 'unknown' for nil", %{device: device} do
+      assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
+               Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      {:ok, device} = Connections.update_network_interface(ref, nil)
+
+      assert device.network_interface == :unknown
+    end
+  end
+
   describe "clean_stale_connections/0" do
     test "marks stale connected connections as disconnected", %{device: device} do
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
 
       # Get the configured interval and jitter
@@ -98,7 +137,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
     end
 
     test "does not mark recent connections as stale", %{device: device} do
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
 
       # Set last_seen_at to recent time

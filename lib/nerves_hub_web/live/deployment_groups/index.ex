@@ -5,7 +5,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHubWeb.Components.FilterSidebar
-  alias NervesHubWeb.Components.Pager
+  alias NervesHubWeb.Components.ListSettingsSidebar
   alias NervesHubWeb.Components.Sorting
 
   @default_filters %{
@@ -66,7 +66,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     |> assign(:counts, counts)
     |> assign(:current_filters, @default_filters)
     |> assign(:currently_filtering, false)
-    |> assign(:show_filters, false)
     |> ok()
   end
 
@@ -99,7 +98,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
@@ -108,28 +106,25 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
-  def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
-    {:noreply, assign(socket, :show_filters, toggle != "true")}
-  end
-
-  @impl Phoenix.LiveView
   def handle_event("update-filters", params, socket) do
     socket
     |> push_patch(to: self_path(socket, params))
     |> noreply()
   end
 
-  @impl Phoenix.LiveView
   def handle_event("reset-filters", _params, socket) do
     socket
     |> push_patch(to: self_path(socket, @default_filters))
     |> noreply()
   end
 
+  def handle_event("update-settings", params, %{assigns: %{current_scope: scope}} = socket) do
+    {:ok, user} = ListSettingsSidebar.update_displayed_columns(scope.user, :deployment_group_list_columns, params)
+    {:noreply, assign(socket, :current_scope, %{scope | user: user})}
+  end
+
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
-  @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
@@ -144,7 +139,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   # User has clicked a new column to sort
-  @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, socket) do
     new_params = %{sort_direction: "asc", sort: value}
 
@@ -220,4 +214,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   defp version(%DeploymentGroup{conditions: %{version: version}}), do: version
 
   defp tags(%DeploymentGroup{conditions: %{tags: tags}}), do: tags
+
+  defp show_column?(user, column) do
+    ListSettingsSidebar.show_column?(user.display_preferences, :deployment_group_list_columns, column)
+  end
 end

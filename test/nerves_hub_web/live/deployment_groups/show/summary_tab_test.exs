@@ -29,6 +29,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
       Fixtures.deployment_group_fixture(target_firmware, %{
         is_active: true,
         name: "Coolest Deployment",
+        # these tests assert match percentages using devices that carry only one
+        # of the conditions tags, so use "Allow any" matching explicitly
+        conditions: %{"version" => "<= 1.0.0", "tags" => ["beta", "beta-edge"], "tag_operator" => "or"},
         user: user
       })
 

@@ -49,11 +49,18 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
       type: :object,
       properties: %{
         version: %Schema{type: :string},
-        tags: %Schema{type: :array, items: %Schema{type: :string}}
+        tags: %Schema{type: :array, items: %Schema{type: :string}},
+        tag_operator: %Schema{
+          type: :string,
+          enum: ["and", "or"],
+          description: ~s{How device tags are matched: "and" (require all) or "or" (allow any)},
+          default: "and"
+        }
       },
       example: %{
         "version" => ">= 1.0.0",
-        "tags" => ["beta"]
+        "tags" => ["beta"],
+        "tag_operator" => "and"
       }
     })
   end

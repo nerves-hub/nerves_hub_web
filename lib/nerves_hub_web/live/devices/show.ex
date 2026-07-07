@@ -123,7 +123,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage}}, socket)
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{"stage" => stage}}, socket)
       when stage == "expired" do
     socket
     |> put_flash(:notice, "Update aborted: No updates have been received in the last 15 minutes.")
@@ -132,7 +132,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage}}, socket)
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{"stage" => stage}}, socket)
       when stage == "completed" do
     socket
     |> put_flash(:info, "Update complete: The device will reboot shortly.")
@@ -141,7 +141,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage, percent: percent}}, socket)
+  def handle_info(
+        %Broadcast{event: "firmware_update_progress", payload: %{"stage" => stage, "progress" => percent}},
+        socket
+      )
       when stage in ["downloading", "updating"] do
     socket
     |> assign(:firmware_update_progress, percent)
@@ -149,7 +152,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{stage: stage}}, socket) do
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: %{"stage" => stage}}, socket) do
     socket
     |> assign(:firmware_update_progress, nil)
     |> assign(:firmware_update_stage, stage)
@@ -422,19 +425,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   def selected_tab(socket) do
     assign(socket, :tab, socket.assigns.live_action || :details)
-  end
-
-  defp tab(assigns) do
-    ~H"""
-    <.link
-      data-selected={"#{@selected}"}
-      class="data-[selected=true]:text-base-50 text-base-300 relative -bottom-px h-11 px-6 py-2 text-sm font-normal hover:border-b hover:border-indigo-500 data-[selected=true]:border-b data-[selected=true]:border-indigo-500"
-      phx-click={JS.set_attribute({"data-selected", "false"}, to: "#tabs a") |> JS.set_attribute({"data-selected", "true"})}
-      patch={@path}
-    >
-      {@display}
-    </.link>
-    """
   end
 
   defp health_polling_seconds() do

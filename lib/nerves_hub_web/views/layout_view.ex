@@ -8,7 +8,7 @@ defmodule NervesHubWeb.LayoutView do
   @gib :math.pow(2, 30)
   @mib :math.pow(2, 20)
   @kib :math.pow(2, 10)
-  @precision 3
+  @precision 2
 
   def humanize_seconds(seconds) do
     seconds
@@ -22,10 +22,10 @@ defmodule NervesHubWeb.LayoutView do
   """
   def humanize_size(bytes) do
     cond do
-      bytes > @tib -> "#{Float.round(bytes / @gib, @precision)} TiB"
-      bytes > @gib -> "#{Float.round(bytes / @gib, @precision)} GiB"
-      bytes > @mib -> "#{Float.round(bytes / @mib, @precision)} MiB"
-      bytes > @kib -> "#{Float.round(bytes / @kib, @precision)} KiB"
+      bytes > @tib -> "#{Float.round(bytes / @gib, @precision)} TB"
+      bytes > @gib -> "#{Float.round(bytes / @gib, @precision)} GB"
+      bytes > @mib -> "#{Float.round(bytes / @mib, @precision)} MB"
+      bytes > @kib -> "#{Float.round(bytes / @kib, @precision)} KB"
       true -> "#{bytes} bytes"
     end
   end

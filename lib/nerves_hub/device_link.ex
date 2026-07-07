@@ -8,6 +8,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
@@ -78,6 +79,7 @@ defmodule NervesHub.DeviceLink do
   @spec refresh_device_info(DeviceInfo.t()) :: DeviceInfo.t()
   def refresh_device_info(device_info) do
     device = Devices.get_device(device_info.device_id)
+    device_connection = Devices.Connections.get_latest_for_device(device_info.device_id)
 
     %{
       device_info
@@ -89,7 +91,7 @@ defmodule NervesHub.DeviceLink do
         firmware_metadata: device.firmware_metadata,
         device_updates_enabled: device.updates_enabled,
         device_updates_blocked_until: device.updates_blocked_until,
-        device_network_interface: device.network_interface
+        device_network_interface: device_connection.network_interface
     }
   end
 
@@ -294,7 +296,8 @@ defmodule NervesHub.DeviceLink do
   defp firmware_update_start_telemetry(%{device_identifier: identifier, device_network_interface: device_interface}, %{
          "downloader_network_interface" => downloader_interface
        }) do
-    if is_nil(device_interface) or device_interface == Device.humanized_network_interface_name(downloader_interface) do
+    if is_nil(device_interface) or
+         device_interface == DeviceConnection.humanized_network_interface_name(downloader_interface) do
       :ok
     else
       :telemetry.execute([:nerves_hub, :devices, :network_interface_mismatch], %{count: 1}, %{

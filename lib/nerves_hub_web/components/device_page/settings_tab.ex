@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
     socket
     |> assign(:settings_form, to_form(changeset))
+    |> assign(:available_tags, Devices.distinct_tags_for_product(socket.assigns.current_scope.product))
     |> allow_upload(:certificate,
       accept: :any,
       auto_upload: true,
@@ -35,11 +36,11 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       class="phx-click-loading:opacity-50 tab-content flex flex-col items-start justify-between gap-4 p-6 opacity-0 transition-all duration-500"
     >
       <.form id="settings-form" for={@settings_form} class="w-full" phx-change="validate-device-settings" phx-submit="update-device-settings">
-        <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex w-full flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">General settings</div>
             <%= if authorized?(:"device:update", @current_scope) do %>
-              <.button style="secondary" type="submit">
+              <.button style="primary" type="submit">
                 <.icon name="save" /> Save changes
               </.button>
             <% end %>
@@ -70,7 +71,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
               <.input field={@settings_form[:description]} label="Description" placeholder="eg. sensor hub at customer X" phx-debounce="blur" />
 
-              <.input field={@settings_form[:tags]} value={Utils.tags_to_string(@settings_form[:tags])} label="Tags" placeholder="eg. batch-123" phx-debounce="blur" />
+              <.tag_input field={@settings_form[:tags]} label="Tags" placeholder="eg. batch-123" available_tags={@available_tags} />
             </div>
 
             <div class="flex w-1/2 flex-col gap-2">
@@ -81,7 +82,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </.form>
 
-      <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
+      <div class="bg-surface-raised border-base-700 shadow-device-details-content flex w-full flex-col rounded border">
         <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
           <div class="text-base-50 text-base font-medium">Extensions</div>
         </div>
@@ -115,7 +116,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
+      <div class="bg-surface-raised border-base-700 shadow-device-details-content flex w-full flex-col rounded border">
         <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
           <div class="text-base-50 text-base font-medium">Certificates</div>
           <div>
@@ -209,7 +210,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div :if={@device.deleted_at && authorized?(:"device:update", @current_scope)} class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
+      <div :if={@device.deleted_at && authorized?(:"device:update", @current_scope)} class="bg-surface-raised border-base-700 shadow-device-details-content flex w-full flex-col rounded border">
         <div class="text-base-300 p-6 pb-0">
           The device has been disabled. Attempts to connect to NervesHub will be blocked.
         </div>
@@ -252,7 +253,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
 
-      <div :if={!@device.deleted_at && authorized?(:"device:update", @current_scope)} class="bg-base-900 border-base-700 flex w-full flex-col rounded border">
+      <div :if={!@device.deleted_at && authorized?(:"device:update", @current_scope)} class="bg-surface-raised border-base-700 shadow-device-details-content flex w-full flex-col rounded border">
         <div class="border-base-700 flex items-center gap-6 border-t p-6">
           <div>
             <button

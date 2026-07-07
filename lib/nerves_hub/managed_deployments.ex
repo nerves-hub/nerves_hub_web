@@ -53,6 +53,17 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
   end
 
+  @doc """
+  The deployment group names for a product, sorted.
+  """
+  def deployment_group_names(product_id) do
+    DeploymentGroup
+    |> where([d], d.product_id == ^product_id)
+    |> order_by([d], asc: d.name)
+    |> select([d], d.name)
+    |> Repo.all()
+  end
+
   @spec get_device_counts_by_product(Product.t()) :: %{integer() => integer()}
   def get_device_counts_by_product(%Product{id: product_id}) do
     Device
@@ -723,9 +734,30 @@ defmodule NervesHub.ManagedDeployments do
     |> where(
       [d],
       fragment(
-        "?->'tags' <@ to_jsonb(?::text[]) or (jsonb_array_length(?->'tags') = 0 and ?::text[] is null)",
+        """
+        (
+          COALESCE(?->>'tag_operator', 'and') = 'and'
+          AND (
+            ?->'tags' <@ to_jsonb(?::text[])
+            OR (jsonb_array_length(?->'tags') = 0 AND ?::text[] IS NULL)
+          )
+        )
+        OR
+        (
+          COALESCE(?->>'tag_operator', 'and') = 'or'
+          AND (
+            jsonb_array_length(?->'tags') = 0
+            OR ARRAY(SELECT jsonb_array_elements_text(?->'tags')) && ?::text[]
+          )
+        )
+        """,
+        d.conditions,
         d.conditions,
         ^device.tags,
+        d.conditions,
+        ^device.tags,
+        d.conditions,
+        d.conditions,
         d.conditions,
         ^device.tags
       )
@@ -888,8 +920,8 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   # tags but no version
-  defp do_matched_devices(%DeploymentGroup{conditions: %{tags: tags, version: ""}}, query, work_type) do
-    query = where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
+  defp do_matched_devices(%DeploymentGroup{conditions: %{tags: tags, version: ""} = conditions}, query, work_type) do
+    query = where_matching_tags(query, tags, conditions.tag_operator)
 
     case work_type do
       :count ->
@@ -903,8 +935,8 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   # version and tags
-  defp do_matched_devices(%DeploymentGroup{conditions: %{tags: tags, version: version}}, query, work_type) do
-    query = where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
+  defp do_matched_devices(%DeploymentGroup{conditions: %{tags: tags, version: version} = conditions}, query, work_type) do
+    query = where_matching_tags(query, tags, conditions.tag_operator)
 
     case work_type do
       :count ->
@@ -920,5 +952,15 @@ defmodule NervesHub.ManagedDeployments do
         |> Enum.filter(&Version.match?(&1.version, version))
         |> Enum.map(& &1.id)
     end
+  end
+
+  # "Allow any": a device must have at least one of the tags
+  defp where_matching_tags(query, tags, :or) do
+    where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
+  end
+
+  # "Require all" (default): a device must have all of the deployment group's tags
+  defp where_matching_tags(query, tags, _require_all) do
+    where(query, [d], fragment("?::text[] <@ tags::text[]", ^tags))
   end
 end

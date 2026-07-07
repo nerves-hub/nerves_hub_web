@@ -43,6 +43,17 @@ defmodule NervesHub.Scripts.ScriptFiltering do
     end
   end
 
+  def filter(query, _filters, :search, value) do
+    search_term = "%#{value}%"
+
+    where(
+      query,
+      [s],
+      ilike(s.name, ^search_term) or
+        fragment("string_array_to_string(COALESCE(?, ARRAY[]::text[]), ' ', ' ') ILIKE ?", s.tags, ^search_term)
+    )
+  end
+
   # Ignore any undefined filter.
   # This will prevent error 500 responses on deprecated saved bookmarks etc.
   def filter(query, _filters, _key, _value) do

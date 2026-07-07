@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Live.Product.Notifications do
   use NervesHubWeb, :live_view
 
   alias NervesHub.ProductNotifications
-  alias NervesHubWeb.Components.Pager
   alias Phoenix.Socket.Broadcast
 
   @impl Phoenix.LiveView

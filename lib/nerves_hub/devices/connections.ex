@@ -4,7 +4,11 @@ defmodule NervesHub.Devices.Connections do
   """
   import Ecto.Query
 
+  alias NervesHub.AnalyticsRepo
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceConnectionHistory
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Tracker
 
@@ -21,27 +25,34 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Creates a device connection, reported from device socket
   """
-  @spec device_connecting(pos_integer()) ::
+  @spec device_connecting(pos_integer(), pos_integer(), pos_integer()) ::
           {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
-  def device_connecting(device_id) do
+  def device_connecting(org_id, product_id, device_id) do
     conflict_query =
       DeviceConnection
       |> update([ldc],
         set: [
           id: fragment("EXCLUDED.id"),
+          org_id: fragment("EXCLUDED.org_id"),
+          product_id: fragment("EXCLUDED.product_id"),
           established_at: fragment("EXCLUDED.established_at"),
           last_seen_at: fragment("EXCLUDED.last_seen_at"),
           disconnected_at: fragment("EXCLUDED.disconnected_at"),
           disconnected_reason: fragment("EXCLUDED.disconnected_reason"),
           metadata: fragment("EXCLUDED.metadata"),
-          status: fragment("EXCLUDED.status")
+          status: fragment("EXCLUDED.status"),
+          lib: fragment("EXCLUDED.lib"),
+          lib_version: fragment("EXCLUDED.lib_version"),
+          network_interface: fragment("EXCLUDED.network_interface")
         ]
       )
 
-    DeviceConnection.connecting_changeset(device_id)
+    DeviceConnection.connecting_changeset(org_id, product_id, device_id)
     |> Repo.insert(on_conflict: conflict_query, conflict_target: [:device_id])
     |> case do
       {:ok, device_connection} ->
+        async_device_connection_history_insert(device_connection)
+
         Tracker.connecting(device_id)
 
         {:ok, device_connection}
@@ -59,7 +70,7 @@ defmodule NervesHub.Devices.Connections do
     DeviceConnection
     |> where(id: ^connection_id)
     |> where([dc], not (dc.status == :disconnected))
-    |> select([dc], %{device_id: dc.device_id})
+    |> select([dc], dc)
     |> Repo.update_all(
       set: [
         last_seen_at: DateTime.utc_now(),
@@ -67,8 +78,11 @@ defmodule NervesHub.Devices.Connections do
       ]
     )
     |> case do
-      {1, [%{device_id: device_id}]} ->
+      {1, [%{device_id: device_id} = device_connection]} ->
+        async_device_connection_history_insert(device_connection)
+
         Tracker.online(device_id)
+
         :ok
 
       _ ->
@@ -84,7 +98,7 @@ defmodule NervesHub.Devices.Connections do
     DeviceConnection
     |> where([dc], dc.id == ^id)
     |> where([dc], not (dc.status == :disconnected))
-    |> select([dc], %{device_id: dc.device_id})
+    |> select([dc], dc)
     |> Repo.update_all(
       set: [
         status: :connected,
@@ -92,8 +106,11 @@ defmodule NervesHub.Devices.Connections do
       ]
     )
     |> case do
-      {1, [%{device_id: device_id}]} ->
+      {1, [%{device_id: device_id} = device_connection]} ->
+        async_device_connection_history_insert(device_connection)
+
         Tracker.heartbeat(device_id)
+
         :ok
 
       _ ->
@@ -111,7 +128,7 @@ defmodule NervesHub.Devices.Connections do
 
     DeviceConnection
     |> where(id: ^ref_id)
-    |> select([dc], %{device_id: dc.device_id})
+    |> select([dc], dc)
     |> Repo.update_all(
       set: [
         last_seen_at: now,
@@ -121,9 +138,61 @@ defmodule NervesHub.Devices.Connections do
       ]
     )
     |> case do
-      {1, [%{device_id: device_id}]} ->
+      {1, [%{device_id: device_id} = device_connection]} ->
+        async_device_connection_history_insert(device_connection)
+
         Tracker.offline(device_id)
+
         :ok
+
+      res ->
+        {:error, res}
+    end
+  end
+
+  defp async_device_connection_history_insert(device_connections) when is_list(device_connections) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      Enum.each(device_connections, fn device_connection ->
+        async_device_connection_history_insert(device_connection)
+      end)
+    end
+
+    :ok
+  end
+
+  defp async_device_connection_history_insert(%DeviceConnection{} = device_connection) do
+    device_connection
+    |> DeviceConnectionHistory.from_device_connection_changeset()
+    |> async_device_connection_history_insert()
+  end
+
+  defp async_device_connection_history_insert(%Ecto.Changeset{data: %DeviceConnectionHistory{}} = device_connection) do
+    _ =
+      if Application.get_env(:nerves_hub, :analytics_enabled) do
+        Task.Supervisor.start_child(
+          {:via, PartitionSupervisor, {NervesHub.AnalyticsEventsProcessing, self()}},
+          fn ->
+            {:ok, _} =
+              NervesHub.AnalyticsRepo.insert(device_connection)
+          end
+        )
+      end
+
+    :ok
+  end
+
+  def update_network_interface(ref_id, network_interface) do
+    humanized = DeviceConnection.humanized_network_interface_name(network_interface)
+
+    DeviceConnection
+    |> where(id: ^ref_id)
+    |> select([dc], dc)
+    |> update([dc], set: [network_interface: ^humanized])
+    |> Repo.update_all([])
+    |> case do
+      {1, [device_connection]} ->
+        async_device_connection_history_insert(device_connection)
+        {:ok, device_connection}
 
       res ->
         {:error, res}
@@ -145,6 +214,133 @@ defmodule NervesHub.Devices.Connections do
     end
   end
 
+  @doc """
+  Buckets the count of unique connected devices per day, for the (local) dates
+  in `from..to`.
+
+  Days are bucketed in `time_zone` (an IANA name, e.g. "Pacific/Auckland") so
+  the graph reflects the viewer's local calendar days. Every date in the window
+  is returned (via a `generate_series` left join), with `0` for days that had no
+  connections. The returned `:day` key holds a `Date`.
+  """
+  def device_connections_by_date(org_id, product_id, %Date{} = from, %Date{} = to, time_zone) do
+    window_start = Date.add(from, -1)
+    window_end = to
+
+    inner =
+      from c in "device_connection_history",
+        where: c.org_id == ^org_id,
+        where: c.product_id == ^product_id,
+        where: c.established_at < fragment("? + 1", type(^window_end, :date)),
+        where: is_nil(c.disconnected_at) or c.disconnected_at >= type(^window_start, :date),
+        select: %{
+          device_id: c.device_id,
+          day:
+            fragment(
+              "toDate(arrayJoin(range(toUInt32(greatest(toDate(?, ?), ?)), toUInt32(least(coalesce(toDate(?, ?), ?), ?)) + 1)))",
+              c.established_at,
+              ^time_zone,
+              type(^window_start, :date),
+              c.disconnected_at,
+              ^time_zone,
+              type(^window_end, :date),
+              type(^window_end, :date)
+            )
+        }
+
+    counts =
+      from s in subquery(inner),
+        group_by: s.day,
+        select: %{day: s.day, count: fragment("uniqExact(?)", s.device_id)}
+
+    # A row for every date in the window, so days with no connections come back
+    # as 0 rather than being absent.
+    series =
+      from g in fragment(
+             "generate_series(toUInt32(?), toUInt32(?), 1)",
+             type(^from, :date),
+             type(^to, :date)
+           ),
+           select: %{day_number: fragment("generate_series")}
+
+    query =
+      from s in subquery(series),
+        left_join: c in subquery(counts),
+        on: s.day_number == fragment("toUInt32(?)", c.day),
+        order_by: s.day_number,
+        select: %{
+          day: fragment("toDate(?)", s.day_number),
+          count: fragment("coalesce(?, 0)", c.count)
+        }
+
+    NervesHub.AnalyticsRepo.all(query)
+  end
+
+  @doc """
+  Buckets the count of unique connected devices per hour, for the window
+  `from..to` (both `DateTime`s).
+
+  Mirrors `device_connections_by_date/5` but at hourly granularity, for the
+  shorter "last 24 hours" view of the connection history graph. Hours are
+  bucketed in `time_zone` (an IANA name) and the `:day` key holds a zoned
+  `DateTime` in that timezone, so it serialises with its offset and the browser
+  renders it in the viewer's local time, consistent with the graph's bounds.
+  Every hour in the window is returned (via a `generate_series` left join), with
+  `0` for hours that had no connections.
+  """
+  def device_connections_by_hour(org_id, product_id, %DateTime{} = from, %DateTime{} = to, time_zone) do
+    inner =
+      from c in "device_connection_history",
+        where: c.org_id == ^org_id,
+        where: c.product_id == ^product_id,
+        where: c.established_at <= ^to,
+        where: is_nil(c.disconnected_at) or c.disconnected_at >= ^from,
+        select: %{
+          device_id: c.device_id,
+          hour:
+            fragment(
+              "toDateTime(arrayJoin(range(toUInt32(toStartOfHour(greatest(?, ?), ?)), toUInt32(toStartOfHour(least(coalesce(?, ?), ?), ?)) + 3600, 3600)), ?)",
+              c.established_at,
+              ^from,
+              ^time_zone,
+              c.disconnected_at,
+              ^to,
+              ^to,
+              ^time_zone,
+              ^time_zone
+            )
+        }
+
+    counts =
+      from s in subquery(inner),
+        group_by: s.hour,
+        select: %{hour: s.hour, count: fragment("uniqExact(?)", s.device_id)}
+
+    # An hour-start for every hour in the window, so hours with no connections
+    # come back as 0 rather than being absent.
+    series =
+      from g in fragment(
+             "generate_series(toUInt32(toStartOfHour(?, ?)), toUInt32(toStartOfHour(?, ?)), 3600)",
+             ^from,
+             ^time_zone,
+             ^to,
+             ^time_zone
+           ),
+           select: %{ts: fragment("generate_series")}
+
+    query =
+      from s in subquery(series),
+        left_join: c in subquery(counts),
+        on: s.ts == fragment("toUInt32(?)", c.hour),
+        order_by: s.ts,
+        select: %{
+          day: fragment("toDateTime(?, ?)", s.ts, ^time_zone),
+          count: fragment("coalesce(?, 0)", c.count)
+        }
+
+    NervesHub.AnalyticsRepo.all(query)
+  end
+
   def clean_stale_connections() do
     interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
     jitter = Application.get_env(:nerves_hub, :device_last_seen_update_interval_jitter_seconds)
@@ -164,7 +360,8 @@ defmodule NervesHub.Devices.Connections do
 
     {update_count, _} =
       DeviceConnection
-      |> where([d], d.id in subquery(query))
+      |> where([dc], dc.id in subquery(query))
+      |> select([dc], dc)
       |> Repo.update_all(
         [
           set: [
@@ -175,17 +372,83 @@ defmodule NervesHub.Devices.Connections do
         ],
         timeout: 60_000
       )
+      |> case do
+        {_count, device_connections} = results ->
+          async_device_connection_history_insert(device_connections)
+
+          results
+      end
 
     if update_count > 0 do
       :telemetry.execute([:nerves_hub, :devices, :stale_connections], %{count: update_count})
     end
 
     if update_count < update_limit do
-      :ok
+      # Once the DB is cleaned, we can clean Analytics
+      clean_stale_connections_from_analytics()
     else
       # relax stress on Ecto pool and go again
       Process.sleep(2000)
       clean_stale_connections()
     end
+  end
+
+  def clean_stale_connections_from_analytics() do
+    _ =
+      if Application.get_env(:nerves_hub, :analytics_enabled) do
+        interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+        jitter = Application.get_env(:nerves_hub, :device_last_seen_update_interval_jitter_seconds)
+
+        max_jitter = ceil(jitter / 60)
+        some_time_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + max_jitter + 1))
+
+        DeviceConnectionHistory
+        |> where([dc], is_nil(dc.disconnected_at))
+        |> where([d], d.last_seen_at < ^some_time_ago)
+        |> select([dc], dc)
+        |> NervesHub.AnalyticsRepo.all(settings: [final: 1])
+        |> Enum.each(fn connection ->
+          connection
+          |> DeviceConnectionHistory.mark_as_stale_and_disconnected_changeset()
+          |> async_device_connection_history_insert()
+        end)
+      end
+
+    :ok
+  end
+
+  def flapping_connections(%Product{} = product) do
+    DeviceConnectionHistory
+    |> where([dc], dc.org_id == ^product.org_id and dc.product_id == ^product.id)
+    |> where([dc], dc.established_at >= fragment("now() - INTERVAL 1 HOUR"))
+    |> select([dc], %{device_id: dc.device_id, count: fragment("count() as count")})
+    |> group_by([dc], dc.device_id)
+    |> having([dc], fragment("count > 10"))
+    |> order_by(desc: fragment("count"))
+    |> AnalyticsRepo.all(settings: [final: 1])
+    |> case do
+      [] -> []
+      results -> fetch_devices_and_transform(results, product)
+    end
+  end
+
+  defp fetch_devices_and_transform(results, product) do
+    device_ids = Enum.map(results, & &1.device_id)
+
+    devices =
+      Device
+      |> where(product_id: ^product.id)
+      |> where([d], d.id in ^device_ids)
+      |> NervesHub.Repo.all()
+      |> Map.new(fn device -> {device.id, device} end)
+
+    # Preserve the "most flapping first" ordering from the analytics query;
+    # drop any ids without a matching device (e.g. deleted devices).
+    Enum.flat_map(results, fn %{device_id: device_id, count: count} ->
+      case Map.get(devices, device_id) do
+        nil -> []
+        device -> [{device, count}]
+      end
+    end)
   end
 end

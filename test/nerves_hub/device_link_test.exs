@@ -5,7 +5,8 @@ defmodule NervesHub.DeviceLinkTest do
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.DeviceLink
   alias NervesHub.DeviceLink.DeviceInfo
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -332,7 +333,12 @@ defmodule NervesHub.DeviceLinkTest do
       # Create an inflight update
       {:ok, _inflight_update} = Fixtures.inflight_update(device, firmware)
 
-      {:ok, _device} = Devices.update_network_interface(device.id, "wlan0")
+      assert {:ok, %DeviceConnection{id: ref, status: :connecting} = connection} =
+               Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      refute connection.network_interface
+
+      {:ok, _connection} = Connections.update_network_interface(ref, "eth0")
 
       expect(:telemetry, :execute, fn _event, _measurements, metadata ->
         assert metadata.downloader_network_interface == "eth0"

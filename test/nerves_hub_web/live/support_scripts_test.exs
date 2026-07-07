@@ -34,6 +34,77 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
     end
   end
 
+  describe "filtering" do
+    test "search filters scripts by name", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, _} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+      {:ok, _} = Scripts.create(product, user, %{name: "Reboot", text: "Nerves.Runtime.reboot()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts")
+      |> assert_has("td", text: "MOTD")
+      |> assert_has("td", text: "Reboot")
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"search" => "MOTD"})
+      end)
+      |> assert_has("td", text: "MOTD")
+      |> refute_has("td", text: "Reboot")
+    end
+
+    test "search filters scripts by tags", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, _} =
+        Scripts.create(product, user, %{
+          name: "MOTD",
+          text: "NervesMOTD.print()",
+          tags: ["info"]
+        })
+
+      {:ok, _} =
+        Scripts.create(product, user, %{
+          name: "Reboot",
+          text: "Nerves.Runtime.reboot()",
+          tags: ["danger"]
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts")
+      |> assert_has("td", text: "MOTD")
+      |> assert_has("td", text: "Reboot")
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"search" => "danger"})
+      end)
+      |> assert_has("td", text: "Reboot")
+      |> refute_has("td", text: "MOTD")
+    end
+
+    test "shows a message when no scripts match the search", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, _} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts")
+      |> assert_has("td", text: "MOTD")
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"search" => "nope"})
+      end)
+      |> refute_has("td", text: "MOTD")
+      |> assert_has("span", text: "No Support Scripts match the current filters")
+    end
+  end
+
   describe "pagination" do
     test "no pagination when less than 25 support scripts", %{
       conn: conn,
@@ -128,6 +199,21 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
       |> assert_has("td", text: "MOTD")
       |> assert_has("span", text: "hello")
       |> assert_has("span", text: "world")
+    end
+
+    test "a tag added via the UI is included in distinct_tags_for_product/1", %{conn: conn, org: org, product: product} do
+      refute "world" in Scripts.distinct_tags_for_product(product)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/new")
+      |> fill_in("Name", with: "MOTD")
+      |> fill_in("Script code", with: "NervesMOTD.print()")
+      |> fill_in("Tags", with: "hello,world")
+      |> click_button("Save changes")
+      |> assert_path("/org/#{org.name}/#{product.name}/scripts")
+
+      assert "hello" in Scripts.distinct_tags_for_product(product)
+      assert "world" in Scripts.distinct_tags_for_product(product)
     end
   end
 

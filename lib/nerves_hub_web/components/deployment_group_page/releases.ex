@@ -58,7 +58,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     ~H"""
     <div class="flex flex-col gap-6 p-6">
       <div class="w-full">
-        <div class="bg-base-900 border-base-700 flex flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Release History</div>
 
@@ -213,7 +213,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
             <.rollout_options show_rollout_options={@show_rollout_options} myself={@myself} />
 
             <div>
-              <.button style="secondary" type="submit">
+              <.button style="primary" type="submit">
                 <.icon name="save" /> Create release
               </.button>
             </div>

@@ -3,9 +3,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
+  alias NervesHub.Devices
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveComponent
   def update(assigns, socket) do
@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     socket
     |> assign(assigns)
     |> assign(:form, to_form(changeset))
+    |> assign(:available_tags, Devices.distinct_tags_for_product(assigns.current_scope.product))
     |> ok()
   end
 
@@ -22,7 +23,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     ~H"""
     <div class="flex flex-col items-start justify-between gap-4 p-6">
       <.form id="deployment-form" for={@form} class="flex w-full flex-col gap-4" phx-change="validate-deployment-group" phx-submit="update-deployment-group" phx-target={@myself}>
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">General settings</div>
           </div>
@@ -41,7 +42,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Device matching conditions</div>
           </div>
@@ -57,7 +58,17 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             </div>
             <.inputs_for :let={conditions} field={@form[:conditions]}>
               <div class="w-1/2">
-                <.input field={conditions[:tags]} value={Utils.tags_to_string(conditions[:tags])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+                <.tag_input field={conditions[:tags]} label="Tag(s) distributed to" placeholder="eg. batch-123" available_tags={@available_tags} />
+              </div>
+
+              <div class="w-1/2">
+                <.input
+                  field={conditions[:tag_operator]}
+                  type="select"
+                  options={[[value: "and", key: "Require all"], [value: "or", key: "Allow any"]]}
+                  label="Tag matching"
+                  hint="“Allow any” matches devices with at least one of the tags. “Require all” matches only devices that have every tag."
+                />
               </div>
 
               <div class="w-1/2">
@@ -67,7 +78,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Device queue settings</div>
           </div>
@@ -85,7 +96,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Rolling updates</div>
           </div>
@@ -102,7 +113,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Priority queue</div>
           </div>
@@ -143,7 +154,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Device penalty box logic</div>
           </div>
@@ -210,7 +221,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">First Connect Code</div>
           </div>
@@ -231,9 +242,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex items-center justify-between gap-6 border-t p-6">
-            <.button style="secondary" type="submit">
+            <.button style="primary" type="submit">
               <.icon name="save" /> Save changes
             </.button>
 

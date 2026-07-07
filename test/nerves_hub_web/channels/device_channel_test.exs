@@ -8,6 +8,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -586,39 +587,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
       push(device_channel, "report_network_interface", %{"interface" => "eth0"})
       _socket = :sys.get_state(device_channel.channel_pid)
 
-      assert Repo.reload(device) |> Map.get(:network_interface) == :ethernet
-
-      close_cleanly(device_channel)
-    end
-
-    test "doesn't update when incoming interface is the same as the current one",
-         %{tmp_dir: tmp_dir} do
-      user = Fixtures.user_fixture()
-      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
-      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-      {:ok, device} = Devices.update_network_interface(device.id, "wlan0")
-      device = Repo.reload(device)
-
-      subscribe_for_updates(device)
-
-      {:ok, socket} =
-        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-      params =
-        for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
-          {"nerves_fw_#{k}", v}
-        end
-        |> Map.put("device_api_version", "2.2.0")
-
-      {:ok, _join_reply, device_channel} =
-        subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
-
-      assert_online_and_available(device)
-
-      allow(Devices, self(), device_channel.channel_pid)
-      reject(&Devices.update_network_interface/2)
-
-      push(device_channel, "report_network_interface", %{"interface" => "wlan0"})
+      connection = Connections.get_latest_for_device(device.id)
+      assert connection.network_interface == :ethernet
 
       close_cleanly(device_channel)
     end

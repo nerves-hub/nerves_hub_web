@@ -2,12 +2,22 @@ defmodule NervesHubWeb.Layouts do
   use NervesHubWeb, :html
 
   alias NervesHubWeb.Components.Navigation
+  alias NervesHubWeb.Components.Pager
   alias Phoenix.LiveView.JS
 
   defp toggle_user_menu(js \\ %JS{}) do
     JS.toggle(js,
       in: {"ease-out duration-150", "opacity-0", "opacity-100"},
       out: {"ease-out duration-150", "opacity-100", "opacity-0"},
+      to: "#user-menu-container"
+    )
+  end
+
+  # Only ever closes the menu - used for Escape and click-away so those never
+  # open the menu (JS.toggle would), and are no-ops when it's already closed.
+  defp hide_user_menu(js \\ %JS{}) do
+    JS.hide(js,
+      transition: {"ease-out duration-150", "opacity-100", "opacity-0"},
       to: "#user-menu-container"
     )
   end

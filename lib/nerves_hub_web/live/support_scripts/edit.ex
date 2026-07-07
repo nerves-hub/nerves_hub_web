@@ -3,7 +3,6 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
 
   alias NervesHub.Scripts
   alias NervesHub.Scripts.Script
-  alias NervesHubWeb.Components.Utils
 
   @impl Phoenix.LiveView
   def mount(%{"script_id" => script_id}, _session, %{assigns: %{current_scope: scope}} = socket) do
@@ -14,6 +13,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
     |> sidebar_tab(:support_scripts)
     |> assign(:form, to_form(Ecto.Changeset.change(script)))
     |> assign(:script, script)
+    |> assign(:available_tags, Scripts.distinct_tags_for_product(scope.product))
     |> ok()
   end
 

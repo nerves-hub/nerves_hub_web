@@ -811,13 +811,6 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec update_network_interface(pos_integer(), binary()) :: {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
-  def update_network_interface(device_id, network_interface) do
-    %Device{id: device_id}
-    |> Device.update_network_interface_changeset(network_interface)
-    |> Repo.update()
-  end
-
   @doc """
   Fetch devices associated with a deployment for updating.
 
@@ -921,7 +914,7 @@ defmodule NervesHub.Devices do
   end
 
   defp maybe_filter_by_network_interfaces(query, interfaces) do
-    where(query, [d], d.network_interface in ^interfaces)
+    where(query, [latest_connection: lc], lc.network_interface in ^interfaces)
   end
 
   defp maybe_version_threshold(query, nil), do: query
@@ -1385,6 +1378,22 @@ defmodule NervesHub.Devices do
     update_device_with_audit(device, params, user, description)
   end
 
+  @doc """
+  Returns the sorted, distinct list of tags used by all devices in a product.
+
+  Used to power tag autocomplete suggestions when tagging devices or targeting
+  deployment groups.
+  """
+  @spec distinct_tags_for_product(Product.t()) :: [String.t()]
+  def distinct_tags_for_product(%Product{} = product) do
+    Device
+    |> where([d], d.product_id == ^product.id)
+    |> where([d], not is_nil(d.tags))
+    |> select([d], fragment("distinct unnest(?)", d.tags))
+    |> Repo.all()
+    |> Enum.sort()
+  end
+
   @spec add_tag(Device.t(), User.t(), String.t()) :: {:ok, Device.t()} | {:error, any()} | {:error, any(), any(), any()}
   def add_tag(%Device{} = device, user, tag) do
     tag = String.trim(tag)
@@ -1643,6 +1652,30 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
+  @doc """
+  Get distinct device architectures based on the product
+  """
+  def architectures(product_id) do
+    Device
+    |> select([d], fragment("?->>'architecture'", d.firmware_metadata))
+    |> distinct(true)
+    |> where([d], d.product_id == ^product_id)
+    |> order_by([d], fragment("?->>'architecture'", d.firmware_metadata))
+    |> Repo.all()
+  end
+
+  @doc """
+  Get distinct tags currently used across devices in the product
+  """
+  def distinct_tags(product_id) do
+    Device
+    |> select([d], fragment("unnest(?)", d.tags))
+    |> distinct(true)
+    |> where([d], d.product_id == ^product_id)
+    |> order_by([d], fragment("unnest(?)", d.tags))
+    |> Repo.all()
+  end
+
   def fetch_connecting_code(device_id) do
     Device
     |> join(:left, [d], dp in assoc(d, :deployment_group))
@@ -1811,6 +1844,54 @@ defmodule NervesHub.Devices do
       where: not is_nil(d.deleted_at)
     )
     |> Repo.exists?()
+  end
+
+  def online_count(product) do
+    Device
+    |> join(:left, [d], lc in assoc(d, :latest_connection))
+    |> where(product_id: ^product.id)
+    |> where([_, lc], lc.status == :connected)
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
+  end
+
+  def offline_count(product) do
+    Device
+    |> join(:left, [d], lc in assoc(d, :latest_connection))
+    |> where(product_id: ^product.id)
+    |> where([_, lc], lc.status != :connected or is_nil(lc))
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
+  end
+
+  def not_seen_in_x_days_count(product, days) do
+    x_days_ago = NaiveDateTime.utc_now() |> NaiveDateTime.add(-days, :day)
+
+    Device
+    |> join(:left, [d], lc in assoc(d, :latest_connection))
+    |> where(product_id: ^product.id)
+    |> where(
+      [_, lc],
+      is_nil(lc) or (lc.status != :connected and lc.disconnected_at < ^x_days_ago)
+    )
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
+  end
+
+  def total_count(product) do
+    Device
+    |> where(product_id: ^product.id)
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
+  end
+
+  def health_status_count(product, status) do
+    Device
+    |> join(:inner, [d], lh in assoc(d, :latest_health))
+    |> where(product_id: ^product.id)
+    |> where([_, lh], lh.status == ^status)
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
   end
 
   defp update_tool() do
