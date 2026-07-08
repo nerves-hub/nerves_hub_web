@@ -719,18 +719,29 @@ defmodule NervesHub.Devices do
         firmware_auto_revert_detected: auto_revert_detected?
       }
 
-      firmware_metadata = Map.from_struct(device.firmware_metadata)
-
       attrs =
-        DeviceFirmwares.add_or_update_reported_firmware(
-          device,
-          firmware_metadata,
-          validation_status,
-          auto_revert_detected?
-        )
-        |> case do
-          :ok -> attrs
-          {:ok, df} -> Map.put(attrs, :current_device_firmware_id, df.id)
+        case device.firmware_metadata do
+          nil ->
+            # Device joined without any known firmware metadata (e.g. its
+            # uboot env had no `nerves_fw_uuid`). Nothing to report against,
+            # so just persist the device-level values. This is unexpected,
+            # so raise a product notification to surface it.
+            _ = ProductNotifications.create_missing_firmware_metadata_notification!(device)
+            attrs
+
+          current_metadata ->
+            firmware_metadata = Map.from_struct(current_metadata)
+
+            DeviceFirmwares.add_or_update_reported_firmware(
+              device,
+              firmware_metadata,
+              validation_status,
+              auto_revert_detected?
+            )
+            |> case do
+              :ok -> attrs
+              {:ok, df} -> Map.put(attrs, :current_device_firmware_id, df.id)
+            end
         end
 
       update_device(device, attrs)

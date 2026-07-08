@@ -130,6 +130,20 @@ defmodule NervesHub.ProductNotifications do
     |> insert_and_notify!()
   end
 
+  @spec create_missing_firmware_metadata_notification!(device :: Device.t()) :: Notification.t()
+  def create_missing_firmware_metadata_notification!(device) do
+    %Product{id: device.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device connected without any firmware metadata.",
+      message:
+        "The device with the identifier '#{device.identifier}' connected but reported no firmware metadata (e.g. its uboot env had no `nerves_fw_uuid`). This is unexpected — please check the device's firmware.",
+      level: :warning,
+      metadata: %{identifier: device.identifier},
+      event_key: "missing_firmware_metadata-#{device.identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
   defp insert_and_notify!(changeset) do
     conflict_query =
       Notification

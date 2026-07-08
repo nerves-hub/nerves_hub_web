@@ -1,5 +1,7 @@
 defmodule NervesHubWeb.WebsocketTest do
-  use NervesHubWeb.ChannelCase
+  # Run the entire suite against both the JSON (`~> 2.0.0`) and MessagePack
+  # (`~> 3.0.0`) device serializers to assure both wire formats work end to end.
+  use NervesHubWeb.ChannelCase, parameterize: [%{serializer: :json}, %{serializer: :msgpack}]
 
   import Ecto.Query
   import TrackerHelper
@@ -91,7 +93,10 @@ defmodule NervesHubWeb.WebsocketTest do
     {%{device | product: product, org: org}, firmware}
   end
 
-  setup do
+  setup context do
+    # `serializer` comes from the `parameterize` option and drives `with_serializer/1`.
+    Process.put(:websocket_serializer, context.serializer)
+
     user = Fixtures.user_fixture()
 
     {:ok,
@@ -113,7 +118,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
       SocketClient.join_and_wait(socket)
 
       assert_online_and_available(device)
@@ -149,7 +154,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(config))
       SocketClient.join_and_wait(socket)
 
       assert_connection_change()
@@ -159,7 +164,7 @@ defmodule NervesHubWeb.WebsocketTest do
     end
 
     test "authentication rejected to channel using incorrect client ssl certificate" do
-      {:ok, socket} = SocketClient.start_link(@bad_socket_config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(@bad_socket_config))
       SocketClient.wait_connect(socket)
 
       refute SocketClient.connected?(socket)
@@ -224,7 +229,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.join_and_wait(socket)
 
       assert_connection_change()
@@ -299,7 +304,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.join_and_wait(socket)
 
       assert_connection_change()
@@ -342,7 +347,7 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.join_and_wait(socket, params)
 
       assert device = Repo.get_by(Device, identifier: identifier)
@@ -375,7 +380,7 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.join_and_wait(socket, params)
 
       assert device = Repo.get_by(Device, identifier: identifier)
@@ -402,7 +407,7 @@ defmodule NervesHubWeb.WebsocketTest do
         headers: Utils.nh1_key_secret_headers(auth, identifier, signed_at: expired)
       ]
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.wait_connect(socket)
 
       refute SocketClient.connected?(socket)
@@ -428,7 +433,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.join_and_wait(socket, params)
 
       assert_connection_change()
@@ -447,7 +452,7 @@ defmodule NervesHubWeb.WebsocketTest do
         headers: Utils.nh1_key_secret_headers(auth, "this-is-not-the-device-identifier")
       ]
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.wait_connect(socket)
 
       refute SocketClient.connected?(socket)
@@ -471,7 +476,7 @@ defmodule NervesHubWeb.WebsocketTest do
           headers: Utils.nh1_key_secret_headers(auth, device.identifier)
         ]
 
-        {:ok, socket} = SocketClient.start_link(opts)
+        {:ok, socket} = SocketClient.start_link(with_serializer(opts))
         SocketClient.wait_connect(socket)
 
         refute SocketClient.connected?(socket)
@@ -492,7 +497,7 @@ defmodule NervesHubWeb.WebsocketTest do
         headers: Utils.nh1_key_secret_headers(auth, identifier)
       ]
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
 
       SocketClient.wait_connect(socket)
 
@@ -515,7 +520,7 @@ defmodule NervesHubWeb.WebsocketTest do
         headers: Utils.nh1_key_secret_headers(auth, device.identifier)
       ]
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
 
       SocketClient.wait_connect(socket)
 
@@ -562,7 +567,7 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.join_and_wait(socket, params)
 
       assert device = Repo.get_by(Device, identifier: identifier)
@@ -571,7 +576,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert_online_and_available(device)
 
-      {:ok, new_connection} = SocketClient.start_link(opts)
+      {:ok, new_connection} = SocketClient.start_link(with_serializer(opts))
       SocketClient.join_and_wait(new_connection, params)
 
       assert_connection_change()
@@ -615,7 +620,7 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
 
       SocketClient.join_and_wait(socket, params)
 
@@ -654,7 +659,7 @@ defmodule NervesHubWeb.WebsocketTest do
       uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket"
     ]
 
-    {:ok, socket} = SocketClient.start_link(opts)
+    {:ok, socket} = SocketClient.start_link(with_serializer(opts))
 
     SocketClient.wait_connect(socket)
 
@@ -715,7 +720,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
       SocketClient.join_and_wait(socket)
 
       assert_online_and_available(device)
@@ -749,7 +754,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
       SocketClient.join_and_wait(socket)
 
       assert_online_and_available(device)
@@ -819,7 +824,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
 
       different_platform = "tester"
 
@@ -886,7 +891,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
 
       SocketClient.join_and_wait(socket, %{
         "nerves_fw_architecture" => device.firmware_metadata.architecture,
@@ -954,7 +959,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
 
       SocketClient.join_and_wait(socket, %{
         "device_api_version" => "2.2.0",
@@ -1025,7 +1030,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
 
       SocketClient.join_and_wait(socket, %{
         "device_api_version" => "2.2.0",
@@ -1086,7 +1091,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.join_and_wait(socket)
 
       assert_connection_change()
@@ -1145,7 +1150,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.join_and_wait(socket)
 
       assert_connection_change()
@@ -1194,12 +1199,12 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.join_and_wait(socket)
       assert_online_and_available(device)
       close_socket_cleanly(socket)
 
-      {:ok, socket} = SocketClient.start_link(opts)
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
       SocketClient.join_and_wait(socket)
 
       assert_online_and_available(device)
@@ -1265,7 +1270,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
       SocketClient.join_and_wait(socket, %{"device_api_version" => "2.0.0"})
 
       assert_connection_change()
@@ -1330,7 +1335,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
       SocketClient.join_and_wait(socket, %{"device_api_version" => "2.0.0"})
 
       assert_connection_change()
@@ -1380,7 +1385,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       subscribe_for_updates(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
       SocketClient.join_and_wait(socket, %{"device_api_version" => "2.0.0"})
 
       assert_connection_change()
@@ -1408,5 +1413,23 @@ defmodule NervesHubWeb.WebsocketTest do
     SocketClient.clean_close(socket)
     eventually assert_connection_change()
     eventually(assert(Repo.all(where(DeviceConnection, status: :connected)) == []))
+  end
+
+  # Applies the parameterized serializer to a Slipstream client config. For
+  # MessagePack we select the client-side serializer and bump the vsn so the
+  # endpoint negotiates the `~> 3.0.0` DeviceMsgPackSerializer; JSON uses the
+  # Slipstream defaults (v2 JSON serializer, vsn 2.0.0).
+  defp with_serializer(config) do
+    case Process.get(:websocket_serializer) do
+      :msgpack ->
+        uri = Keyword.fetch!(config, :uri) <> "?vsn=3.0.0"
+
+        config
+        |> Keyword.put(:uri, uri)
+        |> Keyword.put(:serializer, SocketClient.MsgpackSerializer)
+
+      _ ->
+        config
+    end
   end
 end

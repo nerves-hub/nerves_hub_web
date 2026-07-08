@@ -249,6 +249,107 @@ defmodule NervesHub.DevicesTest do
       assert df.firmware_validation_status == :validated
       assert df.firmware_auto_revert_detected
     end
+
+    # Regression for #2430: a device whose uboot env never wrote a
+    # `nerves_fw_uuid` ends up with `firmware_metadata == nil`. When it
+    # joined the device channel, `update_firmware_metadata/4` was called
+    # with `nil` for `updated_metadata`, which then crashed inside
+    # `Map.from_struct(nil)` and took the channel join down with it.
+    test "tolerates a nil updated_metadata on a device with no firmware_metadata", %{
+      org: org,
+      product: product
+    } do
+      {:ok, device} =
+        Devices.create_device(%{
+          org_id: org.id,
+          product_id: product.id,
+          identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
+        })
+
+      assert is_nil(device.firmware_metadata)
+
+      assert {:ok, device} =
+               Devices.update_firmware_metadata(
+                 device,
+                 nil,
+                 :validated,
+                 true
+               )
+
+      assert is_nil(device.firmware_metadata)
+      assert is_nil(device.current_device_firmware_id)
+      assert device.firmware_validation_status == :validated
+      assert device.firmware_auto_revert_detected
+      assert Repo.all(DeviceFirmware) == []
+    end
+
+    test "raises a product notification when a device connects with no firmware_metadata", %{
+      org: org,
+      product: product
+    } do
+      {:ok, device} =
+        Devices.create_device(%{
+          org_id: org.id,
+          product_id: product.id,
+          identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
+        })
+
+      assert is_nil(device.firmware_metadata)
+      assert Repo.aggregate(Notification, :count) == 0
+
+      assert {:ok, _device} =
+               Devices.update_firmware_metadata(device, nil, :validated, true)
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.product_id == product.id
+      assert notification.level == :warning
+      assert notification.title == "A device connected without any firmware metadata."
+      assert notification.metadata == %{"identifier" => device.identifier}
+      assert notification.event_key == "missing_firmware_metadata-#{device.identifier}"
+      assert notification.occurrence_count == 1
+    end
+
+    test "de-duplicates the missing firmware_metadata notification across repeated connections", %{
+      org: org,
+      product: product
+    } do
+      {:ok, device} =
+        Devices.create_device(%{
+          org_id: org.id,
+          product_id: product.id,
+          identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
+        })
+
+      assert {:ok, device} =
+               Devices.update_firmware_metadata(device, nil, :validated, true)
+
+      assert {:ok, _device} =
+               Devices.update_firmware_metadata(device, nil, :validated, true)
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.occurrence_count == 2
+    end
+  end
+
+  describe "firmware_update_successful/2" do
+    # Regression for #2430: when the join flow reached this function
+    # with a device that still had `firmware_metadata == nil`, the
+    # telemetry payload dereferenced `device.firmware_metadata.uuid`
+    # and crashed.
+    test "tolerates a device with no firmware_metadata", %{
+      org: org,
+      product: product
+    } do
+      {:ok, device} =
+        Devices.create_device(%{
+          org_id: org.id,
+          product_id: product.id,
+          identifier: "device-without-firmware-metadata-#{System.unique_integer([:positive])}"
+        })
+
+      assert is_nil(device.firmware_metadata)
+      assert {:ok, ^device} = FirmwareUpdates.firmware_update_successful(device, nil)
+    end
   end
 
   test "delete_device", %{org: org, device: device} do
