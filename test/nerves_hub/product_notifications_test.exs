@@ -2,6 +2,7 @@ defmodule NervesHub.ProductNotificationsTest do
   use NervesHub.DataCase, async: true
 
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.Products.Notification
   alias Phoenix.Socket.Broadcast
@@ -88,5 +89,19 @@ defmodule NervesHub.ProductNotificationsTest do
     NervesHub.ProductNotifications.subscribe(product.id)
     NervesHub.ProductNotifications.create_duplicate_device_identifier_notification!(product.id, "abc", :shared_secrets)
     assert_receive %Broadcast{event: "created"}
+  end
+
+  test "creates a notification when a device connects with no firmware metadata",
+       %{product: product} do
+    device = %Device{product_id: product.id, identifier: "no-firmware-metadata"}
+
+    notification = NervesHub.ProductNotifications.create_missing_firmware_metadata_notification!(device)
+
+    assert notification.product_id == product.id
+    assert notification.level == :warning
+    assert notification.title == "A device connected without any firmware metadata."
+    assert notification.metadata == %{identifier: device.identifier}
+    assert notification.event_key == "missing_firmware_metadata-#{device.identifier}"
+    assert notification.occurrence_count == 1
   end
 end

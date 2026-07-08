@@ -724,7 +724,9 @@ defmodule NervesHub.Devices do
           nil ->
             # Device joined without any known firmware metadata (e.g. its
             # uboot env had no `nerves_fw_uuid`). Nothing to report against,
-            # so just persist the device-level values.
+            # so just persist the device-level values. This is unexpected,
+            # so raise a product notification to surface it.
+            _ = ProductNotifications.create_missing_firmware_metadata_notification!(device)
             attrs
 
           current_metadata ->
