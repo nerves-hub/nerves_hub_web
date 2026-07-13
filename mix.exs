@@ -102,7 +102,7 @@ defmodule NervesHub.MixProject do
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
       {:excoveralls, "~> 0.18", only: :test},
-      {:finch, "~> 0.22.0"},
+      {:finch, "~> 0.23.0"},
       {:floki, "~> 0.38.0"},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
