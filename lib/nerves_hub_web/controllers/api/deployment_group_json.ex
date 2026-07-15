@@ -20,7 +20,8 @@ defmodule NervesHubWeb.API.DeploymentGroupJSON do
       conditions: conditions(deployment_group.conditions),
       delta_updatable: deployment_group.delta_updatable,
       device_count: deployment_group.device_count,
-      releases_count: deployment_group.releases_count
+      releases_count: deployment_group.releases_count,
+      notes: deployment_group.notes
     }
   end
 
