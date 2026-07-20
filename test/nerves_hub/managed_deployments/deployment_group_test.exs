@@ -96,6 +96,48 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
       refute changeset.valid?
       assert errors_on(changeset).conditions.version == ["must be valid Elixir version requirement string"]
     end
+
+    test "notes can be set", %{
+      deployment_group_params: deployment_group_params,
+      product: product,
+      user: user,
+      firmware: firmware
+    } do
+      changeset =
+        deployment_group_params
+        |> Map.put(:notes, "Created for the summer campaign hardware batch")
+        |> DeploymentGroup.create_changeset(product, firmware, user)
+
+      assert changeset.valid?
+      assert changeset.changes.notes == "Created for the summer campaign hardware batch"
+    end
+
+    test "notes defaults to nil when not provided", %{
+      deployment_group_params: deployment_group_params,
+      product: product,
+      user: user,
+      firmware: firmware
+    } do
+      changeset = DeploymentGroup.create_changeset(deployment_group_params, product, firmware, user)
+
+      assert changeset.valid?
+      refute Map.has_key?(changeset.changes, :notes)
+    end
+
+    test "notes cannot exceed 1000 characters", %{
+      deployment_group_params: deployment_group_params,
+      product: product,
+      user: user,
+      firmware: firmware
+    } do
+      changeset =
+        deployment_group_params
+        |> Map.put(:notes, String.duplicate("a", 1001))
+        |> DeploymentGroup.create_changeset(product, firmware, user)
+
+      refute changeset.valid?
+      assert errors_on(changeset).notes == ["should be at most 1000 character(s)"]
+    end
   end
 
   describe "update_changeset/2" do
@@ -170,6 +212,33 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
       assert changeset.valid?
       deployment_group = Repo.update!(changeset)
       assert deployment_group.current_updated_devices == 0
+    end
+
+    test "notes can be set", %{deployment_group: deployment_group} do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{notes: "Created for the summer campaign hardware batch"})
+
+      assert changeset.valid?
+      assert changeset.changes.notes == "Created for the summer campaign hardware batch"
+    end
+
+    test "notes can be cleared", %{deployment_group: deployment_group} do
+      deployment_group =
+        deployment_group
+        |> DeploymentGroup.update_changeset(%{notes: "some reason"})
+        |> Repo.update!()
+
+      changeset = DeploymentGroup.update_changeset(deployment_group, %{notes: ""})
+
+      assert changeset.valid?
+      assert changeset.changes.notes == nil
+    end
+
+    test "notes cannot exceed 1000 characters", %{deployment_group: deployment_group} do
+      changeset = DeploymentGroup.update_changeset(deployment_group, %{notes: String.duplicate("a", 1001)})
+
+      refute changeset.valid?
+      assert errors_on(changeset).notes == ["should be at most 1000 character(s)"]
     end
   end
 
