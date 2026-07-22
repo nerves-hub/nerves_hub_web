@@ -16,7 +16,7 @@ defmodule NervesHubWeb.DeviceEndpoint do
     NervesHubWeb.DeviceSocket,
     websocket: [
       connect_info: [:peer_data, :x_headers],
-      compress: true,
+      compress: false,
       timeout: 180_000,
       fullsweep_after: 0,
       error_handler: {WebsocketConnectionError, :handle_error, []},
@@ -30,7 +30,7 @@ defmodule NervesHubWeb.DeviceEndpoint do
     NervesHubWeb.DeviceSocket,
     websocket: [
       connect_info: [:peer_data, :x_headers],
-      compress: true,
+      compress: false,
       timeout: 180_000,
       fullsweep_after: 0,
       error_handler: {WebsocketConnectionError, :handle_error, []},
