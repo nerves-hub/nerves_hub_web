@@ -7,8 +7,12 @@ defmodule NervesHubWeb.Components.AdvancedSearch do
   `NervesHub.Devices.AdvancedQuery.Schema`. On focus it expands and reveals
   hints/suggestions below, similar to a command palette. Collapses back to a
   normal-looking search box on blur. Validation is always re-checked
-  server-side by `NervesHub.Devices.AdvancedQuery.parse/2` on apply - the
+  server-side by `NervesHub.Devices.AdvancedQuery.interpret/2` on apply - the
   client-side tokenizer is for highlighting/suggestions only.
+
+  Plain text that isn't a query expression (e.g. a pasted device identifier)
+  is applied as a free-text search: the server rewrites it to
+  `search like "%text%"` and the editor re-syncs to show that form.
   """
 
   use NervesHubWeb, :component

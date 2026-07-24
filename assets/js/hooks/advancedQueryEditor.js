@@ -378,7 +378,8 @@ export default {
     this.activeSuggestions = []
     this.activeIndex = -1
 
-    this.editor.textContent = this.el.dataset.value || ""
+    this.appliedValue = this.el.dataset.value || ""
+    this.editor.textContent = this.appliedValue
     this.highlight()
     this.updateClearButtonVisibility()
     this.applyRestingWidth({ animate: false })
@@ -423,6 +424,18 @@ export default {
   // real values once they arrive, without touching the editor's contents.
   updated() {
     this.loadSchema()
+
+    // The server may apply a different query than what was typed (free text
+    // is rewritten to its `search like "%text%"` form) - re-sync the editor
+    // with the applied value when it changes, unless the user is mid-edit.
+    const applied = this.el.dataset.value || ""
+    if (applied !== this.appliedValue) {
+      this.appliedValue = applied
+      if (document.activeElement !== this.editor && applied !== this.value()) {
+        this.render(applied)
+        this.updateClearButtonVisibility()
+      }
+    }
 
     // Keep the resting width in sync when the server patches the field (e.g.
     // a query is applied or cleared) while it isn't being actively edited.

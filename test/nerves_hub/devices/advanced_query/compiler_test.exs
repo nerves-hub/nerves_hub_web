@@ -82,6 +82,27 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
       assert run(product, ~s|identifier not like "%nect%"|) == ["tagged", "untagged"]
     end
 
+    test "search matches across identifier, firmware version, platform, and tags", %{
+      product: product,
+      platform: platform
+    } do
+      # identifier substring, case-insensitively
+      assert run(product, ~s|search like "%nect%"|) == ["connected", "never_connected"]
+      # "prod" only appears as a tag, on "tagged"
+      assert run(product, ~s|search like "%prod%"|) == ["tagged"]
+      assert run(product, ~s|search like "%PROD%"|) == ["tagged"]
+      # platform and firmware version are shared by every fixture device
+      all = ["connected", "never_connected", "tagged", "untagged"]
+      assert run(product, ~s|search like "%#{platform}%"|) == all
+      assert run(product, ~s|search like "%1.0.0%"|) == all
+      assert run(product, ~s|search like "%no-such-text%"|) == []
+    end
+
+    test "search not like excludes matches from any field, including devices with no tags", %{product: product} do
+      assert run(product, ~s|search not like "%nect%"|) == ["tagged", "untagged"]
+      assert run(product, ~s|search not like "%prod%"|) == ["connected", "never_connected", "untagged"]
+    end
+
     test "tags contains", %{product: product} do
       assert run(product, ~s|tags contains "prod"|) == ["tagged"]
     end
