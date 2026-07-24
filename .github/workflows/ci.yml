@@ -134,6 +134,10 @@ jobs:
       - name: Run Credo
         run: mix credo --min-priority low
 
+      # Dependency-free: runs on Node's built-in test runner, no npm install.
+      - name: Run JS unit tests
+        run: npm test --prefix assets
+
       - name: DB Setup
         run: mix ecto.migrate.reset
 
