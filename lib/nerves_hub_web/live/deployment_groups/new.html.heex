@@ -37,6 +37,15 @@
                   for more information on delta updates.
                 </:rich_hint>
               </.input>
+              <.input
+                field={@form[:notes]}
+                type="textarea"
+                rows={1}
+                class="min-h-9"
+                label="Notes"
+                placeholder="Why is this deployment group being created?"
+                phx-debounce="blur"
+              />
             </div>
           </div>
 
