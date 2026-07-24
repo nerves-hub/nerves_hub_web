@@ -474,6 +474,7 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:multiple, :boolean, default: false, doc: "the multiple flag for select inputs")
 
   attr(:hint, :string, default: nil, doc: "a hint to be displayed next to the label")
+  attr(:class, :string, default: nil, doc: "overrides the default min-height for textarea inputs")
 
   attr(:rest, :global, include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
                 multiple pattern placeholder readonly required rows size step))
@@ -544,7 +545,8 @@ defmodule NervesHubWeb.CoreComponents do
         name={@name}
         class={[
           "bg-base-900 text-base-400 mt-2 block w-full rounded focus:ring-0 sm:text-sm/6",
-          "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700 min-h-24",
+          "phx-no-feedback:border-base-600 phx-no-feedback:focus:border-base-700",
+          @class || "min-h-24",
           @errors == [] && "border-base-600 focus:border-base-700",
           @errors != [] && "border-alert focus:border-alert"
         ]}

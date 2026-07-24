@@ -433,6 +433,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     {@deployment_group.connecting_code}
               </pre>
             </div>
+
+            <div :if={not is_nil(@deployment_group.notes) and @deployment_group.notes != ""} class="border-base-700 border-t pt-4">
+              <div class="flex flex-col gap-1">
+                <span class="text-base-500 text-sm">Notes:</span>
+                <span class="text-base-300 text-sm whitespace-pre-wrap">{@deployment_group.notes}</span>
+              </div>
+            </div>
           </div>
 
           <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col gap-2 rounded border p-4">

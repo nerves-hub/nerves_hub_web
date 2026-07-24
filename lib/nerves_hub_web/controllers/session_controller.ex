@@ -8,9 +8,20 @@ defmodule NervesHubWeb.SessionController do
   alias NervesHubWeb.Auth
 
   def new(conn, params) do
+    conn = maybe_store_external_return_to(conn, params["return_to"])
     form = Phoenix.Component.to_form(%{}, as: "User")
 
     render(conn, :new, form: form, message: params["message"])
+  end
+
+  # Persist an allow-listed external `return_to` (e.g. the nerves_hub_mcp OAuth
+  # consent URL) so the user lands back there after logging in. Same-app returns
+  # are already handled by `Auth.require_authenticated_user`.
+  defp maybe_store_external_return_to(conn, return_to) do
+    case Auth.return_to_target(return_to) do
+      {:external, url} -> put_session(conn, :login_redirect_path, url)
+      _ -> conn
+    end
   end
 
   def create(conn, %{"user" => %{"email" => email, "password" => password} = user_params}) do

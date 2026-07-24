@@ -148,6 +148,35 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     assert log.description =~ ~r/deleted deployment/
   end
 
+  test "can update notes", %{conn: conn, deployment_group: deployment_group} do
+    conn
+    |> fill_in("Notes", with: "Created for the summer campaign hardware batch")
+    |> submit()
+
+    deployment_group = Repo.reload(deployment_group)
+    assert deployment_group.notes == "Created for the summer campaign hardware batch"
+  end
+
+  test "can clear notes", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    conn
+    |> fill_in("Notes", with: "some reason")
+    |> submit()
+
+    assert Repo.reload(deployment_group).notes == "some reason"
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/settings")
+    |> fill_in("Notes", with: "")
+    |> submit()
+
+    assert Repo.reload(deployment_group).notes == nil
+  end
+
   test "you can delete a deployment group with devices attached to it", %{
     conn: conn,
     org: org,
