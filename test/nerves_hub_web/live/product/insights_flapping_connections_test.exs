@@ -17,6 +17,10 @@ defmodule NervesHubWeb.Live.Product.InsightsFlappingConnectionsTest do
 
     AnalyticsRepo.query!("TRUNCATE TABLE device_connection_history")
 
+    on_exit(fn ->
+      AnalyticsRepo.query!("TRUNCATE TABLE device_connection_history")
+    end)
+
     %{product: product, firmware: firmware, device: device}
   end
 
