@@ -84,7 +84,7 @@ defmodule NervesHub.MixProject do
       {:bcrypt_elixir, "~> 3.0"},
       {:briefly, "~> 0.5.0"},
       {:castore, "~> 1.0"},
-      {:circular_buffer, "~> 1.0.0"},
+      {:circular_buffer, "~> 1.1.0"},
       {:comeonin, "~> 5.3"},
       {:confuse, "~> 0.4.0"},
       {:contex, "~> 0.5.0"},
