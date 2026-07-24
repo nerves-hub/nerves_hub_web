@@ -109,7 +109,7 @@ defmodule NervesHub.MixProject do
       {:hackney, "~> 1.16"},
       {:hammer, "~> 7.4.0"},
       {:hlclock, "~> 1.0"},
-      {:process_hub, "~> 0.5.0-beta"},
+      {:process_hub, "~> 0.6.0"},
       {:jason, "~> 1.2", override: true},
       {:joken, "~> 2.6"},
       {:lazy_html, ">= 0.0.0", only: :test},
