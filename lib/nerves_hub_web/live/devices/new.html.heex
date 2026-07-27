@@ -21,7 +21,7 @@
 
             <.input field={@form[:description]} label="Description" placeholder="eg. sensor hub at customer X" />
 
-            <.input field={@form[:tags]} value={tags_to_string(@form[:tags])} label="Tags" placeholder="eg. batch-123" />
+            <.tag_input field={@form[:tags]} label="Tags" placeholder="eg. batch-123" available_tags={@available_tags} />
           </div>
 
           <div class="flex w-1/2 flex-col gap-2">

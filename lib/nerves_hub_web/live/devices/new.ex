@@ -3,7 +3,6 @@ defmodule NervesHubWeb.Live.Devices.New do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
-  alias Phoenix.HTML.FormField
 
   def mount(_params, _session, socket) do
     changeset = Ecto.Changeset.change(%Device{})
@@ -12,6 +11,7 @@ defmodule NervesHubWeb.Live.Devices.New do
     |> page_title("New Device - #{socket.assigns.current_scope.product.name}")
     |> sidebar_tab(:devices)
     |> assign(:form, to_form(changeset))
+    |> assign(:available_tags, Devices.distinct_tags_for_product(socket.assigns.current_scope.product))
     |> ok()
   end
 
@@ -38,12 +38,4 @@ defmodule NervesHubWeb.Live.Devices.New do
         |> noreply()
     end
   end
-
-  defp tags_to_string(%FormField{} = field) do
-    tags_to_string(field.value)
-  end
-
-  defp tags_to_string(%{tags: tags}), do: tags_to_string(tags)
-  defp tags_to_string(tags) when is_list(tags), do: Enum.join(tags, ", ")
-  defp tags_to_string(tags), do: tags
 end

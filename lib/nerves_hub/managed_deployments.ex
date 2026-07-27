@@ -53,6 +53,17 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
   end
 
+  @doc """
+  The deployment group names for a product, sorted.
+  """
+  def deployment_group_names(product_id) do
+    DeploymentGroup
+    |> where([d], d.product_id == ^product_id)
+    |> order_by([d], asc: d.name)
+    |> select([d], d.name)
+    |> Repo.all()
+  end
+
   @spec get_device_counts_by_product(Product.t()) :: %{integer() => integer()}
   def get_device_counts_by_product(%Product{id: product_id}) do
     Device

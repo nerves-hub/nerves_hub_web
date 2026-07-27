@@ -17,6 +17,12 @@ defmodule NervesHub.FirmwareUpdates do
 
   @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
+  def firmware_update_successful(%Device{firmware_metadata: nil} = device, _previous_metadata) do
+    # Nothing meaningful to record — the device joined without a usable
+    # firmware uuid (see update_firmware_metadata/4 with nil metadata).
+    {:ok, device}
+  end
+
   def firmware_update_successful(device, previous_metadata) do
     :telemetry.execute([:nerves_hub, :devices, :update, :successful], %{count: 1}, %{
       identifier: device.identifier,
@@ -172,7 +178,7 @@ defmodule NervesHub.FirmwareUpdates do
     |> where(device_id: ^device_id)
     |> Repo.update_all(set: [status: status, progress: progress, updated_at: updated_at])
     |> case do
-      {1, _} -> broadcast_firmware_update_status!(device_id, status, %{percent: progress})
+      {1, _} -> broadcast_firmware_update_status!(device_id, status, %{"progress" => progress})
       _ -> true
     end
 
@@ -180,7 +186,7 @@ defmodule NervesHub.FirmwareUpdates do
   end
 
   def update_inflight_update(device_id, status, progress, false) do
-    broadcast_firmware_update_status!(device_id, status, %{percent: progress})
+    broadcast_firmware_update_status!(device_id, status, %{"progress" => progress})
     :ok
   end
 
@@ -251,7 +257,7 @@ defmodule NervesHub.FirmwareUpdates do
 
   defp broadcast_firmware_update_status!(device_id, status, extra_info) do
     topic = "internal:device:#{device_id}"
-    payload = Map.put(extra_info, :stage, status)
+    payload = Map.put(extra_info, "stage", status)
     ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, "firmware_update_progress", payload)
   end
 

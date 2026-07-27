@@ -28,7 +28,7 @@ defmodule NervesHub.Accounts.User do
     field(:email, :string)
     field(:password, :string, virtual: true, redact: true)
     field(:password_confirmation, :string, virtual: true, redact: true)
-    field(:password_hash, :string)
+    field(:password_hash, :string, redact: true)
 
     field(:profile_picture_url, :string)
 

@@ -198,7 +198,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit(device_show_path(fixture))
       |> assert_has("svg[data-connection-status=unknown]")
       |> unwrap(fn view ->
-        {:ok, connection} = Connections.device_connecting(fixture.device.id)
+        {:ok, connection} =
+          Connections.device_connecting(fixture.device.org_id, fixture.device.product_id, fixture.device.id)
+
         :ok = Connections.device_connected(connection.id)
         render(view)
       end)
@@ -221,7 +223,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       # Set device status to :provisioned for deployment group eligibility
       %{status: :provisioned} = device = Devices.set_as_provisioned!(device)
 
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
 
       # mismatch device and deployment group firmware so "Send Update" form doesn't display
@@ -262,7 +264,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 22})
 
-        {:ok, connection} = Connections.device_connecting(device.id)
+        {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
         :ok = Connections.device_connected(connection.id)
 
         topic = "device:#{device.id}:extensions"
@@ -502,7 +504,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{}})
 
@@ -519,7 +521,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{"latitude" => nil, "longitude" => nil}})
 
@@ -536,7 +538,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{"latitude" => "", "longitude" => ""}})
 
@@ -552,7 +554,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "location" => %{"error_code" => "BOOP", "error_description" => "BEEP"}
       }
 
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, metadata)
 
@@ -574,7 +576,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         }
       }
 
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, metadata)
 
@@ -799,7 +801,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
 
       {:ok, {_release, deployment_group}} =
@@ -842,7 +844,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
         |> Repo.update!()
 
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -887,8 +889,35 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("div", text: "Support Scripts")
-      |> assert_has("div", text: "MOTD")
-      |> assert_has("button[phx-value-id=\"#{script.id}\"]")
+      |> assert_has("select#script_id option[value=\"#{script.id}\"]", text: "MOTD")
+      # No script is selected by default, so a placeholder option is shown
+      # and the run button stays disabled.
+      |> assert_has("select#script_id option[value=\"\"]", text: "Select a support script")
+      |> assert_has("button[disabled]", text: "Run script")
+      # With a small number of scripts, the native dropdown is used (no search).
+      |> refute_has("#script-autocomplete")
+    end
+
+    test "more than 10 scripts switches to a searchable autocomplete", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      for i <- 1..11 do
+        {:ok, _script} =
+          NervesHub.Scripts.create(product, user, %{name: "Script #{i}", text: "ignored"})
+      end
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Support Scripts")
+      # The native <select> is replaced by the searchable combobox.
+      |> refute_has("select#script_id")
+      |> assert_has("#script-autocomplete[phx-hook=\"ScriptAutocomplete\"]")
+      |> assert_has("input#script_search")
+      |> assert_has("button", text: "Run script")
     end
   end
 
@@ -1070,7 +1099,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
 
@@ -1104,7 +1133,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
 
@@ -1157,7 +1186,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert device.updates_enabled
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
 
@@ -1207,7 +1236,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       Devices.update_device(device, %{firmware_metadata: metadata})
 
       device = Devices.update_deployment_group(device, deployment_group)
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
 
@@ -1561,6 +1590,25 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "Tag \"new-tag\" added successfully.", timeout: 1_000)
       |> assert_has("span", text: "new-tag")
       |> assert_has("span", text: "beta")
+    end
+
+    test "a tag added via the UI is included in distinct_tags_for_product/1", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      refute "new-tag" in Devices.distinct_tags_for_product(product)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> fill_in("Add tag", with: "new-tag")
+      |> click_button("Add")
+      |> assert_has("div", text: "Tag \"new-tag\" added successfully.", timeout: 1_000)
+      |> assert_has("span", text: "new-tag")
+
+      assert "new-tag" in Devices.distinct_tags_for_product(product)
     end
 
     test "removes a tag from the device", %{conn: conn, org: org, product: product, device: device} do

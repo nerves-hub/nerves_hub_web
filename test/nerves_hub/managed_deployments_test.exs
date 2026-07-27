@@ -67,7 +67,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       for key <- Map.keys(params) do
         case Map.get(deployment_group, key) do
           %Conditions{} = value ->
-            Map.from_struct(value) == Map.get(params, key)
+            Map.equal?(Map.from_struct(value), Map.get(params, key))
 
           value ->
             value == Map.get(params, key)

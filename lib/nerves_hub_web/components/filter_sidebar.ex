@@ -1,9 +1,9 @@
 defmodule NervesHubWeb.Components.FilterSidebar do
   use NervesHubWeb, :component
 
-  attr(:show, :boolean, required: true)
+  alias Phoenix.LiveView.JS
+
   attr(:current_filters, :map, required: true)
-  attr(:on_toggle, :any, default: "toggle-filters")
   attr(:on_update, :any, default: "update-filters")
   attr(:on_reset, :any, default: "reset-filters")
 
@@ -25,16 +25,17 @@ defmodule NervesHubWeb.Components.FilterSidebar do
 
     ~H"""
     <div class="pointer-events-none fixed inset-y-0 right-0 z-40 flex max-w-full pl-10 sm:pl-16">
-      <div class={[
-        "bg-surface-muted border-base-700 shadow-filter-slider pointer-events-auto mt-[55px] flex h-full w-screen max-w-80 flex-col border-t border-l transition-transform",
-        !@show && "translate-x-full",
-        !@show && "invisible"
-      ]}>
+      <div
+        id="filter-sidebar"
+        class="bg-surface-muted border-base-700 shadow-filter-slider pointer-events-auto mt-[55px] hidden h-full w-screen max-w-80 flex-col border-t border-l transition-transform"
+        phx-window-keydown={hide_filter_sidebar()}
+        phx-key="escape"
+      >
         <div class="h-0 flex-1 overflow-y-auto">
           <div class="border-base-700 flex h-14 items-center border-b px-4 py-3">
             <h4 class="text-base font-semibold">Filters</h4>
 
-            <button class="ml-auto p-1.5" type="button" phx-click={@on_toggle} phx-value-toggle={to_string(@show)}>
+            <button class="ml-auto cursor-pointer p-1.5" type="button" phx-click={hide_filter_sidebar()}>
               <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 20 20" fill="none">
                 <path
                   d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
@@ -74,5 +75,24 @@ defmodule NervesHubWeb.Components.FilterSidebar do
       </div>
     </div>
     """
+  end
+
+  defp hide_filter_sidebar() do
+    JS.hide(
+      to: "#filter-sidebar",
+      transition: {"transition-transform duration-150 ease-in-out", "translate-x-0", "translate-x-full"},
+      time: 150,
+      blocking: false
+    )
+  end
+
+  def show_filter_sidebar() do
+    JS.show(
+      to: "#filter-sidebar",
+      display: "flex",
+      transition: {"transition-transform duration-150 ease-in-out", "translate-x-full", "translate-x-0"},
+      time: 150,
+      blocking: false
+    )
   end
 end

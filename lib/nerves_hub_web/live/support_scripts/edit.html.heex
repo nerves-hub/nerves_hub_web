@@ -18,7 +18,7 @@
         <div class="flex gap-6 p-6">
           <div class="flex w-1/2 flex-col gap-6">
             <.input field={@form[:name]} label="Name" placeholder="System Debugging" phx-debounce="blur" />
-            <.input field={@form[:tags]} value={Utils.tags_to_string(@form[:tags])} label="Tags" placeholder="info, action" phx-debounce="blur" />
+            <.tag_input field={@form[:tags]} label="Tags" placeholder="info, action" available_tags={@available_tags} />
           </div>
 
           <div class="flex w-1/2 flex-col gap-2">

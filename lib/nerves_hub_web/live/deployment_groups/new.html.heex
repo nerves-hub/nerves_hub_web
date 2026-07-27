@@ -37,6 +37,15 @@
                   for more information on delta updates.
                 </:rich_hint>
               </.input>
+              <.input
+                field={@form[:notes]}
+                type="textarea"
+                rows={1}
+                class="min-h-9"
+                label="Notes"
+                placeholder="Why is this deployment group being created?"
+                phx-debounce="blur"
+              />
             </div>
           </div>
 
@@ -86,7 +95,7 @@
               <.inputs_for :let={conditions} field={@form[:conditions]}>
                 <div class="flex gap-6">
                   <div class="w-1/2">
-                    <.input field={conditions[:tags]} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+                    <.tag_input field={conditions[:tags]} label="Tag(s) distributed to" placeholder="eg. batch-123" available_tags={@available_tags} />
                   </div>
 
                   <div class="w-1/2">

@@ -34,6 +34,23 @@ defmodule NervesHub.Scripts do
     |> Repo.all()
   end
 
+  @doc """
+  Returns the sorted, distinct list of tags used by all scripts in a product.
+
+  Used to power tag autocomplete suggestions when creating or editing scripts.
+  """
+  @spec distinct_tags_for_product(Product.t()) :: [String.t()]
+  def distinct_tags_for_product(%Product{} = product) do
+    Script
+    |> where([s], s.product_id == ^product.id)
+    |> select([s], s.tags)
+    |> Repo.all()
+    |> Enum.reject(&is_nil/1)
+    |> List.flatten()
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
   def get!(id) do
     Repo.get!(Script, id)
   end

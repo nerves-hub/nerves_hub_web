@@ -34,7 +34,52 @@ defmodule NervesHubWeb.Auth do
     |> renew_session()
     |> put_token_in_session(token)
     |> maybe_write_remember_me_cookie(token, params)
-    |> redirect(to: user_return_to || signed_in_path(conn))
+    |> redirect_after_login(user_return_to)
+  end
+
+  defp redirect_after_login(conn, return_to) do
+    case return_to_target(return_to) do
+      {:local, path} -> redirect(conn, to: path)
+      {:external, url} -> redirect(conn, external: url)
+      :default -> redirect(conn, to: signed_in_path(conn))
+    end
+  end
+
+  @doc """
+  Classifies a post-login `return_to` value.
+
+  Local paths (`/...`) pass through unchanged. Absolute URLs are only honored
+  when their origin is allow-listed in the `:external_login_return_urls` config
+  (open-redirect protection) — this is what lets a login initiated by the
+  separate `nerves_hub_mcp` app return to its OAuth consent page. Anything else
+  falls back to the default signed-in path.
+  """
+  @spec return_to_target(String.t() | nil) :: {:local, String.t()} | {:external, String.t()} | :default
+  def return_to_target(nil), do: :default
+  def return_to_target("//" <> _), do: :default
+  def return_to_target("/" <> _ = path), do: {:local, path}
+
+  def return_to_target(url) when is_binary(url) do
+    if allowed_external_return_url?(url), do: {:external, url}, else: :default
+  end
+
+  def return_to_target(_), do: :default
+
+  defp allowed_external_return_url?(url) do
+    case URI.parse(url) do
+      %URI{scheme: scheme, host: host} = uri when is_binary(scheme) and is_binary(host) ->
+        Enum.any?(allowed_return_base_urls(), fn base ->
+          base = URI.parse(base)
+          base.scheme == uri.scheme and base.host == uri.host and base.port == uri.port
+        end)
+
+      _ ->
+        false
+    end
+  end
+
+  defp allowed_return_base_urls() do
+    Application.get_env(:nerves_hub, :external_login_return_urls, [])
   end
 
   defp maybe_write_remember_me_cookie(conn, token, %{"remember_me" => "true"}) do
@@ -207,7 +252,9 @@ defmodule NervesHubWeb.Auth do
       conn
     else
       conn
-      |> put_session("login_redirect_path", conn.request_path)
+      # `current_path/1` keeps the query string, so deep links (e.g. an OAuth
+      # `/oauth/authorize?client_id=...` request) survive the login round-trip.
+      |> put_session("login_redirect_path", current_path(conn))
       |> put_flash(:error, "You must login to access this page.")
       |> maybe_store_return_to()
       |> redirect(to: ~p"/login")

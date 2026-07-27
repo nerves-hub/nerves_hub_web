@@ -4,7 +4,10 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
 
   import Phoenix.HTML
 
+  alias NervesHub.Accounts
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
   alias Phoenix.Socket.Broadcast
@@ -245,6 +248,84 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
       |> safe_to_string()
 
     assert render_async(lv, 1000) =~ ~s(data-metrics="#{organized_metrics}")
+  end
+
+  describe "custom graph labels" do
+    test "default labels are shown above charts with an edit affordance", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      _ = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("span", text: "Load Average 1 Min")
+      |> assert_has("button[phx-click=edit-health-label][phx-value-key=load_1min]")
+    end
+
+    test "a label can be edited and saved", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      _ = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
+
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+
+      # entering edit mode shows the input
+      html = render_click(view, "edit-health-label", %{"key" => "load_1min"})
+      assert html =~ ~s(name="label")
+
+      # saving persists the custom label and renders it
+      html = render_submit(view, "save-health-label", %{"key" => "load_1min", "label" => "1 Minute Load"})
+
+      assert html =~ "1 Minute Load"
+      assert Products.custom_health_metrics_labels(product) == %{"load_1min" => "1 Minute Load"}
+    end
+
+    test "saving a blank label reverts to the default", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} = Products.set_custom_health_metrics_label(product, "load_1min", "1 Minute Load")
+
+      _ = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
+
+      {:ok, view, html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+
+      assert html =~ "1 Minute Load"
+
+      html = render_submit(view, "save-health-label", %{"key" => "load_1min", "label" => ""})
+
+      assert html =~ "Load Average 1 Min"
+      assert Products.custom_health_metrics_labels(product) == %{}
+    end
+
+    test "users without the manage role cannot edit labels", %{
+      conn: conn,
+      org: org,
+      user: user,
+      product: product,
+      device: device
+    } do
+      scope = Scope.for_user(user) |> Scope.put_org(org)
+      org_user = Accounts.get_org_user!(scope, user)
+      Accounts.change_org_user_role(org_user, :view)
+
+      _ = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("span", text: "Load Average 1 Min")
+      |> refute_has("button[phx-click=edit-health-label]")
+    end
   end
 
   defp save_metrics_with_timestamp(device_id, timestamp) do

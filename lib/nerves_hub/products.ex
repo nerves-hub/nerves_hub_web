@@ -11,6 +11,7 @@ defmodule NervesHub.Products do
   alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
   alias NervesHub.Extensions
+  alias NervesHub.Products.CustomHealthMetricsLabel
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
   alias NervesHub.Repo
@@ -365,4 +366,56 @@ defmodule NervesHub.Products do
         :nope
     end)
   end
+
+  @doc """
+  Returns the product's custom health metric labels as a `%{key => label}` map.
+  """
+  @spec custom_health_metrics_labels(Product.t()) :: %{optional(String.t()) => String.t()}
+  def custom_health_metrics_labels(%Product{id: product_id}) do
+    CustomHealthMetricsLabel
+    |> where(product_id: ^product_id)
+    |> select([l], {l.key, l.label})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
+  Sets the custom label for a health metric key on a product.
+
+  Inserts a new label or updates the existing one for the `{product, key}` pair.
+  A blank label removes any existing custom label, reverting to the default.
+  """
+  @spec set_custom_health_metrics_label(Product.t(), String.t(), String.t()) ::
+          {:ok, CustomHealthMetricsLabel.t() | nil} | {:error, Ecto.Changeset.t()}
+  def set_custom_health_metrics_label(%Product{} = product, key, label) do
+    if blank?(label) do
+      delete_custom_health_metrics_label(product, key)
+      {:ok, nil}
+    else
+      %CustomHealthMetricsLabel{}
+      |> CustomHealthMetricsLabel.changeset(%{
+        product_id: product.id,
+        key: key,
+        label: String.trim(label)
+      })
+      |> Repo.insert(
+        on_conflict: {:replace, [:label, :updated_at]},
+        conflict_target: [:product_id, :key]
+      )
+    end
+  end
+
+  @doc """
+  Removes the custom label for a health metric key on a product.
+  """
+  @spec delete_custom_health_metrics_label(Product.t(), String.t()) :: :ok
+  def delete_custom_health_metrics_label(%Product{id: product_id}, key) do
+    CustomHealthMetricsLabel
+    |> where(product_id: ^product_id, key: ^key)
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  defp blank?(value), do: is_nil(value) or String.trim(value) == ""
 end

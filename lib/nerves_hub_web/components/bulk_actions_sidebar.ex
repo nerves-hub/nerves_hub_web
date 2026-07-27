@@ -134,7 +134,32 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             <form id="bulk-tag-input" class="flex flex-col gap-2" phx-submit="tag-devices" phx-change="validate-tags">
               <label class="sidebar-label" for="input_set_tags">Set tags</label>
               <div class="flex gap-2">
-                <input type="text" class="sidebar-text-input" name="tags" id="input_set_tags" value={@current_filters[:tag]} phx-debounce="500" />
+                <div
+                  id="bulk-tag-autocomplete"
+                  class="relative grow"
+                  phx-hook="TagAutocomplete"
+                  data-available-tags={Jason.encode!(@available_tags)}
+                >
+                  <input
+                    type="text"
+                    class="sidebar-text-input w-full"
+                    name="tags"
+                    id="input_set_tags"
+                    value={@current_filters[:tag]}
+                    autocomplete="off"
+                    data-tag-input
+                    phx-debounce="500"
+                  />
+                  <ul
+                    id="input_set_tags-suggestions"
+                    phx-update="ignore"
+                    data-tag-suggestions
+                    role="listbox"
+                    hidden
+                    class="bg-base-900 border-base-600 absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border py-1 shadow-lg"
+                  >
+                  </ul>
+                </div>
 
                 <.button style="primary" type="submit" data-confirm="This will update tags on all selected devices" {if @valid_tags && @device_tags != "", do: [], else: [disabled: true]}>
                   Set

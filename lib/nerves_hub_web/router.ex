@@ -13,6 +13,7 @@ defmodule NervesHubWeb.Router do
   alias Live.Org.Users
   alias Live.Orgs.Index
   alias Live.Orgs.New
+  alias Live.Product.Insights
   alias Live.Product.Notifications
   alias Live.SupportScripts.Edit
   alias NervesHubWeb.API.Plugs.Device
@@ -22,7 +23,9 @@ defmodule NervesHubWeb.Router do
   alias NervesHubWeb.API.UI
   alias NervesHubWeb.Mounts.CurrentPath
   alias NervesHubWeb.Mounts.EnrichSentryContext
+  alias NervesHubWeb.Mounts.SetUsersTimezone
   alias NervesHubWeb.Plugs.OpenApiSpec
+  alias NervesHubWeb.Plugs.PruneDuplicateSessionCookie
   alias NervesHubWeb.Plugs.Redirector
   alias NervesHubWeb.Plugs.ServerAuth
   alias NervesHubWeb.Plugs.SetLocale
@@ -31,6 +34,7 @@ defmodule NervesHubWeb.Router do
 
   pipeline :browser do
     plug(:accepts, ["html", "json"])
+    plug(PruneDuplicateSessionCookie)
     plug(:fetch_session)
     plug(:fetch_flash)
     plug(:fetch_live_flash)
@@ -279,6 +283,7 @@ defmodule NervesHubWeb.Router do
         {NervesHubWeb.Auth, :assign_org_to_scope},
         {NervesHubWeb.Auth, :assign_product_to_scope},
         {NervesHubWeb.Auth, :require_authenticated},
+        SetUsersTimezone,
         EnrichSentryContext,
         CurrentPath
       ] do
@@ -306,6 +311,7 @@ defmodule NervesHubWeb.Router do
         :edit
       )
 
+      live("/org/:org_name/:product_name/insights", Insights)
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
       live("/org/:org_name/:product_name/devices/new", Live.Devices.New)
       live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show, :details)

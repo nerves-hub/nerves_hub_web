@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   use NervesHubWeb, tab_component: :health
 
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Products
 
   @time_frame_opts [
     {"hour", 3},
@@ -50,12 +51,14 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> update_from_and_until_timestamps()
     |> assign(:time_frame_opts, @time_frame_opts)
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(socket.assigns.device.id))
+    |> assign(:custom_health_labels, Products.custom_health_metrics_labels(socket.assigns.product))
+    |> assign(:editing_label_key, nil)
     |> async_assign_charts()
     |> cont()
   end
 
   def cleanup() do
-    [:time_frame, :time_frame_opts, :charts]
+    [:time_frame, :time_frame_opts, :charts, :custom_health_labels, :editing_label_key]
   end
 
   def hooked_async("update_chart:" <> key, {:ok, results}, socket) do
@@ -93,6 +96,37 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> update_from_and_until_timestamps()
     |> update_charts()
     |> halt()
+  end
+
+  def hooked_event("edit-health-label", %{"key" => key}, socket) do
+    socket
+    |> assign(:editing_label_key, key)
+    |> halt()
+  end
+
+  def hooked_event("cancel-health-label", _params, socket) do
+    socket
+    |> assign(:editing_label_key, nil)
+    |> halt()
+  end
+
+  def hooked_event("save-health-label", %{"key" => key, "label" => label}, socket) do
+    authorized!(:"product:update", socket.assigns.current_scope)
+
+    %{product: product} = socket.assigns
+
+    case Products.set_custom_health_metrics_label(product, key, label) do
+      {:ok, _} ->
+        socket
+        |> assign(:custom_health_labels, Products.custom_health_metrics_labels(product))
+        |> assign(:editing_label_key, nil)
+        |> halt()
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(:error, "Could not update the metric label.")
+        |> halt()
+    end
   end
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}
@@ -210,7 +244,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
           <div class="flex items-end gap-3">
             <div class="text-base-50 text-base font-medium">Health over time</div>
-            <div :if={@latest_metrics["timestamp"]} class="text-base-500 mr-auto text-xs tracking-wide">
+            <div :if={@latest_metrics["timestamp"]} class="text-base-500 mr-auto pb-0.5 text-xs tracking-wide">
               <span>Last updated: </span>
               <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
                 {Timex.from_now(@latest_metrics["timestamp"])}
@@ -237,8 +271,41 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
           </div>
         </div>
 
-        <div class="flex flex-col gap-10 p-10">
-          <div :for={key <- metrics_to_chart(@latest_metrics)} class="flex flex-col gap-3">
+        <div class="divide-b-subtle flex flex-col divide-y">
+          <div :for={key <- metrics_to_chart(@latest_metrics)} class="flex flex-col gap-1 p-6">
+            <div class="group/label flex h-7 items-center gap-2">
+              <form :if={@editing_label_key == key} phx-submit="save-health-label" class="flex items-center gap-2">
+                <input type="hidden" name="key" value={key} />
+                <input
+                  type="text"
+                  name="label"
+                  value={label_for(key, @custom_health_labels)}
+                  phx-mounted={JS.focus()}
+                  autocomplete="off"
+                  maxlength="255"
+                  class="bg-base-900 border-base-600 focus:border-base-400 text-base-50 rounded border px-2 py-1 text-base font-medium focus:ring-0"
+                />
+                <button type="submit" aria-label="Save label" class="hover:text-success text-base-400 cursor-pointer">
+                  <span class="lucide-check--light size-5"></span>
+                </button>
+                <button type="button" phx-click="cancel-health-label" aria-label="Cancel editing label" class="hover:text-alert text-base-400 cursor-pointer">
+                  <span class="lucide-x--light size-5"></span>
+                </button>
+              </form>
+              <div :if={@editing_label_key != key} class="flex items-center gap-2">
+                <span class="text-base-50 text-base font-medium">{label_for(key, @custom_health_labels)}</span>
+                <button
+                  :if={authorized?(:"product:update", @current_scope)}
+                  type="button"
+                  phx-click="edit-health-label"
+                  phx-value-key={key}
+                  aria-label={"Edit label for #{label_for(key, @custom_health_labels)}"}
+                  class="hover:text-base-300 text-base-500 cursor-pointer opacity-0 transition-opacity group-hover/label:opacity-100"
+                >
+                  <span class="lucide-pencil--light size-4"></span>
+                </button>
+              </div>
+            </div>
             <div class="relative flex h-[200px] w-full">
               <.async_result :let={chart_data} assign={assigns[chart_data_key(key)]}>
                 <:loading>
@@ -257,7 +324,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                   phx-update="ignore"
                   data-key={key}
                   data-metrics={Jason.encode!(chart_data)}
-                  data-title={title(key)}
+                  data-title=""
                   data-max={suggested_max(key)}
                   data-mintime={Jason.encode!(@charts_from_timestamp)}
                   data-maxtime={Jason.encode!(@charts_until_timestamp)}
@@ -401,6 +468,14 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       String.starts_with?(key, "load_") -> 1
       String.ends_with?(key, "_percent") or String.ends_with?(key, "_percentage") -> 100
       true -> nil
+    end
+  end
+
+  # The custom label set on the product takes precedence over the default title.
+  defp label_for(key, custom_labels) do
+    case Map.get(custom_labels || %{}, key) do
+      nil -> title(key)
+      label -> label
     end
   end
 

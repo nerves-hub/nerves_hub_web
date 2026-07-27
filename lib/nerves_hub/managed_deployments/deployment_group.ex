@@ -62,6 +62,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:healthy, :boolean, default: true)
     field(:penalty_timeout_minutes, :integer, default: 1440)
     field(:connecting_code, :string)
+    field(:notes, :string)
     field(:concurrent_updates, :integer, default: 10)
     field(:total_updating_devices, :integer, default: 0)
     field(:current_updated_devices, :integer, default: 0)
@@ -110,7 +111,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   @spec create_changeset(map(), Product.t(), Firmware.t(), User.t()) :: Ecto.Changeset.t()
   def create_changeset(params, product, firmware, user) do
     %DeploymentGroup{}
-    |> cast(params, [:name, :delta_updatable, :platform, :architecture])
+    |> cast(params, [:name, :delta_updatable, :platform, :architecture, :notes])
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
     |> put_change(:product_id, product.id)
     |> put_change(:org_id, product.org_id)
@@ -119,6 +120,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> maybe_add_architecture()
     |> maybe_set_queue_management()
     |> validate_required([:name, :delta_updatable, :product_id, :org_id, :firmware])
+    |> validate_length(:notes, max: 1_000)
     |> validate_firmware(product)
     |> validate_platform()
     |> validate_architecture()
@@ -224,6 +226,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       :is_active,
       :delta_updatable,
       :connecting_code,
+      :notes,
       :queue_management,
       :priority_queue_enabled,
       :priority_queue_firmware_version_threshold,
@@ -233,6 +236,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> cast_and_validate_numeric_fields(params)
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
     |> validate_required([:name, :delta_updatable, :is_active, :queue_management])
+    |> validate_length(:notes, max: 1_000)
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> prepare_current_updated_devices()
     |> prepare_device_count()

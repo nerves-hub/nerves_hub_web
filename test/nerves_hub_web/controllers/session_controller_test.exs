@@ -112,4 +112,92 @@ defmodule NervesHubWeb.SessionControllerTest do
       |> assert_path(~p"/orgs/new")
     end
   end
+
+  describe "external login redirects" do
+    setup do
+      previous = Application.get_env(:nerves_hub, :external_login_return_urls)
+
+      Application.put_env(:nerves_hub, :external_login_return_urls, [
+        "https://admin.example.com"
+      ])
+
+      on_exit(fn ->
+        if previous do
+          Application.put_env(:nerves_hub, :external_login_return_urls, previous)
+        else
+          Application.delete_env(:nerves_hub, :external_login_return_urls)
+        end
+      end)
+
+      user =
+        %{
+          name: "Sgt Pepper",
+          email: "sgtpepper@geocities.com",
+          password: "JohnRingoPaulGeorge"
+        }
+        |> Fixtures.user_fixture()
+
+      Fixtures.org_fixture(user, %{name: "LonelyHeartsClubBand"})
+
+      %{user: user}
+    end
+
+    test "GET /login stores an allow-listed external return_to in the session" do
+      return_to = "https://admin.example.com/oauth/authorize?client_id=abc"
+
+      conn = get(build_conn(), ~p"/login?#{[return_to: return_to]}")
+
+      assert get_session(conn, :login_redirect_path) == return_to
+    end
+
+    test "GET /login ignores a non-allow-listed external return_to" do
+      conn = get(build_conn(), ~p"/login?#{[return_to: "https://evil.example.com/steal"]}")
+
+      refute get_session(conn, :login_redirect_path)
+    end
+
+    test "GET /login ignores a protocol-relative return_to" do
+      conn = get(build_conn(), ~p"/login?#{[return_to: "//evil.example.com"]}")
+
+      refute get_session(conn, :login_redirect_path)
+    end
+
+    test "logging in redirects to the stored allow-listed external URL" do
+      return_to = "https://admin.example.com/oauth/authorize?client_id=abc"
+
+      conn =
+        build_conn()
+        |> init_test_session(%{"login_redirect_path" => return_to})
+        |> post(~p"/login", %{
+          "user" => %{"email" => "sgtpepper@geocities.com", "password" => "JohnRingoPaulGeorge"}
+        })
+
+      assert redirected_to(conn) == return_to
+    end
+
+    test "logging in falls back to the default path for a non-allow-listed URL" do
+      conn =
+        build_conn()
+        |> init_test_session(%{"login_redirect_path" => "https://evil.example.com/steal"})
+        |> post(~p"/login", %{
+          "user" => %{"email" => "sgtpepper@geocities.com", "password" => "JohnRingoPaulGeorge"}
+        })
+
+      assert redirected_to(conn) == ~p"/orgs"
+    end
+
+    test "the external return_to survives the full login round-trip" do
+      return_to = "https://admin.example.com/oauth/authorize?client_id=abc"
+
+      conn =
+        build_conn()
+        |> get(~p"/login?#{[return_to: return_to]}")
+        |> recycle()
+        |> post(~p"/login", %{
+          "user" => %{"email" => "sgtpepper@geocities.com", "password" => "JohnRingoPaulGeorge"}
+        })
+
+      assert redirected_to(conn) == return_to
+    end
+  end
 end
