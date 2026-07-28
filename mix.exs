@@ -84,7 +84,7 @@ defmodule NervesHub.MixProject do
       {:bcrypt_elixir, "~> 3.0"},
       {:briefly, "~> 0.5.0"},
       {:castore, "~> 1.0"},
-      {:circular_buffer, "~> 1.0.0"},
+      {:circular_buffer, "~> 1.1.0"},
       {:comeonin, "~> 5.3"},
       {:confuse, "~> 0.4.0"},
       {:contex, "~> 0.5.0"},
@@ -117,7 +117,7 @@ defmodule NervesHub.MixProject do
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.23.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.27.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},

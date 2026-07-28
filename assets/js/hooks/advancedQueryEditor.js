@@ -11,7 +11,7 @@ const SYMBOLS = ["!=", ">=", "<=", "=", ">", "<", "(", ")"]
 // `:` is included so the `metric:<key>` column syntax tokenizes as one ident.
 const IDENT_RE = /[A-Za-z0-9_.:-]/
 
-function tokenize(text) {
+export function tokenize(text) {
   const tokens = []
   let i = 0
   const len = text.length
@@ -91,7 +91,7 @@ function nextNonWhitespace(tokens, start) {
 // leading `not` of "not like" is part of the operator, not the NOT keyword.
 const TWO_WORD_OPERATORS = { is: "is not", not: "not like" }
 
-function classify(tokens) {
+export function classify(tokens) {
   let state = "term_start" // term_start | operator | value | connective
   let column = null
   let operator = null
@@ -179,7 +179,7 @@ function classify(tokens) {
   return { entries, final: { state, column, operator, parens } }
 }
 
-function contextAt(classified, caret) {
+export function contextAt(classified, caret) {
   for (const entry of classified.entries) {
     if (caret <= entry.token.end) {
       let prefix = ""
@@ -212,7 +212,7 @@ function normalizeCandidate(candidate) {
     : candidate
 }
 
-function suggestionsFor(ctx, schema) {
+export function suggestionsFor(ctx, schema) {
   const prefix = ctx.prefix.toLowerCase()
   let candidates = []
 
@@ -234,6 +234,54 @@ function suggestionsFor(ctx, schema) {
         label.toLowerCase().startsWith(prefix) &&
         label.toLowerCase() !== prefix,
     )
+}
+
+// A query is structurally complete when the state machine ends having just
+// consumed a full term (column op value) with no parenthesis left open. Only a
+// complete query is worth submitting - anything else would come straight back
+// as a parse error from the server.
+export function isCompleteQuery(value) {
+  const { final } = classify(tokenize(value))
+  return final.state === "connective" && final.parens === 0
+}
+
+// If the query ends in an unterminated string, close it. Enter means "I'm
+// done typing", so `health = "unhealthy` is better fixed up than rejected.
+export function closeUnterminatedString(value) {
+  const tokens = tokenize(value)
+  const last = tokens[tokens.length - 1]
+  return last && last.type === "unterminated_string" ? value + '"' : value
+}
+
+// Decides what Enter or Tab should do, given the suggestion-list state and the
+// query's completeness. Pure so the keyboard behavior can be unit tested.
+//
+//   {type: "accept", index} - insert the suggestion at `index`
+//   {type: "apply"}         - submit the query
+//   {type: "advance"}       - leave the current token and suggest what comes next
+//   {type: "none"}          - swallow the key
+//
+// Tab always completes, using the highlighted suggestion or else the first
+// one. So does Enter, except that with nothing highlighted it only completes
+// mid-word (a non-empty prefix) - otherwise a finished query could never be
+// submitted while the "and"/"or" hints are on display. When Enter falls
+// through to submitting, an incomplete query advances to the next slot
+// (e.g. out of the operator, into the value) instead of running a search
+// that is guaranteed to fail.
+export function commitAction(key, ctx) {
+  const listOpen = ctx.suggestionsVisible && ctx.suggestionCount > 0
+
+  if (listOpen && ctx.activeIndex >= 0) {
+    return { type: "accept", index: ctx.activeIndex }
+  }
+
+  if (listOpen && (key === "Tab" || ctx.prefix !== "")) {
+    return { type: "accept", index: 0 }
+  }
+
+  if (key === "Tab") return { type: "none" }
+
+  return ctx.empty || ctx.complete ? { type: "apply" } : { type: "advance" }
 }
 
 const TOKEN_CLASSES = "rounded border px-1"
@@ -718,14 +766,30 @@ export default {
     if (event.key === "Enter" || event.key === "Tab") {
       event.preventDefault()
 
-      if (
-        !this.hints.classList.contains("hidden") &&
-        this.activeSuggestions.length > 0 &&
-        this.activeIndex >= 0
-      ) {
-        this.acceptSuggestion(this.activeSuggestions[this.activeIndex])
-      } else if (event.key === "Enter") {
-        this.apply()
+      const value = closeUnterminatedString(this.value())
+      const action = commitAction(event.key, {
+        suggestionsVisible: !this.hints.classList.contains("hidden"),
+        suggestionCount: this.activeSuggestions.length,
+        activeIndex: this.activeIndex,
+        prefix: this.currentCtx ? this.currentCtx.prefix : "",
+        empty: value.trim() === "",
+        complete: isCompleteQuery(value),
+      })
+
+      if (action.type === "accept") {
+        this.acceptSuggestion(this.activeSuggestions[action.index])
+      } else if (action.type === "apply" || action.type === "advance") {
+        if (value !== this.value()) {
+          this.render(value)
+          setCaretOffset(this.editor, value.length)
+        }
+
+        if (action.type === "apply") {
+          this.apply()
+        } else {
+          this.exitToTail()
+          this.expand()
+        }
       }
     }
   },
