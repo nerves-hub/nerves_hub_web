@@ -14,11 +14,25 @@ defmodule NervesHubWeb.Endpoint do
     Application.get_env(:nerves_hub, __MODULE__)[:live_view][:signing_salt]
   end
 
-  @session_options [
-    store: :cookie,
-    key: "_nerves_hub_key",
-    signing_salt: {__MODULE__, :fetch_signing_salt, []}
-  ]
+  # Set SESSION_COOKIE_DOMAIN (e.g. ".example.com") to scope the session cookie
+  # to a parent domain so it is shared with nerves_hub_mcp running on a sibling
+  # subdomain (SSO). Compile-time — set it before compiling.
+  def session_options() do
+    [
+      store: :cookie,
+      key: "_nerves_hub_key",
+      signing_salt: {__MODULE__, :fetch_signing_salt, []}
+    ] ++
+      case Application.get_env(:nerves_hub, :session_cookie_domain) do
+        nil -> []
+        domain -> [domain: domain, secure: true]
+      end
+  end
+
+  defp runtime_session(conn, _opts) do
+    config = Plug.Session.init(session_options())
+    Plug.Session.call(conn, config)
+  end
 
   plug(ImAlive)
 
@@ -26,9 +40,9 @@ defmodule NervesHubWeb.Endpoint do
     plug(Plug.SSL, rewrite_on: [:x_forwarded_proto], exclude: ["localhost"])
   end
 
-  socket("/live", Socket, websocket: [connect_info: [session: @session_options]])
+  socket("/live", Socket, websocket: [connect_info: [session: {__MODULE__, :session_options, []}]])
 
-  socket("/socket", NervesHubWeb.UserSocket, websocket: [connect_info: [session: @session_options]])
+  socket("/socket", NervesHubWeb.UserSocket, websocket: [connect_info: [session: {__MODULE__, :session_options, []}]])
 
   socket("/api/socket", NervesHubWeb.APISocket, websocket: true)
 
@@ -97,10 +111,7 @@ defmodule NervesHubWeb.Endpoint do
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
-  plug(
-    Plug.Session,
-    @session_options
-  )
+  plug(:runtime_session)
 
   plug(NervesHubWeb.Router)
 end

@@ -25,6 +25,7 @@ defmodule NervesHubWeb.Router do
   alias NervesHubWeb.Mounts.EnrichSentryContext
   alias NervesHubWeb.Mounts.SetUsersTimezone
   alias NervesHubWeb.Plugs.OpenApiSpec
+  alias NervesHubWeb.Plugs.PruneDuplicateSessionCookie
   alias NervesHubWeb.Plugs.Redirector
   alias NervesHubWeb.Plugs.ServerAuth
   alias NervesHubWeb.Plugs.SetLocale
@@ -33,6 +34,7 @@ defmodule NervesHubWeb.Router do
 
   pipeline :browser do
     plug(:accepts, ["html", "json"])
+    plug(PruneDuplicateSessionCookie)
     plug(:fetch_session)
     plug(:fetch_flash)
     plug(:fetch_live_flash)
