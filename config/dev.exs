@@ -8,6 +8,14 @@ ssl_dir =
   |> Path.expand()
 
 web_port = String.to_integer(System.get_env("WEB_PORT", "4000"))
+web_scheme = System.get_env("WEB_SCHEME", "http")
+
+# When serving behind a TLS-terminating proxy or tunnel (e.g. ngrok), the
+# publicly-visible URL differs from the local HTTP listener. WEB_URL_PORT sets
+# the port used for generated URLs (defaults to 443 for https, otherwise
+# WEB_PORT) independently of the port the server binds locally.
+web_url_port =
+  String.to_integer(System.get_env("WEB_URL_PORT") || if(web_scheme == "https", do: "443", else: to_string(web_port)))
 
 config :logger, :console, format: "[$level] $message\n"
 
@@ -52,8 +60,8 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 config :nerves_hub, NervesHubWeb.Endpoint,
   url: [
     host: System.get_env("WEB_HOST", "localhost"),
-    scheme: System.get_env("WEB_SCHEME", "http"),
-    port: web_port
+    scheme: web_scheme,
+    port: web_url_port
   ],
   http: [ip: {0, 0, 0, 0}, port: web_port],
   debug_errors: true,
@@ -74,6 +82,10 @@ config :nerves_hub, NervesHubWeb.Endpoint,
       ~r{lib/nerves_hub_web/live/.*(ex)$}
     ]
   ]
+
+# Share the session cookie with nerves_hub_mcp on a sibling subdomain (SSO).
+# Set to the shared parent domain, e.g. ".nerves-hub.ngrok.io".
+config :nerves_hub, :session_cookie_domain, System.get_env("SESSION_COOKIE_DOMAIN")
 
 config :phoenix, :stacktrace_depth, 20
 
