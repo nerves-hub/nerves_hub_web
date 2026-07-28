@@ -30,10 +30,18 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
   # Columns whose value is freeform text (a SQL LIKE pattern) rather than one of
   # a predefined set - so any non-empty value is accepted and there is nothing
   # to autosuggest.
-  @freeform_text_columns ["identifier"]
+  @freeform_text_columns ["identifier", "search"]
 
   @columns %{
     "identifier" => %{
+      operators: ["like", "not like"],
+      values: &__MODULE__.no_values/1
+    },
+    # Virtual column matching across the device's textual fields (identifier,
+    # firmware version, platform, tags). Also the target of the free-text
+    # fallback: input that isn't a query expression is rewritten to
+    # `search like "%input%"` (see `NervesHub.Devices.AdvancedQuery.interpret/2`).
+    "search" => %{
       operators: ["like", "not like"],
       values: &__MODULE__.no_values/1
     },

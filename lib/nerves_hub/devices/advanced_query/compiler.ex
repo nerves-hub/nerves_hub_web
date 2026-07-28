@@ -116,6 +116,27 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
   defp comparison_dynamic("identifier", "like", value), do: dynamic([d], ilike(d.identifier, ^value))
   defp comparison_dynamic("identifier", "not like", value), do: dynamic([d], not ilike(d.identifier, ^value))
 
+  # The virtual `search` column matches when any of the device's textual fields
+  # matches the pattern - the same fields the sidebar free-text search covers
+  # (see `NervesHub.Devices.DeviceFiltering`'s `:search` filter).
+  defp comparison_dynamic("search", "like", value) do
+    dynamic(
+      [d],
+      ilike(d.identifier, ^value) or
+        ilike(fragment("COALESCE(?->>'version', '')", d.firmware_metadata), ^value) or
+        ilike(fragment("COALESCE(?->>'platform', '')", d.firmware_metadata), ^value) or
+        fragment(
+          "string_array_to_string(COALESCE(?, ARRAY[]::text[]), ' ', ' ') ILIKE ?",
+          d.tags,
+          ^value
+        )
+    )
+  end
+
+  defp comparison_dynamic("search", "not like", value) do
+    dynamic(not (^comparison_dynamic("search", "like", value)))
+  end
+
   defp comparison_dynamic("platform", "=", value), do: dynamic([d], d.firmware_metadata["platform"] == ^value)
   defp comparison_dynamic("platform", "!=", value), do: dynamic([d], d.firmware_metadata["platform"] != ^value)
 
