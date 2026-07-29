@@ -426,7 +426,7 @@ export default {
 
     this.appliedValue = this.el.dataset.value || ""
     this.editor.textContent = this.appliedValue
-    this.highlight()
+    if (this.appliedValue !== "") { this.highlight() }
     this.updateClearButtonVisibility()
     this.applyRestingWidth({ animate: false })
 
