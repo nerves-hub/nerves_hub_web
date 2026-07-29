@@ -258,16 +258,14 @@ export function closeUnterminatedString(value) {
 //
 //   {type: "accept", index} - insert the suggestion at `index`
 //   {type: "apply"}         - submit the query
-//   {type: "advance"}       - leave the current token and suggest what comes next
 //   {type: "none"}          - swallow the key
 //
 // Tab always completes, using the highlighted suggestion or else the first
 // one. So does Enter, except that with nothing highlighted it only completes
 // mid-word (a non-empty prefix) - otherwise a finished query could never be
-// submitted while the "and"/"or" hints are on display. When Enter falls
-// through to submitting, an incomplete query advances to the next slot
-// (e.g. out of the operator, into the value) instead of running a search
-// that is guaranteed to fail.
+// submitted while the "and"/"or" hints are on display. Enter always submits
+// when no suggestion is selected — incomplete input is sent to the server
+// which handles it as free-text search.
 export function commitAction(key, ctx) {
   const listOpen = ctx.suggestionsVisible && ctx.suggestionCount > 0
 
@@ -281,7 +279,7 @@ export function commitAction(key, ctx) {
 
   if (key === "Tab") return { type: "none" }
 
-  return ctx.empty || ctx.complete ? { type: "apply" } : { type: "advance" }
+  return { type: "apply" }
 }
 
 const TOKEN_CLASSES = "rounded border px-1"
@@ -428,7 +426,7 @@ export default {
 
     this.appliedValue = this.el.dataset.value || ""
     this.editor.textContent = this.appliedValue
-    this.highlight()
+    if (this.appliedValue !== "") { this.highlight() }
     this.updateClearButtonVisibility()
     this.applyRestingWidth({ animate: false })
 

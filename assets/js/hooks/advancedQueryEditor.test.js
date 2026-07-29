@@ -246,25 +246,25 @@ describe("commitAction", () => {
     })
   })
 
-  it("Enter advances out of a finished operator instead of failing the search", () => {
+  it("Enter submits a finished operator as free-text search", () => {
     assert.deepEqual(actionFor("Enter", "description like"), {
-      type: "advance",
+      type: "apply",
     })
   })
 
-  it("Enter advances out of a finished column name", () => {
-    assert.deepEqual(actionFor("Enter", "health"), { type: "advance" })
+  it("Enter submits a finished column name as free-text search", () => {
+    assert.deepEqual(actionFor("Enter", "health"), { type: "apply" })
   })
 
-  it("Enter advances rather than submit a dangling connective", () => {
+  it("Enter submits a dangling connective as free-text search", () => {
     assert.deepEqual(actionFor("Enter", 'health = "ok" and'), {
-      type: "advance",
+      type: "apply",
     })
   })
 
-  it("Enter advances rather than submit an unclosed paren group", () => {
+  it("Enter submits an unclosed paren group as free-text search", () => {
     assert.deepEqual(actionFor("Enter", '(health = "ok" '), {
-      type: "advance",
+      type: "apply",
     })
   })
 
@@ -278,9 +278,9 @@ describe("commitAction", () => {
     assert.deepEqual(actionFor("Enter", ""), { type: "apply" })
   })
 
-  it("dismissed suggestions never get accepted", () => {
+  it("dismissed suggestions submit as free-text search", () => {
     assert.deepEqual(actionFor("Enter", "hea", { visible: false }), {
-      type: "advance",
+      type: "apply",
     })
     assert.deepEqual(actionFor("Tab", "hea", { visible: false }), {
       type: "none",
@@ -293,13 +293,8 @@ describe("commitAction", () => {
 })
 
 describe("typing flows", () => {
-  it("advancing out of an operator lands on value suggestions", () => {
-    // `description like` + Enter advances; the hook appends the separator
-    // space via exitToTail, after which the value suggestions show.
-    assert.deepEqual(actionFor("Enter", "description like"), {
-      type: "advance",
-    })
-
+  it("after operator, a trailing space lands on value suggestions", () => {
+    // `description like ` (with trailing space) puts context in value state.
     const after = editorState("description like ")
     assert.equal(after.ctx.state, "value")
   })
