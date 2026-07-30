@@ -10,6 +10,7 @@ defmodule NervesHub.Devices.AdvancedQuery.SchemaTest do
       assert Schema.column?("platform")
       assert Schema.column?("tags")
       assert Schema.column?("deployment_group")
+      assert Schema.column?("search")
       refute Schema.column?("bogus")
       refute Schema.column?("")
     end
@@ -28,6 +29,7 @@ defmodule NervesHub.Devices.AdvancedQuery.SchemaTest do
       assert Schema.operators("tags") == ["contains", "not_contains"]
       assert Schema.operators("update_status") == ["is", "is not"]
       assert Schema.operators("identifier") == ["like", "not like"]
+      assert Schema.operators("search") == ["like", "not like"]
     end
 
     test "returns numeric operators for metric columns" do
@@ -59,6 +61,8 @@ defmodule NervesHub.Devices.AdvancedQuery.SchemaTest do
       assert Schema.value?("identifier", "anything", 1)
       assert Schema.value?("identifier", "%wild_card%", 1)
       refute Schema.value?("identifier", "", 1)
+      assert Schema.value?("search", "%anything%", 1)
+      refute Schema.value?("search", "", 1)
     end
 
     test "connection_type accepts the network interfaces and unknown" do

@@ -258,16 +258,14 @@ export function closeUnterminatedString(value) {
 //
 //   {type: "accept", index} - insert the suggestion at `index`
 //   {type: "apply"}         - submit the query
-//   {type: "advance"}       - leave the current token and suggest what comes next
 //   {type: "none"}          - swallow the key
 //
 // Tab always completes, using the highlighted suggestion or else the first
 // one. So does Enter, except that with nothing highlighted it only completes
 // mid-word (a non-empty prefix) - otherwise a finished query could never be
-// submitted while the "and"/"or" hints are on display. When Enter falls
-// through to submitting, an incomplete query advances to the next slot
-// (e.g. out of the operator, into the value) instead of running a search
-// that is guaranteed to fail.
+// submitted while the "and"/"or" hints are on display. Enter always submits
+// when no suggestion is selected — incomplete input is sent to the server
+// which handles it as free-text search.
 export function commitAction(key, ctx) {
   const listOpen = ctx.suggestionsVisible && ctx.suggestionCount > 0
 
@@ -281,7 +279,7 @@ export function commitAction(key, ctx) {
 
   if (key === "Tab") return { type: "none" }
 
-  return ctx.empty || ctx.complete ? { type: "apply" } : { type: "advance" }
+  return { type: "apply" }
 }
 
 const TOKEN_CLASSES = "rounded border px-1"
@@ -426,8 +424,9 @@ export default {
     this.activeSuggestions = []
     this.activeIndex = -1
 
-    this.editor.textContent = this.el.dataset.value || ""
-    this.highlight()
+    this.appliedValue = this.el.dataset.value || ""
+    this.editor.textContent = this.appliedValue
+    if (this.appliedValue !== "") { this.highlight() }
     this.updateClearButtonVisibility()
     this.applyRestingWidth({ animate: false })
 
@@ -471,6 +470,18 @@ export default {
   // real values once they arrive, without touching the editor's contents.
   updated() {
     this.loadSchema()
+
+    // The server may apply a different query than what was typed (free text
+    // is rewritten to its `search like "%text%"` form) - re-sync the editor
+    // with the applied value when it changes, unless the user is mid-edit.
+    const applied = this.el.dataset.value || ""
+    if (applied !== this.appliedValue) {
+      this.appliedValue = applied
+      if (document.activeElement !== this.editor && applied !== this.value()) {
+        this.render(applied)
+        this.updateClearButtonVisibility()
+      }
+    }
 
     // Keep the resting width in sync when the server patches the field (e.g.
     // a query is applied or cleared) while it isn't being actively edited.

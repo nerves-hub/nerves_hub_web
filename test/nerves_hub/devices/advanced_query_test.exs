@@ -58,18 +58,68 @@ defmodule NervesHub.Devices.AdvancedQueryTest do
       |> Enum.sort()
     end
 
-    test "leaves the query unchanged for nil, empty, and invalid input", %{product: product} do
+    test "leaves the query unchanged for blank input and invalid query expressions", %{product: product} do
       all = ["connected", "never_connected", "tagged", "untagged"]
 
       assert applied_identifiers(product, nil) == all
       assert applied_identifiers(product, "") == all
-      assert applied_identifiers(product, "garbage !!!") == all
+      assert applied_identifiers(product, "   ") == all
+      # query-shaped input that doesn't parse is dropped rather than
+      # falling back to free text
+      assert applied_identifiers(product, ~s|bogus_column = "x"|) == all
       # valid syntax but an invalid value is dropped too
       assert applied_identifiers(product, ~s|platform = "does-not-exist"|) == all
     end
 
     test "applies a valid query", %{product: product} do
       assert applied_identifiers(product, ~s|identifier like "tagged"|) == ["tagged"]
+    end
+
+    test "applies free-text input as a search across textual fields", %{product: product} do
+      # identifier substring
+      assert applied_identifiers(product, "nect") == ["connected", "never_connected"]
+      # tag ("prod" only appears as a tag, on "tagged")
+      assert applied_identifiers(product, "prod") == ["tagged"]
+      # free text matching nothing filters everything out
+      assert applied_identifiers(product, "garbage !!!") == []
+    end
+  end
+
+  describe "interpret/2" do
+    test "passes valid query expressions through unchanged", %{product: product} do
+      input = ~s|identifier like "tagged"|
+
+      assert AdvancedQuery.interpret(input, product.id) ==
+               {:ok, input, {:comparison, "identifier", "like", "tagged"}}
+    end
+
+    test "wraps free text as a search query", %{product: product} do
+      assert AdvancedQuery.interpret("ABC123", product.id) ==
+               {:ok, ~s|search like "%ABC123%"|, {:comparison, "search", "like", "%ABC123%"}}
+    end
+
+    test "wraps multi-word free text and trims surrounding whitespace", %{product: product} do
+      assert AdvancedQuery.interpret("  kitchen sensor \n", product.id) ==
+               {:ok, ~s|search like "%kitchen sensor%"|, {:comparison, "search", "like", "%kitchen sensor%"}}
+    end
+
+    test "escapes backslashes in free text so the wrapped query round-trips", %{product: product} do
+      assert AdvancedQuery.interpret(~S|dev\1|, product.id) ==
+               {:ok, ~S|search like "%dev\\1%"|, {:comparison, "search", "like", ~S|%dev\1%|}}
+    end
+
+    test "keeps the parse error for input that looks like a query expression", %{product: product} do
+      # starts with a whitelisted column
+      assert {:error, "expected an operator" <> _, _} = AdvancedQuery.interpret("tags", product.id)
+      assert {:error, _, _} = AdvancedQuery.interpret("identifier like", product.id)
+      # starts with NOT / an opening parenthesis
+      assert {:error, _, _} = AdvancedQuery.interpret("not tagged", product.id)
+      assert {:error, _, _} = AdvancedQuery.interpret("(tagged", product.id)
+      # contains an operator symbol or quote (a query with a typo'd column)
+      assert {:error, _, _} = AdvancedQuery.interpret(~s|bogus_column = "x"|, product.id)
+      assert {:error, _, _} = AdvancedQuery.interpret(~s|platfrm = "rpi0"|, product.id)
+      # valid syntax but an invalid value
+      assert {:error, _, _} = AdvancedQuery.interpret(~s|platform = "does-not-exist"|, product.id)
     end
   end
 
@@ -104,9 +154,14 @@ defmodule NervesHub.Devices.AdvancedQueryTest do
       assert via_filter(product, user, ~s|metric:cpu_temp > 50|) == ["tagged"]
     end
 
-    test "an invalid advanced query is ignored (returns the full unfiltered list)", %{product: product, user: user} do
-      assert via_filter(product, user, "totally not valid !!!") ==
+    test "an invalid query expression is ignored (returns the full unfiltered list)", %{product: product, user: user} do
+      assert via_filter(product, user, ~s|bogus_column = "x"|) ==
                ["connected", "never_connected", "tagged", "untagged"]
+    end
+
+    test "free text filters via the search fallback", %{product: product, user: user} do
+      assert via_filter(product, user, "never") == ["never_connected"]
+      assert via_filter(product, user, "totally not matching anything") == []
     end
   end
 
@@ -141,6 +196,11 @@ defmodule NervesHub.Devices.AdvancedQueryTest do
       # "tagged" is the only device with the "prod" tag, but it's soft-deleted,
       # so a non-deleted-referencing query still hides it.
       assert via_filter(product, user, ~s|tags contains "prod"|) == []
+    end
+
+    test "the free-text fallback still excludes soft-deleted devices", %{product: product, user: user} do
+      # "prod" only matches the soft-deleted "tagged" device
+      assert via_filter(product, user, "prod") == []
     end
   end
 
