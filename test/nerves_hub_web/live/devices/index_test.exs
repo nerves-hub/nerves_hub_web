@@ -63,7 +63,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
         send(view.pid, :refresh_device_list)
 
-        render(view)
+        render_async(view)
       end)
     end
   end
@@ -91,7 +91,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
           payload: %{status: "online"}
         })
 
-        render(view)
+        render_async(view)
       end)
       |> assert_has("circle[fill='#{online_indicator_color}']")
     end
@@ -287,7 +287,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
           payload: %{status: "online"}
         })
 
-        render(view)
+        render_async(view)
       end)
       |> refute_has("div", text: "completed")
     end
