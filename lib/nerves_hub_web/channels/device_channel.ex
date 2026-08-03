@@ -240,9 +240,7 @@ defmodule NervesHubWeb.DeviceChannel do
            assign(socket, :device_info, %{device_info | device_network_interface: device_connection.network_interface})}
 
         :error ->
-          Logger.warning(
-            "[DeviceChannel] could not update device network interface."
-          )
+          Logger.warning("[DeviceChannel] could not update device network interface.")
 
           {:noreply, socket}
       end
