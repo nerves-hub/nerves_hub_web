@@ -181,6 +181,7 @@ defmodule NervesHub.Devices.Connections do
     :ok
   end
 
+  @spec update_network_interface(binary(), atom()) :: {:ok, DeviceConnection.t()} | :error
   def update_network_interface(ref_id, network_interface) do
     humanized = DeviceConnection.humanized_network_interface_name(network_interface)
 
@@ -194,8 +195,8 @@ defmodule NervesHub.Devices.Connections do
         async_device_connection_history_insert(device_connection)
         {:ok, device_connection}
 
-      res ->
-        {:error, res}
+      _ ->
+        :error
     end
   end
 
