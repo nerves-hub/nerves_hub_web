@@ -1211,7 +1211,17 @@ defmodule NervesHub.Devices do
     :ok = DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device)
     _ = FirmwareUpdates.clear_inflight_update(device)
 
-    Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}")
+    device =
+      Repo.preload(device, [:org, :product, :current_device_firmware, deployment_group: [current_release: :firmware]])
+
+    Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}", %{
+      identifier: device.identifier,
+      org: device.org.name,
+      product: device.product.name,
+      platform: deployment_group.platform,
+      current_firmware_version: device.current_device_firmware.firmware_metadata.version,
+      upgrading_firmware_version: device.deployment_group.current_release.firmware.version
+    })
 
     update_device(device, %{updates_blocked_until: blocked_until, update_attempts: []})
   end
