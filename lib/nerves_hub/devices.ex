@@ -1193,7 +1193,7 @@ defmodule NervesHub.Devices do
         {:error, :updates_blocked, device}
 
       failure_threshold_met?(device, deployment_group) ->
-        {:ok, device} = put_device_in_penalty_box(device, deployment_group, :exceeded_threshold_rate)
+        {:ok, device} = put_device_in_penalty_box(device, deployment_group, :exceeded_failure_threshold)
 
         {:error, :updates_blocked, device}
 
