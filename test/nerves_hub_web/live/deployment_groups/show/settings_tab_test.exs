@@ -177,17 +177,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     assert Repo.reload(deployment_group).notes == nil
   end
 
-  test "can enable lock_device_membership", %{conn: conn, deployment_group: deployment_group} do
-    refute Repo.reload(deployment_group).lock_device_membership
-
-    conn
-    |> check("Lock device membership")
-    |> submit()
-
-    assert Repo.reload(deployment_group).lock_device_membership
-  end
-
-  test "can disable lock_device_membership", %{
+  test "can enable and disable lock_device_membership", %{
     conn: conn,
     org: org,
     product: product,
