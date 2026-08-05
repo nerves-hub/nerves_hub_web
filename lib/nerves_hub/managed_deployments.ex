@@ -651,43 +651,12 @@ defmodule NervesHub.ManagedDeployments do
       when not is_nil(deployment_id) do
     deployment_group =
       DeploymentGroup
-      |> select([:id, :org_id, :name, :conditions, :platform, :architecture])
+      |> select([:id, :org_id, :name, :conditions, :platform, :architecture, :lock_device_membership])
       |> where([d], d.id == ^deployment_id)
       |> Repo.one!()
 
-    bad_version =
-      if deployment_group.conditions.version == "" do
-        false
-      else
-        try do
-          !Version.match?(device_version, deployment_group.conditions.version)
-        rescue
-          _ ->
-            true
-        end
-      end
-
-    bad_platform = device.firmware_metadata.platform != deployment_group.platform
-
-    bad_architecture =
-      device.firmware_metadata.architecture != deployment_group.architecture
-
-    reason =
-      cond do
-        bad_version ->
-          "mismatched version"
-
-        bad_platform ->
-          "mismatched platform"
-
-        bad_architecture ->
-          "mismatched architecture"
-
-        true ->
-          nil
-      end
-
-    if reason do
+    with false <- deployment_group.lock_device_membership,
+         reason when not is_nil(reason) <- membership_mismatch_reason(device, device_version, deployment_group) do
       device =
         device
         |> Ecto.Changeset.change(%{deployment_id: nil})
@@ -697,11 +666,30 @@ defmodule NervesHub.ManagedDeployments do
 
       device
     else
-      device
+      _ -> device
     end
   end
 
   def verify_deployment_group_membership(device), do: device
+
+  defp membership_mismatch_reason(device, device_version, deployment_group) do
+    cond do
+      version_mismatch?(device_version, deployment_group.conditions.version) -> "mismatched version"
+      device.firmware_metadata.platform != deployment_group.platform -> "mismatched platform"
+      device.firmware_metadata.architecture != deployment_group.architecture -> "mismatched architecture"
+      true -> nil
+    end
+  end
+
+  defp version_mismatch?(_device_version, ""), do: false
+
+  defp version_mismatch?(device_version, version_requirement) do
+    try do
+      !Version.match?(device_version, version_requirement)
+    rescue
+      _ -> true
+    end
+  end
 
   @spec preload_firmware_and_archive(DeploymentGroup.t()) :: DeploymentGroup.t()
   def preload_firmware_and_archive(deployment_group) do

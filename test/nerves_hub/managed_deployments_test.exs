@@ -1118,6 +1118,25 @@ defmodule NervesHub.ManagedDeploymentsTest do
       [audit_log | _] = AuditLogs.logs_for(deployment_group)
       assert audit_log.description =~ "no longer matches deployment group"
     end
+
+    test "does nothing when lock_device_membership is true, even when conditions don't match",
+         %{
+           device: device,
+           deployment_group: deployment_group
+         } do
+      {:ok, deployment_group} =
+        deployment_group
+        |> Ecto.Changeset.change(%{lock_device_membership: true})
+        |> Repo.update()
+
+      {:ok, device} =
+        device
+        |> Devices.update_deployment_group(deployment_group)
+        |> Devices.update_firmware_metadata(%{"platform" => "foobar"}, :unknown, false)
+
+      device = ManagedDeployments.verify_deployment_group_membership(device)
+      assert device.deployment_id == deployment_group.id
+    end
   end
 
   describe "matched_devices_count/2" do

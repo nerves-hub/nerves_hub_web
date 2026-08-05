@@ -70,6 +70,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:queue_management, Ecto.Enum, values: [:FIFO, :LIFO], default: :FIFO)
 
     field(:delta_updatable, :boolean, default: true)
+    field(:lock_device_membership, :boolean, default: false)
 
     field(:status, Ecto.Enum, values: [:ready, :preparing, :deltas_failed, :unknown_error], default: :ready)
 
@@ -225,6 +226,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       :name,
       :is_active,
       :delta_updatable,
+      :lock_device_membership,
       :connecting_code,
       :notes,
       :queue_management,
