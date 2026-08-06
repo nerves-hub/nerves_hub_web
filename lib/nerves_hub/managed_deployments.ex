@@ -684,11 +684,9 @@ defmodule NervesHub.ManagedDeployments do
   defp version_mismatch?(_device_version, ""), do: false
 
   defp version_mismatch?(device_version, version_requirement) do
-    try do
-      !Version.match?(device_version, version_requirement)
-    rescue
-      _ -> true
-    end
+    !Version.match?(device_version, version_requirement)
+  rescue
+    _ -> true
   end
 
   @spec preload_firmware_and_archive(DeploymentGroup.t()) :: DeploymentGroup.t()
@@ -702,9 +700,30 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  Find all potential deployment groups for a device
+  Find all potential deployment groups for a device.
 
-  Based on the product, firmware platform, firmware architecture, and device tags
+  Based on the product, firmware platform, firmware architecture, and device tags.
+
+  Returns `[]` if the device has no `firmware_metadata`.
+
+  Filters deployment groups by:
+  - Same product as the device
+  - `is_active` matches the `active` argument
+  - Firmware platform and architecture match the device's current firmware
+  - Excludes the device's current deployment group
+  - Excludes deployment groups that have enabled `lock_device_membership`
+  - Tag conditions satisfy the group's `tag_operator` (`:and` requires all
+    group tags present on device; `:or` requires any overlap); groups with
+    no tags always match
+  - Version satisfies any semver constraint in the group's conditions
+
+  Results are sorted descending by:
+  1. Firmware version (highest first)
+  2. Matching tag count when versions are equal (more overlap first)
+  3. Deployment group ID when tag counts are also equal (lower/older first)
+
+  The `active` argument defaults to `[true, false]` (all groups). Pass `[true]`
+  to restrict to active-only groups, as `find_eligible_deployment/1` does.
   """
   @spec matching_deployment_groups(Device.t(), [boolean()]) :: [DeploymentGroup.t()]
   def matching_deployment_groups(device, active \\ [true, false])
@@ -717,6 +736,7 @@ defmodule NervesHub.ManagedDeployments do
     |> where([d], d.product_id == ^device.product_id)
     |> where([d], d.is_active in ^active)
     |> ignore_same_deployment_group(device)
+    |> where([d], not d.lock_device_membership)
     |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
     |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
     |> where(

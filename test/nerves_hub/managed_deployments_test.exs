@@ -1022,6 +1022,33 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       assert deployment_group.conditions.tag_operator == :and
     end
+
+    test "excludes deployment groups with lock_device_membership enabled", state do
+      %{user: user, org: org, product: product, firmware: firmware} = state
+
+      %{id: open_group_id} =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "open",
+          conditions: %{"tags" => ["beta"], "version" => ""},
+          user: user
+        })
+
+      locked_group =
+        Fixtures.deployment_group_fixture(firmware, %{
+          name: "locked",
+          conditions: %{"tags" => ["beta"], "version" => ""},
+          user: user
+        })
+
+      {:ok, _} =
+        locked_group
+        |> Ecto.Changeset.change(%{lock_device_membership: true})
+        |> NervesHub.Repo.update()
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+
+      assert [%{id: ^open_group_id}] = ManagedDeployments.matching_deployment_groups(device)
+    end
   end
 
   describe "verify_deployment_group_membership/1" do
