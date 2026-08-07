@@ -18,7 +18,7 @@ defmodule NervesHub.CLISessionCache do
         :ok
     end
 
-    :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "cli_session_cache")
+    :ok = Group.join(NervesHub.Group, "cli_session_cache", %{}, cluster: "web")
 
     _ =
       if Application.get_env(:nerves_hub, :env) != :test do
@@ -52,10 +52,11 @@ defmodule NervesHub.CLISessionCache do
     :ets.insert(@table, {key, cli_session, cli_session.expires_at})
 
     _ =
-      Phoenix.PubSub.broadcast(
-        NervesHub.PubSub,
+      Group.dispatch(
+        NervesHub.Group,
         "cli_session_cache",
-        {:put, node(), key, cli_session}
+        {:put, node(), key, cli_session},
+        cluster: "web"
       )
 
     :ok
