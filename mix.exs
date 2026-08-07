@@ -109,7 +109,7 @@ defmodule NervesHub.MixProject do
       {:hackney, "~> 1.16"},
       {:hammer, "~> 7.4.0"},
       {:hlclock, "~> 1.0"},
-      {:process_hub, "~> 0.5.0-beta"},
+      {:process_hub, "~> 0.6.0"},
       {:jason, "~> 1.2", override: true},
       {:joken, "~> 2.6"},
       {:lazy_html, ">= 0.0.0", only: :test},
@@ -117,7 +117,7 @@ defmodule NervesHub.MixProject do
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.23.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.28.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},

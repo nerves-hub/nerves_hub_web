@@ -63,7 +63,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
         send(view.pid, :refresh_device_list)
 
-        render(view)
+        render_async(view)
       end)
     end
   end
@@ -91,7 +91,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
           payload: %{status: "online"}
         })
 
-        render(view)
+        render_async(view)
       end)
       |> assert_has("circle[fill='#{online_indicator_color}']")
     end
@@ -287,7 +287,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
           payload: %{status: "online"}
         })
 
-        render(view)
+        render_async(view)
       end)
       |> refute_has("div", text: "completed")
     end
@@ -1718,6 +1718,39 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       end)
       |> assert_has("p", text: "not a valid column", timeout: 1000)
       |> assert_has("#device-count", text: "1")
+      |> assert_has("div a", text: device.identifier)
+    end
+
+    test "free text is applied as a search query and filters the device list", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["prod"]})
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> unwrap(fn view ->
+        render_hook(view, "apply-advanced-query", %{"query" => "prod"})
+      end)
+      # the free text is rewritten to its query language form
+      |> assert_has(~s|#advanced-query-editor-wrapper[data-value='search like "%prod%"']|, timeout: 1000)
+      |> assert_has("#device-count", text: "1")
+      |> assert_has("div a", text: device2.identifier)
+      |> refute_has("div a", text: device.identifier)
+    end
+
+    test "free text matching a device identifier finds the device", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      _device2 = Fixtures.device_fixture(org, product, firmware, %{identifier: "some-other-device"})
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> unwrap(fn view ->
+        render_hook(view, "apply-advanced-query", %{"query" => device.identifier})
+      end)
+      |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
     end
 

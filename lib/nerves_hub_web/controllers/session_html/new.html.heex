@@ -12,7 +12,14 @@
 
   <div class="mt-6">
     <div>
-      <.form :let={f} for={@form} as={:user} id="login_form_password" action={~p"/login"} class="space-y-6">
+      <.form
+        :let={f}
+        for={@form}
+        as={:user}
+        id="login_form_password"
+        action={~p"/login"}
+        class="space-y-6"
+      >
         <div>
           <.input field={f[:email]} label="Email address" placeholder="eg. person@company.com" />
         </div>
@@ -41,10 +48,14 @@
 
         <div>
           <button
+            id="login-submit"
             type="submit"
-            class="bg-primary focus-visible:outline-focus-ring hover:bg-primary-hover text-primary-content flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2"
+            class="bg-primary focus-visible:outline-focus-ring hover:bg-primary-hover text-primary-content relative flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-75"
           >
-            Sign in
+            <span id="login-submit-spinner" class="absolute inset-0 hidden items-center justify-center">
+              <span class="lucide-loader-circle size-5 animate-spin" />
+            </span>
+            <span id="login-submit-text">Sign in</span>
           </button>
         </div>
       </.form>
@@ -53,3 +64,12 @@
     <OAuthLinks.render />
   </div>
 </Layouts.auth>
+
+<script>
+  document.getElementById("login_form_password").addEventListener("submit", function () {
+    var btn = document.getElementById("login-submit");
+    btn.disabled = true;
+    document.getElementById("login-submit-text").classList.add("invisible");
+    document.getElementById("login-submit-spinner").classList.remove("hidden");
+  });
+</script>

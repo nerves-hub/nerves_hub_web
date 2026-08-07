@@ -252,15 +252,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  # Free-text input is applied as its rewritten `search like "%text%"` form
+  # (the canonical query from `AdvancedQuery.interpret/2`), so the search box
+  # shows the query language equivalent of what was typed.
   def handle_event("apply-advanced-query", %{"query" => raw_query}, %{assigns: %{current_scope: scope}} = socket) do
     query = String.trim(raw_query)
 
-    case query != "" && AdvancedQuery.parse(query, scope.product.id) do
+    case query != "" && AdvancedQuery.interpret(query, scope.product.id) do
       false ->
         apply_advanced_query(socket, query)
 
-      {:ok, _ast} ->
-        apply_advanced_query(socket, query)
+      {:ok, canonical_query, _ast} ->
+        apply_advanced_query(socket, canonical_query)
 
       {:error, message, _position} ->
         socket
@@ -773,9 +776,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp advanced_query_error(query, product_id) do
-    case query != "" && AdvancedQuery.parse(query, product_id) do
+    case query != "" && AdvancedQuery.interpret(query, product_id) do
       false -> nil
-      {:ok, _ast} -> nil
+      {:ok, _canonical_query, _ast} -> nil
       {:error, message, _position} -> message
     end
   end
