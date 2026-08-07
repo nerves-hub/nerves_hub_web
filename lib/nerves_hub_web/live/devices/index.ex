@@ -147,7 +147,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       Devices.soft_deleted_devices_exist_for_product?(product.id)
     )
     |> assign(:filters_ready?, false)
-    |> subscribe_and_refresh_device_list_timer()
+    |> refresh_device_list_timer()
     |> ok()
   end
 
@@ -184,9 +184,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     ~p"/org/#{scope.org}/#{scope.product}/devices?#{query}"
   end
 
-  defp subscribe_and_refresh_device_list_timer(socket) do
+  defp refresh_device_list_timer(socket) do
     if connected?(socket) do
-      socket.endpoint.subscribe("product:#{socket.assigns.current_scope.product.id}:devices")
       Process.send_after(self(), :refresh_device_list, @list_refresh_time)
       socket
     else
