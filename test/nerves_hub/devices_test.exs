@@ -1278,7 +1278,7 @@ defmodule NervesHub.DevicesTest do
         ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
       deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+      Group.join(NervesHub.Group, deployment_topic, %{})
 
       _device = Deployments.update_deployment_group(device, deployment_group)
 
@@ -1392,7 +1392,7 @@ defmodule NervesHub.DevicesTest do
         ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
       deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+      Group.join(NervesHub.Group, deployment_topic, %{})
 
       BulkActions.move_many_to_deployment_group([device1.id, device2.id], deployment_group, user)
 
