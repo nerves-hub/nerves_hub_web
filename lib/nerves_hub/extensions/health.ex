@@ -1,11 +1,12 @@
 defmodule NervesHub.Extensions.Health do
   @behaviour NervesHub.Extensions
 
+  alias NervesHub.Devices
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Extensions.PubSub
   alias NervesHub.Helpers.Logging
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -62,7 +63,7 @@ defmodule NervesHub.Extensions.Health do
            {:health_report, Health.save_device_health(device_health)},
          {:metrics_report, {:ok, _}} <-
            {:metrics_report, Metrics.save_metrics(device_info.device_id, metrics)} do
-      :ok = internal_broadcast!(device_info.device_id, "health_check_report", %{})
+      :ok = PubSub.broadcast_report(device_info.device_id, "health_check_report", %{})
     else
       {:health_report, {:error, err}} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
@@ -90,35 +91,10 @@ defmodule NervesHub.Extensions.Health do
   end
 
   def request_health_check(device) do
-    :ok = device_broadcast!(device.id, "health:check", %{})
-  end
-
-  defp health_interval_minutes() do
-    extension_config = Application.get_env(:nerves_hub, :extension_config, [])
-
-    case get_in(extension_config, [:health, :interval_minutes]) do
-      i when is_integer(i) and i > 0 -> i
-      _ -> @default_interval_minutes
-    end
-  end
-
-  # Bound for the device: the extensions channel forwards everything on this
-  # topic on to it.
-  defp device_broadcast!(device_id, event, payload) do
-    topic = "device:#{device_id}:extensions"
-
-    ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, event, payload)
+    :ok = PubSub.broadcast_to_device(device.id, "health:check", %{})
   end
 
   # Bound for whoever is watching the device in the UI, and nothing else.
   #
   # This deliberately does not ride the device topic. Keeping it off the wire
-  # there would depend on excluding `self()`, and `self()` is only the device's
-  # connection while this runs in the same process as it — which is not
-  # something this module gets to assume.
-  defp internal_broadcast!(device_id, event, payload) do
-    topic = "internal:device:#{device_id}"
-
-    ChannelServer.broadcast!(NervesHub.PubSub, topic, event, payload)
-  end
 end

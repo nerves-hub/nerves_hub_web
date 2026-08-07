@@ -37,8 +37,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
     # additionally, this topic isn't needed or used, so we can unsubscribe from it
     :ok = socket.endpoint.unsubscribe("extensions")
 
-    topic = "device:#{device_info.device_id}:extensions"
-    :ok = socket.endpoint.subscribe(topic)
+    :ok = Extensions.PubSub.subscribe_device(device_info.device_id)
 
     {:ok, attach_list, socket}
   end

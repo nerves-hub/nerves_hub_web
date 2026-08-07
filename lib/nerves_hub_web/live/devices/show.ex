@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.Updates
+  alias NervesHub.Extensions
   alias NervesHub.Extensions.Health
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Tracker
@@ -50,7 +51,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       Logger.metadata(device_id: device.id, user_id: user.id, product_id: product.id)
       PubSub.subscribe(device.id)
       Consoles.PubSub.subscribe_console_watcher(device.id)
-      socket.endpoint.subscribe("device:#{device.id}:extensions")
+      Extensions.PubSub.subscribe_reports(device.id)
       socket.endpoint.subscribe("product:#{product.id}")
     end
 

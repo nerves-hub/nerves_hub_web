@@ -5,6 +5,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.NetworkIdentities
+  alias NervesHub.Extensions.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
@@ -91,8 +92,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     push(extensions_channel, "health:attached")
     assert_push("health:check", _)
 
-    # the report notification is for whoever is watching in the UI, not the device
-    @endpoint.subscribe("internal:device:#{device.id}")
+    :ok = PubSub.subscribe_reports(device.id)
 
     push(extensions_channel, "health:report", %{"value" => dummy_health_report()})
     assert_receive %Broadcast{event: "health_check_report"}
