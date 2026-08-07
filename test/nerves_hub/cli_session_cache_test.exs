@@ -39,6 +39,17 @@ defmodule NervesHub.CLISessionCacheTest do
     refute_receive {:put, _origin, ^token, _}, 200
   end
 
+  test "warm-up excludes the local node and no-ops when it is the only cache member" do
+    # The running cache has joined the "web" group, so it is the only member in
+    # this single-node test cluster. Warm-up must exclude self (never RPC itself)
+    # and simply no-op instead of looping or crashing.
+    send(CLISessionCache, {:warm_up_from_cluster, 1})
+
+    # Process stayed alive (mailbox drained) and nothing was warmed in.
+    assert is_map(:sys.get_state(CLISessionCache))
+    assert CLISessionCache.count() == 0
+  end
+
   test "concurrent verify_cli_session_token only mints a single API token" do
     user = Fixtures.user_fixture()
     {:ok, %{token: token}} = Accounts.generate_cli_session_token("test-token")
