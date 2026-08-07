@@ -1,8 +1,7 @@
 # AGENTS.md
 
 Orientation for AI agents (and new engineers) working in `nerves_hub_web`.
-It describes the codebase **as it exists on `main`**; large in-flight changes
-are called out under [Active architectural work](#active-architectural-work).
+It describes the codebase as it exists on `main`.
 
 Keep this file current: when a change alters the layout, tooling, conventions,
 or a gotcha below, update the relevant section in the same PR.
@@ -40,9 +39,8 @@ Key runtime pieces:
 - **Deployment orchestration** — one singleton `Orchestrator` process per
   deployment group, owned by ProcessHub (`NervesHub.ManagedDeployments.Distributed`).
 - **Presence/liveness** — `NervesHub.Tracker` + Phoenix Presence.
-- **Cross-node messaging** — `Phoenix.PubSub` on per-entity topics (a targeted
-  `:group` migration is in flight — see
-  [Active architectural work](#active-architectural-work)).
+- **Cross-node messaging** — `Phoenix.PubSub` on per-entity topics (per device,
+  per product, per firmware, …).
 
 ## Repository layout
 
@@ -110,7 +108,8 @@ docs/                 Design docs
   (a Styler-style rewriter — it reorders aliases, rewrites pipes, normalizes
   module structure) plus the LiveView HTML formatter. Let it reshape your code;
   don't fight its output.
-- **Static checks — run before every PR (CI runs the same via `mix check`):**
+- **Static checks — run `mix check` locally before every PR; CI runs the
+  equivalent steps individually:**
   - `mix compile --warnings-as-errors`
   - `mix format --check-formatted`
   - `mix deps.unlock --check-unused`
@@ -149,17 +148,18 @@ docs/                 Design docs
 
 ## CI
 
-`.github/workflows/ci.yml` runs, by function:
+`.github/workflows/ci.yml`, by job:
 
-- **compile-and-test** — the `mix check` static gate plus the full test suite,
-  with Postgres + ClickHouse service containers.
-- **build-and-publish** — builds and pushes the Docker image (on push, not PRs).
-- **report_mix_deps** — submits the dependency graph to GitHub and reviews PR
-  dependency changes. Note: dependency-graph submission needs `contents: write`,
-  which pull requests **from forks** don't get (GitHub forces a read-only token
-  regardless of `permissions:`), so it currently fails for outside contributors;
-  PR #2852 splits it so the submission runs only on push and PRs run a read-only
-  review.
+- **Compile & Test** — the static gate (compile `--warnings-as-errors`, format,
+  `deps.unlock --check-unused`, spellweaver, `credo --min-priority low`,
+  dialyzer) plus the full suite, with Postgres + ClickHouse service containers.
+- **Build & Publish Docker image** — builds and pushes the container image
+  (on push, not PRs).
+- **Submit Mix Dependencies** — submits the dependency graph; non-PR events only,
+  because submission needs `contents: write`, which pull requests from forks
+  don't get.
+- **Dependency Review** — read-only review of a PR's dependency changes;
+  `pull_request` only, so it works for outside contributors.
 
 ## Working here as an agent
 
@@ -170,27 +170,3 @@ docs/                 Design docs
   (including this file).
 - Flag security-relevant surface area (new inputs/endpoints/authz checks,
   anything touching secrets or crypto) when handing off.
-
-## Active architectural work
-
-Large changes in flight on open PRs that are **not on `main` yet** — expect to
-see them on branches and in review:
-
-- **PR #2851 (`use-group-for-smarter-pubsub`)** — migrates per-entity
-  `Phoenix.PubSub` topics (device→UI events, console/shell byte streams,
-  per-device extensions, and sparse product/firmware UI topics) onto the
-  [`:group`](https://hex.pm/packages/group) library for **node-targeted
-  dispatch**, so a message is delivered only to nodes that actually hold a
-  consumer instead of fanning out to every device node. It also replaces the
-  console/shell "is it live?" 500 ms broadcast-and-wait probe with a
-  presence/`Group.monitor` model. Full rationale and the web/device cluster
-  topology are in `docs/adr/0001-group-library-for-targeted-pubsub.md` on that
-  branch.
-- **PR #2791 (`mc-upload-writer`)** — a `Phoenix.LiveView.UploadWriter`
-  (`BrieflyUploadWriter`) that streams firmware/archive uploads straight to a
-  temp file the LiveView owns, dropping the current upload-then-copy
-  double-write.
-
-Until these merge, `main` uses `Phoenix.PubSub` throughout for cross-node
-messaging and the copy-based upload path. When they land, fold their specifics
-into the sections above and trim this note.
