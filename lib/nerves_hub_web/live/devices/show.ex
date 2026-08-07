@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :live_view
 
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.Consoles
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
@@ -44,8 +45,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     if connected?(socket) do
       Logger.metadata(device_id: device.id, user_id: user.id, product_id: product.id)
       PubSub.subscribe(device.id)
-      socket.endpoint.subscribe("device:console:#{device.id}:internal")
-      socket.endpoint.subscribe("device:console:#{device.id}")
+      Consoles.PubSub.subscribe_console_watcher(device.id)
       socket.endpoint.subscribe("device:#{device.id}:extensions")
       socket.endpoint.subscribe("product:#{product.id}")
     end
