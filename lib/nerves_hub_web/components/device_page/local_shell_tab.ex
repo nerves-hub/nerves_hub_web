@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
   use NervesHubWeb, tab_component: :local_shell
 
-  alias NervesHub.Extensions.LocalShell
+  alias NervesHub.Consoles
   alias Phoenix.LiveView.JS
 
   def tab_params(_params, _uri, socket) do
@@ -137,20 +137,6 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
   end
 
   defp shell_active?(device) do
-    topic = "device:#{device.id}:extensions"
-    message = {LocalShell, {:active?, self()}}
-
-    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic, message)
-
-    receive do
-      :active ->
-        true
-
-      _other ->
-        false
-    after
-      500 ->
-        false
-    end
+    Consoles.PubSub.local_shell_active?(device.id)
   end
 end
