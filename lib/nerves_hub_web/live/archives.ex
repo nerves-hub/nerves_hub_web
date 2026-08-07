@@ -5,7 +5,6 @@ defmodule NervesHubWeb.Live.Archives do
   alias NervesHub.Archives
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
-  alias Phoenix.LiveView.Upload
 
   embed_templates("archive_templates/*")
 
@@ -37,7 +36,8 @@ defmodule NervesHubWeb.Live.Archives do
       max_entries: 1,
       auto_upload: true,
       max_file_size: max_file_size(),
-      progress: &handle_progress/3
+      progress: &handle_progress/3,
+      writer: fn _name, _entry, _socket -> {NervesHubWeb.BrieflyUploadWriter, parent: self()} end
     )
     |> assign_archives_with_pagination()
     |> render_with(&list_archives_template/1)
@@ -154,14 +154,16 @@ defmodule NervesHubWeb.Live.Archives do
     authorized!(:"archive:upload", socket.assigns.current_scope)
 
     if entry.done? do
+      # BrieflyUploadWriter streams the upload straight to a temp file it hands to
+      # this LiveView, so we consume the entry and use that path directly — no
+      # copy, and no postpone/clear dance to keep the default temp alive.
       [filepath] =
         consume_uploaded_entries(socket, :archive, fn %{path: path}, _entry ->
-          {:postpone, path}
+          {:ok, path}
         end)
 
       socket
       |> create_archive(filepath)
-      |> clear_completed_upload(:archive, entry)
       |> noreply()
     else
       {:noreply, socket}
@@ -249,10 +251,6 @@ defmodule NervesHubWeb.Live.Archives do
 
   defp error_feedback(socket, message) do
     put_flash(socket, :error, message)
-  end
-
-  defp clear_completed_upload(socket, upload_name, entry) do
-    Upload.unregister_completed_entry_upload(socket, socket.assigns[:uploads][upload_name], entry.ref)
   end
 
   defp format_signed(%{org_key_id: org_key_id}, org_keys) do
