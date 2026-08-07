@@ -46,4 +46,29 @@ defmodule NervesHub.Extensions.PubSubTest do
 
     refute_receive %Broadcast{event: "health:check"}, 200
   end
+
+  describe "product-wide events (Phoenix.PubSub)" do
+    setup do
+      %{product_id: System.unique_integer([:positive])}
+    end
+
+    test "broadcast_to_product reaches a subscribed device", %{product_id: product_id} do
+      :ok = PubSub.subscribe_product(product_id)
+
+      # broadcast_from! excludes the caller, so publish from another process.
+      task = Task.async(fn -> PubSub.broadcast_to_product(product_id, "attach", %{"extensions" => ["health"]}) end)
+      Task.await(task)
+
+      topic = "product:#{product_id}:extensions"
+      assert_receive %Broadcast{topic: ^topic, event: "attach", payload: %{"extensions" => ["health"]}}, 500
+    end
+
+    test "broadcast_to_product excludes the caller (self-exclusion preserved)", %{product_id: product_id} do
+      :ok = PubSub.subscribe_product(product_id)
+
+      :ok = PubSub.broadcast_to_product(product_id, "detach", %{"extensions" => ["health"]})
+
+      refute_receive %Broadcast{event: "detach"}, 200
+    end
+  end
 end

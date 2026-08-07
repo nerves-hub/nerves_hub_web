@@ -35,13 +35,19 @@ defmodule NervesHub.Extensions.PubSub do
   `handle_info(%Broadcast{...})` / `hooked_info(%Broadcast{...})` clauses are
   unchanged.
 
-  The product-wide `product:<id>:extensions` topic (dense fan-out to every
-  device's extensions channel) intentionally stays on `Phoenix.PubSub`.
+  The product-wide `product:<id>:extensions` topic (`subscribe_product/1`,
+  `broadcast_to_product/3`) intentionally stays on `Phoenix.PubSub`: one publish
+  (an operator toggling a product extension) must reach *every* online device in
+  the product, so the consumer set is genuine fan-out with no targeted-dispatch
+  win, and putting it on `:group` would trade a rare broadcast for continuous
+  membership churn as devices connect and disconnect. It lives here only so that
+  all extension pub/sub goes through one module.
 
   Default `:group` cluster: the device-side channel runs on a device node and
   the report consumers on web nodes.
   """
 
+  alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
   @group NervesHub.Group
@@ -72,10 +78,32 @@ defmodule NervesHub.Extensions.PubSub do
     Group.dispatch(@group, reports_key(device_id), message)
   end
 
+  # -- Product-wide extension config (stays on Phoenix.PubSub) -----------------
+
+  @doc """
+  Subscribe the calling process (a device's extensions channel) to product-wide
+  extension `attach`/`detach` events.
+  """
+  @spec subscribe_product(integer()) :: :ok
+  def subscribe_product(product_id) do
+    :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, product_topic(product_id))
+  end
+
+  @doc """
+  Broadcast a product-wide extension event (`attach`/`detach`) to every device's
+  extensions channel subscribed for the product. Excludes the caller, matching
+  the previous `broadcast_from!` behaviour.
+  """
+  @spec broadcast_to_product(integer(), String.t(), map()) :: :ok
+  def broadcast_to_product(product_id, event, payload) do
+    ChannelServer.broadcast_from!(NervesHub.PubSub, self(), product_topic(product_id), event, payload)
+  end
+
   # Group keys ("/" is Group's hierarchy separator).
   defp device_key(device_id), do: "device:extensions/#{device_id}"
   defp reports_key(device_id), do: "device:extensions:reports/#{device_id}"
 
-  # Preserved as the previous `Phoenix.PubSub` topic string.
+  # Preserved as the previous `Phoenix.PubSub` topic strings.
   defp topic(device_id), do: "device:#{device_id}:extensions"
+  defp product_topic(product_id), do: "product:#{product_id}:extensions"
 end

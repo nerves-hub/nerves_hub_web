@@ -14,6 +14,8 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
   alias NervesHub.Devices.DeviceMessages
+  alias NervesHub.Extensions
+  alias NervesHub.Helpers.Logging
   alias NervesHubWeb.Channels.Effects
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
@@ -61,8 +63,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   @impl Phoenix.Channel
   def handle_info(:init_extensions, socket) do
-    topic = "product:#{socket.assigns.device_info.product_id}:extensions"
-    :ok = PubSub.subscribe(NervesHub.PubSub, topic)
+    :ok = Extensions.PubSub.subscribe_product(socket.assigns.device_info.product_id)
 
     {:noreply, socket}
   end
