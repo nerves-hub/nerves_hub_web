@@ -121,6 +121,19 @@ defmodule NervesHub.Consoles.PubSubTest do
       assert eventually(fn -> not PubSub.local_shell_active?(device_id) end)
     end
 
+    test "monitor_local_shell delivers join and leave events to the caller", %{
+      device_id: device_id
+    } do
+      :ok = PubSub.monitor_local_shell(device_id)
+
+      :ok = PubSub.join_local_shell(device_id)
+      assert_receive {:group, [%Group.Event{type: :joined, key: key}], _}, 500
+      assert key == "local_shell/#{device_id}"
+
+      :ok = PubSub.leave_local_shell(device_id)
+      assert_receive {:group, [%Group.Event{type: :left, key: ^key}], _}, 500
+    end
+
     test "connect_to_local_shell routes a LocalShell-tagged connect", %{device_id: device_id} do
       :ok = PubSub.join_local_shell(device_id)
 

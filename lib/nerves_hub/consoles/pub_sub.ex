@@ -74,6 +74,21 @@ defmodule NervesHub.Consoles.PubSub do
   end
 
   @doc """
+  Monitor console liveness for this device. The calling process receives a
+  `{:group, events, _}` message (carrying `%Group.Event{type: :joined | :left}`)
+  whenever the device-side console channel joins or leaves.
+
+  Membership presence is eventually consistent, so pair this with an initial
+  `console_active?/1` read for the current value — and monitor *before* that read
+  so a change in the gap still arrives as an event rather than being lost. The
+  monitor is cleaned up automatically when the calling process dies.
+  """
+  @spec monitor_console(integer()) :: :ok
+  def monitor_console(device_id) do
+    Group.monitor(@group, console_key(device_id))
+  end
+
+  @doc """
   Ask the device-side console channel to connect `pid` (the user channel). The
   channel replies directly to `pid` with its metadata and buffered output.
   """
@@ -137,6 +152,16 @@ defmodule NervesHub.Consoles.PubSub do
   @spec local_shell_active?(integer()) :: boolean()
   def local_shell_active?(device_id) do
     Group.members(@group, local_shell_key(device_id)) != []
+  end
+
+  @doc """
+  Monitor local-shell liveness for this device; see `monitor_console/1` for the
+  seed-before-monitor ordering. The calling process receives `{:group, events,
+  _}` when the shell attaches or detaches.
+  """
+  @spec monitor_local_shell(integer()) :: :ok
+  def monitor_local_shell(device_id) do
+    Group.monitor(@group, local_shell_key(device_id))
   end
 
   @doc "Ask the device-side local shell to connect `pid` (the user channel)."

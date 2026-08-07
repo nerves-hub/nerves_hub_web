@@ -1,16 +1,33 @@
 defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   use NervesHubWeb, tab_component: :console
 
+  alias NervesHub.Consoles
   alias NervesHub.Tracker
+  alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
 
   def tab_params(_params, _uri, socket) do
     device_id = socket.assigns.device.id
 
-    assign_async(socket, :console_active?, fn ->
-      {:ok, %{console_active?: Tracker.console_active?(device_id)}}
-    end)
+    # Monitor console liveness before seeding so a join/leave between the seed
+    # read and now still arrives as an event (see Consoles.PubSub.monitor_console/1).
+    # The seed is a synchronous ETS-backed read (not the old blocking probe), so
+    # a stale async result can't land after and clobber an event-driven update.
+    :ok = Consoles.PubSub.monitor_console(device_id)
+
+    socket
+    |> assign(:console_active?, AsyncResult.ok(Tracker.console_active?(device_id)))
     |> cont()
+  end
+
+  # The device-side console channel joined or left; recompute availability so the
+  # tab reflects it live instead of the one-shot value read when the tab opened.
+  def hooked_info({:group, _events, _info}, socket) do
+    active? = Tracker.console_active?(socket.assigns.device.id)
+
+    socket
+    |> assign(:console_active?, AsyncResult.ok(socket.assigns.console_active?, active?))
+    |> halt()
   end
 
   def hooked_info(%Broadcast{event: "file-data/start", payload: payload}, socket) do
@@ -101,9 +118,9 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
               </div>
             </div>
           </:failed>
-          <div id="console-and-chat" class="flex size-full bg-black" phx-update="ignore" style="background-color: rgb(14, 16, 25);">
+          <div id="console-and-chat" class="flex size-full bg-black" style="background-color: rgb(14, 16, 25);">
             <div :if={authorized?(:"device:console", @current_scope) && online?} id="dropzone" class="relative flex grow gap-6 p-12" style="background-color: rgb(14, 16, 25);">
-              <div id="console" phx-hook="Console" data-user-token={@user_token} data-device-identifier={@device.identifier} class="z-10 size-full"></div>
+              <div id="console" phx-hook="Console" phx-update="ignore" data-user-token={@user_token} data-device-identifier={@device.identifier} class="z-10 size-full"></div>
               <div id="immersive-device" class="text-base-800 pointer-events-none absolute top-4 left-6 z-20 hidden">
                 <div class="flex items-center gap-3">
                   <%= if Map.get(@device_connection || %{}, :status) == :connected do %>
