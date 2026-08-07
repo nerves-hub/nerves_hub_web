@@ -131,12 +131,25 @@ docs/                 Design docs
   outside their scope.
 - **Case templates** (`test/support/`):
   - `NervesHub.DataCase` — context / DB tests.
-  - `NervesHubWeb.ConnCase` and `NervesHubWeb.ConnCase.Browser` — controllers and
-    LiveView tests (LiveView via [`phoenix_test`](https://hexdocs.pm/phoenix_test):
-    `visit` / `assert_has` / `refute_has`).
+  - `NervesHubWeb.ConnCase` — controller tests. `NervesHubWeb.ConnCase.Browser` —
+    UI / LiveView tests with PhoenixTest (see below).
   - `NervesHubWeb.ChannelCase` — channel tests.
   - `NervesHub.Fixtures` for fixtures; `SocketClient` simulates a real device
     connection.
+- **UI / LiveView tests use [`PhoenixTest`](https://hexdocs.pm/phoenix_test).**
+  Browser-style tests (`use NervesHubWeb.ConnCase.Browser`) drive the app through
+  one high-level, page-oriented API that behaves the same on dead and live views,
+  so you rarely touch `Phoenix.LiveViewTest` element/render plumbing directly.
+  Start with `visit("/path")`, then:
+  - **Assert:** `assert_has("selector", text: "…")`, `refute_has/…`,
+    `assert_path("/…")`.
+  - **Interact:** `click_button` / `click_link`, `fill_in` / `select` / `check` /
+    `uncheck`, `submit`, and `within("selector", fn -> … end)` to scope actions.
+
+  Each call returns the session, so tests read as a `|>` pipeline. For the rare
+  thing PhoenixTest doesn't cover, `unwrap(fn view -> … end)` drops down to
+  `Phoenix.LiveViewTest` (both are imported by `ConnCase.Browser`) — reach for it
+  only for the gaps.
 - **Known-flaky / environment-dependent (not code smells):**
   - **ClickHouse is eventually consistent.** Connection-history and Insights
     tests assert with `assert_eventually`; under a loaded runner they can fail
