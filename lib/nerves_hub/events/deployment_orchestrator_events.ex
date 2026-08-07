@@ -6,7 +6,7 @@ defmodule NervesHub.DeploymentOrchestratorEvents do
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias Phoenix.Channel.Server, as: ChannelServer
+  alias Phoenix.Socket.Broadcast
 
   def device_updated(device) do
     broadcast(device, "device-updated", %{})
@@ -41,6 +41,10 @@ defmodule NervesHub.DeploymentOrchestratorEvents do
   end
 
   defp broadcast(device_or_deployment, event, payload) do
-    :ok = ChannelServer.broadcast(NervesHub.PubSub, topic(device_or_deployment), event, payload)
+    topic = topic(device_or_deployment)
+    # Dispatch a %Broadcast{} struct (the same shape PubSub delivered) so the
+    # orchestrator's existing handle_info(%Broadcast{...}) clauses are unchanged.
+    message = %Broadcast{topic: topic, event: event, payload: payload}
+    :ok = Group.dispatch(NervesHub.Group, topic, message)
   end
 end

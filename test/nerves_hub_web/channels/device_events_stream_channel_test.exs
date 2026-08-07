@@ -2,6 +2,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
   use NervesHubWeb.ChannelCase
 
   alias NervesHub.Accounts
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceEventsStreamChannel
   alias NervesHubWeb.EventStreamSocket
@@ -19,9 +20,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
       {:ok, _join_reply, _channel} =
         subscribe_and_join(socket, DeviceEventsStreamChannel, "device:#{device.identifier}")
 
-      NervesHubWeb.Endpoint.broadcast("internal:device:#{device.id}", "fwup_progress", %{
-        percent: 50
-      })
+      PubSub.broadcast(device.id, "fwup_progress", %{percent: 50})
 
       assert_push("firmware_update", %{percent: 50})
     end

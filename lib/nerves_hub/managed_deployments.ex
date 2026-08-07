@@ -5,6 +5,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
@@ -845,15 +846,9 @@ defmodule NervesHub.ManagedDeployments do
 
   @spec deployment_deactivated_event(DeploymentGroup.t()) :: :ok
   def deployment_deactivated_event(deployment_group) do
-    _ =
-      PhoenixChannelServer.broadcast(
-        NervesHub.PubSub,
-        "orchestrator:deployment:#{deployment_group.id}",
-        "deactivated",
-        %{}
-      )
-
-    :ok
+    # Routed through the orchestrator-events module, which dispatches to the
+    # single orchestrator via `:group` (see DeploymentOrchestratorEvents).
+    DeploymentOrchestratorEvents.deployment_group_deactivated(deployment_group)
   end
 
   @spec deployment_deleted_event(DeploymentGroup.t()) :: :ok

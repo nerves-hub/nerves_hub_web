@@ -4,6 +4,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Extensions.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
@@ -78,7 +79,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     push(extensions_channel, "health:attached")
     assert_push("health:check", _)
 
-    @endpoint.subscribe("device:#{device.id}:extensions")
+    :ok = PubSub.subscribe_reports(device.id)
 
     push(extensions_channel, "health:report", %{"value" => dummy_health_report()})
     assert_broadcast("health_check_report", _)
