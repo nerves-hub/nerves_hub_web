@@ -1,7 +1,7 @@
 defmodule NervesHub.Tracker do
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   @doc """
   Tell internal listeners that the device is online, via a connection change
@@ -12,13 +12,7 @@ defmodule NervesHub.Tracker do
   end
 
   def heartbeat(device_id) when is_integer(device_id) do
-    _ =
-      ChannelServer.broadcast(
-        NervesHub.PubSub,
-        "internal:device:#{device_id}",
-        "connection:heartbeat",
-        %{}
-      )
+    _ = PubSub.broadcast(device_id, "connection:heartbeat", %{})
 
     :ok
   end
@@ -51,15 +45,7 @@ defmodule NervesHub.Tracker do
   end
 
   defp publish(device_id, status) do
-    _ =
-      ChannelServer.broadcast(
-        NervesHub.PubSub,
-        "internal:device:#{device_id}",
-        "connection:change",
-        %{
-          status: status
-        }
-      )
+    _ = PubSub.broadcast(device_id, "connection:change", %{status: status})
 
     :ok
   end

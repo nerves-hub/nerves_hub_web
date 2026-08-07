@@ -18,6 +18,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.FirmwareUpdates
@@ -1174,7 +1175,7 @@ defmodule NervesHub.DevicesTest do
 
       topic = "internal:device:#{device.id}"
 
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+      PubSub.subscribe(device.id)
 
       refute_receive %Broadcast{topic: ^topic, event: "firmware_update_progress", payload: %{"stage" => "expired"}},
                      1_000

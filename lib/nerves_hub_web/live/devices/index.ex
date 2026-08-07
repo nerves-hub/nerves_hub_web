@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
@@ -843,12 +844,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     Enum.each(
       old_devices.result || [],
-      fn device -> socket.endpoint.unsubscribe("internal:device:#{device.id}") end
+      fn device -> PubSub.unsubscribe(device.id) end
     )
 
     updated_device_statuses =
       Map.new(updated_devices, fn device ->
-        socket.endpoint.subscribe("internal:device:#{device.id}")
+        PubSub.subscribe(device.id)
 
         status = socket.assigns.received_connection_change_identifiers[device.id]
 

@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Extensions.Health
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Tracker
@@ -42,7 +43,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     if connected?(socket) do
       Logger.metadata(device_id: device.id, user_id: user.id, product_id: product.id)
-      socket.endpoint.subscribe("internal:device:#{device.id}")
+      PubSub.subscribe(device.id)
       socket.endpoint.subscribe("device:console:#{device.id}:internal")
       socket.endpoint.subscribe("device:console:#{device.id}")
       socket.endpoint.subscribe("device:#{device.id}:extensions")
