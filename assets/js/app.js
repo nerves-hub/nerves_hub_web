@@ -7,6 +7,7 @@ import "chartjs-adapter-date-fns"
 import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
+import AdvancedQueryEditor from "./hooks/advancedQueryEditor.js"
 import BarChart from "./hooks/barChart.js"
 import Chart from "./hooks/chart.js"
 import Console from "./hooks/console.js"
@@ -19,6 +20,7 @@ import LocalShell from "./hooks/localShell.js"
 import LocalTime from "./hooks/localTime.js"
 import LogLineLocalTime from "./hooks/logLineLocalTime.js"
 import PageVisible from "./hooks/pageVisible.js"
+import ScriptAutocomplete from "./hooks/scriptAutocomplete.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
 import SidebarToggle from "./hooks/sidebarToggle.js"
 import SimpleDate from "./hooks/simpleDate.js"
@@ -42,9 +44,18 @@ let execJS = (selector, attr) => {
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content")
+
+let time_zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+let timezone_offset = -(new Date().getTimezoneOffset() / 60)
+
 let liveSocket = new LiveSocket("/live", Socket, {
-  params: { _csrf_token: csrfToken },
+  params: {
+    _csrf_token: csrfToken,
+    time_zone: time_zone,
+    timezone_offset: timezone_offset,
+  },
   hooks: {
+    AdvancedQueryEditor,
     BarChart,
     Chart,
     Console,
@@ -59,6 +70,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     PageVisible,
     SharedSecretClipboardClick,
     SidebarToggle,
+    ScriptAutocomplete,
     SimpleDate,
     SupportScriptOutput,
     TagAutocomplete,

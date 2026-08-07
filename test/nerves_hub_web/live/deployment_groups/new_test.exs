@@ -150,4 +150,31 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
     |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/new")
     |> assert_has("p", text: "must be valid Elixir version requirement string")
   end
+
+  test "can set notes when creating a deployment group", %{conn: conn, org: org, product: product} do
+    conn
+    |> fill_in("Name", with: "Canaries")
+    |> fill_in("Notes", with: "Created for the summer campaign hardware batch")
+    |> select("Platform", option: "platform")
+    |> select("Architecture", option: "x86_64")
+    |> select("Firmware", option: "1.0.0", exact_option: false)
+    |> submit()
+    |> assert_path(~p"/org/#{org}/#{product}/deployment_groups/Canaries")
+
+    deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
+    assert deployment_group.notes == "Created for the summer campaign hardware batch"
+  end
+
+  test "notes is optional when creating a deployment group", %{conn: conn, org: org, product: product} do
+    conn
+    |> fill_in("Name", with: "Canaries")
+    |> select("Platform", option: "platform")
+    |> select("Architecture", option: "x86_64")
+    |> select("Firmware", option: "1.0.0", exact_option: false)
+    |> submit()
+    |> assert_path(~p"/org/#{org}/#{product}/deployment_groups/Canaries")
+
+    deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
+    assert deployment_group.notes == nil
+  end
 end

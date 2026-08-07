@@ -215,7 +215,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
     end
   end
 
-  describe "device_connections_by_date/3" do
+  describe "device_connections_by_date/5" do
     setup %{org: org, product: product, firmware: firmware} do
       device_a = Fixtures.device_fixture(org, product, firmware)
       device_b = Fixtures.device_fixture(org, product, firmware)
@@ -258,7 +258,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       insert_history(device_b, days_ago(2), nil)
 
       from = Date.add(Date.utc_today(), -14)
-      results = Connections.device_connections_by_date(org.id, product.id, from)
+      results = Connections.device_connections_by_date(org.id, product.id, from, Date.utc_today(), "Etc/UTC")
 
       counts = Map.new(results, fn %{day: day, count: count} -> {day, count} end)
 
@@ -288,7 +288,7 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       insert_history(device_a, days_ago(0), nil)
 
       from = Date.add(Date.utc_today(), -14)
-      results = Connections.device_connections_by_date(org.id, product.id, from)
+      results = Connections.device_connections_by_date(org.id, product.id, from, Date.utc_today(), "Etc/UTC")
 
       counts = Map.new(results, fn %{day: day, count: count} -> {day, count} end)
 
@@ -314,16 +314,149 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       insert_history(other_device, days_ago(1), nil)
 
       from = Date.add(Date.utc_today(), -14)
-      results = Connections.device_connections_by_date(org.id, product.id, from)
+      results = Connections.device_connections_by_date(org.id, product.id, from, Date.utc_today(), "Etc/UTC")
 
       counts = Map.new(results, fn %{day: day, count: count} -> {day, count} end)
 
       assert counts[Date.add(Date.utc_today(), -1)] == 1
     end
 
-    test "returns no rows when there is no connection history", %{org: org, product: product} do
-      from = Date.add(Date.utc_today(), -14)
-      assert Connections.device_connections_by_date(org.id, product.id, from) == []
+    test "fills every day with 0 when there is no connection history", %{org: org, product: product} do
+      to = Date.utc_today()
+      from = Date.add(to, -14)
+      results = Connections.device_connections_by_date(org.id, product.id, from, to, "Etc/UTC")
+
+      # the full window is returned (inclusive of both ends), every day at 0
+      assert Enum.map(results, & &1.day) == Enum.map(0..14, &Date.add(from, &1))
+      assert Enum.all?(results, &(&1.count == 0))
+    end
+  end
+
+  describe "device_connections_by_hour/5" do
+    setup %{org: org, product: product, firmware: firmware} do
+      device_a = Fixtures.device_fixture(org, product, firmware)
+      device_b = Fixtures.device_fixture(org, product, firmware)
+
+      %{device_a: device_a, device_b: device_b}
+    end
+
+    defp hours_ago(n), do: DateTime.add(DateTime.utc_now(), -n, :hour)
+
+    test "buckets unique connected devices per hour across the window", %{
+      org: org,
+      product: product,
+      device_a: device_a,
+      device_b: device_b
+    } do
+      # device_a was connected from 5 hours ago until 3 hours ago
+      insert_history(device_a, hours_ago(5), hours_ago(3))
+      # device_b connected 2 hours ago and is still connected
+      insert_history(device_b, hours_ago(2), nil)
+
+      from = DateTime.add(DateTime.utc_now(), -24, :hour)
+      results = Connections.device_connections_by_hour(org.id, product.id, from, DateTime.utc_now(), "Etc/UTC")
+
+      # each hour is a zoned DateTime (here UTC), so it serialises with an offset
+      # and the browser renders it in local time (consistent with the bounds)
+      assert Enum.all?(results, &match?(%DateTime{time_zone: "Etc/UTC"}, &1.day))
+
+      # key by unix second to compare instants without depending on struct fields
+      counts = Map.new(results, fn %{day: hour, count: count} -> {DateTime.to_unix(hour), count} end)
+
+      hour = fn n ->
+        DateTime.utc_now()
+        |> Map.merge(%{minute: 0, second: 0, microsecond: {0, 0}})
+        |> DateTime.add(-n, :hour)
+        |> DateTime.to_unix()
+      end
+
+      # device_a present on the -5, -4 and -3 hour buckets
+      assert counts[hour.(5)] == 1
+      assert counts[hour.(4)] == 1
+      assert counts[hour.(3)] == 1
+
+      # device_b present on the -2, -1 and current hour buckets
+      assert counts[hour.(2)] == 1
+      assert counts[hour.(1)] == 1
+      assert counts[hour.(0)] == 1
+    end
+
+    test "counts each device once per hour even with overlapping connections", %{
+      org: org,
+      product: product,
+      device_a: device_a,
+      device_b: device_b
+    } do
+      insert_history(device_a, hours_ago(0), nil)
+      insert_history(device_b, hours_ago(0), nil)
+      # device_a has a second (overlapping) connection this hour
+      insert_history(device_a, hours_ago(0), nil)
+
+      from = DateTime.add(DateTime.utc_now(), -24, :hour)
+      results = Connections.device_connections_by_hour(org.id, product.id, from, DateTime.utc_now(), "Etc/UTC")
+
+      total = results |> Enum.map(& &1.count) |> Enum.max(fn -> 0 end)
+
+      # two unique devices, despite three connection rows
+      assert total == 2
+    end
+
+    test "only includes connections for the requested org and product", %{
+      org: org,
+      product: product,
+      device_a: device_a,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      insert_history(device_a, hours_ago(1), nil)
+
+      other_org = Fixtures.org_fixture(user, %{name: "other-org-hourly"})
+      other_product = Fixtures.product_fixture(user, other_org)
+      other_org_key = Fixtures.org_key_fixture(other_org, user, tmp_dir)
+      other_firmware = Fixtures.firmware_fixture(other_org_key, other_product, %{dir: tmp_dir})
+      other_device = Fixtures.device_fixture(other_org, other_product, other_firmware)
+      insert_history(other_device, hours_ago(1), nil)
+
+      from = DateTime.add(DateTime.utc_now(), -24, :hour)
+      results = Connections.device_connections_by_hour(org.id, product.id, from, DateTime.utc_now(), "Etc/UTC")
+
+      # device_a is counted (never more than once per hour) and the other
+      # org/product never inflates a bucket
+      assert Enum.any?(results, &(&1.count == 1))
+      assert Enum.all?(results, &(&1.count <= 1))
+    end
+
+    test "fills every hour with 0 when there is no connection history", %{org: org, product: product} do
+      to = DateTime.utc_now()
+      from = DateTime.add(to, -24, :hour)
+      results = Connections.device_connections_by_hour(org.id, product.id, from, to, "Etc/UTC")
+
+      # every hour in the 24h window (inclusive of both ends) is present at 0
+      assert length(results) == 25
+      assert Enum.all?(results, &(&1.count == 0))
+    end
+
+    test "buckets hours in the requested timezone", %{
+      org: org,
+      product: product,
+      device_a: device_a
+    } do
+      time_zone = "Pacific/Auckland"
+      insert_history(device_a, hours_ago(1), nil)
+
+      now = DateTime.now!(time_zone)
+      to = %{now | minute: 0, second: 0, microsecond: {0, 0}}
+      from = DateTime.add(to, -24, :hour)
+
+      results = Connections.device_connections_by_hour(org.id, product.id, from, to, time_zone)
+
+      refute results == []
+      # buckets come back as DateTimes zoned in the requested timezone, and each
+      # one sits on a local hour boundary
+      assert Enum.all?(results, fn %{day: hour} ->
+               match?(%DateTime{time_zone: ^time_zone}, hour) and
+                 hour.minute == 0 and hour.second == 0
+             end)
     end
   end
 end

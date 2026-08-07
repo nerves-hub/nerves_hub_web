@@ -719,18 +719,29 @@ defmodule NervesHub.Devices do
         firmware_auto_revert_detected: auto_revert_detected?
       }
 
-      firmware_metadata = Map.from_struct(device.firmware_metadata)
-
       attrs =
-        DeviceFirmwares.add_or_update_reported_firmware(
-          device,
-          firmware_metadata,
-          validation_status,
-          auto_revert_detected?
-        )
-        |> case do
-          :ok -> attrs
-          {:ok, df} -> Map.put(attrs, :current_device_firmware_id, df.id)
+        case device.firmware_metadata do
+          nil ->
+            # Device joined without any known firmware metadata (e.g. its
+            # uboot env had no `nerves_fw_uuid`). Nothing to report against,
+            # so just persist the device-level values. This is unexpected,
+            # so raise a product notification to surface it.
+            _ = ProductNotifications.create_missing_firmware_metadata_notification!(device)
+            attrs
+
+          current_metadata ->
+            firmware_metadata = Map.from_struct(current_metadata)
+
+            DeviceFirmwares.add_or_update_reported_firmware(
+              device,
+              firmware_metadata,
+              validation_status,
+              auto_revert_detected?
+            )
+            |> case do
+              :ok -> attrs
+              {:ok, df} -> Map.put(attrs, :current_device_firmware_id, df.id)
+            end
         end
 
       update_device(device, attrs)
@@ -1200,7 +1211,17 @@ defmodule NervesHub.Devices do
     :ok = DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device)
     _ = FirmwareUpdates.clear_inflight_update(device)
 
-    Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}")
+    device =
+      Repo.preload(device, [:org, :product, :current_device_firmware, deployment_group: [current_release: :firmware]])
+
+    Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}", %{
+      identifier: device.identifier,
+      org: device.org.name,
+      product: device.product.name,
+      platform: deployment_group.platform,
+      current_firmware_version: device.current_device_firmware.firmware_metadata.version,
+      upgrading_firmware_version: device.deployment_group.current_release.firmware.version
+    })
 
     update_device(device, %{updates_blocked_until: blocked_until, update_attempts: []})
   end
@@ -1649,6 +1670,30 @@ defmodule NervesHub.Devices do
     |> distinct(true)
     |> where([d], d.product_id == ^product_id)
     |> order_by([d], fragment("?->>'platform'", d.firmware_metadata))
+    |> Repo.all()
+  end
+
+  @doc """
+  Get distinct device architectures based on the product
+  """
+  def architectures(product_id) do
+    Device
+    |> select([d], fragment("?->>'architecture'", d.firmware_metadata))
+    |> distinct(true)
+    |> where([d], d.product_id == ^product_id)
+    |> order_by([d], fragment("?->>'architecture'", d.firmware_metadata))
+    |> Repo.all()
+  end
+
+  @doc """
+  Get distinct tags currently used across devices in the product
+  """
+  def distinct_tags(product_id) do
+    Device
+    |> select([d], fragment("unnest(?)", d.tags))
+    |> distinct(true)
+    |> where([d], d.product_id == ^product_id)
+    |> order_by([d], fragment("unnest(?)", d.tags))
     |> Repo.all()
   end
 

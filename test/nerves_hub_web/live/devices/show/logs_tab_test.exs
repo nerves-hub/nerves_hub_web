@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
-  use NervesHubWeb.ConnCase.Browser, async: true
+  use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
@@ -8,7 +8,8 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
   alias NervesHub.Repo
 
   setup context do
-    Application.put_env(:nerves_hub, :analytics_enabled, true)
+    original = Application.get_env(:nerves_hub, :analytics_enabled)
+    on_exit(fn -> Application.put_env(:nerves_hub, :analytics_enabled, original) end)
     context
   end
 

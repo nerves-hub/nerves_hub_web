@@ -75,6 +75,9 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
       current_release = data["current_release"]
       assert current_release["number"] >= 1
       assert current_release["firmware"]["uuid"]
+
+      assert Map.has_key?(data, "notes")
+      assert data["notes"] == nil
     end
 
     test "includes device_count reflecting assigned devices", %{
@@ -170,6 +173,24 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do
       conn = post(conn, Routes.api_deployment_group_path(conn, :create, org.name, product.name))
       assert json_response(conn, 422)["errors"] != %{}
+    end
+
+    test "renders deployment group with notes when provided", %{
+      conn: conn,
+      org: org,
+      params: params,
+      product: product
+    } do
+      params = Map.put(params, :notes, "Created for the summer campaign hardware batch")
+
+      conn =
+        post(
+          conn,
+          Routes.api_deployment_group_path(conn, :create, org.name, product.name),
+          params
+        )
+
+      assert json_response(conn, 201)["data"]["notes"] == "Created for the summer campaign hardware batch"
     end
   end
 
@@ -410,6 +431,37 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
 
       conn = put(conn, path, deployment: %{is_active: "1234"})
       assert json_response(conn, 422)["errors"] != %{}
+    end
+
+    test "can update notes", %{
+      conn: conn,
+      deployment_group: deployment_group,
+      org: org,
+      product: product
+    } do
+      path =
+        Routes.api_deployment_group_path(
+          conn,
+          :update,
+          org.name,
+          product.name,
+          deployment_group.name
+        )
+
+      conn = put(conn, path, deployment: %{"notes" => "Created for the summer campaign hardware batch"})
+      assert %{"notes" => "Created for the summer campaign hardware batch"} = json_response(conn, 200)["data"]
+
+      path =
+        Routes.api_deployment_group_path(
+          conn,
+          :show,
+          org.name,
+          product.name,
+          deployment_group.name
+        )
+
+      conn = get(conn, path)
+      assert json_response(conn, 200)["data"]["notes"] == "Created for the summer campaign hardware batch"
     end
   end
 

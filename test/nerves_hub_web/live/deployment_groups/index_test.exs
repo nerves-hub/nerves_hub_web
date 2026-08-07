@@ -176,7 +176,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
         conn
         |> visit("/org/#{fixture.org.name}/#{fixture.product.name}/deployment_groups")
         |> assert_has("th", text: @label)
-        |> click_button("#header button[phx-click=toggle-settings]", "")
+        # the show settings button is shown using JS, so no `click_button` is needed
         |> uncheck(@friendly_column_name)
         |> refute_has("th", text: @label, timeout: 1_000)
       end
@@ -205,7 +205,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
         conn
         |> visit("/org/#{fixture.org.name}/#{fixture.product.name}/deployment_groups")
         |> refute_has("th", text: @label)
-        |> click_button("#header button[phx-click=toggle-settings]", "")
+        # the show settings button is shown using JS, so no `click_button` is needed
         |> check(@friendly_column_name)
         |> assert_has("th", text: @label, timeout: 1_000)
       end

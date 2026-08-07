@@ -18,10 +18,24 @@ if !Enum.member?(["all", "web", "device"], nerves_hub_app) do
   """
 end
 
+# Shared-session SSO, read at BOOT so it works in dev without
+# recompiling. SESSION_COOKIE_DOMAIN scopes the session cookie to a parent domain
+# (e.g. ".example.ngrok.io") so apps on a sibling subdomain can read it;
+# LOGIN_RETURN_URLS_ALLOWED_LIST lists the urls that login may return to.
+if domain = System.get_env("SESSION_COOKIE_DOMAIN") do
+  config :nerves_hub, session_cookie_domain: domain
+end
+
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
   batch_interval: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_INTERVAL", "4000")),
   shutdown: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_SHUTDOWN", "30000"))
+
+# Allow login to return to other urls
+# See NervesHubWeb.Auth.return_to_target/1.
+config :nerves_hub,
+       :external_login_return_urls,
+       System.get_env("LOGIN_RETURN_URLS_ALLOWED_LIST", "") |> String.split(",", trim: true)
 
 config :nerves_hub,
   app: nerves_hub_app,

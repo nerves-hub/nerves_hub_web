@@ -77,7 +77,12 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
         conditions: Conditions,
         delta_updatable: %Schema{type: :boolean},
         device_count: %Schema{type: :integer},
-        releases_count: %Schema{type: :integer}
+        releases_count: %Schema{type: :integer},
+        notes: %Schema{
+          type: :string,
+          description: "Free-text notes describing why this deployment group exists",
+          nullable: true
+        }
       },
       example: %{
         "name" => "production",
@@ -101,7 +106,8 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
         },
         "delta_updatable" => false,
         "device_count" => 42,
-        "releases_count" => 3
+        "releases_count" => 3,
+        "notes" => "Rolled out for the summer campaign hardware batch"
       }
     })
   end
@@ -135,7 +141,11 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
         firmware: %Schema{type: :string, description: "Firmware UUID"},
         conditions: Conditions,
         state: %Schema{type: :string, enum: ["on", "off"]},
-        delta_updatable: %Schema{type: :boolean}
+        delta_updatable: %Schema{type: :boolean},
+        notes: %Schema{
+          type: :string,
+          description: "Free-text notes describing why this deployment group is being created"
+        }
       },
       required: [:name, :firmware],
       example: %{
@@ -145,7 +155,8 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
           "version" => ">= 1.0.0",
           "tags" => ["prod"]
         },
-        "state" => "on"
+        "state" => "on",
+        "notes" => "Rolled out for the summer campaign hardware batch"
       }
     })
   end
@@ -161,7 +172,8 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
             firmware: %Schema{type: :string, description: "Firmware UUID"},
             conditions: Conditions,
             state: %Schema{type: :string, enum: ["on", "off"]},
-            delta_updatable: %Schema{type: :boolean}
+            delta_updatable: %Schema{type: :boolean},
+            notes: %Schema{type: :string, description: "Free-text notes describing why this deployment group exists"}
           }
         }
       },
@@ -171,7 +183,8 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
           "conditions" => %{
             "version" => ">= 1.0.0",
             "tags" => ["prod"]
-          }
+          },
+          "notes" => "Rolled out for the summer campaign hardware batch"
         }
       }
     })

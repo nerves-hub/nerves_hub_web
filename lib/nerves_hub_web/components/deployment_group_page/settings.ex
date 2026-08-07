@@ -38,6 +38,19 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                   for more information on delta updates.
                 </:rich_hint>
               </.input>
+              <.input field={@form[:lock_device_membership]} type="checkbox" label="Lock device membership">
+                <:rich_hint>
+                  When enabled, devices will not be automatically assigned to or removed from this deployment group.
+                </:rich_hint>
+              </.input>
+              <.input
+                field={@form[:notes]}
+                type="textarea"
+                rows={4}
+                label="Notes"
+                placeholder="Why is this deployment group being created?"
+                phx-debounce="blur"
+              />
             </div>
           </div>
         </div>

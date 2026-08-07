@@ -13,6 +13,15 @@ defmodule NervesHubWeb.Layouts do
     )
   end
 
+  # Only ever closes the menu - used for Escape and click-away so those never
+  # open the menu (JS.toggle would), and are no-ops when it's already closed.
+  defp hide_user_menu(js \\ %JS{}) do
+    JS.hide(js,
+      transition: {"ease-out duration-150", "opacity-100", "opacity-0"},
+      to: "#user-menu-container"
+    )
+  end
+
   embed_templates("layouts/*")
 
   def toggle_product_picker(js \\ %JS{}) do

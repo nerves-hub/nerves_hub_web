@@ -240,15 +240,17 @@ defmodule NervesHub.DeviceLinkTest do
       inflight_update = Repo.reload!(inflight_update)
       refute inflight_update.progress == 30
 
+      # update to some reasonable time before 15s
       {1, _} =
-        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-14, :second)])
+        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-10, :second)])
 
       :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "updating", "progress" => 30})
       inflight_update = Repo.reload!(inflight_update)
       refute inflight_update.progress == 30
 
+      # update to some reasonable time after 15s
       {1, _} =
-        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-16, :second)])
+        Repo.update_all(InflightUpdate, set: [updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.add(-20, :second)])
 
       :ok = DeviceLink.status_update(to_device_info(device), %{"status" => "downloading", "progress" => 30})
       inflight_update = Repo.reload!(inflight_update)

@@ -411,4 +411,27 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
       assert Repo.reload(device1) |> Map.get(:deployment_id)
     end)
   end
+
+  test "shows notes when present", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    {:ok, deployment_group} =
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{notes: "Created for the summer campaign hardware batch"},
+        nil
+      )
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("span", text: "Created for the summer campaign hardware batch")
+  end
+
+  test "hides notes block when absent", %{conn: conn} do
+    conn
+    |> refute_has("span", text: "Notes:")
+  end
 end
