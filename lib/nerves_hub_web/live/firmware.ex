@@ -44,7 +44,7 @@ defmodule NervesHubWeb.Live.Firmware do
       auto_upload: true,
       max_file_size: max_file_size(),
       progress: &handle_progress/3,
-      writer: fn _name, _entry, _socket -> {NervesHubWeb.FirmwareUploadWriter, parent: self()} end
+      writer: fn _name, _entry, _socket -> {NervesHubWeb.BrieflyUploadWriter, parent: self()} end
     )
     |> assign_firmware_with_pagination()
     |> render_with(&list_firmware_template/1)
