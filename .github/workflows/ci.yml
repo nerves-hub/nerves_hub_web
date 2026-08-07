@@ -10,22 +10,44 @@ on:
   pull_request:
 
 jobs:
-  report_mix_deps:
-    name: "Report Mix Dependencies"
+  # Submit the dependency graph to GitHub. This needs `contents: write`, which is
+  # only granted on same-repo events — pull_request runs from forks get a
+  # read-only GITHUB_TOKEN regardless of `permissions:`, so submitting there
+  # would always 403. The graph only needs updating from the default branch
+  # anyway, so this never runs on pull_request.
+  submit_deps:
+    name: "Submit Mix Dependencies"
+
+    if: "${{ github.event_name != 'pull_request' }}"
 
     runs-on: ubuntu-latest
 
-    # The API requires write permission on the repository to submit dependencies
     permissions:
       contents: write
 
     steps:
       - uses: actions/checkout@v6
       - uses: erlef/mix-dependency-submission@v1
+
+  # Review dependency changes introduced by a pull request. Read-only, so it runs
+  # fine on fork PRs.
+  dependency_review:
+    name: "Dependency Review"
+
+    if: "${{ github.event_name == 'pull_request' }}"
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
       - uses: actions/dependency-review-action@v4
-        if: "${{ github.event_name == 'pull_request' }}"
 
   compile-and-test:
+    name: "Compile & Test"
+
     runs-on: ubuntu-latest
     timeout-minutes: 14
 
@@ -173,6 +195,8 @@ jobs:
         run: mix test --include mtools
 
   build-and-publish:
+    name: "Build & Publish Docker image"
+
     runs-on: ubuntu-latest
 
     needs: compile-and-test
