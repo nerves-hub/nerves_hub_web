@@ -144,7 +144,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic2)
 
     deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
+    Group.join(NervesHub.Group, deployment_group_topic, %{})
 
     {:ok, pid} =
       start_supervised(%{
@@ -202,7 +202,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic1)
 
     deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
+    Group.join(NervesHub.Group, deployment_group_topic, %{})
 
     {:ok, _pid} =
       start_supervised(%{
@@ -260,7 +260,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
 
     deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
+    Group.join(NervesHub.Group, deployment_group_topic, %{})
 
     {:ok, pid} =
       start_supervised(%{
@@ -361,7 +361,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       )
 
     deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
+    Group.join(NervesHub.Group, deployment_group_topic, %{})
 
     {:ok, pid} =
       start_supervised(%{
@@ -399,7 +399,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
 
     deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+    Group.join(NervesHub.Group, deployment_topic, %{})
 
     {:ok, pid} =
       start_supervised(%{
@@ -462,7 +462,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       )
 
     deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+    Group.join(NervesHub.Group, deployment_topic, %{})
 
     # An ugly set of expectations
     # `Devices.available_for_update` should be called:

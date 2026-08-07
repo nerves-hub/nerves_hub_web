@@ -189,11 +189,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
          } do
       refute deployment_group.is_active
 
-      :ok =
-        Phoenix.PubSub.subscribe(
-          NervesHub.PubSub,
-          "orchestrator:deployment:#{deployment_group.id}"
-        )
+      :ok = Group.join(NervesHub.Group, "orchestrator:deployment:#{deployment_group.id}", %{})
 
       stub(
         DistributedOrchestrator,
