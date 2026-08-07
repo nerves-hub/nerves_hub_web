@@ -27,8 +27,8 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -44,13 +44,7 @@ defmodule NervesHub.Devices.Updates do
       end
     end)
 
-    ChannelServer.broadcast_from!(
-      NervesHub.PubSub,
-      self(),
-      "internal:device:#{device_info.device_id}",
-      "firmware:validated",
-      %{}
-    )
+    PubSub.broadcast(device_info.device_id, "firmware:validated", %{})
 
     :ok
   end

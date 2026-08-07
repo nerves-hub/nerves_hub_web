@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
@@ -1282,11 +1283,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     wanted = MapSet.new(devices, & &1.id)
 
     Enum.each(MapSet.difference(subscribed, wanted), fn device_id ->
-      socket.endpoint.unsubscribe("internal:device:#{device_id}")
+      PubSub.unsubscribe(device_id)
     end)
 
     Enum.each(MapSet.difference(wanted, subscribed), fn device_id ->
-      socket.endpoint.subscribe("internal:device:#{device_id}")
+      PubSub.subscribe(device_id)
     end)
 
     assign(socket, :subscribed_device_ids, wanted)

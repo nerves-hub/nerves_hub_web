@@ -18,6 +18,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Devices.PinnedDevice
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Extensions
   alias NervesHub.Filtering, as: CommonFiltering
@@ -26,6 +27,8 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+
+  require Logger
 
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)

@@ -2,6 +2,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
   use NervesHubWeb.ChannelCase
 
   alias NervesHub.Accounts
+  alias NervesHub.Devices.PubSub
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceEventsStreamChannel

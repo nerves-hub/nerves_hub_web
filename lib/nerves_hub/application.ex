@@ -37,6 +37,7 @@ defmodule NervesHub.Application do
         ecto_repos() ++
         [
           {Phoenix.PubSub, name: NervesHub.PubSub},
+          {Group, name: NervesHub.Group},
           {Cluster.Supervisor, [libcluster_topology()]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, oban_opts()},
