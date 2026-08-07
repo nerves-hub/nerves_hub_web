@@ -15,10 +15,10 @@ defmodule NervesHub.CLISessionCacheTest do
   end
 
   test "applying a :put broadcast from another node does not re-broadcast (no cluster storm)" do
-    # Simulate a broadcast arriving from a peer node by subscribing as if we
-    # were a remote CLISessionCache and sending the GenServer the same message
-    # Phoenix.PubSub would deliver.
-    :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "cli_session_cache")
+    # Simulate a broadcast arriving from a peer node by joining the group as if
+    # we were a remote CLISessionCache and sending the GenServer the same message
+    # Group.dispatch would deliver.
+    :ok = Group.join(NervesHub.Group, "cli_session_cache", %{}, cluster: "web")
 
     token = Ecto.UUID.generate()
 
