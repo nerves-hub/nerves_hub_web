@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Extensions
   alias NervesHub.Extensions.Health
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Products
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
@@ -48,7 +49,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       PubSub.subscribe(device.id)
       Consoles.PubSub.subscribe_console_watcher(device.id)
       Extensions.PubSub.subscribe_reports(device.id)
-      socket.endpoint.subscribe("product:#{product.id}")
+      Products.PubSub.subscribe(product.id)
     end
 
     socket

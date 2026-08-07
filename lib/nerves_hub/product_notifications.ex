@@ -7,13 +7,11 @@ defmodule NervesHub.ProductNotifications do
   alias NervesHub.Products.Notification
   alias NervesHub.Products.Product
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server
-  alias Phoenix.PubSub
+  alias Phoenix.Socket.Broadcast
 
   @spec subscribe(pos_integer()) :: :ok
   def subscribe(product_id) do
-    _ = PubSub.subscribe(NervesHub.PubSub, "product_notifications:#{product_id}")
-    :ok
+    Group.join(NervesHub.Group, topic(product_id), %{})
   end
 
   @spec paginated_list(Product.t(), integer(), integer()) :: {[Notification.t()], Flop.Meta.t()}
@@ -34,12 +32,11 @@ defmodule NervesHub.ProductNotifications do
       |> Repo.delete_all()
 
     _ =
-      Server.broadcast(
-        NervesHub.PubSub,
-        "product_notifications:#{product.id}",
-        "dismissed",
-        %{dismissed_by: %{id: user.id, name: user.name}}
-      )
+      Group.dispatch(NervesHub.Group, topic(product.id), %Broadcast{
+        topic: topic(product.id),
+        event: "dismissed",
+        payload: %{dismissed_by: %{id: user.id, name: user.name}}
+      })
 
     :ok
   end
@@ -161,15 +158,17 @@ defmodule NervesHub.ProductNotifications do
       )
 
     _ =
-      Server.broadcast(
-        NervesHub.PubSub,
-        "product_notifications:#{notification.product_id}",
-        "created",
-        %{}
-      )
+      Group.dispatch(NervesHub.Group, topic(notification.product_id), %Broadcast{
+        topic: topic(notification.product_id),
+        event: "created",
+        payload: %{}
+      })
 
     notification
   end
+
+  # Preserved as the previous `Phoenix.PubSub` topic string.
+  defp topic(product_id), do: "product_notifications:#{product_id}"
 
   def count(product) do
     Notification

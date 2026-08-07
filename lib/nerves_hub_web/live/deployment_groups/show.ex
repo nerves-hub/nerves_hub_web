@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Products
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Releases, as: ReleasesTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Settings, as: SettingsTab
@@ -23,7 +24,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     Logger.metadata(user_id: user.id, product_id: product.id, deployment_group_id: deployment_group.id)
 
     if connected?(socket) do
-      :ok = socket.endpoint.subscribe("product:#{product.id}")
+      :ok = Products.PubSub.subscribe(product.id)
       :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}")
     end
 
