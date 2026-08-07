@@ -651,43 +651,12 @@ defmodule NervesHub.ManagedDeployments do
       when not is_nil(deployment_id) do
     deployment_group =
       DeploymentGroup
-      |> select([:id, :org_id, :name, :conditions, :platform, :architecture])
+      |> select([:id, :org_id, :name, :conditions, :platform, :architecture, :lock_device_membership])
       |> where([d], d.id == ^deployment_id)
       |> Repo.one!()
 
-    bad_version =
-      if deployment_group.conditions.version == "" do
-        false
-      else
-        try do
-          !Version.match?(device_version, deployment_group.conditions.version)
-        rescue
-          _ ->
-            true
-        end
-      end
-
-    bad_platform = device.firmware_metadata.platform != deployment_group.platform
-
-    bad_architecture =
-      device.firmware_metadata.architecture != deployment_group.architecture
-
-    reason =
-      cond do
-        bad_version ->
-          "mismatched version"
-
-        bad_platform ->
-          "mismatched platform"
-
-        bad_architecture ->
-          "mismatched architecture"
-
-        true ->
-          nil
-      end
-
-    if reason do
+    with false <- deployment_group.lock_device_membership,
+         reason when not is_nil(reason) <- membership_mismatch_reason(device, device_version, deployment_group) do
       device =
         device
         |> Ecto.Changeset.change(%{deployment_id: nil})
@@ -697,11 +666,28 @@ defmodule NervesHub.ManagedDeployments do
 
       device
     else
-      device
+      _ -> device
     end
   end
 
   def verify_deployment_group_membership(device), do: device
+
+  defp membership_mismatch_reason(device, device_version, deployment_group) do
+    cond do
+      version_mismatch?(device_version, deployment_group.conditions.version) -> "mismatched version"
+      device.firmware_metadata.platform != deployment_group.platform -> "mismatched platform"
+      device.firmware_metadata.architecture != deployment_group.architecture -> "mismatched architecture"
+      true -> nil
+    end
+  end
+
+  defp version_mismatch?(_device_version, ""), do: false
+
+  defp version_mismatch?(device_version, version_requirement) do
+    !Version.match?(device_version, version_requirement)
+  rescue
+    _ -> true
+  end
 
   @spec preload_firmware_and_archive(DeploymentGroup.t()) :: DeploymentGroup.t()
   def preload_firmware_and_archive(deployment_group) do
@@ -714,9 +700,30 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  Find all potential deployment groups for a device
+  Find all potential deployment groups for a device.
 
-  Based on the product, firmware platform, firmware architecture, and device tags
+  Based on the product, firmware platform, firmware architecture, and device tags.
+
+  Returns `[]` if the device has no `firmware_metadata`.
+
+  Filters deployment groups by:
+  - Same product as the device
+  - `is_active` matches the `active` argument
+  - Firmware platform and architecture match the device's current firmware
+  - Excludes the device's current deployment group
+  - Excludes deployment groups that have enabled `lock_device_membership`
+  - Tag conditions satisfy the group's `tag_operator` (`:and` requires all
+    group tags present on device; `:or` requires any overlap); groups with
+    no tags always match
+  - Version satisfies any semver constraint in the group's conditions
+
+  Results are sorted descending by:
+  1. Firmware version (highest first)
+  2. Matching tag count when versions are equal (more overlap first)
+  3. Deployment group ID when tag counts are also equal (lower/older first)
+
+  The `active` argument defaults to `[true, false]` (all groups). Pass `[true]`
+  to restrict to active-only groups, as `find_eligible_deployment/1` does.
   """
   @spec matching_deployment_groups(Device.t(), [boolean()]) :: [DeploymentGroup.t()]
   def matching_deployment_groups(device, active \\ [true, false])
@@ -729,6 +736,7 @@ defmodule NervesHub.ManagedDeployments do
     |> where([d], d.product_id == ^device.product_id)
     |> where([d], d.is_active in ^active)
     |> ignore_same_deployment_group(device)
+    |> where([d], not d.lock_device_membership)
     |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
     |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
     |> where(
