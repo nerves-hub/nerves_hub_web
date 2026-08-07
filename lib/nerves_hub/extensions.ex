@@ -23,7 +23,6 @@ defmodule NervesHub.Extensions do
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.Unsupported
   alias NervesHub.Products.Product
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   @callback handle_in(event :: String.t(), Phoenix.Channel.payload(), Phoenix.Socket.t()) ::
               {:noreply, Phoenix.Socket.t()}
@@ -103,15 +102,8 @@ defmodule NervesHub.Extensions do
 
   def broadcast_extension_event(%Product{} = product, event, extension) do
     # Product-wide fan-out to every device's extensions channel stays on
-    # Phoenix.PubSub (dense fan-out, no targeted-dispatch win).
-    ChannelServer.broadcast_from!(
-      NervesHub.PubSub,
-      self(),
-      "product:#{product.id}:extensions",
-      event,
-      %{
-        "extensions" => [extension]
-      }
-    )
+    # Phoenix.PubSub (dense fan-out, no targeted-dispatch win); routed through
+    # the wrapper for consistency with the per-device path.
+    PubSub.broadcast_to_product(product.id, event, %{"extensions" => [extension]})
   end
 end
