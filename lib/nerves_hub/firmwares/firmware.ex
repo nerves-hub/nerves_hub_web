@@ -86,6 +86,7 @@ defmodule NervesHub.Firmwares.Firmware do
     firmware
     |> cast(params, @required_params ++ @optional_params ++ [:checksum, :partials_checksums])
     |> validate_required(@required_params)
+    |> validate_semver_version()
     |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
     |> foreign_key_constraint(:deployment_groups, name: :deployment_groups_firmware_id_fkey)
   end
@@ -94,8 +95,21 @@ defmodule NervesHub.Firmwares.Firmware do
     firmware
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
+    |> validate_semver_version()
     |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
     |> foreign_key_constraint(:deployment_groups, name: :deployment_groups_firmware_id_fkey)
+  end
+
+  # Firmware versions must be valid SemVer: they feed `semver_sort_key/1` for
+  # ordering and version-constrained deployment matching, and `Version.parse/1`
+  # is the single parsing authority those paths rely on.
+  defp validate_semver_version(changeset) do
+    validate_change(changeset, :version, fn :version, version ->
+      case Version.parse(version) do
+        {:ok, _} -> []
+        :error -> [version: "must be a valid semantic version"]
+      end
+    end)
   end
 
   def delete_changeset(%Firmware{} = firmware) do
