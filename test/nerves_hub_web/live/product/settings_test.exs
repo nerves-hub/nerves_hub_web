@@ -20,6 +20,32 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
     end
   end
 
+  describe "firmware version uniqueness setting" do
+    test "toggle is checked when the product requires unique versions", %{
+      conn: conn,
+      org: org,
+      user: user
+    } do
+      product = Fixtures.product_fixture(user, org, %{require_unique_firmware_version: true})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> assert_has("input#require-unique-firmware-version[checked]")
+    end
+
+    test "toggle is unchecked when the product does not require unique versions", %{
+      conn: conn,
+      org: org,
+      user: user
+    } do
+      product = Fixtures.product_fixture(user, org, %{require_unique_firmware_version: false})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> refute_has("input#require-unique-firmware-version[checked]")
+    end
+  end
+
   describe "shared secrets" do
     setup do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])

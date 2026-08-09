@@ -18,6 +18,34 @@ defmodule NervesHub.ProductsTest do
       %{user: user, org: org, product: product}
     end
 
+    test "new products require unique firmware versions by default", %{org: org} do
+      {:ok, product} =
+        Products.create_product(%{
+          name: "unique-default-#{System.unique_integer([:positive])}",
+          org_id: org.id
+        })
+
+      assert product.require_unique_firmware_version
+    end
+
+    test "the unique-version requirement can be opted out at creation", %{org: org} do
+      {:ok, product} =
+        Products.create_product(%{
+          name: "opt-out-#{System.unique_integer([:positive])}",
+          org_id: org.id,
+          require_unique_firmware_version: false
+        })
+
+      refute product.require_unique_firmware_version
+    end
+
+    test "update_product/2 toggles the unique-version requirement", %{product: product} do
+      assert {:ok, updated} =
+               Products.update_product(product, %{require_unique_firmware_version: true})
+
+      assert updated.require_unique_firmware_version
+    end
+
     test "get_products_by_user_and_org returns products for user", %{
       product: product,
       user: user,

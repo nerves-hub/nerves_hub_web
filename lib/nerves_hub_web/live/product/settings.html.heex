@@ -18,6 +18,38 @@
 
       <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
         <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+          <div class="text-base-50 text-base font-medium">Firmware settings</div>
+        </div>
+
+        <div class="flex flex-col gap-3 p-6">
+          <div class="flex h-16 items-center gap-6 p-2">
+            <div class="bg-base-800 border-base-700 flex h-8 items-center rounded-full border px-2 py-1">
+              <input
+                id="require-unique-firmware-version"
+                name="require_unique_firmware_version"
+                type="checkbox"
+                class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
+                phx-click="update-require-unique-firmware-version"
+                checked={@product.require_unique_firmware_version}
+                disabled={!authorized?(:"product:update", @current_scope)}
+              />
+            </div>
+            <div class="flex flex-col">
+              <div class="flex gap-2">
+                <div class="text-base-300 font-medium">
+                  Require unique firmware versions
+                </div>
+              </div>
+              <div class="text-base-400 text-xs">
+                When enabled, uploaded firmware must have a version not already used by another firmware for the same platform and architecture in this product.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
+        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
           <div class="text-base-50 text-base font-medium">Device Extensions</div>
         </div>
 

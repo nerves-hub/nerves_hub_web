@@ -59,6 +59,80 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
+  describe "require_unique_firmware_version" do
+    setup %{user: user, org: org, tmp_dir: tmp_dir} do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      product =
+        Fixtures.product_fixture(user, org, %{
+          name: "unique-ver-#{System.unique_integer([:positive])}",
+          require_unique_firmware_version: true
+        })
+
+      %{org_key: org_key, product: product}
+    end
+
+    test "rejects a version already used for the same platform/architecture", %{
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      _first = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+
+      dup = Fixtures.firmware_file_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+
+      assert {:error, %Ecto.Changeset{} = changeset} = Firmwares.create_firmware(org, dup)
+
+      assert %{version: ["has already been used by another firmware in this product"]} =
+               errors_on(changeset)
+    end
+
+    test "allows the same version for a different platform", %{
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      _first =
+        Fixtures.firmware_fixture(org_key, product, %{
+          version: "1.0.0",
+          platform: "rpi0",
+          dir: tmp_dir
+        })
+
+      other_platform =
+        Fixtures.firmware_file_fixture(org_key, product, %{
+          version: "1.0.0",
+          platform: "rpi4",
+          dir: tmp_dir
+        })
+
+      assert {:ok, firmware} = Firmwares.create_firmware(org, other_platform)
+      assert firmware.version == "1.0.0"
+      assert firmware.platform == "rpi4"
+    end
+
+    test "allows a duplicate version when the setting is off", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      product =
+        Fixtures.product_fixture(user, org, %{
+          name: "dup-ok-#{System.unique_integer([:positive])}",
+          require_unique_firmware_version: false
+        })
+
+      _first = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+      dup = Fixtures.firmware_file_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+
+      assert {:ok, firmware} = Firmwares.create_firmware(org, dup)
+      assert firmware.version == "1.0.0"
+    end
+  end
+
   describe "delete_firmware/1" do
     test "delete firmware", %{org: org, org_key: org_key, product: product, tmp_dir: tmp_dir} do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})

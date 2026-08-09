@@ -38,6 +38,9 @@ defmodule NervesHub.Products.Product do
 
     field(:name, :string)
     field(:deleted_at, :utc_datetime)
+    # Defaults to `true` so new products require unique firmware versions; the
+    # migration's column default is `false`, leaving existing products opted out.
+    field(:require_unique_firmware_version, :boolean, default: true)
     embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
 
     field(:device_count, :integer, virtual: true)
@@ -56,7 +59,7 @@ defmodule NervesHub.Products.Product do
   @doc false
   def changeset(product, params) do
     product
-    |> cast(params, @required_params)
+    |> cast(params, @required_params ++ [:require_unique_firmware_version])
     |> cast_embed(:extensions)
     |> update_change(:name, &trim/1)
     |> validate_required(@required_params)

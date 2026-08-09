@@ -332,6 +332,7 @@ defmodule NervesHub.Firmwares do
     Repo.transact(
       fn ->
         with {:ok, params} <- build_firmware_params(org, filepath),
+             :ok <- validate_version_uniqueness(params),
              {:ok, firmware} <- insert_firmware(params),
              :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
           {:ok, firmware}
@@ -769,6 +770,45 @@ defmodule NervesHub.Firmwares do
     %Firmware{}
     |> Firmware.create_changeset(params)
     |> Repo.insert()
+  end
+
+  # When the product has `require_unique_firmware_version` enabled, reject an
+  # upload whose version already exists for the same platform/architecture in the
+  # product. This is enforced in the app (not a DB unique index) because the rule
+  # is conditional on a setting that lives on the products table.
+  defp validate_version_uniqueness(%{product_id: product_id} = params) when not is_nil(product_id) do
+    product = Products.get_product!(product_id)
+
+    if product.require_unique_firmware_version and firmware_version_taken?(params) do
+      changeset =
+        %Firmware{}
+        |> Firmware.create_changeset(params)
+        |> Changeset.add_error(
+          :version,
+          "has already been used by another firmware in this product"
+        )
+
+      {:error, changeset}
+    else
+      :ok
+    end
+  end
+
+  # No resolved product; let insert_firmware/1 fail on the required product_id.
+  defp validate_version_uniqueness(_params), do: :ok
+
+  defp firmware_version_taken?(%{
+         product_id: product_id,
+         platform: platform,
+         architecture: architecture,
+         version: version
+       }) do
+    Firmware
+    |> where([f], f.product_id == ^product_id)
+    |> where([f], f.platform == ^platform)
+    |> where([f], f.architecture == ^architecture)
+    |> where([f], f.version == ^version)
+    |> Repo.exists?()
   end
 
   @spec time_out_firmware_delta_generations(

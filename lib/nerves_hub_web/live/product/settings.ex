@@ -71,6 +71,31 @@ defmodule NervesHubWeb.Live.Product.Settings do
     end
   end
 
+  def handle_event("update-require-unique-firmware-version", params, socket) do
+    authorized!(:"product:update", socket.assigns.current_scope)
+
+    enabled = params["value"] == "on"
+
+    socket =
+      case Products.update_product(socket.assigns.product, %{
+             require_unique_firmware_version: enabled
+           }) do
+        {:ok, product} ->
+          socket
+          |> assign(:product, product)
+          |> assign(:form, to_form(Ecto.Changeset.change(product)))
+          |> put_flash(
+            :info,
+            "Unique firmware versions #{if enabled, do: "required", else: "no longer required"}."
+          )
+
+        {:error, _changeset} ->
+          put_flash(socket, :error, "Failed to update the firmware version setting.")
+      end
+
+    {:noreply, socket}
+  end
+
   def handle_event("update-extension", %{"extension" => extension} = params, socket) do
     value = params["value"]
     available = Extensions.list() |> Enum.map(&to_string/1)
