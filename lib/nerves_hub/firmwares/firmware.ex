@@ -2,12 +2,14 @@ defmodule NervesHub.Firmwares.Firmware do
   use Ecto.Schema
 
   import Ecto.Changeset
+  import Ecto.Query
 
   alias __MODULE__
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
+  alias NervesHub.Repo
 
   @type t :: %Firmware{
           architecture: String.t(),
@@ -87,6 +89,7 @@ defmodule NervesHub.Firmwares.Firmware do
     |> cast(params, @required_params ++ @optional_params ++ [:checksum, :partials_checksums])
     |> validate_required(@required_params)
     |> validate_semver_version()
+    |> validate_unique_version(params)
     |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
     |> foreign_key_constraint(:deployment_groups, name: :deployment_groups_firmware_id_fkey)
   end
@@ -110,6 +113,41 @@ defmodule NervesHub.Firmwares.Firmware do
         :error -> [version: "must be a valid semantic version"]
       end
     end)
+  end
+
+  # When the product requires unique firmware versions (passed through `params`
+  # from the product's setting), reject a version that already exists for the
+  # same product/platform/architecture. The same version built for a different
+  # target is still allowed. This is an application-level check rather than a
+  # unique index because the requirement is a per-product toggle; two
+  # truly-concurrent uploads of the same version leave a small race window that
+  # the check does not close.
+  defp validate_unique_version(changeset, params) do
+    if changeset.valid? and require_unique_version?(params) and version_taken?(changeset) do
+      add_error(changeset, :version, "has already been taken for this product")
+    else
+      changeset
+    end
+  end
+
+  defp require_unique_version?(params) do
+    params[:require_unique_firmware_version] == true or
+      params["require_unique_firmware_version"] == true
+  end
+
+  defp version_taken?(changeset) do
+    product_id = get_field(changeset, :product_id)
+    platform = get_field(changeset, :platform)
+    architecture = get_field(changeset, :architecture)
+    version = get_field(changeset, :version)
+
+    Firmware
+    |> where(
+      [f],
+      f.product_id == ^product_id and f.platform == ^platform and
+        f.architecture == ^architecture and f.version == ^version
+    )
+    |> Repo.exists?()
   end
 
   def delete_changeset(%Firmware{} = firmware) do

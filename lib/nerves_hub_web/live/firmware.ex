@@ -301,6 +301,9 @@ defmodule NervesHubWeb.Live.Firmware do
       {:error, error} when is_binary(error) ->
         error_feedback(socket, error)
 
+      {:error, %Ecto.Changeset{} = changeset} ->
+        error_feedback(socket, changeset)
+
       _ ->
         error_feedback(socket, "Unknown error uploading firmware. Please contact support.")
     end

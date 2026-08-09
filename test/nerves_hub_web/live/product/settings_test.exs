@@ -20,6 +20,16 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
     end
   end
 
+  describe "unique firmware version setting" do
+    test "renders the require unique firmware version toggle", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> assert_has("div", text: "Require unique firmware versions")
+    end
+  end
+
   describe "shared secrets" do
     setup do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])

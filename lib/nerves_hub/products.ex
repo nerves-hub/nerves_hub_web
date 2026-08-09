@@ -189,6 +189,16 @@ defmodule NervesHub.Products do
   end
 
   @doc """
+  Updates a product's settings.
+  """
+  @spec update_product(Product.t(), map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
+  def update_product(%Product{} = product, params) do
+    product
+    |> Product.changeset(params)
+    |> Repo.update()
+  end
+
+  @doc """
   Deletes a Product.
 
   ## Examples
