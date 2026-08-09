@@ -930,14 +930,20 @@ defmodule NervesHub.Devices do
 
   defp maybe_version_threshold(query, nil), do: query
 
+  # Eligible when the device's reported version is at or below the threshold.
+  # Uses `semver_sort_key/1` (SemVer precedence via byte ordering) under
+  # `COLLATE "C"` — the DB's `en_US.utf8` default would invert pre-release order.
+  # A non-semver device version yields a NULL key, so the comparison is NULL and
+  # the device is excluded (quarantined) rather than raising, as the previous
+  # `semver_match` did when casting a malformed version to int[].
   defp maybe_version_threshold(query, version_threshold) do
     where(
       query,
       [d],
       fragment(
-        "semver_match(? #>> '{\"version\"}', ?)",
+        ~s|semver_sort_key(? #>> '{"version"}') COLLATE "C" <= semver_sort_key(?) COLLATE "C"|,
         d.firmware_metadata,
-        ^"<= #{version_threshold}"
+        ^version_threshold
       )
     )
   end

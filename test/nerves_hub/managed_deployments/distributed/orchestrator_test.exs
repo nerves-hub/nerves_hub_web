@@ -968,6 +968,61 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       assert old_device2.id in device_ids
     end
 
+    test "device with an unparseable version is quarantined, not raised", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 2,
+            priority_queue_firmware_version_threshold: "1.0.0"
+          },
+          user
+        )
+
+      eligible = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "eligible_device"})
+      bad = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "bad_version_device"})
+
+      {:ok, eligible} =
+        Devices.update_firmware_metadata(
+          eligible,
+          %{"version" => "0.9.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      {:ok, bad} =
+        Devices.update_firmware_metadata(
+          bad,
+          %{"version" => "not-a-semver", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      eligible = Devices.update_deployment_group(eligible, deployment_group)
+      bad = Devices.update_deployment_group(bad, deployment_group)
+
+      for device <- [eligible, bad] do
+        {:ok, conn} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+        :ok = Connections.device_connected(conn.id)
+      end
+
+      # The old `semver_match` raised casting "not-a-semver" to int[]; a NULL
+      # `semver_sort_key` excludes the malformed device and the query succeeds.
+      device_ids = deployment_group |> Devices.available_for_priority_update(10) |> Enum.map(& &1.id)
+
+      assert eligible.id in device_ids
+      refute bad.id in device_ids
+    end
+
     test "count_inflight_priority_updates_for/1 counts only priority queue updates", %{
       deployment_group: deployment_group,
       product: product,
