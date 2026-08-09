@@ -222,6 +222,60 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
+  describe "SemVer version ordering" do
+    setup %{user: user, org: org, org_key: org_key, tmp_dir: tmp_dir} do
+      product =
+        Fixtures.product_fixture(user, org, %{name: "semver-order-#{System.unique_integer([:positive])}"})
+
+      insert = fn version ->
+        Fixtures.firmware_fixture(org_key, product, %{version: version, dir: tmp_dir})
+      end
+
+      {:ok, %{product: product, insert: insert}}
+    end
+
+    test "get_firmwares_by_product/1 orders by precedence, not lexically", %{
+      product: product,
+      insert: insert
+    } do
+      # Lexical/naive ordering would put 1.9.0 above 1.10.0 and a release below
+      # its pre-release; SemVer precedence must not.
+      for v <- ["1.2.0", "1.9.0", "1.10.0", "1.10.0-rc1"], do: insert.(v)
+
+      versions =
+        product.id
+        |> Firmwares.get_firmwares_by_product()
+        |> Enum.map(& &1.version)
+
+      assert versions == ["1.10.0", "1.10.0-rc1", "1.9.0", "1.2.0"]
+    end
+
+    test "get_firmware_versions_by_product/1 returns distinct versions, newest first", %{
+      product: product,
+      insert: insert
+    } do
+      for v <- ["1.9.0", "1.10.0", "1.10.0-rc1"], do: insert.(v)
+
+      assert Firmwares.get_firmware_versions_by_product(product.id) ==
+               ["1.10.0", "1.10.0-rc1", "1.9.0"]
+    end
+
+    test "get_firmwares_by_product_and_platform/2 orders by precedence", %{
+      product: product,
+      insert: insert
+    } do
+      platform = insert.("1.9.0").platform
+      insert.("1.10.0")
+
+      versions =
+        product
+        |> Firmwares.get_firmwares_by_product_and_platform(platform)
+        |> Enum.map(& &1.version)
+
+      assert versions == ["1.10.0", "1.9.0"]
+    end
+  end
+
   describe "get_firmware/2" do
     test "returns firmwares", %{org: %{id: t_id} = org, firmware: %{id: f_id} = firmware} do
       {:ok, gotten_firmware} = Firmwares.get_firmware(org, firmware.id)
