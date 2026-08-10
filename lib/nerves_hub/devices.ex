@@ -1188,12 +1188,12 @@ defmodule NervesHub.Devices do
         {:error, :updates_blocked, device}
 
       failure_rate_met?(device, deployment_group) ->
-        {:ok, device} = put_device_in_penalty_box(device, deployment_group)
+        {:ok, device} = put_device_in_penalty_box(device, deployment_group, :exceeded_failure_rate)
 
         {:error, :updates_blocked, device}
 
       failure_threshold_met?(device, deployment_group) ->
-        {:ok, device} = put_device_in_penalty_box(device, deployment_group)
+        {:ok, device} = put_device_in_penalty_box(device, deployment_group, :exceeded_failure_threshold)
 
         {:error, :updates_blocked, device}
 
@@ -1202,7 +1202,7 @@ defmodule NervesHub.Devices do
     end
   end
 
-  defp put_device_in_penalty_box(device, deployment_group) do
+  defp put_device_in_penalty_box(device, deployment_group, reason) do
     blocked_until =
       DateTime.utc_now()
       |> DateTime.truncate(:second)
@@ -1220,7 +1220,8 @@ defmodule NervesHub.Devices do
       product: device.product.name,
       platform: deployment_group.platform,
       current_firmware_version: device.current_device_firmware.firmware_metadata.version,
-      upgrading_firmware_version: device.deployment_group.current_release.firmware.version
+      upgrading_firmware_version: device.deployment_group.current_release.firmware.version,
+      reason: reason
     })
 
     update_device(device, %{updates_blocked_until: blocked_until, update_attempts: []})
