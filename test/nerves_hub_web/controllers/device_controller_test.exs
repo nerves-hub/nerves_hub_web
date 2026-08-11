@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.DeviceControllerTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Fixtures
 
   setup %{user: user, org: org} do
@@ -14,7 +15,7 @@ defmodule NervesHubWeb.DeviceControllerTest do
       product: product,
       device: device
     } do
-      [cert | _] = NervesHub.Devices.Certificates.get_device_certificates(device)
+      [cert | _] = Certificates.get_device_certificates(device)
 
       conn = get(conn, ~p"/org/#{org}/#{product}/devices/#{device}/certificate/#{cert.serial}/download")
 
