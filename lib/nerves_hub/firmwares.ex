@@ -506,7 +506,7 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  @spec get_firmware_delta_by_source_and_target(non_neg_integer(), non_neg_integer(), atom()) ::
+  @spec get_firmware_delta_by_source_and_target(non_neg_integer(), non_neg_integer(), :all | nil | [atom()]) ::
           {:ok, FirmwareDelta.t()}
           | {:error, :not_found}
   def get_firmware_delta_by_source_and_target(source_id, target_id, status \\ :all) do
