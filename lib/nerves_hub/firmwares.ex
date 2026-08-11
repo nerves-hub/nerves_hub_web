@@ -60,7 +60,7 @@ defmodule NervesHub.Firmwares do
     FirmwareDelta
     |> where([fd], fd.target_id == ^firmware_id)
     |> join(:inner, [fd], fd in assoc(fd, :source))
-    |> order_by([fd, s], asc: s.version)
+    |> order_by([fd, s], fragment(~s|semver_sort_key(?) COLLATE "C" ASC NULLS LAST|, s.version))
     |> preload([fd, s], source: s)
     |> preload(:target)
     |> Repo.all()
@@ -95,7 +95,7 @@ defmodule NervesHub.Firmwares do
   def get_firmwares_by_product(product_id) do
     Firmware
     |> where([f], f.product_id == ^product_id)
-    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> order_by_latest_version()
     |> with_product()
     |> Repo.all()
   end
@@ -105,7 +105,7 @@ defmodule NervesHub.Firmwares do
     Firmware
     |> where([f], f.product_id == ^product.id)
     |> where([f], f.platform == ^platform)
-    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> order_by_latest_version()
     |> limit(25)
     |> Repo.all()
   end
@@ -116,7 +116,7 @@ defmodule NervesHub.Firmwares do
     |> where([f], f.product_id == ^product.id)
     |> where([f], f.platform == ^platform)
     |> where([f], f.architecture == ^architecture)
-    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> order_by_latest_version()
     |> limit(25)
     |> Repo.all()
   end
@@ -158,14 +158,35 @@ defmodule NervesHub.Firmwares do
     order_by(query, [_f, d], {^direction, d.install_count})
   end
 
+  defp sort_firmware(query, {direction, :version}) do
+    order_by(query, [f], [
+      {^version_sort_direction(direction), fragment(~s|semver_sort_key(?) COLLATE "C"|, f.version)}
+    ])
+  end
+
   defp sort_firmware(query, sort), do: order_by(query, ^sort)
+
+  # Orders a Firmware query by SemVer precedence, newest first, with invalid
+  # versions (a NULL sort key) sorted last. Uses `semver_sort_key/1` under
+  # `COLLATE "C"`: the key relies on plain byte ordering, and the database's
+  # `en_US.utf8` default inverts pre-release/release order without it (see the
+  # `add_semver_sort_key_function` migration).
+  defp order_by_latest_version(query) do
+    order_by(query, [f], [
+      fragment(~s|semver_sort_key(?) COLLATE "C" DESC NULLS LAST|, f.version),
+      desc: :inserted_at
+    ])
+  end
+
+  defp version_sort_direction(:desc), do: :desc_nulls_last
+  defp version_sort_direction(_), do: :asc_nulls_last
 
   def get_firmwares_for_deployment_group(deployment_group) do
     Firmware
     |> where([f], f.product_id == ^deployment_group.product_id)
     |> where([f], f.platform == ^deployment_group.platform)
     |> where([f], f.architecture == ^deployment_group.architecture)
-    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> order_by_latest_version()
     |> with_product()
     |> Repo.all()
   end
@@ -175,12 +196,12 @@ defmodule NervesHub.Firmwares do
   """
   def get_firmware_versions_by_product(product_id) do
     Firmware
-    |> select([f], f.version)
-    |> distinct(true)
     |> where([f], f.product_id == ^product_id)
+    |> select([f], %{version: f.version, sort_key: fragment(~s|semver_sort_key(?) COLLATE "C"|, f.version)})
+    |> distinct(true)
+    |> order_by([f], fragment(~s|semver_sort_key(?) COLLATE "C" DESC NULLS LAST|, f.version))
     |> Repo.all()
-    |> Enum.sort(Version)
-    |> Enum.reverse()
+    |> Enum.map(& &1.version)
   end
 
   @doc """
@@ -189,7 +210,7 @@ defmodule NervesHub.Firmwares do
   def firmware_versions_and_uuids(product_id) do
     Firmware
     |> where([f], f.product_id == ^product_id)
-    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> order_by_latest_version()
     |> select([f], %{version: f.version, uuid: f.uuid})
     |> Repo.all()
   end
@@ -234,7 +255,7 @@ defmodule NervesHub.Firmwares do
     |> where([f], f.architecture == ^device.firmware_metadata.architecture)
     |> where([f], f.org_id == ^device.org_id)
     |> where([f], f.product_id == ^device.product_id)
-    |> order_by([f], fragment("? collate numeric desc", f.version))
+    |> order_by_latest_version()
     |> Repo.all()
   end
 

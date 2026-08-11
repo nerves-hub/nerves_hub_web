@@ -65,9 +65,17 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupFiltering do
     order_by(query, [device_count: dev], {^direction, dev.device_count})
   end
 
+  # Order by SemVer precedence via `semver_sort_key/1`. `COLLATE "C"` is required:
+  # the key relies on byte ordering and the DB's `en_US.utf8` default would invert
+  # pre-release/release order. Invalid versions (NULL key) sort last either way.
   def sort(query, {direction, :firmware_version}) do
-    order_by(query, [firmware: f], {^direction, f.version})
+    order_by(query, [firmware: f], [
+      {^version_sort_direction(direction), fragment(~s|semver_sort_key(?) COLLATE "C"|, f.version)}
+    ])
   end
 
   def sort(query, sort), do: order_by(query, ^sort)
+
+  defp version_sort_direction(:desc), do: :desc_nulls_last
+  defp version_sort_direction(_), do: :asc_nulls_last
 end
