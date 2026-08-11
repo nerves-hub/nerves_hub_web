@@ -17,6 +17,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.CLISessionCache
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -396,48 +397,44 @@ defmodule NervesHub.Accounts do
   end
 
   def get_orgs(%Scope{user: user}) do
-    connected_org_devices_count =
-      Device
-      |> join(:inner, [d], lc in assoc(d, :latest_connection))
-      |> join(:inner, [d], p in assoc(d, :product))
-      |> where([_d, _dc, p], p.org_id == parent_as(:org).id)
-      |> where([_d, dc], dc.status == :connected)
-      |> select([d], %{count: count()})
+    products = products_subquery()
 
-    disconnected_org_devices_count =
-      Device
-      |> join(:left, [d], lc in assoc(d, :latest_connection))
-      |> join(:inner, [d], p in assoc(d, :product))
-      |> where([_d, _dc, p], p.org_id == parent_as(:org).id)
-      |> where([_d, dc], is_nil(dc) or dc.status != :connected)
-      |> select([d], %{count: count()})
+    org_device_counts =
+      from p in subquery(products),
+        group_by: p.org_id,
+        select: %{
+          org_id: p.org_id,
+          connected_devices_count: sum(p.connected_devices_count),
+          disconnected_devices_count: sum(p.disconnected_devices_count)
+        }
 
     Org
     |> from(as: :org)
     |> Repo.exclude_deleted()
     |> join(:inner, [o], u in assoc(o, :users), on: u.id == ^user.id)
-    |> join(:left, [o], p in subquery(products_subquery()), on: p.org_id == o.id)
-    |> preload([d, o, p], products: p)
-    |> select_merge([o], %{
-      connected_devices_count: subquery(connected_org_devices_count),
-      disconnected_devices_count: subquery(disconnected_org_devices_count)
+    |> join(:left, [o], p in subquery(products), on: p.org_id == o.id)
+    |> join(:left, [o], dc in subquery(org_device_counts), on: dc.org_id == o.id)
+    |> preload([o, _u, p], products: p)
+    |> select_merge([o, _u, _p, dc], %{
+      connected_devices_count: dc.connected_devices_count,
+      disconnected_devices_count: dc.disconnected_devices_count
     })
     |> Repo.all()
   end
 
   defp products_subquery() do
     connected_devices_count =
-      Device
-      |> join(:inner, [d], lc in assoc(d, :latest_connection))
-      |> where([d], d.product_id == parent_as(:product).id)
-      |> where([_d, dc], dc.status == :connected)
-      |> select([d], %{count: count()})
+      from lc in DeviceConnection,
+        where: lc.product_id == parent_as(:product).id,
+        where: lc.status == :connected,
+        select: %{count: count()}
 
+    # Must join from Device so devices with no connection row are counted as disconnected
     disconnected_devices_count =
       Device
       |> join(:left, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
-      |> where([_d, dc], is_nil(dc) or dc.status != :connected)
+      |> where([_d, lc], is_nil(lc) or lc.status != :connected)
       |> select([d], %{count: count()})
 
     Product
