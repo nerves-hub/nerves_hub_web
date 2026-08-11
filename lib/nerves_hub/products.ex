@@ -135,12 +135,6 @@ defmodule NervesHub.Products do
     |> Repo.one!()
   end
 
-  @spec get_product_by_org_id_and_name!(pos_integer(), String.t()) :: Product.t()
-  def get_product_by_org_id_and_name!(org_id, name) do
-    get_product_by_org_id_and_name_query(org_id, name)
-    |> Repo.one!()
-  end
-
   @spec get_product_by_org_id_and_name(pos_integer(), String.t()) ::
           {:ok, Product.t()} | {:error, :not_found}
   def get_product_by_org_id_and_name(org_id, name) do

@@ -11,7 +11,7 @@ defmodule NervesHub.Scripts do
   alias NervesHub.Repo
   alias NervesHub.Scripts.Script
 
-  @spec filter(Scope.t() | Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  @spec filter(Scope.t() | Product.t(), map()) :: {[Script.t()], Flop.Meta.t()}
   def filter(scope_or_product, opts \\ %{})
 
   def filter(%Scope{product: product}, opts) do

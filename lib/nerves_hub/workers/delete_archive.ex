@@ -5,8 +5,6 @@ defmodule NervesHub.Workers.DeleteArchive do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"archive_path" => path}}) do
-    backend = Application.fetch_env!(:nerves_hub, NervesHub.Uploads)[:backend]
-
-    backend.delete(path)
+    NervesHub.Uploads.delete(path)
   end
 end

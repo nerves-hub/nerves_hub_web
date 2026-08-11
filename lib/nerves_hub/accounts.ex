@@ -360,7 +360,11 @@ defmodule NervesHub.Accounts do
 
   """
   def get_user_by_email_and_password(email, password) when is_binary(email) and is_binary(password) do
-    user = Repo.get_by(User, email: email)
+    user =
+      User
+      |> Repo.exclude_deleted()
+      |> Repo.get_by(email: email)
+
     if User.valid_password?(user, password), do: user
   end
 
@@ -487,16 +491,6 @@ defmodule NervesHub.Accounts do
     |> Repo.get!(id)
   end
 
-  def get_org_with_org_keys(id) do
-    Org
-    |> Repo.exclude_deleted()
-    |> Repo.get(id)
-    |> case do
-      nil -> {:error, :not_found}
-      org -> {:ok, org |> Org.with_org_keys()}
-    end
-  end
-
   def get_org_by_name(org_name) do
     Org
     |> Repo.exclude_deleted()
@@ -516,15 +510,6 @@ defmodule NervesHub.Accounts do
     |> where([_, _, o], o.name == ^org_name)
     |> where([_, u], u.id == ^current_scope.user.id)
     |> preload([_, u, o], org: o, user: u)
-    |> Repo.one!()
-  end
-
-  def get_org_by_name_and_user!(org_name, %User{id: user_id}) do
-    Org
-    |> join(:left, [o], u in assoc(o, :users))
-    |> where([o], o.name == ^org_name)
-    |> where([o, u], u.id == ^user_id)
-    |> Repo.exclude_deleted()
     |> Repo.one!()
   end
 
@@ -765,19 +750,6 @@ defmodule NervesHub.Accounts do
     invite
     |> Invite.changeset(%{accepted: true})
     |> Repo.update()
-  end
-
-  @spec user_in_org?(integer(), integer()) :: boolean()
-  def user_in_org?(user_id, org_id) do
-    from(ou in OrgUser,
-      where: ou.user_id == ^user_id and ou.org_id == ^org_id,
-      select: %{}
-    )
-    |> Repo.one()
-    |> case do
-      nil -> false
-      _ -> true
-    end
   end
 
   def create_org_metrics(run_utc_time) do

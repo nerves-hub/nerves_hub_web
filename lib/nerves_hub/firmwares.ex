@@ -283,12 +283,6 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  @spec get_firmware_by_product_and_uuid!(Product.t(), String.t()) :: Firmware.t()
-  def get_firmware_by_product_and_uuid!(product, uuid) do
-    get_firmware_by_product_and_uuid_query(product, uuid)
-    |> Repo.one!()
-  end
-
   @spec get_firmware_by_uuid(Scope.t(), String.t()) :: {:ok, Firmware.t()} | {:error, :not_found}
   def get_firmware_by_uuid(%Scope{} = scope, uuid) do
     get_firmware_by_product_and_uuid(scope.product, uuid)
@@ -512,7 +506,7 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  @spec get_firmware_delta_by_source_and_target(non_neg_integer(), non_neg_integer()) ::
+  @spec get_firmware_delta_by_source_and_target(non_neg_integer(), non_neg_integer(), atom()) ::
           {:ok, FirmwareDelta.t()}
           | {:error, :not_found}
   def get_firmware_delta_by_source_and_target(source_id, target_id, status \\ :all) do
@@ -737,12 +731,6 @@ defmodule NervesHub.Firmwares do
   @spec subscribe_firmware_delta_target(target_id :: integer()) :: :ok
   def subscribe_firmware_delta_target(target_id) do
     _ = NervesHubWeb.Endpoint.subscribe("firmware:#{target_id}")
-    :ok
-  end
-
-  @spec unsubscribe_firmware_delta_target(target_id :: integer()) :: :ok
-  def unsubscribe_firmware_delta_target(target_id) do
-    _ = NervesHubWeb.Endpoint.unsubscribe("firmware:#{target_id}")
     :ok
   end
 

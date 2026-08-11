@@ -75,7 +75,7 @@ defmodule NervesHub.ManagedDeployments do
     |> Map.new()
   end
 
-  @spec get_device_count(DeploymentGroup.t()) :: term() | nil
+  @spec get_device_count(DeploymentGroup.t()) :: non_neg_integer()
   def get_device_count(%DeploymentGroup{id: id}) do
     Device
     |> where([d], d.deployment_id == ^id)
@@ -481,20 +481,6 @@ defmodule NervesHub.ManagedDeployments do
     end)
   end
 
-  @spec deltas_processing?(DeploymentRelease.t()) :: boolean()
-  def deltas_processing?(%DeploymentRelease{deployment_group_id: deployment_group_id, firmware_id: firmware_id}) do
-    source_ids =
-      deployment_group_id
-      |> Devices.get_device_firmware_for_delta_generation_by_deployment_group()
-      |> Enum.map(fn {source_id, _target_id} -> source_id end)
-
-    FirmwareDelta
-    |> where([fd], fd.source_id in ^source_ids)
-    |> where([fd], fd.target_id == ^firmware_id)
-    |> where([fd], fd.status != :completed)
-    |> Repo.exists?()
-  end
-
   @spec update_deployment_group_status(DeploymentGroup.t(), atom()) ::
           {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
   def update_deployment_group_status(deployment_group, status) do
@@ -687,16 +673,6 @@ defmodule NervesHub.ManagedDeployments do
     !Version.match?(device_version, version_requirement)
   rescue
     _ -> true
-  end
-
-  @spec preload_firmware_and_archive(DeploymentGroup.t()) :: DeploymentGroup.t()
-  def preload_firmware_and_archive(deployment_group) do
-    %DeploymentGroup{} = Repo.preload(deployment_group, [:archive, :firmware])
-  end
-
-  @spec preload_with_firmware_and_archive(Device.t()) :: Device.t()
-  def preload_with_firmware_and_archive(device) do
-    %Device{} = Repo.preload(device, deployment_group: [:archive, :firmware])
   end
 
   @doc """
