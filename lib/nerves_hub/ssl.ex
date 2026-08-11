@@ -6,6 +6,7 @@ defmodule NervesHub.SSL do
   alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate.JITP
+  alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Device
   alias X509.Certificate.Extension
 
@@ -58,7 +59,7 @@ defmodule NervesHub.SSL do
         # registration
         {:valid, state}
 
-      is_binary(ski) and Devices.known_ca_ski?(ski) ->
+      is_binary(ski) and CACertificates.known_ca_ski?(ski) ->
         # Signer CA sent with the device certificate, but is an intermediary
         # so the chain is incomplete labeling it as unknown_ca.
         #
@@ -193,11 +194,11 @@ defmodule NervesHub.SSL do
 
   defp check_known_ca(otp_cert) do
     Certificate.get_aki(otp_cert)
-    |> Devices.get_ca_certificate_by_ski()
+    |> CACertificates.get_ca_certificate_by_ski()
     |> case do
       {:ok, db_ca} ->
         # Mark that this CA cert was used
-        Devices.update_ca_certificate(db_ca, %{last_used: DateTime.utc_now()})
+        CACertificates.update_ca_certificate(db_ca, %{last_used: DateTime.utc_now()})
 
       _ ->
         :unknown_ca
