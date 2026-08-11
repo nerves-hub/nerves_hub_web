@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.BulkActions do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.BulkImport
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -62,7 +63,7 @@ defmodule NervesHub.Devices.BulkActions do
         with {:ok, device} <- Repo.insert(changeset),
              {:ok, pem} <- details.pem,
              {:ok, otp_cert} <- Certificate.from_pem_or_der(pem),
-             {:ok, _db_cert} <- Devices.create_device_certificate(device, otp_cert) do
+             {:ok, _db_cert} <- Certificates.create_device_certificate(device, otp_cert) do
           {:ok, device}
         end
       end)

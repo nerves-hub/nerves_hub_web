@@ -5,6 +5,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.BulkActions
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Firmwares
   alias NervesHub.Products
@@ -117,7 +118,7 @@ defmodule NervesHubWeb.API.DeviceController do
     with {:ok, cert_pem} <- Base.decode64(cert64),
          {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
          {:ok, %DeviceCertificate{device_id: device_id}} <-
-           Devices.get_device_certificate_by_x509(cert),
+           Certificates.get_device_certificate_by_x509(cert),
          {:ok, device} <- Devices.get_device_by_org(org, device_id) do
       device = Devices.get_by_identifier_with_deployment_and_release!(device.identifier)
 

@@ -14,7 +14,7 @@ defmodule NervesHubWeb.DeviceControllerTest do
       product: product,
       device: device
     } do
-      [cert | _] = NervesHub.Devices.get_device_certificates(device)
+      [cert | _] = NervesHub.Devices.Certificates.get_device_certificates(device)
 
       conn = get(conn, ~p"/org/#{org}/#{product}/devices/#{device}/certificate/#{cert.serial}/download")
 

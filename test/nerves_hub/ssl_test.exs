@@ -6,6 +6,7 @@ defmodule NervesHub.SSLTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate.JITP
   alias NervesHub.Devices.CACertificates
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Fixtures
   alias X509.Certificate.Validity
 
@@ -209,13 +210,13 @@ defmodule NervesHub.SSLTest do
       {:ok, db_ca} = CACertificates.create_ca_certificate_from_x509(context.org, expired_ca)
       assert is_nil(db_ca.last_used)
       assert {:valid, _} = run_verify(context.cert2)
-      assert {:ok, _db_cert} = Devices.get_device_certificate_by_x509(context.cert2)
+      assert {:ok, _db_cert} = Certificates.get_device_certificate_by_x509(context.cert2)
     end
 
     test "registers a valid certificate", context do
-      assert {:error, :not_found} = Devices.get_device_certificate_by_x509(context.cert2)
+      assert {:error, :not_found} = Certificates.get_device_certificate_by_x509(context.cert2)
       assert {:valid, _} = run_verify(context.cert2)
-      assert {:ok, _db_cert} = Devices.get_device_certificate_by_x509(context.cert2)
+      assert {:ok, _db_cert} = Certificates.get_device_certificate_by_x509(context.cert2)
     end
   end
 
@@ -259,7 +260,7 @@ defmodule NervesHub.SSLTest do
       {:ok, db_ca} = CACertificates.create_ca_certificate_from_x509(context.org, expired_ca)
       assert is_nil(db_ca.last_used)
       assert {:valid, _} = run_verify(context.unknown_cert)
-      assert {:ok, _db_cert} = Devices.get_device_certificate_by_x509(context.unknown_cert)
+      assert {:ok, _db_cert} = Certificates.get_device_certificate_by_x509(context.unknown_cert)
     end
 
     test "rejects registering when signature bad", context do
@@ -321,9 +322,9 @@ defmodule NervesHub.SSLTest do
     end
 
     test "registers a valid certificate", context do
-      assert {:error, :not_found} = Devices.get_device_certificate_by_x509(context.cert)
+      assert {:error, :not_found} = Certificates.get_device_certificate_by_x509(context.cert)
       assert {:valid, _} = run_verify(context.cert)
-      assert {:ok, _db_cert} = Devices.get_device_certificate_by_x509(context.cert)
+      assert {:ok, _db_cert} = Certificates.get_device_certificate_by_x509(context.cert)
     end
   end
 

@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Devices.Certificates
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.DeviceCertificateSchemas
   alias NervesHubWeb.API.Schemas.ErrorSchemas
@@ -48,7 +49,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
 
   def index(%{assigns: %{current_scope: scope}} = conn, %{"identifier" => identifier}) do
     with {:ok, device} <- Devices.get_by_identifier(scope, identifier) do
-      device_certificates = Devices.get_device_certificates(device)
+      device_certificates = Certificates.get_device_certificates(device)
       render(conn, :index, device_certificates: device_certificates)
     end
   end
@@ -92,7 +93,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
 
   def show(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
     with {:ok, device_certificate} <-
-           Devices.get_device_certificate_by_device_and_serial(device, serial) do
+           Certificates.get_device_certificate_by_device_and_serial(device, serial) do
       render(conn, :show, device_certificate: device_certificate)
     end
   end
@@ -148,7 +149,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
            not_after: not_after,
            der: X509.Certificate.to_der(cert)
          },
-         {:ok, device_certificate} <- Devices.create_device_certificate(device, params) do
+         {:ok, device_certificate} <- Certificates.create_device_certificate(device, params) do
       conn
       |> put_status(:created)
       |> put_resp_header(
@@ -209,8 +210,8 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
 
   def delete(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
     with {:ok, device_certificate} <-
-           Devices.get_device_certificate_by_device_and_serial(device, serial),
-         {:ok, _device_certificate} <- Devices.delete_device_certificate(device_certificate) do
+           Certificates.get_device_certificate_by_device_and_serial(device, serial),
+         {:ok, _device_certificate} <- Certificates.delete_device_certificate(device_certificate) do
       send_resp(conn, :no_content, "")
     end
   end

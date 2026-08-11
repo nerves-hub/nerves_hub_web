@@ -9,6 +9,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificates
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
@@ -403,7 +404,7 @@ defmodule NervesHub.Fixtures do
       der: der
     }
 
-    {:ok, device_cert} = Devices.create_device_certificate(device, params)
+    {:ok, device_cert} = Certificates.create_device_certificate(device, params)
     %{db_cert: device_cert, cert: cert}
   end
 
