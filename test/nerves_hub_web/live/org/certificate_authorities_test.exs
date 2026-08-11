@@ -225,7 +225,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
   defp upload_file(view, file_name, file_path, form_field) do
     csr =
-      file_input(view, "form", form_field, [
+      file_input(view, "#new-ca-form", form_field, [
         %{
           last_modified: 1_594_171_879_000,
           name: file_name,
