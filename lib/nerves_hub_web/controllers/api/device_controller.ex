@@ -7,6 +7,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHubWeb.API.PaginationHelpers
@@ -187,7 +188,7 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   def penalty(%{assigns: %{device: device, current_scope: %{user: user}}} = conn, _params) do
-    case Devices.clear_penalty_box(device, user) do
+    case Updates.clear_penalty_box(device, user) do
       {:ok, _device} ->
         send_resp(conn, :no_content, "")
 

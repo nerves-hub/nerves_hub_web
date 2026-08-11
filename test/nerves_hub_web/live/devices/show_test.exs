@@ -16,6 +16,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.FirmwareUpdates
@@ -1574,7 +1575,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       Repo.reload(device)
       |> to_device_info()
-      |> Devices.firmware_validated()
+      |> Updates.firmware_validated()
 
       assert_has(conn, "span", text: "Validated")
     end

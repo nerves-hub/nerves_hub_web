@@ -25,6 +25,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.DeviceLink
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Updates
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -154,7 +155,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_in:firmware_validated")
   def handle_in("firmware_validated", _, %{assigns: %{device_info: device_info}} = socket) do
-    Devices.firmware_validated(device_info)
+    Updates.firmware_validated(device_info)
 
     {:noreply, socket}
   end

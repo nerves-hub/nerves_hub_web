@@ -11,8 +11,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceEvents
-  alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Updates
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -138,7 +138,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     slots = available_slots(deployment_group)
 
     if slots > 0 do
-      available = Devices.available_for_update(deployment_group, slots)
+      available = Updates.available_for_update(deployment_group, slots)
       updated_count = schedule_devices!(available, deployment_group, false)
 
       if length(available) != updated_count or skipped_priority_updates > 0 do
@@ -158,7 +158,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     priority_slots = available_priority_slots(deployment_group)
 
     if priority_slots > 0 do
-      available = Devices.available_for_priority_update(deployment_group, priority_slots)
+      available = Updates.available_for_priority_update(deployment_group, priority_slots)
 
       length(available) - schedule_devices!(available, deployment_group, true)
     else
@@ -205,7 +205,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
           tell_device_to_update(device.id, deployment_group, priority_queue)
 
         false ->
-          _ = Devices.update_blocked_until(device, deployment_group)
+          _ = Updates.update_blocked_until(device, deployment_group)
           false
       end
     end)
@@ -213,8 +213,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   @spec can_device_update?(Device.t(), DeploymentGroup.t()) :: boolean()
   defp can_device_update?(device, deployment_group) do
-    not (Devices.failure_rate_met?(device, deployment_group) or
-           Devices.failure_threshold_met?(device, deployment_group))
+    not (Updates.failure_rate_met?(device, deployment_group) or
+           Updates.failure_threshold_met?(device, deployment_group))
   end
 
   @spec tell_device_to_update(integer(), DeploymentGroup.t(), boolean()) :: boolean()

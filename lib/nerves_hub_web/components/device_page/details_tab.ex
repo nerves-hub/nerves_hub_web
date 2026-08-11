@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Scripts
@@ -36,7 +37,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     socket
     |> assign_support_scripts()
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
-    |> assign(:update_information, Devices.resolve_update(device))
+    |> assign(:update_information, Updates.resolve_update(device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign(:alarms, Alarms.current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, device.product))
@@ -645,7 +646,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     authorized!(:"device:toggle-updates", scope)
 
-    {:ok, updated_device} = Devices.toggle_automatic_updates(device, scope.user)
+    {:ok, updated_device} = Updates.toggle_automatic_updates(device, scope.user)
 
     message = [
       "Firmware updates ",
