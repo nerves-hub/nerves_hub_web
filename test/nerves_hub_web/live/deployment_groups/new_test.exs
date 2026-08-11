@@ -67,7 +67,7 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
       |> select("Architecture", option: firmware.architecture)
       |> unwrap(fn view ->
         view
-        |> element("form")
+        |> element("#new-deployment")
         |> render_submit(%{deployment_group: %{"firmware_id" => -1}})
       end)
       |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/new")

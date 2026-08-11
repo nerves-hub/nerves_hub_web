@@ -10,6 +10,7 @@ import en from "javascript-time-ago/locale/en"
 import AdvancedQueryEditor from "./hooks/advancedQueryEditor.js"
 import BarChart from "./hooks/barChart.js"
 import Chart from "./hooks/chart.js"
+import CommandPalette from "./hooks/commandPalette.js"
 import Console from "./hooks/console.js"
 import CrossFadeOnUpdate from "./hooks/crossFadeOnUpdate.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
@@ -58,6 +59,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     AdvancedQueryEditor,
     BarChart,
     Chart,
+    CommandPalette,
     Console,
     CrossFadeOnUpdate,
     DeviceLocationMap,
