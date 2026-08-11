@@ -10,12 +10,12 @@ defmodule NervesHub.Workers.DeviceHealthTruncation do
     queue: :cleanup,
     max_attempts: 1
 
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Health
   alias NervesHub.Devices.Metrics
 
   @impl Oban.Worker
   def perform(_) do
-    :ok = Devices.truncate_device_health()
+    :ok = Health.truncate_device_health()
     {:ok, _} = Metrics.truncate_device_metrics()
 
     :ok

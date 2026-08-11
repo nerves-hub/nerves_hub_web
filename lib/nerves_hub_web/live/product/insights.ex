@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Health
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
 
@@ -145,10 +146,10 @@ defmodule NervesHubWeb.Live.Product.Insights do
 
   defp fleet_health_information(%{assigns: %{current_scope: scope}} = socket) do
     socket
-    |> assign(:healthy_count, Devices.health_status_count(scope.product, :healthy))
-    |> assign(:warning_count, Devices.health_status_count(scope.product, :warning))
-    |> assign(:unhealthy_count, Devices.health_status_count(scope.product, :unhealthy))
-    |> assign(:unknown_count, Devices.health_status_count(scope.product, :unknown))
+    |> assign(:healthy_count, Health.health_status_count(scope.product, :healthy))
+    |> assign(:warning_count, Health.health_status_count(scope.product, :warning))
+    |> assign(:unhealthy_count, Health.health_status_count(scope.product, :unhealthy))
+    |> assign(:unknown_count, Health.health_status_count(scope.product, :unknown))
     |> then(fn %{assigns: assigns} = socket ->
       total = assigns.healthy_count + assigns.warning_count + assigns.unhealthy_count + assigns.unknown_count
       assign(socket, :total_health_count, total)
