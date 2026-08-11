@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Pinning
   alias NervesHub.Extensions.Health
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Tracker
@@ -57,7 +58,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> general_assigns(device)
     |> schedule_health_check_timer()
     |> load_inprogress_firmware_update()
-    |> assign(:pinned?, Devices.device_pinned?(user.id, device.id))
+    |> assign(:pinned?, Pinning.device_pinned?(user.id, device.id))
     |> setup_presence_tracking()
     |> setup_tab_components(@tab_components)
     |> ok()
@@ -192,7 +193,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(_unknown, socket), do: {:noreply, socket}
 
   def handle_event("pin", _value, %{assigns: %{user: user, device: device}} = socket) do
-    case Devices.pin_device(user.id, device.id) do
+    case Pinning.pin_device(user.id, device.id) do
       {:ok, _} ->
         socket
         |> assign(:pinned?, true)
@@ -208,7 +209,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("unpin", _value, %{assigns: %{user: user, device: device}} = socket) do
-    case Devices.unpin_device(user.id, device.id) do
+    case Pinning.unpin_device(user.id, device.id) do
       {:ok, _} ->
         socket
         |> assign(:pinned?, false)

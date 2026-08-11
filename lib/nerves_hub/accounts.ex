@@ -15,8 +15,8 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
   alias NervesHub.CLISessionCache
-  alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Pinning
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -213,7 +213,7 @@ defmodule NervesHub.Accounts do
   def soft_delete_org_user(org_user) do
     with {:ok, %{org_id: org_id, user_id: user_id}} <-
            Repo.soft_delete(org_user),
-         {_, nil} <- Devices.unpin_org_devices(user_id, org_id) do
+         {_, nil} <- Pinning.unpin_org_devices(user_id, org_id) do
       :ok
     end
   end
