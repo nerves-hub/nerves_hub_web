@@ -227,22 +227,14 @@ defmodule NervesHub.Firmwares do
     |> with_product()
     |> where([f], f.id == ^id)
     |> where([f, p], p.org_id == ^org_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
+    |> Repo.fetch()
   end
 
   def get_firmware(%Product{id: product_id}, id) do
     Firmware
     |> where([f], f.id == ^id)
     |> where([f], f.product_id == ^product_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
+    |> Repo.fetch()
   end
 
   def get_firmware!(firmware_id), do: Repo.get!(Firmware, firmware_id)
@@ -276,11 +268,7 @@ defmodule NervesHub.Firmwares do
 
   def get_firmware_by_product_id_and_uuid(product_id, uuid) do
     get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
+    |> Repo.fetch()
   end
 
   @spec get_firmware_by_uuid(Scope.t(), String.t()) :: {:ok, Firmware.t()} | {:error, :not_found}
@@ -299,11 +287,7 @@ defmodule NervesHub.Firmwares do
           | {:error, :not_found}
   def get_firmware_by_product_and_uuid(%Product{} = product, uuid) do
     get_firmware_by_product_and_uuid_query(product, uuid)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
+    |> Repo.fetch()
   end
 
   defp get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid) do
@@ -520,11 +504,7 @@ defmodule NervesHub.Firmwares do
         where(query, [fd], fd.status in ^status)
       end
     end)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware_delta -> {:ok, firmware_delta}
-    end
+    |> Repo.fetch()
   end
 
   @spec get_firmware_url(Firmware.t() | FirmwareDelta.t()) ::

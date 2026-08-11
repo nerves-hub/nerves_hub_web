@@ -208,11 +208,7 @@ defmodule NervesHub.Devices do
   def get_device_by_org(%Org{id: org_id}, device_id) do
     device_by_org_query(org_id, device_id)
     |> Repo.exclude_deleted()
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      device -> {:ok, device}
-    end
+    |> Repo.fetch()
   end
 
   @spec get_by_identifier!(String.t()) :: Device.t()
@@ -248,11 +244,7 @@ defmodule NervesHub.Devices do
   def get_by_identifier(%Scope{} = scope, identifier, preload_assoc \\ [:product, :latest_connection])
       when is_binary(identifier) do
     get_by_identifier_query(scope, identifier, preload_assoc)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      device -> {:ok, device}
-    end
+    |> Repo.fetch()
   end
 
   defp get_by_identifier_query(%Scope{org: org}, identifier, preload_assoc) when not is_nil(org) do
@@ -330,11 +322,7 @@ defmodule NervesHub.Devices do
     |> join(:inner, [d], dc in assoc(d, :device_certificates))
     |> where([_, _, dc], dc.fingerprint == ^fingerprint)
     |> preload([_d, p], product: p)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      device -> {:ok, device}
-    end
+    |> Repo.fetch()
   end
 
   @spec get_shared_secret_auth(String.t()) ::
@@ -347,11 +335,7 @@ defmodule NervesHub.Devices do
     |> where([ssa], is_nil(ssa.deactivated_at))
     |> where([_, d], is_nil(d.deleted_at))
     |> preload([ssa, d, p], [:product_shared_secret_auth, device: {d, product: p}])
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      auth -> {:ok, auth}
-    end
+    |> Repo.fetch()
   end
 
   @spec create_shared_secret_auth(Device.t()) ::
@@ -490,11 +474,7 @@ defmodule NervesHub.Devices do
     |> where(fingerprint: ^fingerprint)
     |> join(:inner, [dc], d in assoc(dc, :device))
     |> preload([_dc, d], device: d)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      certificate -> {:ok, certificate}
-    end
+    |> Repo.fetch()
   end
 
   def get_device_by_public_key(otp_cert) do
@@ -516,14 +496,7 @@ defmodule NervesHub.Devices do
       )
 
     query
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      device_certificate ->
-        {:ok, device_certificate}
-    end
+    |> Repo.fetch()
   end
 
   def update_device_certificate(%DeviceCertificate{} = certificate, params) do
@@ -581,12 +554,8 @@ defmodule NervesHub.Devices do
 
   @spec get_ca_certificate_by_aki(binary) :: {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_aki(aki) do
-    q = from(CACertificate, where: [aki: ^aki], preload: [jitp: :product])
-
-    case Repo.one(q) do
-      nil -> {:error, :not_found}
-      ca_cert -> {:ok, ca_cert}
-    end
+    from(CACertificate, where: [aki: ^aki], preload: [jitp: :product])
+    |> Repo.fetch()
   end
 
   @spec known_ca_ski?(binary) :: boolean()
@@ -603,40 +572,24 @@ defmodule NervesHub.Devices do
     |> join(:left, [_cac, jitp], p in assoc(jitp, :product))
     |> where([cac], cac.ski == ^ski)
     |> preload([_cac, jitp, p], jitp: {jitp, product: p})
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      ca_cert -> {:ok, ca_cert}
-    end
+    |> Repo.fetch()
   end
 
   @spec get_ca_certificate_by_serial(binary) :: {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_serial(serial) do
-    q = from(CACertificate, where: [serial: ^serial], preload: [jitp: :product])
-
-    case Repo.one(q) do
-      nil -> {:error, :not_found}
-      ca_cert -> {:ok, ca_cert}
-    end
+    from(CACertificate, where: [serial: ^serial], preload: [jitp: :product])
+    |> Repo.fetch()
   end
 
   @spec get_ca_certificate_by_org_and_serial(Org.t(), binary) ::
           {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_org_and_serial(%Org{id: org_id}, serial) do
-    query =
-      from(
-        ca in CACertificate,
-        where: ca.serial == ^serial and ca.org_id == ^org_id,
-        preload: [jitp: :product]
-      )
-
-    case Repo.one(query) do
-      nil ->
-        {:error, :not_found}
-
-      ca_cert ->
-        {:ok, ca_cert}
-    end
+    from(
+      ca in CACertificate,
+      where: ca.serial == ^serial and ca.org_id == ^org_id,
+      preload: [jitp: :product]
+    )
+    |> Repo.fetch()
   end
 
   def update_ca_certificate(%CACertificate{} = certificate, params) do
@@ -1696,27 +1649,22 @@ defmodule NervesHub.Devices do
   end
 
   def enable_extension_setting(%Device{} = device, extension_string) do
-    device = get_device(device.id)
-
-    Device.changeset(device, %{"extensions" => %{extension_string => true}})
-    |> Repo.update()
-    |> tap(fn
-      {:ok, _} ->
-        Extensions.broadcast_extension_event(device, "attach", extension_string)
-
-      _ ->
-        :nope
-    end)
+    set_extension_setting(device, extension_string, true)
   end
 
   def disable_extension_setting(%Device{} = device, extension_string) do
-    device = get_device(device.id)
+    set_extension_setting(device, extension_string, false)
+  end
 
-    Device.changeset(device, %{"extensions" => %{extension_string => false}})
+  defp set_extension_setting(%Device{} = device, extension_string, enabled?) do
+    device = get_device(device.id)
+    event = if enabled?, do: "attach", else: "detach"
+
+    Device.changeset(device, %{"extensions" => %{extension_string => enabled?}})
     |> Repo.update()
     |> tap(fn
       {:ok, _} ->
-        Extensions.broadcast_extension_event(device, "detach", extension_string)
+        Extensions.broadcast_extension_event(device, event, extension_string)
 
       _ ->
         :nope

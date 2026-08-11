@@ -139,11 +139,7 @@ defmodule NervesHub.Products do
           {:ok, Product.t()} | {:error, :not_found}
   def get_product_by_org_id_and_name(org_id, name) do
     get_product_by_org_id_and_name_query(org_id, name)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      product -> {:ok, product}
-    end
+    |> Repo.fetch()
   end
 
   def get_product_by_org_id_and_name_query(org_id, name) do
@@ -166,11 +162,7 @@ defmodule NervesHub.Products do
     |> where([_, o], is_nil(o.deleted_at))
     |> where(id: ^id)
     |> where([_, _, ou], ou.user_id == ^user.id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      product -> {:ok, product}
-    end
+    |> Repo.fetch()
   end
 
   @doc """
@@ -232,11 +224,7 @@ defmodule NervesHub.Products do
     |> join(:inner, [ssa], p in assoc(ssa, :product))
     |> where([ssa], ssa.id == ^auth_id)
     |> where([_, p], p.id == ^product_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      auth -> {:ok, auth}
-    end
+    |> Repo.fetch()
   end
 
   @spec get_shared_secret_auth(String.t()) :: {:ok, SharedSecretAuth.t()} | {:error, :not_found}
@@ -246,11 +234,7 @@ defmodule NervesHub.Products do
     |> where([ssa], ssa.key == ^key)
     |> where([ssa], is_nil(ssa.deactivated_at))
     |> where([_, p], is_nil(p.deleted_at))
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      auth -> {:ok, auth}
-    end
+    |> Repo.fetch()
   end
 
   @spec load_shared_secret_auth(Product.t()) :: Product.t()
@@ -344,27 +328,22 @@ defmodule NervesHub.Products do
   end
 
   def enable_extension_setting(%Product{} = product, extension_string) do
-    product = get_product!(product.id)
-
-    Product.changeset(product, %{"extensions" => %{extension_string => true}})
-    |> Repo.update()
-    |> tap(fn
-      {:ok, _} ->
-        Extensions.broadcast_extension_event(product, "attach", extension_string)
-
-      _ ->
-        :nope
-    end)
+    set_extension_setting(product, extension_string, true)
   end
 
   def disable_extension_setting(%Product{} = product, extension_string) do
-    product = get_product!(product.id)
+    set_extension_setting(product, extension_string, false)
+  end
 
-    Product.changeset(product, %{"extensions" => %{extension_string => false}})
+  defp set_extension_setting(%Product{} = product, extension_string, enabled?) do
+    product = get_product!(product.id)
+    event = if enabled?, do: "attach", else: "detach"
+
+    Product.changeset(product, %{"extensions" => %{extension_string => enabled?}})
     |> Repo.update()
     |> tap(fn
       {:ok, _} ->
-        Extensions.broadcast_extension_event(product, "detach", extension_string)
+        Extensions.broadcast_extension_event(product, event, extension_string)
 
       _ ->
         :nope
