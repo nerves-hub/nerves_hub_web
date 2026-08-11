@@ -268,7 +268,26 @@ defmodule NervesHub.Devices do
     |> join_and_preload(preload_assoc)
   end
 
-  def join_and_preload_deployment_group_and_current_release(query) do
+  @doc """
+  Fetch a device by identifier, preloading its org, product, latest connection,
+  deployment group and current release. Raises if the device does not exist.
+  """
+  def get_by_identifier_with_deployment_and_release!(identifier) do
+    Device
+    |> where(identifier: ^identifier)
+    |> join_and_preload_deployment_group_and_current_release()
+    |> preload([:org, :product, :latest_connection])
+    |> Repo.one!()
+  end
+
+  @doc """
+  Preloads a device's certificates. Pass `force: true` to reload them.
+  """
+  def preload_device_certificates(%Device{} = device, opts \\ []) do
+    Repo.preload(device, :device_certificates, opts)
+  end
+
+  defp join_and_preload_deployment_group_and_current_release(query) do
     query
     |> join(:left, [d], dp in assoc(d, :deployment_group), as: :deployment_group)
     |> join(:left, [deployment_group: dg], cr in assoc(dg, :current_release), as: :current_release)
