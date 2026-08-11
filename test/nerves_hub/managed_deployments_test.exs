@@ -7,6 +7,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias Ecto.Changeset
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Fixtures
@@ -229,7 +230,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       device =
         Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       assert device.deployment_id == deployment_group.id
 
@@ -261,7 +262,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       device =
         Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       assert device.deployment_id == deployment_group.id
 
@@ -284,7 +285,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       device =
         Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       assert device.deployment_id == deployment_group.id
 
@@ -310,23 +311,23 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       _ =
         Fixtures.device_fixture(org, product, firmware2)
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       _ =
         Fixtures.device_fixture(org, product, firmware2)
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       _ =
         Fixtures.device_fixture(org, product, firmware3)
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       _ =
         Fixtures.device_fixture(org, product, firmware3)
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       _ =
         Fixtures.device_fixture(org, product, firmware4)
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true}, user)
@@ -1066,7 +1067,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       device: device,
       deployment_group: deployment_group
     } do
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
       assert device.deployment_id
 
       device = ManagedDeployments.verify_deployment_group_membership(device)
@@ -1080,7 +1081,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
          } do
       {:ok, device} =
         device
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
         |> Devices.update_firmware_metadata(%{"platform" => "foobar"}, :unknown, false)
 
       device = ManagedDeployments.verify_deployment_group_membership(device)
@@ -1097,7 +1098,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
          } do
       {:ok, device} =
         device
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
         |> Devices.update_firmware_metadata(%{"architecture" => "foobar"}, :unknown, false)
 
       device = ManagedDeployments.verify_deployment_group_membership(device)
@@ -1114,7 +1115,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
          } do
       {:ok, device} =
         device
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
         |> Devices.update_firmware_metadata(%{"version" => "1.0.1"}, :unknown, false)
 
       device = ManagedDeployments.verify_deployment_group_membership(device)
@@ -1137,7 +1138,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       deployment_group = Repo.reload(deployment_group)
 
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
 
       device = ManagedDeployments.verify_deployment_group_membership(device)
       refute device.deployment_id
@@ -1158,7 +1159,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       {:ok, device} =
         device
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
         |> Devices.update_firmware_metadata(%{"platform" => "foobar"}, :unknown, false)
 
       device = ManagedDeployments.verify_deployment_group_membership(device)

@@ -5,7 +5,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
@@ -364,7 +364,7 @@ defmodule NervesHub.ManagedDeployments do
   def recalculate_deployment_group_status(deployment_group) do
     source_ids =
       deployment_group.id
-      |> Devices.get_device_firmware_for_delta_generation_by_deployment_group()
+      |> Deployments.get_device_firmware_for_delta_generation_by_deployment_group()
       |> Enum.map(fn {source_id, _target_id} -> source_id end)
 
     if Enum.any?(source_ids) do
@@ -453,7 +453,7 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   def trigger_delta_generation_for_deployment_group(deployment_group) do
-    Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
+    Deployments.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
     |> Enum.map(fn {source_id, target_id} ->
       Firmwares.attempt_firmware_delta(source_id, target_id, false)
     end)
@@ -586,14 +586,14 @@ defmodule NervesHub.ManagedDeployments do
 
         DeviceTemplates.audit_set_deployment(device, deployment, :one_found)
 
-        Devices.update_deployment_group(device, deployment)
+        Deployments.update_deployment_group(device, deployment)
 
       [deployment | _] ->
         set_deployment_group_telemetry(:multiple_found, device, deployment)
 
         DeviceTemplates.audit_set_deployment(device, deployment, :multiple_found)
 
-        Devices.update_deployment_group(device, deployment)
+        Deployments.update_deployment_group(device, deployment)
     end
   end
 
