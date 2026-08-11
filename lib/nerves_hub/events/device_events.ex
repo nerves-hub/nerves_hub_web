@@ -102,7 +102,7 @@ defmodule NervesHub.DeviceEvents do
     Repo.transact(fn ->
       url =
         if opts[:delta] do
-          {:ok, url} = Devices.get_delta_url(device, firmware)
+          {:ok, url} = Firmwares.get_delta_url(device, firmware)
           url
         else
           {:ok, url} = Firmwares.get_firmware_url(firmware)

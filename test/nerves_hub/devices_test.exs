@@ -2447,7 +2447,7 @@ defmodule NervesHub.DevicesTest do
       firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       _ = Fixtures.firmware_delta_fixture(firmware2, firmware)
 
-      refute Devices.delta_ready?(device, firmware2)
+      refute Firmwares.delta_ready?(device, firmware2)
     end
 
     test "returns false when no matching delta for target is found", %{
@@ -2461,7 +2461,7 @@ defmodule NervesHub.DevicesTest do
       firmware3 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       _ = Fixtures.firmware_delta_fixture(firmware, firmware2)
 
-      refute Devices.delta_ready?(device, firmware3)
+      refute Firmwares.delta_ready?(device, firmware3)
     end
 
     test "returns false when no matching delta that's completed is found", %{
@@ -2474,7 +2474,7 @@ defmodule NervesHub.DevicesTest do
       firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       _ = Fixtures.firmware_delta_fixture(firmware, firmware2, %{status: :processing})
 
-      refute Devices.delta_ready?(device, firmware2)
+      refute Firmwares.delta_ready?(device, firmware2)
     end
 
     test "returns true when no completed delta is found", %{
@@ -2487,7 +2487,7 @@ defmodule NervesHub.DevicesTest do
       firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       %{status: :completed} = Fixtures.firmware_delta_fixture(firmware, firmware2)
 
-      assert Devices.delta_ready?(device, firmware2)
+      assert Firmwares.delta_ready?(device, firmware2)
     end
   end
 
@@ -2509,7 +2509,7 @@ defmodule NervesHub.DevicesTest do
           current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
-      {:ok, firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      {:ok, firmware} = Firmwares.get_delta_or_firmware(device, deployment_group)
 
       {:ok, url} = Firmwares.get_firmware_url(firmware)
 
@@ -2524,7 +2524,7 @@ defmodule NervesHub.DevicesTest do
       refute deployment_group.delta_updatable
       refute firmware.delta_updatable
 
-      {:ok, firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      {:ok, firmware} = Firmwares.get_delta_or_firmware(device, deployment_group)
 
       {:ok, url} = Firmwares.get_firmware_url(firmware)
 
@@ -2542,7 +2542,7 @@ defmodule NervesHub.DevicesTest do
           current_release: %DeploymentRelease{firmware: %{firmware | delta_updatable: true}}
       }
 
-      {:ok, firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      {:ok, firmware} = Firmwares.get_delta_or_firmware(device, deployment_group)
 
       {:ok, url} = Firmwares.get_firmware_url(firmware)
 
@@ -2562,7 +2562,7 @@ defmodule NervesHub.DevicesTest do
           }
       }
 
-      {:ok, firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      {:ok, firmware} = Firmwares.get_delta_or_firmware(device, deployment_group)
 
       {:ok, url} = Firmwares.get_firmware_url(firmware)
 
@@ -2585,7 +2585,7 @@ defmodule NervesHub.DevicesTest do
           current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
-      assert {:ok, %Firmware{}} = Devices.get_delta_or_firmware(device, deployment_group)
+      assert {:ok, %Firmware{}} = Firmwares.get_delta_or_firmware(device, deployment_group)
     end
 
     test "returns the full firmware if delta isn't ready", %{
@@ -2610,7 +2610,7 @@ defmodule NervesHub.DevicesTest do
           current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
-      assert {:ok, %Firmware{}} = Devices.get_delta_or_firmware(device, deployment_group)
+      assert {:ok, %Firmware{}} = Firmwares.get_delta_or_firmware(device, deployment_group)
     end
 
     test "returns full firmware url when source firmware can't be found", %{
@@ -2635,7 +2635,7 @@ defmodule NervesHub.DevicesTest do
           current_release: %{deployment_group.current_release | firmware: %{target_firmware | delta_updatable: true}}
       }
 
-      {:ok, firmware} = Devices.get_delta_or_firmware(device, deployment_group)
+      {:ok, firmware} = Firmwares.get_delta_or_firmware(device, deployment_group)
 
       {:ok, url} = Firmwares.get_firmware_url(firmware)
 

@@ -29,11 +29,9 @@ defmodule NervesHub.Devices do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
-  alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
   alias NervesHub.Products.Product
@@ -726,7 +724,7 @@ defmodule NervesHub.Devices do
   def resolve_update(device, deployment_group, opts) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
-        case get_delta_or_firmware(device, deployment_group) do
+        case Firmwares.get_delta_or_firmware(device, deployment_group) do
           {:ok, firmware_or_delta} ->
             {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.current_release.firmware)
 
@@ -760,52 +758,6 @@ defmodule NervesHub.Devices do
       {:error, :updates_blocked, _device} ->
         %UpdatePayload{update_available: false}
     end
-  end
-
-  @doc """
-  Returns true if the device is delta updatable.
-
-  Checks update tool version information and similar metadata to determine if
-  the device is delta updatable.
-  """
-  @spec delta_updatable?(Device.t(), DeploymentGroup.t() | Firmware.t()) :: boolean()
-  def delta_updatable?(device, %DeploymentGroup{} = deployment_group) do
-    Logger.metadata(device_id: device.id, deployment_group_id: deployment_group.id)
-    # note that source delta does not need delta markers to be updatable
-    # Any advanced decision about whether to delta update or not are delegated
-    # to the specialized update tool implementation
-
-    deployment_group.delta_updatable and
-      not is_nil(deployment_group.current_release.firmware) and
-      delta_updatable?(device, deployment_group.current_release.firmware)
-  end
-
-  def delta_updatable?(%{firmware_metadata: fw_meta} = device, %Firmware{} = firmware) do
-    Logger.metadata(
-      device_id: device.id,
-      target_firmware_uuid: firmware.uuid,
-      source_firmware_uuid: Map.get(fw_meta, :uuid)
-    )
-
-    firmware.delta_updatable and
-      :delta == update_tool().device_update_type(device, firmware)
-  end
-
-  @spec delta_ready?(Device.t(), Firmware.t()) :: boolean()
-  def delta_ready?(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
-    source_firmware_id_query =
-      Firmware
-      |> where(uuid: ^source_uuid)
-      |> where(product_id: ^product_id)
-      |> select([f], f.id)
-
-    query =
-      FirmwareDelta
-      |> where([fd], fd.source_id == subquery(source_firmware_id_query))
-      |> where([fd], fd.target_id == ^target_id)
-      |> where([fd], fd.status == :completed)
-
-    Repo.exists?(query)
   end
 
   @doc """
@@ -1424,65 +1376,6 @@ defmodule NervesHub.Devices do
   @doc """
   Get firmware or delta.
   """
-  @spec get_delta_or_firmware(Device.t(), DeploymentGroup.t()) ::
-          {:ok, Firmware.t()} | {:ok, FirmwareDelta.t()}
-  def get_delta_or_firmware(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
-        delta_updatable: true,
-        current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
-      }) do
-    case Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, source_uuid) do
-      {:ok, source_firmware} ->
-        case get_delta_if_ready(device, source_firmware, target_firmware) do
-          {:ok, delta} ->
-            {:ok, delta}
-
-          _ ->
-            {:ok, target_firmware}
-        end
-
-      {:error, :not_found} ->
-        {:ok, target_firmware}
-    end
-  end
-
-  def get_delta_or_firmware(%Device{}, %DeploymentGroup{current_release: %{firmware: target}}), do: {:ok, target}
-
-  @spec get_delta_if_ready(Device.t(), Firmware.t(), Firmware.t()) ::
-          {:ok, FirmwareDelta.t()}
-          | {:device_delta_updatable, false}
-          | {:delta, {:ok, FirmwareDelta.t()}}
-          | {:delta, {:error, :not_found}}
-  defp get_delta_if_ready(device, source_firmware, target_firmware) do
-    with {:device_delta_updatable, true} <-
-           {:device_delta_updatable, delta_updatable?(device, target_firmware)},
-         {:delta, {:ok, %{status: :completed} = delta}} <-
-           {:delta,
-            Firmwares.get_firmware_delta_by_source_and_target(
-              source_firmware.id,
-              target_firmware.id
-            )} do
-      {:ok, delta}
-    end
-  end
-
-  @spec get_delta_url(Device.t(), Firmware.t()) ::
-          {:ok, String.t()}
-          | {:error, :failure}
-  def get_delta_url(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
-    source_firmware_id_query =
-      Firmware
-      |> where(uuid: ^source_uuid)
-      |> where(product_id: ^product_id)
-      |> select([f], f.id)
-
-    delta =
-      FirmwareDelta
-      |> where([fd], fd.source_id == subquery(source_firmware_id_query))
-      |> where([fd], fd.target_id == ^target_id)
-      |> Repo.one()
-
-    Firmwares.get_firmware_url(delta)
-  end
 
   @spec soft_deleted_devices_exist_for_product?(non_neg_integer()) :: boolean()
   def soft_deleted_devices_exist_for_product?(product_id) do
@@ -1530,14 +1423,5 @@ defmodule NervesHub.Devices do
     |> where(product_id: ^product.id)
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
-  end
-
-  defp update_tool() do
-    Application.get_env(
-      :nerves_hub,
-      :update_tool,
-      # Fall back to old config key
-      Application.get_env(:nerves_hub, :delta_updater, Fwup)
-    )
   end
 end
