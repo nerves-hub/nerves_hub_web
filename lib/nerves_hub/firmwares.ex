@@ -857,7 +857,9 @@ defmodule NervesHub.Firmwares do
   defp resolve_product(params) do
     case Products.get_product_by_org_id_and_name(params.org_id, params.product_name) do
       {:ok, product} ->
-        Map.put(params, :product_id, product.id)
+        params
+        |> Map.put(:product_id, product.id)
+        |> Map.put(:require_unique_firmware_version, product.require_unique_firmware_version)
 
       _ ->
         params

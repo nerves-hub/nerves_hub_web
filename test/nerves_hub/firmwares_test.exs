@@ -57,6 +57,44 @@ defmodule NervesHub.FirmwaresTest do
       assert {:error, %Ecto.Changeset{errors: [uuid: {"has already been taken", [_ | _]}]}} =
                Firmwares.create_firmware(org, filepath)
     end
+
+    test "rejects a duplicate version when the product requires unique versions",
+         %{user: user, org: org, org_key: org_key, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org, %{require_unique_firmware_version: true})
+
+      path_a = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9"})
+      assert {:ok, _} = Firmwares.create_firmware(org, path_a)
+
+      path_b = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9"})
+      assert {:error, changeset} = Firmwares.create_firmware(org, path_b)
+      assert "has already been taken for this product" in errors_on(changeset).version
+    end
+
+    test "allows the same version for a different platform when unique versions are required",
+         %{user: user, org: org, org_key: org_key, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org, %{require_unique_firmware_version: true})
+
+      path_a =
+        Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9", platform: "rpi0"})
+
+      assert {:ok, _} = Firmwares.create_firmware(org, path_a)
+
+      path_b =
+        Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9", platform: "rpi4"})
+
+      assert {:ok, _} = Firmwares.create_firmware(org, path_b)
+    end
+
+    test "allows a duplicate version when the product does not require unique versions",
+         %{user: user, org: org, org_key: org_key, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org, %{require_unique_firmware_version: false})
+
+      path_a = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9"})
+      assert {:ok, _} = Firmwares.create_firmware(org, path_a)
+
+      path_b = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9"})
+      assert {:ok, _} = Firmwares.create_firmware(org, path_b)
+    end
   end
 
   describe "delete_firmware/1" do

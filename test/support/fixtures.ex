@@ -51,7 +51,11 @@ defmodule NervesHub.Fixtures do
   def product_params() do
     %{
       name: "auto_booper_#{counter()}",
-      extensions: %{health: true, geo: true, logging: true}
+      extensions: %{health: true, geo: true, logging: true},
+      # Fixtures model existing/permissive products; many tests create several
+      # firmwares sharing a version. Enforcement is covered by explicit tests
+      # that set this to true.
+      require_unique_firmware_version: false
     }
   end
 

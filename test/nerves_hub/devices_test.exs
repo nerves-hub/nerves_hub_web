@@ -2270,12 +2270,21 @@ defmodule NervesHub.DevicesTest do
       org_key_one = Fixtures.org_key_fixture(org_one, user, tmp_dir)
       org_key_two = Fixtures.org_key_fixture(org_two, user, tmp_dir)
 
-      # two products with the same name
+      # two products with the same name (this test uploads two firmwares sharing
+      # a version, so it opts out of the unique-firmware-version requirement)
       {:ok, product_one} =
-        Products.create_product(%{org_id: org_one.id, name: "Same Product Name"})
+        Products.create_product(%{
+          org_id: org_one.id,
+          name: "Same Product Name",
+          require_unique_firmware_version: false
+        })
 
       {:ok, _product_two} =
-        Products.create_product(%{org_id: org_two.id, name: "Same Product Name"})
+        Products.create_product(%{
+          org_id: org_two.id,
+          name: "Same Product Name",
+          require_unique_firmware_version: false
+        })
 
       # create some firmware which can be uploaded to each org
       {:ok, _} =
