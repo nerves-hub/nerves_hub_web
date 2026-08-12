@@ -68,14 +68,7 @@ defmodule NervesHub.Scripts do
     |> where([c], c.id == ^id and c.product_id == ^product.id)
     |> join(:left, [s], cb in assoc(s, :created_by))
     |> preload([s, cb], created_by: cb)
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      command ->
-        {:ok, command}
-    end
+    |> Repo.fetch()
   end
 
   def get(_, _) do

@@ -236,11 +236,7 @@ defmodule NervesHub.Accounts do
 
   def get_org_user(org, user_id) do
     get_org_user_query(org, user_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      org_user -> {:ok, org_user}
-    end
+    |> Repo.fetch()
   end
 
   defp get_org_user_query(org, user_id) do
@@ -376,11 +372,7 @@ defmodule NervesHub.Accounts do
 
     query
     |> Repo.exclude_deleted()
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      user -> {:ok, user}
-    end
+    |> Repo.fetch()
   end
 
   def get_user!(user_id) do
@@ -554,20 +546,12 @@ defmodule NervesHub.Accounts do
 
   def get_org_key(%Scope{org: org}, tk_id) do
     get_org_key_query(org.id, tk_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      key -> {:ok, key}
-    end
+    |> Repo.fetch()
   end
 
   def get_org_key(%Org{id: org_id}, tk_id) do
     get_org_key_query(org_id, tk_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      key -> {:ok, key}
-    end
+    |> Repo.fetch()
   end
 
   def get_org_key!(%Org{id: org_id}, tk_id) do
@@ -592,11 +576,7 @@ defmodule NervesHub.Accounts do
       )
 
     query
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      key -> {:ok, key}
-    end
+    |> Repo.fetch()
   end
 
   def update_org_key(%OrgKey{} = org_key, params) do
@@ -845,11 +825,7 @@ defmodule NervesHub.Accounts do
 
   def get_user_token(token) do
     from(UserToken, where: [token: ^token], preload: [:user])
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      ut -> {:ok, ut}
-    end
+    |> Repo.fetch()
   end
 
   def get_user_token(user, id) do
