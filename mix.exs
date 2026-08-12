@@ -76,6 +76,7 @@ defmodule NervesHub.MixProject do
   # Run "mix help deps" for examples and options.
   defp deps() do
     [
+      {:tidewave, "~> 0.8", only: [:dev]},
       {:sizeable, "~> 1.0"},
       {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
       {:recon, "~> 2.5"},
@@ -108,6 +109,7 @@ defmodule NervesHub.MixProject do
       {:gettext, "~> 0.26.2"},
       {:hackney, "~> 1.16"},
       {:hammer, "~> 7.4.0"},
+      {:igniter, "~> 0.8", only: [:dev, :test]},
       {:hlclock, "~> 1.0"},
       {:process_hub, "~> 0.6.0"},
       {:jason, "~> 1.2", override: true},
