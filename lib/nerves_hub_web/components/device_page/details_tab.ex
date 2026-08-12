@@ -7,8 +7,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Scripts
@@ -36,7 +38,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     socket
     |> assign_support_scripts()
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
-    |> assign(:update_information, Devices.resolve_update(device))
+    |> assign(:update_information, Updates.resolve_update(device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign(:alarms, Alarms.current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, device.product))
@@ -645,7 +647,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     authorized!(:"device:toggle-updates", scope)
 
-    {:ok, updated_device} = Devices.toggle_automatic_updates(device, scope.user)
+    {:ok, updated_device} = Updates.toggle_automatic_updates(device, scope.user)
 
     message = [
       "Firmware updates ",
@@ -732,7 +734,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     authorized!(:"device:set-deployment-group", socket.assigns.current_scope)
 
     deployment = Enum.find(deployment_groups, &(&1.id == String.to_integer(deployment_id)))
-    device = Devices.update_deployment_group(device, deployment)
+    device = Deployments.update_deployment_group(device, deployment)
     _ = DeviceTemplates.audit_device_deployment_group_update(user, device, deployment)
 
     send(self(), :reload_device)
@@ -778,8 +780,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
-    firmware_delta_updatable? = Devices.delta_updatable?(device, firmware)
-    delta_complete? = Devices.delta_ready?(device, firmware)
+    firmware_delta_updatable? = Firmwares.delta_updatable?(device, firmware)
+    delta_complete? = Firmwares.delta_ready?(device, firmware)
 
     socket
     |> assign(:delta_available?, firmware_delta_updatable? && delta_complete?)
@@ -856,7 +858,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("remove-from-deployment-group", _, %{assigns: %{device: device}} = socket) do
-    device = Devices.clear_deployment_group(device)
+    device = Deployments.clear_deployment_group(device)
 
     send(self(), :reload_device)
 

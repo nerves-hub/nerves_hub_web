@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
@@ -398,7 +399,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       device2 = Fixtures.device_fixture(org, product, firmware)
 
       {:ok, _} =
-        Devices.save_device_health(%{
+        Health.save_device_health(%{
           "device_id" => device2.id,
           "data" => %{},
           "status" => :healthy,
@@ -649,7 +650,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       device2 = Fixtures.device_fixture(org, product, firmware)
 
       device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{"SomeAlarm" => []}}}
-      assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
+      assert {:ok, _} = Health.save_device_health(device_health)
 
       conn
       |> visit(device_index_path(fixture))
@@ -669,7 +670,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       device2 = Fixtures.device_fixture(org, product, firmware)
 
       device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{"SomeAlarm" => []}}}
-      assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
+      assert {:ok, _} = Health.save_device_health(device_health)
 
       conn
       |> visit(device_index_path(fixture))
@@ -690,7 +691,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       alarm = "SomeAlarm"
       device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{alarm => []}}}
-      assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
+      assert {:ok, _} = Health.save_device_health(device_health)
 
       conn
       |> visit(device_index_path(fixture))

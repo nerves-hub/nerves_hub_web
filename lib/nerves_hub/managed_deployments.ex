@@ -6,7 +6,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeploymentOrchestratorEvents
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
@@ -76,7 +76,7 @@ defmodule NervesHub.ManagedDeployments do
     |> Map.new()
   end
 
-  @spec get_device_count(DeploymentGroup.t()) :: term() | nil
+  @spec get_device_count(DeploymentGroup.t()) :: non_neg_integer()
   def get_device_count(%DeploymentGroup{id: id}) do
     Device
     |> where([d], d.deployment_id == ^id)
@@ -93,14 +93,7 @@ defmodule NervesHub.ManagedDeployments do
   def get_deployment_group(deployment_id) do
     full_deployment_group_query()
     |> where([d], d.id == ^deployment_id)
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      deployment ->
-        {:ok, deployment}
-    end
+    |> Repo.fetch()
   end
 
   defp full_deployment_group_query() do
@@ -161,14 +154,7 @@ defmodule NervesHub.ManagedDeployments do
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get_deployment_group_by_name(product, name) do
     get_by_product_and_name_query(product, name)
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      deployment_group ->
-        {:ok, deployment_group}
-    end
+    |> Repo.fetch()
   end
 
   defp get_by_product_and_name_query(%Product{id: product_id}, name) do
@@ -379,7 +365,7 @@ defmodule NervesHub.ManagedDeployments do
   def recalculate_deployment_group_status(deployment_group) do
     source_ids =
       deployment_group.id
-      |> Devices.get_device_firmware_for_delta_generation_by_deployment_group()
+      |> Deployments.get_device_firmware_for_delta_generation_by_deployment_group()
       |> Enum.map(fn {source_id, _target_id} -> source_id end)
 
     if Enum.any?(source_ids) do
@@ -468,7 +454,7 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   def trigger_delta_generation_for_deployment_group(deployment_group) do
-    Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
+    Deployments.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
     |> Enum.map(fn {source_id, target_id} ->
       Firmwares.attempt_firmware_delta(source_id, target_id, false)
     end)
@@ -480,20 +466,6 @@ defmodule NervesHub.ManagedDeployments do
         true -> {:ok, :some_deltas_started}
       end
     end)
-  end
-
-  @spec deltas_processing?(DeploymentRelease.t()) :: boolean()
-  def deltas_processing?(%DeploymentRelease{deployment_group_id: deployment_group_id, firmware_id: firmware_id}) do
-    source_ids =
-      deployment_group_id
-      |> Devices.get_device_firmware_for_delta_generation_by_deployment_group()
-      |> Enum.map(fn {source_id, _target_id} -> source_id end)
-
-    FirmwareDelta
-    |> where([fd], fd.source_id in ^source_ids)
-    |> where([fd], fd.target_id == ^firmware_id)
-    |> where([fd], fd.status != :completed)
-    |> Repo.exists?()
   end
 
   @spec update_deployment_group_status(DeploymentGroup.t(), atom()) ::
@@ -615,14 +587,14 @@ defmodule NervesHub.ManagedDeployments do
 
         DeviceTemplates.audit_set_deployment(device, deployment, :one_found)
 
-        Devices.update_deployment_group(device, deployment)
+        Deployments.update_deployment_group(device, deployment)
 
       [deployment | _] ->
         set_deployment_group_telemetry(:multiple_found, device, deployment)
 
         DeviceTemplates.audit_set_deployment(device, deployment, :multiple_found)
 
-        Devices.update_deployment_group(device, deployment)
+        Deployments.update_deployment_group(device, deployment)
     end
   end
 
@@ -688,16 +660,6 @@ defmodule NervesHub.ManagedDeployments do
     !Version.match?(device_version, version_requirement)
   rescue
     _ -> true
-  end
-
-  @spec preload_firmware_and_archive(DeploymentGroup.t()) :: DeploymentGroup.t()
-  def preload_firmware_and_archive(deployment_group) do
-    %DeploymentGroup{} = Repo.preload(deployment_group, [:archive, :firmware])
-  end
-
-  @spec preload_with_firmware_and_archive(Device.t()) :: Device.t()
-  def preload_with_firmware_and_archive(device) do
-    %Device{} = Repo.preload(device, deployment_group: [:archive, :firmware])
   end
 
   @doc """

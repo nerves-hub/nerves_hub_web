@@ -7,8 +7,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceEvents
-  alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -434,7 +434,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   test "deployment information is updated when the deployment is cleared", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
-    Devices.update_deployment_group(device, deployment_group)
+    Deployments.update_deployment_group(device, deployment_group)
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
@@ -449,7 +449,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     refute is_nil(device_channel.assigns.device_info.deployment_id)
     refute is_nil(device_channel.assigns.deployment_channel)
 
-    Devices.clear_deployment_group(device)
+    Deployments.clear_deployment_group(device)
 
     # we need to let the channel process all messages before we can
     # check the state of the device's connection types
@@ -464,7 +464,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   test "deployment information is updated when the device joins a new deployment", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, firmware, deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
-    Devices.update_deployment_group(device, deployment_group)
+    Deployments.update_deployment_group(device, deployment_group)
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
@@ -482,7 +482,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     new_deployment_group =
       Fixtures.deployment_group_fixture(firmware, %{name: "Super Deployment", user: user})
 
-    Devices.update_deployment_group(device, new_deployment_group)
+    Deployments.update_deployment_group(device, new_deployment_group)
 
     # we need to let the channel process all messages before we can
     # check the state of the device's connection types
@@ -518,7 +518,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   test "deployment group is removed on join when conditions no longer match", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
-    Devices.update_deployment_group(device, deployment_group)
+    Deployments.update_deployment_group(device, deployment_group)
 
     {:ok, _deployment_group} =
       ManagedDeployments.update_deployment_group(
@@ -545,7 +545,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   test "deployment group is not removed when matching conditions are met", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
-    device = Devices.update_deployment_group(device, deployment_group)
+    device = Deployments.update_deployment_group(device, deployment_group)
     assert device.deployment_id == deployment_group.id
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)

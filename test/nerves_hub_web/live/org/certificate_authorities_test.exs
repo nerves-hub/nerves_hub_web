@@ -2,8 +2,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Certificate
-  alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate.CSR
+  alias NervesHub.Devices.CACertificates
   alias NervesHub.Fixtures
   alias NervesHubWeb.Components.Utils
 
@@ -58,7 +58,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       serial = Certificate.get_serial_number(ca)
 
       assert {:ok, %{description: ^description, serial: ^serial}} =
-               Devices.get_ca_certificate_by_serial(serial)
+               CACertificates.get_ca_certificate_by_serial(serial)
     end
 
     test "renders errors when cert is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
@@ -90,7 +90,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> assert_path("/org/#{org.name}/settings/certificates/new")
       |> assert_has("div", text: "Certificate Authority pem file is empty or invalid")
 
-      assert [] = Devices.get_ca_certificates(org)
+      assert [] = CACertificates.get_ca_certificates(org)
     end
 
     test "renders errors when csr is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
@@ -118,7 +118,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
         text: "Error validating certificate signing request. Please check if the right registration code was used."
       )
 
-      assert [] = Devices.get_ca_certificates(org)
+      assert [] = CACertificates.get_ca_certificates(org)
     end
 
     @tag timeout: :infinity
@@ -169,7 +169,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
                 description: ^description,
                 serial: ^serial,
                 jitp: %{tags: ["prod"], description: "a jitp description"}
-              }} = Devices.get_ca_certificate_by_serial(serial)
+              }} = CACertificates.get_ca_certificate_by_serial(serial)
     end
   end
 
@@ -185,7 +185,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> assert_has("div", text: "Certificate successfully deleted")
       |> refute_has("code", text: Utils.format_serial(ca.serial))
 
-      assert {:error, :not_found} = Devices.get_ca_certificate_by_serial(ca.serial)
+      assert {:error, :not_found} = CACertificates.get_ca_certificate_by_serial(ca.serial)
     end
   end
 
@@ -202,7 +202,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> assert_has("div", text: "Certificate Authority updated")
 
       assert {:ok, %{description: "a new description", serial: ^serial}} =
-               Devices.get_ca_certificate_by_serial(serial)
+               CACertificates.get_ca_certificate_by_serial(serial)
     end
 
     test "update fails when description is blank", %{conn: conn, user: user, org: org} do
@@ -225,7 +225,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
   defp upload_file(view, file_name, file_path, form_field) do
     csr =
-      file_input(view, "form", form_field, [
+      file_input(view, "#new-ca-form", form_field, [
         %{
           last_modified: 1_594_171_879_000,
           name: file_name,

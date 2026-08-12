@@ -8,6 +8,8 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Devices.CACertificates
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
@@ -51,7 +53,11 @@ defmodule NervesHub.Fixtures do
   def product_params() do
     %{
       name: "auto_booper_#{counter()}",
-      extensions: %{health: true, geo: true, logging: true}
+      extensions: %{health: true, geo: true, logging: true},
+      # Fixtures model existing/permissive products; many tests create several
+      # firmwares sharing a version. Enforcement is covered by explicit tests
+      # that set this to true.
+      require_unique_firmware_version: false
     }
   end
 
@@ -136,7 +142,7 @@ defmodule NervesHub.Fixtures do
       der: X509.Certificate.to_der(ca)
     }
 
-    {:ok, db_cert} = Devices.create_ca_certificate(org, params)
+    {:ok, db_cert} = CACertificates.create_ca_certificate(org, params)
     %{cert: ca, key: ca_key, db_cert: db_cert}
   end
 
@@ -398,7 +404,7 @@ defmodule NervesHub.Fixtures do
       der: der
     }
 
-    {:ok, device_cert} = Devices.create_device_certificate(device, params)
+    {:ok, device_cert} = Certificates.create_device_certificate(device, params)
     %{db_cert: device_cert, cert: cert}
   end
 

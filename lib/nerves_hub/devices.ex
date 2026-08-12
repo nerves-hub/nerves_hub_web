@@ -5,46 +5,25 @@ defmodule NervesHub.Devices do
   alias Ecto.Multi
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
-  alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
-  alias NervesHub.Certificate
-  alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
-  alias NervesHub.DeviceLink.DeviceInfo
-  alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
-  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceFiltering
-  alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceFirmwares
-  alias NervesHub.Devices.DeviceHealth
-  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.PinnedDevice
-  alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.SharedSecretAuth
-  alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Extensions
   alias NervesHub.Filtering, as: CommonFiltering
-  alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.Firmware
-  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
-  alias NervesHub.Firmwares.UpdateTool.Fwup
-  alias NervesHub.FirmwareUpdates
-  alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
-
-  require Logger
 
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
@@ -177,22 +156,6 @@ defmodule NervesHub.Devices do
     |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)
   end
 
-  def get_minimal_device_location_by_product(product) do
-    Device
-    |> join(:inner, [d], dc in DeviceConnection, on: d.latest_connection_id == dc.id)
-    |> where(product_id: ^product.id)
-    |> select([d, dc], %{
-      id: d.id,
-      identifier: d.identifier,
-      connection_status: dc.status,
-      latitude: fragment("?->'location'->'latitude'", dc.metadata),
-      longitude: fragment("?->'location'->'longitude'", dc.metadata),
-      firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)
-    })
-    |> Repo.exclude_deleted()
-    |> Repo.all()
-  end
-
   def get_device_count_by_org_id(org_id) do
     q =
       from(
@@ -225,11 +188,7 @@ defmodule NervesHub.Devices do
   def get_device_by_org(%Org{id: org_id}, device_id) do
     device_by_org_query(org_id, device_id)
     |> Repo.exclude_deleted()
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      device -> {:ok, device}
-    end
+    |> Repo.fetch()
   end
 
   @spec get_by_identifier!(String.t()) :: Device.t()
@@ -265,11 +224,7 @@ defmodule NervesHub.Devices do
   def get_by_identifier(%Scope{} = scope, identifier, preload_assoc \\ [:product, :latest_connection])
       when is_binary(identifier) do
     get_by_identifier_query(scope, identifier, preload_assoc)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      device -> {:ok, device}
-    end
+    |> Repo.fetch()
   end
 
   defp get_by_identifier_query(%Scope{org: org}, identifier, preload_assoc) when not is_nil(org) do
@@ -293,7 +248,19 @@ defmodule NervesHub.Devices do
     |> join_and_preload(preload_assoc)
   end
 
-  def join_and_preload_deployment_group_and_current_release(query) do
+  @doc """
+  Fetch a device by identifier, preloading its org, product, latest connection,
+  deployment group and current release. Raises if the device does not exist.
+  """
+  def get_by_identifier_with_deployment_and_release!(identifier) do
+    Device
+    |> where(identifier: ^identifier)
+    |> join_and_preload_deployment_group_and_current_release()
+    |> preload([:org, :product, :latest_connection])
+    |> Repo.one!()
+  end
+
+  defp join_and_preload_deployment_group_and_current_release(query) do
     query
     |> join(:left, [d], dp in assoc(d, :deployment_group), as: :deployment_group)
     |> join(:left, [deployment_group: dg], cr in assoc(dg, :current_release), as: :current_release)
@@ -339,21 +306,6 @@ defmodule NervesHub.Devices do
     |> preload([product: p], product: p)
   end
 
-  def get_device_by_x509(cert) do
-    fingerprint = NervesHub.Certificate.fingerprint(cert)
-
-    Device
-    |> join(:inner, [d], p in assoc(d, :product))
-    |> join(:inner, [d], dc in assoc(d, :device_certificates))
-    |> where([_, _, dc], dc.fingerprint == ^fingerprint)
-    |> preload([_d, p], product: p)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      device -> {:ok, device}
-    end
-  end
-
   @spec get_shared_secret_auth(String.t()) ::
           {:ok, SharedSecretAuth.t()} | {:error, :not_found}
   def get_shared_secret_auth(key) do
@@ -364,11 +316,7 @@ defmodule NervesHub.Devices do
     |> where([ssa], is_nil(ssa.deactivated_at))
     |> where([_, d], is_nil(d.deleted_at))
     |> preload([ssa, d, p], [:product_shared_secret_auth, device: {d, product: p}])
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      auth -> {:ok, auth}
-    end
+    |> Repo.fetch()
   end
 
   @spec create_shared_secret_auth(Device.t()) ::
@@ -438,239 +386,11 @@ defmodule NervesHub.Devices do
     Repo.delete(device)
   end
 
-  @spec create_device_certificate(Device.t(), map() | X509.Certificate.t()) ::
-          {:ok, DeviceCertificate.t()}
-          | {:error, Changeset.t()}
-  def create_device_certificate(%Device{} = device, otp_cert) when is_tuple(otp_cert) do
-    {nb, na} = Certificate.get_validity(otp_cert)
-
-    params = %{
-      aki: Certificate.get_aki(otp_cert),
-      der: Certificate.to_der(otp_cert),
-      not_after: na,
-      not_before: nb,
-      serial: Certificate.get_serial_number(otp_cert),
-      ski: Certificate.get_ski(otp_cert)
-    }
-
-    create_device_certificate(device, params)
-  end
-
-  def create_device_certificate(%Device{} = device, params) do
-    params = Map.put(params, :org_id, device.org_id)
-
-    changeset =
-      device
-      |> Ecto.build_assoc(:device_certificates)
-      |> DeviceCertificate.changeset(params)
-
-    case Repo.insert(changeset) do
-      {:ok, device_certificate} ->
-        :telemetry.execute([:nerves_hub, :device_certificates, :created], %{count: 1})
-
-        {:ok, device_certificate}
-
-      {:error, error} ->
-        {:error, error}
-    end
-  end
-
-  def has_device_certificates?(%Device{} = device) do
-    DeviceCertificate
-    |> join(:inner, [dc], d in assoc(dc, :device))
-    |> where([_dc, d], d.id == ^device.id)
-    |> Repo.exists?()
-  end
-
-  def get_device_certificates(%Device{} = device) do
-    DeviceCertificate
-    |> join(:inner, [dc], d in assoc(dc, :device))
-    |> where([_dc, d], d.id == ^device.id)
-    |> Repo.all()
-  end
-
-  @spec get_device_by_certificate(DeviceCertificate.t()) ::
-          {:ok, Device.t()} | {:error, :not_found}
-  def get_device_by_certificate(%DeviceCertificate{device: %Ecto.Association.NotLoaded{}} = cert) do
-    Repo.preload(cert, :device)
-    |> get_device_by_certificate()
-  end
-
-  def get_device_by_certificate(%DeviceCertificate{device: %Device{} = device}), do: {:ok, Repo.preload(device, :org)}
-
-  def get_device_by_certificate(_), do: {:error, :not_found}
-
-  def get_device_certificate_by_x509(cert) do
-    fingerprint = NervesHub.Certificate.fingerprint(cert)
-
-    DeviceCertificate
-    |> where(fingerprint: ^fingerprint)
-    |> join(:inner, [dc], d in assoc(dc, :device))
-    |> preload([_dc, d], device: d)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      certificate -> {:ok, certificate}
-    end
-  end
-
-  def get_device_by_public_key(otp_cert) do
-    pk_fingerprint = NervesHub.Certificate.public_key_fingerprint(otp_cert)
-
-    Device
-    |> join(:inner, [d], dc in assoc(d, :device_certificates))
-    |> where([_d, dc], dc.public_key_fingerprint == ^pk_fingerprint)
-    |> Repo.one()
-  end
-
-  @spec get_device_certificate_by_device_and_serial(Device.t(), binary) ::
-          {:ok, DeviceCertificate.t()} | {:error, any()}
-  def get_device_certificate_by_device_and_serial(%Device{id: device_id}, serial) do
-    query =
-      from(
-        dc in DeviceCertificate,
-        where: dc.serial == ^serial and dc.device_id == ^device_id
-      )
-
-    query
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      device_certificate ->
-        {:ok, device_certificate}
-    end
-  end
-
-  def update_device_certificate(%DeviceCertificate{} = certificate, params) do
-    certificate
-    |> DeviceCertificate.update_changeset(params)
-    |> Repo.update()
-  end
-
-  @spec delete_device_certificate(DeviceCertificate.t()) ::
-          {:ok, DeviceCertificate.t()}
-          | {:error, Changeset.t()}
-  def delete_device_certificate(%DeviceCertificate{} = device_certificate) do
-    Repo.delete(device_certificate)
-  end
-
-  @spec create_ca_certificate(Org.t(), map()) ::
-          {:ok, CACertificate.t()}
-          | {:error, Changeset.t()}
-  def create_ca_certificate(%Org{} = org, params) do
-    org
-    |> Ecto.build_assoc(:ca_certificates)
-    |> CACertificate.changeset(params)
-    |> Repo.insert()
-    |> case do
-      {:ok, ca_certificate} ->
-        {:ok, Repo.preload(ca_certificate, jitp: :product)}
-
-      err ->
-        err
-    end
-  end
-
-  @spec create_ca_certificate_from_x509(Org.t(), X509.Certificate.t(), binary() | nil) ::
-          {:ok, CACertificate.t()} | {:error, Ecto.Changeset.t()}
-  def create_ca_certificate_from_x509(%Org{} = org, otp_cert, description \\ nil) when is_tuple(otp_cert) do
-    {not_before, not_after} = Certificate.get_validity(otp_cert)
-
-    params = %{
-      serial: Certificate.get_serial_number(otp_cert),
-      aki: Certificate.get_aki(otp_cert),
-      ski: Certificate.get_ski(otp_cert),
-      not_before: not_before,
-      not_after: not_after,
-      der: X509.Certificate.to_der(otp_cert),
-      description: description
-    }
-
-    create_ca_certificate(org, params)
-  end
-
-  def get_ca_certificates(%Org{id: org_id}) do
-    from(ca in CACertificate, where: ca.org_id == ^org_id, preload: [jitp: :product])
-    |> Repo.all()
-  end
-
-  @spec get_ca_certificate_by_aki(binary) :: {:ok, CACertificate.t()} | {:error, any()}
-  def get_ca_certificate_by_aki(aki) do
-    q = from(CACertificate, where: [aki: ^aki], preload: [jitp: :product])
-
-    case Repo.one(q) do
-      nil -> {:error, :not_found}
-      ca_cert -> {:ok, ca_cert}
-    end
-  end
-
-  @spec known_ca_ski?(binary) :: boolean()
-  def known_ca_ski?(ski) do
-    CACertificate
-    |> where(ski: ^ski)
-    |> Repo.exists?()
-  end
-
-  @spec get_ca_certificate_by_ski(binary) :: {:ok, CACertificate.t()} | {:error, any()}
-  def get_ca_certificate_by_ski(ski) do
-    CACertificate
-    |> join(:left, [cac], jitp in assoc(cac, :jitp))
-    |> join(:left, [_cac, jitp], p in assoc(jitp, :product))
-    |> where([cac], cac.ski == ^ski)
-    |> preload([_cac, jitp, p], jitp: {jitp, product: p})
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      ca_cert -> {:ok, ca_cert}
-    end
-  end
-
-  @spec get_ca_certificate_by_serial(binary) :: {:ok, CACertificate.t()} | {:error, any()}
-  def get_ca_certificate_by_serial(serial) do
-    q = from(CACertificate, where: [serial: ^serial], preload: [jitp: :product])
-
-    case Repo.one(q) do
-      nil -> {:error, :not_found}
-      ca_cert -> {:ok, ca_cert}
-    end
-  end
-
-  @spec get_ca_certificate_by_org_and_serial(Org.t(), binary) ::
-          {:ok, CACertificate.t()} | {:error, any()}
-  def get_ca_certificate_by_org_and_serial(%Org{id: org_id}, serial) do
-    query =
-      from(
-        ca in CACertificate,
-        where: ca.serial == ^serial and ca.org_id == ^org_id,
-        preload: [jitp: :product]
-      )
-
-    case Repo.one(query) do
-      nil ->
-        {:error, :not_found}
-
-      ca_cert ->
-        {:ok, ca_cert}
-    end
-  end
-
-  def update_ca_certificate(%CACertificate{} = certificate, params) do
-    certificate
-    |> CACertificate.update_changeset(params)
-    |> Repo.update()
-  end
-
-  def delete_ca_certificate(%CACertificate{} = ca_certificate) do
-    Repo.delete(ca_certificate)
-  end
-
   def clean_up_soft_deleted_devices() do
-    two_weeks_ago = NaiveDateTime.add(NaiveDateTime.utc_now(), -12, :day)
+    twelve_days_ago = NaiveDateTime.add(NaiveDateTime.utc_now(), -12, :day)
 
     Device
-    |> where([d], d.deleted_at < ^two_weeks_ago)
+    |> where([d], d.deleted_at < ^twelve_days_ago)
     |> Repo.all()
     |> Enum.each(fn device ->
       Repo.transact(fn ->
@@ -684,25 +404,6 @@ defmodule NervesHub.Devices do
         end
       end)
     end)
-  end
-
-  @type firmware_id :: binary()
-  @type source_firmware_id() :: firmware_id()
-  @type target_firmware_id() :: firmware_id()
-
-  @spec get_device_firmware_for_delta_generation_by_deployment_group(binary()) ::
-          list({source_firmware_id(), target_firmware_id()})
-  def get_device_firmware_for_delta_generation_by_deployment_group(deployment_id) do
-    DeploymentGroup
-    |> where([dep], dep.id == ^deployment_id)
-    |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
-    |> join(:inner, [dep], cr in assoc(dep, :current_release))
-    |> join(:inner, [_, dev], f in Firmware, on: f.uuid == fragment("?.firmware_metadata->>'uuid'", dev))
-    # Exclude the current firmware, we don't need to generate that one
-    |> where([_, _, cr, f], f.id != cr.firmware_id)
-    |> select([_, _, cr, f], {f.id, cr.firmware_id})
-    |> distinct(true)
-    |> Repo.all()
   end
 
   @spec update_firmware_metadata(
@@ -783,23 +484,6 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  def firmware_validated(device_info) do
-    Repo.transact(fn ->
-      with device when not is_nil(device) <- get_device(device_info.device_id),
-           device_changeset = Device.firmware_validated(device),
-           {:ok, device} <- Repo.update(device_changeset),
-           device_firmware_changeset = DeviceFirmware.firmware_validated(device),
-           {:ok, _device_firmware} <- Repo.update(device_firmware_changeset),
-           :ok <- DeviceTemplates.audit_firmware_validated(device_info) do
-        {:ok, device}
-      end
-    end)
-
-    PubSub.broadcast(device_info.device_id, "firmware:validated", %{})
-
-    :ok
-  end
-
   @spec update_device(Device.t(), map(), broadcast: boolean()) ::
           {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def update_device(%Device{} = device, params, opts \\ []) do
@@ -814,504 +498,6 @@ defmodule NervesHub.Devices do
       {:error, changeset} ->
         {:error, changeset}
     end
-  end
-
-  @doc """
-  Fetch devices associated with a deployment for updating.
-
-  Devices must be:
-  - online
-  - have automatic updates enabled
-  - not currently updating
-  - not be running the same firmware version associated with the deployment
-  - not in the penalty box (based on `updates_blocked_until`)
-
-  If the deployment group has `enable_priority_updates` set to false (the default),
-  devices are ordered by their `latest_connection`: devices connected the longest will
-  be updated first.
-
-  If the deployment group has `enable_priority_updates` set to true,
-  devices are ordered by most recently connected for the first time (`device.first_seen_at`)
-  """
-  @spec available_for_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
-  def available_for_update(deployment_group, count) do
-    build_available_devices_query(deployment_group, count, [])
-    |> Repo.all()
-  end
-
-  @doc """
-  Get devices eligible for priority queue updates.
-
-  Similar to `available_for_update/2` but filters devices whose firmware version
-  is less than or equal to the priority_queue_firmware_version_threshold.
-  """
-  @spec available_for_priority_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
-
-  # No threshold set, return empty list
-  def available_for_priority_update(%DeploymentGroup{priority_queue_firmware_version_threshold: threshold}, _count)
-      when is_nil(threshold), do: []
-
-  def available_for_priority_update(deployment_group, count) do
-    threshold = deployment_group.priority_queue_firmware_version_threshold
-
-    build_available_devices_query(deployment_group, count, version_threshold: threshold)
-    |> Repo.all()
-  end
-
-  # Builds the query for finding available devices for updates
-  # Options:
-  #   - :version_threshold - Optional firmware version threshold for priority queue filtering
-  defp build_available_devices_query(deployment_group, count, opts) do
-    now = DateTime.utc_now(:second)
-    version_threshold = Keyword.get(opts, :version_threshold)
-
-    Device
-    |> from(as: :device)
-    |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
-    |> join(:inner, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
-    |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
-    |> ManagedDeployments.join_current_release()
-    |> join_firmware()
-    |> join_firmware_deltas()
-    |> where([device: d], d.deployment_id == ^deployment_group.id)
-    |> where([device: d], d.updates_enabled == true)
-    |> where([device: d], not is_nil(d.firmware_metadata))
-    |> where([device: d], d.firmware_validation_status in [:validated, :unknown])
-    |> where([device: d], coalesce(d.updates_blocked_until, "1970-01-01 00:00:00") |> type(:naive_datetime) < ^now)
-    |> where([deployment_group: dg], dg.is_active == true)
-    |> where([deployment_group: dg], dg.status == :ready)
-    # this is a short circuit to avoid a race condition where a new deployment release is created by
-    # the orchestrator is about to run this query before the orchestrator has refreshed its information
-    |> where(
-      [deployment_group: dg],
-      dg.current_deployment_release_id == ^deployment_group.current_deployment_release_id
-    )
-    |> where([latest_connection: lc], lc.status == :connected)
-    |> where([firmware: f, current_release: cr], is_nil(f.id) or f.id != cr.firmware_id)
-    |> where([inflight_update: ifu], is_nil(ifu))
-    # Only include devices where: delta is completed OR no delta row exists
-    |> where([firmware_delta: fd], is_nil(fd.id) or fd.status == :completed)
-    |> maybe_version_threshold(version_threshold)
-    |> maybe_filter_by_network_interfaces(deployment_group.release_network_interfaces)
-    |> maybe_release_tags(deployment_group.release_tags)
-    |> order_by_queue_management(deployment_group.queue_management)
-    |> limit(^count)
-  end
-
-  defp join_firmware(query) do
-    join(query, :left, [d], f in Firmware,
-      on: f.product_id == d.product_id and f.uuid == fragment("(? #>> '{\"uuid\"}')", d.firmware_metadata),
-      as: :firmware
-    )
-  end
-
-  defp join_firmware_deltas(query) do
-    join(query, :left, [firmware: f, current_release: cr], fd in FirmwareDelta,
-      on: fd.source_id == f.id and fd.target_id == cr.firmware_id,
-      as: :firmware_delta
-    )
-  end
-
-  # Filter by network interface if release_network_interfaces is specified
-  # Empty list means allow all interfaces
-  defp maybe_filter_by_network_interfaces(query, []) do
-    query
-  end
-
-  defp maybe_filter_by_network_interfaces(query, interfaces) do
-    where(query, [latest_connection: lc], lc.network_interface in ^interfaces)
-  end
-
-  defp maybe_version_threshold(query, nil), do: query
-
-  defp maybe_version_threshold(query, version_threshold) do
-    where(
-      query,
-      [d],
-      fragment(
-        "semver_match(? #>> '{\"version\"}', ?)",
-        d.firmware_metadata,
-        ^"<= #{version_threshold}"
-      )
-    )
-  end
-
-  defp maybe_release_tags(query, release_tags) when release_tags != [] do
-    where(query, [d], fragment("? @> ?", d.tags, ^release_tags))
-  end
-
-  defp maybe_release_tags(query, _release_tags), do: query
-
-  defp order_by_queue_management(query, :FIFO) do
-    order_by(query, [latest_connection: lc], asc: lc.established_at)
-  end
-
-  defp order_by_queue_management(query, :LIFO) do
-    order_by(query, [d], desc_nulls_last: d.first_seen_at)
-  end
-
-  @doc """
-  Resolve an update for the device's deployment
-  """
-  @spec resolve_update(Device.t()) :: UpdatePayload.t()
-  def resolve_update(device, deployment_group \\ nil, opts \\ [])
-
-  def resolve_update(%Device{status: :registered}, nil, _), do: %UpdatePayload{update_available: false}
-
-  def resolve_update(%Device{deployment_id: nil}, nil, _), do: %UpdatePayload{update_available: false}
-
-  def resolve_update(%Device{firmware_metadata: fw_meta} = device, nil, _) do
-    Logger.metadata(device_id: device.id, source_firmware_uuid: Map.get(fw_meta, :uuid))
-    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
-
-    opts =
-      if proxy_url = get_in(deployment_group.org.settings.firmware_proxy_url) do
-        [firmware_proxy_url: proxy_url]
-      else
-        []
-      end
-
-    resolve_update(device, deployment_group, opts)
-  end
-
-  def resolve_update(device, deployment_group, opts) do
-    case verify_update_eligibility(device, deployment_group) do
-      {:ok, _device} ->
-        case get_delta_or_firmware(device, deployment_group) do
-          {:ok, firmware_or_delta} ->
-            {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.current_release.firmware)
-
-            {:ok, url} = Firmwares.get_firmware_url(firmware_or_delta)
-
-            firmware_url =
-              if opts[:firmware_proxy_url] do
-                opts[:firmware_proxy_url] <> "?firmware=#{Base.url_encode64(url, padding: false)}"
-              else
-                url
-              end
-
-            %UpdatePayload{
-              update_available: true,
-              firmware_url: firmware_url,
-              firmware_meta: meta,
-              deployment_group: deployment_group,
-              deployment_id: deployment_group.id,
-              size: firmware_or_delta.size,
-              checksum: firmware_or_delta.checksum,
-              partials_checksums: firmware_or_delta.partials_checksums
-            }
-        end
-
-      {:error, :deployment_group_not_active, _device} ->
-        %UpdatePayload{update_available: false}
-
-      {:error, :up_to_date, _device} ->
-        %UpdatePayload{update_available: false}
-
-      {:error, :updates_blocked, _device} ->
-        %UpdatePayload{update_available: false}
-    end
-  end
-
-  @doc """
-  Returns true if the device is delta updatable.
-
-  Checks update tool version information and similar metadata to determine if
-  the device is delta updatable.
-  """
-  @spec delta_updatable?(Device.t(), DeploymentGroup.t() | Firmware.t()) :: boolean()
-  def delta_updatable?(device, %DeploymentGroup{} = deployment_group) do
-    Logger.metadata(device_id: device.id, deployment_group_id: deployment_group.id)
-    # note that source delta does not need delta markers to be updatable
-    # Any advanced decision about whether to delta update or not are delegated
-    # to the specialized update tool implementation
-
-    deployment_group.delta_updatable and
-      not is_nil(deployment_group.current_release.firmware) and
-      delta_updatable?(device, deployment_group.current_release.firmware)
-  end
-
-  def delta_updatable?(%{firmware_metadata: fw_meta} = device, %Firmware{} = firmware) do
-    Logger.metadata(
-      device_id: device.id,
-      target_firmware_uuid: firmware.uuid,
-      source_firmware_uuid: Map.get(fw_meta, :uuid)
-    )
-
-    firmware.delta_updatable and
-      :delta == update_tool().device_update_type(device, firmware)
-  end
-
-  @spec delta_ready?(Device.t(), Firmware.t()) :: boolean()
-  def delta_ready?(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
-    source_firmware_id_query =
-      Firmware
-      |> where(uuid: ^source_uuid)
-      |> where(product_id: ^product_id)
-      |> select([f], f.id)
-
-    query =
-      FirmwareDelta
-      |> where([fd], fd.source_id == subquery(source_firmware_id_query))
-      |> where([fd], fd.target_id == ^target_id)
-      |> where([fd], fd.status == :completed)
-
-    Repo.exists?(query)
-  end
-
-  @doc """
-  Returns true if Version.match? and all deployment tags are in device tags.
-  """
-  def matches_deployment_group?(
-        %Device{tags: tags, firmware_metadata: %FirmwareMetadata{version: version}},
-        %DeploymentGroup{conditions: %{version: requirement, tags: dep_tags}}
-      ) do
-    if version_match?(version, requirement) and tags_match?(tags, dep_tags) do
-      true
-    else
-      false
-    end
-  end
-
-  def matches_deployment_group?(_, _), do: false
-
-  @spec update_deployment_group(Device.t(), DeploymentGroup.t()) :: Device.t()
-  # No-op if the deployment group ID matches the current deployment ID
-  def update_deployment_group(%{deployment_id: deployment_id} = device, %{id: deployment_id}) do
-    device
-  end
-
-  def update_deployment_group(device, deployment_group) do
-    # Use a transaction to ensure device update and delta generation happen atomically
-    # This prevents race condition: when the transaction commits, both the device's new
-    # deployment_id and any firmware_delta rows (with :processing status) become visible
-    # simultaneously, preventing the orchestrator from scheduling a full update when a delta
-    # is being prepared
-    {:ok, device} =
-      Repo.transact(fn ->
-        # Update the device's deployment group first
-        updated_device =
-          device
-          |> Device.update_deployment_group(deployment_group)
-          |> Repo.update!()
-
-        # Then queue delta generation for any new device firmware combinations
-        # This will pick up the newly added device's firmware
-        _ = ManagedDeployments.trigger_delta_generation_for_deployment_group(deployment_group)
-
-        {:ok, updated_device}
-      end)
-
-    # notify the device about its assigned deployment group changing
-    DeviceEvents.deployment_assigned(device)
-
-    # let the orchestrator know that a device has been added to the deployment group
-    DeploymentOrchestratorEvents.device_added(device)
-
-    Map.put(device, :deployment_group, deployment_group)
-  end
-
-  @spec clear_deployment_group(Device.t()) :: Device.t()
-  def clear_deployment_group(device) do
-    device =
-      device
-      |> Device.clear_deployment_group()
-      |> Repo.update!()
-
-    DeviceEvents.deployment_cleared(device)
-
-    Map.put(device, :deployment_group, nil)
-  end
-
-  @spec failure_threshold_met?(Device.t(), DeploymentGroup.t()) :: boolean()
-  def failure_threshold_met?(%Device{} = device, %DeploymentGroup{} = deployment_group) do
-    Enum.count(device.update_attempts) >= deployment_group.device_failure_threshold
-  end
-
-  @spec failure_rate_met?(Device.t(), DeploymentGroup.t()) :: boolean()
-  def failure_rate_met?(%Device{} = device, %DeploymentGroup{} = deployment_group) do
-    seconds_ago =
-      Timex.shift(DateTime.utc_now(), seconds: -deployment_group.device_failure_rate_seconds)
-
-    attempts =
-      Enum.filter(device.update_attempts, fn attempt ->
-        DateTime.before?(seconds_ago, attempt)
-      end)
-
-    Enum.count(attempts) >= deployment_group.device_failure_rate_amount
-  end
-
-  @doc """
-  Devices that haven't been automatically blocked are not in the penalty window.
-  Devices that have a time greater than now are in the penalty window.
-  """
-  @spec device_in_penalty_box?(device_or_device_info :: Device.t() | DeviceInfo.t(), now :: DateTime.t()) :: boolean()
-  def device_in_penalty_box?(device_or_device_info, now \\ DateTime.utc_now())
-
-  def device_in_penalty_box?(%DeviceInfo{device_updates_blocked_until: nil}, _now), do: false
-
-  def device_in_penalty_box?(%Device{updates_blocked_until: nil}, _now), do: false
-
-  def device_in_penalty_box?(%DeviceInfo{} = device_info, now) do
-    DateTime.after?(device_info.device_updates_blocked_until, now)
-  end
-
-  def device_in_penalty_box?(%Device{} = device, now) do
-    DateTime.after?(device.updates_blocked_until, now)
-  end
-
-  defp updates_blocked?(device, now) do
-    device.updates_enabled == false || device_in_penalty_box?(device, now)
-  end
-
-  def device_matches_deployment_group?(device, deployment_group) do
-    device.firmware_metadata.uuid == deployment_group.current_release.firmware.uuid
-  end
-
-  def verify_update_eligibility(device, deployment_group, now \\ DateTime.utc_now()) do
-    cond do
-      not deployment_group.is_active ->
-        {:error, :deployment_group_not_active, device}
-
-      device_matches_deployment_group?(device, deployment_group) ->
-        {:error, :up_to_date, device}
-
-      updates_blocked?(device, now) ->
-        FirmwareUpdates.clear_inflight_update(device)
-
-        {:error, :updates_blocked, device}
-
-      failure_rate_met?(device, deployment_group) ->
-        {:ok, device} = put_device_in_penalty_box(device, deployment_group, :exceeded_failure_rate)
-
-        {:error, :updates_blocked, device}
-
-      failure_threshold_met?(device, deployment_group) ->
-        {:ok, device} = put_device_in_penalty_box(device, deployment_group, :exceeded_failure_threshold)
-
-        {:error, :updates_blocked, device}
-
-      true ->
-        {:ok, device}
-    end
-  end
-
-  defp put_device_in_penalty_box(device, deployment_group, reason) do
-    blocked_until =
-      DateTime.utc_now()
-      |> DateTime.truncate(:second)
-      |> DateTime.add(deployment_group.penalty_timeout_minutes * 60, :second)
-
-    :ok = DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device)
-    _ = FirmwareUpdates.clear_inflight_update(device)
-
-    device =
-      Repo.preload(device, [:org, :product, :current_device_firmware, deployment_group: [current_release: :firmware]])
-
-    Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}", %{
-      identifier: device.identifier,
-      org: device.org.name,
-      product: device.product.name,
-      platform: deployment_group.platform,
-      current_firmware_version: device.current_device_firmware.firmware_metadata.version,
-      upgrading_firmware_version: device.deployment_group.current_release.firmware.version,
-      reason: reason
-    })
-
-    update_device(device, %{updates_blocked_until: blocked_until, update_attempts: []})
-  end
-
-  @spec update_attempted(DeviceInfo.t(), DateTime.t()) :: :ok | {:error, Changeset.t()}
-  def update_attempted(device_info, now \\ DateTime.utc_now()) do
-    now = DateTime.truncate(now, :second)
-
-    Multi.new()
-    |> Multi.update_all(
-      :device,
-      fn _ ->
-        Device
-        |> where(id: ^device_info.device_id)
-        |> update(set: [update_attempts: fragment("update_attempts || ?::timestamp", ^now)])
-      end,
-      []
-    )
-    |> Multi.run(:audit_device, fn _, _ ->
-      DeviceTemplates.audit_update_attempt(device_info)
-    end)
-    |> Repo.transact()
-    |> case do
-      {:ok, _} ->
-        :ok
-
-      err ->
-        err
-    end
-  end
-
-  def deployment_device_online(%DeviceInfo{deployment_id: nil}) do
-    :ok
-  end
-
-  def deployment_device_online(device_info) do
-    firmware_uuid = if(device_info.firmware_metadata, do: device_info.firmware_metadata.uuid)
-
-    payload = %{
-      updates_enabled: device_info.device_updates_enabled,
-      updates_blocked_until: device_info.device_updates_blocked_until,
-      firmware_uuid: firmware_uuid
-    }
-
-    DeploymentOrchestratorEvents.device_online(device_info, payload)
-
-    :ok
-  end
-
-  def up_to_date_count(%DeploymentGroup{} = deployment_group) do
-    Device
-    |> where([d], d.deployment_id == ^deployment_group.id)
-    |> where([d], d.updates_enabled == true)
-    |> where([d], d.firmware_metadata["uuid"] == ^deployment_group.current_release.firmware.uuid)
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
-  end
-
-  @spec updating_count(DeploymentGroup.t()) :: term() | nil
-  def updating_count(%DeploymentGroup{id: id}) do
-    InflightUpdate
-    |> where([ifu], ifu.deployment_id == ^id)
-    |> Repo.aggregate(:count)
-  end
-
-  @spec waiting_for_update_count(DeploymentGroup.t()) :: term() | nil
-  def waiting_for_update_count(%DeploymentGroup{} = deployment_group) do
-    Device
-    |> where([d], d.deployment_id == ^deployment_group.id)
-    |> where([d], d.updates_enabled == true)
-    |> where(
-      [d],
-      is_nil(d.firmware_metadata) or
-        d.firmware_metadata["uuid"] != ^deployment_group.current_release.firmware.uuid
-    )
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
-  end
-
-  @spec updates_disabled_count(DeploymentGroup.t()) :: non_neg_integer()
-  def updates_disabled_count(%DeploymentGroup{id: id}) do
-    Device
-    |> where([d], d.deployment_id == ^id)
-    |> where([d], d.updates_enabled == false)
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
-  end
-
-  @spec in_penalty_box_count(DeploymentGroup.t(), DateTime.t()) :: non_neg_integer()
-  def in_penalty_box_count(%DeploymentGroup{id: id}, now \\ DateTime.utc_now()) do
-    Device
-    |> where([d], d.deployment_id == ^id)
-    |> where([d], not is_nil(d.updates_blocked_until) and d.updates_blocked_until > ^now)
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
   end
 
   def restore_device(%Device{} = device) do
@@ -1341,7 +527,7 @@ defmodule NervesHub.Devices do
       deployment_id: nil
     }
 
-    _ = maybe_copy_firmware_keys(device, product.org)
+    _ = Accounts.maybe_copy_firmware_keys(device, product.org)
 
     description =
       "User #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
@@ -1458,94 +644,6 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec enable_updates(Device.t() | [Device.t()], User.t()) ::
-          {:ok, Device.t()} | {:error, any(), any(), any()}
-  def enable_updates(%Device{} = device, user) do
-    description = "User #{user.name} enabled updates for device #{device.identifier}"
-    params = %{updates_enabled: true, update_attempts: []}
-
-    case update_device_with_audit(device, params, user, description) do
-      {:ok, device} = result ->
-        _ =
-          if device.deployment_id do
-            DeploymentOrchestratorEvents.device_updated(device)
-          end
-
-        result
-
-      {:error, _, _, _} = result ->
-        result
-    end
-  end
-
-  @spec disable_updates(Device.t() | [Device.t()], User.t()) ::
-          {:ok, Device.t()} | {:error, any(), any(), any()}
-  def disable_updates(%Device{} = device, user) do
-    description = "User #{user.name} disabled updates for device #{device.identifier}"
-    params = %{updates_enabled: false}
-    update_device_with_audit(device, params, user, description)
-  end
-
-  def toggle_automatic_updates(device, user) do
-    case device.updates_enabled do
-      true ->
-        disable_updates(device, user)
-
-      false ->
-        enable_updates(device, user)
-    end
-  end
-
-  def clear_penalty_box(%Device{} = device, user) do
-    description = "User #{user.name} removed device #{device.identifier} from the penalty box"
-    params = %{updates_blocked_until: nil, update_attempts: [], updates_enabled: true}
-    update_device_with_audit(device, params, user, description)
-  end
-
-  def update_blocked_until(device, deployment) do
-    blocked_until =
-      DateTime.utc_now()
-      |> DateTime.truncate(:second)
-      |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
-
-    DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device)
-
-    update_device(device, %{updates_blocked_until: blocked_until})
-  end
-
-  @doc """
-  Removes unmatched devices from deployment group. The given device ids are
-  assumed to be ids of devices that "match" a deployment group's conditions,
-  e.g. devices from ManagedDeployments.matched_device_ids/2. Devices are
-  fetched by their id and also filtered by the deployment group's id and
-  product id.
-
-  `Repo.update_all()` is used to update the rows. The return informs how
-  many rows were updated and how many were ignored because of a problem.
-
-  remove_unmatched_devices_from_deployment_group([1, 2, 3], deployment_group)
-  > {:ok, %{updated: 3, ignored: 0}}
-  """
-  @spec remove_unmatched_devices_from_deployment_group([non_neg_integer()], DeploymentGroup.t()) ::
-          {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
-  def remove_unmatched_devices_from_deployment_group(matched_device_ids, deployment_group) do
-    {devices_updated_count, _} =
-      Device
-      |> Repo.exclude_deleted()
-      |> where([d], d.deployment_id == ^deployment_group.id)
-      |> where([d], d.product_id == ^deployment_group.product_id)
-      |> where([d], d.id not in ^matched_device_ids)
-      |> Repo.update_all([set: [deployment_id: nil]], timeout: to_timeout(minute: 2))
-
-    :ok = Enum.each(matched_device_ids, &DeviceEvents.updated(%Device{id: &1}))
-
-    {:ok,
-     %{
-       updated: devices_updated_count,
-       ignored: length(matched_device_ids) - devices_updated_count
-     }}
-  end
-
   @spec get_devices_by_id(Scope.t(), [non_neg_integer()]) :: [Device.t()]
   def get_devices_by_id(%Scope{user: user}, ids) when is_list(ids) do
     Device
@@ -1563,98 +661,6 @@ defmodule NervesHub.Devices do
       :ok
     end
   end
-
-  @spec save_device_health(health_report :: map()) ::
-          {:ok, DeviceHealth.t()} | {:error, Ecto.Changeset.t()}
-  def save_device_health(device_status) do
-    Multi.new()
-    |> Multi.insert(:insert_health, DeviceHealth.save(device_status))
-    |> Ecto.Multi.update_all(:update_device, &update_health_on_device/1, [])
-    |> Repo.transact()
-    |> case do
-      {:ok, %{insert_health: health}} ->
-        {:ok, health}
-
-      {:error, _, changeset, _} ->
-        {:error, changeset}
-    end
-  end
-
-  defp update_health_on_device(%{insert_health: health}) do
-    Device
-    |> where(id: ^health.device_id)
-    |> update(set: [latest_health_id: ^health.id])
-  end
-
-  def truncate_device_health() do
-    interval =
-      Application.get_env(:nerves_hub, :device_health_days_to_retain)
-
-    delete_limit = Application.get_env(:nerves_hub, :device_health_delete_limit)
-    time_ago = DateTime.shift(DateTime.utc_now(), day: -interval)
-
-    query =
-      DeviceHealth
-      |> join(:inner, [dh], d in Device, on: dh.device_id == d.id)
-      |> where([dh, _d], dh.inserted_at < ^time_ago)
-      |> where([dh, d], dh.id != d.latest_health_id)
-      |> select([dh], dh.id)
-      |> limit(^delete_limit)
-
-    {delete_count, _} =
-      DeviceHealth
-      |> where([dh], dh.id in subquery(query))
-      |> Repo.delete_all(timeout: 30_000)
-
-    if delete_count == 0 do
-      :ok
-    else
-      # relax stress on Ecto pool and go again
-      Process.sleep(2000)
-      truncate_device_health()
-    end
-  end
-
-  defp version_match?(_vsn, ""), do: true
-
-  defp version_match?(version, requirement) do
-    Version.match?(version, requirement)
-  end
-
-  defp tags_match?(nil, deployment_group_tags), do: tags_match?([], deployment_group_tags)
-  defp tags_match?(device_tags, nil), do: tags_match?(device_tags, [])
-
-  defp tags_match?(device_tags, deployment_group_tags) do
-    Enum.all?(deployment_group_tags, fn tag -> tag in device_tags end)
-  end
-
-  def fetch_firmware_signing_keys(device_id) do
-    OrgKey
-    |> join(:inner, [ok], d in assoc(ok, :org))
-    |> join(:inner, [ok, o], d in assoc(o, :devices))
-    |> where([ok, o, d], d.id == ^device_id)
-    |> Repo.all()
-  end
-
-  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}) do
-    existing_target_keys = from(k in OrgKey, where: [org_id: ^target], select: k.key)
-
-    from(
-      k in OrgKey,
-      join: f in Firmware,
-      on: [org_key_id: k.id],
-      where: f.uuid == ^uuid and k.org_id == ^source,
-      where: k.key not in subquery(existing_target_keys),
-      select: %{name: k.name, key: k.key, org_id: type(^target, :integer)}
-    )
-    |> Repo.one()
-    |> case do
-      %{} = attrs -> Accounts.create_org_key(attrs)
-      _ -> :ignore
-    end
-  end
-
-  def maybe_copy_firmware_keys(_old, _updated), do: :ignore
 
   @doc """
   Get distinct device platforms based on the product
@@ -1701,157 +707,31 @@ defmodule NervesHub.Devices do
   end
 
   def enable_extension_setting(%Device{} = device, extension_string) do
-    device = get_device(device.id)
-
-    Device.changeset(device, %{"extensions" => %{extension_string => true}})
-    |> Repo.update()
-    |> tap(fn
-      {:ok, _} ->
-        Extensions.broadcast_extension_event(device, "attach", extension_string)
-
-      _ ->
-        :nope
-    end)
+    set_extension_setting(device, extension_string, true)
   end
 
   def disable_extension_setting(%Device{} = device, extension_string) do
-    device = get_device(device.id)
+    set_extension_setting(device, extension_string, false)
+  end
 
-    Device.changeset(device, %{"extensions" => %{extension_string => false}})
+  defp set_extension_setting(%Device{} = device, extension_string, enabled?) do
+    device = get_device(device.id)
+    event = if enabled?, do: "attach", else: "detach"
+
+    Device.changeset(device, %{"extensions" => %{extension_string => enabled?}})
     |> Repo.update()
     |> tap(fn
       {:ok, _} ->
-        Extensions.broadcast_extension_event(device, "detach", extension_string)
+        Extensions.broadcast_extension_event(device, event, extension_string)
 
       _ ->
         :nope
     end)
-  end
-
-  def preload_product(%Device{} = device) do
-    device
-    |> Repo.preload(:product)
-  end
-
-  @spec get_pinned_devices(Scope.t()) :: [Device.t()]
-  def get_pinned_devices(%Scope{user: user}) when not is_nil(user) do
-    query =
-      PinnedDevice
-      |> where(user_id: ^user.id)
-      |> select([:device_id])
-
-    Device
-    |> where([d], d.id in subquery(query))
-    |> join(:left, [d], o in assoc(d, :org))
-    |> join(:left, [d, o], p in assoc(d, :product))
-    |> join(:left, [d, o, lc], lc in assoc(d, :latest_connection))
-    |> join(:left, [d, o, lc, lh], lh in assoc(d, :latest_health))
-    |> preload([d, o, p, lc, lh], org: o, product: p, latest_connection: lc, latest_health: lh)
-    |> Repo.all()
-  end
-
-  @spec pin_device(non_neg_integer(), non_neg_integer()) ::
-          {:ok, PinnedDevice.t()} | {:error, Ecto.Changeset.t()}
-  def pin_device(user_id, device_id) do
-    %{user_id: user_id, device_id: device_id}
-    |> PinnedDevice.create()
-    |> Repo.insert()
-  end
-
-  @spec unpin_device(neg_integer(), non_neg_integer()) ::
-          {:ok, PinnedDevice.t()} | {:error, Ecto.Changeset.t()}
-  def unpin_device(user_id, device_id) do
-    PinnedDevice
-    |> Repo.get_by!(user_id: user_id, device_id: device_id)
-    |> Repo.delete()
-  end
-
-  def device_pinned?(user_id, device_id) do
-    PinnedDevice
-    |> where([p], p.user_id == ^user_id)
-    |> where([p], p.device_id == ^device_id)
-    |> Repo.exists?()
-  end
-
-  @doc """
-  Unpins all devices belonging to user and org.
-  """
-  @spec unpin_org_devices(non_neg_integer(), non_neg_integer()) ::
-          {non_neg_integer(), nil | [term()]}
-  def unpin_org_devices(user_id, org_id) do
-    sub =
-      Device
-      |> where(org_id: ^org_id)
-      |> select([:id])
-
-    PinnedDevice
-    |> where([p], p.user_id == ^user_id)
-    |> where([p], p.device_id in subquery(sub))
-    |> Repo.delete_all()
   end
 
   @doc """
   Get firmware or delta.
   """
-  @spec get_delta_or_firmware(Device.t(), DeploymentGroup.t()) ::
-          {:ok, Firmware.t()} | {:ok, FirmwareDelta.t()}
-  def get_delta_or_firmware(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
-        delta_updatable: true,
-        current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
-      }) do
-    case Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, source_uuid) do
-      {:ok, source_firmware} ->
-        case get_delta_if_ready(device, source_firmware, target_firmware) do
-          {:ok, delta} ->
-            {:ok, delta}
-
-          _ ->
-            {:ok, target_firmware}
-        end
-
-      {:error, :not_found} ->
-        {:ok, target_firmware}
-    end
-  end
-
-  def get_delta_or_firmware(%Device{}, %DeploymentGroup{current_release: %{firmware: target}}), do: {:ok, target}
-
-  @spec get_delta_if_ready(Device.t(), Firmware.t(), Firmware.t()) ::
-          {:ok, FirmwareDelta.t()}
-          | {:device_delta_updatable, false}
-          | {:delta, {:ok, FirmwareDelta.t()}}
-          | {:delta, {:error, :not_found}}
-  defp get_delta_if_ready(device, source_firmware, target_firmware) do
-    with {:device_delta_updatable, true} <-
-           {:device_delta_updatable, delta_updatable?(device, target_firmware)},
-         {:delta, {:ok, %{status: :completed} = delta}} <-
-           {:delta,
-            Firmwares.get_firmware_delta_by_source_and_target(
-              source_firmware.id,
-              target_firmware.id
-            )} do
-      {:ok, delta}
-    end
-  end
-
-  @spec get_delta_url(Device.t(), Firmware.t()) ::
-          {:ok, String.t()}
-          | {:error, :failure}
-  def get_delta_url(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
-    source_firmware_id_query =
-      Firmware
-      |> where(uuid: ^source_uuid)
-      |> where(product_id: ^product_id)
-      |> select([f], f.id)
-
-    delta =
-      FirmwareDelta
-      |> where([fd], fd.source_id == subquery(source_firmware_id_query))
-      |> where([fd], fd.target_id == ^target_id)
-      |> Repo.one()
-
-    Firmwares.get_firmware_url(delta)
-  end
 
   @spec soft_deleted_devices_exist_for_product?(non_neg_integer()) :: boolean()
   def soft_deleted_devices_exist_for_product?(product_id) do
@@ -1899,23 +779,5 @@ defmodule NervesHub.Devices do
     |> where(product_id: ^product.id)
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
-  end
-
-  def health_status_count(product, status) do
-    Device
-    |> join(:inner, [d], lh in assoc(d, :latest_health))
-    |> where(product_id: ^product.id)
-    |> where([_, lh], lh.status == ^status)
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
-  end
-
-  defp update_tool() do
-    Application.get_env(
-      :nerves_hub,
-      :update_tool,
-      # Fall back to old config key
-      Application.get_env(:nerves_hub, :delta_updater, Fwup)
-    )
   end
 end

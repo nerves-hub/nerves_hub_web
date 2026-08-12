@@ -42,12 +42,6 @@ defmodule NervesHub.AuditLogs do
     |> Repo.all()
   end
 
-  def logs_for_feed(resource) do
-    resource
-    |> query_for_feed()
-    |> Repo.all()
-  end
-
   def logs_for_feed(resource, %{page: page} = opts) when is_binary(page) do
     logs_for_feed(resource, Map.put(opts, :page, String.to_integer(page)))
   end

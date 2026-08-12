@@ -8,7 +8,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Firmwares.Upload.File
@@ -78,10 +80,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     topic1 = "device:#{device1.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic1)
 
-    device1 = Devices.update_deployment_group(device1, deployment_group)
+    device1 = Deployments.update_deployment_group(device1, deployment_group)
     {:ok, connection} = Connections.device_connecting(device1.org_id, device1.product_id, device1.id)
     :ok = Connections.device_connected(connection.id)
-    to_device_info(device1) |> Devices.deployment_device_online()
+    to_device_info(device1) |> Deployments.deployment_device_online()
 
     # sent when a device is a assigned a deployment group
     assert_receive %Broadcast{topic: ^topic1, event: "deployment_updated"}, 500
@@ -93,10 +95,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     topic2 = "device:#{device2.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic2)
 
-    device2 = Devices.update_deployment_group(device2, deployment_group)
+    device2 = Deployments.update_deployment_group(device2, deployment_group)
     {:ok, connection} = Connections.device_connecting(device2.org_id, device2.product_id, device2.id)
     :ok = Connections.device_connected(connection.id)
-    to_device_info(device2) |> Devices.deployment_device_online()
+    to_device_info(device2) |> Deployments.deployment_device_online()
 
     # and check that device2 was told to update
     assert_receive %Broadcast{topic: ^topic2, event: "update"}, 500
@@ -105,10 +107,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     topic3 = "device:#{device3.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic3)
 
-    device3 = Devices.update_deployment_group(device3, deployment_group)
+    device3 = Deployments.update_deployment_group(device3, deployment_group)
     {:ok, connection} = Connections.device_connecting(device3.org_id, device3.product_id, device3.id)
     :ok = Connections.device_connected(connection.id)
-    to_device_info(device3) |> Devices.deployment_device_online()
+    to_device_info(device3) |> Deployments.deployment_device_online()
 
     # and check that device3 isn't told to update as the concurrent limit has been reached
     refute_receive %Broadcast{topic: ^topic3, event: "update"}, 500
@@ -129,11 +131,11 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     deployment_group = Repo.preload(deployment_group, current_release: :firmware)
 
-    device = Devices.update_deployment_group(device, deployment_group)
+    device = Deployments.update_deployment_group(device, deployment_group)
     {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
     :ok = Connections.device_connected(connection.id)
 
-    device2 = Devices.update_deployment_group(device2, deployment_group)
+    device2 = Deployments.update_deployment_group(device2, deployment_group)
     {:ok, connection} = Connections.device_connecting(device2.org_id, device2.product_id, device2.id)
     :ok = Connections.device_connected(connection.id)
 
@@ -193,7 +195,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     {:ok, deployment_group} =
       ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1}, user)
 
-    device = Devices.update_deployment_group(device, deployment_group)
+    device = Deployments.update_deployment_group(device, deployment_group)
     {:ok, device} = Devices.update_device(device, %{firmware_validation_status: "not_validated"})
     {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
     :ok = Connections.device_connected(connection.id)
@@ -230,13 +232,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     user: user,
     tmp_dir: tmp_dir
   } do
-    # `Devices.available_for_update` should be called:
+    # `Updates.available_for_update` should be called:
     # - once upon Orchestrator startup
     # - once when device1 is added to the deployment (but not online yet)
     # - once for when device1 comes online (out of date device comes online)
     # - once when device2 is added to the deployment (already up-to-date)
     # - and no more times after that
-    Devices
+    Updates
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
       []
     end)
@@ -269,24 +271,24 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         restart: :temporary
       })
 
-    allow(Devices, self(), pid)
+    allow(Updates, self(), pid)
 
     # only one device in this test isn't using the same firmware as the deployment group
-    # the `Devices.available_for_update/2` function should only be called once by device1
+    # the `Updates.available_for_update/2` function should only be called once by device1
 
     # assign device1 to the deployment group and mark it as 'connected'
     # this device will be told to update
     device1_topic = "device:#{device1.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, device1_topic)
 
-    device1 = Devices.update_deployment_group(device1, deployment_group)
+    device1 = Deployments.update_deployment_group(device1, deployment_group)
 
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-added"}, 500
 
     {:ok, connection} = Connections.device_connecting(device1.org_id, device1.product_id, device1.id)
     :ok = Connections.device_connected(connection.id)
 
-    to_device_info(device1) |> Devices.deployment_device_online()
+    to_device_info(device1) |> Deployments.deployment_device_online()
 
     # sent when a device is assigned a deployment group
     assert_receive %Broadcast{topic: ^device1_topic, event: "deployment_updated"},
@@ -299,7 +301,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     assert_receive %Broadcast{topic: ^device1_topic, event: "update"}, 1_000
 
     # device2 is already on the latest firmware, so when it comes online
-    # `Devices.available_for_update/2` won't be called and the device won't
+    # `Updates.available_for_update/2` won't be called and the device won't
     # be told to update
     device2_topic = "device:#{device2.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, device2_topic)
@@ -307,16 +309,16 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     {:ok, device2} =
       Devices.update_device(device2, %{firmware_metadata: %{"uuid" => firmware.uuid}})
 
-    device2 = Devices.update_deployment_group(device2, deployment_group)
+    device2 = Deployments.update_deployment_group(device2, deployment_group)
 
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-added"}, 500
 
-    Mimic.reject(&Devices.available_for_update/2)
+    Mimic.reject(&Updates.available_for_update/2)
 
     {:ok, connection} = Connections.device_connecting(device2.org_id, device2.product_id, device2.id)
     :ok = Connections.device_connected(connection.id)
 
-    to_device_info(device2) |> Devices.deployment_device_online()
+    to_device_info(device2) |> Deployments.deployment_device_online()
 
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "device-online"}, 500
     refute_receive %Broadcast{topic: ^device2_topic, event: "update"}, 500
@@ -335,11 +337,11 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     tmp_dir: tmp_dir
   } do
     # An ugly set of expectations
-    # `Devices.available_for_update` should be called:
+    # `Updates.available_for_update` should be called:
     # - once upon Orchestrator startup
     # - and once when a bulk number of devices are added to the deployment group
     # - and no more times after that
-    Devices
+    Updates
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
       []
     end)
@@ -370,13 +372,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         restart: :temporary
       })
 
-    allow(Devices, self(), pid)
+    allow(Updates, self(), pid)
 
     BulkActions.move_many_to_deployment_group([device1.id, device2.id], deployment_group, user)
 
     assert_receive %Broadcast{topic: ^deployment_group_topic, event: "bulk-devices-added"}, 500
 
-    Mimic.reject(&Devices.available_for_update/2)
+    Mimic.reject(&Updates.available_for_update/2)
 
     # allows for db connections to finish and close
     :sys.get_state(pid)
@@ -413,13 +415,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     device1_topic = "device:#{device1.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, device1_topic)
 
-    device1 = Devices.update_deployment_group(device1, deployment_group)
+    device1 = Deployments.update_deployment_group(device1, deployment_group)
     {:ok, device1} = Devices.update_device(device1, %{updates_enabled: false})
 
     {:ok, connection} = Connections.device_connecting(device1.org_id, device1.product_id, device1.id)
     :ok = Connections.device_connected(connection.id)
 
-    to_device_info(device1) |> Devices.deployment_device_online()
+    to_device_info(device1) |> Deployments.deployment_device_online()
 
     # sent when a device is assigned a deployment group
     assert_receive %Broadcast{topic: ^device1_topic, event: "deployment_updated"},
@@ -432,7 +434,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     refute_receive %Broadcast{topic: ^device1_topic, event: "update"}, 1_000
 
     # we enable updates for the device
-    Devices.enable_updates(device1, user)
+    Updates.enable_updates(device1, user)
 
     # and then a device is told to schedule an update
     assert_receive %Broadcast{topic: ^device1_topic, event: "update"}, 1_000
@@ -465,11 +467,11 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     Group.join(NervesHub.Group, deployment_topic, %{})
 
     # An ugly set of expectations
-    # `Devices.available_for_update` should be called:
+    # `Updates.available_for_update` should be called:
     # - once upon Orchestrator startup
     # - once when a device is added to it
     # - and no more times after that
-    Devices
+    Updates
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
       []
     end)
@@ -485,9 +487,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         restart: :temporary
       })
 
-    allow(Devices, self(), pid)
+    allow(Updates, self(), pid)
 
-    _device1 = Devices.update_deployment_group(device1, deployment_group)
+    _device1 = Deployments.update_deployment_group(device1, deployment_group)
 
     # the orchestrator is told that a device has just been assigned to it
     assert_receive %Broadcast{topic: ^deployment_topic, event: "device-added"}, 500
@@ -563,7 +565,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     expect(File, :upload_file, fn _, _ -> :ok end)
 
-    expect(Devices, :available_for_update, 1, fn _, _ -> [] end)
+    expect(Updates, :available_for_update, 1, fn _, _ -> [] end)
 
     {:ok, pid} =
       start_supervised(%{
@@ -572,7 +574,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         restart: :temporary
       })
 
-    allow(Devices, self(), pid)
+    allow(Updates, self(), pid)
 
     :ok = Firmwares.generate_firmware_delta(delta, source_firmware, deployment_group.current_release.firmware)
 
@@ -591,7 +593,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
     device =
       Fixtures.device_fixture(org, product, other_firmware)
-      |> Devices.update_deployment_group(deployment_group)
+      |> Deployments.update_deployment_group(deployment_group)
 
     {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
     :ok = Connections.device_connected(connection.id)
@@ -606,9 +608,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         restart: :temporary
       })
 
-    reject(&Devices.available_for_update/2)
+    reject(&Updates.available_for_update/2)
 
-    allow(Devices, self(), pid)
+    allow(Updates, self(), pid)
 
     {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true}, user)
 
@@ -617,7 +619,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
   describe "trigger_update/1" do
     test "ignores updates when deployment_group is inactive", %{deployment_group: deployment_group} do
-      reject(&Devices.available_for_update/2)
+      reject(&Updates.available_for_update/2)
       reject(&Orchestrator.schedule_devices!/2)
 
       Orchestrator.trigger_update(%{deployment_group | is_active: false})
@@ -626,7 +628,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     test "skips scheduling firmware updates when deployment_group status is :preparing", %{
       deployment_group: deployment_group
     } do
-      reject(&Devices.available_for_update/2)
+      reject(&Updates.available_for_update/2)
       reject(&Orchestrator.schedule_devices!/2)
 
       Orchestrator.trigger_update(%{deployment_group | status: :preparing})
@@ -635,7 +637,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     test "skips scheduling firmware updates when deployment_group status is :deltas_failed", %{
       deployment_group: deployment_group
     } do
-      reject(&Devices.available_for_update/2)
+      reject(&Updates.available_for_update/2)
       reject(&Orchestrator.schedule_devices!/2)
 
       Orchestrator.trigger_update(%{deployment_group | status: :deltas_failed})
@@ -644,7 +646,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     test "skips scheduling firmware updates when deployment_group status is :unknown_error", %{
       deployment_group: deployment_group
     } do
-      reject(&Devices.available_for_update/2)
+      reject(&Updates.available_for_update/2)
       reject(&Orchestrator.schedule_devices!/2)
 
       Orchestrator.trigger_update(%{deployment_group | status: :unknown_error})
@@ -705,9 +707,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
-      old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
-      new_device = Devices.update_deployment_group(new_device, deployment_group)
+      old_device1 = Deployments.update_deployment_group(old_device1, deployment_group)
+      old_device2 = Deployments.update_deployment_group(old_device2, deployment_group)
+      new_device = Deployments.update_deployment_group(new_device, deployment_group)
 
       {:ok, conn1} = Connections.device_connecting(old_device1.org_id, old_device1.product_id, old_device1.id)
       {:ok, conn2} = Connections.device_connecting(old_device2.org_id, old_device2.product_id, old_device2.id)
@@ -774,7 +776,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
+      old_device1 = Deployments.update_deployment_group(old_device1, deployment_group)
 
       {:ok, conn1} = Connections.device_connecting(old_device1.org_id, old_device1.product_id, old_device1.id)
       :ok = Connections.device_connected(conn1.id)
@@ -827,8 +829,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
-      new_device = Devices.update_deployment_group(new_device, deployment_group)
+      old_device1 = Deployments.update_deployment_group(old_device1, deployment_group)
+      new_device = Deployments.update_deployment_group(new_device, deployment_group)
 
       {:ok, conn1} = Connections.device_connecting(old_device1.org_id, old_device1.product_id, old_device1.id)
       {:ok, conn2} = Connections.device_connecting(new_device.org_id, new_device.product_id, new_device.id)
@@ -865,13 +867,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
 
       {:ok, conn} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(conn.id)
 
       # Should return empty list since priority queue is disabled
-      assert Devices.available_for_priority_update(deployment_group, 10) == []
+      assert Updates.available_for_priority_update(deployment_group, 10) == []
     end
 
     test "devices with version above threshold not eligible for priority queue", %{
@@ -904,12 +906,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      new_device = Devices.update_deployment_group(new_device, deployment_group)
+      new_device = Deployments.update_deployment_group(new_device, deployment_group)
 
       {:ok, conn} = Connections.device_connecting(new_device.org_id, new_device.product_id, new_device.id)
       :ok = Connections.device_connected(conn.id)
       # new_device has version 1.5.0, threshold is 1.0.0
-      available = Devices.available_for_priority_update(deployment_group, 10)
+      available = Updates.available_for_priority_update(deployment_group, 10)
       refute Enum.any?(available, &(&1.id == new_device.id))
     end
 
@@ -952,8 +954,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
-      old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
+      old_device1 = Deployments.update_deployment_group(old_device1, deployment_group)
+      old_device2 = Deployments.update_deployment_group(old_device2, deployment_group)
 
       {:ok, conn1} = Connections.device_connecting(old_device1.org_id, old_device1.product_id, old_device1.id)
       {:ok, conn2} = Connections.device_connecting(old_device2.org_id, old_device2.product_id, old_device2.id)
@@ -961,11 +963,66 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       :ok = Connections.device_connected(conn1.id)
       :ok = Connections.device_connected(conn2.id)
       # old devices have versions 0.9.0 and 0.8.0, threshold is 1.0.0
-      available = Devices.available_for_priority_update(deployment_group, 10)
+      available = Updates.available_for_priority_update(deployment_group, 10)
       device_ids = Enum.map(available, & &1.id)
 
       assert old_device1.id in device_ids
       assert old_device2.id in device_ids
+    end
+
+    test "device with an unparseable version is quarantined, not raised", %{
+      deployment_group: deployment_group,
+      product: product,
+      org: org,
+      firmware: firmware,
+      user: user
+    } do
+      deployment_group = Repo.preload(deployment_group, :org)
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{
+            priority_queue_enabled: true,
+            priority_queue_concurrent_updates: 2,
+            priority_queue_firmware_version_threshold: "1.0.0"
+          },
+          user
+        )
+
+      eligible = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "eligible_device"})
+      bad = Fixtures.device_fixture(org, product, firmware, %{tags: [], identifier: "bad_version_device"})
+
+      {:ok, eligible} =
+        Devices.update_firmware_metadata(
+          eligible,
+          %{"version" => "0.9.0", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      {:ok, bad} =
+        Devices.update_firmware_metadata(
+          bad,
+          %{"version" => "not-a-semver", "uuid" => Ecto.UUID.generate()},
+          :unknown,
+          false
+        )
+
+      eligible = Deployments.update_deployment_group(eligible, deployment_group)
+      bad = Deployments.update_deployment_group(bad, deployment_group)
+
+      for device <- [eligible, bad] do
+        {:ok, conn} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+        :ok = Connections.device_connected(conn.id)
+      end
+
+      # The old `semver_match` raised casting "not-a-semver" to int[]; a NULL
+      # `semver_sort_key` excludes the malformed device and the query succeeds.
+      device_ids = deployment_group |> Updates.available_for_priority_update(10) |> Enum.map(& &1.id)
+
+      assert eligible.id in device_ids
+      refute bad.id in device_ids
     end
 
     test "count_inflight_priority_updates_for/1 counts only priority queue updates", %{
@@ -1018,9 +1075,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
-      old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
-      new_device = Devices.update_deployment_group(new_device, deployment_group)
+      old_device1 = Deployments.update_deployment_group(old_device1, deployment_group)
+      old_device2 = Deployments.update_deployment_group(old_device2, deployment_group)
+      new_device = Deployments.update_deployment_group(new_device, deployment_group)
 
       {:ok, conn1} = Connections.device_connecting(old_device1.org_id, old_device1.product_id, old_device1.id)
       {:ok, conn2} = Connections.device_connecting(old_device2.org_id, old_device2.product_id, old_device2.id)
@@ -1083,8 +1140,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
-      new_device = Devices.update_deployment_group(new_device, deployment_group)
+      old_device1 = Deployments.update_deployment_group(old_device1, deployment_group)
+      new_device = Deployments.update_deployment_group(new_device, deployment_group)
 
       {:ok, conn1} = Connections.device_connecting(old_device1.org_id, old_device1.product_id, old_device1.id)
       {:ok, conn2} = Connections.device_connecting(new_device.org_id, new_device.product_id, new_device.id)
@@ -1122,12 +1179,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
 
       {:ok, conn} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(conn.id)
 
-      assert Devices.available_for_priority_update(deployment_group, 10) == []
+      assert Updates.available_for_priority_update(deployment_group, 10) == []
     end
 
     test "correctly handles semantic versioning with double-digit minor/patch versions", %{
@@ -1196,10 +1253,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      device_1_10 = Devices.update_deployment_group(device_1_10, deployment_group)
-      device_1_9 = Devices.update_deployment_group(device_1_9, deployment_group)
-      device_2_0 = Devices.update_deployment_group(device_2_0, deployment_group)
-      device_1_1 = Devices.update_deployment_group(device_1_1, deployment_group)
+      device_1_10 = Deployments.update_deployment_group(device_1_10, deployment_group)
+      device_1_9 = Deployments.update_deployment_group(device_1_9, deployment_group)
+      device_2_0 = Deployments.update_deployment_group(device_2_0, deployment_group)
+      device_1_1 = Deployments.update_deployment_group(device_1_1, deployment_group)
 
       {:ok, conn1} = Connections.device_connecting(device_1_10.org_id, device_1_10.product_id, device_1_10.id)
       {:ok, conn2} = Connections.device_connecting(device_1_9.org_id, device_1_9.product_id, device_1_9.id)
@@ -1211,7 +1268,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       :ok = Connections.device_connected(conn3.id)
       :ok = Connections.device_connected(conn4.id)
 
-      available = Devices.available_for_priority_update(deployment_group, 10)
+      available = Updates.available_for_priority_update(deployment_group, 10)
       device_ids = Enum.map(available, & &1.id)
 
       # With proper semantic versioning:
@@ -1277,9 +1334,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
-      old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
-      new_device = Devices.update_deployment_group(new_device, deployment_group)
+      old_device1 = Deployments.update_deployment_group(old_device1, deployment_group)
+      old_device2 = Deployments.update_deployment_group(old_device2, deployment_group)
+      new_device = Deployments.update_deployment_group(new_device, deployment_group)
 
       {:ok, conn1} = Connections.device_connecting(old_device1.org_id, old_device1.product_id, old_device1.id)
       {:ok, conn2} = Connections.device_connecting(old_device2.org_id, old_device2.product_id, old_device2.id)
@@ -1373,10 +1430,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
           false
         )
 
-      old_device1 = Devices.update_deployment_group(old_device1, deployment_group)
-      old_device2 = Devices.update_deployment_group(old_device2, deployment_group)
-      old_device3 = Devices.update_deployment_group(old_device3, deployment_group)
-      old_device4 = Devices.update_deployment_group(old_device4, deployment_group)
+      old_device1 = Deployments.update_deployment_group(old_device1, deployment_group)
+      old_device2 = Deployments.update_deployment_group(old_device2, deployment_group)
+      old_device3 = Deployments.update_deployment_group(old_device3, deployment_group)
+      old_device4 = Deployments.update_deployment_group(old_device4, deployment_group)
 
       # Create connections with specific timestamps to ensure FIFO ordering
       # Device 1 should be first (oldest connection - 4 minutes ago)
@@ -1401,9 +1458,9 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       # Give device1 enough failed update attempts to meet the failure threshold
       # The default device_failure_threshold is 3, so we'll add 3 attempts
       # This will cause it to fail can_device_update? and be skipped
-      :ok = to_device_info(old_device1) |> Devices.update_attempted()
-      :ok = to_device_info(old_device1) |> Devices.update_attempted()
-      :ok = to_device_info(old_device1) |> Devices.update_attempted()
+      :ok = to_device_info(old_device1) |> Updates.update_attempted()
+      :ok = to_device_info(old_device1) |> Updates.update_attempted()
+      :ok = to_device_info(old_device1) |> Updates.update_attempted()
 
       # Start orchestrator
       {:ok, pid} =

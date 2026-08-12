@@ -2,8 +2,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   use NervesHubWeb, :live_view
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
-  alias NervesHub.Devices
   alias NervesHub.Devices.BulkActions
+  alias NervesHub.Devices.Deployments
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
@@ -119,7 +119,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     remove_devices = fn ->
       {:ok, %{updated: updated, ignored: ignored}} =
-        Devices.remove_unmatched_devices_from_deployment_group(
+        Deployments.remove_unmatched_devices_from_deployment_group(
           matched_device_ids,
           deployment_group
         )
@@ -253,9 +253,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     socket
     |> assign(:inflight_updates, inflight_updates)
-    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
-    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
-    |> assign(:updating_count, Devices.updating_count(deployment_group))
+    |> assign(:up_to_date_count, Deployments.up_to_date_count(deployment_group))
+    |> assign(:waiting_for_update_count, Deployments.waiting_for_update_count(deployment_group))
+    |> assign(:updating_count, Deployments.updating_count(deployment_group))
     |> noreply()
   end
 

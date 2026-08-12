@@ -7,7 +7,9 @@ defmodule NervesHub.Devices.BulkActions do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.BulkImport
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Updates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ProductNotifications
@@ -62,7 +64,7 @@ defmodule NervesHub.Devices.BulkActions do
         with {:ok, device} <- Repo.insert(changeset),
              {:ok, pem} <- details.pem,
              {:ok, otp_cert} <- Certificate.from_pem_or_der(pem),
-             {:ok, _db_cert} <- Devices.create_device_certificate(device, otp_cert) do
+             {:ok, _db_cert} <- Certificates.create_device_certificate(device, otp_cert) do
           {:ok, device}
         end
       end)
@@ -86,7 +88,7 @@ defmodule NervesHub.Devices.BulkActions do
   end
 
   def tag_devices(%Ecto.Query{} = devices_query, user, tags) do
-    stream_processing(devices_query, {:tag_device, [user, tags]})
+    stream_processing(devices_query, {Devices, :tag_device, [user, tags]})
   end
 
   @doc """
@@ -263,14 +265,14 @@ defmodule NervesHub.Devices.BulkActions do
   end
 
   def move_many(%Ecto.Query{} = devices_query, target_product, user) do
-    stream_processing(devices_query, {:move, [target_product, user]})
+    stream_processing(devices_query, {Devices, :move, [target_product, user]})
   end
 
   @spec enable_updates_for_devices([Device.t()] | Ecto.Query.t(), User.t()) ::
           %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
           | %{ok: non_neg_integer(), error: non_neg_integer()}
   def enable_updates_for_devices(devices, user) when is_list(devices) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, Devices, :enable_updates, [&1, user]))
+    Enum.map(devices, &Task.Supervisor.async(Tasks, Updates, :enable_updates, [&1, user]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
@@ -279,14 +281,14 @@ defmodule NervesHub.Devices.BulkActions do
   end
 
   def enable_updates_for_devices(%Ecto.Query{} = devices_query, user) do
-    stream_processing(devices_query, {:enable_updates, [user]})
+    stream_processing(devices_query, {Updates, :enable_updates, [user]})
   end
 
   @spec disable_updates_for_devices([Device.t()] | Ecto.Query.t(), User.t()) ::
           %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
           | %{ok: non_neg_integer(), error: non_neg_integer()}
   def disable_updates_for_devices(devices, user) when is_list(devices) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, Devices, :disable_updates, [&1, user]))
+    Enum.map(devices, &Task.Supervisor.async(Tasks, Updates, :disable_updates, [&1, user]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
@@ -295,14 +297,14 @@ defmodule NervesHub.Devices.BulkActions do
   end
 
   def disable_updates_for_devices(%Ecto.Query{} = devices_query, user) do
-    stream_processing(devices_query, {:disable_updates, [user]})
+    stream_processing(devices_query, {Updates, :disable_updates, [user]})
   end
 
   @spec clear_penalty_box_for_devices([Device.t()] | Ecto.Query.t(), User.t()) ::
           %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
           | %{ok: non_neg_integer(), error: non_neg_integer()}
   def clear_penalty_box_for_devices(devices, user) when is_list(devices) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, Devices, :clear_penalty_box, [&1, user]))
+    Enum.map(devices, &Task.Supervisor.async(Tasks, Updates, :clear_penalty_box, [&1, user]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
@@ -311,7 +313,7 @@ defmodule NervesHub.Devices.BulkActions do
   end
 
   def clear_penalty_box_for_devices(%Ecto.Query{} = devices_query, user) do
-    stream_processing(devices_query, {:clear_penalty_box, [user]})
+    stream_processing(devices_query, {Updates, :clear_penalty_box, [user]})
   end
 
   defp stream_processing(devices_query, fun, opts \\ []) do
@@ -322,8 +324,8 @@ defmodule NervesHub.Devices.BulkActions do
         stream
         |> Stream.map(fn device ->
           case fun do
-            {fun_name, args} ->
-              apply(NervesHub.Devices, fun_name, [device | args])
+            {module, fun_name, args} ->
+              apply(module, fun_name, [device | args])
 
             fun ->
               fun.(device)

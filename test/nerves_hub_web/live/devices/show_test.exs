@@ -11,10 +11,13 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.Updates
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -260,7 +263,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         {:ok, device} =
           Devices.update_firmware_metadata(device, restored_firmware_metadata, :unknown, false)
 
-        device = Devices.update_deployment_group(device, deployment_group)
+        device = Deployments.update_deployment_group(device, deployment_group)
 
         {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 22})
 
@@ -608,7 +611,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "data" => %{"alarms" => %{"SomeAlarm" => "Some description"}}
       }
 
-      assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
+      assert {:ok, _} = Health.save_device_health(device_health)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -631,7 +634,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "No Alarms Received")
 
       assert {:ok, _} =
-               NervesHub.Devices.save_device_health(%{
+               Health.save_device_health(%{
                  "device_id" => device.id,
                  "data" => %{"alarms" => %{}}
                })
@@ -1097,7 +1100,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       assert device.updates_enabled
 
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
@@ -1131,7 +1134,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       assert device.updates_enabled
 
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
@@ -1184,7 +1187,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert device.updates_enabled
 
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
@@ -1234,7 +1237,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       metadata = Map.put(device.firmware_metadata, :fwup_version, "1.13.0") |> Map.from_struct()
       Devices.update_device(device, %{firmware_metadata: metadata})
 
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
       :ok = Connections.device_connected(connection.id)
       device = Devices.set_as_provisioned!(device)
@@ -1572,7 +1575,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       Repo.reload(device)
       |> to_device_info()
-      |> Devices.firmware_validated()
+      |> Updates.firmware_validated()
 
       assert_has(conn, "span", text: "Validated")
     end

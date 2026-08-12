@@ -10,6 +10,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
@@ -182,7 +183,7 @@ defmodule NervesHubWeb.WebsocketTest do
       serial = NervesHub.Certificate.get_serial_number(ca)
 
       # Ensure this signer CA does not exist in the DB
-      assert {:error, :not_found} = Devices.get_ca_certificate_by_serial(serial)
+      assert {:error, :not_found} = CACertificates.get_ca_certificate_by_serial(serial)
 
       key = X509.PrivateKey.new_ec(:secp256r1)
 
@@ -260,7 +261,7 @@ defmodule NervesHubWeb.WebsocketTest do
       serial = NervesHub.Certificate.get_serial_number(ca)
 
       # Ensure this signer CA does not exist in the DB
-      assert {:error, :not_found} = Devices.get_ca_certificate_by_serial(serial)
+      assert {:error, :not_found} = CACertificates.get_ca_certificate_by_serial(serial)
 
       key = X509.PrivateKey.new_ec(:secp256r1)
 
@@ -1209,7 +1210,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert_online_and_available(device)
 
-      [%{last_used: updated_last_used}] = Devices.get_ca_certificates(org)
+      [%{last_used: updated_last_used}] = CACertificates.get_ca_certificates(org)
 
       assert last_used != updated_last_used
 

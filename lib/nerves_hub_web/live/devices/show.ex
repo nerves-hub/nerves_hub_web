@@ -6,7 +6,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
+  alias NervesHub.Devices.Updates
   alias NervesHub.Extensions
   alias NervesHub.Extensions.Health
   alias NervesHub.FirmwareUpdates
@@ -60,7 +62,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> general_assigns(device)
     |> schedule_health_check_timer()
     |> load_inprogress_firmware_update()
-    |> assign(:pinned?, Devices.device_pinned?(user.id, device.id))
+    |> assign(:pinned?, Pinning.device_pinned?(user.id, device.id))
     |> setup_presence_tracking()
     |> setup_tab_components(@tab_components)
     |> ok()
@@ -110,7 +112,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device_connection, device.latest_connection)
     |> load_inprogress_firmware_update()
     |> async_console_status_check()
-    |> assign(:update_information, Devices.resolve_update(device))
+    |> assign(:update_information, Updates.resolve_update(device))
     |> then(fn socket ->
       if(payload.status == "online", do: clear_flash(socket), else: socket)
     end)
@@ -195,7 +197,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(_unknown, socket), do: {:noreply, socket}
 
   def handle_event("pin", _value, %{assigns: %{user: user, device: device}} = socket) do
-    case Devices.pin_device(user.id, device.id) do
+    case Pinning.pin_device(user.id, device.id) do
       {:ok, _} ->
         socket
         |> assign(:pinned?, true)
@@ -211,7 +213,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("unpin", _value, %{assigns: %{user: user, device: device}} = socket) do
-    case Devices.unpin_device(user.id, device.id) do
+    case Pinning.unpin_device(user.id, device.id) do
       {:ok, _} ->
         socket
         |> assign(:pinned?, false)
@@ -263,7 +265,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:clear-penalty-box", current_scope)
 
-    {:ok, updated_device} = Devices.clear_penalty_box(device, user)
+    {:ok, updated_device} = Updates.clear_penalty_box(device, user)
 
     socket
     |> assign(:device, updated_device)
@@ -276,7 +278,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:toggle-updates", current_scope)
 
-    {:ok, updated_device} = Devices.toggle_automatic_updates(device, user)
+    {:ok, updated_device} = Updates.toggle_automatic_updates(device, user)
 
     message = [
       "Firmware updates ",

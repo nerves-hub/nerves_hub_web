@@ -1,11 +1,11 @@
 defmodule NervesHubWeb.Components.DeviceUpdateStatus do
   use NervesHubWeb, :component
 
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Updates
 
   def render(%{device: device} = assigns) do
     cond do
-      Devices.device_in_penalty_box?(device) ->
+      Updates.device_in_penalty_box?(device) ->
         ~H"""
         <div class="relative z-20" id={"update-status-#{@device.id}"} phx-hook="ToolTip" data-placement="top">
           <svg class="stroke-warning z-10 size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">

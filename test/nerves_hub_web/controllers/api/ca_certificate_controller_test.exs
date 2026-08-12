@@ -2,7 +2,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
   alias NervesHub.Certificate
-  alias NervesHub.Devices
+  alias NervesHub.Devices.CACertificates
   alias X509.Certificate.Extension
 
   describe "index" do
@@ -200,7 +200,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
       }
       |> Map.merge(params)
 
-    {:ok, ca_certificate} = Devices.create_ca_certificate(org, params)
+    {:ok, ca_certificate} = CACertificates.create_ca_certificate(org, params)
     {:ok, %{ca_certificate: ca_certificate}}
   end
 end

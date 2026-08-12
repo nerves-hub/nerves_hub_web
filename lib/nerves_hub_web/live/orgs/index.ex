@@ -4,7 +4,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   import Number.Delimit, only: [number_to_delimited: 2]
 
   alias NervesHub.Accounts
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.PubSub
   alias NervesHub.Products
   alias NervesHub.Tracker
@@ -15,7 +15,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
-    pinned_devices = Devices.get_pinned_devices(scope)
+    pinned_devices = Pinning.get_pinned_devices(scope)
 
     statuses =
       Map.new(pinned_devices, fn device ->

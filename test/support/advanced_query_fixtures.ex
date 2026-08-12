@@ -17,8 +17,8 @@ defmodule NervesHub.AdvancedQueryFixtures do
   test name.
   """
 
-  alias NervesHub.Devices
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.Health
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
@@ -73,7 +73,7 @@ defmodule NervesHub.AdvancedQueryFixtures do
   @doc "Saves a health record (and updates the device's latest health)."
   def save_health(device, status, data \\ %{}) do
     {:ok, _} =
-      Devices.save_device_health(%{
+      Health.save_device_health(%{
         "device_id" => device.id,
         "data" => data,
         "status" => status,

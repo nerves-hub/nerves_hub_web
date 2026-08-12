@@ -15,8 +15,9 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Accounts.UserToken
   alias NervesHub.CLISessionCache
-  alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Pinning
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -70,6 +71,15 @@ defmodule NervesHub.Accounts do
 
   def change_user(%User{} = user, params) do
     User.update_changeset(user, params)
+  end
+
+  @doc """
+  Persists a user's selected default columns for the given column set.
+  """
+  def update_user_default_columns(%User{} = user, column_set, selected_columns) do
+    user
+    |> User.update_selected_default_columns_changeset(column_set, selected_columns)
+    |> Repo.update()
   end
 
   @doc """
@@ -204,7 +214,7 @@ defmodule NervesHub.Accounts do
   def soft_delete_org_user(org_user) do
     with {:ok, %{org_id: org_id, user_id: user_id}} <-
            Repo.soft_delete(org_user),
-         {_, nil} <- Devices.unpin_org_devices(user_id, org_id) do
+         {_, nil} <- Pinning.unpin_org_devices(user_id, org_id) do
       :ok
     end
   end
@@ -236,11 +246,7 @@ defmodule NervesHub.Accounts do
 
   def get_org_user(org, user_id) do
     get_org_user_query(org, user_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      org_user -> {:ok, org_user}
-    end
+    |> Repo.fetch()
   end
 
   defp get_org_user_query(org, user_id) do
@@ -287,7 +293,7 @@ defmodule NervesHub.Accounts do
     |> Repo.exists?()
   end
 
-  def get_user_orgs(%User{} = user) do
+  def get_user_orgs(%User{} = user, preloads \\ []) do
     from(
       o in Org,
       full_join: ou in OrgUser,
@@ -298,6 +304,7 @@ defmodule NervesHub.Accounts do
     )
     |> Repo.exclude_deleted()
     |> Repo.all()
+    |> Repo.preload(preloads)
   end
 
   def find_org_user_with_device(user, device_id) do
@@ -360,7 +367,11 @@ defmodule NervesHub.Accounts do
 
   """
   def get_user_by_email_and_password(email, password) when is_binary(email) and is_binary(password) do
-    user = Repo.get_by(User, email: email)
+    user =
+      User
+      |> Repo.exclude_deleted()
+      |> Repo.get_by(email: email)
+
     if User.valid_password?(user, password), do: user
   end
 
@@ -372,11 +383,7 @@ defmodule NervesHub.Accounts do
 
     query
     |> Repo.exclude_deleted()
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      user -> {:ok, user}
-    end
+    |> Repo.fetch()
   end
 
   def get_user!(user_id) do
@@ -487,16 +494,6 @@ defmodule NervesHub.Accounts do
     |> Repo.get!(id)
   end
 
-  def get_org_with_org_keys(id) do
-    Org
-    |> Repo.exclude_deleted()
-    |> Repo.get(id)
-    |> case do
-      nil -> {:error, :not_found}
-      org -> {:ok, org |> Org.with_org_keys()}
-    end
-  end
-
   def get_org_by_name(org_name) do
     Org
     |> Repo.exclude_deleted()
@@ -519,15 +516,6 @@ defmodule NervesHub.Accounts do
     |> Repo.one!()
   end
 
-  def get_org_by_name_and_user!(org_name, %User{id: user_id}) do
-    Org
-    |> join(:left, [o], u in assoc(o, :users))
-    |> where([o], o.name == ^org_name)
-    |> where([o, u], u.id == ^user_id)
-    |> Repo.exclude_deleted()
-    |> Repo.one!()
-  end
-
   @spec update_org(Org.t(), map) ::
           {:ok, Org.t()}
           | {:error, Changeset.t()}
@@ -545,6 +533,41 @@ defmodule NervesHub.Accounts do
     |> change_org_key(attrs)
     |> Repo.insert()
   end
+
+  @doc """
+  Fetch the org's firmware signing keys for the given device.
+  """
+  def fetch_firmware_signing_keys(device_id) do
+    OrgKey
+    |> join(:inner, [ok], d in assoc(ok, :org))
+    |> join(:inner, [ok, o], d in assoc(o, :devices))
+    |> where([ok, o, d], d.id == ^device_id)
+    |> Repo.all()
+  end
+
+  @doc """
+  When a device moves orgs, copy the signing keys for its current firmware into
+  the target org if they are not already present.
+  """
+  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}) do
+    existing_target_keys = from(k in OrgKey, where: [org_id: ^target], select: k.key)
+
+    from(
+      k in OrgKey,
+      join: f in Firmware,
+      on: [org_key_id: k.id],
+      where: f.uuid == ^uuid and k.org_id == ^source,
+      where: k.key not in subquery(existing_target_keys),
+      select: %{name: k.name, key: k.key, org_id: type(^target, :integer)}
+    )
+    |> Repo.one()
+    |> case do
+      %{} = attrs -> create_org_key(attrs)
+      _ -> :ignore
+    end
+  end
+
+  def maybe_copy_firmware_keys(_old, _updated), do: :ignore
 
   @spec list_org_keys(Scope.t() | pos_integer(), boolean()) :: [OrgKey.t()]
   def list_org_keys(scope_or_org_id, load_created_by \\ true)
@@ -569,20 +592,12 @@ defmodule NervesHub.Accounts do
 
   def get_org_key(%Scope{org: org}, tk_id) do
     get_org_key_query(org.id, tk_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      key -> {:ok, key}
-    end
+    |> Repo.fetch()
   end
 
   def get_org_key(%Org{id: org_id}, tk_id) do
     get_org_key_query(org_id, tk_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      key -> {:ok, key}
-    end
+    |> Repo.fetch()
   end
 
   def get_org_key!(%Org{id: org_id}, tk_id) do
@@ -607,11 +622,7 @@ defmodule NervesHub.Accounts do
       )
 
     query
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      key -> {:ok, key}
-    end
+    |> Repo.fetch()
   end
 
   def update_org_key(%OrgKey{} = org_key, params) do
@@ -767,19 +778,6 @@ defmodule NervesHub.Accounts do
     |> Repo.update()
   end
 
-  @spec user_in_org?(integer(), integer()) :: boolean()
-  def user_in_org?(user_id, org_id) do
-    from(ou in OrgUser,
-      where: ou.user_id == ^user_id and ou.org_id == ^org_id,
-      select: %{}
-    )
-    |> Repo.one()
-    |> case do
-      nil -> false
-      _ -> true
-    end
-  end
-
   def create_org_metrics(run_utc_time) do
     query =
       from(
@@ -873,11 +871,7 @@ defmodule NervesHub.Accounts do
 
   def get_user_token(token) do
     from(UserToken, where: [token: ^token], preload: [:user])
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      ut -> {:ok, ut}
-    end
+    |> Repo.fetch()
   end
 
   def get_user_token(user, id) do

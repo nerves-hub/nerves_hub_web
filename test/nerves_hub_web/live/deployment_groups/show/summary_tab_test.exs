@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.UpdateTool.Fwup
@@ -37,7 +38,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
 
     device =
       Fixtures.device_fixture(org, product, source_firmware, %{status: :provisioned})
-      |> Devices.update_deployment_group(deployment_group)
+      |> Deployments.update_deployment_group(deployment_group)
 
     # Ensure device firmware metadata reflects the target firmware because
     # update stats are logged after a successful firmware update
@@ -291,11 +292,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     deployment_group: deployment_group,
     device: device
   } do
-    Devices.update_deployment_group(device, deployment_group)
+    Deployments.update_deployment_group(device, deployment_group)
 
     # deleted devices shouldn't be included in the count
     Fixtures.device_fixture(org, product, firmware, %{deleted_at: DateTime.utc_now()})
-    |> Devices.update_deployment_group(deployment_group)
+    |> Deployments.update_deployment_group(deployment_group)
 
     assert_has(conn, "span", text: "1")
   end

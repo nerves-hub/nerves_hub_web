@@ -4,6 +4,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.ProductNotifications
@@ -99,7 +100,7 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.connect:cert_auth")
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
-    |> Devices.get_device_by_x509()
+    |> Certificates.get_device_by_x509()
     |> case do
       {:ok, device} ->
         socket_and_assigns(socket, device)

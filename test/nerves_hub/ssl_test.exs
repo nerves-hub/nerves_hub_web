@@ -5,6 +5,8 @@ defmodule NervesHub.SSLTest do
   alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate.JITP
+  alias NervesHub.Devices.CACertificates
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Fixtures
   alias X509.Certificate.Validity
 
@@ -51,7 +53,7 @@ defmodule NervesHub.SSLTest do
 
     test "verifies when signer CA is expired", context do
       expired_ca = do_corruption(context.unknown_signer, :expired)
-      {:ok, _db_ca} = Devices.create_ca_certificate_from_x509(context.org, expired_ca)
+      {:ok, _db_ca} = CACertificates.create_ca_certificate_from_x509(context.org, expired_ca)
 
       %{db_cert: _db_cert} =
         Fixtures.device_certificate_fixture(context.device, context.unknown_cert)
@@ -127,7 +129,7 @@ defmodule NervesHub.SSLTest do
       assert {:fail, _state} = run_verify(intermediary_ca, {:bad_cert, :unknown_ca})
 
       # Register the intermediary signer CA
-      {:ok, _db_ca} = Devices.create_ca_certificate_from_x509(context.org, intermediary_ca)
+      {:ok, _db_ca} = CACertificates.create_ca_certificate_from_x509(context.org, intermediary_ca)
 
       assert {:valid, _state} = run_verify(intermediary_ca, {:bad_cert, :unknown_ca})
     end
@@ -161,15 +163,15 @@ defmodule NervesHub.SSLTest do
     end
 
     test "rejects unknown Signer CA", context do
-      {:ok, _} = Devices.delete_ca_certificate(context.ca_db_cert)
+      {:ok, _} = CACertificates.delete_ca_certificate(context.ca_db_cert)
 
       assert {:fail, :unknown_ca} = run_verify(context.cert2)
     end
 
     test "rejects Signer CA from another org", context do
-      {:ok, _} = Devices.delete_ca_certificate(context.ca_db_cert)
+      {:ok, _} = CACertificates.delete_ca_certificate(context.ca_db_cert)
       new_org = Fixtures.org_fixture(context.user, %{name: "New-Org"})
-      {:ok, _db_ca} = Devices.create_ca_certificate_from_x509(new_org, context.ca_cert)
+      {:ok, _db_ca} = CACertificates.create_ca_certificate_from_x509(new_org, context.ca_cert)
 
       assert {:fail, :mismatched_org} = run_verify(context.cert2)
     end
@@ -186,10 +188,10 @@ defmodule NervesHub.SSLTest do
     end
 
     test "rejects registering when signer CA expired", context do
-      {:ok, _} = Devices.delete_ca_certificate(context.ca_db_cert)
+      {:ok, _} = CACertificates.delete_ca_certificate(context.ca_db_cert)
       expired_ca = do_corruption(context.ca_cert, :expired)
-      {:ok, db_ca} = Devices.create_ca_certificate_from_x509(context.org, expired_ca)
-      {:ok, db_ca} = Devices.update_ca_certificate(db_ca, %{check_expiration: true})
+      {:ok, db_ca} = CACertificates.create_ca_certificate_from_x509(context.org, expired_ca)
+      {:ok, db_ca} = CACertificates.update_ca_certificate(db_ca, %{check_expiration: true})
       assert is_nil(db_ca.last_used)
       assert {:fail, :cert_expired} = run_verify(context.cert2)
       refute is_nil(Fixtures.reload(db_ca).last_used)
@@ -202,19 +204,19 @@ defmodule NervesHub.SSLTest do
     end
 
     test "allows registering when signer CA expired and validity not enforced", context do
-      {:ok, _} = Devices.delete_ca_certificate(context.ca_db_cert)
+      {:ok, _} = CACertificates.delete_ca_certificate(context.ca_db_cert)
       expired_ca = do_corruption(context.ca_cert, :expired)
       # Validity not enforced by default
-      {:ok, db_ca} = Devices.create_ca_certificate_from_x509(context.org, expired_ca)
+      {:ok, db_ca} = CACertificates.create_ca_certificate_from_x509(context.org, expired_ca)
       assert is_nil(db_ca.last_used)
       assert {:valid, _} = run_verify(context.cert2)
-      assert {:ok, _db_cert} = Devices.get_device_certificate_by_x509(context.cert2)
+      assert {:ok, _db_cert} = Certificates.get_device_certificate_by_x509(context.cert2)
     end
 
     test "registers a valid certificate", context do
-      assert {:error, :not_found} = Devices.get_device_certificate_by_x509(context.cert2)
+      assert {:error, :not_found} = Certificates.get_device_certificate_by_x509(context.cert2)
       assert {:valid, _} = run_verify(context.cert2)
-      assert {:ok, _db_cert} = Devices.get_device_certificate_by_x509(context.cert2)
+      assert {:ok, _db_cert} = Certificates.get_device_certificate_by_x509(context.cert2)
     end
   end
 
@@ -245,8 +247,8 @@ defmodule NervesHub.SSLTest do
 
     test "rejects registering when signer CA expired and validity enforced", context do
       expired_ca = do_corruption(context.unknown_signer, :expired)
-      {:ok, db_ca} = Devices.create_ca_certificate_from_x509(context.org, expired_ca)
-      {:ok, db_ca} = Devices.update_ca_certificate(db_ca, %{check_expiration: true})
+      {:ok, db_ca} = CACertificates.create_ca_certificate_from_x509(context.org, expired_ca)
+      {:ok, db_ca} = CACertificates.update_ca_certificate(db_ca, %{check_expiration: true})
       assert is_nil(db_ca.last_used)
       assert {:fail, :cert_expired} = run_verify(context.unknown_cert)
       refute is_nil(Fixtures.reload(db_ca).last_used)
@@ -255,10 +257,10 @@ defmodule NervesHub.SSLTest do
     test "allows registering when signer CA expired and validity not enforced", context do
       expired_ca = do_corruption(context.unknown_signer, :expired)
       # Validity not enforced by default
-      {:ok, db_ca} = Devices.create_ca_certificate_from_x509(context.org, expired_ca)
+      {:ok, db_ca} = CACertificates.create_ca_certificate_from_x509(context.org, expired_ca)
       assert is_nil(db_ca.last_used)
       assert {:valid, _} = run_verify(context.unknown_cert)
-      assert {:ok, _db_cert} = Devices.get_device_certificate_by_x509(context.unknown_cert)
+      assert {:ok, _db_cert} = Certificates.get_device_certificate_by_x509(context.unknown_cert)
     end
 
     test "rejects registering when signature bad", context do
@@ -285,7 +287,7 @@ defmodule NervesHub.SSLTest do
       %{db_cert: _} = Fixtures.device_certificate_fixture(context.device, context.cert)
 
       # Make new CA known
-      {:ok, _db_ca} = Devices.create_ca_certificate_from_x509(context.org, context.unknown_signer)
+      {:ok, _db_ca} = CACertificates.create_ca_certificate_from_x509(context.org, context.unknown_signer)
 
       # Use known CA which is a different public key
       assert {:fail, :unexpected_pubkey} = run_verify(context.unknown_cert)
@@ -320,9 +322,9 @@ defmodule NervesHub.SSLTest do
     end
 
     test "registers a valid certificate", context do
-      assert {:error, :not_found} = Devices.get_device_certificate_by_x509(context.cert)
+      assert {:error, :not_found} = Certificates.get_device_certificate_by_x509(context.cert)
       assert {:valid, _} = run_verify(context.cert)
-      assert {:ok, _db_cert} = Devices.get_device_certificate_by_x509(context.cert)
+      assert {:ok, _db_cert} = Certificates.get_device_certificate_by_x509(context.cert)
     end
   end
 

@@ -3,8 +3,8 @@ defmodule NervesHubWeb.API.CACertificateController do
   use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Certificate
-  alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate.CSR
+  alias NervesHub.Devices.CACertificates
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.CACertificateSchemas
   alias NervesHubWeb.API.Schemas.ErrorSchemas
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.API.CACertificateController do
   )
 
   def index(%{assigns: %{current_scope: %{org: org}}} = conn, _params) do
-    ca_certificates = Devices.get_ca_certificates(org)
+    ca_certificates = CACertificates.get_ca_certificates(org)
     render(conn, :index, ca_certificates: ca_certificates)
   end
 
@@ -62,7 +62,7 @@ defmodule NervesHubWeb.API.CACertificateController do
   )
 
   def show(%{assigns: %{current_scope: %{org: org}}} = conn, %{"serial" => serial}) do
-    with {:ok, ca_certificate} <- Devices.get_ca_certificate_by_org_and_serial(org, serial) do
+    with {:ok, ca_certificate} <- CACertificates.get_ca_certificate_by_org_and_serial(org, serial) do
       render(conn, :show, ca_certificate: ca_certificate)
     end
   end
@@ -136,7 +136,7 @@ defmodule NervesHubWeb.API.CACertificateController do
            description: Map.get(params, "description"),
            jitp: params["jitp"]
          },
-         {:ok, ca_cert} <- Devices.create_ca_certificate(org, params) do
+         {:ok, ca_cert} <- CACertificates.create_ca_certificate(org, params) do
       conn
       |> put_status(:created)
       |> put_resp_header("location", ~p"/api/orgs/#{org.name}/ca_certificates/#{ca_cert.serial}")
@@ -181,8 +181,8 @@ defmodule NervesHubWeb.API.CACertificateController do
   )
 
   def delete(%{assigns: %{current_scope: %{org: org}}} = conn, %{"serial" => serial}) do
-    with {:ok, ca_certificate} <- Devices.get_ca_certificate_by_org_and_serial(org, serial),
-         {:ok, _ca_certificate} <- Devices.delete_ca_certificate(ca_certificate) do
+    with {:ok, ca_certificate} <- CACertificates.get_ca_certificate_by_org_and_serial(org, serial),
+         {:ok, _ca_certificate} <- CACertificates.delete_ca_certificate(ca_certificate) do
       send_resp(conn, :no_content, "")
     end
   end

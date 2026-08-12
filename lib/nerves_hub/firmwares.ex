@@ -14,6 +14,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -60,7 +61,7 @@ defmodule NervesHub.Firmwares do
     FirmwareDelta
     |> where([fd], fd.target_id == ^firmware_id)
     |> join(:inner, [fd], fd in assoc(fd, :source))
-    |> order_by([fd, s], asc: s.version)
+    |> order_by([fd, s], fragment(~s|semver_sort_key(?) COLLATE "C" ASC NULLS LAST|, s.version))
     |> preload([fd, s], source: s)
     |> preload(:target)
     |> Repo.all()
@@ -95,7 +96,7 @@ defmodule NervesHub.Firmwares do
   def get_firmwares_by_product(product_id) do
     Firmware
     |> where([f], f.product_id == ^product_id)
-    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> order_by_latest_version()
     |> with_product()
     |> Repo.all()
   end
@@ -105,7 +106,7 @@ defmodule NervesHub.Firmwares do
     Firmware
     |> where([f], f.product_id == ^product.id)
     |> where([f], f.platform == ^platform)
-    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> order_by_latest_version()
     |> limit(25)
     |> Repo.all()
   end
@@ -116,7 +117,7 @@ defmodule NervesHub.Firmwares do
     |> where([f], f.product_id == ^product.id)
     |> where([f], f.platform == ^platform)
     |> where([f], f.architecture == ^architecture)
-    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> order_by_latest_version()
     |> limit(25)
     |> Repo.all()
   end
@@ -158,14 +159,35 @@ defmodule NervesHub.Firmwares do
     order_by(query, [_f, d], {^direction, d.install_count})
   end
 
+  defp sort_firmware(query, {direction, :version}) do
+    order_by(query, [f], [
+      {^version_sort_direction(direction), fragment(~s|semver_sort_key(?) COLLATE "C"|, f.version)}
+    ])
+  end
+
   defp sort_firmware(query, sort), do: order_by(query, ^sort)
+
+  # Orders a Firmware query by SemVer precedence, newest first, with invalid
+  # versions (a NULL sort key) sorted last. Uses `semver_sort_key/1` under
+  # `COLLATE "C"`: the key relies on plain byte ordering, and the database's
+  # `en_US.utf8` default inverts pre-release/release order without it (see the
+  # `add_semver_sort_key_function` migration).
+  defp order_by_latest_version(query) do
+    order_by(query, [f], [
+      fragment(~s|semver_sort_key(?) COLLATE "C" DESC NULLS LAST|, f.version),
+      desc: :inserted_at
+    ])
+  end
+
+  defp version_sort_direction(:desc), do: :desc_nulls_last
+  defp version_sort_direction(_), do: :asc_nulls_last
 
   def get_firmwares_for_deployment_group(deployment_group) do
     Firmware
     |> where([f], f.product_id == ^deployment_group.product_id)
     |> where([f], f.platform == ^deployment_group.platform)
     |> where([f], f.architecture == ^deployment_group.architecture)
-    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> order_by_latest_version()
     |> with_product()
     |> Repo.all()
   end
@@ -175,12 +197,12 @@ defmodule NervesHub.Firmwares do
   """
   def get_firmware_versions_by_product(product_id) do
     Firmware
-    |> select([f], f.version)
-    |> distinct(true)
     |> where([f], f.product_id == ^product_id)
+    |> select([f], %{version: f.version, sort_key: fragment(~s|semver_sort_key(?) COLLATE "C"|, f.version)})
+    |> distinct(true)
+    |> order_by([f], fragment(~s|semver_sort_key(?) COLLATE "C" DESC NULLS LAST|, f.version))
     |> Repo.all()
-    |> Enum.sort(Version)
-    |> Enum.reverse()
+    |> Enum.map(& &1.version)
   end
 
   @doc """
@@ -189,7 +211,7 @@ defmodule NervesHub.Firmwares do
   def firmware_versions_and_uuids(product_id) do
     Firmware
     |> where([f], f.product_id == ^product_id)
-    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> order_by_latest_version()
     |> select([f], %{version: f.version, uuid: f.uuid})
     |> Repo.all()
   end
@@ -206,25 +228,22 @@ defmodule NervesHub.Firmwares do
     |> with_product()
     |> where([f], f.id == ^id)
     |> where([f, p], p.org_id == ^org_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
+    |> Repo.fetch()
   end
 
   def get_firmware(%Product{id: product_id}, id) do
     Firmware
     |> where([f], f.id == ^id)
     |> where([f], f.product_id == ^product_id)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
+    |> Repo.fetch()
   end
 
   def get_firmware!(firmware_id), do: Repo.get!(Firmware, firmware_id)
+
+  @doc """
+  Preloads a firmware's product.
+  """
+  def preload_product(%Firmware{} = firmware), do: Repo.preload(firmware, :product)
 
   def get_firmware_for_device(%Device{firmware_metadata: nil}), do: []
 
@@ -234,7 +253,7 @@ defmodule NervesHub.Firmwares do
     |> where([f], f.architecture == ^device.firmware_metadata.architecture)
     |> where([f], f.org_id == ^device.org_id)
     |> where([f], f.product_id == ^device.product_id)
-    |> order_by([f], fragment("? collate numeric desc", f.version))
+    |> order_by_latest_version()
     |> Repo.all()
   end
 
@@ -255,17 +274,7 @@ defmodule NervesHub.Firmwares do
 
   def get_firmware_by_product_id_and_uuid(product_id, uuid) do
     get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
-  end
-
-  @spec get_firmware_by_product_and_uuid!(Product.t(), String.t()) :: Firmware.t()
-  def get_firmware_by_product_and_uuid!(product, uuid) do
-    get_firmware_by_product_and_uuid_query(product, uuid)
-    |> Repo.one!()
+    |> Repo.fetch()
   end
 
   @spec get_firmware_by_uuid(Scope.t(), String.t()) :: {:ok, Firmware.t()} | {:error, :not_found}
@@ -284,11 +293,7 @@ defmodule NervesHub.Firmwares do
           | {:error, :not_found}
   def get_firmware_by_product_and_uuid(%Product{} = product, uuid) do
     get_firmware_by_product_and_uuid_query(product, uuid)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
+    |> Repo.fetch()
   end
 
   defp get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid) do
@@ -475,7 +480,7 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  @spec get_firmware_delta_by_source_and_target(non_neg_integer(), non_neg_integer()) ::
+  @spec get_firmware_delta_by_source_and_target(non_neg_integer(), non_neg_integer(), :all | nil | [atom()]) ::
           {:ok, FirmwareDelta.t()}
           | {:error, :not_found}
   def get_firmware_delta_by_source_and_target(source_id, target_id, status \\ :all) do
@@ -489,11 +494,7 @@ defmodule NervesHub.Firmwares do
         where(query, [fd], fd.status in ^status)
       end
     end)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware_delta -> {:ok, firmware_delta}
-    end
+    |> Repo.fetch()
   end
 
   @spec get_firmware_url(Firmware.t() | FirmwareDelta.t()) ::
@@ -501,6 +502,108 @@ defmodule NervesHub.Firmwares do
           | {:error, :failure}
   def get_firmware_url(fw_or_delta) do
     firmware_upload_config().download_file(fw_or_delta)
+  end
+
+  @doc """
+  Returns true if the device is delta updatable.
+
+  Checks update tool version information and similar metadata to determine if
+  the device is delta updatable.
+  """
+  @spec delta_updatable?(Device.t(), DeploymentGroup.t() | Firmware.t()) :: boolean()
+  def delta_updatable?(device, %DeploymentGroup{} = deployment_group) do
+    Logger.metadata(device_id: device.id, deployment_group_id: deployment_group.id)
+    # note that source delta does not need delta markers to be updatable
+    # Any advanced decision about whether to delta update or not are delegated
+    # to the specialized update tool implementation
+
+    deployment_group.delta_updatable and
+      not is_nil(deployment_group.current_release.firmware) and
+      delta_updatable?(device, deployment_group.current_release.firmware)
+  end
+
+  def delta_updatable?(%{firmware_metadata: fw_meta} = device, %Firmware{} = firmware) do
+    Logger.metadata(
+      device_id: device.id,
+      target_firmware_uuid: firmware.uuid,
+      source_firmware_uuid: Map.get(fw_meta, :uuid)
+    )
+
+    firmware.delta_updatable and
+      :delta == update_tool().device_update_type(device, firmware)
+  end
+
+  @spec delta_ready?(Device.t(), Firmware.t()) :: boolean()
+  def delta_ready?(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
+    source_uuid
+    |> firmware_delta_query(product_id, target_id)
+    |> where([fd], fd.status == :completed)
+    |> Repo.exists?()
+  end
+
+  @spec get_delta_or_firmware(Device.t(), DeploymentGroup.t()) ::
+          {:ok, Firmware.t()} | {:ok, FirmwareDelta.t()}
+  def get_delta_or_firmware(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
+        delta_updatable: true,
+        current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
+      }) do
+    case get_firmware_by_product_id_and_uuid(device.product_id, source_uuid) do
+      {:ok, source_firmware} ->
+        case get_delta_if_ready(device, source_firmware, target_firmware) do
+          {:ok, delta} ->
+            {:ok, delta}
+
+          _ ->
+            {:ok, target_firmware}
+        end
+
+      {:error, :not_found} ->
+        {:ok, target_firmware}
+    end
+  end
+
+  def get_delta_or_firmware(%Device{}, %DeploymentGroup{current_release: %{firmware: target}}), do: {:ok, target}
+
+  @spec get_delta_url(Device.t(), Firmware.t()) ::
+          {:ok, String.t()}
+          | {:error, :failure}
+  def get_delta_url(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
+    source_uuid
+    |> firmware_delta_query(product_id, target_id)
+    |> Repo.one()
+    |> get_firmware_url()
+  end
+
+  @spec get_delta_if_ready(Device.t(), Firmware.t(), Firmware.t()) ::
+          {:ok, FirmwareDelta.t()}
+          | {:device_delta_updatable, false}
+          | {:delta, {:ok, FirmwareDelta.t()}}
+          | {:delta, {:error, :not_found}}
+  defp get_delta_if_ready(device, source_firmware, target_firmware) do
+    with {:device_delta_updatable, true} <-
+           {:device_delta_updatable, delta_updatable?(device, target_firmware)},
+         {:delta, {:ok, %{status: :completed} = delta}} <-
+           {:delta,
+            get_firmware_delta_by_source_and_target(
+              source_firmware.id,
+              target_firmware.id
+            )} do
+      {:ok, delta}
+    end
+  end
+
+  # Builds the FirmwareDelta query from the device's current (source) firmware
+  # UUID to the target firmware id. Shared by delta_ready?/2 and get_delta_url/2.
+  defp firmware_delta_query(source_uuid, product_id, target_id) do
+    source_firmware_id_query =
+      Firmware
+      |> where(uuid: ^source_uuid)
+      |> where(product_id: ^product_id)
+      |> select([f], f.id)
+
+    FirmwareDelta
+    |> where([fd], fd.source_id == subquery(source_firmware_id_query))
+    |> where([fd], fd.target_id == ^target_id)
   end
 
   @spec generate_firmware_delta(FirmwareDelta.t(), Firmware.t(), Firmware.t()) ::
@@ -702,11 +805,6 @@ defmodule NervesHub.Firmwares do
     Group.join(NervesHub.Group, firmware_delta_topic(target_id), %{})
   end
 
-  @spec unsubscribe_firmware_delta_target(target_id :: integer()) :: :ok
-  def unsubscribe_firmware_delta_target(target_id) do
-    Group.leave(NervesHub.Group, firmware_delta_topic(target_id))
-  end
-
   defp notify_firmware_delta_target({:ok, %FirmwareDelta{} = firmware_delta}) do
     message = %Broadcast{
       topic: firmware_delta_topic(firmware_delta.target_id),
@@ -827,7 +925,9 @@ defmodule NervesHub.Firmwares do
   defp resolve_product(params) do
     case Products.get_product_by_org_id_and_name(params.org_id, params.product_name) do
       {:ok, product} ->
-        Map.put(params, :product_id, product.id)
+        params
+        |> Map.put(:product_id, product.id)
+        |> Map.put(:require_unique_firmware_version, product.require_unique_firmware_version)
 
       _ ->
         params

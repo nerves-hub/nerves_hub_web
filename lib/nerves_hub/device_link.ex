@@ -3,12 +3,15 @@ defmodule NervesHub.DeviceLink do
   Encapsulation of device connection workflow logic
   """
 
+  alias NervesHub.Accounts
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
@@ -158,7 +161,7 @@ defmodule NervesHub.DeviceLink do
 
   def maybe_send_archive(device_info, device_api_version, opts) do
     opts = Keyword.validate!(opts, audit_log: false)
-    updates_enabled = device_info.device_updates_enabled && !Devices.device_in_penalty_box?(device_info)
+    updates_enabled = device_info.device_updates_enabled && !Updates.device_in_penalty_box?(device_info)
     version_match = Version.match?(device_api_version, ">= 2.0.0")
 
     if updates_enabled && version_match do
@@ -194,7 +197,7 @@ defmodule NervesHub.DeviceLink do
     # Update the connection to say that we are fully up and running
     Connections.device_connected(device_info.connection_ref)
     # tell the orchestrator that we are online
-    Devices.deployment_device_online(device_info)
+    Deployments.deployment_device_online(device_info)
   end
 
   defp refresh_deployment_group(device) do
@@ -207,7 +210,7 @@ defmodule NervesHub.DeviceLink do
   defp maybe_send_public_keys(device_info, params) do
     signing_keys =
       if Enum.any?(@public_key_types, fn type -> params[type] == "on_connect" end) do
-        Devices.fetch_firmware_signing_keys(device_info.device_id)
+        Accounts.fetch_firmware_signing_keys(device_info.device_id)
       else
         []
       end

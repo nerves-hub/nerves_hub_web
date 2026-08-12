@@ -25,7 +25,7 @@ defmodule NervesHub.Archives do
     |> Repo.one()
   end
 
-  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  @spec filter(Product.t(), map()) :: {[Archive.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
 

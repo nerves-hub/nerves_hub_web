@@ -3,7 +3,7 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
   import Phoenix.LiveViewTest
 
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Health
   alias NervesHub.Fixtures
   alias NervesHub.ProductNotifications
 
@@ -24,7 +24,7 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
   defp set_health(device, status) do
     {:ok, _} =
-      Devices.save_device_health(%{
+      Health.save_device_health(%{
         "device_id" => device.id,
         "data" => %{},
         "status" => status,

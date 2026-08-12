@@ -2,7 +2,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -204,7 +204,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     deployment_group: deployment_group,
     device: device
   } do
-    device = Devices.update_deployment_group(device, deployment_group)
+    device = Deployments.update_deployment_group(device, deployment_group)
 
     assert Enum.count(Repo.all_by(Device, deployment_id: deployment_group.id)) == 1
 

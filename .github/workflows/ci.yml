@@ -26,7 +26,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: erlef/mix-dependency-submission@v1
 
   # Review dependency changes introduced by a pull request. Read-only, so it runs
@@ -42,11 +42,118 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v5
 
-  compile-and-test:
-    name: "Compile & Test"
+  lint:
+    name: "Lint & Compile"
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+      packages: read
+
+    env:
+      MIX_ENV: "test"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Elixir and dependencies
+        uses: ./.github/actions/setup
+
+      - name: Compiles without warnings
+        run: mix compile --warnings-as-errors
+
+      # needed for tailwind class formatting
+      - name: Install tailwindcss
+        run: mix tailwind.install
+
+      - name: Check Formatting
+        run: mix format --check-formatted
+
+      - name: Check for unused dependencies
+        run: mix deps.unlock --unused
+
+      - name: Check spelling
+        run: mix spellweaver.check
+
+      - name: Run Credo
+        run: mix credo --min-priority low
+
+  dialyzer:
+    name: "Dialyzer"
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+      packages: read
+
+    env:
+      MIX_ENV: "test"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Elixir and dependencies
+        id: setup
+        uses: ./.github/actions/setup
+
+      - name: Restore PLT cache
+        uses: actions/cache/restore@v6
+        id: plt_cache
+        with:
+          key: |
+            ${{ runner.os }}-${{ steps.setup.outputs.elixir-version }}-${{ steps.setup.outputs.otp-version }}-plt
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup.outputs.elixir-version }}-${{ steps.setup.outputs.otp-version }}-plt
+          path: |
+            priv/plts
+
+      - name: Create PLTs
+        if: steps.plt_cache.outputs.cache-hit != 'true'
+        run: mix dialyzer --plt
+
+      - name: Save PLT cache
+        uses: actions/cache/save@v6
+        if: steps.plt_cache.outputs.cache-hit != 'true'
+        id: plt_cache_save
+        with:
+          key: |
+            ${{ runner.os }}-${{ steps.setup.outputs.elixir-version }}-${{ steps.setup.outputs.otp-version }}-plt
+          path: |
+            priv/plts
+
+      - name: Run dialyzer
+        run: mix dialyzer --format github --format dialyxir
+
+  js-test:
+    name: "JS unit tests"
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      # Dependency-free: runs on Node's built-in test runner, no npm install.
+      - name: Run JS unit tests
+        run: npm test --prefix assets
+
+  test:
+    name: "Test (${{ matrix.partition }}/3)"
 
     runs-on: ubuntu-latest
     timeout-minutes: 14
@@ -55,11 +162,17 @@ jobs:
       contents: read
       packages: read
 
+    strategy:
+      fail-fast: false
+      matrix:
+        partition: [1, 2, 3]
+
     env:
       FWUP_VERSION: "1.16.0"
       MIX_ENV: "test"
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/nerves_hub_test
       CLICKHOUSE_URL: http://default:@localhost:8123/default
+      MIX_TEST_PARTITION: ${{ matrix.partition }}
 
     services:
       db:
@@ -90,116 +203,23 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xdelta3 mtools
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-
-      - name: Set up Elixir
-        id: beam
-        uses: erlef/setup-beam@v1
-        with:
-          version-file: .tool-versions
-          version-type: strict
-
-      - name: Cache deps
-        id: cache-deps
-        uses: actions/cache@v5
-        env:
-          cache-name: cache-elixir-deps
-        with:
-          path: deps
-          key: ${{ runner.os }}-mix-${{ env.cache-name }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-mix-${{ env.cache-name }}-
-
-      - name: Cache compiled build
-        id: cache-build
-        uses: actions/cache@v5
-        env:
-          cache-name: cache-compiled-build
-        with:
-          path: _build
-          key: ${{ runner.os }}-mix-${{ env.cache-name }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-mix-${{ env.cache-name }}-
-            ${{ runner.os }}-mix-
-
-      - name: Clean to rule out incremental build as a source of flakiness
-        if: github.run_attempt != '1'
-        run: |
-          mix deps.clean --all
-          mix clean
-        shell: sh
-
-      - name: Install dependencies
-        run: mix deps.get
-
-      - name: Compiles without warnings
-        run: mix compile --warnings-as-errors
-
-      # needed for tailwind class formatting
-      - name: Install tailwindcss
-        run: mix tailwind.install
-
-      - name: Check Formatting
-        run: mix format --check-formatted
-
-      - name: Check for unused dependencies
-        run: mix deps.unlock --unused
-
-      - name: Check spelling
-        run: mix spellweaver.check
-
-      - name: Run Credo
-        run: mix credo --min-priority low
-
-      # Dependency-free: runs on Node's built-in test runner, no npm install.
-      - name: Run JS unit tests
-        run: npm test --prefix assets
+      - name: Set up Elixir and dependencies
+        uses: ./.github/actions/setup
 
       - name: DB Setup
         run: mix ecto.migrate.reset
 
-      - name: Restore PLT cache
-        uses: actions/cache/restore@v5
-        id: plt_cache
-        with:
-          key: |
-            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
-          path: |
-            priv/plts
-
-      - name: Create PLTs
-        if: steps.plt_cache.outputs.cache-hit != 'true'
-        run: mix dialyzer --plt
-
-      - name: Save PLT cache
-        uses: actions/cache/save@v5
-        if: steps.plt_cache.outputs.cache-hit != 'true'
-        id: plt_cache_save
-        with:
-          key: |
-            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
-          path: |
-            priv/plts
-
-      - name: Run dialyzer
-        run: mix dialyzer --format github --format dialyxir
-
       - name: Run tests
-        run: mix test --include mtools
+        run: mix test --partitions 3 --include mtools
 
   build-and-publish:
     name: "Build & Publish Docker image"
 
     runs-on: ubuntu-latest
 
-    needs: compile-and-test
+    needs: [lint, dialyzer, test, js-test]
 
     permissions:
       contents: read
@@ -207,7 +227,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to the Container registry
         uses: docker/login-action@v4
@@ -257,3 +280,5 @@ jobs:
           push: ${{ steps.pr_publish_check.outputs.publish == 'true' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref_type == 'tag' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

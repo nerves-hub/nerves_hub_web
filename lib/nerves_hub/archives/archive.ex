@@ -66,7 +66,19 @@ defmodule NervesHub.Archives.Archive do
       :uuid,
       :version
     ])
+    |> validate_semver_version()
     |> unique_constraint(:uuid, name: :archives_product_id_uuid_index)
     |> foreign_key_constraint(:products)
+  end
+
+  # Archive versions must be valid SemVer so they order correctly via
+  # `semver_sort_key/1`; `Version.parse/1` is the single parsing authority.
+  defp validate_semver_version(changeset) do
+    validate_change(changeset, :version, fn :version, version ->
+      case Version.parse(version) do
+        {:ok, _} -> []
+        :error -> [version: "must be a valid semantic version"]
+      end
+    end)
   end
 end

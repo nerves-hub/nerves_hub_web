@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Fixtures
 
   setup %{org: org, product: product} do
@@ -80,7 +81,7 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
       assert json_response(conn, 200)["data"]["serial"] == serial
 
       otp_certificate = X509.Certificate.from_pem!(pem)
-      {:ok, db_cert} = Devices.get_device_certificate_by_x509(otp_certificate)
+      {:ok, db_cert} = Certificates.get_device_certificate_by_x509(otp_certificate)
 
       assert db_cert.der == Certificate.to_der(otp_certificate)
       assert db_cert.fingerprint == Certificate.fingerprint(otp_certificate)

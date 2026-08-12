@@ -1,7 +1,7 @@
 defmodule NervesHub.Extensions.Health do
   @behaviour NervesHub.Extensions
 
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.PubSub
@@ -72,7 +72,7 @@ defmodule NervesHub.Extensions.Health do
     }
 
     with {:health_report, {:ok, _}} <-
-           {:health_report, Devices.save_device_health(device_health)},
+           {:health_report, Health.save_device_health(device_health)},
          {:metrics_report, {:ok, _}} <-
            {:metrics_report, Metrics.save_metrics(socket.assigns.device_info.device_id, metrics)} do
       :ok = PubSub.broadcast_report(socket.assigns.device_info.device_id, "health_check_report", %{})

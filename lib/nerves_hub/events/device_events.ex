@@ -8,6 +8,7 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
+  alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
@@ -74,7 +75,7 @@ defmodule NervesHub.DeviceEvents do
           []
         end
 
-      update_payload = Devices.resolve_update(device, deployment_group, update_opts)
+      update_payload = Updates.resolve_update(device, deployment_group, update_opts)
 
       device = %{device | deployment_group: deployment_group}
 
@@ -102,7 +103,7 @@ defmodule NervesHub.DeviceEvents do
     Repo.transact(fn ->
       url =
         if opts[:delta] do
-          {:ok, url} = Devices.get_delta_url(device, firmware)
+          {:ok, url} = Firmwares.get_delta_url(device, firmware)
           url
         else
           {:ok, url} = Firmwares.get_firmware_url(firmware)
@@ -121,7 +122,7 @@ defmodule NervesHub.DeviceEvents do
         |> Repo.insert()
 
       {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
-      {:ok, device} = Devices.disable_updates(device, user)
+      {:ok, device} = Updates.disable_updates(device, user)
 
       DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 

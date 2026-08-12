@@ -6,7 +6,7 @@ defmodule NervesHub.Devices.DeviceCertificate do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Certificate
-  alias NervesHub.Devices
+  alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Repo
@@ -107,7 +107,7 @@ defmodule NervesHub.Devices.DeviceCertificate do
   defp validate_aki(%{changes: %{aki: aki}} = changeset) do
     org_id = get_field(changeset, :org_id)
 
-    case Devices.get_ca_certificate_by_ski(aki) do
+    case CACertificates.get_ca_certificate_by_ski(aki) do
       {:ok, %{org_id: ^org_id}} ->
         changeset
 

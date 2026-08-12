@@ -57,6 +57,44 @@ defmodule NervesHub.FirmwaresTest do
       assert {:error, %Ecto.Changeset{errors: [uuid: {"has already been taken", [_ | _]}]}} =
                Firmwares.create_firmware(org, filepath)
     end
+
+    test "rejects a duplicate version when the product requires unique versions",
+         %{user: user, org: org, org_key: org_key, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org, %{require_unique_firmware_version: true})
+
+      path_a = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9"})
+      assert {:ok, _} = Firmwares.create_firmware(org, path_a)
+
+      path_b = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9"})
+      assert {:error, changeset} = Firmwares.create_firmware(org, path_b)
+      assert "has already been taken for this product" in errors_on(changeset).version
+    end
+
+    test "allows the same version for a different platform when unique versions are required",
+         %{user: user, org: org, org_key: org_key, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org, %{require_unique_firmware_version: true})
+
+      path_a =
+        Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9", platform: "rpi0"})
+
+      assert {:ok, _} = Firmwares.create_firmware(org, path_a)
+
+      path_b =
+        Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9", platform: "rpi4"})
+
+      assert {:ok, _} = Firmwares.create_firmware(org, path_b)
+    end
+
+    test "allows a duplicate version when the product does not require unique versions",
+         %{user: user, org: org, org_key: org_key, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org, %{require_unique_firmware_version: false})
+
+      path_a = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9"})
+      assert {:ok, _} = Firmwares.create_firmware(org, path_a)
+
+      path_b = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir, version: "9.9.9"})
+      assert {:ok, _} = Firmwares.create_firmware(org, path_b)
+    end
   end
 
   describe "delete_firmware/1" do
@@ -219,6 +257,60 @@ defmodule NervesHub.FirmwaresTest do
                %{id: ^middle2_same_ver, product_id: ^product_id},
                %{id: ^oldest_ver, product_id: ^product_id}
              ] = firmwares
+    end
+  end
+
+  describe "SemVer version ordering" do
+    setup %{user: user, org: org, org_key: org_key, tmp_dir: tmp_dir} do
+      product =
+        Fixtures.product_fixture(user, org, %{name: "semver-order-#{System.unique_integer([:positive])}"})
+
+      insert = fn version ->
+        Fixtures.firmware_fixture(org_key, product, %{version: version, dir: tmp_dir})
+      end
+
+      {:ok, %{product: product, insert: insert}}
+    end
+
+    test "get_firmwares_by_product/1 orders by precedence, not lexically", %{
+      product: product,
+      insert: insert
+    } do
+      # Lexical/naive ordering would put 1.9.0 above 1.10.0 and a release below
+      # its pre-release; SemVer precedence must not.
+      for v <- ["1.2.0", "1.9.0", "1.10.0", "1.10.0-rc1"], do: insert.(v)
+
+      versions =
+        product.id
+        |> Firmwares.get_firmwares_by_product()
+        |> Enum.map(& &1.version)
+
+      assert versions == ["1.10.0", "1.10.0-rc1", "1.9.0", "1.2.0"]
+    end
+
+    test "get_firmware_versions_by_product/1 returns distinct versions, newest first", %{
+      product: product,
+      insert: insert
+    } do
+      for v <- ["1.9.0", "1.10.0", "1.10.0-rc1"], do: insert.(v)
+
+      assert Firmwares.get_firmware_versions_by_product(product.id) ==
+               ["1.10.0", "1.10.0-rc1", "1.9.0"]
+    end
+
+    test "get_firmwares_by_product_and_platform/2 orders by precedence", %{
+      product: product,
+      insert: insert
+    } do
+      platform = insert.("1.9.0").platform
+      insert.("1.10.0")
+
+      versions =
+        product
+        |> Firmwares.get_firmwares_by_product_and_platform(platform)
+        |> Enum.map(& &1.version)
+
+      assert versions == ["1.10.0", "1.9.0"]
     end
   end
 

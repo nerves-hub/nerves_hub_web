@@ -4,7 +4,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   import NervesHubWeb.LayoutView,
     only: [humanize_size: 1]
 
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
@@ -25,11 +25,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
     socket
     |> assign(:inflight_updates, inflight_updates)
-    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
-    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
-    |> assign(:updating_count, Devices.updating_count(deployment_group))
-    |> assign(:updates_disabled_count, Devices.updates_disabled_count(deployment_group))
-    |> assign(:in_penalty_box_count, Devices.in_penalty_box_count(deployment_group))
+    |> assign(:up_to_date_count, Deployments.up_to_date_count(deployment_group))
+    |> assign(:waiting_for_update_count, Deployments.waiting_for_update_count(deployment_group))
+    |> assign(:updating_count, Deployments.updating_count(deployment_group))
+    |> assign(:updates_disabled_count, Deployments.updates_disabled_count(deployment_group))
+    |> assign(:in_penalty_box_count, Deployments.in_penalty_box_count(deployment_group))
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
     |> ok()
   end
@@ -62,7 +62,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     %{deployment_group: deployment_group} = assigns
 
     inflight_updates = FirmwareUpdates.inflight_updates_for(deployment_group)
-    updating_count = Devices.updating_count(deployment_group)
+    updating_count = Deployments.updating_count(deployment_group)
 
     socket
     |> assign(assigns)
@@ -72,11 +72,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     )
     |> assign_update_stats(deployment_group)
     |> assign_deltas_and_stats()
-    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
-    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
+    |> assign(:up_to_date_count, Deployments.up_to_date_count(deployment_group))
+    |> assign(:waiting_for_update_count, Deployments.waiting_for_update_count(deployment_group))
     |> assign(:updating_count, updating_count)
-    |> assign(:updates_disabled_count, Devices.updates_disabled_count(deployment_group))
-    |> assign(:in_penalty_box_count, Devices.in_penalty_box_count(deployment_group))
+    |> assign(:updates_disabled_count, Deployments.updates_disabled_count(deployment_group))
+    |> assign(:in_penalty_box_count, Deployments.in_penalty_box_count(deployment_group))
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:firmware, deployment_group.current_release.firmware)
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
