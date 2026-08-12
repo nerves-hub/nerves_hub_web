@@ -3,7 +3,6 @@ defmodule NervesHubWeb.API.FirmwareController do
   use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Firmwares
-  alias NervesHub.Repo
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.FirmwareSchemas
@@ -54,7 +53,7 @@ defmodule NervesHubWeb.API.FirmwareController do
 
     with {%{path: filepath}, _params} <- Map.pop(params, "firmware"),
          {:ok, firmware} <- Firmwares.create_firmware(org, filepath) do
-      firmware = Repo.preload(firmware, :product)
+      firmware = Firmwares.preload_product(firmware)
 
       conn
       |> put_status(:created)

@@ -1,17 +1,13 @@
 defmodule NervesHubWeb.API.DeviceController do
   use NervesHubWeb, :api_controller
 
-  import Ecto.Query
-
   alias NervesHub.Accounts
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.BulkActions
-  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Firmwares
   alias NervesHub.Products
-  alias NervesHub.Repo
   alias NervesHubWeb.API.PaginationHelpers
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Helpers.RoleValidateHelpers
@@ -69,7 +65,7 @@ defmodule NervesHubWeb.API.DeviceController do
       |> Map.put("product_id", product.id)
 
     with {:ok, device} <- Devices.create_device(params) do
-      device = preload_device(device)
+      device = Devices.get_by_identifier_with_deployment_and_release!(device.identifier)
 
       conn
       |> put_status(:created)
@@ -109,7 +105,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
   def update(%{assigns: %{device: device}} = conn, params) do
     with {:ok, updated_device} <- Devices.update_device(device, params) do
-      updated_device = preload_device(updated_device)
+      updated_device = Devices.get_by_identifier_with_deployment_and_release!(updated_device.identifier)
 
       conn
       |> put_status(201)
@@ -123,7 +119,7 @@ defmodule NervesHubWeb.API.DeviceController do
          {:ok, %DeviceCertificate{device_id: device_id}} <-
            Devices.get_device_certificate_by_x509(cert),
          {:ok, device} <- Devices.get_device_by_org(org, device_id) do
-      device = preload_device(device)
+      device = Devices.get_by_identifier_with_deployment_and_release!(device.identifier)
 
       conn
       |> put_status(200)
@@ -208,7 +204,7 @@ defmodule NervesHubWeb.API.DeviceController do
          {:ok, product} <- Products.get_product_by_org_id_and_name(move_to_org.id, product_name) do
       case Devices.move(device, product, user) do
         {:ok, device} ->
-          device = preload_device(device)
+          device = Devices.get_by_identifier_with_deployment_and_release!(device.identifier)
 
           conn
           |> assign(:device, device)
@@ -219,13 +215,5 @@ defmodule NervesHubWeb.API.DeviceController do
           {:error, changeset}
       end
     end
-  end
-
-  defp preload_device(%{identifier: identifier}) do
-    Device
-    |> where(identifier: ^identifier)
-    |> Devices.join_and_preload_deployment_group_and_current_release()
-    |> preload([:org, :product, :latest_connection])
-    |> Repo.one!()
   end
 end

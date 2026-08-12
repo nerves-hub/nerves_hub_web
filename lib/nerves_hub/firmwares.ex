@@ -239,6 +239,11 @@ defmodule NervesHub.Firmwares do
 
   def get_firmware!(firmware_id), do: Repo.get!(Firmware, firmware_id)
 
+  @doc """
+  Preloads a firmware's product.
+  """
+  def preload_product(%Firmware{} = firmware), do: Repo.preload(firmware, :product)
+
   def get_firmware_for_device(%Device{firmware_metadata: nil}), do: []
 
   def get_firmware_for_device(device) do

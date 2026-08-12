@@ -73,6 +73,15 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
+  Persists a user's selected default columns for the given column set.
+  """
+  def update_user_default_columns(%User{} = user, column_set, selected_columns) do
+    user
+    |> User.update_selected_default_columns_changeset(column_set, selected_columns)
+    |> Repo.update()
+  end
+
+  @doc """
   Creates a new user, and an org if one does not exist yet
   """
   @spec create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
@@ -283,7 +292,7 @@ defmodule NervesHub.Accounts do
     |> Repo.exists?()
   end
 
-  def get_user_orgs(%User{} = user) do
+  def get_user_orgs(%User{} = user, preloads \\ []) do
     from(
       o in Org,
       full_join: ou in OrgUser,
@@ -294,6 +303,7 @@ defmodule NervesHub.Accounts do
     )
     |> Repo.exclude_deleted()
     |> Repo.all()
+    |> Repo.preload(preloads)
   end
 
   def find_org_user_with_device(user, device_id) do

@@ -1,7 +1,6 @@
 defmodule NervesHubWeb.Live.SupportScripts.Index do
   use NervesHubWeb, :live_view
 
-  alias NervesHub.Repo
   alias NervesHub.Scripts
   alias NervesHubWeb.Components.Sorting
 
@@ -120,11 +119,9 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   def handle_event("delete-support-script", %{"script_id" => script_id}, socket) do
     authorized!(:"support_script:delete", socket.assigns.current_scope)
 
-    %{product: product} = socket.assigns
+    %{product: product, current_scope: %{user: user}} = socket.assigns
 
-    {:ok, script} = Scripts.get(product, script_id)
-
-    Repo.delete!(script)
+    {:ok, _script} = Scripts.delete(script_id, product, user)
 
     socket
     |> put_flash(:info, "Script deleted")

@@ -1,8 +1,7 @@
 defmodule NervesHubWeb.Components.ListSettingsSidebar do
   use NervesHubWeb, :component
 
-  alias NervesHub.Accounts.User
-  alias NervesHub.Repo
+  alias NervesHub.Accounts
   alias Phoenix.LiveView.JS
 
   attr(:available_columns, :list, required: true)
@@ -69,10 +68,7 @@ defmodule NervesHubWeb.Components.ListSettingsSidebar do
       end)
       |> Enum.map(fn {k, _} -> k end)
 
-    user =
-      User.update_selected_default_columns_changeset(user, column_set, selected_columns)
-
-    Repo.update(user)
+    Accounts.update_user_default_columns(user, column_set, selected_columns)
   end
 
   defp to_column_name(column) do
