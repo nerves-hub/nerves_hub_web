@@ -164,6 +164,40 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     |> assert_has("span", text: "2")
   end
 
+  test "activating a release moves the delta subscription to the new firmware", %{
+    conn: conn,
+    deployment_group: deployment_group,
+    target_firmware: target_firmware,
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir,
+    user: user
+  } do
+    assert [{live_view, _meta}] = Group.members(NervesHub.Group, "firmware:#{target_firmware.id}")
+
+    other_firmware =
+      Fixtures.firmware_fixture(org_key, product, %{version: "2.0.1", dir: tmp_dir})
+
+    {:ok, {_release, _deployment_group}} =
+      ManagedDeployments.create_deployment_release(
+        deployment_group,
+        other_firmware,
+        nil,
+        user,
+        %{}
+      )
+
+    conn
+    |> assert_has("span",
+      text: "No stats recorded for firmware #{other_firmware.version}",
+      exact: false,
+      timeout: 100
+    )
+
+    assert [{^live_view, _meta}] = Group.members(NervesHub.Group, "firmware:#{other_firmware.id}")
+    assert [] == Group.members(NervesHub.Group, "firmware:#{target_firmware.id}")
+  end
+
   test "shows delta status and available actions", %{
     conn: conn,
     source_firmware: source_firmware,

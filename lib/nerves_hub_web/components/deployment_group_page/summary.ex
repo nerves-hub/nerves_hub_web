@@ -12,6 +12,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias Phoenix.Naming
 
   @impl Phoenix.LiveComponent
+  def mount(socket) do
+    {:ok, assign(socket, :delta_target_firmware_id, nil)}
+  end
+
+  @impl Phoenix.LiveComponent
   def update(%{event: :update_matched_devices_count}, socket) do
     socket
     |> assign_matched_devices_count()
@@ -600,9 +605,35 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   defp assign_deltas_and_stats(%{assigns: %{deployment_group: deployment_group}} = socket) do
-    :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.current_release.firmware.id)
-
     socket
+    |> subscribe_to_firmware_deltas(deployment_group.current_release.firmware.id)
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
+  end
+
+  # `update/2` runs again on every parent re-render, and the firmware we want
+  # delta updates for changes whenever a new release is activated. Track the
+  # firmware we're subscribed to so we only re-join when the target actually
+  # moves, and leave the previous one when it does — otherwise memberships
+  # accumulate for the lifetime of the LiveView. The dead render has nothing to
+  # push an update to, so it doesn't join at all.
+  defp subscribe_to_firmware_deltas(socket, firmware_id) do
+    previous_firmware_id = socket.assigns.delta_target_firmware_id
+
+    cond do
+      not connected?(socket) ->
+        socket
+
+      previous_firmware_id == firmware_id ->
+        socket
+
+      true ->
+        if previous_firmware_id do
+          :ok = Firmwares.unsubscribe_firmware_delta_target(previous_firmware_id)
+        end
+
+        :ok = Firmwares.subscribe_firmware_delta_target(firmware_id)
+
+        assign(socket, :delta_target_firmware_id, firmware_id)
+    end
   end
 end
