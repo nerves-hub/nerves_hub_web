@@ -5,6 +5,7 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
   alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHub.Devices.PinnedDevice
+  alias NervesHub.Devices.Pinning
   alias NervesHub.Fixtures
 
   setup %{tmp_dir: tmp_dir} do
@@ -32,7 +33,7 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
 
   test "Pin device", %{device: device, user: user} do
     assert {:ok, pinned} =
-             Devices.pin_device(user.id, device.id)
+             Pinning.pin_device(user.id, device.id)
 
     assert pinned.device_id == device.id
     assert pinned.user_id == user.id
@@ -40,28 +41,28 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
 
   test "Constraint on device and user", %{device: device, user: user} do
     assert {:error, _changeset} =
-             Devices.pin_device(user.id, 17)
+             Pinning.pin_device(user.id, 17)
 
     assert {:error, _changeset} =
-             Devices.pin_device(2, device.id)
+             Pinning.pin_device(2, device.id)
   end
 
   test "Get pinned devices for user", %{user: user, device: device} do
     {:ok, _} =
-      Devices.pin_device(user.id, device.id)
+      Pinning.pin_device(user.id, device.id)
 
     devices =
       Scope.for_user(user)
-      |> Devices.get_pinned_devices()
+      |> Pinning.get_pinned_devices()
 
     assert length(devices) == 1
   end
 
   test "Unpin device", %{device: device, user: user} do
     assert {:ok, _} =
-             Devices.pin_device(user.id, device.id)
+             Pinning.pin_device(user.id, device.id)
 
-    {:ok, %PinnedDevice{}} = Devices.unpin_device(user.id, device.id)
+    {:ok, %PinnedDevice{}} = Pinning.unpin_device(user.id, device.id)
   end
 
   test "Move device to new org - unpin if user has no access to new org", %{
@@ -70,11 +71,11 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
     product2: product2
   } do
     assert {:ok, _} =
-             Devices.pin_device(user.id, device.id)
+             Pinning.pin_device(user.id, device.id)
 
     pinned_devices =
       Scope.for_user(user)
-      |> Devices.get_pinned_devices()
+      |> Pinning.get_pinned_devices()
 
     assert length(pinned_devices) == 1
 
@@ -84,7 +85,7 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
     # Assert device is unpinned for unauthorized user
     assert [] ==
              Scope.for_user(user)
-             |> Devices.get_pinned_devices()
+             |> Pinning.get_pinned_devices()
   end
 
   test "Unpin devices when org access for user is revoked", %{
@@ -96,11 +97,11 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
     Accounts.add_org_user(org, user2, %{role: :view})
 
     assert {:ok, _} =
-             Devices.pin_device(user2.id, device.id)
+             Pinning.pin_device(user2.id, device.id)
 
     pinned_devices =
       Scope.for_user(user2)
-      |> Devices.get_pinned_devices()
+      |> Pinning.get_pinned_devices()
 
     assert length(pinned_devices) == 1
 
@@ -110,16 +111,16 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
     # Assert user has no pinned devices
     assert [] =
              Scope.for_user(user2)
-             |> Devices.get_pinned_devices()
+             |> Pinning.get_pinned_devices()
   end
 
   test "Remove entries when user is soft-deleted", %{user: user, device: device} do
     assert {:ok, _} =
-             Devices.pin_device(user.id, device.id)
+             Pinning.pin_device(user.id, device.id)
 
     pinned_devices =
       Scope.for_user(user)
-      |> Devices.get_pinned_devices()
+      |> Pinning.get_pinned_devices()
 
     assert length(pinned_devices) == 1
 
@@ -128,17 +129,17 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
 
     assert [] =
              Scope.for_user(user)
-             |> Devices.get_pinned_devices()
+             |> Pinning.get_pinned_devices()
   end
 
   test "Remove entries when device is (soft)deleted", %{user: user, device: device} do
     assert {:ok, _} =
-             Devices.pin_device(user.id, device.id)
+             Pinning.pin_device(user.id, device.id)
 
     Devices.delete_device(device)
 
     assert [] =
              Scope.for_user(user)
-             |> Devices.get_pinned_devices()
+             |> Pinning.get_pinned_devices()
   end
 end
