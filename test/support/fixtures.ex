@@ -8,6 +8,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
@@ -140,7 +141,7 @@ defmodule NervesHub.Fixtures do
       der: X509.Certificate.to_der(ca)
     }
 
-    {:ok, db_cert} = Devices.create_ca_certificate(org, params)
+    {:ok, db_cert} = CACertificates.create_ca_certificate(org, params)
     %{cert: ca, key: ca_key, db_cert: db_cert}
   end
 

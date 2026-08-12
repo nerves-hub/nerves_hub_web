@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.CACertificate.CSR
+  alias NervesHub.Devices.CACertificates
   alias NervesHub.Products
   alias NervesHubWeb.Components.CAHelpers
   alias NervesHubWeb.Components.Utils
@@ -51,7 +52,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   defp apply_action(%{assigns: %{current_scope: scope}} = socket, :edit, %{"serial" => serial}) do
     products = Products.get_products(scope)
 
-    case Devices.get_ca_certificate_by_serial(serial) do
+    case CACertificates.get_ca_certificate_by_serial(serial) do
       {:ok, cert} ->
         changeset = Devices.CACertificate.changeset(cert, %{})
 
@@ -76,8 +77,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     authorized!(:"certificate_authority:delete", socket.assigns.current_scope)
 
     with {:ok, ca_certificate} <-
-           Devices.get_ca_certificate_by_org_and_serial(socket.assigns.org, serial),
-         {:ok, _ca_certificate} <- Devices.delete_ca_certificate(ca_certificate) do
+           CACertificates.get_ca_certificate_by_org_and_serial(socket.assigns.org, serial),
+         {:ok, _ca_certificate} <- CACertificates.delete_ca_certificate(ca_certificate) do
       socket
       |> put_flash(:info, "Certificate successfully deleted")
       |> list_certificates()
@@ -96,9 +97,9 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   def handle_event("update_certificate_authority", %{"ca_certificate" => ca_certificate}, socket) do
     authorized!(:"certificate_authority:update", socket.assigns.current_scope)
 
-    with {:ok, cert} <- Devices.get_ca_certificate_by_serial(socket.assigns.serial),
+    with {:ok, cert} <- CACertificates.get_ca_certificate_by_serial(socket.assigns.serial),
          {:ok, params} <- maybe_delete_jitp(ca_certificate),
-         {:ok, _cert} <- Devices.update_ca_certificate(cert, params) do
+         {:ok, _cert} <- CACertificates.update_ca_certificate(cert, params) do
       socket
       |> put_flash(:info, "Certificate Authority updated")
       |> push_patch(to: ~p"/org/#{socket.assigns.org}/settings/certificates")
@@ -150,7 +151,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
            description: params["description"],
            jitp: params["jitp"]
          },
-         {:ok, _ca_certificate} <- Devices.create_ca_certificate(socket.assigns.org, params) do
+         {:ok, _ca_certificate} <- CACertificates.create_ca_certificate(socket.assigns.org, params) do
       socket
       |> put_flash(:info, "Certificate Authority created")
       |> push_patch(to: ~p"/org/#{socket.assigns.org}/settings/certificates")
@@ -182,7 +183,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   end
 
   defp list_certificates(socket) do
-    certificates = Devices.get_ca_certificates(socket.assigns.org)
+    certificates = CACertificates.get_ca_certificates(socket.assigns.org)
     assign(socket, :certificates, certificates)
   end
 

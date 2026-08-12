@@ -12,6 +12,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
@@ -822,7 +823,7 @@ defmodule NervesHub.DevicesTest do
       der: X509.Certificate.to_der(ca)
     }
 
-    assert {:ok, %CACertificate{org_id: ^org_id}} = Devices.create_ca_certificate(org, params)
+    assert {:ok, %CACertificate{org_id: ^org_id}} = CACertificates.create_ca_certificate(org, params)
   end
 
   test "cannot create ca certificates with duplicate serial numbers", %{org: org} do
@@ -842,8 +843,8 @@ defmodule NervesHub.DevicesTest do
       der: X509.Certificate.to_der(ca)
     }
 
-    assert {:ok, %CACertificate{org_id: ^org_id}} = Devices.create_ca_certificate(org, params)
-    assert {:error, %Changeset{}} = Devices.create_ca_certificate(org, params)
+    assert {:ok, %CACertificate{org_id: ^org_id}} = CACertificates.create_ca_certificate(org, params)
+    assert {:error, %Changeset{}} = CACertificates.create_ca_certificate(org, params)
   end
 
   test "can get certificate by aki", %{org: org} do
@@ -866,8 +867,8 @@ defmodule NervesHub.DevicesTest do
       der: X509.Certificate.to_der(ca)
     }
 
-    assert {:ok, %CACertificate{org_id: ^org_id}} = Devices.create_ca_certificate(org, params)
-    assert {:ok, %CACertificate{serial: ^serial}} = Devices.get_ca_certificate_by_aki(aki)
+    assert {:ok, %CACertificate{org_id: ^org_id}} = CACertificates.create_ca_certificate(org, params)
+    assert {:ok, %CACertificate{serial: ^serial}} = CACertificates.get_ca_certificate_by_aki(aki)
   end
 
   test "get_device_by_identifier with existing device", %{user: user, org: org, device: target_device} do
