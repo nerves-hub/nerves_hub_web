@@ -3,7 +3,6 @@ defmodule NervesHubWeb.API.OrgController do
   use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Accounts
-  alias NervesHub.Repo
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.OrgSchemas.OrgListResponse
 
@@ -33,10 +32,7 @@ defmodule NervesHubWeb.API.OrgController do
   def index(%{assigns: %{current_scope: %{user: user}}} = conn, params) do
     preloads = parse_includes(params)
 
-    orgs =
-      user
-      |> Accounts.get_user_orgs()
-      |> Repo.preload(preloads)
+    orgs = Accounts.get_user_orgs(user, preloads)
 
     render(conn, :index, orgs: orgs)
   end
