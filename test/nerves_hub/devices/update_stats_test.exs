@@ -2,6 +2,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
   use NervesHub.DataCase, async: true
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.UpdateStat
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
@@ -58,7 +59,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       deployment_group: deployment_group
     } do
       {:ok, metadata} = Firmwares.metadata_from_firmware(source_firmware)
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
       assert :ok = UpdateStats.log_update(device, metadata)
 
       stats = Repo.all(UpdateStat)
@@ -113,7 +114,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       deployment_group: deployment_group,
       other_firmware: other_firmware
     } do
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
       assert device.deployment_id
 
       {:ok, metadata} = Firmwares.metadata_from_firmware(other_firmware)
@@ -186,8 +187,8 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       source_firmware_metadata: source_firmware_metadata,
       user: user
     } do
-      device = Devices.update_deployment_group(device, deployment_group)
-      device2 = Devices.update_deployment_group(device2, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
+      device2 = Deployments.update_deployment_group(device2, deployment_group)
 
       :ok = UpdateStats.log_update(device, source_firmware_metadata)
       _ = Fixtures.firmware_delta_fixture(source_firmware, target_firmware)
@@ -230,7 +231,7 @@ defmodule NervesHub.Devices.UpdateStatsTest do
       source_firmware_metadata: source_firmware_metadata,
       tmp_dir: tmp_dir
     } do
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
       :ok = UpdateStats.log_update(device, source_firmware_metadata)
 
       # create firmware from different product with same uuid

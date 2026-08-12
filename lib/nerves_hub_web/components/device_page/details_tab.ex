@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.Updates
@@ -733,7 +734,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     authorized!(:"device:set-deployment-group", socket.assigns.current_scope)
 
     deployment = Enum.find(deployment_groups, &(&1.id == String.to_integer(deployment_id)))
-    device = Devices.update_deployment_group(device, deployment)
+    device = Deployments.update_deployment_group(device, deployment)
     _ = DeviceTemplates.audit_device_deployment_group_update(user, device, deployment)
 
     send(self(), :reload_device)
@@ -857,7 +858,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("remove-from-deployment-group", _, %{assigns: %{device: device}} = socket) do
-    device = Devices.clear_deployment_group(device)
+    device = Deployments.clear_deployment_group(device)
 
     send(self(), :reload_device)
 

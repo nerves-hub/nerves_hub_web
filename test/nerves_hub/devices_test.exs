@@ -14,6 +14,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
@@ -626,7 +627,7 @@ defmodule NervesHub.DevicesTest do
 
       _no_deployment = Fixtures.device_fixture(org, product, current, %{})
 
-      assert Devices.up_to_date_count(dg) == 1
+      assert Deployments.up_to_date_count(dg) == 1
     end
 
     test "waiting_for_update_count/1 only counts eligible devices not on the current firmware",
@@ -645,7 +646,7 @@ defmodule NervesHub.DevicesTest do
 
       _no_deployment = Fixtures.device_fixture(org, product, other, %{})
 
-      assert Devices.waiting_for_update_count(dg) == 1
+      assert Deployments.waiting_for_update_count(dg) == 1
     end
 
     test "updates_disabled_count/1 counts deployment devices with updates_enabled = false",
@@ -661,7 +662,7 @@ defmodule NervesHub.DevicesTest do
       _disabled_no_deployment =
         Fixtures.device_fixture(org, product, current, %{updates_enabled: false})
 
-      assert Devices.updates_disabled_count(dg) == 2
+      assert Deployments.updates_disabled_count(dg) == 2
     end
 
     test "in_penalty_box_count/2 only counts deployment devices with a future block timestamp",
@@ -681,7 +682,7 @@ defmodule NervesHub.DevicesTest do
       _blocked_no_deployment =
         Fixtures.device_fixture(org, product, current, %{updates_blocked_until: future})
 
-      assert Devices.in_penalty_box_count(dg, now) == 1
+      assert Deployments.in_penalty_box_count(dg, now) == 1
     end
   end
 
@@ -900,9 +901,9 @@ defmodule NervesHub.DevicesTest do
 
     nil_tags_deployment_group = put_in(deployment_group.conditions.tags, nil)
 
-    refute Devices.matches_deployment_group?(%{device | tags: nil}, deployment_group)
-    assert Devices.matches_deployment_group?(%{device | tags: nil}, nil_tags_deployment_group)
-    assert Devices.matches_deployment_group?(device, nil_tags_deployment_group)
+    refute Deployments.matches_deployment_group?(%{device | tags: nil}, deployment_group)
+    assert Deployments.matches_deployment_group?(%{device | tags: nil}, nil_tags_deployment_group)
+    assert Deployments.matches_deployment_group?(device, nil_tags_deployment_group)
   end
 
   test "create shared secret auth with associated product shared secret auth", context do
@@ -1240,7 +1241,7 @@ defmodule NervesHub.DevicesTest do
       refute device.deployment_id
 
       NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
 
       assert device.deployment_id == deployment_group.id
       assert_receive %{event: "deployment_updated"}
@@ -1277,7 +1278,7 @@ defmodule NervesHub.DevicesTest do
       deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
 
-      _device = Devices.update_deployment_group(device, deployment_group)
+      _device = Deployments.update_deployment_group(device, deployment_group)
 
       # Assert that the device-added event was broadcast
       assert_receive %Broadcast{topic: ^deployment_topic, event: "device-added"}, 500
@@ -1311,7 +1312,7 @@ defmodule NervesHub.DevicesTest do
       {:ok, {_release, deployment_group}} =
         ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
-      _device = Devices.update_deployment_group(device, deployment_group)
+      _device = Deployments.update_deployment_group(device, deployment_group)
 
       # Delta generation happens inline in the transaction
       # Assert that delta generation job was enqueued for the new firmware pair
@@ -1482,10 +1483,10 @@ defmodule NervesHub.DevicesTest do
       device: device,
       deployment_group: deployment_group
     } do
-      device = Devices.update_deployment_group(device, deployment_group)
+      device = Deployments.update_deployment_group(device, deployment_group)
 
       NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
-      device = Devices.clear_deployment_group(device)
+      device = Deployments.clear_deployment_group(device)
 
       refute device.deployment_id
       assert_receive %{event: "deployment_updated"}
@@ -2409,26 +2410,26 @@ defmodule NervesHub.DevicesTest do
 
       _ =
         Fixtures.device_fixture(org, product, firmware2)
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       _ =
         Fixtures.device_fixture(org, product, firmware2)
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       _ =
         Fixtures.device_fixture(org, product, firmware3)
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       _ =
         Fixtures.device_fixture(org, product, firmware3)
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       _ =
         Fixtures.device_fixture(org, product, firmware4)
-        |> Devices.update_deployment_group(deployment_group)
+        |> Deployments.update_deployment_group(deployment_group)
 
       pairs =
-        Devices.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
+        Deployments.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
 
       assert length(pairs) == 3
       assert Enum.member?(pairs, {firmware2.id, firmware.id})

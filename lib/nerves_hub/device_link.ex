@@ -8,6 +8,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Updates
@@ -196,7 +197,7 @@ defmodule NervesHub.DeviceLink do
     # Update the connection to say that we are fully up and running
     Connections.device_connected(device_info.connection_ref)
     # tell the orchestrator that we are online
-    Devices.deployment_device_online(device_info)
+    Deployments.deployment_device_online(device_info)
   end
 
   defp refresh_deployment_group(device) do
