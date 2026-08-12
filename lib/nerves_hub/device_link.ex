@@ -3,6 +3,7 @@ defmodule NervesHub.DeviceLink do
   Encapsulation of device connection workflow logic
   """
 
+  alias NervesHub.Accounts
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
@@ -207,7 +208,7 @@ defmodule NervesHub.DeviceLink do
   defp maybe_send_public_keys(device_info, params) do
     signing_keys =
       if Enum.any?(@public_key_types, fn type -> params[type] == "on_connect" end) do
-        Devices.fetch_firmware_signing_keys(device_info.device_id)
+        Accounts.fetch_firmware_signing_keys(device_info.device_id)
       else
         []
       end

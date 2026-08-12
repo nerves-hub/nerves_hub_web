@@ -5,7 +5,6 @@ defmodule NervesHub.Devices do
   alias Ecto.Multi
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
-  alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
@@ -1042,7 +1041,7 @@ defmodule NervesHub.Devices do
       deployment_id: nil
     }
 
-    _ = maybe_copy_firmware_keys(device, product.org)
+    _ = Accounts.maybe_copy_firmware_keys(device, product.org)
 
     description =
       "User #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
@@ -1277,34 +1276,6 @@ defmodule NervesHub.Devices do
   defp tags_match?(device_tags, deployment_group_tags) do
     Enum.all?(deployment_group_tags, fn tag -> tag in device_tags end)
   end
-
-  def fetch_firmware_signing_keys(device_id) do
-    OrgKey
-    |> join(:inner, [ok], d in assoc(ok, :org))
-    |> join(:inner, [ok, o], d in assoc(o, :devices))
-    |> where([ok, o, d], d.id == ^device_id)
-    |> Repo.all()
-  end
-
-  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}) do
-    existing_target_keys = from(k in OrgKey, where: [org_id: ^target], select: k.key)
-
-    from(
-      k in OrgKey,
-      join: f in Firmware,
-      on: [org_key_id: k.id],
-      where: f.uuid == ^uuid and k.org_id == ^source,
-      where: k.key not in subquery(existing_target_keys),
-      select: %{name: k.name, key: k.key, org_id: type(^target, :integer)}
-    )
-    |> Repo.one()
-    |> case do
-      %{} = attrs -> Accounts.create_org_key(attrs)
-      _ -> :ignore
-    end
-  end
-
-  def maybe_copy_firmware_keys(_old, _updated), do: :ignore
 
   @doc """
   Get distinct device platforms based on the product

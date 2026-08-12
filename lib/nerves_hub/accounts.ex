@@ -17,6 +17,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.CLISessionCache
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Pinning
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -532,6 +533,41 @@ defmodule NervesHub.Accounts do
     |> change_org_key(attrs)
     |> Repo.insert()
   end
+
+  @doc """
+  Fetch the org's firmware signing keys for the given device.
+  """
+  def fetch_firmware_signing_keys(device_id) do
+    OrgKey
+    |> join(:inner, [ok], d in assoc(ok, :org))
+    |> join(:inner, [ok, o], d in assoc(o, :devices))
+    |> where([ok, o, d], d.id == ^device_id)
+    |> Repo.all()
+  end
+
+  @doc """
+  When a device moves orgs, copy the signing keys for its current firmware into
+  the target org if they are not already present.
+  """
+  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}) do
+    existing_target_keys = from(k in OrgKey, where: [org_id: ^target], select: k.key)
+
+    from(
+      k in OrgKey,
+      join: f in Firmware,
+      on: [org_key_id: k.id],
+      where: f.uuid == ^uuid and k.org_id == ^source,
+      where: k.key not in subquery(existing_target_keys),
+      select: %{name: k.name, key: k.key, org_id: type(^target, :integer)}
+    )
+    |> Repo.one()
+    |> case do
+      %{} = attrs -> create_org_key(attrs)
+      _ -> :ignore
+    end
+  end
+
+  def maybe_copy_firmware_keys(_old, _updated), do: :ignore
 
   @spec list_org_keys(Scope.t() | pos_integer(), boolean()) :: [OrgKey.t()]
   def list_org_keys(scope_or_org_id, load_created_by \\ true)
