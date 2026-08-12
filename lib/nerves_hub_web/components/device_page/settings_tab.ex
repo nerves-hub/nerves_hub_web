@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
   alias NervesHub.Extensions
   alias NervesHubWeb.Components.Utils
@@ -24,7 +25,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   end
 
   def render(assigns) do
-    device = Devices.preload_device_certificates(assigns.device, force: true)
+    device = Certificates.preload_device_certificates(assigns.device, force: true)
 
     assigns = Map.put(assigns, :device, device)
 
@@ -368,11 +369,11 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   def hooked_event("validate-cert", _, socket), do: {:halt, socket}
 
   def hooked_event("delete-certificate", %{"serial" => serial}, %{assigns: %{device: device}} = socket) do
-    device = %{device_certificates: certs} = Devices.preload_device_certificates(device)
+    device = %{device_certificates: certs} = Certificates.preload_device_certificates(device)
 
     db_cert = Enum.find(certs, &(&1.serial == serial))
 
-    case Devices.delete_device_certificate(db_cert) do
+    case Certificates.delete_device_certificate(db_cert) do
       {:ok, _db_cert} ->
         updated_certs = Enum.reject(certs, &(&1.serial == serial))
 
@@ -438,8 +439,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   defp import_cert(%{assigns: %{device: device}} = socket, path) do
     with {:ok, pem_or_der} <- File.read(path),
          {:ok, otp_cert} <- Certificate.from_pem_or_der(pem_or_der),
-         {:ok, _db_cert} <- Devices.create_device_certificate(device, otp_cert) do
-      updated = Devices.preload_device_certificates(device)
+         {:ok, _db_cert} <- Certificates.create_device_certificate(device, otp_cert) do
+      updated = Certificates.preload_device_certificates(device)
 
       assign(socket, :device, updated)
       |> put_flash(:info, "Certificate Upload Successful")

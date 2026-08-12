@@ -13,6 +13,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.CACertificates
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
@@ -684,10 +685,10 @@ defmodule NervesHub.DevicesTest do
   end
 
   test "delete_device deletes its certificates", %{device: device} do
-    [_cert] = Devices.get_device_certificates(device)
+    [_cert] = Certificates.get_device_certificates(device)
 
     {:ok, _device} = Devices.delete_device(device)
-    assert [] = Devices.get_device_certificates(device)
+    assert [] = Certificates.get_device_certificates(device)
   end
 
   test "create_device with invalid parameters", %{firmware: firmware} do
@@ -733,7 +734,7 @@ defmodule NervesHub.DevicesTest do
     }
 
     assert {:ok, %DeviceCertificate{device_id: ^device_id}} =
-             Devices.create_device_certificate(device, params)
+             Certificates.create_device_certificate(device, params)
   end
 
   test "create device certificate without subject key id", %{device: device, cert: cert} do
@@ -750,7 +751,7 @@ defmodule NervesHub.DevicesTest do
     }
 
     assert {:ok, %DeviceCertificate{device_id: ^device_id}} =
-             Devices.create_device_certificate(device, params)
+             Certificates.create_device_certificate(device, params)
   end
 
   test "select one device when it has two certificates", %{
@@ -772,10 +773,10 @@ defmodule NervesHub.DevicesTest do
     expected_id = device.id
 
     assert {:ok, %DeviceCertificate{} = db_cert2} =
-             Devices.create_device_certificate(device, params)
+             Certificates.create_device_certificate(device, params)
 
-    assert {:ok, %{id: ^expected_id}} = Devices.get_device_by_certificate(db_cert2)
-    assert {:ok, %{id: ^expected_id}} = Devices.get_device_by_certificate(db_cert)
+    assert {:ok, %{id: ^expected_id}} = Certificates.get_device_by_certificate(db_cert2)
+    assert {:ok, %{id: ^expected_id}} = Certificates.get_device_by_certificate(db_cert)
   end
 
   test "cannot create device certificates with duplicate serial numbers", %{
@@ -794,8 +795,8 @@ defmodule NervesHub.DevicesTest do
       der: X509.Certificate.to_der(cert)
     }
 
-    assert {:ok, %DeviceCertificate{}} = Devices.create_device_certificate(device, params)
-    assert {:error, %Changeset{}} = Devices.create_device_certificate(device, params)
+    assert {:ok, %DeviceCertificate{}} = Certificates.create_device_certificate(device, params)
+    assert {:error, %Changeset{}} = Certificates.create_device_certificate(device, params)
   end
 
   test "cannot create device certificates with invalid parameters", %{device: device} do
@@ -804,7 +805,7 @@ defmodule NervesHub.DevicesTest do
       device_id: device.id
     }
 
-    assert {:error, %Changeset{}} = Devices.create_device_certificate(device, params)
+    assert {:error, %Changeset{}} = Certificates.create_device_certificate(device, params)
   end
 
   test "create ca certificate with valid params", %{org: org} do

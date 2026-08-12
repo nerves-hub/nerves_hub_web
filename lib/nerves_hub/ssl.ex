@@ -7,6 +7,7 @@ defmodule NervesHub.SSL do
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate.JITP
   alias NervesHub.Devices.CACertificates
+  alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
   alias X509.Certificate.Extension
 
@@ -107,9 +108,9 @@ defmodule NervesHub.SSL do
     # We have always been ignoring expiration if we already have
     # the certificate stored, but in the future there might be reasons
     # to consider expirations for existing
-    case Devices.get_device_certificate_by_x509(otp_cert) do
+    case Certificates.get_device_certificate_by_x509(otp_cert) do
       {:ok, %{device: %{deleted_at: nil}} = db_cert} ->
-        Devices.update_device_certificate(db_cert, %{last_used: DateTime.utc_now()})
+        Certificates.update_device_certificate(db_cert, %{last_used: DateTime.utc_now()})
 
       {:ok, _db_cert} ->
         :ignore_deleted_device
@@ -120,7 +121,7 @@ defmodule NervesHub.SSL do
   end
 
   defp maybe_register(otp_cert) do
-    case Devices.get_device_by_public_key(otp_cert) do
+    case Certificates.get_device_by_public_key(otp_cert) do
       nil ->
         maybe_register_from_new_public_key(otp_cert)
 
@@ -143,7 +144,7 @@ defmodule NervesHub.SSL do
          {:ok, device} <- maybe_jitp_device(cn, db_ca),
          :ok <- check_new_public_key_allowed(device) do
       params = params_from_otp_cert(otp_cert)
-      Devices.create_device_certificate(device, params)
+      Certificates.create_device_certificate(device, params)
     end
   end
 
@@ -160,7 +161,7 @@ defmodule NervesHub.SSL do
          {:ok, _} <-
            :public_key.pkix_path_validation(db_ca.der, [der], verify_fun: {&path_verify/3, verify_state}) do
       params = params_from_otp_cert(otp_cert)
-      Devices.create_device_certificate(device, params)
+      Certificates.create_device_certificate(device, params)
     end
   end
 
@@ -248,7 +249,7 @@ defmodule NervesHub.SSL do
   end
 
   defp check_new_public_key_allowed(device) do
-    case Devices.has_device_certificates?(device) do
+    case Certificates.has_device_certificates?(device) do
       true ->
         # TODO: Support device allowing multiple public keys?
         #
