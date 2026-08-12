@@ -173,7 +173,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     tmp_dir: tmp_dir,
     user: user
   } do
-    assert [{live_view, _meta}] = Group.members(NervesHub.Group, "firmware:#{target_firmware.id}")
+    assert [{live_view, _meta}] = Group.members(NervesHub.Group, "firmware/#{target_firmware.id}")
 
     other_firmware =
       Fixtures.firmware_fixture(org_key, product, %{version: "2.0.1", dir: tmp_dir})
@@ -194,8 +194,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
       timeout: 100
     )
 
-    assert [{^live_view, _meta}] = Group.members(NervesHub.Group, "firmware:#{other_firmware.id}")
-    assert [] == Group.members(NervesHub.Group, "firmware:#{target_firmware.id}")
+    assert [{^live_view, _meta}] = Group.members(NervesHub.Group, "firmware/#{other_firmware.id}")
+    assert [] == Group.members(NervesHub.Group, "firmware/#{target_firmware.id}")
   end
 
   test "shows delta status and available actions", %{
