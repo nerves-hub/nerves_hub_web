@@ -21,6 +21,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.FirmwareUpdates
@@ -491,8 +492,8 @@ defmodule NervesHub.DevicesTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
 
-    :ok = Devices.update_attempted(to_device_info(device))
-    {:ok, device} = Devices.enable_updates(device, user)
+    :ok = Updates.update_attempted(to_device_info(device))
+    {:ok, device} = Updates.enable_updates(device, user)
 
     assert device.updates_enabled
     assert device.update_attempts == []
@@ -917,11 +918,11 @@ defmodule NervesHub.DevicesTest do
 
   describe "tracking update attempts and verifying eligibility" do
     test "records the timestamp of an attempt", %{device: device} do
-      :ok = Devices.update_attempted(to_device_info(device))
+      :ok = Updates.update_attempted(to_device_info(device))
       device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 1
 
-      :ok = Devices.update_attempted(to_device_info(device))
+      :ok = Updates.update_attempted(to_device_info(device))
       device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 2
     end
@@ -929,7 +930,7 @@ defmodule NervesHub.DevicesTest do
     test "records and audit log for updating", %{device: device} do
       assert [] = AuditLogs.logs_for(device)
 
-      :ok = Devices.update_attempted(to_device_info(device))
+      :ok = Updates.update_attempted(to_device_info(device))
 
       [audit_log] = AuditLogs.logs_for(device)
 
@@ -937,7 +938,7 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "resets update attempts on successful update", %{device: device} do
-      :ok = to_device_info(device) |> Devices.update_attempted()
+      :ok = to_device_info(device) |> Updates.update_attempted()
       device = Repo.reload(device)
       assert Enum.count(device.update_attempts) == 1
 
@@ -978,9 +979,9 @@ defmodule NervesHub.DevicesTest do
     test "device updates successfully", %{device: device, deployment_group: deployment_group} do
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
-      :ok = Devices.update_attempted(to_device_info(device))
+      :ok = Updates.update_attempted(to_device_info(device))
 
-      {:ok, device} = Devices.verify_update_eligibility(device, deployment_group)
+      {:ok, device} = Updates.verify_update_eligibility(device, deployment_group)
 
       assert device.updates_enabled
       refute device.updates_blocked_until
@@ -992,12 +993,12 @@ defmodule NervesHub.DevicesTest do
     } do
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
-      :ok = Devices.update_attempted(to_device_info(device))
-      :ok = Devices.update_attempted(to_device_info(device))
+      :ok = Updates.update_attempted(to_device_info(device))
+      :ok = Updates.update_attempted(to_device_info(device))
 
       device = Repo.reload(device)
 
-      {:ok, device} = Devices.verify_update_eligibility(device, deployment_group)
+      {:ok, device} = Updates.verify_update_eligibility(device, deployment_group)
 
       assert device.updates_enabled
       refute device.updates_blocked_until
@@ -1016,13 +1017,13 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -3600, :second))
-      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -1200, :second))
-      :ok = Devices.update_attempted(to_device_info(device), now)
+      :ok = Updates.update_attempted(to_device_info(device), DateTime.add(now, -3600, :second))
+      :ok = Updates.update_attempted(to_device_info(device), DateTime.add(now, -1200, :second))
+      :ok = Updates.update_attempted(to_device_info(device), now)
 
       device = Repo.reload(device)
 
-      {:ok, device} = Devices.verify_update_eligibility(device, deployment_group)
+      {:ok, device} = Updates.verify_update_eligibility(device, deployment_group)
 
       assert device.updates_enabled
       refute device.updates_blocked_until
@@ -1031,7 +1032,7 @@ defmodule NervesHub.DevicesTest do
     test "device already matches the firmware of the deployment", state do
       %{device: device, deployment_group: deployment_group} = state
 
-      {:error, :up_to_date, _device} = Devices.verify_update_eligibility(device, deployment_group)
+      {:error, :up_to_date, _device} = Updates.verify_update_eligibility(device, deployment_group)
     end
 
     test "device should be rejected for updates based on threshold rate and have it's inflight updates cleared",
@@ -1045,17 +1046,17 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -3600, :second))
-      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -1200, :second))
-      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
-      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
-      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
-      :ok = Devices.update_attempted(to_device_info(device), now)
+      :ok = Updates.update_attempted(to_device_info(device), DateTime.add(now, -3600, :second))
+      :ok = Updates.update_attempted(to_device_info(device), DateTime.add(now, -1200, :second))
+      :ok = Updates.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
+      :ok = Updates.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
+      :ok = Updates.update_attempted(to_device_info(device), DateTime.add(now, -500, :second))
+      :ok = Updates.update_attempted(to_device_info(device), now)
 
       device = Repo.reload(device)
 
       {:error, :updates_blocked, device} =
-        Devices.verify_update_eligibility(device, deployment_group)
+        Updates.verify_update_eligibility(device, deployment_group)
 
       assert device.updates_blocked_until
       assert device.update_attempts == []
@@ -1072,16 +1073,16 @@ defmodule NervesHub.DevicesTest do
 
       now = DateTime.utc_now()
 
-      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -13, :second))
-      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -10, :second))
-      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -5, :second))
-      :ok = Devices.update_attempted(to_device_info(device), DateTime.add(now, -2, :second))
-      :ok = Devices.update_attempted(to_device_info(device), now)
+      :ok = Updates.update_attempted(to_device_info(device), DateTime.add(now, -13, :second))
+      :ok = Updates.update_attempted(to_device_info(device), DateTime.add(now, -10, :second))
+      :ok = Updates.update_attempted(to_device_info(device), DateTime.add(now, -5, :second))
+      :ok = Updates.update_attempted(to_device_info(device), DateTime.add(now, -2, :second))
+      :ok = Updates.update_attempted(to_device_info(device), now)
 
       device = Repo.reload(device)
 
       {:error, :updates_blocked, device} =
-        Devices.verify_update_eligibility(device, deployment_group)
+        Updates.verify_update_eligibility(device, deployment_group)
 
       assert device.updates_blocked_until
       assert device.update_attempts == []
@@ -1102,17 +1103,17 @@ defmodule NervesHub.DevicesTest do
       {:ok, _inflight_update} = DeviceEvents.schedule_update(device.id, deployment_group)
 
       {:error, :updates_blocked, _device} =
-        Devices.verify_update_eligibility(device, deployment_group, now)
+        Updates.verify_update_eligibility(device, deployment_group, now)
 
       assert FirmwareUpdates.count_inflight_updates_for(deployment_group) == 0
 
       # now
       device = %{device | updates_blocked_until: now}
-      {:ok, _device} = Devices.verify_update_eligibility(device, deployment_group, now)
+      {:ok, _device} = Updates.verify_update_eligibility(device, deployment_group, now)
 
       # past time
       device = %{device | updates_blocked_until: DateTime.add(now, -1, :second)}
-      {:ok, _device} = Devices.verify_update_eligibility(device, deployment_group, now)
+      {:ok, _device} = Updates.verify_update_eligibility(device, deployment_group, now)
     end
   end
 
@@ -1536,7 +1537,7 @@ defmodule NervesHub.DevicesTest do
       end)
 
       assert [%{id: ^device1_id}, %{id: ^device2_id}, %{id: ^device3_id}, %{id: ^device4_id}] =
-               Devices.available_for_update(deployment_group, 10)
+               Updates.available_for_update(deployment_group, 10)
     end
 
     test "when deployment_group.queue_management is set to LIFO",
@@ -1600,7 +1601,7 @@ defmodule NervesHub.DevicesTest do
       end)
 
       assert [%{id: ^device1_id}, %{id: ^device2_id}, %{id: ^device4_id}, %{id: ^device3_id}] =
-               Devices.available_for_update(%{deployment_group | queue_management: :LIFO}, 10)
+               Updates.available_for_update(%{deployment_group | queue_management: :LIFO}, 10)
     end
 
     test "filters devices by release_network_interfaces when specified", %{
@@ -1656,7 +1657,7 @@ defmodule NervesHub.DevicesTest do
       end
 
       # Only wifi and ethernet devices should be available for update
-      available = Devices.available_for_update(deployment_group, 10)
+      available = Updates.available_for_update(deployment_group, 10)
       device_ids = Enum.map(available, & &1.id) |> Enum.sort()
 
       expected_ids = [device_wifi.id, device_ethernet.id] |> Enum.sort()
@@ -1706,7 +1707,7 @@ defmodule NervesHub.DevicesTest do
       end
 
       # All devices should be available when no filter is set
-      available = Devices.available_for_update(deployment_group, 10)
+      available = Updates.available_for_update(deployment_group, 10)
       device_ids = Enum.map(available, & &1.id) |> Enum.sort()
 
       assert device_wifi.id in device_ids
@@ -1764,7 +1765,7 @@ defmodule NervesHub.DevicesTest do
       end
 
       # Only devices with BOTH production AND beta tags should be available
-      available = Devices.available_for_update(deployment_group, 10)
+      available = Updates.available_for_update(deployment_group, 10)
       device_ids = Enum.map(available, & &1.id) |> Enum.sort()
 
       expected_ids = [device_both.id] |> Enum.sort()
@@ -1814,7 +1815,7 @@ defmodule NervesHub.DevicesTest do
       end
 
       # All devices should be available when no filter is set
-      available = Devices.available_for_update(deployment_group, 10)
+      available = Updates.available_for_update(deployment_group, 10)
       device_ids = Enum.map(available, & &1.id) |> Enum.sort()
 
       assert device_tagged.id in device_ids
@@ -1882,7 +1883,7 @@ defmodule NervesHub.DevicesTest do
       end
 
       # Only wifi/ethernet devices with production tag should be available
-      available = Devices.available_for_update(deployment_group, 10)
+      available = Updates.available_for_update(deployment_group, 10)
       device_ids = Enum.map(available, & &1.id) |> Enum.sort()
 
       expected_ids = [device_wifi_prod.id, device_ethernet_prod.id] |> Enum.sort()
@@ -1914,7 +1915,7 @@ defmodule NervesHub.DevicesTest do
       })
 
       # no devices should be available for update, avoiding the race condition
-      available = Devices.available_for_update(deployment_group, 10)
+      available = Updates.available_for_update(deployment_group, 10)
 
       assert Enum.empty?(available)
     end
@@ -1978,7 +1979,7 @@ defmodule NervesHub.DevicesTest do
       assert delta.status == :processing
 
       # Device should NOT be available because delta is still processing
-      available = Devices.available_for_update(deployment_group, 10)
+      available = Updates.available_for_update(deployment_group, 10)
       assert Enum.empty?(available)
     end
 
@@ -2036,7 +2037,7 @@ defmodule NervesHub.DevicesTest do
         Fixtures.firmware_delta_fixture(source_firmware, target_firmware, %{status: :failed})
 
       # Device should NOT be available because delta failed
-      available = Devices.available_for_update(deployment_group, 10)
+      available = Updates.available_for_update(deployment_group, 10)
       assert Enum.empty?(available)
     end
 
@@ -2094,7 +2095,7 @@ defmodule NervesHub.DevicesTest do
         Fixtures.firmware_delta_fixture(source_firmware, target_firmware, %{status: :completed})
 
       # Device SHOULD be available because delta is completed
-      available = Devices.available_for_update(deployment_group, 10)
+      available = Updates.available_for_update(deployment_group, 10)
       assert length(available) == 1
       assert hd(available).id == device.id
     end
@@ -2151,7 +2152,7 @@ defmodule NervesHub.DevicesTest do
       # No firmware_delta created - device will use full firmware
 
       # Device SHOULD be available because no delta exists (will use full firmware)
-      available = Devices.available_for_update(deployment_group, 10)
+      available = Updates.available_for_update(deployment_group, 10)
       assert length(available) == 1
       assert hd(available).id == device.id
     end
@@ -2206,7 +2207,7 @@ defmodule NervesHub.DevicesTest do
 
       # Device SHOULD be available even though source firmware UUID doesn't exist
       # (subquery will return nil, LEFT JOIN will have no firmware_delta match)
-      available = Devices.available_for_update(deployment_group, 10)
+      available = Updates.available_for_update(deployment_group, 10)
       assert length(available) == 1
       assert hd(available).id == device.id
     end
@@ -2257,7 +2258,7 @@ defmodule NervesHub.DevicesTest do
 
       {:ok, delta_url} = Firmwares.get_firmware_url(delta)
 
-      update_payload = Devices.resolve_update(device)
+      update_payload = Updates.resolve_update(device)
 
       assert delta_url == update_payload.firmware_url
     end
@@ -2386,7 +2387,7 @@ defmodule NervesHub.DevicesTest do
 
       {:ok, delta_url} = Firmwares.get_firmware_url(delta)
 
-      update_payload = Devices.resolve_update(device)
+      update_payload = Updates.resolve_update(device)
 
       # confirm that the firmware url is the delta firmware url
       assert delta_url == update_payload.firmware_url

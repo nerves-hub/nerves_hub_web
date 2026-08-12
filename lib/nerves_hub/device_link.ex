@@ -10,6 +10,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
@@ -159,7 +160,7 @@ defmodule NervesHub.DeviceLink do
 
   def maybe_send_archive(device_info, device_api_version, opts) do
     opts = Keyword.validate!(opts, audit_log: false)
-    updates_enabled = device_info.device_updates_enabled && !Devices.device_in_penalty_box?(device_info)
+    updates_enabled = device_info.device_updates_enabled && !Updates.device_in_penalty_box?(device_info)
     version_match = Version.match?(device_api_version, ">= 2.0.0")
 
     if updates_enabled && version_match do
