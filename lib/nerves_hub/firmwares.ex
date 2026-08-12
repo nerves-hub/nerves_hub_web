@@ -10,6 +10,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareTransfer
+  alias NervesHub.Firmwares.PubSub
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
@@ -20,7 +21,6 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteFirmware
   alias NervesHub.Workers.FirmwareDeltaBuilder
-  alias Phoenix.Socket.Broadcast
 
   require Logger
 
@@ -800,50 +800,16 @@ defmodule NervesHub.Firmwares do
     {:ok, firmware_delta}
   end
 
-  @spec subscribe_firmware_delta_target(target_id :: integer()) :: :ok
-  def subscribe_firmware_delta_target(target_id) do
-    Group.join(NervesHub.Group, firmware_delta_topic(target_id), %{})
-  end
-
-  @doc """
-  Leave a firmware's delta group.
-
-  Callers that follow a moving target (the deployment group summary follows the
-  current release's firmware) must leave the previous target, otherwise
-  memberships accumulate for the lifetime of the process — and unlike a local
-  `Phoenix.PubSub` subscription, `:group` membership is replicated to every node.
-
-  Leaving a group the caller never joined is not an error.
-  """
-  @spec unsubscribe_firmware_delta_target(target_id :: integer()) :: :ok
-  def unsubscribe_firmware_delta_target(target_id) do
-    case Group.leave(NervesHub.Group, firmware_delta_topic(target_id)) do
-      :ok -> :ok
-      {:error, :not_in_group} -> :ok
-    end
-  end
-
+  # Pipeline adapter for the delta lifecycle functions above, which all thread an
+  # `{:ok, delta} | {:error, term()}` through. The transport lives in
+  # `NervesHub.Firmwares.PubSub`.
   defp notify_firmware_delta_target({:ok, %FirmwareDelta{} = firmware_delta}) do
-    message = %Broadcast{
-      topic: firmware_delta_topic(firmware_delta.target_id),
-      event: "delta/status_update",
-      payload: %{
-        delta_id: firmware_delta.id,
-        source_firmware_id: firmware_delta.source_id,
-        status: firmware_delta.status
-      }
-    }
-
-    :ok = Group.dispatch(NervesHub.Group, firmware_delta_topic(firmware_delta.target_id), message)
+    :ok = PubSub.broadcast_delta_status(firmware_delta)
 
     {:ok, firmware_delta}
   end
 
   defp notify_firmware_delta_target(error), do: error
-
-  # Preserved as the previous `Phoenix.PubSub` topic string; receivers match on
-  # the `"firmware:" <> _` prefix.
-  defp firmware_delta_topic(target_id), do: "firmware:#{target_id}"
 
   def insert_firmware_delta(params) do
     %FirmwareDelta{}

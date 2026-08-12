@@ -628,10 +628,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
       true ->
         if previous_firmware_id do
-          :ok = Firmwares.unsubscribe_firmware_delta_target(previous_firmware_id)
+          :ok = Firmwares.PubSub.unsubscribe_delta_target(previous_firmware_id)
         end
 
-        :ok = Firmwares.subscribe_firmware_delta_target(firmware_id)
+        :ok = Firmwares.PubSub.subscribe_delta_target(firmware_id)
 
         assign(socket, :delta_target_firmware_id, firmware_id)
     end

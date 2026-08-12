@@ -52,8 +52,9 @@ Concrete shape:
 
 1. **Per-domain wrapper modules** own the group keys and hide `:group` behind a
    small API: `NervesHub.Devices.PubSub`, `NervesHub.Consoles.PubSub`,
-   `NervesHub.Extensions.PubSub`, `NervesHub.Products.PubSub`, plus the
-   in-module conversions in `Firmwares` and `ProductNotifications`. Every
+   `NervesHub.Extensions.PubSub`, `NervesHub.Products.PubSub`,
+   `NervesHub.Firmwares.PubSub`, plus the in-module conversion in
+   `ProductNotifications`. Every
    dispatch carries a `%Phoenix.Socket.Broadcast{}` struct whose `topic` string
    is **preserved** as the old `Phoenix.PubSub` topic, so existing
    `handle_info(%Broadcast{...})` / `hooked_info(...)` receiver clauses are
