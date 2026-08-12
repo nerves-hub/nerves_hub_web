@@ -92,14 +92,7 @@ defmodule NervesHub.ManagedDeployments do
   def get_deployment_group(deployment_id) do
     full_deployment_group_query()
     |> where([d], d.id == ^deployment_id)
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      deployment ->
-        {:ok, deployment}
-    end
+    |> Repo.fetch()
   end
 
   defp full_deployment_group_query() do
@@ -160,14 +153,7 @@ defmodule NervesHub.ManagedDeployments do
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get_deployment_group_by_name(product, name) do
     get_by_product_and_name_query(product, name)
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      deployment_group ->
-        {:ok, deployment_group}
-    end
+    |> Repo.fetch()
   end
 
   defp get_by_product_and_name_query(%Product{id: product_id}, name) do

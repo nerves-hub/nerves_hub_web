@@ -51,6 +51,19 @@ defmodule NervesHub.Repo do
 
   def destroy(struct_or_changeset), do: delete(struct_or_changeset)
 
+  @doc """
+  Fetches a single result and wraps it in an ok/error tuple.
+
+  Returns `{:ok, result}` when a row is found, or `{:error, error}` (default
+  `:not_found`) when the query returns nothing.
+  """
+  def fetch(queryable, error \\ :not_found) do
+    case one(queryable) do
+      nil -> {:error, error}
+      result -> {:ok, result}
+    end
+  end
+
   # verify_fun/3 is used in config/runtime.exs to verify self signed certs
   # that would normally return {:bad_cert, :selfsigned_peer}. This is used
   # in environments where the database uses a self signed cert instead of a
