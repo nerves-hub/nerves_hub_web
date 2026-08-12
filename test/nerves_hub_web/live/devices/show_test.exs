@@ -13,6 +13,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
@@ -609,7 +610,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "data" => %{"alarms" => %{"SomeAlarm" => "Some description"}}
       }
 
-      assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
+      assert {:ok, _} = Health.save_device_health(device_health)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -632,7 +633,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "No Alarms Received")
 
       assert {:ok, _} =
-               NervesHub.Devices.save_device_health(%{
+               Health.save_device_health(%{
                  "device_id" => device.id,
                  "data" => %{"alarms" => %{}}
                })

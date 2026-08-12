@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.Health
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -181,7 +182,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       device2 = Fixtures.device_fixture(org, product, firmware)
 
       {:ok, _} =
-        Devices.save_device_health(%{
+        Health.save_device_health(%{
           "device_id" => device2.id,
           "data" => %{},
           "status" => :healthy,
@@ -212,7 +213,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["foo", "bar"]})
 
       {:ok, _} =
-        Devices.save_device_health(%{
+        Health.save_device_health(%{
           "device_id" => device2.id,
           "data" => %{},
           "status" => :healthy,

@@ -18,6 +18,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceHealth
+  alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -361,7 +362,7 @@ defmodule NervesHub.DevicesTest do
 
   test "destroy_device", %{device: device} do
     {:ok, _} =
-      Devices.save_device_health(%{
+      Health.save_device_health(%{
         "device_id" => device.id,
         "data" => %{},
         "status" => :healthy,
@@ -1222,7 +1223,7 @@ defmodule NervesHub.DevicesTest do
       device_health = %{"device_id" => device.id, "data" => %{"literally_any_map" => "values"}}
 
       assert {:ok, %Devices.DeviceHealth{id: health_id}} =
-               Devices.save_device_health(device_health)
+               Health.save_device_health(device_health)
 
       # Assert device is updated with latest health
       assert %{latest_health_id: ^health_id} = Devices.get_device(device.id)
