@@ -10,6 +10,10 @@ defmodule NervesHub.Uploads do
     Application.get_env(:nerves_hub, __MODULE__)[:backend]
   end
 
+  def delete(key) do
+    backend().delete(key)
+  end
+
   def upload(file, key, opts \\ []) do
     backend().upload(file, key, opts)
   end

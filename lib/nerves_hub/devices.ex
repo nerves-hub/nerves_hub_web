@@ -18,7 +18,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
-  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceFirmwares
@@ -175,22 +174,6 @@ defmodule NervesHub.Devices do
     )
     |> join(:left, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
     |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)
-  end
-
-  def get_minimal_device_location_by_product(product) do
-    Device
-    |> join(:inner, [d], dc in DeviceConnection, on: d.latest_connection_id == dc.id)
-    |> where(product_id: ^product.id)
-    |> select([d, dc], %{
-      id: d.id,
-      identifier: d.identifier,
-      connection_status: dc.status,
-      latitude: fragment("?->'location'->'latitude'", dc.metadata),
-      longitude: fragment("?->'location'->'longitude'", dc.metadata),
-      firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)
-    })
-    |> Repo.exclude_deleted()
-    |> Repo.all()
   end
 
   def get_device_count_by_org_id(org_id) do
@@ -667,10 +650,10 @@ defmodule NervesHub.Devices do
   end
 
   def clean_up_soft_deleted_devices() do
-    two_weeks_ago = NaiveDateTime.add(NaiveDateTime.utc_now(), -12, :day)
+    twelve_days_ago = NaiveDateTime.add(NaiveDateTime.utc_now(), -12, :day)
 
     Device
-    |> where([d], d.deleted_at < ^two_weeks_ago)
+    |> where([d], d.deleted_at < ^twelve_days_ago)
     |> Repo.all()
     |> Enum.each(fn device ->
       Repo.transact(fn ->
@@ -1738,11 +1721,6 @@ defmodule NervesHub.Devices do
       _ ->
         :nope
     end)
-  end
-
-  def preload_product(%Device{} = device) do
-    device
-    |> Repo.preload(:product)
   end
 
   @spec get_pinned_devices(Scope.t()) :: [Device.t()]
