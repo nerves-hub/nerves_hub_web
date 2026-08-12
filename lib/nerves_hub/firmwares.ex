@@ -875,9 +875,22 @@ defmodule NervesHub.Firmwares do
     Group.join(NervesHub.Group, firmware_delta_topic(target_id), %{})
   end
 
+  @doc """
+  Leave a firmware's delta group.
+
+  Callers that follow a moving target (the deployment group summary follows the
+  current release's firmware) must leave the previous target, otherwise
+  memberships accumulate for the lifetime of the process — and unlike a local
+  `Phoenix.PubSub` subscription, `:group` membership is replicated to every node.
+
+  Leaving a group the caller never joined is not an error.
+  """
   @spec unsubscribe_firmware_delta_target(target_id :: integer()) :: :ok
   def unsubscribe_firmware_delta_target(target_id) do
-    Group.leave(NervesHub.Group, firmware_delta_topic(target_id))
+    case Group.leave(NervesHub.Group, firmware_delta_topic(target_id)) do
+      :ok -> :ok
+      {:error, :not_in_group} -> :ok
+    end
   end
 
   defp notify_firmware_delta_target({:ok, %FirmwareDelta{} = firmware_delta}) do
