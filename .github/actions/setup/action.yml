@@ -1,0 +1,48 @@
+name: "Setup Elixir and dependencies"
+description: "Sets up the BEAM, restores the deps/build caches, and fetches dependencies"
+
+outputs:
+  elixir-version:
+    description: "Resolved Elixir version"
+    value: ${{ steps.beam.outputs.elixir-version }}
+  otp-version:
+    description: "Resolved OTP version"
+    value: ${{ steps.beam.outputs.otp-version }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Elixir
+      id: beam
+      uses: erlef/setup-beam@v1
+      with:
+        version-file: .tool-versions
+        version-type: strict
+
+    - name: Cache deps
+      uses: actions/cache@v5
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-cache-elixir-deps-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-mix-cache-elixir-deps-
+
+    - name: Cache compiled build
+      uses: actions/cache@v5
+      with:
+        path: _build
+        key: ${{ runner.os }}-mix-cache-compiled-build-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-mix-cache-compiled-build-
+          ${{ runner.os }}-mix-
+
+    - name: Clean to rule out incremental build as a source of flakiness
+      if: github.run_attempt != '1'
+      shell: sh
+      run: |
+        mix deps.clean --all
+        mix clean
+
+    - name: Install dependencies
+      shell: sh
+      run: mix deps.get
