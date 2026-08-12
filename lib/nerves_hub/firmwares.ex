@@ -14,6 +14,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -517,6 +518,108 @@ defmodule NervesHub.Firmwares do
           | {:error, :failure}
   def get_firmware_url(fw_or_delta) do
     firmware_upload_config().download_file(fw_or_delta)
+  end
+
+  @doc """
+  Returns true if the device is delta updatable.
+
+  Checks update tool version information and similar metadata to determine if
+  the device is delta updatable.
+  """
+  @spec delta_updatable?(Device.t(), DeploymentGroup.t() | Firmware.t()) :: boolean()
+  def delta_updatable?(device, %DeploymentGroup{} = deployment_group) do
+    Logger.metadata(device_id: device.id, deployment_group_id: deployment_group.id)
+    # note that source delta does not need delta markers to be updatable
+    # Any advanced decision about whether to delta update or not are delegated
+    # to the specialized update tool implementation
+
+    deployment_group.delta_updatable and
+      not is_nil(deployment_group.current_release.firmware) and
+      delta_updatable?(device, deployment_group.current_release.firmware)
+  end
+
+  def delta_updatable?(%{firmware_metadata: fw_meta} = device, %Firmware{} = firmware) do
+    Logger.metadata(
+      device_id: device.id,
+      target_firmware_uuid: firmware.uuid,
+      source_firmware_uuid: Map.get(fw_meta, :uuid)
+    )
+
+    firmware.delta_updatable and
+      :delta == update_tool().device_update_type(device, firmware)
+  end
+
+  @spec delta_ready?(Device.t(), Firmware.t()) :: boolean()
+  def delta_ready?(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
+    source_uuid
+    |> firmware_delta_query(product_id, target_id)
+    |> where([fd], fd.status == :completed)
+    |> Repo.exists?()
+  end
+
+  @spec get_delta_or_firmware(Device.t(), DeploymentGroup.t()) ::
+          {:ok, Firmware.t()} | {:ok, FirmwareDelta.t()}
+  def get_delta_or_firmware(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
+        delta_updatable: true,
+        current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
+      }) do
+    case get_firmware_by_product_id_and_uuid(device.product_id, source_uuid) do
+      {:ok, source_firmware} ->
+        case get_delta_if_ready(device, source_firmware, target_firmware) do
+          {:ok, delta} ->
+            {:ok, delta}
+
+          _ ->
+            {:ok, target_firmware}
+        end
+
+      {:error, :not_found} ->
+        {:ok, target_firmware}
+    end
+  end
+
+  def get_delta_or_firmware(%Device{}, %DeploymentGroup{current_release: %{firmware: target}}), do: {:ok, target}
+
+  @spec get_delta_url(Device.t(), Firmware.t()) ::
+          {:ok, String.t()}
+          | {:error, :failure}
+  def get_delta_url(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
+    source_uuid
+    |> firmware_delta_query(product_id, target_id)
+    |> Repo.one()
+    |> get_firmware_url()
+  end
+
+  @spec get_delta_if_ready(Device.t(), Firmware.t(), Firmware.t()) ::
+          {:ok, FirmwareDelta.t()}
+          | {:device_delta_updatable, false}
+          | {:delta, {:ok, FirmwareDelta.t()}}
+          | {:delta, {:error, :not_found}}
+  defp get_delta_if_ready(device, source_firmware, target_firmware) do
+    with {:device_delta_updatable, true} <-
+           {:device_delta_updatable, delta_updatable?(device, target_firmware)},
+         {:delta, {:ok, %{status: :completed} = delta}} <-
+           {:delta,
+            get_firmware_delta_by_source_and_target(
+              source_firmware.id,
+              target_firmware.id
+            )} do
+      {:ok, delta}
+    end
+  end
+
+  # Builds the FirmwareDelta query from the device's current (source) firmware
+  # UUID to the target firmware id. Shared by delta_ready?/2 and get_delta_url/2.
+  defp firmware_delta_query(source_uuid, product_id, target_id) do
+    source_firmware_id_query =
+      Firmware
+      |> where(uuid: ^source_uuid)
+      |> where(product_id: ^product_id)
+      |> select([f], f.id)
+
+    FirmwareDelta
+    |> where([fd], fd.source_id == subquery(source_firmware_id_query))
+    |> where([fd], fd.target_id == ^target_id)
   end
 
   @spec generate_firmware_delta(FirmwareDelta.t(), Firmware.t(), Firmware.t()) ::
