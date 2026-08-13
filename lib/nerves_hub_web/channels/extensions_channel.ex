@@ -13,6 +13,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink
+  alias NervesHubWeb.Channels.Effects
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
@@ -24,7 +25,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
     socket =
       socket
       |> assign(:extensions, extensions)
-      |> assign(:extension_timers, %{})
+      |> Effects.init()
 
     if not Enum.empty?(attach_list) do
       send(self(), :init_extensions)
@@ -81,41 +82,5 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
-  # ---------------------------------------------------------------- effects
-
-  defp apply_effects(socket, effects) do
-    {:noreply, Enum.reduce(effects, socket, &apply_effect(&2, &1))}
-  end
-
-  defp apply_effect(socket, {:push, event, payload}) do
-    push(socket, event, payload)
-    socket
-  end
-
-  defp apply_effect(socket, {:tick, message}) do
-    send(self(), message)
-    socket
-  end
-
-  defp apply_effect(socket, {:start_timer, key, message, interval_ms}) do
-    socket = cancel_timer(socket, key)
-    {:ok, ref} = :timer.send_interval(interval_ms, message)
-
-    update_in(socket.assigns.extension_timers, &Map.put(&1, key, ref))
-  end
-
-  defp apply_effect(socket, {:cancel_timer, key}) do
-    cancel_timer(socket, key)
-  end
-
-  defp cancel_timer(socket, key) do
-    case Map.pop(socket.assigns.extension_timers, key) do
-      {nil, _timers} ->
-        socket
-
-      {ref, timers} ->
-        _ = :timer.cancel(ref)
-        assign(socket, :extension_timers, timers)
-    end
-  end
+  defp apply_effects(socket, effects), do: {:noreply, Effects.apply_all(socket, effects)}
 end

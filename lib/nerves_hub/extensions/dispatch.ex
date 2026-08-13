@@ -15,6 +15,7 @@ defmodule NervesHub.Extensions.Dispatch do
   """
 
   alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.DeviceLink.Effect
   alias NervesHub.Extensions
   alias NervesHub.Extensions.State
   alias NervesHub.Helpers.Logging
@@ -27,14 +28,9 @@ defmodule NervesHub.Extensions.Dispatch do
   @typedoc """
   An effect for the caller to carry out on the device connection.
 
-  Routing is already resolved: `message` is an opaque term to send, and `key`
-  an opaque handle for a timer. The caller never inspects either.
+  Routing is already resolved — see `NervesHub.DeviceLink.Effect`.
   """
-  @type effect() ::
-          {:push, event :: String.t(), payload :: map()}
-          | {:tick, message :: term()}
-          | {:start_timer, key :: term(), message :: term(), interval_ms :: pos_integer()}
-          | {:cancel_timer, key :: term()}
+  @type effect() :: Effect.t()
 
   @doc """
   Work out which extensions this device may use, given the versions it reports.
@@ -169,7 +165,7 @@ defmodule NervesHub.Extensions.Dispatch do
   # Extensions speak in their own tags; callers need something they can send and
   # something they can key a timer by, without knowing which module is involved.
   defp translate({:push, event, payload}, _key, _mod), do: {:push, event, payload}
-  defp translate({:tick, tag}, _key, mod), do: {:tick, {mod, tag}}
+  defp translate({:tick, tag}, _key, mod), do: {:send_self, {mod, tag}}
   defp translate({:start_timer, tag, ms}, key, mod), do: {:start_timer, {key, tag}, {mod, tag}, ms}
   defp translate({:cancel_timer, tag}, key, _mod), do: {:cancel_timer, {key, tag}}
 
