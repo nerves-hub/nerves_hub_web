@@ -11,10 +11,12 @@ defmodule NervesHubWeb.Channels.Effects do
   `:cancel_timer` needs only the key that started it.
   """
 
+  alias NervesHubWeb.Channels.Scrollback
   alias Phoenix.Channel
   alias Phoenix.Socket
 
   @timers :link_timers
+  @scrollback :link_scrollback
 
   @doc "Prepare a socket to have effects applied to it."
   @spec init(Socket.t()) :: Socket.t()
@@ -59,6 +61,21 @@ defmodule NervesHubWeb.Channels.Effects do
   end
 
   defp apply_one(socket, {:cancel_timer, key}), do: cancel(socket, key)
+
+  defp apply_one(socket, {:scrollback_append, data}) do
+    Socket.assign(socket, @scrollback, Scrollback.append(scrollback(socket), data))
+  end
+
+  defp apply_one(socket, {:scrollback_replay, pid}) do
+    send(pid, {:cache, Scrollback.text(scrollback(socket))})
+    socket
+  end
+
+  defp apply_one(socket, {:scrollback_clear}) do
+    Socket.assign(socket, @scrollback, Scrollback.new())
+  end
+
+  defp scrollback(socket), do: socket.assigns[@scrollback] || Scrollback.new()
 
   defp put_timer(socket, key, ref) do
     Socket.assign(socket, @timers, Map.put(socket.assigns[@timers] || %{}, key, ref))

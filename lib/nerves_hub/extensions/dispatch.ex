@@ -164,10 +164,15 @@ defmodule NervesHub.Extensions.Dispatch do
 
   # Extensions speak in their own tags; callers need something they can send and
   # something they can key a timer by, without knowing which module is involved.
-  defp translate({:push, event, payload}, _key, _mod), do: {:push, event, payload}
   defp translate({:tick, tag}, _key, mod), do: {:send_self, {mod, tag}}
   defp translate({:start_timer, tag, ms}, key, mod), do: {:start_timer, {key, tag}, {mod, tag}, ms}
   defp translate({:cancel_timer, tag}, key, _mod), do: {:cancel_timer, {key, tag}}
+
+  # Effects that name no extension-specific thing pass straight through.
+  defp translate({:push, _event, _payload} = effect, _key, _mod), do: effect
+  defp translate({:scrollback_append, _data} = effect, _key, _mod), do: effect
+  defp translate({:scrollback_replay, _pid} = effect, _key, _mod), do: effect
+  defp translate({:scrollback_clear} = effect, _key, _mod), do: effect
 
   defp put_state(extensions, key, state) do
     update_in(extensions[key], &%{&1 | state: state})

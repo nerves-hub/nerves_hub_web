@@ -1,7 +1,19 @@
 defmodule NervesHub.Extensions.LocalShell do
+  @moduledoc """
+  Gives a user a shell on the device.
+
+  Unusually for an extension, nothing here touches the database — output is
+  relayed to whoever is watching, and a bounded scrollback is kept so someone
+  opening the tab can see what they missed.
+
+  That scrollback stays on the connection rather than in this extension's state.
+  A full one measures around 89KB, and extension state travels with every call,
+  so a device writing steadily to its shell would otherwise send its entire
+  backlog back and forth per line of output. See `NervesHub.DeviceLink.Effect`.
+  """
+
   @behaviour NervesHub.Extensions
 
-  alias NervesHub.Extensions.State
   alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
@@ -20,44 +32,20 @@ defmodule NervesHub.Extensions.LocalShell do
 
   @impl NervesHub.Extensions
   def attach(state) do
-    state =
-      state
-      |> State.assign(:current_line, "")
-      |> State.assign(:buffer, CircularBuffer.new(1024))
-
-    {state, [{:push, "local_shell:request_shell", %{}}]}
+    {state, [{:push, "local_shell:request_shell", %{}}, {:scrollback_clear}]}
   end
 
   @impl NervesHub.Extensions
   def detach(state) do
-    state =
-      state
-      |> State.assign(:current_line, nil)
-      |> State.assign(:buffer, nil)
-
-    {state, []}
+    {state, [{:scrollback_clear}]}
   end
 
   @impl NervesHub.Extensions
   def handle_in("shell_output", %{"data" => data}, state) do
-    current_line = State.get(state, :current_line) <> data
-
-    [current_line | lines] = Enum.reverse(String.split(current_line, "\n"))
-
-    buffer =
-      Enum.reduce(Enum.reverse(lines), State.get(state, :buffer), fn line, buffer ->
-        CircularBuffer.insert(buffer, line <> "\n")
-      end)
-
-    state =
-      state
-      |> State.assign(:current_line, current_line)
-      |> State.assign(:buffer, buffer)
-
     topic = "user:local_shell:#{state.device_info.device_id}"
     :ok = ChannelServer.broadcast!(NervesHub.PubSub, topic, "output", %{data: data})
 
-    {state, []}
+    {state, [{:scrollback_append, data}]}
   end
 
   def handle_in(event, params, state) do
@@ -69,11 +57,7 @@ defmodule NervesHub.Extensions.LocalShell do
   end
 
   def handle_info({:connect, pid}, state) do
-    lines = Enum.join(State.get(state, :buffer)) <> State.get(state, :current_line)
-
-    send(pid, {:cache, lines})
-
-    {state, []}
+    {state, [{:scrollback_replay, pid}]}
   end
 
   def handle_info({:active?, pid}, state) do

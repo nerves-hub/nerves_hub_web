@@ -32,12 +32,19 @@ defmodule NervesHub.Extensions.State do
   `:tick` and `:start_timer` exist because an extension can no longer reach for
   `send(self(), ...)` or `:timer.send_interval/2` — it does not own the process
   that would receive them.
+
+  The scrollback effects are for output an extension wants remembered but has no
+  use for itself; see `NervesHub.DeviceLink.Effect`. They pass through to the
+  caller unchanged, since they name nothing extension-specific.
   """
   @type effect ::
           {:push, event :: String.t(), payload :: map()}
           | {:tick, tag :: term()}
           | {:start_timer, tag :: term(), interval_ms :: pos_integer()}
           | {:cancel_timer, tag :: term()}
+          | {:scrollback_append, data :: binary()}
+          | {:scrollback_replay, pid()}
+          | {:scrollback_clear}
 
   @type t :: %__MODULE__{
           device_info: DeviceInfo.t(),
