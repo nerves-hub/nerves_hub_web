@@ -23,9 +23,6 @@ defmodule NervesHubWeb.DeviceChannel do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink
-  alias NervesHub.Devices
-  alias NervesHub.Devices.Connections
-  alias NervesHub.Devices.Updates
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -155,7 +152,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_in:firmware_validated")
   def handle_in("firmware_validated", _, %{assigns: %{device_info: device_info}} = socket) do
-    Updates.firmware_validated(device_info)
+    :ok = DeviceLink.firmware_validated(device_info)
 
     {:noreply, socket}
   end
@@ -232,19 +229,17 @@ defmodule NervesHubWeb.DeviceChannel do
         %{"interface" => interface},
         %{assigns: %{device_info: device_info}} = socket
       ) do
-    if Devices.DeviceConnection.humanized_network_interface_name(interface) == device_info.device_network_interface do
-      {:noreply, socket}
-    else
-      case Connections.update_network_interface(device_info.connection_ref, interface) do
-        {:ok, device_connection} ->
-          {:noreply,
-           assign(socket, :device_info, %{device_info | device_network_interface: device_connection.network_interface})}
+    case DeviceLink.report_network_interface(device_info, interface) do
+      {:ok, device_info} ->
+        {:noreply, assign(socket, :device_info, device_info)}
 
-        :error ->
-          Logger.warning("[DeviceChannel] could not update device network interface.")
+      :unchanged ->
+        {:noreply, socket}
 
-          {:noreply, socket}
-      end
+      :error ->
+        Logger.warning("[DeviceChannel] could not update device network interface.")
+
+        {:noreply, socket}
     end
   end
 

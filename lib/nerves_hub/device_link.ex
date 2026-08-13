@@ -115,6 +115,40 @@ defmodule NervesHub.DeviceLink do
     Connections.merge_update_metadata(reference_id, metadata)
   end
 
+  @doc """
+  The device has confirmed the firmware it is running is good.
+  """
+  @spec firmware_validated(DeviceInfo.t()) :: :ok
+  def firmware_validated(device_info) do
+    _ = Updates.firmware_validated(device_info)
+    :ok
+  end
+
+  @doc """
+  The device has told us which network interface it is connected over.
+
+  The comparison against what we already know lives here rather than in the
+  caller so that holding a device connection does not require knowing how an
+  interface name maps onto a humanised one.
+
+  Returns `:unchanged` when the report matches what we already recorded.
+  """
+  @spec report_network_interface(DeviceInfo.t(), interface :: String.t()) ::
+          {:ok, DeviceInfo.t()} | :unchanged | :error
+  def report_network_interface(device_info, interface) do
+    if DeviceConnection.humanized_network_interface_name(interface) == device_info.device_network_interface do
+      :unchanged
+    else
+      case Connections.update_network_interface(device_info.connection_ref, interface) do
+        {:ok, device_connection} ->
+          {:ok, %{device_info | device_network_interface: device_connection.network_interface}}
+
+        :error ->
+          :error
+      end
+    end
+  end
+
   @spec status_update(device_info :: DeviceInfo.t(), status :: map()) :: :ok
   def status_update(device_info, %{"status" => "started"} = status_info) do
     firmware_update_start_telemetry(device_info, status_info)
