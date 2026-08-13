@@ -12,7 +12,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   use Phoenix.Channel
   use OpenTelemetryDecorator
 
-  alias NervesHub.DeviceLink
+  alias NervesHub.DeviceLink.Client, as: DeviceLink
   alias NervesHubWeb.Channels.Effects
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast

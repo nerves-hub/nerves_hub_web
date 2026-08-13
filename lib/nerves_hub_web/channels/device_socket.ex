@@ -2,7 +2,7 @@ defmodule NervesHubWeb.DeviceSocket do
   use Phoenix.Socket
   use OpenTelemetryDecorator
 
-  alias NervesHub.DeviceLink
+  alias NervesHub.DeviceLink.Client, as: DeviceLink
   alias Phoenix.Socket.Transport
 
   channel("console", NervesHubWeb.ConsoleChannel)
