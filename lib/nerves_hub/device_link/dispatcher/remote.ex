@@ -33,13 +33,14 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
   @behaviour NervesHub.DeviceLink.Dispatcher
 
   alias NervesHub.DeviceLink
+  alias NervesHub.DeviceLink.Dispatcher
   alias NervesHub.DeviceLink.Dispatcher.NoHandlersError
   alias NervesHub.DeviceLink.Handlers
 
   @default_timeout to_timeout(second: 5)
   @default_attempts 2
 
-  @impl NervesHub.DeviceLink.Dispatcher
+  @impl Dispatcher
   def call(function, args) do
     function
     |> route_key(args)
@@ -69,6 +70,11 @@ defmodule NervesHub.DeviceLink.Dispatcher.Remote do
   #
   # A function missing from this list routes arbitrarily, which is only safe
   # while nothing it reaches keeps per-device state on a node.
+  # No device is known during a handshake -- that is what is being established --
+  # so the certificate stands in for one. Handshakes for the same device then
+  # land on the same node.
+  defp route_key(:verify_peer, [der | _]), do: :erlang.phash2(der)
+
   defp route_key(:connect, [device_info | _]), do: device_info.device_id
   defp route_key(:device_join, [device_info | _]), do: device_info.device_id
   defp route_key(:extensions_join, [device_info | _]), do: device_info.device_id

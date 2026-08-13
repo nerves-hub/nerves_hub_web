@@ -13,6 +13,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
+  alias Phoenix.Socket.Broadcast
 
   setup do
     Application.put_env(:nerves_hub, :analytics_enabled, true)
@@ -82,7 +83,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     @endpoint.subscribe("internal:device:#{device.id}")
 
     push(extensions_channel, "health:report", %{"value" => dummy_health_report()})
-    assert_receive %Phoenix.Socket.Broadcast{event: "health_check_report"}
+    assert_receive %Broadcast{event: "health_check_report"}
 
     assert Repo.aggregate(Devices.DeviceHealth, :count) == 1
   end

@@ -6,16 +6,16 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Accounts
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.DeviceLink.Authentication
+  alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.DeviceLink.Effect
+  alias NervesHub.DeviceLink.Session
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Updates
-  alias NervesHub.DeviceLink.Authentication
-  alias NervesHub.DeviceLink.DeviceInfo
-  alias NervesHub.DeviceLink.Effect
-  alias NervesHub.DeviceLink.Session
   alias NervesHub.Extensions.Dispatch, as: ExtensionDispatch
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
@@ -102,11 +102,12 @@ defmodule NervesHub.DeviceLink do
 
   def device_message(session, "rebooting", _payload), do: {session, []}
 
-  def device_message(
-        session,
-        "scripts/run",
-        %{"ref" => "connecting_code", "result" => result, "return" => return, "output" => output}
-      )
+  def device_message(session, "scripts/run", %{
+        "ref" => "connecting_code",
+        "result" => result,
+        "return" => return,
+        "output" => output
+      })
       when result == "error" or return == "nil" do
     :telemetry.execute([:nerves_hub, :devices, :connecting_code_failure], %{
       output: output,
@@ -316,6 +317,16 @@ defmodule NervesHub.DeviceLink do
   @doc "Whether devices may authenticate with an HMAC shared secret."
   @spec shared_secrets_enabled?() :: boolean()
   defdelegate shared_secrets_enabled?(), to: Authentication
+
+  @doc """
+  Whether to accept a certificate at this point in path validation.
+
+  See `NervesHub.SSL.decide/2`. Reached from inside a TLS handshake, possibly on
+  a node with no database, so it takes DER rather than a decoded certificate.
+  """
+  @spec verify_peer(der :: binary(), event :: NervesHub.SSL.event()) ::
+          :valid | {:fail, NervesHub.SSL.reason()}
+  def verify_peer(der, event), do: NervesHub.SSL.decide(der, event)
 
   @doc """
   Record that an authenticated device has connected.

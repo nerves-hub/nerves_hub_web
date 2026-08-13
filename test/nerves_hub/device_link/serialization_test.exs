@@ -15,12 +15,17 @@ defmodule NervesHub.DeviceLink.SerializationTest do
 
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.DeviceLink.Session
+  alias NervesHub.Extensions.Geo
+  alias NervesHub.Extensions.Health
+  alias NervesHub.Extensions.LocalShell
+  alias NervesHub.Extensions.Logging
   alias NervesHub.Extensions.State
+  alias NervesHubWeb.Channels.Scrollback
 
   # Generous, but small enough to notice a structure being added by accident.
   @session_bytes 2_048
 
-  defp device_info do
+  defp device_info() do
     %DeviceInfo{
       allowed_extensions: [:health, :geo, :logging, :local_shell],
       connection_ref: Ecto.UUID.generate(),
@@ -77,10 +82,10 @@ defmodule NervesHub.DeviceLink.SerializationTest do
   describe "extension state" do
     test "every extension's state stays small" do
       extensions = [
-        NervesHub.Extensions.Health,
-        NervesHub.Extensions.Geo,
-        NervesHub.Extensions.Logging,
-        NervesHub.Extensions.LocalShell
+        Health,
+        Geo,
+        Logging,
+        LocalShell
       ]
 
       for extension <- extensions do
@@ -99,13 +104,13 @@ defmodule NervesHub.DeviceLink.SerializationTest do
       # around 89KB and this state goes with every call. A device writing
       # steadily to its shell would otherwise resend its whole backlog per line.
       state = State.new(device_info())
-      {state, _effects} = NervesHub.Extensions.LocalShell.attach(state)
+      {state, _effects} = LocalShell.attach(state)
 
       line = String.duplicate("x", 80) <> "\n"
 
       {state, effects} =
         Enum.reduce(1..1200, {state, []}, fn _, {state, _} ->
-          NervesHub.Extensions.LocalShell.handle_in("shell_output", %{"data" => line}, state)
+          LocalShell.handle_in("shell_output", %{"data" => line}, state)
         end)
 
       assert effects == [{:scrollback_append, line}],
@@ -119,8 +124,6 @@ defmodule NervesHub.DeviceLink.SerializationTest do
   end
 
   test "scrollback keeps what was written, wherever it is held" do
-    alias NervesHubWeb.Channels.Scrollback
-
     scrollback =
       Scrollback.new(4)
       |> Scrollback.append("one\ntwo\n")

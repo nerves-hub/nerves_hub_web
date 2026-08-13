@@ -15,10 +15,15 @@ defmodule NervesHub.DeviceLink.Client do
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.DeviceLink.Dispatcher
   alias NervesHub.DeviceLink.Effect
+  alias NervesHub.DeviceLink.PeerVerification
   alias NervesHub.DeviceLink.Session
   alias NervesHub.Extensions.Dispatch, as: ExtensionDispatch
 
   # ---------------------------------------------------------------- connection
+
+  @spec verify_peer(der :: binary(), event :: PeerVerification.event()) ::
+          :valid | {:fail, PeerVerification.reason()}
+  def verify_peer(der, event), do: Dispatcher.call(:verify_peer, [der, event])
 
   @spec authenticate(Authentication.credentials()) :: {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
   def authenticate(credentials), do: Dispatcher.call(:authenticate, [credentials])

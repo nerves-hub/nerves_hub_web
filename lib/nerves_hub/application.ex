@@ -1,6 +1,7 @@
 defmodule NervesHub.Application do
   use Application
 
+  alias NervesHub.DeviceLink.Handlers
   alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.RateLimit.LogLines
@@ -74,11 +75,11 @@ defmodule NervesHub.Application do
   # dispatch locally today, so joining would be harmless — but saying so here
   # keeps the handler pool an explicit decision rather than an accident.
   defp device_link_handlers() do
-    scope = [NervesHub.DeviceLink.Handlers.scope_spec()]
+    scope = [Handlers.scope_spec()]
 
     case Application.get_env(:nerves_hub, :app) do
       "device" -> scope
-      _ -> scope ++ [NervesHub.DeviceLink.Handlers]
+      _ -> scope ++ [Handlers]
     end
   end
 

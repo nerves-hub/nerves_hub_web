@@ -25,7 +25,7 @@ defmodule NervesHub.Extensions.Health do
 
   @impl NervesHub.Extensions
   def attach(state) do
-    interval = :timer.minutes(health_interval_minutes())
+    interval = to_timeout(minute: health_interval_minutes())
 
     # Ask for a report immediately, then on an interval. The tick is delivered
     # before the first timer fires, which preserves the previous ordering.

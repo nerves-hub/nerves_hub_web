@@ -10,11 +10,12 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
 
   use ExUnit.Case, async: false
 
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.DeviceLink.Dispatcher.Local
   alias NervesHub.DeviceLink.Dispatcher.NoHandlersError
   alias NervesHub.DeviceLink.Dispatcher.Remote
-  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.DeviceLink.Handlers
+  alias NervesHub.Extensions.Geo
 
   @versions %{"health" => "0.0.1", "geo" => "0.0.1", "local_shell" => "0.0.1"}
 
@@ -66,7 +67,7 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
       {_attach_list, extensions} = Remote.call(:extensions_join, [device_info(), @versions])
 
       assert %DeviceInfo{} = extensions["geo"].state.device_info
-      assert extensions["geo"].module == NervesHub.Extensions.Geo
+      assert extensions["geo"].module == Geo
       assert extensions["geo"].status == :detached
       assert %Version{} = extensions["geo"].version
     end
@@ -109,7 +110,7 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
     end
   end
 
-  defp attach_failure_counter do
+  defp attach_failure_counter() do
     ref = make_ref()
     test = self()
 

@@ -15,10 +15,10 @@ defmodule NervesHub.DeviceLink.Session do
   alias NervesHub.DeviceLink.DeviceInfo
 
   defstruct [
-    :device_info,
-    :device_api_version,
     :currently_downloading_uuid,
     :deployment_topic,
+    :device_api_version,
+    :device_info,
     script_refs: %{}
   ]
 

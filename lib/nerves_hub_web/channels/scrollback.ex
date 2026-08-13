@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Channels.Scrollback do
   extension, via `NervesHub.DeviceLink.Effect`.
   """
 
-  defstruct current_line: "", buffer: nil
+  defstruct buffer: nil, current_line: ""
 
   @type t() :: %__MODULE__{current_line: String.t(), buffer: CircularBuffer.t()}
 

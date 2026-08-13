@@ -42,6 +42,8 @@ defmodule NervesHub.DeviceLink.Dispatcher.Local do
 
   @behaviour NervesHub.DeviceLink.Dispatcher
 
-  @impl NervesHub.DeviceLink.Dispatcher
+  alias NervesHub.DeviceLink.Dispatcher
+
+  @impl Dispatcher
   def call(function, args), do: apply(NervesHub.DeviceLink, function, args)
 end

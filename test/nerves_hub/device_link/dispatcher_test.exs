@@ -17,7 +17,9 @@ defmodule NervesHub.DeviceLink.DispatcherTest do
     @moduledoc false
     @behaviour NervesHub.DeviceLink.Dispatcher
 
-    @impl NervesHub.DeviceLink.Dispatcher
+    alias NervesHub.DeviceLink.Dispatcher
+
+    @impl Dispatcher
     def call(function, args) do
       send(self(), {:dispatched, function, args})
       :recorded
@@ -25,10 +27,24 @@ defmodule NervesHub.DeviceLink.DispatcherTest do
   end
 
   setup do
-    on_exit(fn -> Application.delete_env(:nerves_hub, Dispatcher) end)
+    # Restore rather than delete: the suite can be run with dispatch configured
+    # (DEVICE_LINK_DISPATCH=remote), and deleting it would leave later tests
+    # running against a different implementation than they were started with.
+    previous = Application.fetch_env(:nerves_hub, Dispatcher)
+
+    on_exit(fn ->
+      case previous do
+        {:ok, value} -> Application.put_env(:nerves_hub, Dispatcher, value)
+        :error -> Application.delete_env(:nerves_hub, Dispatcher)
+      end
+    end)
+
+    :ok
   end
 
   test "runs locally unless told otherwise" do
+    Application.delete_env(:nerves_hub, Dispatcher)
+
     assert Dispatcher.impl() == Dispatcher.Local
   end
 

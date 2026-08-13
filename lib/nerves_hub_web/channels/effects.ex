@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Channels.Effects do
   `:cancel_timer` needs only the key that started it.
   """
 
+  alias NervesHub.DeviceLink.Effect
   alias NervesHubWeb.Channels.Scrollback
   alias Phoenix.Channel
   alias Phoenix.Socket
@@ -23,7 +24,7 @@ defmodule NervesHubWeb.Channels.Effects do
   def init(socket), do: Socket.assign(socket, @timers, %{})
 
   @doc "Apply effects in order, returning the updated socket."
-  @spec apply_all(Socket.t(), [NervesHub.DeviceLink.Effect.t()]) :: Socket.t()
+  @spec apply_all(Socket.t(), [Effect.t()]) :: Socket.t()
   def apply_all(socket, effects), do: Enum.reduce(effects, socket, &apply_one(&2, &1))
 
   defp apply_one(socket, {:push, event, payload}) do

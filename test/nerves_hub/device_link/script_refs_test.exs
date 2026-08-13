@@ -15,7 +15,7 @@ defmodule NervesHub.DeviceLink.ScriptRefsTest do
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.DeviceLink.Session
 
-  defp session do
+  defp session() do
     %Session{
       device_info: %DeviceInfo{device_id: 1, device_identifier: "script-device"},
       device_api_version: "2.3.0"

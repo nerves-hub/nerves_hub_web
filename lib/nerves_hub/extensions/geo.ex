@@ -23,7 +23,7 @@ defmodule NervesHub.Extensions.Geo do
     effects =
       case geo_interval_minutes() do
         interval when interval > 0 ->
-          [{:tick, :location_request}, {:start_timer, :location_request, :timer.minutes(interval)}]
+          [{:tick, :location_request}, {:start_timer, :location_request, to_timeout(minute: interval)}]
 
         _ ->
           [{:tick, :location_request}]
