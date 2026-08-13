@@ -18,53 +18,49 @@ defmodule NervesHub.Extensions.Geo do
   end
 
   @impl NervesHub.Extensions
-  def attach(socket) do
-    extension_config = Application.get_env(:nerves_hub, :extension_config)
-    geo_interval = get_in(extension_config, [:geo, :interval_minutes]) || 0
+  def attach(state) do
+    # The initial request is unconditional; only the repeat is configurable.
+    effects =
+      case geo_interval_minutes() do
+        interval when interval > 0 ->
+          [{:tick, :location_request}, {:start_timer, :location_request, :timer.minutes(interval)}]
 
-    send(self(), {__MODULE__, :location_request})
-
-    socket =
-      if geo_interval > 0 do
-        timer =
-          geo_interval
-          |> :timer.minutes()
-          |> :timer.send_interval({__MODULE__, :location_request})
-
-        socket
-        |> Phoenix.Socket.assign(:geo_timer, timer)
-        |> Phoenix.Socket.assign(:geo_interval, geo_interval)
-      else
-        socket
+        _ ->
+          [{:tick, :location_request}]
       end
 
-    {:noreply, socket}
+    {state, effects}
   end
 
   @impl NervesHub.Extensions
-  def detach(socket) do
-    _ = if socket.assigns[:geo_timer], do: :timer.cancel(socket.assigns.geo_timer)
-    {:noreply, Phoenix.Socket.assign(socket, :geo_timer, nil)}
+  def detach(state) do
+    {state, [{:cancel_timer, :location_request}]}
   end
 
   @impl NervesHub.Extensions
-  def handle_in("location:update", location, socket) do
-    :ok = Connections.merge_update_metadata(socket.assigns.device_info.connection_ref, %{location: location})
+  def handle_in("location:update", location, state) do
+    device_info = state.device_info
+
+    :ok = Connections.merge_update_metadata(device_info.connection_ref, %{location: location})
 
     _ =
       ChannelServer.broadcast(
         NervesHub.PubSub,
-        "internal:device:#{socket.assigns.device_info.device_id}",
+        "internal:device:#{device_info.device_id}",
         "location:updated",
         location
       )
 
-    {:noreply, socket}
+    {state, []}
   end
 
   @impl NervesHub.Extensions
-  def handle_info(:location_request, socket) do
-    Phoenix.Channel.push(socket, "geo:location:request", %{})
-    {:noreply, socket}
+  def handle_info(:location_request, state) do
+    {state, [{:push, "geo:location:request", %{}}]}
+  end
+
+  defp geo_interval_minutes() do
+    extension_config = Application.get_env(:nerves_hub, :extension_config)
+    get_in(extension_config, [:geo, :interval_minutes]) || 0
   end
 end

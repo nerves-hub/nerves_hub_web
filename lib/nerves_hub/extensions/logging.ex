@@ -21,17 +21,19 @@ defmodule NervesHub.Extensions.Logging do
   end
 
   @impl NervesHub.Extensions
-  def attach(socket) do
-    {:noreply, socket}
+  def attach(state) do
+    {state, []}
   end
 
   @impl NervesHub.Extensions
-  def detach(socket) do
-    {:noreply, socket}
+  def detach(state) do
+    {state, []}
   end
 
   @impl NervesHub.Extensions
-  def handle_in("send", log_line, %{assigns: %{device_info: device_info}} = socket) do
+  def handle_in("send", log_line, state) do
+    device_info = state.device_info
+
     case RateLimit.hit(
            "device_#{device_info.device_id}",
            @rate_limit_tokens_per_sec,
@@ -45,12 +47,12 @@ defmodule NervesHub.Extensions.Logging do
         :noop
     end
 
-    {:noreply, socket}
+    {state, []}
   end
 
   @impl NervesHub.Extensions
-  def handle_info(_, socket) do
-    {:noreply, socket}
+  def handle_info(_, state) do
+    {state, []}
   end
 
   defp schedule_create(device_info, log_line) do
