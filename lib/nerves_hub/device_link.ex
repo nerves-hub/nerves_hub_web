@@ -122,16 +122,25 @@ defmodule NervesHub.DeviceLink do
   end
 
   def device_message(session, "scripts/run", params) do
-    if pid = session.script_refs[params["ref"]] do
-      output =
-        [params["output"], params["return"]]
-        |> Enum.join("\n")
-        |> String.trim()
+    ref = params["ref"]
 
-      send(pid, {:output, output})
+    case session.script_refs[ref] do
+      nil ->
+        # Either the script already timed out, or the device answered twice.
+        {session, []}
+
+      pid ->
+        output =
+          [params["output"], params["return"]]
+          |> Enum.join("\n")
+          |> String.trim()
+
+        send(pid, {:output, output})
+
+        # The script answered, so release the reference and the timeout that was
+        # only there in case it never did.
+        {release_script_ref(session, ref), [cancel_script_timeout(ref)]}
     end
-
-    {session, []}
   end
 
   def device_message(session, "report_network_interface", %{"interface" => interface}) do
@@ -200,8 +209,11 @@ defmodule NervesHub.DeviceLink do
     end
   end
 
+  # The script never answered. Drop the reference, and the timeout's own
+  # bookkeeping with it -- a one-shot timer that has fired leaves an entry
+  # behind otherwise, and on a connection held for weeks those accumulate.
   def device_notify(session, {:clear_script_ref, ref}) do
-    {%{session | script_refs: Map.delete(session.script_refs, ref)}, []}
+    {release_script_ref(session, ref), [cancel_script_timeout(ref)]}
   end
 
   def device_notify(session, message) do
@@ -230,6 +242,12 @@ defmodule NervesHub.DeviceLink do
 
     follow_deployment_group(%{session | device_info: device_info})
   end
+
+  defp release_script_ref(session, ref) do
+    %{session | script_refs: Map.delete(session.script_refs, ref)}
+  end
+
+  defp cancel_script_timeout(ref), do: {:cancel_timer, {:script_ref, ref}}
 
   # A device only follows its own deployment group's topic, and that can change
   # underneath it, so every path that touches deployment_id comes back here.
