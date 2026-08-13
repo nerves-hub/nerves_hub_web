@@ -12,6 +12,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Updates
+  alias NervesHub.DeviceLink.Authentication
   alias NervesHub.Extensions.Dispatch, as: ExtensionDispatch
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
@@ -49,6 +50,55 @@ defmodule NervesHub.DeviceLink do
   end
 
   @public_key_types ["fwup_public_keys", "archive_public_keys"]
+
+  @doc """
+  Identify the device behind a set of credentials.
+
+  See `NervesHub.DeviceLink.Authentication`. Failures are flattened to
+  `:invalid_auth`; the detail is recorded as telemetry where it is known.
+  """
+  @spec authenticate(Authentication.credentials()) :: {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
+  defdelegate authenticate(credentials), to: Authentication
+
+  @doc "Whether devices may authenticate with an HMAC shared secret."
+  @spec shared_secrets_enabled?() :: boolean()
+  defdelegate shared_secrets_enabled?(), to: Authentication
+
+  @doc """
+  Record that an authenticated device has connected.
+
+  Returns the device info stamped with the connection reference that the rest of
+  the connection's lifecycle is keyed by.
+  """
+  @spec connect(DeviceInfo.t()) :: {:ok, DeviceInfo.t()} | {:error, Ecto.Changeset.t()}
+  def connect(device_info) do
+    case Connections.device_connecting(device_info.org_id, device_info.product_id, device_info.device_id) do
+      {:ok, %DeviceConnection{id: connection_id}} ->
+        {:ok, %{device_info | connection_ref: connection_id}}
+
+      {:error, _changeset} = error ->
+        error
+    end
+  end
+
+  @doc """
+  The device is still there.
+  """
+  @spec heartbeat(connection_ref :: String.t()) :: :ok | :error
+  def heartbeat(connection_ref) do
+    Connections.device_heartbeat(connection_ref)
+  end
+
+  @doc """
+  The device has gone.
+
+  Returns an error when the reference is stale — the device may already have
+  reconnected elsewhere, replacing the connection row — which callers can ignore.
+  """
+  @spec disconnect(connection_ref :: String.t(), reason :: String.t() | nil) :: :ok | {:error, any()}
+  def disconnect(connection_ref, reason \\ nil) do
+    Connections.device_disconnected(connection_ref, reason)
+  end
 
   @spec join(DeviceInfo.t(), params :: map()) :: {:ok, DeviceInfo.t()} | {:error, any()}
   def join(device_info, params) do
