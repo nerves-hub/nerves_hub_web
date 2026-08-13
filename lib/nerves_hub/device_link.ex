@@ -12,6 +12,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Updates
+  alias NervesHub.Extensions.Dispatch, as: ExtensionDispatch
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
@@ -114,6 +115,44 @@ defmodule NervesHub.DeviceLink do
   def update_connection_metadata(reference_id, metadata) do
     Connections.merge_update_metadata(reference_id, metadata)
   end
+
+  @typedoc """
+  An effect for the caller to carry out on the device connection.
+
+  See `NervesHub.Extensions.Dispatch` — routing is already resolved, so the
+  caller sends opaque terms and keys timers by opaque handles.
+  """
+  @type extension_effect() :: ExtensionDispatch.effect()
+
+  @doc """
+  Work out which extensions a device may use, given the versions it reports.
+
+  Returns the keys the device should attach, plus bookkeeping to pass back to
+  `extension_message/3` and `extension_info/3`.
+  """
+  @spec extensions_join(DeviceInfo.t(), extension_versions :: map()) ::
+          {[String.t()], ExtensionDispatch.extensions()}
+  defdelegate extensions_join(device_info, extension_versions), to: ExtensionDispatch, as: :join
+
+  @doc """
+  Handle a `"<key>:<event>"` extension message from the device.
+
+  `:unknown` means the device is talking about an extension it may not use, and
+  should be told to detach.
+  """
+  @spec extension_message(ExtensionDispatch.extensions(), scoped_event :: String.t(), payload :: term()) ::
+          {:ok, ExtensionDispatch.extensions(), [extension_effect()]} | :unknown
+  defdelegate extension_message(extensions, scoped_event, payload), to: ExtensionDispatch, as: :message
+
+  @doc """
+  Deliver a message addressed to an extension module.
+
+  Covers timers set on an extension's behalf as well as messages from elsewhere
+  in the system. Messages for extensions that are not attached are dropped.
+  """
+  @spec extension_info(ExtensionDispatch.extensions(), module(), msg :: term()) ::
+          {:ok, ExtensionDispatch.extensions(), [extension_effect()]}
+  defdelegate extension_info(extensions, module, msg), to: ExtensionDispatch, as: :info
 
   @doc """
   The device has confirmed the firmware it is running is good.
