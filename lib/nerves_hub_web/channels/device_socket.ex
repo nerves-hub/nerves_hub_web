@@ -89,19 +89,13 @@ defmodule NervesHubWeb.DeviceSocket do
   @impl Phoenix.Socket
   @decorate with_span("Channels.DeviceSocket.connect:cert_auth")
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
-    case DeviceLink.authenticate({:ssl_cert, ssl_cert}) do
-      {:ok, device_info} -> socket_and_assigns(socket, device_info)
-      {:error, reason} -> {:error, reason}
-    end
+    authenticate(socket, {:ssl_cert, ssl_cert})
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
   @decorate with_span("Channels.DeviceSocket.connect:shared_secrets")
   def connect(_params, socket, %{x_headers: x_headers}) when is_list(x_headers) and x_headers != [] do
-    case DeviceLink.authenticate({:shared_secret, Map.new(x_headers)}) do
-      {:ok, device_info} -> socket_and_assigns(socket, device_info)
-      {:error, reason} -> {:error, reason}
-    end
+    authenticate(socket, {:shared_secret, Map.new(x_headers)})
   end
 
   def connect(_params, _socket, _connect_info) do
@@ -120,6 +114,25 @@ defmodule NervesHubWeb.DeviceSocket do
       batch_interval: config[:batch_interval],
       shutdown: config[:shutdown]
     ]
+  end
+
+  # A device cannot be admitted without the platform's say-so, and the platform
+  # may be unreachable -- during a deploy, a partition, or before this node has
+  # finished joining the cluster. Refusing is correct; raising is not, because it
+  # answers the device with a 500 and buries the reason in a rendered error page.
+  defp authenticate(socket, credentials) do
+    case DeviceLink.authenticate(credentials) do
+      {:ok, device_info} -> socket_and_assigns(socket, device_info)
+      {:error, reason} -> {:error, reason}
+    end
+  catch
+    kind, reason ->
+      :telemetry.execute([:nerves_hub, :devices, :platform_unavailable], %{count: 1}, %{
+        kind: kind,
+        reason: reason
+      })
+
+      {:error, :platform_unavailable}
   end
 
   defp socket_and_assigns(socket, device_info) do
