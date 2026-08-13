@@ -79,3 +79,14 @@ config :phoenix_live_view, :test_warnings, missing_form_id: :raise
 config :phoenix_test, :endpoint, NervesHubWeb.Endpoint
 
 config :sentry, environment_name: :test
+
+# Run the suite against remote dispatch to check that a caller without the
+# platform stack gets the same behaviour as one with it:
+#
+#     DEVICE_LINK_DISPATCH=remote mix test
+#
+# Calls go to this node over :erpc, so the wire format is exercised for real
+# while the database stays where the sandbox can see it.
+if System.get_env("DEVICE_LINK_DISPATCH") == "remote" do
+  config :nerves_hub, NervesHub.DeviceLink.Dispatcher, NervesHub.DeviceLink.Dispatcher.Remote
+end

@@ -1,7 +1,6 @@
 defmodule NervesHub.Extensions.Health do
   @behaviour NervesHub.Extensions
 
-  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
@@ -63,7 +62,7 @@ defmodule NervesHub.Extensions.Health do
            {:health_report, Health.save_device_health(device_health)},
          {:metrics_report, {:ok, _}} <-
            {:metrics_report, Metrics.save_metrics(device_info.device_id, metrics)} do
-      :ok = device_internal_broadcast!(device_info, "health_check_report", %{})
+      :ok = internal_broadcast!(device_info.device_id, "health_check_report", %{})
     else
       {:health_report, {:error, err}} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
@@ -91,7 +90,7 @@ defmodule NervesHub.Extensions.Health do
   end
 
   def request_health_check(device) do
-    :ok = device_internal_broadcast!(device.id, "health:check", %{})
+    :ok = device_broadcast!(device.id, "health:check", %{})
   end
 
   defp health_interval_minutes() do
@@ -103,13 +102,23 @@ defmodule NervesHub.Extensions.Health do
     end
   end
 
-  defp device_internal_broadcast!(%DeviceInfo{} = device_info, event, payload) do
-    device_internal_broadcast!(device_info.device_id, event, payload)
-  end
-
-  defp device_internal_broadcast!(device_id, event, payload) do
+  # Bound for the device: the extensions channel forwards everything on this
+  # topic on to it.
+  defp device_broadcast!(device_id, event, payload) do
     topic = "device:#{device_id}:extensions"
 
     ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, event, payload)
+  end
+
+  # Bound for whoever is watching the device in the UI, and nothing else.
+  #
+  # This deliberately does not ride the device topic. Keeping it off the wire
+  # there would depend on excluding `self()`, and `self()` is only the device's
+  # connection while this runs in the same process as it — which is not
+  # something this module gets to assume.
+  defp internal_broadcast!(device_id, event, payload) do
+    topic = "internal:device:#{device_id}"
+
+    ChannelServer.broadcast!(NervesHub.PubSub, topic, event, payload)
   end
 end

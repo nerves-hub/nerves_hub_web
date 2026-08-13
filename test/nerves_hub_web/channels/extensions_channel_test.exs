@@ -78,10 +78,11 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     push(extensions_channel, "health:attached")
     assert_push("health:check", _)
 
-    @endpoint.subscribe("device:#{device.id}:extensions")
+    # the report notification is for whoever is watching in the UI, not the device
+    @endpoint.subscribe("internal:device:#{device.id}")
 
     push(extensions_channel, "health:report", %{"value" => dummy_health_report()})
-    assert_broadcast("health_check_report", _)
+    assert_receive %Phoenix.Socket.Broadcast{event: "health_check_report"}
 
     assert Repo.aggregate(Devices.DeviceHealth, :count) == 1
   end

@@ -41,6 +41,7 @@ defmodule NervesHub.Application do
           {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
           {PartitionSupervisor, child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
         ] ++
+        device_link_handlers() ++
         cli_session_cache() ++
         deployments_orchestrator(deploy_env()) ++
         endpoints(deploy_env())
@@ -66,6 +67,19 @@ defmodule NervesHub.Application do
       :logger.add_primary_filter(:filter_ssl_handshake, {&NervesHub.Logger.ssl_log_filter/2, []})
 
     NervesHub.Logger.attach()
+  end
+
+  # Every node needs the scope so it can read who the handlers are; only nodes
+  # carrying the platform stack join as one. Device nodes hold connections and
+  # dispatch locally today, so joining would be harmless — but saying so here
+  # keeps the handler pool an explicit decision rather than an accident.
+  defp device_link_handlers() do
+    scope = [NervesHub.DeviceLink.Handlers.scope_spec()]
+
+    case Application.get_env(:nerves_hub, :app) do
+      "device" -> scope
+      _ -> scope ++ [NervesHub.DeviceLink.Handlers]
+    end
   end
 
   defp cli_session_cache() do

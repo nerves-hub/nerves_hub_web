@@ -270,7 +270,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
         :ok = Connections.device_connected(connection.id)
 
-        topic = "device:#{device.id}:extensions"
+        topic = "internal:device:#{device.id}"
         ChannelServer.broadcast!(NervesHub.PubSub, topic, "health_check_report", %{})
 
         render(view)
