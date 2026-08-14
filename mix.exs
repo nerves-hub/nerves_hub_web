@@ -1,6 +1,11 @@
 defmodule NervesHub.MixProject do
   use Mix.Project
 
+  alias Flop.Schema.NervesHub.Devices.Device
+  alias Inspect.NervesHub.Accounts.User
+  alias Jason.Encoder.OrderedCollections.SortedMap
+  alias NervesHubWeb.Plugs.OpenApiSpec
+
   def project() do
     [
       app: :nerves_hub,
@@ -29,7 +34,32 @@ defmodule NervesHub.MixProject do
         plt_core_path: "priv/plts",
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
       ],
-      test_coverage: [tool: ExCoveralls]
+      test_coverage: [
+        tool: ExCoveralls,
+        ignore_modules: [
+          NervesHubWeb,
+          # API support
+          NervesHubWeb.ApiSpec,
+          ~r/NervesHubWeb\.API\.Schemas\..*/,
+          ~r/NervesHubWeb\.API\.OpenAPI\..*/,
+          # Derived or macro-generated
+          Device,
+          User,
+          SortedMap,
+          # Emails, emails, emails
+          NervesHub.EmailView,
+          NervesHubWeb.DeviceHTML,
+          NervesHubWeb.HomeView,
+          NervesHubWeb.OAuthHTML,
+          NervesHubWeb.PasswordResetHTML,
+          NervesHubWeb.ProductView,
+          # Mix tasks
+          ~r/Mix.Tasks\..*/,
+          # Misc
+          OpenApiSpec,
+          NervesHubWeb.SentryEventFilter
+        ]
+      ]
     ]
   end
 
