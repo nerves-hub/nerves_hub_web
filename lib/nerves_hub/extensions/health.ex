@@ -1,12 +1,11 @@
 defmodule NervesHub.Extensions.Health do
   @behaviour NervesHub.Extensions
 
-  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Extensions.PubSub
   alias NervesHub.Helpers.Logging
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -76,7 +75,7 @@ defmodule NervesHub.Extensions.Health do
            {:health_report, Health.save_device_health(device_health)},
          {:metrics_report, {:ok, _}} <-
            {:metrics_report, Metrics.save_metrics(socket.assigns.device_info.device_id, metrics)} do
-      :ok = device_internal_broadcast!(socket.assigns.device_info, "health_check_report", %{})
+      :ok = PubSub.broadcast_report(socket.assigns.device_info.device_id, "health_check_report", %{})
     else
       {:health_report, {:error, err}} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
@@ -105,16 +104,6 @@ defmodule NervesHub.Extensions.Health do
   end
 
   def request_health_check(device) do
-    :ok = device_internal_broadcast!(device.id, "health:check", %{})
-  end
-
-  defp device_internal_broadcast!(%DeviceInfo{} = device_info, event, payload) do
-    device_internal_broadcast!(device_info.device_id, event, payload)
-  end
-
-  defp device_internal_broadcast!(device_id, event, payload) do
-    topic = "device:#{device_id}:extensions"
-
-    ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, event, payload)
+    :ok = PubSub.broadcast_to_device(device.id, "health:check", %{})
   end
 end

@@ -3,6 +3,8 @@ defmodule NervesHub.Extensions.LocalShell do
 
   import Phoenix.Socket, only: [assign: 3]
 
+  alias NervesHub.Consoles
+
   require Logger
 
   @impl NervesHub.Extensions
@@ -21,6 +23,10 @@ defmodule NervesHub.Extensions.LocalShell do
   def attach(socket) do
     Phoenix.Channel.push(socket, "local_shell:request_shell", %{})
 
+    # Register in the local-shell group so the user-facing shell tab can detect
+    # availability and route input/connect to this (device-side) channel.
+    :ok = Consoles.PubSub.join_local_shell(socket.assigns.device_info.device_id)
+
     socket =
       socket
       |> assign(:current_line, "")
@@ -31,6 +37,8 @@ defmodule NervesHub.Extensions.LocalShell do
 
   @impl NervesHub.Extensions
   def detach(socket) do
+    :ok = Consoles.PubSub.leave_local_shell(socket.assigns.device_info.device_id)
+
     socket =
       socket
       |> assign(:current_line, nil)
@@ -55,9 +63,11 @@ defmodule NervesHub.Extensions.LocalShell do
       |> assign(:current_line, current_line)
       |> assign(:buffer, buffer)
 
-    topic = "user:local_shell:#{socket.assigns.device_info.device_id}"
-
-    socket.endpoint.broadcast!(topic, "output", %{data: data})
+    Consoles.PubSub.broadcast_to_user_local_shell(
+      socket.assigns.device_info.device_id,
+      "output",
+      %{data: data}
+    )
 
     {:noreply, socket}
   end
@@ -74,12 +84,6 @@ defmodule NervesHub.Extensions.LocalShell do
     lines = Enum.join(socket.assigns.buffer) <> socket.assigns.current_line
 
     send(pid, {:cache, lines})
-
-    {:noreply, socket}
-  end
-
-  def handle_info({:active?, pid}, socket) do
-    send(pid, :active)
 
     {:noreply, socket}
   end

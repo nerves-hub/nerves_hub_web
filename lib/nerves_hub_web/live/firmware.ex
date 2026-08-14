@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Firmware do
   alias NervesHub.Accounts
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Upload
+  alias NervesHub.Products
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
   alias Phoenix.Socket.Broadcast
@@ -17,7 +18,7 @@ defmodule NervesHubWeb.Live.Firmware do
     if connected?(socket) do
       Logger.metadata(user_id: scope.user.id, product_id: scope.product.id)
 
-      :ok = socket.endpoint.subscribe("product:#{scope.product.id}")
+      :ok = Products.PubSub.subscribe(scope.product.id)
     end
 
     socket

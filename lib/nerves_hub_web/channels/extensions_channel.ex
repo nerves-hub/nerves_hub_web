@@ -4,7 +4,6 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   alias NervesHub.Extensions
   alias NervesHub.Helpers.Logging
-  alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -27,8 +26,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
     # additionally, this topic isn't needed or used, so we can unsubscribe from it
     :ok = socket.endpoint.unsubscribe("extensions")
 
-    topic = "device:#{device_info.device_id}:extensions"
-    :ok = socket.endpoint.subscribe(topic)
+    :ok = Extensions.PubSub.subscribe_device(device_info.device_id)
 
     {:ok, attach_list, socket}
   end
@@ -99,8 +97,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   @impl Phoenix.Channel
   def handle_info(:init_extensions, socket) do
-    topic = "product:#{socket.assigns.device_info.product_id}:extensions"
-    :ok = PubSub.subscribe(NervesHub.PubSub, topic)
+    :ok = Extensions.PubSub.subscribe_product(socket.assigns.device_info.product_id)
 
     {:noreply, socket}
   end

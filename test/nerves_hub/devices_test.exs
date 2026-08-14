@@ -22,6 +22,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -1179,7 +1180,7 @@ defmodule NervesHub.DevicesTest do
 
       topic = "internal:device:#{device.id}"
 
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+      PubSub.subscribe(device.id)
 
       refute_receive %Broadcast{topic: ^topic, event: "firmware_update_progress", payload: %{"stage" => "expired"}},
                      1_000
@@ -1276,7 +1277,7 @@ defmodule NervesHub.DevicesTest do
         ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
       deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+      Group.join(NervesHub.Group, deployment_topic, %{})
 
       _device = Deployments.update_deployment_group(device, deployment_group)
 
@@ -1390,7 +1391,7 @@ defmodule NervesHub.DevicesTest do
         ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
       deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+      Group.join(NervesHub.Group, deployment_topic, %{})
 
       BulkActions.move_many_to_deployment_group([device1.id, device2.id], deployment_group, user)
 
