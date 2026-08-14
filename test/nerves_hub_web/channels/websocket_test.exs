@@ -1145,7 +1145,7 @@ defmodule NervesHubWeb.WebsocketTest do
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
       not_before = DateTime.utc_now() |> Timex.shift(days: -1)
-      not_after = DateTime.utc_now() |> Timex.shift(seconds: 1)
+      not_after = DateTime.utc_now() |> Timex.shift(seconds: -1)
 
       template =
         Template.new(:root_ca,
@@ -1185,8 +1185,6 @@ defmodule NervesHubWeb.WebsocketTest do
           ]
         ]
       ]
-
-      :timer.sleep(2_000)
 
       subscribe_for_updates(device)
 

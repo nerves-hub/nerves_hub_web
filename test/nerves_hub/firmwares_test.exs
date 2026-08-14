@@ -656,9 +656,16 @@ defmodule NervesHub.FirmwaresTest do
       t2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       t3 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       t4 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      old_time = DateTime.utc_now() |> DateTime.add(-2, :second)
+
       {:ok, %{id: d1}} = Firmwares.start_firmware_delta(source.id, t1.id)
       {:ok, %{id: d2}} = Firmwares.start_firmware_delta(source.id, t2.id)
-      :timer.sleep(2000)
+
+      Repo.update_all(
+        from(fd in FirmwareDelta, where: fd.id in [^d1, ^d2]),
+        set: [inserted_at: old_time]
+      )
+
       {:ok, %{id: d3}} = Firmwares.start_firmware_delta(source.id, t3.id)
       {:ok, %{id: d4}} = Firmwares.start_firmware_delta(source.id, t4.id)
       Firmwares.time_out_firmware_delta_generations(1000, :millisecond)

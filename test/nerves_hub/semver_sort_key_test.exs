@@ -42,12 +42,17 @@ defmodule NervesHub.SemverSortKeyTest do
     key
   end
 
+  # Fetch all sort keys in one round-trip and return a version -> key map.
+  defp sort_keys(versions) do
+    placeholders = versions |> Enum.with_index(1) |> Enum.map_join(",", fn {_, i} -> "($#{i})" end)
+    sql = "SELECT v, semver_sort_key(v) FROM (VALUES #{placeholders}) AS t(v)"
+    {:ok, %{rows: rows}} = Repo.query(sql, versions)
+    Map.new(rows, fn [v, k] -> {v, k} end)
+  end
+
   # Byte-order comparison of two keys, which is exactly Postgres `COLLATE "C"`.
   # Elixir binary comparison (`<`/`>`) is byte-wise, so we can compare in Elixir.
-  defp key_compare(a, b) do
-    ka = sort_key(a)
-    kb = sort_key(b)
-
+  defp key_compare(ka, kb) do
     cond do
       ka < kb -> :lt
       ka > kb -> :gt
@@ -57,9 +62,11 @@ defmodule NervesHub.SemverSortKeyTest do
 
   describe "semver_sort_key/1 ordering" do
     test "byte-order (COLLATE \"C\") key comparison matches Version.compare/2 for every pair" do
+      keys = sort_keys(@versions)
+
       for a <- @versions, b <- @versions do
-        assert key_compare(a, b) == Version.compare(a, b),
-               "sort-key order for #{a} vs #{b} was #{key_compare(a, b)}, " <>
+        assert key_compare(keys[a], keys[b]) == Version.compare(a, b),
+               "sort-key order for #{a} vs #{b} was #{key_compare(keys[a], keys[b])}, " <>
                  "but Version.compare says #{Version.compare(a, b)}"
       end
     end

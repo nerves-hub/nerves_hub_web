@@ -106,10 +106,18 @@ defmodule NervesHub.Devices.LogLinesTest do
   end
 
   test "recent/1", %{device: device, device2: device2} do
-    for _ <- 0..30 do
-      random_log(device)
-      random_log(device2)
-    end
+    now = DateTime.utc_now()
+
+    rows =
+      for i <- 0..30, dev <- [device, device2] do
+        LogLine.create_changeset(dev.id, dev.product_id, %{
+          "timestamp" => DateTime.add(now, i, :millisecond),
+          "level" => "info",
+          "message" => random_word()
+        }).changes
+      end
+
+    AnalyticsRepo.insert_all(LogLine, rows, settings: [async_insert: 1])
 
     :ok = Buffer.flush(LogLine)
 
@@ -222,18 +230,6 @@ defmodule NervesHub.Devices.LogLinesTest do
 
   defp random_word(n \\ 6) do
     1..n |> Enum.map(fn _ -> Enum.random(?a..?z) end) |> to_string()
-  end
-
-  defp random_log(device) do
-    attrs = %{
-      "timestamp" => DateTime.utc_now(),
-      "level" => Enum.random(["error", "warning", "info", "debug"]),
-      "message" => random_word()
-    }
-
-    {:ok, log_line} = LogLines.async_create(to_device_info(device), attrs)
-
-    log_line
   end
 
   def to_device_info(device) do
