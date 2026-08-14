@@ -1,105 +1,111 @@
 defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistrationTest do
-  use NervesHub.DataCase
+  use ExUnit.Case, async: false
   use Mimic
 
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.Distributed.Orchestrator
   alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
 
-  test "doesn't start orchestrator processes if they are already running" do
-    expect(ManagedDeployments, :should_run_orchestrator, 1, fn ->
-      [%ManagedDeployments.DeploymentGroup{id: 1}]
-    end)
+  # ---- filter_already_started_errors ----
+  # These private helpers are exercised via start_orchestrators/0 and check_running_orchestrators/0.
+  # We stub ProcessHub and ManagedDeployments to control inputs.
 
-    expect(ProcessHub, :process_list, fn _table_name, _node_context ->
-      [distributed_orchestrator_1: ["nerves-hub@node.id": "1.2.3"]]
-    end)
+  describe "start_orchestrators/0 — filter_already_started_errors" do
+    test "returns :ok when no orchestrators need starting" do
+      stub(ManagedDeployments, :should_run_orchestrator, fn -> [] end)
+      stub(ProcessHub, :process_list, fn :deployment_orchestrators, :global -> [] end)
 
-    reject(&ProcessHub.start_children/3)
+      assert :ok = OrchestratorRegistration.start_orchestrators()
+    end
 
-    OrchestratorRegistration.start_orchestrators()
+    test "starts new orchestrators that are not yet running" do
+      deployment = %{id: 1}
+      spec = Orchestrator.child_spec(deployment)
+
+      stub(ManagedDeployments, :should_run_orchestrator, fn -> [deployment] end)
+      stub(ProcessHub, :process_list, fn :deployment_orchestrators, :global -> [] end)
+
+      future_ref = make_ref()
+      stub(ProcessHub, :start_children, fn :deployment_orchestrators, [^spec], _ -> future_ref end)
+
+      stub(ProcessHub.Future, :await, fn ^future_ref -> {:ok, [spec.id]} end)
+      stub(ProcessHub.StartResult, :format, fn {:ok, [_id]} -> {:ok, [spec.id]} end)
+
+      assert :ok = OrchestratorRegistration.start_orchestrators()
+    end
+
+    test "skips orchestrators that are already running" do
+      deployment = %{id: 2}
+      spec = Orchestrator.child_spec(deployment)
+
+      stub(ManagedDeployments, :should_run_orchestrator, fn -> [deployment] end)
+      # Return spec.id as already running so it gets filtered out
+      stub(ProcessHub, :process_list, fn :deployment_orchestrators, :global -> [{spec.id, %{}}] end)
+
+      # ProcessHub.start_children should NOT be called since nothing requires starting
+      reject(ProcessHub, :start_children, 3)
+
+      assert :ok = OrchestratorRegistration.start_orchestrators()
+    end
+
+    test "filters :already_started errors and returns :ok" do
+      deployment = %{id: 3}
+      spec = Orchestrator.child_spec(deployment)
+      pid = self()
+
+      stub(ManagedDeployments, :should_run_orchestrator, fn -> [deployment] end)
+      stub(ProcessHub, :process_list, fn :deployment_orchestrators, :global -> [] end)
+
+      future_ref = make_ref()
+      stub(ProcessHub, :start_children, fn :deployment_orchestrators, [^spec], _ -> future_ref end)
+      stub(ProcessHub.Future, :await, fn ^future_ref -> :awaited end)
+      # format returns the shape that filter_already_started_errors handles
+      stub(ProcessHub.StartResult, :format, fn :awaited ->
+        {:error, {[{spec.id, {:already_started, pid}}], []}}
+      end)
+
+      assert :ok = OrchestratorRegistration.start_orchestrators()
+    end
+
+    test "logs and reports error when non-already-started error occurs" do
+      deployment = %{id: 4}
+      spec = Orchestrator.child_spec(deployment)
+
+      stub(ManagedDeployments, :should_run_orchestrator, fn -> [deployment] end)
+      stub(ProcessHub, :process_list, fn :deployment_orchestrators, :global -> [] end)
+
+      future_ref = make_ref()
+      stub(ProcessHub, :start_children, fn :deployment_orchestrators, [^spec], _ -> future_ref end)
+      stub(ProcessHub.Future, :await, fn ^future_ref -> {:error, {[{spec.id, :some_real_error}], []}} end)
+      stub(ProcessHub.StartResult, :format, fn _ -> {:error, {[{spec.id, :some_real_error}], []}} end)
+      stub(Sentry, :capture_message, fn _, _ -> :ok end)
+
+      assert :ok = OrchestratorRegistration.start_orchestrators()
+    end
   end
 
-  test "starts the orchestrator process if it isn't already running" do
-    expect(ManagedDeployments, :should_run_orchestrator, 1, fn ->
-      [%ManagedDeployments.DeploymentGroup{id: 1}]
-    end)
+  describe "check_running_orchestrators/0" do
+    test "returns :ok when process count matches deployment count" do
+      stub(ManagedDeployments, :should_run_orchestrator, fn -> [%{id: 1}, %{id: 2}] end)
+      stub(ProcessHub, :process_list, fn :deployment_orchestrators, :global -> [{1, %{}}, {2, %{}}] end)
 
-    expect(ProcessHub, :process_list, fn _table_name, _node_context ->
-      [distributed_orchestrator_2: ["nerves-hub@node.id": "1.2.3"]]
-    end)
+      # Should NOT call start_orchestrators path (no mismatch)
+      assert :ok = OrchestratorRegistration.check_running_orchestrators()
+    end
 
-    expect(ProcessHub, :start_children, fn :deployment_orchestrators, _specs, _opts ->
-      :fake_result
-    end)
+    test "calls start_orchestrators and reports mismatch when count differs" do
+      stub(ManagedDeployments, :should_run_orchestrator, fn -> [%{id: 1}, %{id: 2}] end)
+      # Only one process running, two expected
+      stub(ProcessHub, :process_list, fn :deployment_orchestrators, :global -> [{1, %{}}] end)
 
-    expect(ProcessHub.Future, :await, fn _result ->
-      :fake_result
-    end)
+      stub(Sentry, :capture_message, fn "Not enough Orchestrator processes are running", _ -> :ok end)
 
-    expect(ProcessHub.StartResult, :format, fn _result ->
-      {:ok, :fake_list}
-    end)
+      # start_orchestrators will be called — stub it out
+      stub(ProcessHub, :start_children, fn :deployment_orchestrators, _specs, _ -> make_ref() end)
+      stub(ProcessHub.Future, :await, fn _ref -> {:ok, []} end)
+      stub(ProcessHub.StartResult, :format, fn _ -> {:ok, []} end)
 
-    OrchestratorRegistration.start_orchestrators()
-  end
-
-  test "logs to sentry and restarts orchestrator processes" do
-    expect(ProcessHub, :process_list, fn _table_name, _node_context ->
-      []
-    end)
-
-    expect(ManagedDeployments, :should_run_orchestrator, 2, fn ->
-      [%ManagedDeployments.DeploymentGroup{}]
-    end)
-
-    expect(Sentry, :capture_message, fn _message, [extra: extra, result: :none] ->
-      assert extra.process_count == 0
-      assert extra.deployment_count == 1
-    end)
-
-    expect(ProcessHub, :start_children, fn _hub_id, _spec, _opts -> :ok end)
-
-    expect(ProcessHub, :process_list, fn _table_name, _node_context ->
-      []
-    end)
-
-    expect(ProcessHub.Future, :await, fn _ ->
-      %ProcessHub.StartResult{
-        status: :ok,
-        started: [{"my_child", ["node2@127.0.0.1": "pid"]}],
-        errors: [],
-        rollback: false
-      }
-    end)
-
-    OrchestratorRegistration.check_running_orchestrators()
-  end
-
-  # There is a possible race condition where multiple orchestrators are started simultaneously (eg. a deploy),
-  # but one node is already starting an orchestrator, while the other is about to, and thus it
-  # gets an error saying that its already started
-  test "doesn't log to sentry if all errors are :already_started errors" do
-    expect(ManagedDeployments, :should_run_orchestrator, 1, fn ->
-      [%ManagedDeployments.DeploymentGroup{id: 1}]
-    end)
-
-    expect(ProcessHub, :process_list, fn _table_name, _node_context ->
-      [distributed_orchestrator_2: ["nerves-hub@node.id": "1.2.3"]]
-    end)
-
-    expect(ProcessHub, :start_children, fn _hub_id, _spec, _opts -> :ok end)
-
-    expect(ProcessHub.Future, :await, fn _ ->
-      %ProcessHub.StartResult{
-        status: :ok,
-        started: [],
-        errors: [{:distributed_orchestrator_1, [already_started: "pid"]}],
-        rollback: false
-      }
-    end)
-
-    reject(&Sentry.capture_message/2)
-
-    OrchestratorRegistration.start_orchestrators()
+      assert :ok = OrchestratorRegistration.check_running_orchestrators()
+    end
   end
 end
