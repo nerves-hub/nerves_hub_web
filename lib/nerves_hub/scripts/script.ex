@@ -28,6 +28,7 @@ defmodule NervesHub.Scripts.Script do
     |> cast(params, @required ++ @optional)
     |> validate_required(@required)
     |> validate_length(:name, lte: 255)
+    |> validate_elixir_syntax()
   end
 
   def create_changeset(product, created_by, params) do
@@ -44,4 +45,30 @@ defmodule NervesHub.Scripts.Script do
     |> put_change(:last_updated_by_id, edited_by.id)
     |> foreign_key_constraint(:last_updated_by_id)
   end
+
+  defp validate_elixir_syntax(changeset) do
+    validate_change(changeset, :text, fn :text, text ->
+      case Code.string_to_quoted(text, static_atoms_encoder: &encode_syntax_atom/2) do
+        {:ok, _quoted} ->
+          []
+
+        {:error, {location, message, token}} ->
+          line = Keyword.fetch!(location, :line)
+          column = Keyword.get(location, :column)
+
+          position =
+            if column do
+              "line #{line}, column #{column}"
+            else
+              "line #{line}"
+            end
+
+          [text: "has invalid Elixir syntax at #{position}: #{message}#{token}"]
+      end
+    end)
+  end
+
+  # The quoted result is discarded, so reusing one atom avoids growing the VM's atom table
+  # with identifiers supplied through the form.
+  defp encode_syntax_atom(_name, _metadata), do: {:ok, :support_script_syntax_atom}
 end
