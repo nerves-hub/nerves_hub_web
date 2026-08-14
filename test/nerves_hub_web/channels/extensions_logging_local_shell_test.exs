@@ -5,18 +5,21 @@ defmodule NervesHubWeb.Extensions.LoggingLocalShellTest do
 
   alias NervesHub.Consoles.PubSub, as: ConsolePubSub
   alias NervesHub.Devices.LogLines
+  alias NervesHub.Extensions.LocalShell
   alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHub.RateLimit.LogLines, as: RateLimit
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
+  alias Phoenix.Socket.Broadcast
 
   setup do
+    original = Application.get_env(:nerves_hub, :analytics_enabled)
     Application.put_env(:nerves_hub, :analytics_enabled, true)
 
     on_exit(fn ->
-      Application.put_env(:nerves_hub, :analytics_enabled, false)
+      Application.put_env(:nerves_hub, :analytics_enabled, original)
     end)
   end
 
@@ -228,7 +231,7 @@ defmodule NervesHubWeb.Extensions.LoggingLocalShellTest do
 
       push(ext_channel, "local_shell:shell_output", %{"data" => "hello\n"})
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "output", payload: %{data: "hello\n"}}, 500
+      assert_receive %Broadcast{event: "output", payload: %{data: "hello\n"}}, 500
 
       close_cleanly(ext_channel)
     end
@@ -258,7 +261,7 @@ defmodule NervesHubWeb.Extensions.LoggingLocalShellTest do
       :sys.get_state(ext_channel.channel_pid)
 
       # Route {:connect, pid} via the ExtensionsChannel tuple routing
-      send(ext_channel.channel_pid, {NervesHub.Extensions.LocalShell, {:connect, self()}})
+      send(ext_channel.channel_pid, {LocalShell, {:connect, self()}})
 
       assert_receive {:cache, _lines}, 500
 

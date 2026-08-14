@@ -2,7 +2,9 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Pinning
   alias NervesHub.Fixtures
+  alias Phoenix.Socket.Broadcast
 
   test "user is redirected to login when trying to list their orgs, but the user isn't logged in" do
     build_conn()
@@ -71,6 +73,54 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
       |> assert_has("span#org-disconnected-devices-count-#{org.id}", text: "3")
       |> assert_has("span.product-connected-devices-count", text: "1")
       |> assert_has("span.product-disconnected-devices-count", text: "3")
+    end
+  end
+
+  describe "pinned devices" do
+    test "toggle-expand-devices shows all pinned devices when more than limit", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      devices =
+        for _ <- 1..6 do
+          device = Fixtures.device_fixture(org, product, firmware)
+          {:ok, _} = Pinning.pin_device(user.id, device.id)
+          device
+        end
+
+      conn
+      |> visit("/orgs")
+      |> assert_has("div", text: "Show all 6 devices")
+      |> unwrap(fn view ->
+        render_click(view, "toggle-expand-devices")
+      end)
+      |> assert_has("div", text: "Show less")
+    end
+
+    test "connection:change broadcast updates device status", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      device = Fixtures.device_fixture(org, product, firmware)
+      {:ok, _} = Pinning.pin_device(user.id, device.id)
+
+      conn
+      |> visit("/orgs")
+      |> unwrap(fn view ->
+        send(view.pid, %Broadcast{
+          topic: "internal:device:#{device.id}",
+          event: "connection:change",
+          payload: %{device_id: device.identifier, status: "online"}
+        })
+
+        render(view)
+      end)
     end
   end
 end

@@ -330,6 +330,8 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
 
+    original = Application.get_env(:nerves_hub, :analytics_enabled)
+    on_exit(fn -> Application.put_env(:nerves_hub, :analytics_enabled, original) end)
     Application.put_env(:nerves_hub, :analytics_enabled, false)
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
