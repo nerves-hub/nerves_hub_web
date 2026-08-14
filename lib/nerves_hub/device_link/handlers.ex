@@ -23,7 +23,7 @@ defmodule NervesHub.DeviceLink.Handlers do
   @group :handlers
 
   @doc "The :pg scope, started on every node so membership can be read."
-  @spec scope() :: atom()
+  @spec scope() :: __MODULE__.PG
   def scope(), do: @scope
 
   @doc "Child spec for the scope itself. Every node needs this; only handlers join."
