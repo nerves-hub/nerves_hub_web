@@ -748,6 +748,180 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
+  describe "get_delta_or_firmware/2" do
+    test "returns completed delta when deployment_group and firmware are delta_updatable and delta exists", %{
+      firmware: source,
+      matching_device: device,
+      org_key: org_key,
+      product: product,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Enable delta_updatable on the target firmware
+      Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(target, %{user: user, delta_updatable: true})
+
+      # Set device's firmware UUID to point to the source firmware.
+      # fwup_version must be >= the delta's tool_metadata["delta_fwup_version"] (1.13.0)
+      # for device_update_type/2 to return :delta.
+      source_meta = %{
+        uuid: source.uuid,
+        architecture: source.architecture,
+        platform: source.platform,
+        product: product.name,
+        version: source.version,
+        fwup_version: "2.0.0"
+      }
+
+      {:ok, device} =
+        NervesHub.Devices.update_firmware_metadata(device, source_meta, :unknown, false)
+
+      firmware_delta = Fixtures.firmware_delta_fixture(source, target, %{status: :completed})
+
+      {:ok, deployment_group} = NervesHub.ManagedDeployments.get_deployment_group(deployment_group)
+
+      assert {:ok, result} = Firmwares.get_delta_or_firmware(device, deployment_group)
+      assert result.id == firmware_delta.id
+    end
+
+    test "falls through to target firmware when delta status is not completed", %{
+      firmware: source,
+      matching_device: device,
+      org_key: org_key,
+      product: product,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(target, %{user: user, delta_updatable: true})
+
+      source_meta = %{
+        uuid: source.uuid,
+        architecture: source.architecture,
+        platform: source.platform,
+        product: product.name,
+        version: source.version
+      }
+
+      {:ok, device} =
+        NervesHub.Devices.update_firmware_metadata(device, source_meta, :unknown, false)
+
+      # Create a non-completed delta (processing)
+      Fixtures.firmware_delta_fixture(source, target, %{status: :processing, tool: "pending"})
+
+      {:ok, deployment_group} = NervesHub.ManagedDeployments.get_deployment_group(deployment_group)
+
+      assert {:ok, result} = Firmwares.get_delta_or_firmware(device, deployment_group)
+      assert result.id == target.id
+    end
+
+    test "returns target firmware when source UUID not in DB", %{
+      matching_device: device,
+      org_key: org_key,
+      product: product,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(target, %{user: user, delta_updatable: true})
+
+      # Device's firmware UUID points to nothing in DB
+      device = Map.update!(device, :firmware_metadata, &%{&1 | uuid: Ecto.UUID.generate()})
+
+      {:ok, deployment_group} = NervesHub.ManagedDeployments.get_deployment_group(deployment_group)
+
+      assert {:ok, result} = Firmwares.get_delta_or_firmware(device, deployment_group)
+      assert result.id == target.id
+    end
+
+    test "returns target firmware when deployment_group delta_updatable is false", %{
+      matching_device: device,
+      org_key: org_key,
+      product: product,
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
+
+      deployment_group =
+        Fixtures.deployment_group_fixture(target, %{user: user, delta_updatable: false})
+
+      {:ok, deployment_group} = NervesHub.ManagedDeployments.get_deployment_group(deployment_group)
+
+      assert {:ok, result} = Firmwares.get_delta_or_firmware(device, deployment_group)
+      assert result.id == target.id
+    end
+  end
+
+  describe "metadata_from_device/2" do
+    test "returns {:ok, metadata} when all required fields are present", %{
+      product: product
+    } do
+      params = %{
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_architecture" => "arm64",
+        "nerves_fw_platform" => "test_host",
+        "nerves_fw_product" => product.name,
+        "nerves_fw_version" => "1.0.0"
+      }
+
+      assert {:ok, meta} = Firmwares.metadata_from_device(params, product.id)
+      assert meta.uuid == params["nerves_fw_uuid"]
+      assert meta.architecture == "arm64"
+    end
+
+    test "returns {:ok, nil} when UUID is missing entirely", %{product: product} do
+      params = %{
+        "nerves_fw_architecture" => "arm64",
+        "nerves_fw_platform" => "test_host",
+        "nerves_fw_product" => product.name,
+        "nerves_fw_version" => "1.0.0"
+      }
+
+      assert {:ok, nil} = Firmwares.metadata_from_device(params, product.id)
+    end
+
+    test "returns {:ok, nil} when UUID is present but not in DB", %{product: product} do
+      params = %{
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_architecture" => "arm64",
+        "nerves_fw_platform" => "test_host",
+        "nerves_fw_product" => product.name
+        # missing version — makes changeset invalid
+      }
+
+      assert {:ok, nil} = Firmwares.metadata_from_device(params, product.id)
+    end
+
+    test "looks up DB firmware when changeset invalid but UUID is known", %{
+      firmware: firmware,
+      product: product
+    } do
+      params = %{
+        "nerves_fw_uuid" => firmware.uuid,
+        "nerves_fw_architecture" => "arm64",
+        "nerves_fw_platform" => "test_host",
+        "nerves_fw_product" => product.name
+        # missing version — makes changeset invalid
+      }
+
+      assert {:ok, meta} = Firmwares.metadata_from_device(params, product.id)
+      assert meta.uuid == firmware.uuid
+    end
+  end
+
   defp get_deltas_by_source_firmware(firmware) do
     FirmwareDelta
     |> where([fd], fd.source_id == ^firmware.id)
