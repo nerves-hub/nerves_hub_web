@@ -170,7 +170,7 @@ defmodule NervesHub.MixProject do
       {:unzip, "~> 0.12"},
       {:uuidv7, "~> 1.0"},
       {:x509, "~> 0.5.1 or ~> 0.6"},
-      {:flop, "~> 0.26.1"}
+      {:flop, "~> 0.27.0"}
     ]
   end
 
