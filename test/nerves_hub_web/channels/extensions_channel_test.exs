@@ -15,8 +15,19 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   alias NervesHubWeb.ExtensionsChannel
   alias Phoenix.Socket.Broadcast
 
+  # :analytics_enabled is global, and one test below turns it off. Without
+  # restoring it, that setting outlives this file and every later test in the
+  # same partition that expects analytics sees it disabled -- which surfaces as
+  # a rendering assertion failing somewhere unrelated. Whether it bites at all
+  # depends on the seed, so it fails on some runs and not others.
   setup do
+    original = Application.get_env(:nerves_hub, :analytics_enabled)
+
     Application.put_env(:nerves_hub, :analytics_enabled, true)
+
+    on_exit(fn -> Application.put_env(:nerves_hub, :analytics_enabled, original) end)
+
+    :ok
   end
 
   test "joining device channel works without understanding extensions", %{tmp_dir: tmp_dir} do
