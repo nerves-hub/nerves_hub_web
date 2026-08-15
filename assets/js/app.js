@@ -12,6 +12,7 @@ import BarChart from "./hooks/barChart.js"
 import Chart from "./hooks/chart.js"
 import CommandPalette from "./hooks/commandPalette.js"
 import Console from "./hooks/console.js"
+import CopyToClipboard from "./hooks/copyToClipboard.js"
 import CrossFadeOnUpdate from "./hooks/crossFadeOnUpdate.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
@@ -61,6 +62,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     Chart,
     CommandPalette,
     Console,
+    CopyToClipboard,
     CrossFadeOnUpdate,
     DeviceLocationMap,
     DeviceLocationMapWithGeocoder,
