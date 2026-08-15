@@ -142,4 +142,16 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
              Scope.for_user(user)
              |> Pinning.get_pinned_devices()
   end
+
+  test "PinnedDevice.create/1 returns invalid changeset on missing fields" do
+    changeset = PinnedDevice.create(%{})
+    refute changeset.valid?
+    assert changeset.errors[:user_id] != nil
+    assert changeset.errors[:device_id] != nil
+  end
+
+  test "PinnedDevice.create/1 returns valid changeset with required fields", %{user: user, device: device} do
+    changeset = PinnedDevice.create(%{user_id: user.id, device_id: device.id})
+    assert changeset.valid?
+  end
 end

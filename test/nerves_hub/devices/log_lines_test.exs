@@ -229,6 +229,12 @@ defmodule NervesHub.Devices.LogLinesTest do
   end
 
   describe "LogLine.create_changeset/3" do
+    test "missing timestamp produces invalid changeset", %{device: device} do
+      changeset = LogLine.create_changeset(device.id, device.product_id, %{"message" => "hi", "level" => "info"})
+      refute changeset.valid?
+      assert changeset.errors[:timestamp] != nil
+    end
+
     test "valid params produce a valid changeset", %{device: device} do
       changeset =
         LogLine.create_changeset(device.id, device.product_id, %{

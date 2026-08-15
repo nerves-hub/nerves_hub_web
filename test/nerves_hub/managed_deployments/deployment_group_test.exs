@@ -138,6 +138,43 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
       refute changeset.valid?
       assert errors_on(changeset).notes == ["should be at most 1000 character(s)"]
     end
+
+    test "user not associated with product gets invalid created_by error", %{
+      deployment_group_params: deployment_group_params,
+      product: product,
+      firmware: firmware
+    } do
+      unrelated_user = Fixtures.user_fixture()
+
+      changeset = DeploymentGroup.create_changeset(deployment_group_params, product, firmware, unrelated_user)
+
+      refute changeset.valid?
+      [release_changeset] = Ecto.Changeset.get_change(changeset, :deployment_releases)
+      assert {:created_by_id, {"invalid associated user", []}} in release_changeset.errors
+    end
+
+    test "default_lifo_deployment_queue sets queue_management to LIFO", %{
+      deployment_group_params: deployment_group_params,
+      product: product,
+      user: user,
+      firmware: firmware
+    } do
+      original = Application.get_env(:nerves_hub, :default_lifo_deployment_queue)
+
+      try do
+        Application.put_env(:nerves_hub, :default_lifo_deployment_queue, true)
+
+        changeset = DeploymentGroup.create_changeset(deployment_group_params, product, firmware, user)
+
+        assert Ecto.Changeset.get_change(changeset, :queue_management) == :LIFO
+      after
+        if is_nil(original) do
+          Application.delete_env(:nerves_hub, :default_lifo_deployment_queue)
+        else
+          Application.put_env(:nerves_hub, :default_lifo_deployment_queue, original)
+        end
+      end
+    end
   end
 
   describe "update_changeset/2" do
@@ -239,6 +276,14 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
 
       refute changeset.valid?
       assert errors_on(changeset).notes == ["should be at most 1000 character(s)"]
+    end
+
+    test "nil tags in conditions are coerced to empty list", %{deployment_group: deployment_group} do
+      changeset =
+        DeploymentGroup.update_changeset(deployment_group, %{conditions: %{tags: nil, version: ""}})
+
+      assert changeset.valid?
+      assert changeset.changes.conditions.changes.tags == []
     end
   end
 

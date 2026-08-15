@@ -4,6 +4,9 @@ defmodule NervesHub.MixProject do
   alias Flop.Schema.NervesHub.Devices.Device
   alias Inspect.NervesHub.Accounts.User
   alias Jason.Encoder.OrderedCollections.SortedMap
+  alias NervesHub.Accounts.Org.Setting
+  alias NervesHub.Firmwares.Upload.S3
+  alias NervesHub.Helpers.Logging
   alias NervesHubWeb.Plugs.OpenApiSpec
 
   def project() do
@@ -42,22 +45,28 @@ defmodule NervesHub.MixProject do
           NervesHubWeb.ApiSpec,
           ~r/NervesHubWeb\.API\.Schemas\..*/,
           ~r/NervesHubWeb\.API\.OpenAPI\..*/,
+          ~r/NervesHubWeb\.API\.UI.*/,
           # Derived or macro-generated
           Device,
           User,
           SortedMap,
-          # Emails, emails, emails
+          Setting,
+          # Emails and views
           NervesHub.EmailView,
           NervesHubWeb.DeviceHTML,
           NervesHubWeb.HomeView,
           NervesHubWeb.OAuthHTML,
           NervesHubWeb.PasswordResetHTML,
           NervesHubWeb.ProductView,
-          # Mix tasks
+          # Tools
           ~r/Mix.Tasks\..*/,
+          S3,
+          NervesHub.Debug,
+          Logging,
           # Misc
           OpenApiSpec,
-          NervesHubWeb.SentryEventFilter
+          NervesHubWeb.SentryEventFilter,
+          NervesHub.DeviceSSLTransport
         ]
       ]
     ]
