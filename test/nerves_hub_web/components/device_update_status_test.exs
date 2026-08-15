@@ -1,10 +1,46 @@
 defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
   use ExUnit.Case, async: true
 
+  alias NervesHub.Devices.Device
   alias NervesHubWeb.Components.DeviceUpdateStatus
 
   defp future(seconds) do
     DateTime.add(DateTime.utc_now(), seconds, :second)
+  end
+
+  describe "render/1" do
+    test "renders penalty-box SVG when device is in penalty box" do
+      device = %Device{
+        id: 1,
+        updates_enabled: true,
+        updates_blocked_until: future(3600)
+      }
+
+      rendered = Phoenix.LiveViewTest.rendered_to_string(DeviceUpdateStatus.render(%{device: device}))
+      assert String.contains?(rendered, "stroke-warning")
+    end
+
+    test "renders enabled SVG when updates are enabled and not penalized" do
+      device = %Device{
+        id: 2,
+        updates_enabled: true,
+        updates_blocked_until: nil
+      }
+
+      rendered = Phoenix.LiveViewTest.rendered_to_string(DeviceUpdateStatus.render(%{device: device}))
+      assert String.contains?(rendered, "stroke-success")
+    end
+
+    test "renders disabled SVG when updates are disabled" do
+      device = %Device{
+        id: 3,
+        updates_enabled: false,
+        updates_blocked_until: nil
+      }
+
+      rendered = Phoenix.LiveViewTest.rendered_to_string(DeviceUpdateStatus.render(%{device: device}))
+      assert String.contains?(rendered, "stroke-alert")
+    end
   end
 
   describe "friendly_blocked_until/1" do

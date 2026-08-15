@@ -5,6 +5,7 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
 
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFiltering
+  alias NervesHub.Devices.Health
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
@@ -200,6 +201,47 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
     end
   end
 
+  describe "filter/4 :alarm" do
+    test "filters devices by alarm name substring", %{org: org, product: product, firmware: firmware} do
+      with_alarm = Fixtures.device_fixture(org, product, firmware)
+      without_alarm = Fixtures.device_fixture(org, product, firmware)
+      save_health(with_alarm, "healthy", %{"alarms" => %{"HighTempAlarm" => "active"}})
+      save_health(without_alarm, "healthy", %{"alarms" => %{}})
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :alarm, "HighTemp") |> identifiers()
+      assert with_alarm.identifier in result
+      refute without_alarm.identifier in result
+    end
+  end
+
+  describe "filter/4 :connection_type" do
+    test "filters by ethernet connection type", %{org: org, product: product, firmware: firmware} do
+      ethernet = Fixtures.device_fixture(org, product, firmware)
+      wifi = Fixtures.device_fixture(org, product, firmware)
+      Fixtures.device_connection_fixture(ethernet, %{network_interface: :ethernet})
+      Fixtures.device_connection_fixture(wifi, %{network_interface: :wifi})
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :connection_type, "ethernet") |> identifiers()
+      assert ethernet.identifier in result
+      refute wifi.identifier in result
+    end
+
+    test "unknown connection type matches nil or unknown interface", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      device = Fixtures.device_fixture(org, product, firmware)
+      Fixtures.device_connection_fixture(device, %{network_interface: :unknown})
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :connection_type, "unknown") |> identifiers()
+      assert device.identifier in result
+    end
+  end
+
   describe "filter/4 unknown key" do
     test "returns the query unchanged for unknown filter keys", %{org: org, product: product, firmware: firmware} do
       device = Fixtures.device_fixture(org, product, firmware)
@@ -263,6 +305,243 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
         |> Repo.all()
 
       assert result == Enum.sort(result)
+    end
+  end
+
+  defp save_health(device, status, data \\ %{}) do
+    {:ok, _} =
+      Health.save_device_health(%{
+        "device_id" => device.id,
+        "data" => data,
+        "status" => status,
+        "status_reasons" => %{}
+      })
+  end
+
+  describe "filter/4 :health_status" do
+    test "filters devices by health status", %{org: org, product: product, firmware: firmware} do
+      healthy = Fixtures.device_fixture(org, product, firmware)
+      unhealthy = Fixtures.device_fixture(org, product, firmware)
+      save_health(healthy, "healthy")
+      save_health(unhealthy, "unhealthy")
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :health_status, "healthy") |> identifiers()
+      assert healthy.identifier in result
+      refute unhealthy.identifier in result
+    end
+
+    test "unknown health status matches devices with no health or unknown status", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      no_health = Fixtures.device_fixture(org, product, firmware)
+      save_health(no_health, "unknown")
+      healthy = Fixtures.device_fixture(org, product, firmware)
+      save_health(healthy, "healthy")
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :health_status, "unknown") |> identifiers()
+      assert no_health.identifier in result
+      refute healthy.identifier in result
+    end
+  end
+
+  describe "filter/4 :alarm_status" do
+    test "with filters devices that have alarms", %{org: org, product: product, firmware: firmware} do
+      with_alarm = Fixtures.device_fixture(org, product, firmware)
+      without_alarm = Fixtures.device_fixture(org, product, firmware)
+      save_health(with_alarm, "healthy", %{"alarms" => %{"SomeAlarm" => "active"}})
+      save_health(without_alarm, "healthy", %{"alarms" => %{}})
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :alarm_status, "with") |> identifiers()
+      assert with_alarm.identifier in result
+      refute without_alarm.identifier in result
+    end
+
+    test "without filters devices that have no alarms", %{org: org, product: product, firmware: firmware} do
+      with_alarm = Fixtures.device_fixture(org, product, firmware)
+      without_alarm = Fixtures.device_fixture(org, product, firmware)
+      save_health(with_alarm, "healthy", %{"alarms" => %{"SomeAlarm" => "active"}})
+      save_health(without_alarm, "healthy", %{"alarms" => %{}})
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :alarm_status, "without") |> identifiers()
+      assert without_alarm.identifier in result
+      refute with_alarm.identifier in result
+    end
+
+    test "unknown value returns query unchanged", %{org: org, product: product, firmware: firmware} do
+      device = Fixtures.device_fixture(org, product, firmware)
+      save_health(device, "healthy", %{"alarms" => %{}})
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :alarm_status, "bogus") |> identifiers()
+      assert device.identifier in result
+    end
+  end
+
+  describe "filter/4 :connection" do
+    test "not_seen returns registered devices", %{org: org, product: product, firmware: firmware} do
+      device = Fixtures.device_fixture(org, product, firmware)
+      Repo.update_all(where(Device, id: ^device.id), set: [status: :registered])
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :connection, "not_seen") |> identifiers()
+      assert device.identifier in result
+    end
+
+    test "connected returns connected devices", %{org: org, product: product, firmware: firmware} do
+      device = Fixtures.device_fixture(org, product, firmware)
+      Fixtures.device_connection_fixture(device, %{status: :connected})
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :connection, "connected") |> identifiers()
+      assert device.identifier in result
+    end
+
+    test "not_seen_in_seven_days returns disconnected devices last seen > 7 days ago", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      old = Fixtures.device_fixture(org, product, firmware)
+      recent = Fixtures.device_fixture(org, product, firmware)
+
+      Fixtures.device_connection_fixture(old, %{
+        status: :disconnected,
+        last_seen_at: DateTime.add(DateTime.utc_now(), -8, :day)
+      })
+
+      Fixtures.device_connection_fixture(recent, %{
+        status: :disconnected,
+        last_seen_at: DateTime.add(DateTime.utc_now(), -1, :day)
+      })
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :connection, "not_seen_in_seven_days") |> identifiers()
+      assert old.identifier in result
+      refute recent.identifier in result
+    end
+
+    test "not_seen_in_fourteen_days returns disconnected devices last seen > 14 days ago", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      old = Fixtures.device_fixture(org, product, firmware)
+
+      Fixtures.device_connection_fixture(old, %{
+        status: :disconnected,
+        last_seen_at: DateTime.add(DateTime.utc_now(), -15, :day)
+      })
+
+      recent = Fixtures.device_fixture(org, product, firmware)
+
+      Fixtures.device_connection_fixture(recent, %{
+        status: :disconnected,
+        last_seen_at: DateTime.add(DateTime.utc_now(), -7, :day)
+      })
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :connection, "not_seen_in_fourteen_days") |> identifiers()
+      assert old.identifier in result
+      refute recent.identifier in result
+    end
+  end
+
+  describe "filter/4 :platform" do
+    test "filters by platform value", %{org: org, product: product, firmware: firmware, org_key: org_key} do
+      other_fw = Fixtures.firmware_fixture(org_key, product, %{platform: "rpi4"})
+      rpi4 = Fixtures.device_fixture(org, product, other_fw)
+      _other = Fixtures.device_fixture(org, product, firmware)
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :platform, "rpi4") |> identifiers()
+      assert rpi4.identifier in result
+    end
+
+    test "Unknown platform does not match devices with a known platform", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :platform, "Unknown") |> identifiers()
+      refute device.identifier in result
+    end
+  end
+
+  describe "filter/4 :updates penalty-box" do
+    test "penalty-box returns devices blocked until future", %{org: org, product: product, firmware: firmware} do
+      penalized = Fixtures.device_fixture(org, product, firmware)
+      normal = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: true})
+
+      Repo.update_all(
+        where(Device, id: ^penalized.id),
+        set: [updates_blocked_until: DateTime.add(DateTime.utc_now(), 1, :hour)]
+      )
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :updates, "penalty-box") |> identifiers()
+      assert penalized.identifier in result
+      refute normal.identifier in result
+    end
+  end
+
+  describe "filter/4 :only_updating" do
+    test "false returns query unchanged", %{org: org, product: product, firmware: firmware} do
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      query =
+        Device
+        |> where([d], d.product_id == ^product.id)
+        |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+        |> join(:left, [d], dh in assoc(d, :latest_health), as: :latest_health)
+        |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)
+
+      result = DeviceFiltering.filter(query, %{}, :only_updating, false) |> identifiers()
+      assert device.identifier in result
+    end
+  end
+
+  describe "sort/2 remaining variants" do
+    test "desc :connection_established_at", %{org: org, product: product, firmware: firmware} do
+      d1 = Fixtures.device_fixture(org, product, firmware)
+      d2 = Fixtures.device_fixture(org, product, firmware)
+
+      now = DateTime.utc_now()
+      Fixtures.device_connection_fixture(d1, %{established_at: DateTime.add(now, -10, :second)})
+      Fixtures.device_connection_fixture(d2, %{established_at: DateTime.add(now, -1, :second)})
+
+      result =
+        base_query(product)
+        |> DeviceFiltering.sort({:desc, :connection_established_at})
+        |> select([d], d.identifier)
+        |> Repo.all()
+
+      assert Enum.count(result) >= 2
+    end
+
+    test "asc :connection_last_seen_at", %{org: org, product: product, firmware: firmware} do
+      d1 = Fixtures.device_fixture(org, product, firmware)
+      d2 = Fixtures.device_fixture(org, product, firmware)
+
+      now = DateTime.utc_now()
+      Fixtures.device_connection_fixture(d1, %{last_seen_at: DateTime.add(now, -10, :second)})
+      Fixtures.device_connection_fixture(d2, %{last_seen_at: DateTime.add(now, -1, :second)})
+
+      result =
+        base_query(product)
+        |> DeviceFiltering.sort({:asc, :connection_last_seen_at})
+        |> select([d], d.identifier)
+        |> Repo.all()
+
+      assert Enum.count(result) >= 2
     end
   end
 
