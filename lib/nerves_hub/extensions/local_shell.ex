@@ -1,7 +1,20 @@
 defmodule NervesHub.Extensions.LocalShell do
+  @moduledoc """
+  Gives a user a shell on the device.
+
+  Unusually for an extension, nothing here touches the database — output is
+  relayed to whoever is watching, and a bounded scrollback is kept so someone
+  opening the tab can see what they missed.
+
+  That scrollback stays on the connection rather than in this extension's state.
+  A full one measures around 89KB, and extension state travels with every call,
+  so a device writing steadily to its shell would otherwise send its entire
+  backlog back and forth per line of output. See `NervesHub.DeviceLink.Effect`.
+  """
+
   @behaviour NervesHub.Extensions
 
-  import Phoenix.Socket, only: [assign: 3]
+  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -18,74 +31,43 @@ defmodule NervesHub.Extensions.LocalShell do
   end
 
   @impl NervesHub.Extensions
-  def attach(socket) do
-    Phoenix.Channel.push(socket, "local_shell:request_shell", %{})
-
-    socket =
-      socket
-      |> assign(:current_line, "")
-      |> assign(:buffer, CircularBuffer.new(1024))
-
-    {:noreply, socket}
+  def attach(state) do
+    {state, [{:push, "local_shell:request_shell", %{}}, {:scrollback_clear}]}
   end
 
   @impl NervesHub.Extensions
-  def detach(socket) do
-    socket =
-      socket
-      |> assign(:current_line, nil)
-      |> assign(:buffer, nil)
-
-    {:noreply, socket}
+  def detach(state) do
+    {state, [{:scrollback_clear}]}
   end
 
   @impl NervesHub.Extensions
-  def handle_in("shell_output", %{"data" => data}, socket) do
-    current_line = socket.assigns.current_line <> data
+  def handle_in("shell_output", %{"data" => data}, state) do
+    topic = "user:local_shell:#{state.device_info.device_id}"
+    :ok = ChannelServer.broadcast!(NervesHub.PubSub, topic, "output", %{data: data})
 
-    [current_line | lines] = Enum.reverse(String.split(current_line, "\n"))
-
-    buffer =
-      Enum.reduce(Enum.reverse(lines), socket.assigns.buffer, fn line, buffer ->
-        CircularBuffer.insert(buffer, line <> "\n")
-      end)
-
-    socket =
-      socket
-      |> assign(:current_line, current_line)
-      |> assign(:buffer, buffer)
-
-    topic = "user:local_shell:#{socket.assigns.device_info.device_id}"
-
-    socket.endpoint.broadcast!(topic, "output", %{data: data})
-
-    {:noreply, socket}
+    {state, [{:scrollback_append, data}]}
   end
 
-  def handle_in(event, params, socket) do
+  def handle_in(event, params, state) do
     Logger.warning(
-      "[Extensions.LocalShell] unknown message received for device: #{inspect(socket.assigns.device_info.device_id)} / #{inspect(event)} / #{inspect(params)}"
+      "[Extensions.LocalShell] unknown message received for device: #{inspect(state.device_info.device_id)} / #{inspect(event)} / #{inspect(params)}"
     )
 
-    {:noreply, socket}
+    {state, []}
   end
 
-  def handle_info({:connect, pid}, socket) do
-    lines = Enum.join(socket.assigns.buffer) <> socket.assigns.current_line
-
-    send(pid, {:cache, lines})
-
-    {:noreply, socket}
+  def handle_info({:connect, pid}, state) do
+    {state, [{:scrollback_replay, pid}]}
   end
 
-  def handle_info({:active?, pid}, socket) do
+  def handle_info({:active?, pid}, state) do
     send(pid, :active)
 
-    {:noreply, socket}
+    {state, []}
   end
 
   @impl NervesHub.Extensions
-  def handle_info(_msg, socket) do
-    {:noreply, socket}
+  def handle_info(_msg, state) do
+    {state, []}
   end
 end

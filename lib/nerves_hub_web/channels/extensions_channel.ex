@@ -1,22 +1,31 @@
 defmodule NervesHubWeb.ExtensionsChannel do
+  @moduledoc """
+  Carries extension traffic between a device and the platform.
+
+  This channel knows nothing about extensions themselves — not which modules
+  serve them, not whether they are attached, not what any message means. It asks
+  `NervesHub.DeviceLink` and carries out the effects it gets back: push this to
+  the device, send me this term now, send it to me on an interval, stop that
+  timer. Every term it handles is opaque to it.
+  """
+
   use Phoenix.Channel
   use OpenTelemetryDecorator
 
-  alias NervesHub.Extensions
-  alias NervesHub.Helpers.Logging
+  alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHubWeb.Channels.Effects
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
-
-  require Logger
 
   @impl Phoenix.Channel
   @decorate with_span("Channels.ExtensionsChannel.join")
   def join("extensions", extension_versions, %{assigns: %{device_info: device_info}} = socket) do
-    extensions = load_and_parse_extensions(device_info, extension_versions)
+    {attach_list, extensions} = DeviceLink.extensions_join(device_info, extension_versions)
 
-    socket = assign(socket, :extensions, extensions)
-
-    attach_list = for {key, %{attach?: true}} <- extensions, do: key
+    socket =
+      socket
+      |> assign(:extensions, extensions)
+      |> Effects.init()
 
     if not Enum.empty?(attach_list) do
       send(self(), :init_extensions)
@@ -33,68 +42,19 @@ defmodule NervesHubWeb.ExtensionsChannel do
     {:ok, attach_list, socket}
   end
 
-  defp load_and_parse_extensions(device_info, extension_versions) do
-    for {key_str, version} <- extension_versions, into: %{} do
-      meta =
-        case Version.parse(version) do
-          {:ok, ver} ->
-            extension = Enum.find(device_info.allowed_extensions, &(to_string(&1) == key_str))
-
-            if extension do
-              mod = Extensions.module(extension, ver)
-              attach = Code.ensure_loaded?(mod) && mod.enabled?()
-              %{attach?: attach, version: ver, module: mod, status: :detached}
-            else
-              %{attach?: false, version: version, module: nil, status: :detached}
-            end
-
-          _ ->
-            %{attach?: false, version: version, module: nil, status: :detached}
-        end
-
-      {key_str, meta}
-    end
-  end
-
   @impl Phoenix.Channel
   @decorate with_span("Channels.ExtensionsChannel.handle_in")
   def handle_in(scoped_event, payload, socket) do
-    with [key, event] <- String.split(scoped_event, ":", parts: 2),
-         %{attach?: true, status: status, module: mod} <- socket.assigns.extensions[key] do
-      case event do
-        "attached" ->
-          update_in(socket.assigns.extensions[key], &%{&1 | status: :attached})
-          |> mod.attach()
+    case DeviceLink.extension_message(socket.assigns.extensions, scoped_event, payload) do
+      {:ok, extensions, effects} ->
+        socket
+        |> assign(:extensions, extensions)
+        |> apply_effects(effects)
 
-        "detached" ->
-          update_in(socket.assigns.extensions[key], &%{&1 | status: :detached})
-          |> mod.detach()
-
-        "error" ->
-          socket = update_in(socket.assigns.extensions[key], &%{&1 | status: :detached})
-          safe_handle_in(mod, event, payload, socket)
-
-        event when status == :attached ->
-          safe_handle_in(mod, event, payload, socket)
-
-        _ ->
-          {:noreply, socket}
-      end
-    else
-      _ ->
+      :unknown ->
         # Unknown extension, tell device to detach it
         {:reply, {:error, "detach"}, socket}
     end
-  end
-
-  defp safe_handle_in(mod, event, payload, socket) do
-    mod.handle_in(event, payload, socket)
-  rescue
-    error ->
-      Logger.warning("#{inspect(mod)} failed to handle extension message [#{event}] - #{inspect(error)}")
-
-      Logging.log_to_sentry(socket.assigns.device_info, error)
-      {:noreply, socket}
   end
 
   @impl Phoenix.Channel
@@ -113,18 +73,14 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   @decorate with_span("Channels.ExtensionsChannel.handle_info[Broadcast]")
   def handle_info({mod, msg}, socket) do
-    socket.assigns.extensions
-    |> Enum.find(fn {_, v} -> v[:module] == mod && v[:status] == :attached end)
-    |> case do
-      nil -> {:noreply, socket}
-      _ -> mod.handle_info(msg, socket)
-    end
-  rescue
-    error ->
-      Logger.warning("#{inspect(mod)} failed handle_info - #{inspect(error)}")
-      Logging.log_to_sentry(socket.assigns.device_info, error)
-      {:noreply, socket}
+    {:ok, extensions, effects} = DeviceLink.extension_info(socket.assigns.extensions, mod, msg)
+
+    socket
+    |> assign(:extensions, extensions)
+    |> apply_effects(effects)
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
+
+  defp apply_effects(socket, effects), do: {:noreply, Effects.apply_all(socket, effects)}
 end

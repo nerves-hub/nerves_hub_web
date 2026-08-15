@@ -1,9 +1,9 @@
 defmodule NervesHubWeb.Live.Product.Settings do
   use NervesHubWeb, :live_view
 
+  alias NervesHub.DeviceLink
   alias NervesHub.Extensions
   alias NervesHub.Products
-  alias NervesHubWeb.DeviceSocket
 
   def mount(_params, _session, socket) do
     product = Products.load_shared_secret_auth(socket.assigns.current_scope.product)
@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> sidebar_tab(:settings)
       |> assign(:product, product)
       |> assign(:shared_secrets, product.shared_secret_auths)
-      |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
+      |> assign(:shared_auth_enabled, DeviceLink.shared_secrets_enabled?())
       |> assign(:form, to_form(Ecto.Changeset.change(product)))
       |> assign(:available_extensions, extensions())
 

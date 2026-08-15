@@ -446,8 +446,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     assert_online_and_available(device)
 
-    refute is_nil(device_channel.assigns.device_info.deployment_id)
-    refute is_nil(device_channel.assigns.deployment_channel)
+    refute is_nil(device_channel.assigns.session.device_info.deployment_id)
+    refute is_nil(device_channel.assigns.session.deployment_topic)
 
     Deployments.clear_deployment_group(device)
 
@@ -455,8 +455,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
     # check the state of the device's connection types
     state = :sys.get_state(device_channel.channel_pid)
 
-    assert is_nil(state.assigns.device_info.deployment_id)
-    assert is_nil(state.assigns.deployment_channel)
+    assert is_nil(state.assigns.session.device_info.deployment_id)
+    assert is_nil(state.assigns.session.deployment_topic)
 
     close_cleanly(device_channel)
   end
@@ -474,8 +474,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
-    assert device_channel.assigns.device_info.deployment_id == deployment_group.id
-    refute is_nil(device_channel.assigns.deployment_channel)
+    assert device_channel.assigns.session.device_info.deployment_id == deployment_group.id
+    refute is_nil(device_channel.assigns.session.deployment_topic)
 
     device = NervesHub.Repo.preload(device, :org)
 
@@ -488,8 +488,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
     # check the state of the device's connection types
     state = :sys.get_state(device_channel.channel_pid)
 
-    assert state.assigns.device_info.deployment_id == new_deployment_group.id
-    refute is_nil(state.assigns.deployment_channel)
+    assert state.assigns.session.device_info.deployment_id == new_deployment_group.id
+    refute is_nil(state.assigns.session.deployment_topic)
 
     close_cleanly(device_channel)
   end
@@ -510,7 +510,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
-    assert device_channel.assigns.device_info.deployment_id == deployment_group.id
+    assert device_channel.assigns.session.device_info.deployment_id == deployment_group.id
 
     close_cleanly(device_channel)
   end
@@ -537,7 +537,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
-    refute device_channel.assigns.device_info.deployment_id
+    refute device_channel.assigns.session.device_info.deployment_id
 
     close_cleanly(device_channel)
   end
@@ -556,7 +556,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device:#{device.id}")
 
-    assert device_channel.assigns.device_info.deployment_id == deployment_group.id
+    assert device_channel.assigns.session.device_info.deployment_id == deployment_group.id
 
     close_cleanly(device_channel)
   end

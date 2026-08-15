@@ -9,5 +9,15 @@ defmodule NervesHub.Helpers.WebsocketConnectionError do
     |> send_resp(401, @message)
   end
 
+  @unavailable "the platform could not be reached to authenticate this device"
+
+  # Not the device's fault, and worth distinguishing: 401 tells it to check its
+  # credentials, when what it should do is try again shortly.
+  def handle_error(conn, :platform_unavailable) do
+    conn
+    |> put_resp_header("nh-connection-error-reason", @unavailable)
+    |> send_resp(503, @unavailable)
+  end
+
   def handle_error(conn, _reason), do: send_resp(conn, 401, "")
 end

@@ -6,48 +6,363 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Accounts
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.DeviceLink.Authentication
+  alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.DeviceLink.Effect
+  alias NervesHub.DeviceLink.Session
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Updates
+  alias NervesHub.Extensions.Dispatch, as: ExtensionDispatch
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias Phoenix.Channel.Server, as: ChannelServer
+  alias Phoenix.Socket.Broadcast
 
-  defmodule DeviceInfo do
-    defstruct [
-      :allowed_extensions,
-      :connection_ref,
-      :deployment_id,
-      :device_id,
-      :device_identifier,
-      :device_network_interface,
-      :device_updates_blocked_until,
-      :device_updates_enabled,
-      :firmware_metadata,
-      :org_id,
-      :product_id
-    ]
-
-    @type t :: %__MODULE__{
-            allowed_extensions: list(atom()) | nil,
-            connection_ref: String.t() | nil,
-            deployment_id: pos_integer() | nil,
-            device_id: pos_integer() | nil,
-            device_updates_enabled: boolean() | nil,
-            device_updates_blocked_until: DateTime.t() | nil,
-            device_identifier: String.t() | nil,
-            device_network_interface: String.t() | nil,
-            firmware_metadata: map() | nil,
-            org_id: pos_integer() | nil,
-            product_id: pos_integer() | nil
-          }
-  end
+  require Logger
 
   @public_key_types ["fwup_public_keys", "archive_public_keys"]
+
+  # ------------------------------------------------------------------------
+  # Device channel
+  #
+  # Four entry points covering everything that can happen on a device's link:
+  # it joins, it says something, something in the platform addresses it, or a
+  # broadcast needs handling before the device sees it. Each takes the session
+  # and returns a new one plus effects — see `NervesHub.DeviceLink.Effect`.
+  # ------------------------------------------------------------------------
+
+  @doc """
+  The device has joined its channel.
+  """
+  @spec device_join(DeviceInfo.t(), params :: map()) ::
+          {:ok, Session.t(), [Effect.t()]} | {:error, any()}
+  def device_join(device_info, params) do
+    params = sanitize_device_api_version(params)
+
+    case join(device_info, params) do
+      {:ok, device_info} ->
+        session = %Session{
+          device_info: device_info,
+          device_api_version: params["device_api_version"],
+          currently_downloading_uuid: params["currently_downloading_uuid"]
+        }
+
+        {session, effects} = follow_deployment_group(session)
+
+        {:ok, session, effects ++ [{:send_self, {:after_join, params}}]}
+
+      error ->
+        :telemetry.execute([:nerves_hub, :devices, :join_failure], %{count: 1}, %{
+          identifier: device_info.device_identifier,
+          channel: "device",
+          error: error
+        })
+
+        {:error, error}
+    end
+  end
+
+  @doc """
+  The device sent us something.
+  """
+  @spec device_message(Session.t(), event :: String.t(), payload :: map()) :: {Session.t(), [Effect.t()]}
+  def device_message(session, "firmware_validated", _payload) do
+    :ok = firmware_validated(session.device_info)
+    {session, []}
+  end
+
+  def device_message(session, "fwup_progress", %{"value" => percent} = params) do
+    {stage, percent} =
+      case {params["stage"], percent} do
+        {nil, 100} -> {"completed", nil}
+        {nil, _} -> {"updating", percent}
+        {stage, _} -> {stage, percent}
+      end
+
+    :ok = status_update(session.device_info, %{"status" => stage, "progress" => percent})
+
+    {session, []}
+  end
+
+  def device_message(session, "connection_types", %{"values" => types}) do
+    :ok = update_connection_metadata(session.device_info.connection_ref, %{"connection_types" => types})
+
+    {session, []}
+  end
+
+  def device_message(session, "status_update", params) do
+    :ok = status_update(session.device_info, params)
+    {session, []}
+  end
+
+  def device_message(session, "rebooting", _payload), do: {session, []}
+
+  def device_message(session, "scripts/run", %{
+        "ref" => "connecting_code",
+        "result" => result,
+        "return" => return,
+        "output" => output
+      })
+      when result == "error" or return == "nil" do
+    :telemetry.execute([:nerves_hub, :devices, :connecting_code_failure], %{
+      output: output,
+      identifier: session.device_info.device_identifier
+    })
+
+    {session, []}
+  end
+
+  def device_message(session, "scripts/run", %{"ref" => "connecting_code"}) do
+    :telemetry.execute([:nerves_hub, :devices, :connecting_code_success], %{count: 1})
+    {session, []}
+  end
+
+  def device_message(session, "scripts/run", params) do
+    ref = params["ref"]
+
+    case session.script_refs[ref] do
+      nil ->
+        # Either the script already timed out, or the device answered twice.
+        {session, []}
+
+      pid ->
+        output =
+          [params["output"], params["return"]]
+          |> Enum.join("\n")
+          |> String.trim()
+
+        send(pid, {:output, output})
+
+        # The script answered, so release the reference and the timeout that was
+        # only there in case it never did.
+        {release_script_ref(session, ref), [cancel_script_timeout(ref)]}
+    end
+  end
+
+  def device_message(session, "report_network_interface", %{"interface" => interface}) do
+    case report_network_interface(session.device_info, interface) do
+      {:ok, device_info} ->
+        {%{session | device_info: device_info}, []}
+
+      :unchanged ->
+        {session, []}
+
+      :error ->
+        Logger.warning("[DeviceChannel] could not update device network interface.")
+        {session, []}
+    end
+  end
+
+  def device_message(session, event, params) do
+    # Ignore unhandled messages so that it doesn't crash the link process
+    # preventing cascading problems.
+    :telemetry.execute([:nerves_hub, :devices, :unhandled_in], %{count: 1}, %{
+      identifier: session.device_info.device_identifier,
+      msg: event,
+      params: params
+    })
+
+    {session, []}
+  end
+
+  @doc """
+  Something in the platform addressed this device's link directly.
+  """
+  @spec device_notify(Session.t(), message :: term()) :: {Session.t(), [Effect.t()]}
+  def device_notify(session, {:after_join, params}) do
+    :ok = after_join(session.device_info, params)
+
+    effects =
+      session.device_info
+      |> fetch_connecting_code()
+      |> connecting_code_effects(session)
+
+    {session, effects}
+  end
+
+  # we can ignore this message
+  def device_notify(session, %Broadcast{event: "deployments/update"}), do: {session, []}
+
+  # listen for notifications about archive updates for deployment groups
+  def device_notify(session, %Broadcast{event: "archives/updated"}) do
+    :ok = maybe_send_archive(session.device_info, session.device_api_version, audit_log: true)
+    {session, []}
+  end
+
+  def device_notify(session, {:run_script, pid, text}) do
+    if safe_to_run_scripts?(session) do
+      ref = Base.encode64(:crypto.strong_rand_bytes(4), padding: false)
+      session = %{session | script_refs: Map.put(session.script_refs, ref, pid)}
+
+      {session,
+       [
+         {:push, "scripts/run", %{"text" => text, "ref" => ref}},
+         {:send_after, {:script_ref, ref}, {:clear_script_ref, ref}, 15_000}
+       ]}
+    else
+      send(pid, {:error, :incompatible_version})
+      {session, []}
+    end
+  end
+
+  # The script never answered. Drop the reference, and the timeout's own
+  # bookkeeping with it -- a one-shot timer that has fired leaves an entry
+  # behind otherwise, and on a connection held for weeks those accumulate.
+  def device_notify(session, {:clear_script_ref, ref}) do
+    {release_script_ref(session, ref), [cancel_script_timeout(ref)]}
+  end
+
+  def device_notify(session, message) do
+    :telemetry.execute([:nerves_hub, :devices, :unhandled_info], %{count: 1}, %{
+      identifier: session.device_info.device_identifier,
+      msg: message
+    })
+
+    {session, []}
+  end
+
+  @doc """
+  An intercepted broadcast, handled before the device sees anything.
+  """
+  @spec device_broadcast(Session.t(), event :: String.t(), payload :: map()) :: {Session.t(), [Effect.t()]}
+  def device_broadcast(session, "updated", _payload) do
+    device_info = refresh_device_info(session.device_info)
+    :ok = maybe_send_archive(device_info, session.device_api_version, audit_log: true)
+
+    follow_deployment_group(%{session | device_info: device_info})
+  end
+
+  def device_broadcast(session, "deployment_updated", payload) do
+    device_info = %{session.device_info | deployment_id: payload.deployment_id}
+    :ok = maybe_send_archive(device_info, session.device_api_version, audit_log: true)
+
+    follow_deployment_group(%{session | device_info: device_info})
+  end
+
+  defp release_script_ref(session, ref) do
+    %{session | script_refs: Map.delete(session.script_refs, ref)}
+  end
+
+  defp cancel_script_timeout(ref), do: {:cancel_timer, {:script_ref, ref}}
+
+  # A device only follows its own deployment group's topic, and that can change
+  # underneath it, so every path that touches deployment_id comes back here.
+  defp follow_deployment_group(session) do
+    topic = deployment_topic(session.device_info)
+
+    if topic == session.deployment_topic do
+      {session, []}
+    else
+      leave = if session.deployment_topic, do: [{:unsubscribe, session.deployment_topic}], else: []
+      join = if topic, do: [{:subscribe, topic}], else: []
+
+      {%{session | deployment_topic: topic}, leave ++ join}
+    end
+  end
+
+  defp deployment_topic(%{deployment_id: nil}), do: nil
+  defp deployment_topic(%{deployment_id: id}), do: "deployment:#{id}"
+
+  defp connecting_code_effects(nil, _session), do: []
+
+  defp connecting_code_effects(connecting_code, session) when is_list(connecting_code) do
+    connecting_code = Enum.join(connecting_code, "\n")
+
+    if safe_to_run_scripts?(session) do
+      # connecting code first in the case it attempts to change things before the other messages
+      [{:push, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"}}]
+    else
+      text = ~s/#{connecting_code}\n\r/
+      topic = "device:console:#{session.device_info.device_id}"
+
+      :ok = ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, "dn", %{"data" => text})
+
+      []
+    end
+  end
+
+  defp safe_to_run_scripts?(session), do: Version.match?(session.device_api_version, ">= 2.1.0")
+
+  defp sanitize_device_api_version(%{"device_api_version" => version} = params) do
+    case Version.parse(version) do
+      {:ok, _} ->
+        params
+
+      :error ->
+        Logger.warning("[DeviceChannel] invalid device_api_version value - #{inspect(version)}")
+
+        Map.put(params, "device_api_version", "1.0.0")
+    end
+  end
+
+  defp sanitize_device_api_version(params) do
+    Logger.warning("[DeviceChannel] device_api_version is missing from the connection params")
+    Map.put(params, "device_api_version", "1.0.0")
+  end
+
+  @doc """
+  Identify the device behind a set of credentials.
+
+  See `NervesHub.DeviceLink.Authentication`. Failures are flattened to
+  `:invalid_auth`; the detail is recorded as telemetry where it is known.
+  """
+  @spec authenticate(Authentication.credentials()) :: {:ok, DeviceInfo.t()} | {:error, :invalid_auth}
+  defdelegate authenticate(credentials), to: Authentication
+
+  @doc "Whether devices may authenticate with an HMAC shared secret."
+  @spec shared_secrets_enabled?() :: boolean()
+  defdelegate shared_secrets_enabled?(), to: Authentication
+
+  @doc """
+  Whether to accept a certificate at this point in path validation.
+
+  See `NervesHub.SSL.decide/2`. Reached from inside a TLS handshake, possibly on
+  a node with no database, so it takes DER rather than a decoded certificate.
+  """
+  @spec verify_peer(der :: binary(), event :: NervesHub.SSL.event()) ::
+          :valid | {:fail, NervesHub.SSL.reason()}
+  def verify_peer(der, event), do: NervesHub.SSL.decide(der, event)
+
+  @doc """
+  Record that an authenticated device has connected.
+
+  Returns the device info stamped with the connection reference that the rest of
+  the connection's lifecycle is keyed by.
+  """
+  @spec connect(DeviceInfo.t()) :: {:ok, DeviceInfo.t()} | {:error, Ecto.Changeset.t()}
+  def connect(device_info) do
+    case Connections.device_connecting(device_info.org_id, device_info.product_id, device_info.device_id) do
+      {:ok, %DeviceConnection{id: connection_id}} ->
+        {:ok, %{device_info | connection_ref: connection_id}}
+
+      {:error, _changeset} = error ->
+        error
+    end
+  end
+
+  @doc """
+  The device is still there.
+  """
+  @spec heartbeat(connection_ref :: String.t()) :: :ok | :error
+  def heartbeat(connection_ref) do
+    Connections.device_heartbeat(connection_ref)
+  end
+
+  @doc """
+  The device has gone.
+
+  Returns an error when the reference is stale — the device may already have
+  reconnected elsewhere, replacing the connection row — which callers can ignore.
+  """
+  @spec disconnect(connection_ref :: String.t(), reason :: String.t() | nil) :: :ok | {:error, any()}
+  def disconnect(connection_ref, reason \\ nil) do
+    Connections.device_disconnected(connection_ref, reason)
+  end
 
   @spec join(DeviceInfo.t(), params :: map()) :: {:ok, DeviceInfo.t()} | {:error, any()}
   def join(device_info, params) do
@@ -113,6 +428,78 @@ defmodule NervesHub.DeviceLink do
   @spec update_connection_metadata(reference_id :: String.t(), metadata :: map()) :: :ok | {:error, any()}
   def update_connection_metadata(reference_id, metadata) do
     Connections.merge_update_metadata(reference_id, metadata)
+  end
+
+  @typedoc """
+  An effect for the caller to carry out on the device connection.
+
+  See `NervesHub.Extensions.Dispatch` — routing is already resolved, so the
+  caller sends opaque terms and keys timers by opaque handles.
+  """
+  @type extension_effect() :: ExtensionDispatch.effect()
+
+  @doc """
+  Work out which extensions a device may use, given the versions it reports.
+
+  Returns the keys the device should attach, plus bookkeeping to pass back to
+  `extension_message/3` and `extension_info/3`.
+  """
+  @spec extensions_join(DeviceInfo.t(), extension_versions :: map()) ::
+          {[String.t()], ExtensionDispatch.extensions()}
+  defdelegate extensions_join(device_info, extension_versions), to: ExtensionDispatch, as: :join
+
+  @doc """
+  Handle a `"<key>:<event>"` extension message from the device.
+
+  `:unknown` means the device is talking about an extension it may not use, and
+  should be told to detach.
+  """
+  @spec extension_message(ExtensionDispatch.extensions(), scoped_event :: String.t(), payload :: term()) ::
+          {:ok, ExtensionDispatch.extensions(), [extension_effect()]} | :unknown
+  defdelegate extension_message(extensions, scoped_event, payload), to: ExtensionDispatch, as: :message
+
+  @doc """
+  Deliver a message addressed to an extension module.
+
+  Covers timers set on an extension's behalf as well as messages from elsewhere
+  in the system. Messages for extensions that are not attached are dropped.
+  """
+  @spec extension_info(ExtensionDispatch.extensions(), module(), msg :: term()) ::
+          {:ok, ExtensionDispatch.extensions(), [extension_effect()]}
+  defdelegate extension_info(extensions, module, msg), to: ExtensionDispatch, as: :info
+
+  @doc """
+  The device has confirmed the firmware it is running is good.
+  """
+  @spec firmware_validated(DeviceInfo.t()) :: :ok
+  def firmware_validated(device_info) do
+    _ = Updates.firmware_validated(device_info)
+    :ok
+  end
+
+  @doc """
+  The device has told us which network interface it is connected over.
+
+  The comparison against what we already know lives here rather than in the
+  caller so that holding a device connection does not require knowing how an
+  interface name maps onto a humanised one.
+
+  Returns `:unchanged` when the report matches what we already recorded.
+  """
+  @spec report_network_interface(DeviceInfo.t(), interface :: String.t()) ::
+          {:ok, DeviceInfo.t()} | :unchanged | :error
+  def report_network_interface(device_info, interface) do
+    if DeviceConnection.humanized_network_interface_name(interface) == device_info.device_network_interface do
+      :unchanged
+    else
+      case Connections.update_network_interface(device_info.connection_ref, interface) do
+        {:ok, device_connection} ->
+          {:ok, %{device_info | device_network_interface: device_connection.network_interface}}
+
+        :error ->
+          :error
+      end
+    end
   end
 
   @spec status_update(device_info :: DeviceInfo.t(), status :: map()) :: :ok

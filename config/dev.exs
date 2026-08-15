@@ -1,5 +1,6 @@
 import Config
 
+alias NervesHub.DeviceLink.PeerVerification
 alias OpenApiSpex.Plug.NoneCache
 alias Swoosh.Adapters.Local
 
@@ -48,7 +49,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
         # certificate_authorities: false,
         versions: [:"tlsv1.2"],
         verify: :verify_peer,
-        verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
+        verify_fun: {&PeerVerification.verify_fun/3, nil},
         fail_if_no_peer_cert: false,
         keyfile: Path.join(ssl_dir, "device.nerves-hub.org-key.pem"),
         certfile: Path.join(ssl_dir, "device.nerves-hub.org.pem"),

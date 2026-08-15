@@ -1,5 +1,8 @@
 import Config
 
+alias NervesHub.DeviceLink.Dispatcher
+alias NervesHub.DeviceLink.Dispatcher.Remote
+alias NervesHub.DeviceLink.PeerVerification
 alias NervesHub.Firmwares.Upload.S3
 alias Swoosh.Adapters.Test
 
@@ -40,7 +43,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
       transport_options: [
         # Enable client SSL
         verify: :verify_peer,
-        verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
+        verify_fun: {&PeerVerification.verify_fun/3, nil},
         fail_if_no_peer_cert: true,
         keyfile: Path.join([__DIR__, "../test/fixtures/ssl/device.nerves-hub.org-key.pem"]),
         certfile: Path.join([__DIR__, "../test/fixtures/ssl/device.nerves-hub.org.pem"]),
@@ -79,3 +82,14 @@ config :phoenix_live_view, :test_warnings, missing_form_id: :raise
 config :phoenix_test, :endpoint, NervesHubWeb.Endpoint
 
 config :sentry, environment_name: :test
+
+# Run the suite against remote dispatch to check that a caller without the
+# platform stack gets the same behaviour as one with it:
+#
+#     DEVICE_LINK_DISPATCH=remote mix test
+#
+# Calls go to this node over :erpc, so the wire format is exercised for real
+# while the database stays where the sandbox can see it.
+if System.get_env("DEVICE_LINK_DISPATCH") == "remote" do
+  config :nerves_hub, Dispatcher, Remote
+end
