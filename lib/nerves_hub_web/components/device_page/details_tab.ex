@@ -56,8 +56,26 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     metadata =
       if device.latest_health, do: device.latest_health.data["metadata"] || %{}, else: %{}
 
-    assign(socket, :metadata, Map.drop(metadata, standard_keys(device)))
+    entries =
+      metadata
+      |> Map.drop(standard_keys(device))
+      |> Enum.reject(fn {_key, value} -> value in ["", nil] end)
+      |> Enum.map(fn {key, value} -> {key, metadata_value(value)} end)
+      |> Enum.sort_by(fn {key, _value} -> key end)
+
+    assign(socket, :metadata_entries, entries)
   end
+
+  # Metadata values arrive as decoded JSON, so they can be strings, numbers,
+  # booleans, or nested structures. Render everything as a string so it can be
+  # both displayed and copied to the clipboard.
+  defp metadata_value(value) when is_binary(value), do: value
+  defp metadata_value(value), do: inspect(value)
+
+  # Values wider than the truncation cap get a hover tooltip revealing the full
+  # value. The threshold roughly matches the value column's max width so short
+  # values that already fit don't get a redundant tooltip.
+  defp long_value?(value), do: String.length(value) > 32
 
   defp assign_support_scripts(%{assigns: %{product: product}} = socket) do
     scripts = Scripts.all_by_product(product)
@@ -394,13 +412,34 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </div>
             </div>
 
-            <div :if={!Enum.empty?(@metadata)} class="flex min-h-7 gap-4 px-4">
-              <span class="text-base-500 pt-1 text-sm">Metadata:</span>
-              <span class="flex flex-col gap-1">
-                <span :for={{key, value} <- Map.filter(@metadata, fn {_key, val} -> val != "" end)} class="bg-base-800 border-base-800 text-base-300 rounded border px-2 py-1 text-sm">
-                  <span>{key |> String.replace("_", " ") |> String.capitalize()}: {value}</span>
-                </span>
-              </span>
+            <div :if={@metadata_entries != []} class="flex flex-col gap-2 px-4">
+              <span class="text-base-500 text-sm">Metadata:</span>
+              <div class="flex flex-col gap-1.5">
+                <div :for={{key, value} <- @metadata_entries} class="group/meta flex w-full min-w-0 items-center gap-1.5">
+                  <div id={"metadata-#{key}"} class="relative flex min-w-0" phx-hook={long_value?(value) && "ToolTip"} data-placement="top">
+                    <div class="border-base-700 flex min-w-0 items-stretch overflow-hidden rounded border text-xs">
+                      <span class="bg-base-700 text-base-300 shrink-0 px-2 py-0.5 tracking-wide">{key |> String.replace("_", " ") |> String.capitalize()}</span>
+                      <span class="bg-base-800 text-base-200 min-w-0 truncate px-2 py-0.5 font-mono">{value}</span>
+                    </div>
+                    <div :if={long_value?(value)} role="tooltip" class="bg-surface-overlay border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border px-2 py-1.5 shadow-lg">
+                      <span class="text-base-200 font-mono text-xs break-all">{value}</span>
+                      <div class="bg-surface-overlay border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+                    </div>
+                  </div>
+                  <button
+                    id={"copy-metadata-#{key}"}
+                    type="button"
+                    phx-hook="CopyToClipboard"
+                    data-copy-value={value}
+                    aria-label={"Copy #{key} value"}
+                    title="Copy value"
+                    class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/meta:opacity-100 focus:opacity-100"
+                  >
+                    <span data-icon="copy" class="lucide-copy--light size-4"></span>
+                    <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div :if={@extension_overrides != []} class="flex min-h-7 items-center gap-4 px-4">
