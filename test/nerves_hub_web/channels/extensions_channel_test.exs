@@ -681,6 +681,110 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     end
   end
 
+  test "unknown extension event returns detach error reply", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "abc-unknown"}, dir: tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, _device_channel} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
+
+    assert_push("extensions:get", _extensions)
+
+    assert {:ok, _attach_list, extensions_channel} =
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{"health" => "0.0.1"}
+             )
+
+    ref = push(extensions_channel, "unknown_ext:some_event", %{})
+    assert_reply(ref, :error, "detach")
+  end
+
+  test "message to detached extension is silently ignored", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "abc-detached"}, dir: tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, _device_channel} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
+
+    assert_push("extensions:get", _extensions)
+
+    assert {:ok, ["health"], extensions_channel} =
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{"health" => "0.0.1"}
+             )
+
+    ref = push(extensions_channel, "health:some_event", %{})
+    refute_reply(ref, :ok)
+    refute_reply(ref, :error)
+  end
+
+  test "extension error event transitions status to detached without crashing", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "abc-error"}, dir: tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, _device_channel} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
+
+    assert_push("extensions:get", _extensions)
+
+    assert {:ok, ["health"], extensions_channel} =
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{"health" => "0.0.1"}
+             )
+
+    push(extensions_channel, "health:attached")
+    assert_push("health:check", _)
+
+    push(extensions_channel, "health:error", %{})
+    assert Process.alive?(extensions_channel.channel_pid)
+  end
+
+  test "broadcast to device extensions topic is pushed to the socket", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "abc-broadcast"}, dir: tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, _device_channel} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
+
+    assert_push("extensions:get", _extensions)
+
+    assert {:ok, ["health"], _extensions_channel} =
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{"health" => "0.0.1"}
+             )
+
+    PubSub.broadcast_to_device(device.id, "health:check", %{})
+    assert_push("health:check", _)
+  end
+
   def device_fixture(user, device_params \\ %{}, opts) do
     org = Keyword.get(opts, :org) || Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)

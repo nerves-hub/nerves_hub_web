@@ -228,6 +228,87 @@ defmodule NervesHub.Devices.LogLinesTest do
     log_line
   end
 
+  describe "LogLine.create_changeset/3" do
+    test "valid params produce a valid changeset", %{device: device} do
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "timestamp" => DateTime.utc_now(),
+          "level" => "info",
+          "message" => "hello"
+        })
+
+      assert changeset.valid?
+    end
+
+    test "maybe_set_timestamp - unix microsecond string in meta.time sets the timestamp", %{
+      device: device
+    } do
+      logged_at = DateTime.utc_now()
+      unix_us = logged_at |> DateTime.to_unix(:microsecond) |> to_string()
+
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "level" => "info",
+          "message" => "hello",
+          "meta" => %{"time" => unix_us}
+        })
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_change(changeset, :timestamp) == logged_at
+    end
+
+    test "maybe_set_timestamp - explicit timestamp is used as-is", %{device: device} do
+      logged_at = DateTime.utc_now()
+
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "timestamp" => logged_at,
+          "level" => "info",
+          "message" => "hello"
+        })
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_change(changeset, :timestamp) == logged_at
+    end
+
+    test "maybe_set_timestamp - missing timestamp and no meta.time makes changeset invalid", %{
+      device: device
+    } do
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "level" => "info",
+          "message" => "hello"
+        })
+
+      refute changeset.valid?
+      assert Keyword.has_key?(changeset.errors, :timestamp)
+    end
+
+    test "format_message - charlist message is converted to string", %{device: device} do
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "timestamp" => DateTime.utc_now(),
+          "level" => "info",
+          "message" => ~c"hello charlist"
+        })
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_change(changeset, :message) == "hello charlist"
+    end
+
+    test "format_message - non-string non-charlist is inspected", %{device: device} do
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "timestamp" => DateTime.utc_now(),
+          "level" => "info",
+          "message" => 42
+        })
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_change(changeset, :message) == "42"
+    end
+  end
+
   defp random_word(n \\ 6) do
     1..n |> Enum.map(fn _ -> Enum.random(?a..?z) end) |> to_string()
   end
