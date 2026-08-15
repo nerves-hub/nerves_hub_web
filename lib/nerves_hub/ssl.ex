@@ -35,21 +35,54 @@ defmodule NervesHub.SSL do
           | :valid
           | :valid_peer
 
+  @doc """
+  The `:ssl` verify_fun callback, in terms of `decide/2`.
+
+  Kept so that anything already configured against it keeps working. Callers
+  that hold a device connection go through
+  `NervesHub.DeviceLink.PeerVerification` instead, which reaches `decide/2`
+  wherever the platform happens to be.
+  """
   @spec verify_fun(X509.Certificate.t(), event(), any()) ::
           {:valid, any()} | {:fail, reason()}
+  def verify_fun(otp_cert, event, state) do
+    case decide(otp_cert, event) do
+      :valid -> {:valid, state}
+      {:fail, reason} -> {:fail, reason}
+    end
+  end
+
+  @doc """
+  Whether to accept a certificate at this point in path validation.
+
+  Split out from `verify_fun/3` because the decision needs the database and the
+  callback does not: whoever is terminating TLS may have no database at all, in
+  which case it asks for this over the cluster. The verify_fun state is not part
+  of the decision — it is threaded through untouched — so it does not travel.
+
+  Accepts DER as well as a decoded certificate, since DER is what survives a
+  trip between nodes without depending on the shape of an OTP record.
+  """
+  @spec decide(X509.Certificate.t() | binary(), event()) :: :valid | {:fail, reason()}
+  def decide(der, event) when is_binary(der) do
+    der
+    |> X509.Certificate.from_der!()
+    |> decide(event)
+  end
+
   # The certificate is a valid_peer, which means it has been
   # signed by the NervesHub CA and the signer cert is still valid
   # or the signer cert was included by the client and is valid
   # for the peer (device) cert
-  def verify_fun(otp_cert, :valid_peer, state) do
-    do_verify(otp_cert, state)
+  def decide(otp_cert, :valid_peer) do
+    do_verify(otp_cert)
   end
 
-  def verify_fun(_certificate, :valid, state) do
-    {:valid, state}
+  def decide(_certificate, :valid) do
+    :valid
   end
 
-  def verify_fun(otp_cert, {:bad_cert, err}, state) when err in [:unknown_ca, :cert_expired] do
+  def decide(otp_cert, {:bad_cert, err}) when err in [:unknown_ca, :cert_expired] do
     aki = Certificate.get_aki(otp_cert)
     ski = Certificate.get_ski(otp_cert)
 
@@ -58,7 +91,7 @@ defmodule NervesHub.SSL do
         # If the signer CA is also the root, then AKI == SKI. We can skip
         # checking as it will be validated later on if the device needs
         # registration
-        {:valid, state}
+        :valid
 
       is_binary(ski) and CACertificates.known_ca_ski?(ski) ->
         # Signer CA sent with the device certificate, but is an intermediary
@@ -67,26 +100,26 @@ defmodule NervesHub.SSL do
         # Since we have this CA registered, validate so we can move on to the device
         # cert next and expiration will be checked later if registration of a new
         # device cert needs to happen.
-        {:valid, state}
+        :valid
 
       true ->
         # The signer CA was not included in the request, so this is most
         # likely a device cert that needs verification. If it isn't, then
         # this is some other unknown CA that will fail
-        do_verify(otp_cert, state)
+        do_verify(otp_cert)
     end
   end
 
-  def verify_fun(_certificate, {:extension, _}, state) do
-    {:valid, state}
+  def decide(_certificate, {:extension, _}) do
+    :valid
   end
 
-  defp do_verify(otp_cert, state) do
+  defp do_verify(otp_cert) do
     case verify_cert(otp_cert) do
       {:ok, _db_cert} ->
         :telemetry.execute([:nerves_hub, :ssl, :success], %{count: 1})
 
-        {:valid, state}
+        :valid
 
       {:error, {:bad_cert, reason}} ->
         verify_failed(reason, otp_cert)

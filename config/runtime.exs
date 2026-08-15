@@ -1,5 +1,6 @@
 import Config
 
+alias NervesHub.DeviceLink.PeerVerification
 alias NervesHub.Firmwares.Upload
 alias NervesHub.Firmwares.Upload.S3
 alias NervesHub.Repo
@@ -193,7 +194,7 @@ if config_env() == :prod do
 
     transport_options = [
       verify: :verify_peer,
-      verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
+      verify_fun: {&PeerVerification.verify_fun/3, nil},
       fail_if_no_peer_cert: false,
       keyfile: keyfile,
       certfile: certfile,

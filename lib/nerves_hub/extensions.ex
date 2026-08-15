@@ -20,22 +20,26 @@ defmodule NervesHub.Extensions do
   alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.LocalShell
   alias NervesHub.Extensions.Logging
+  alias NervesHub.Extensions.State
   alias NervesHub.Extensions.Unsupported
   alias NervesHub.Products.Product
   alias Phoenix.Channel.Server, as: ChannelServer
 
-  @callback handle_in(event :: String.t(), Phoenix.Channel.payload(), Phoenix.Socket.t()) ::
-              {:noreply, Phoenix.Socket.t()}
-              | {:noreply, Phoenix.Socket.t(), timeout() | :hibernate}
-              | {:reply, Phoenix.Channel.reply(), Phoenix.Socket.t()}
-              | {:stop, reason :: term(), Phoenix.Socket.t()}
-              | {:stop, reason :: term(), Phoenix.Channel.reply(), Phoenix.Socket.t()}
+  @typedoc """
+  What every extension callback returns: the extension's new state, plus any
+  effects for the caller to carry out on the device connection.
 
-  @callback handle_info(msg :: term(), Phoenix.Socket.t()) ::
-              {:noreply, Phoenix.Socket.t()} | {:stop, reason :: term(), Phoenix.Socket.t()}
+  See `NervesHub.Extensions.State` for why extensions no longer take a
+  `Phoenix.Socket`.
+  """
+  @type result() :: {State.t(), [State.effect()]}
 
-  @callback attach(Phoenix.Socket.t()) :: {:noreply, Phoenix.Socket.t()}
-  @callback detach(Phoenix.Socket.t()) :: {:noreply, Phoenix.Socket.t()}
+  @callback handle_in(event :: String.t(), Phoenix.Channel.payload(), State.t()) :: result()
+
+  @callback handle_info(msg :: term(), State.t()) :: result()
+
+  @callback attach(State.t()) :: result()
+  @callback detach(State.t()) :: result()
   @callback description() :: String.t()
   @callback enabled?() :: boolean()
 
