@@ -11,11 +11,12 @@ defmodule NervesHub.Extensions.ProductExtensionsSetting do
     field(:geo, :boolean, default: false)
     field(:local_shell, :boolean, default: false)
     field(:logging, :boolean, default: false)
+    field(:external_identity, :boolean, default: false)
   end
 
   def changeset(setting, params) do
     setting
-    |> cast(params, [:health, :geo, :local_shell, :logging])
+    |> cast(params, [:health, :geo, :local_shell, :logging, :external_identity])
   end
 
   @impl Access

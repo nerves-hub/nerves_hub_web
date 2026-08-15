@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.ExternalIdentities
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Metrics
@@ -23,6 +24,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
   alias Phoenix.Channel.Server, as: ChannelServer
@@ -1705,6 +1707,166 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> fill_in("Add tag", with: "beta")
       |> click_button("Add")
       |> assert_has("div", text: "Tag \"beta\" already exists on this device.", timeout: 1_000)
+    end
+  end
+
+  describe "external identities" do
+    test "explains an empty panel when the product hasn't enabled reporting", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "External Identities")
+      |> assert_has("div", text: "External identity reporting is not enabled for your product.")
+    end
+
+    test "says nothing has been reported once the product opts in", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _product} = Products.enable_extension_setting(product, "external_identity")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "This device hasn't reported any external identities.")
+    end
+
+    test "shows a reported identity with its service and label", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} =
+        ExternalIdentities.report(device.id, "iroh", %{
+          identifier: "e13b8a4c9f2d",
+          details: %{"relay_url" => "https://iroh.nervescloud.com"}
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "iroh")
+      |> assert_has("span", text: "Endpoint id")
+      |> assert_has("span", text: "e13b8a4c9f2d")
+      |> assert_has("span", text: "Relay URL")
+      |> assert_has("span", text: "https://iroh.nervescloud.com")
+    end
+
+    test "labels a key correctly for a service that isn't iroh", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} = ExternalIdentities.report(device.id, "tailscale", %{identifier: "nodekey-abc"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "Tailscale")
+      |> assert_has("span", text: "Public key")
+    end
+
+    test "the copy button carries the full untruncated value", %{conn: conn, org: org, product: product, device: device} do
+      # The value is truncated in the page, so what matters is that the button
+      # holds the whole thing — an iroh ticket exists to be pasted elsewhere.
+      ticket = String.duplicate("a", 170)
+
+      {:ok, identity} =
+        ExternalIdentities.report(device.id, "iroh", %{
+          identifier: "short-id",
+          details: %{"ticket" => ticket}
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has(~s(button#copy-external-identity-#{identity.id}-ticket[data-copy-value="#{ticket}"]))
+    end
+
+    test "identities still show after the extension is switched off", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      # Turning reporting off stops new reports; it doesn't make what was already
+      # recorded untrue, and hiding it would just look like data loss.
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "recorded-earlier"})
+      {:ok, _product} = Products.disable_extension_setting(product, "external_identity")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "recorded-earlier")
+    end
+
+    test "shows both endpoints when a device runs two of one service", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} =
+        ExternalIdentities.report(device.id, "iroh", %{
+          instance: "iroh_console",
+          identifier: "console-endpoint-key"
+        })
+
+      {:ok, _} =
+        ExternalIdentities.report(device.id, "iroh", %{
+          instance: "kiosk_sync",
+          identifier: "sync-endpoint-key"
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "iroh_console")
+      |> assert_has("span", text: "kiosk_sync")
+      |> assert_has("span", text: "console-endpoint-key")
+      |> assert_has("span", text: "sync-endpoint-key")
+    end
+
+    test "doesn't label the instance when a service has only one endpoint", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      # Saying "default" on every row would be noise.
+      {:ok, _} = ExternalIdentities.report(device.id, "netbird", %{identifier: "the-only-one"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "the-only-one")
+      |> refute_has("span", text: "default")
+    end
+
+    test "marks an operator-recorded identity as such", %{conn: conn, org: org, product: product, device: device} do
+      _identity =
+        Fixtures.external_identity_fixture(device, %{
+          identifier: "operator-set",
+          source: :operator
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "set by operator")
+    end
+
+    test "updates live when a device reports a new identity", %{conn: conn, org: org, product: product, device: device} do
+      {:ok, _product} = Products.enable_extension_setting(product, "external_identity")
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+        |> assert_has("div", text: "This device hasn't reported any external identities.")
+
+      {:ok, _} = ExternalIdentities.report(device.id, "netbird", %{identifier: "peer-key-9000"})
+
+      assert_has(session, "span", text: "peer-key-9000", timeout: 1_000)
     end
   end
 

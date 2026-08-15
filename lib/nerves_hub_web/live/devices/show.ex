@@ -179,6 +179,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, assign(socket, :device, device)}
   end
 
+  def handle_info(%Broadcast{event: "external_identities:updated"}, socket) do
+    %{device: device, current_scope: scope} = socket.assigns
+
+    device = load_device(scope, device.identifier)
+
+    {:noreply, assign(socket, :device, device)}
+  end
+
   def handle_info(%Broadcast{event: "firmware:validated"}, socket) do
     %{device: device, current_scope: scope} = socket.assigns
 
@@ -333,7 +341,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     Devices.get_by_identifier!(scope, identifier, [
       :product,
       :latest_connection,
-      :latest_health
+      :latest_health,
+      :external_identities
     ])
   end
 

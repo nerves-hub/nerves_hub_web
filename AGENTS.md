@@ -60,15 +60,16 @@ docs/                 Design docs
 
 - `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes.
 - `devices.ex` / `devices/` — device lifecycle, connections, health status,
-  metrics.
+  metrics, and external identities (a device's identity on networks NervesHub
+  doesn't run, such as iroh or NetBird).
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment).
 - `firmwares.ex` / `firmwares/` and `archives.ex` / `archives/` — firmware and
   archive artifacts, uploads, and firmware **delta** building.
 - `products.ex` / `products/` — products and product settings.
 - `extensions.ex` / `extensions/` — the device **extension framework**
-  (`health`, `geo`, `local_shell`, `logging`); extensions attach per-device and
-  exchange messages over the extensions channel.
+  (`health`, `geo`, `local_shell`, `logging`, `external_identity`); extensions
+  attach per-device and exchange messages over the extensions channel.
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,
