@@ -78,8 +78,17 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
 
   describe "pinned devices" do
     test "toggle-expand-devices shows all pinned devices when more than limit", %{
-      conn: conn
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      firmware: firmware
     } do
+      for _ <- 1..6 do
+        device = Fixtures.device_fixture(org, product, firmware)
+        {:ok, _} = Pinning.pin_device(user.id, device.id)
+      end
+
       conn
       |> visit("/orgs")
       |> assert_has("div", text: "Show all 6 devices")
