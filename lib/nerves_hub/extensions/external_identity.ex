@@ -74,40 +74,50 @@ defmodule NervesHub.Extensions.ExternalIdentity do
        when is_binary(service) and is_binary(identifier) do
     details = Map.get(entry, "details", %{})
 
-    case ExternalIdentities.report(device_id, service, %{
-           identifier: identifier,
-           # Names which endpoint of the service this is, for a device running
-           # more than one. The context defaults it when absent.
-           instance: Map.get(entry, "instance"),
-           details: (is_map(details) && details) || %{}
-         }) do
-      {:ok, _identity} ->
-        :ok
-
-      {:error, :unsupported_service} ->
-        # Expected: a device may legitimately run something we have no schema
-        # for. Its other identities still get recorded.
-        Logger.debug(
-          "[ExternalIdentity] ignoring unsupported service #{inspect(service)} " <>
-            "from device #{device_id}"
-        )
-
-      {:error, :operator_managed} ->
-        # Already logged as a warning by the context, which has the detail.
-        :ok
-
-      {:error, changeset} ->
-        Logger.warning(
-          "[ExternalIdentity] could not record #{service} identity for device " <>
-            "#{device_id}: #{inspect(changeset.errors)}"
-        )
-    end
+    device_id
+    |> ExternalIdentities.report(service, %{
+      identifier: identifier,
+      # Names which endpoint of the service this is, for a device running
+      # more than one. The context defaults it when absent.
+      instance: Map.get(entry, "instance"),
+      details: (is_map(details) && details) || %{}
+    })
+    |> handled(service, device_id)
   end
 
   defp record(entry, device_id) do
     Logger.warning(
       "[ExternalIdentity] skipping malformed identity from device #{device_id}: " <>
         inspect(entry, limit: 5)
+    )
+  end
+
+  # Every outcome the context can return, and none of them disturb the device's
+  # connection: a device that cannot record one identity still keeps the others,
+  # and still runs.
+  defp handled({:ok, _identity}, _service, _device_id), do: :ok
+
+  defp handled({:error, :unsupported_service}, service, device_id) do
+    # Expected: a device may legitimately run something we have no schema for.
+    Logger.debug(
+      "[ExternalIdentity] ignoring unsupported service #{inspect(service)} " <>
+        "from device #{device_id}"
+    )
+  end
+
+  # Both already logged as warnings by the context, which has the detail: an
+  # operator recorded something different, or somebody else holds this key.
+  defp handled({:error, :operator_managed}, _service, _device_id), do: :ok
+  defp handled({:error, :claimed_elsewhere}, _service, _device_id), do: :ok
+
+  # The device was deleted between connecting and reporting. Nothing to record
+  # it against, and nothing worth alarming about.
+  defp handled({:error, :device_not_found}, _service, _device_id), do: :ok
+
+  defp handled({:error, changeset}, service, device_id) do
+    Logger.warning(
+      "[ExternalIdentity] could not record #{service} identity for device " <>
+        "#{device_id}: #{inspect(changeset.errors)}"
     )
   end
 end

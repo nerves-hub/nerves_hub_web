@@ -494,6 +494,9 @@ defmodule NervesHub.Fixtures do
     |> ExternalIdentity.changeset(
       Map.merge(
         %{
+          # Identities name an organisation of their own; for a device-owned one
+          # it must agree with the device, which is what Devices.move/3 keeps true.
+          org_id: device.org_id,
           device_id: device.id,
           service: :iroh,
           instance: ExternalIdentity.default_instance(),

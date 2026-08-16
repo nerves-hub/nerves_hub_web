@@ -554,6 +554,16 @@ defmodule NervesHub.Devices do
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
     |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query/1)
+    # The device's identities on other networks name an organisation of their
+    # own, and that is what those networks resolve a key to. Left behind, this
+    # device would keep answering for the organisation it just left — and be
+    # placed on that organisation's network by anything using them. Same
+    # transaction as the move, so there is no window where the two disagree.
+    |> Multi.update_all(
+      :external_identities,
+      from(ei in ExternalIdentity, where: ei.device_id == ^device.id),
+      set: [org_id: product.org_id, updated_at: DateTime.utc_now(:second)]
+    )
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, description)
     end)

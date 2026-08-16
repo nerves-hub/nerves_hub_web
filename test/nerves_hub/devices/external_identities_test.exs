@@ -1,6 +1,7 @@
 defmodule NervesHub.Devices.ExternalIdentitiesTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Accounts
   alias NervesHub.Devices
   alias NervesHub.Devices.ExternalIdentities
   alias NervesHub.Devices.ExternalIdentity
@@ -78,10 +79,13 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
 
       {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "shared-key"})
 
-      assert {:error, changeset} =
+      # Reported as a conflict rather than left to the unique index. A cloned
+      # batch would otherwise fail this way on every reconnect, forever, looking
+      # like a network fault instead of the duplication it is.
+      assert {:error, :claimed_elsewhere} =
                ExternalIdentities.report(other.id, "iroh", %{identifier: "shared-key"})
 
-      refute changeset.valid?
+      assert ExternalIdentities.list_for_device(other.id) == []
     end
 
     test "the same key on different services is fine", %{device: device} do
@@ -160,13 +164,16 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       {:ok, _} =
         ExternalIdentities.report(device.id, "iroh", %{instance: "one", identifier: "same-key"})
 
-      assert {:error, changeset} =
+      assert {:error, :claimed_elsewhere} =
                ExternalIdentities.report(device.id, "iroh", %{
                  instance: "two",
                  identifier: "same-key"
                })
 
-      refute changeset.valid?
+      # The endpoint it was already under keeps it, rather than the report
+      # quietly moving the row and losing an endpoint.
+      assert [%{instance: "one", identifier: "same-key"}] =
+               ExternalIdentities.list_for_device(device.id)
     end
 
     test "get/3 finds the endpoint asked for", %{device: device} do
@@ -330,24 +337,27 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
     end
   end
 
-  describe "get_device_by_identifier/2" do
+  describe "get_owner_by_identifier/2" do
     test "finds the device that reported the key", %{device: device, org: org, product: product} do
       {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
-      assert {:ok, found} = ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
 
+      assert found.org_id == org.id
+      assert found.owner == "device"
       assert found.device_id == device.id
       assert found.device_identifier == device.identifier
-      assert found.org_id == org.id
-      assert found.product_id == product.id
+      assert found.org_user_id == nil
+      assert found.user_id == nil
       assert found.service == :iroh
       assert found.instance == ExternalIdentity.default_instance()
+      assert found.identifier == "abc123"
     end
 
     test "accepts the service as a string, as an :erpc caller would send it", %{device: device} do
       {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
-      assert {:ok, found} = ExternalIdentities.get_device_by_identifier("iroh", "abc123")
+      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier("iroh", "abc123")
       assert found.device_id == device.id
     end
 
@@ -357,7 +367,7 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # cross-application contract note in AGENTS.md.
       {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
-      assert {:ok, found} = ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
 
       refute is_struct(found)
       refute Map.has_key?(found, :__struct__)
@@ -369,15 +379,18 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # is a breaking change needing a coordinated release.
       {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
-      assert {:ok, found} = ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
 
       assert found |> Map.keys() |> Enum.sort() == [
                :device_id,
                :device_identifier,
+               :identifier,
                :instance,
                :org_id,
-               :product_id,
-               :service
+               :org_user_id,
+               :owner,
+               :service,
+               :user_id
              ]
     end
 
@@ -385,7 +398,7 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
       assert {:error, :not_found} =
-               ExternalIdentities.get_device_by_identifier(:iroh, "never-registered")
+               ExternalIdentities.get_owner_by_identifier(:iroh, "never-registered")
     end
 
     test "deleting a device takes its identities with it", %{device: device} do
@@ -396,7 +409,7 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
       {:ok, _} = Devices.delete_device(device)
 
-      assert {:error, :not_found} = ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+      assert {:error, :not_found} = ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
     end
 
     test "refuses an identity whose device is soft deleted", %{device: device} do
@@ -408,8 +421,8 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
 
       device |> Repo.soft_delete_changeset() |> Repo.update!()
 
-      assert {:error, :device_deleted} =
-               ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+      assert {:error, :owner_deleted} =
+               ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
     end
 
     test "does not match the same key under a different service", %{device: device} do
@@ -418,7 +431,7 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
       assert {:error, :not_found} =
-               ExternalIdentities.get_device_by_identifier(:wireguard, "abc123")
+               ExternalIdentities.get_owner_by_identifier(:wireguard, "abc123")
     end
 
     test "matches exactly, without normalising case", %{device: device} do
@@ -427,7 +440,7 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # form instead.
       {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
-      assert {:error, :not_found} = ExternalIdentities.get_device_by_identifier(:iroh, "ABC123")
+      assert {:error, :not_found} = ExternalIdentities.get_owner_by_identifier(:iroh, "ABC123")
     end
 
     test "finds each endpoint of a device separately", %{device: device} do
@@ -440,18 +453,135 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
         ExternalIdentities.report(device.id, "iroh", %{identifier: "app", instance: "app"})
 
       assert {:ok, %{instance: "console"}} =
-               ExternalIdentities.get_device_by_identifier(:iroh, "console")
+               ExternalIdentities.get_owner_by_identifier(:iroh, "console")
 
-      assert {:ok, %{instance: "app"}} = ExternalIdentities.get_device_by_identifier(:iroh, "app")
+      assert {:ok, %{instance: "app"}} = ExternalIdentities.get_owner_by_identifier(:iroh, "app")
     end
 
     test "refuses a service NervesHub does not know" do
       assert {:error, :unsupported_service} =
-               ExternalIdentities.get_device_by_identifier("zerotier", "abc123")
+               ExternalIdentities.get_owner_by_identifier("zerotier", "abc123")
     end
 
     test "returns not_found when nothing has been reported" do
-      assert {:error, :not_found} = ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+      assert {:error, :not_found} = ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
+    end
+  end
+
+  describe "an identity held by a membership" do
+    setup %{org: org} do
+      member = Fixtures.user_fixture(%{email: "member@example.com"})
+      {:ok, org_user} = Accounts.add_org_user(org, member, %{role: :manage})
+
+      identity =
+        %ExternalIdentity{}
+        |> ExternalIdentity.changeset(%{
+          org_id: org.id,
+          org_user_id: org_user.id,
+          service: :iroh,
+          identifier: "laptop-key",
+          source: :operator
+        })
+        |> Repo.insert!()
+
+      %{member: member, org_user: org_user, identity: identity}
+    end
+
+    test "resolves to its organisation and its owner", %{org: org, org_user: org_user, member: member} do
+      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier(:iroh, "laptop-key")
+
+      assert found.org_id == org.id
+      assert found.owner == "org_user"
+      assert found.org_user_id == org_user.id
+      assert found.user_id == member.id
+      assert found.device_id == nil
+    end
+
+    test "stops resolving once the person leaves the organisation", %{org: org, member: member} do
+      # The membership is soft deleted, so the row survives. Returning it would
+      # let somebody removed from an organisation keep whatever the key grants.
+      :ok = Accounts.remove_org_user(org, member)
+
+      assert {:error, :owner_deleted} =
+               ExternalIdentities.get_owner_by_identifier(:iroh, "laptop-key")
+    end
+
+    test "a device cannot take a key a person holds", %{device: device} do
+      assert {:error, :claimed_elsewhere} =
+               ExternalIdentities.report(device.id, "iroh", %{identifier: "laptop-key"})
+
+      assert {:ok, %{owner: "org_user"}} =
+               ExternalIdentities.get_owner_by_identifier(:iroh, "laptop-key")
+    end
+  end
+
+  describe "an identity recorded by hand" do
+    setup %{org: org} do
+      identity =
+        %ExternalIdentity{}
+        |> ExternalIdentity.changeset(%{
+          org_id: org.id,
+          service: :iroh,
+          identifier: "registered-ahead",
+          source: :operator
+        })
+        |> Repo.insert!()
+
+      %{unowned: identity}
+    end
+
+    test "resolves to its organisation with no owner", %{org: org} do
+      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier(:iroh, "registered-ahead")
+
+      assert found.org_id == org.id
+      assert found.owner == "org"
+      assert found.device_id == nil
+      assert found.org_user_id == nil
+    end
+
+    test "becomes the device's when that device proves the key", %{device: device, unowned: unowned} do
+      # The intended flow for registering a device before it appears: put the
+      # key in, and the device claims it on its next connection.
+      assert {:ok, claimed} =
+               ExternalIdentities.report(device.id, "iroh", %{identifier: "registered-ahead"})
+
+      assert claimed.id == unowned.id
+      assert claimed.device_id == device.id
+      assert claimed.source == :device_reported
+
+      assert {:ok, %{owner: "device"}} =
+               ExternalIdentities.get_owner_by_identifier(:iroh, "registered-ahead")
+    end
+
+    test "claiming replaces whatever the device held for that endpoint", %{device: device} do
+      # One owner has one identity per endpoint, so the row the device was using
+      # goes rather than colliding with the one it just claimed.
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "key-before"})
+
+      assert {:ok, _} =
+               ExternalIdentities.report(device.id, "iroh", %{identifier: "registered-ahead"})
+
+      assert [%{identifier: "registered-ahead"}] = ExternalIdentities.list_for_device(device.id)
+      assert {:error, :not_found} = ExternalIdentities.get_owner_by_identifier(:iroh, "key-before")
+    end
+
+    test "a device in another organisation is refused", %{org: org, tmp_dir: tmp_dir} do
+      # Possession beats assertion inside an organisation, but never across one:
+      # otherwise registering a key you do not own takes somebody else's traffic.
+      other_user = Fixtures.user_fixture(%{email: "other-org@example.com"})
+      other_org = Fixtures.org_fixture(other_user, %{name: "other-org"})
+      other_product = Fixtures.product_fixture(other_user, other_org)
+      other_key = Fixtures.org_key_fixture(other_org, other_user, tmp_dir)
+      other_firmware = Fixtures.firmware_fixture(other_key, other_product, %{dir: tmp_dir})
+      stranger = Fixtures.device_fixture(other_org, other_product, other_firmware)
+
+      assert {:error, :claimed_elsewhere} =
+               ExternalIdentities.report(stranger.id, "iroh", %{identifier: "registered-ahead"})
+
+      assert {:ok, %{org_id: resolved_org}} =
+               ExternalIdentities.get_owner_by_identifier(:iroh, "registered-ahead")
+
+      assert resolved_org == org.id
     end
   end
 
