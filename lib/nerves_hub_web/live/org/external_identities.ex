@@ -25,6 +25,15 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
   # decides which protocol the page is about.
   @service :iroh
 
+  # The iroh project's own pages. An endpoint id is an iroh concept rather than
+  # a NervesHub one, so the explaining is better left to the people who define
+  # it than restated in a paragraph here that will drift.
+  @iroh_docs [
+    {"What an endpoint id is", "https://docs.iroh.computer/concepts/endpoints"},
+    {"How relays work", "https://docs.iroh.computer/concepts/relays"},
+    {"What is iroh?", "https://docs.iroh.computer/what-is-iroh"}
+  ]
+
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     if org_iroh_endpoints_ui_enabled?() do
@@ -37,6 +46,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
        |> assign(:form, registration_form())
        |> assign(:registering, false)
        |> assign(:members, member_options(scope.org))
+       |> assign(:links, links())
        |> load_identities()}
     else
       # Same answer as a page that does not exist, rather than one that admits
@@ -138,6 +148,22 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
     org
     |> Accounts.get_org_users()
     |> Enum.map(&{&1.user.name, &1.id})
+  end
+
+  # The iroh project's pages, plus whatever this deployment adds. Which relays a
+  # deployment uses is its own business — a hosted offering, or a runbook for a
+  # self-hosted one — so the extra link is a setting rather than a URL in here.
+  #
+  # Labelled by its host, because where a link goes is what an operator wants to
+  # know before following it, and it saves a second setting for the text.
+  defp links() do
+    case Application.get_env(:nerves_hub, :org_iroh_endpoints_info_url) do
+      url when is_binary(url) and url != "" ->
+        @iroh_docs ++ [{URI.parse(url).host || url, url}]
+
+      _no_link ->
+        @iroh_docs
+    end
   end
 
   defp cast_owner("device"), do: :device

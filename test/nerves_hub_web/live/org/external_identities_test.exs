@@ -90,6 +90,39 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
     end
   end
 
+  describe "links" do
+    test "sends people to the iroh project to learn what an endpoint id is", %{conn: conn, org: org} do
+      conn
+      |> visit(path(org))
+      |> assert_has("a[href='https://docs.iroh.computer/concepts/endpoints']",
+        text: "What an endpoint id is"
+      )
+      |> assert_has("a[href='https://docs.iroh.computer/concepts/relays']")
+    end
+
+    test "has no deployment link of its own by default", %{conn: conn, org: org} do
+      # Which relays a deployment uses is not something NervesHub ships knowing,
+      # so an unconfigured install links to the project and nowhere else.
+      conn
+      |> visit(path(org))
+      |> refute_has("a[href^='https://relays.example.com']")
+    end
+
+    test "adds a configured link, labelled by its host", %{conn: conn, org: org} do
+      Application.put_env(
+        :nerves_hub,
+        :org_iroh_endpoints_info_url,
+        "https://relays.example.com/iroh"
+      )
+
+      on_exit(fn -> Application.delete_env(:nerves_hub, :org_iroh_endpoints_info_url) end)
+
+      conn
+      |> visit(path(org))
+      |> assert_has("a[href='https://relays.example.com/iroh']", text: "relays.example.com")
+    end
+  end
+
   describe "search and filter" do
     setup %{org: org, device: device} do
       {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})

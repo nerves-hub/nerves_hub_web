@@ -174,6 +174,11 @@ config :ueberauth, Ueberauth,
 # Environment specific config
 import_config "#{Mix.env()}.exs"
 
+# An optional link on that page to whoever runs the relays this deployment
+# talks to. Deliberately empty here: which relays a deployment uses, and what
+# it wants to tell its operators about them, is not something NervesHub knows.
+config :nerves_hub, org_iroh_endpoints_info_url: nil
+
 # The organisation's Iroh Endpoints page. Off unless a deployment turns it on,
 # since it is only useful where iroh is in use. The switch covers the page
 # alone — devices record their iroh identities either way.
