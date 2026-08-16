@@ -54,9 +54,21 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
 
       conn
       |> visit(path(org))
-      |> assert_has("div", text: String.slice(@endpoint_id, 0, 16))
+      # The whole key is rendered; how much of it is visible is CSS's business,
+      # so a wide window shows more rather than a fixed number of characters.
+      |> assert_has("span", text: @endpoint_id)
       |> assert_has("span", text: device.identifier)
       |> assert_has("span", text: "reported by device")
+    end
+
+    test "offers the whole endpoint id to the clipboard", %{conn: conn, org: org, device: device} do
+      # Truncation is visual only. What gets copied is the key itself, since a
+      # partial one is no use to whoever is being sent it.
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
+
+      conn
+      |> visit(path(org))
+      |> assert_has("button[data-copy-value='#{@endpoint_id}']")
     end
 
     test "shows an endpoint registered by hand as unassigned", %{conn: conn, org: org} do

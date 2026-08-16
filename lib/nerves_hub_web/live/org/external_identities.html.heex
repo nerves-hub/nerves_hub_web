@@ -98,8 +98,39 @@
         class="border-base-700 from-base-800/50 to-base-800 flex items-start gap-4 rounded border bg-linear-to-r p-4"
       >
         <div class="min-w-0 flex-1">
-          <div class="text-base-50 font-mono text-sm break-all" title={identity.identifier}>
-            {NervesHubWeb.Live.Org.ExternalIdentities.truncate(identity.identifier)}
+          <div class="group/identity flex w-full min-w-0 items-center gap-1.5">
+            <%!-- Truncated by CSS rather than by the value, so a wide window
+                  shows more of the key and a narrow one still fits. The full
+                  value is in the tooltip and on the clipboard button. --%>
+            <div
+              id={"identity-#{identity.id}"}
+              class="relative flex min-w-0"
+              phx-hook="ToolTip"
+              data-placement="top"
+            >
+              <span class="text-base-50 min-w-0 truncate font-mono text-sm">
+                {identity.identifier}
+              </span>
+              <div
+                role="tooltip"
+                class="bg-surface-overlay border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border px-2 py-1.5 shadow-lg"
+              >
+                <span class="text-base-200 font-mono text-xs break-all">{identity.identifier}</span>
+                <div class="bg-surface-overlay border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+              </div>
+            </div>
+            <button
+              id={"copy-identity-#{identity.id}"}
+              type="button"
+              phx-hook="CopyToClipboard"
+              data-copy-value={identity.identifier}
+              aria-label="Copy endpoint id"
+              title="Copy endpoint id"
+              class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/identity:opacity-100 focus:opacity-100"
+            >
+              <span data-icon="copy" class="lucide-copy--light size-4"></span>
+              <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+            </button>
           </div>
 
           <div class="text-base-400 mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">

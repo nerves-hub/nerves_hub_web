@@ -153,15 +153,4 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
   def owner_label(%ExternalIdentity{org_user: %{user: %{name: name}}}), do: {"User", name}
 
   def owner_label(%ExternalIdentity{}), do: {"Unassigned", "registered by hand"}
-
-  @doc false
-  # Keys are 64 characters of hex and no table wants that. The front is the half
-  # an operator can match against a log line.
-  def truncate(identifier) when is_binary(identifier) do
-    if String.length(identifier) > 20 do
-      String.slice(identifier, 0, 16) <> "…"
-    else
-      identifier
-    end
-  end
 end
