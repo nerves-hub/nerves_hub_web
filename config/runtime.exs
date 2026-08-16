@@ -321,6 +321,12 @@ if config_env() == :prod do
   end
 end
 
+# The organisation-level page for identities held on networks NervesHub does not
+# run. Read in every environment so it can be switched on locally the same way
+# it is in a deployment.
+config :nerves_hub,
+  external_identities_enabled: System.get_env("EXTERNAL_IDENTITIES_ENABLED", "false") == "true"
+
 ##
 # Firmware upload backend.
 #

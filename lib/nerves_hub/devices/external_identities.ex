@@ -28,6 +28,7 @@ defmodule NervesHub.Devices.ExternalIdentities do
 
   alias Ecto.Multi
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.ExternalIdentity
   alias NervesHub.Repo
@@ -61,6 +62,173 @@ defmodule NervesHub.Devices.ExternalIdentities do
     |> where(service: ^service)
     |> where(instance: ^instance)
     |> Repo.fetch()
+  end
+
+  @doc """
+  Identities belonging to an organisation, newest first.
+
+  `opts` narrows the list:
+
+    * `:service` — only this protocol.
+    * `:owner` — `:device`, `:org_user`, or `:unowned`.
+    * `:search` — matches the start of an identifier, or anywhere in a device's
+      identifier or a user's name. Prefix rather than substring on the key
+      because that is the half an operator has: logs and tables show a key
+      truncated, so the beginning is what they can copy.
+
+  Owners are preloaded, since a list of keys without whose they are is not much
+  of a list.
+  """
+  @spec list_for_org(pos_integer(), keyword()) :: [ExternalIdentity.t()]
+  def list_for_org(org_id, opts \\ []) do
+    ExternalIdentity
+    |> where(org_id: ^org_id)
+    |> filter_by_service(opts[:service])
+    |> filter_by_owner(opts[:owner])
+    |> filter_by_search(opts[:search])
+    |> order_by([ei], desc: ei.inserted_at, asc: ei.id)
+    |> preload([:device, org_user: :user])
+    |> Repo.all()
+  end
+
+  defp filter_by_service(query, nil), do: query
+  defp filter_by_service(query, service), do: where(query, service: ^service)
+
+  defp filter_by_owner(query, nil), do: query
+  defp filter_by_owner(query, :device), do: where(query, [ei], not is_nil(ei.device_id))
+  defp filter_by_owner(query, :org_user), do: where(query, [ei], not is_nil(ei.org_user_id))
+
+  defp filter_by_owner(query, :unowned), do: where(query, [ei], is_nil(ei.device_id) and is_nil(ei.org_user_id))
+
+  defp filter_by_owner(query, _other), do: query
+
+  defp filter_by_search(query, search) when is_binary(search) do
+    case String.trim(search) do
+      "" ->
+        query
+
+      term ->
+        prefix = escape_like(term) <> "%"
+        anywhere = "%" <> escape_like(term) <> "%"
+
+        query
+        |> join(:left, [ei], d in Device, on: d.id == ei.device_id, as: :device)
+        |> join(:left, [ei], ou in OrgUser, on: ou.id == ei.org_user_id, as: :org_user)
+        |> join(:left, [org_user: ou], u in User, on: u.id == ou.user_id, as: :user)
+        |> where(
+          [ei, device: d, user: u],
+          ilike(ei.identifier, ^prefix) or ilike(d.identifier, ^anywhere) or
+            ilike(u.name, ^anywhere)
+        )
+    end
+  end
+
+  defp filter_by_search(query, _search), do: query
+
+  # A search for "abc_" should look for that, not treat the underscore as a
+  # wildcard and match everything.
+  defp escape_like(term) do
+    String.replace(term, ["\\", "%", "_"], fn char -> "\\" <> char end)
+  end
+
+  @doc """
+  Record an identity by hand, against an organisation.
+
+  For something NervesHub does not manage — a laptop, a jump host — or for a
+  device being registered before it first connects, which then claims the row
+  itself. Pass `:org_user_id` to attach it to a membership, or leave it off for
+  an identity the organisation holds directly.
+
+  Returns `{:error, :claimed_elsewhere}` when the key is already recorded
+  anywhere, including in another organisation. Nothing about a typed-in key is
+  proven, so first-come-wins would let one organisation take another's traffic
+  by registering a key it does not hold — or squat one so its real owner never
+  can. The caller is expected to say so plainly rather than retry.
+
+  Returns `{:error, :invalid_member}` when `:org_user_id` names a membership of
+  some other organisation. The id arrives from a form and is therefore a
+  request, not a fact: without this, a crafted one would attach a key to
+  somebody outside the organisation doing the registering.
+  """
+  @spec register(pos_integer(), atom() | String.t(), map()) ::
+          {:ok, ExternalIdentity.t()}
+          | {:error, :unsupported_service | :claimed_elsewhere | :invalid_member | Ecto.Changeset.t()}
+  def register(org_id, service, attrs) do
+    with {:ok, service} <- cast_service_result(service),
+         {:ok, org_user_id} <- cast_member(org_id, attrs[:org_user_id] || attrs["org_user_id"]) do
+      identifier = attrs[:identifier] || attrs["identifier"]
+
+      if is_binary(identifier) and Repo.exists?(claimed_query(service, identifier)) do
+        {:error, :claimed_elsewhere}
+      else
+        %ExternalIdentity{}
+        |> ExternalIdentity.changeset(%{
+          org_id: org_id,
+          org_user_id: org_user_id,
+          service: service,
+          instance: cast_instance(attrs[:instance] || attrs["instance"]),
+          identifier: identifier,
+          details: attrs[:details] || attrs["details"] || %{},
+          source: :operator
+        })
+        |> Repo.insert()
+      end
+    end
+  end
+
+  # "" arrives from a select whose blank option means "nobody".
+  defp cast_member(_org_id, nil), do: {:ok, nil}
+  defp cast_member(_org_id, ""), do: {:ok, nil}
+
+  defp cast_member(org_id, org_user_id) do
+    with {:ok, id} <- cast_member_id(org_user_id),
+         true <- Repo.exists?(member_query(org_id, id)) do
+      {:ok, id}
+    else
+      _other -> {:error, :invalid_member}
+    end
+  end
+
+  defp cast_member_id(id) when is_integer(id), do: {:ok, id}
+
+  defp cast_member_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {parsed, ""} -> {:ok, parsed}
+      _other -> :error
+    end
+  end
+
+  defp cast_member_id(_id), do: :error
+
+  defp member_query(org_id, org_user_id) do
+    OrgUser
+    |> where(id: ^org_user_id)
+    |> where(org_id: ^org_id)
+    |> where([ou], is_nil(ou.deleted_at))
+  end
+
+  defp claimed_query(service, identifier) do
+    ExternalIdentity
+    |> where(service: ^service)
+    |> where(identifier: ^identifier)
+  end
+
+  @doc """
+  Remove an identity.
+
+  Scoped to an organisation so a caller cannot delete one belonging to another
+  by guessing an id.
+  """
+  @spec delete(pos_integer(), pos_integer()) :: {:ok, ExternalIdentity.t()} | {:error, :not_found}
+  def delete(org_id, id) do
+    ExternalIdentity
+    |> where(id: ^id)
+    |> where(org_id: ^org_id)
+    |> Repo.fetch()
+    |> case do
+      {:ok, identity} -> Repo.delete(identity)
+      {:error, :not_found} -> {:error, :not_found}
+    end
   end
 
   @doc """

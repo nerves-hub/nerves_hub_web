@@ -118,6 +118,9 @@ defmodule NervesHubWeb do
 
       def analytics_enabled?(), do: Application.get_env(:nerves_hub, :analytics_enabled)
 
+      def external_identities_enabled?(),
+        do: Application.get_env(:nerves_hub, :external_identities_enabled, false)
+
       unquote(tab_component_functions())
     end
   end
@@ -250,6 +253,12 @@ defmodule NervesHubWeb do
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, logo: 1]
 
+      # The sidebar asks this before rendering the link for a page that is off
+      # by default. Hiding the link is presentation; the route refuses too.
+      def external_identities_enabled?() do
+        Application.get_env(:nerves_hub, :external_identities_enabled, false)
+      end
+
       # Routes generation with the ~p sigil
       unquote(verified_routes())
     end
@@ -367,6 +376,12 @@ defmodule NervesHubWeb do
 
       def analytics_enabled?() do
         Application.get_env(:nerves_hub, :analytics_enabled)
+      end
+
+      # Off unless a deployment turns it on. The nav link and the route both ask,
+      # because hiding a link is not access control — the URL is still typeable.
+      def external_identities_enabled?() do
+        Application.get_env(:nerves_hub, :external_identities_enabled, false)
       end
 
       # Routes generation with the ~p sigil

@@ -1,0 +1,140 @@
+<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
+  <:header>
+    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Iroh Endpoints</h1>
+    <div class="mr-auto"></div>
+    <.button
+      :if={authorized?(:"external_identity:create", @current_scope)}
+      type="button"
+      phx-click="toggle-registration"
+      aria-label="Register an endpoint"
+    >
+      <.icon name="add" /> Register Endpoint
+    </.button>
+  </:header>
+
+  <div class="px-6 py-4">
+    <p class="text-base-400 mb-4 text-sm">
+      Endpoint ids your devices and people use to reach each other over iroh. A device records its
+      own when it connects; anything else is registered here.
+    </p>
+
+    <div :if={@registering} class="bg-base-800/50 border-base-700 mb-6 rounded border p-4">
+      <.form :let={f} id="register_identity" for={@form} phx-submit="register" class="space-y-4">
+        <div>
+          <.input field={f[:identifier]} label="Endpoint id" placeholder="64 hex characters" />
+          <p class="text-base-500 mt-1 text-xs">
+            The public key the endpoint proves it holds, not a ticket or a relay URL.
+          </p>
+        </div>
+
+        <div>
+          <.input field={f[:instance]} label="Instance" placeholder="default" />
+          <p class="text-base-500 mt-1 text-xs">
+            Names which endpoint this is, for something running more than one. Leave blank if it
+            runs a single one.
+          </p>
+        </div>
+
+        <div>
+          <.input
+            field={f[:org_user_id]}
+            type="select"
+            label="Belongs to"
+            options={[{"Nobody in particular", ""} | @members]}
+          />
+          <p class="text-base-500 mt-1 text-xs">
+            Attach this endpoint to someone in this organisation, for a laptop or a workstation.
+            Leave it unassigned for something the organisation holds directly, or for a device
+            that will claim the endpoint itself when it next connects.
+          </p>
+        </div>
+
+        <div class="flex gap-2">
+          <.button type="submit">Register</.button>
+          <.button type="button" phx-click="toggle-registration">Cancel</.button>
+        </div>
+      </.form>
+    </div>
+
+    <div class="mb-4 flex flex-wrap items-center gap-3">
+      <form id="identity-search" phx-change="search" phx-submit="search" class="min-w-[240px] flex-1">
+        <label for="identity-search-input" class="sr-only">Search endpoints</label>
+        <input
+          id="identity-search-input"
+          type="search"
+          name="search"
+          value={@search}
+          placeholder="Search by endpoint id, device or person"
+          phx-debounce="300"
+          class="bg-base-800 border-base-700 placeholder:text-base-500 text-base-100 w-full rounded border px-3 py-1.5 text-sm"
+        />
+      </form>
+
+      <form id="identity-owner-filter" phx-change="filter">
+        <label for="identity-owner-select" class="sr-only">Owner</label>
+        <select
+          id="identity-owner-select"
+          name="owner"
+          class="bg-base-800 border-base-700 text-base-100 rounded border px-3 py-1.5 text-sm"
+        >
+          <option value="" selected={is_nil(@owner_filter)}>All owners</option>
+          <option value="device" selected={@owner_filter == :device}>Devices</option>
+          <option value="org_user" selected={@owner_filter == :org_user}>People</option>
+          <option value="unowned" selected={@owner_filter == :unowned}>Unassigned</option>
+        </select>
+      </form>
+    </div>
+
+    <div :if={@identities == []} class="border-base-700 text-base-400 rounded border border-dashed p-8 text-center text-sm">
+      <p :if={@search == "" and is_nil(@owner_filter)}>
+        No endpoints yet. Devices record their own when they connect.
+      </p>
+      <p :if={@search != "" or not is_nil(@owner_filter)}>Nothing matches that.</p>
+    </div>
+
+    <div :if={@identities != []} class="space-y-2">
+      <div
+        :for={identity <- @identities}
+        class="border-base-700 from-base-800/50 to-base-800 flex items-start gap-4 rounded border bg-linear-to-r p-4"
+      >
+        <div class="min-w-0 flex-1">
+          <div class="text-base-50 font-mono text-sm break-all" title={identity.identifier}>
+            {NervesHubWeb.Live.Org.ExternalIdentities.truncate(identity.identifier)}
+          </div>
+
+          <div class="text-base-400 mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            <% {kind, who} = NervesHubWeb.Live.Org.ExternalIdentities.owner_label(identity) %>
+            <span><span class="text-base-500">{kind}:</span> {who}</span>
+            <span :if={identity.instance != "default"}>
+              <span class="text-base-500">Instance:</span> {identity.instance}
+            </span>
+            <span>
+              <span class="text-base-500">Source:</span>
+              {if identity.source == :device_reported, do: "reported by device", else: "registered"}
+            </span>
+            <span :if={identity.last_reported_at}>
+              <span class="text-base-500">Last seen:</span> {Calendar.strftime(
+                identity.last_reported_at,
+                "%Y-%m-%d %H:%M UTC"
+              )}
+            </span>
+          </div>
+        </div>
+
+        <button
+          :if={authorized?(:"external_identity:delete", @current_scope)}
+          class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-3 py-1.5 text-sm font-medium"
+          phx-click="delete"
+          phx-value-id={identity.id}
+          data-confirm={
+            if identity.source == :device_reported,
+              do: "This endpoint was reported by a device, which will record it again the next time it connects. Remove it anyway?",
+              else: "Remove this endpoint?"
+          }
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+  </div>
+</NervesHubWeb.Layouts.sidebar>

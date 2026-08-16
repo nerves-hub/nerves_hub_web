@@ -173,3 +173,8 @@ config :ueberauth, Ueberauth,
 
 # Environment specific config
 import_config "#{Mix.env()}.exs"
+
+# The organisation-level page for keys held on networks NervesHub does not run.
+# Off unless a deployment turns it on with EXTERNAL_IDENTITIES_ENABLED, since it
+# is only useful where those networks are in use.
+config :nerves_hub, external_identities_enabled: false
