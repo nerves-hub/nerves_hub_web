@@ -321,11 +321,10 @@ if config_env() == :prod do
   end
 end
 
-# The organisation-level page for identities held on networks NervesHub does not
-# run. Read in every environment so it can be switched on locally the same way
-# it is in a deployment.
+# The organisation's Iroh Endpoints page. Read in every environment so it can be
+# switched on locally the same way it is in a deployment.
 config :nerves_hub,
-  external_identities_enabled: System.get_env("EXTERNAL_IDENTITIES_ENABLED", "false") == "true"
+  org_iroh_endpoints_ui_enabled: System.get_env("ORG_IROH_ENDPOINTS_UI_ENABLED", "false") == "true"
 
 ##
 # Firmware upload backend.

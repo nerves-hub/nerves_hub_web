@@ -8,16 +8,16 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
   @endpoint_id "c8924b6c9b7a8528b1365ebec4b2e43b6edebef684f8521f12b8caaf6e1b2302"
 
   setup do
-    previous = Application.get_env(:nerves_hub, :external_identities_enabled, false)
-    Application.put_env(:nerves_hub, :external_identities_enabled, true)
-    on_exit(fn -> Application.put_env(:nerves_hub, :external_identities_enabled, previous) end)
+    previous = Application.get_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, false)
+    Application.put_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, true)
+    on_exit(fn -> Application.put_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, previous) end)
   end
 
   defp path(org), do: "/org/#{org.name}/settings/iroh-endpoints"
 
   describe "the feature flag" do
     test "hides the page entirely when off", %{conn: conn, org: org} do
-      Application.put_env(:nerves_hub, :external_identities_enabled, false)
+      Application.put_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, false)
 
       # Not merely hidden from the sidebar: typing the URL has to fail too, or
       # the flag is decoration.
@@ -27,7 +27,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
     end
 
     test "keeps the link out of the sidebar when off", %{conn: conn, org: org} do
-      Application.put_env(:nerves_hub, :external_identities_enabled, false)
+      Application.put_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, false)
 
       conn
       |> visit("/org/#{org.name}/settings/keys")

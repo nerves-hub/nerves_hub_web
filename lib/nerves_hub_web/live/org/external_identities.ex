@@ -3,7 +3,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
   The keys an organisation's devices and people hold on networks NervesHub does
   not run.
 
-  Behind `external_identities_enabled?/0`, which is off unless a deployment says
+  Behind `org_iroh_endpoints_ui_enabled?/0`, which is off unless a deployment says
   otherwise. The check is repeated in the router: hiding a link in the sidebar
   leaves the URL typeable, so the mount refuses as well.
 
@@ -27,7 +27,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
-    if external_identities_enabled?() do
+    if org_iroh_endpoints_ui_enabled?() do
       {:ok,
        socket
        |> assign(:org, scope.org)

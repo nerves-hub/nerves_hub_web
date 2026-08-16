@@ -174,7 +174,7 @@ config :ueberauth, Ueberauth,
 # Environment specific config
 import_config "#{Mix.env()}.exs"
 
-# The organisation-level page for keys held on networks NervesHub does not run.
-# Off unless a deployment turns it on with EXTERNAL_IDENTITIES_ENABLED, since it
-# is only useful where those networks are in use.
-config :nerves_hub, external_identities_enabled: false
+# The organisation's Iroh Endpoints page. Off unless a deployment turns it on,
+# since it is only useful where iroh is in use. The switch covers the page
+# alone — devices record their iroh identities either way.
+config :nerves_hub, org_iroh_endpoints_ui_enabled: false
