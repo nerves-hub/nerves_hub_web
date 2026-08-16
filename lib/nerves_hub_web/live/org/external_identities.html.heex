@@ -72,10 +72,13 @@
 
       <form id="identity-owner-filter" phx-change="filter">
         <label for="identity-owner-select" class="sr-only">Owner</label>
+        <%!-- Asymmetric padding on purpose: the other selects in the app are
+              w-full, so their text never reaches the arrow. This one hugs its
+              content, and pr-8 is the room the chevron needs. --%>
         <select
           id="identity-owner-select"
           name="owner"
-          class="bg-base-800 border-base-700 text-base-100 rounded border px-3 py-1.5 text-sm"
+          class="bg-base-800 border-base-700 text-base-100 rounded border py-1.5 pr-8 pl-3 text-sm"
         >
           <option value="" selected={is_nil(@owner_filter)}>All owners</option>
           <option value="device" selected={@owner_filter == :device}>Devices</option>
@@ -99,26 +102,12 @@
       >
         <div class="min-w-0 flex-1">
           <div class="group/identity flex w-full min-w-0 items-center gap-1.5">
-            <%!-- Truncated by CSS rather than by the value, so a wide window
-                  shows more of the key and a narrow one still fits. The full
-                  value is in the tooltip and on the clipboard button. --%>
-            <div
-              id={"identity-#{identity.id}"}
-              class="relative flex min-w-0"
-              phx-hook="ToolTip"
-              data-placement="top"
-            >
-              <span class="text-base-50 min-w-0 truncate font-mono text-sm">
-                {identity.identifier}
-              </span>
-              <div
-                role="tooltip"
-                class="bg-surface-overlay border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border px-2 py-1.5 shadow-lg"
-              >
-                <span class="text-base-200 font-mono text-xs break-all">{identity.identifier}</span>
-                <div class="bg-surface-overlay border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
-              </div>
-            </div>
+            <%!-- A key fits at most window widths, so it is rendered whole and
+                  truncated by CSS only when it has to be. Whatever is on screen,
+                  the clipboard gets the full value. --%>
+            <span class="text-base-50 min-w-0 truncate font-mono text-sm">
+              {identity.identifier}
+            </span>
             <button
               id={"copy-identity-#{identity.id}"}
               type="button"
