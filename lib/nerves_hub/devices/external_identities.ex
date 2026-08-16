@@ -12,6 +12,7 @@ defmodule NervesHub.Devices.ExternalIdentities do
 
   import Ecto.Query
 
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.ExternalIdentity
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
@@ -44,6 +45,77 @@ defmodule NervesHub.Devices.ExternalIdentities do
     |> where(service: ^service)
     |> where(instance: ^instance)
     |> Repo.fetch()
+  end
+
+  @doc """
+  Fetch the device that proved possession of `identifier` on `service`.
+
+  The reverse of `get/3`: that one starts from a device, this one starts from
+  the key. `ExternalIdentity` carries a unique index on `(service, identifier)`
+  precisely so this is a point lookup — a key belongs to at most one device.
+
+  A soft-deleted device comes back as `{:error, :device_deleted}` rather than
+  `{:error, :not_found}`. Both mean "do not admit this key", but they mean
+  different things to whoever reads the logs: one is a key nobody ever
+  registered, the other a device removed while still holding one.
+
+  Matching is exact, and nothing here normalises case, because it cannot: an
+  iroh endpoint id is hex and case-insensitive in practice, while a WireGuard
+  public key is base64 and is not. Reporter and caller have to agree on a form,
+  and for iroh that is the lowercase hex `EndpointId` renders.
+
+  ## Called over `:erpc` by other applications in the cluster
+
+  **This function has no callers inside nerves_hub_web, and that is expected.
+  It is not unused — do not remove it.** See "Cross-application contracts" in
+  `AGENTS.md`.
+
+  Today's caller is the iroh relay authorization service, which answers
+  `iroh-relay`'s access hook. A relay first proves the endpoint holds the
+  private key for the endpoint id it claims, then asks whether that key belongs
+  to a device we know and which organisation owns it. The organisation becomes
+  the relay "fabric", which is what stops one customer's devices reaching
+  another's.
+
+  Being an `:erpc` target shapes the return value in two ways:
+
+    * **It returns a map, not a struct.** A struct arriving on a node that does
+      not define its module is a map carrying a `__struct__` key pointing at
+      nothing, which callers then work around. Named keys survive the hop.
+
+    * **Its shape is a published interface.** Adding a key is safe; renaming or
+      removing one breaks a caller this repository cannot see and will not fail
+      to compile against. The test pins the shape for that reason.
+  """
+  @spec get_device_by_identifier(atom() | String.t(), String.t()) ::
+          {:ok, map()} | {:error, :not_found | :device_deleted | :unsupported_service}
+  def get_device_by_identifier(service, identifier) when is_binary(identifier) do
+    case cast_service(service) do
+      {:ok, service} -> device_by_identifier(service, identifier)
+      :error -> {:error, :unsupported_service}
+    end
+  end
+
+  defp device_by_identifier(service, identifier) do
+    ExternalIdentity
+    |> where(service: ^service)
+    |> where(identifier: ^identifier)
+    |> join(:inner, [ei], d in Device, on: d.id == ei.device_id)
+    |> select([ei, d], %{
+      device_id: d.id,
+      device_identifier: d.identifier,
+      org_id: d.org_id,
+      product_id: d.product_id,
+      service: ei.service,
+      instance: ei.instance,
+      deleted_at: d.deleted_at
+    })
+    |> Repo.fetch()
+    |> case do
+      {:ok, %{deleted_at: nil} = found} -> {:ok, Map.delete(found, :deleted_at)}
+      {:ok, _deleted} -> {:error, :device_deleted}
+      {:error, :not_found} -> {:error, :not_found}
+    end
   end
 
   @doc """

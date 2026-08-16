@@ -330,6 +330,131 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
     end
   end
 
+  describe "get_device_by_identifier/2" do
+    test "finds the device that reported the key", %{device: device, org: org, product: product} do
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+
+      assert {:ok, found} = ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+
+      assert found.device_id == device.id
+      assert found.device_identifier == device.identifier
+      assert found.org_id == org.id
+      assert found.product_id == product.id
+      assert found.service == :iroh
+      assert found.instance == ExternalIdentity.default_instance()
+    end
+
+    test "accepts the service as a string, as an :erpc caller would send it", %{device: device} do
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+
+      assert {:ok, found} = ExternalIdentities.get_device_by_identifier("iroh", "abc123")
+      assert found.device_id == device.id
+    end
+
+    test "returns a plain map, not a schema struct", %{device: device} do
+      # The caller runs on a node with no NervesHub modules loaded, where a
+      # struct is a map carrying a __struct__ key pointing at nothing. See the
+      # cross-application contract note in AGENTS.md.
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+
+      assert {:ok, found} = ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+
+      refute is_struct(found)
+      refute Map.has_key?(found, :__struct__)
+    end
+
+    test "returns exactly the published keys", %{device: device} do
+      # Pins the shape for callers this repository cannot see and will not fail
+      # to compile against. Adding a key here is safe; removing or renaming one
+      # is a breaking change needing a coordinated release.
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+
+      assert {:ok, found} = ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+
+      assert found |> Map.keys() |> Enum.sort() == [
+               :device_id,
+               :device_identifier,
+               :instance,
+               :org_id,
+               :product_id,
+               :service
+             ]
+    end
+
+    test "returns not_found for a key nobody registered", %{device: device} do
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+
+      assert {:error, :not_found} =
+               ExternalIdentities.get_device_by_identifier(:iroh, "never-registered")
+    end
+
+    test "deleting a device takes its identities with it", %{device: device} do
+      # delete_device/1 soft deletes the device but removes the identity rows
+      # outright, so the key stops resolving rather than resolving to a deleted
+      # device. It has to: the rows hold the (service, identifier) unique index,
+      # and reprovisioning the same hardware would otherwise collide.
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+      {:ok, _} = Devices.delete_device(device)
+
+      assert {:error, :not_found} = ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+    end
+
+    test "refuses an identity whose device is soft deleted", %{device: device} do
+      # The safety net for the case the previous test rules out. An identity is
+      # not supposed to outlive its device, but the join checks deleted_at
+      # anyway: if a row ever did survive — a soft delete by some path that does
+      # not clear identities — resolving it would admit a removed device.
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+
+      device |> Repo.soft_delete_changeset() |> Repo.update!()
+
+      assert {:error, :device_deleted} =
+               ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+    end
+
+    test "does not match the same key under a different service", %{device: device} do
+      # (service, identifier) is unique together, not identifier alone, so the
+      # service has to be part of the lookup.
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+
+      assert {:error, :not_found} =
+               ExternalIdentities.get_device_by_identifier(:wireguard, "abc123")
+    end
+
+    test "matches exactly, without normalising case", %{device: device} do
+      # Case-folding cannot be done generically: iroh hex is case-insensitive in
+      # practice, a WireGuard base64 key is not. Reporter and caller agree on a
+      # form instead.
+      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+
+      assert {:error, :not_found} = ExternalIdentities.get_device_by_identifier(:iroh, "ABC123")
+    end
+
+    test "finds each endpoint of a device separately", %{device: device} do
+      # A device running an iroh console and an iroh application holds one key
+      # per instance, and either may be the one asking to use a relay.
+      {:ok, _} =
+        ExternalIdentities.report(device.id, "iroh", %{identifier: "console", instance: "console"})
+
+      {:ok, _} =
+        ExternalIdentities.report(device.id, "iroh", %{identifier: "app", instance: "app"})
+
+      assert {:ok, %{instance: "console"}} =
+               ExternalIdentities.get_device_by_identifier(:iroh, "console")
+
+      assert {:ok, %{instance: "app"}} = ExternalIdentities.get_device_by_identifier(:iroh, "app")
+    end
+
+    test "refuses a service NervesHub does not know" do
+      assert {:error, :unsupported_service} =
+               ExternalIdentities.get_device_by_identifier("zerotier", "abc123")
+    end
+
+    test "returns not_found when nothing has been reported" do
+      assert {:error, :not_found} = ExternalIdentities.get_device_by_identifier(:iroh, "abc123")
+    end
+  end
+
   describe "the schema" do
     test "services/0 lists what can be recorded" do
       assert ExternalIdentity.services() == [:iroh, :netbird, :tailscale, :wireguard]
