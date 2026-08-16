@@ -154,15 +154,23 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
   # deployment uses is its own business — a hosted offering, or a runbook for a
   # self-hosted one — so the extra link is a setting rather than a URL in here.
   #
-  # Labelled by its host, because where a link goes is what an operator wants to
-  # know before following it, and it saves a second setting for the text.
   defp links() do
     case Application.get_env(:nerves_hub, :org_iroh_endpoints_info_url) do
       url when is_binary(url) and url != "" ->
-        @iroh_docs ++ [{URI.parse(url).host || url, url}]
+        @iroh_docs ++ [{info_label(url), url}]
 
       _no_link ->
         @iroh_docs
+    end
+  end
+
+  # The host names the link well enough to need no configuring, and it tells an
+  # operator where they are about to go. It still reads as an address rather
+  # than as an offer, so a deployment can say what the link is instead.
+  defp info_label(url) do
+    case Application.get_env(:nerves_hub, :org_iroh_endpoints_info_label) do
+      label when is_binary(label) and label != "" -> label
+      _no_label -> URI.parse(url).host || url
     end
   end
 

@@ -329,7 +329,10 @@ config :nerves_hub,
   # a hosted offering, or an internal runbook for a self-hosted one. The page
   # links to the iroh project either way; this is the deployment's own page,
   # so it is a setting rather than a URL in the source.
-  org_iroh_endpoints_info_url: System.get_env("ORG_IROH_ENDPOINTS_INFO_URL")
+  org_iroh_endpoints_info_url: System.get_env("ORG_IROH_ENDPOINTS_INFO_URL"),
+  # What to call that link. Falls back to the host of the URL above, which is a
+  # fair name for a link and one less thing to set.
+  org_iroh_endpoints_info_label: System.get_env("ORG_IROH_ENDPOINTS_INFO_LABEL")
 
 ##
 # Firmware upload backend.

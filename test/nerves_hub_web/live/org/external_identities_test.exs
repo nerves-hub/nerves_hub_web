@@ -121,6 +121,29 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
       |> visit(path(org))
       |> assert_has("a[href='https://relays.example.com/iroh']", text: "relays.example.com")
     end
+
+    test "prefers a configured label over the host", %{conn: conn, org: org} do
+      Application.put_env(
+        :nerves_hub,
+        :org_iroh_endpoints_info_url,
+        "https://relays.example.com/iroh"
+      )
+
+      Application.put_env(:nerves_hub, :org_iroh_endpoints_info_label, "Relays, and who runs them")
+
+      on_exit(fn ->
+        Application.delete_env(:nerves_hub, :org_iroh_endpoints_info_url)
+        Application.delete_env(:nerves_hub, :org_iroh_endpoints_info_label)
+      end)
+
+      conn
+      |> visit(path(org))
+      |> assert_has("a[href='https://relays.example.com/iroh']",
+        text: "Relays, and who runs them"
+      )
+      # The label replaces the host rather than joining it.
+      |> refute_has("a", text: "relays.example.com")
+    end
   end
 
   describe "search and filter" do
