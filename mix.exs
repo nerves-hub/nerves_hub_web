@@ -4,9 +4,12 @@ defmodule NervesHub.MixProject do
   alias Flop.Schema.NervesHub.Devices.Device
   alias Inspect.NervesHub.Accounts.User
   alias Jason.Encoder.OrderedCollections.SortedMap
-  alias NervesHub.Accounts.Org.Setting
+  alias NervesHub.Accounts.Org.Settings
   alias NervesHub.Firmwares.Upload.S3
   alias NervesHub.Helpers.Logging
+  alias NervesHub.Release.Tasks
+  alias NervesHub.Support.EctoTelemetryHandler
+  alias NervesHub.Telemetry.FilteredSampler
   alias NervesHubWeb.Plugs.OpenApiSpec
 
   def project() do
@@ -41,6 +44,7 @@ defmodule NervesHub.MixProject do
         tool: ExCoveralls,
         ignore_modules: [
           NervesHubWeb,
+          NervesHub.Uploads.S3,
           # API support
           NervesHubWeb.ApiSpec,
           ~r/NervesHubWeb\.API\.Schemas\..*/,
@@ -50,7 +54,7 @@ defmodule NervesHub.MixProject do
           Device,
           User,
           SortedMap,
-          Setting,
+          Settings,
           # Emails and views
           NervesHub.EmailView,
           NervesHubWeb.DeviceHTML,
@@ -60,9 +64,12 @@ defmodule NervesHub.MixProject do
           NervesHubWeb.ProductView,
           # Tools
           ~r/Mix.Tasks\..*/,
+          Tasks,
           S3,
           NervesHub.Debug,
           Logging,
+          FilteredSampler,
+          EctoTelemetryHandler,
           # Misc
           OpenApiSpec,
           NervesHubWeb.SentryEventFilter,
