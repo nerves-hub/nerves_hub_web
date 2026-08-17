@@ -14,7 +14,7 @@ defmodule NervesHub.Devices.DeviceTest do
     %{org: org, product: product, device: device}
   end
 
-  test "changeset/2 adds error when updating a soft-deleted device", %{org: org, product: product, device: device} do
+  test "changeset/2 adds error when updating a soft-deleted device", %{device: device} do
     deleted_device = %{device | deleted_at: DateTime.utc_now()}
     changeset = Device.changeset(deleted_device, %{description: "new description"})
     assert {:deleted_at, {"cannot update while marked as deleted", []}} in changeset.errors

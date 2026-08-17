@@ -78,7 +78,6 @@ defmodule NervesHub.Devices.DeviceCertificateTest do
 
   test "changeset/2 duplicate public_key_fingerprint for different device adds error", %{
     tmp_dir: tmp_dir,
-    org: org,
     device: device
   } do
     # Create another device in same org/product
@@ -90,7 +89,7 @@ defmodule NervesHub.Devices.DeviceCertificateTest do
     device2 = Fixtures.device_fixture(org2, product2, firmware2)
 
     # Create a cert for device1
-    %{db_cert: existing_cert, cert: existing_x509_cert} = Fixtures.device_certificate_fixture(device)
+    %{cert: existing_x509_cert} = Fixtures.device_certificate_fixture(device)
 
     # Try to create a cert for device2 using the same public key (same DER)
     der = Certificate.to_der(existing_x509_cert)

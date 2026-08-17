@@ -61,6 +61,13 @@ defmodule NervesHubWeb.API.FallbackControllerTest do
     end
   end
 
+  describe "call/2 {:error, other}" do
+    test "returns 500 for a non-binary, non-atom reason", %{conn: conn} do
+      conn = FallbackController.call(conn, {:error, %{some: "map"}})
+      assert conn.status == 500
+    end
+  end
+
   describe "call/2 {:error, %Ecto.Changeset{}}" do
     test "returns 422 for a non-conflict changeset error", %{conn: conn} do
       changeset = %Ecto.Changeset{
