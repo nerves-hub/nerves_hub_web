@@ -7,7 +7,7 @@ defmodule NervesHubWeb.Router do
 
   alias Live.Org.CertificateAuthorities
   alias Live.Org.Delete
-  alias Live.Org.NetworkIdentities
+  alias Live.Org.IrohEndpoints
   alias Live.Org.Settings
   alias Live.Org.Show
   alias Live.Org.SigningKeys
@@ -315,7 +315,7 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/settings/users/:user_id/edit", Users, :edit)
       # Gated as well as hidden from the sidebar: a hidden link still leaves the
       # URL typeable, so the LiveView refuses to mount when the flag is off.
-      live("/org/:org_name/settings/iroh-endpoints", NetworkIdentities)
+      live("/org/:org_name/settings/iroh-endpoints", IrohEndpoints)
 
       live("/org/:org_name/settings/certificates", CertificateAuthorities, :index)
       live("/org/:org_name/settings/certificates/new", CertificateAuthorities, :new)

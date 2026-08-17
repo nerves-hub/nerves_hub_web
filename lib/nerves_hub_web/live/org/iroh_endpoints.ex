@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.Org.NetworkIdentities do
+defmodule NervesHubWeb.Live.Org.IrohEndpoints do
   @moduledoc """
   The keys an organisation's devices and people hold on networks NervesHub does
   not run.
@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Live.Org.NetworkIdentities do
     {:noreply,
      socket
      |> page_title("Iroh Endpoints - #{socket.assigns.org.name}")
-     |> sidebar_tab(:network_identities)}
+     |> sidebar_tab(:iroh_endpoints)}
   end
 
   @impl Phoenix.LiveView

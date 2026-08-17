@@ -135,7 +135,7 @@
           </div>
 
           <div class="text-base-400 mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            <% {kind, who} = NervesHubWeb.Live.Org.NetworkIdentities.owner_label(identity) %>
+            <% {kind, who} = NervesHubWeb.Live.Org.IrohEndpoints.owner_label(identity) %>
             <span><span class="text-base-500">{kind}:</span> {who}</span>
             <span :if={identity.instance != "default"}>
               <span class="text-base-500">Instance:</span> {identity.instance}

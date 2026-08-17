@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.Org.NetworkIdentitiesTest do
+defmodule NervesHubWeb.Live.Org.IrohEndpointsTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Accounts.OrgUser
