@@ -1,10 +1,10 @@
-defmodule NervesHub.Devices.ExternalIdentitiesTest do
+defmodule NervesHub.Devices.NetworkIdentitiesTest do
   use NervesHub.DataCase, async: true
 
   alias NervesHub.Accounts
   alias NervesHub.Devices
-  alias NervesHub.Devices.ExternalIdentities
-  alias NervesHub.Devices.ExternalIdentity
+  alias NervesHub.Devices.NetworkIdentities
+  alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
@@ -23,7 +23,7 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
   describe "report/3" do
     test "records an identity a device reports about itself", %{device: device} do
       assert {:ok, identity} =
-               ExternalIdentities.report(device.id, "iroh", %{
+               NetworkIdentities.report(device.id, "iroh", %{
                  identifier: "a1b2c3",
                  details: %{"ticket" => "some-ticket"}
                })
@@ -36,40 +36,40 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
     end
 
     test "replaces the previous value rather than accumulating rows", %{device: device} do
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "first"})
-      {:ok, updated} = ExternalIdentities.report(device.id, "iroh", %{identifier: "second"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "first"})
+      {:ok, updated} = NetworkIdentities.report(device.id, "iroh", %{identifier: "second"})
 
       assert updated.identifier == "second"
-      assert [%ExternalIdentity{identifier: "second"}] = ExternalIdentities.list_for_device(device.id)
+      assert [%NetworkIdentity{identifier: "second"}] = NetworkIdentities.list_for_device(device.id)
     end
 
     test "a device can hold identities on several services at once", %{device: device} do
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "iroh-key"})
-      {:ok, _} = ExternalIdentities.report(device.id, "tailscale", %{identifier: "ts-key"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "iroh-key"})
+      {:ok, _} = NetworkIdentities.report(device.id, "tailscale", %{identifier: "ts-key"})
 
       assert [%{service: :iroh}, %{service: :tailscale}] =
-               ExternalIdentities.list_for_device(device.id)
+               NetworkIdentities.list_for_device(device.id)
     end
 
     test "accepts an atom service as well as a string", %{device: device} do
       assert {:ok, identity} =
-               ExternalIdentities.report(device.id, :netbird, %{identifier: "nb-key"})
+               NetworkIdentities.report(device.id, :netbird, %{identifier: "nb-key"})
 
       assert identity.service == :netbird
     end
 
     test "refuses a service this NervesHub doesn't know", %{device: device} do
       assert {:error, :unsupported_service} =
-               ExternalIdentities.report(device.id, "zerotier", %{identifier: "zt-key"})
+               NetworkIdentities.report(device.id, "zerotier", %{identifier: "zt-key"})
 
-      assert ExternalIdentities.list_for_device(device.id) == []
+      assert NetworkIdentities.list_for_device(device.id) == []
     end
 
     test "refuses a service name that is an atom but not a known one", %{device: device} do
       # :erlang is certainly an existing atom, which is exactly why casting can't
       # lean on String.to_existing_atom/1.
       assert {:error, :unsupported_service} =
-               ExternalIdentities.report(device.id, :erlang, %{identifier: "nope"})
+               NetworkIdentities.report(device.id, :erlang, %{identifier: "nope"})
     end
 
     test "two devices cannot claim the same key", %{device: device, org: org, product: product, firmware: firmware} do
@@ -77,27 +77,27 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # imaged. The second device to report is the one that fails.
       other = Fixtures.device_fixture(org, product, firmware, %{identifier: "cloned-sibling"})
 
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "shared-key"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "shared-key"})
 
       # Reported as a conflict rather than left to the unique index. A cloned
       # batch would otherwise fail this way on every reconnect, forever, looking
       # like a network fault instead of the duplication it is.
       assert {:error, :claimed_elsewhere} =
-               ExternalIdentities.report(other.id, "iroh", %{identifier: "shared-key"})
+               NetworkIdentities.report(other.id, "iroh", %{identifier: "shared-key"})
 
-      assert ExternalIdentities.list_for_device(other.id) == []
+      assert NetworkIdentities.list_for_device(other.id) == []
     end
 
     test "the same key on different services is fine", %{device: device} do
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "same-bytes"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "same-bytes"})
 
       assert {:ok, _} =
-               ExternalIdentities.report(device.id, "wireguard", %{identifier: "same-bytes"})
+               NetworkIdentities.report(device.id, "wireguard", %{identifier: "same-bytes"})
     end
 
     test "refuses an identifier longer than the column allows", %{device: device} do
       assert {:error, changeset} =
-               ExternalIdentities.report(device.id, "iroh", %{
+               NetworkIdentities.report(device.id, "iroh", %{
                  identifier: String.duplicate("a", 256)
                })
 
@@ -106,16 +106,16 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
 
     test "refuses an oversized details payload", %{device: device} do
       # `details` is written from a device-supplied map, so it needs a ceiling.
-      huge = %{"blob" => String.duplicate("x", ExternalIdentity.max_details_bytes() + 1)}
+      huge = %{"blob" => String.duplicate("x", NetworkIdentity.max_details_bytes() + 1)}
 
       assert {:error, changeset} =
-               ExternalIdentities.report(device.id, "iroh", %{identifier: "ok", details: huge})
+               NetworkIdentities.report(device.id, "iroh", %{identifier: "ok", details: huge})
 
       assert changeset.errors[:details]
     end
 
     test "requires an identifier", %{device: device} do
-      assert {:error, changeset} = ExternalIdentities.report(device.id, "iroh", %{details: %{}})
+      assert {:error, changeset} = NetworkIdentities.report(device.id, "iroh", %{details: %{}})
       assert "can't be blank" in errors_on(changeset).identifier
     end
   end
@@ -125,19 +125,19 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # A device can run an iroh console and an iroh application, each holding
       # its own key. Both are iroh; they are not the same identity.
       {:ok, _} =
-        ExternalIdentities.report(device.id, "iroh", %{
+        NetworkIdentities.report(device.id, "iroh", %{
           instance: "iroh_console",
           identifier: "console-key"
         })
 
       {:ok, _} =
-        ExternalIdentities.report(device.id, "iroh", %{
+        NetworkIdentities.report(device.id, "iroh", %{
           instance: "app_sync",
           identifier: "app-key"
         })
 
       assert [%{instance: "app_sync"}, %{instance: "iroh_console"}] =
-               ExternalIdentities.list_for_device(device.id)
+               NetworkIdentities.list_for_device(device.id)
     end
 
     test "a rotated key updates its row rather than accumulating a dead one", %{device: device} do
@@ -145,27 +145,27 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # identifier: keying on the value being tracked would leave the old key
       # behind forever with nothing marking it stale.
       {:ok, first} =
-        ExternalIdentities.report(device.id, "iroh", %{
+        NetworkIdentities.report(device.id, "iroh", %{
           instance: "iroh_console",
           identifier: "key-before-rotation"
         })
 
       {:ok, second} =
-        ExternalIdentities.report(device.id, "iroh", %{
+        NetworkIdentities.report(device.id, "iroh", %{
           instance: "iroh_console",
           identifier: "key-after-rotation"
         })
 
       assert first.id == second.id
-      assert [%{identifier: "key-after-rotation"}] = ExternalIdentities.list_for_device(device.id)
+      assert [%{identifier: "key-after-rotation"}] = NetworkIdentities.list_for_device(device.id)
     end
 
     test "one device cannot report the same key under two instances", %{device: device} do
       {:ok, _} =
-        ExternalIdentities.report(device.id, "iroh", %{instance: "one", identifier: "same-key"})
+        NetworkIdentities.report(device.id, "iroh", %{instance: "one", identifier: "same-key"})
 
       assert {:error, :claimed_elsewhere} =
-               ExternalIdentities.report(device.id, "iroh", %{
+               NetworkIdentities.report(device.id, "iroh", %{
                  instance: "two",
                  identifier: "same-key"
                })
@@ -173,18 +173,18 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # The endpoint it was already under keeps it, rather than the report
       # quietly moving the row and losing an endpoint.
       assert [%{instance: "one", identifier: "same-key"}] =
-               ExternalIdentities.list_for_device(device.id)
+               NetworkIdentities.list_for_device(device.id)
     end
 
     test "get/3 finds the endpoint asked for", %{device: device} do
       {:ok, _} =
-        ExternalIdentities.report(device.id, "iroh", %{instance: "console", identifier: "a"})
+        NetworkIdentities.report(device.id, "iroh", %{instance: "console", identifier: "a"})
 
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{instance: "sync", identifier: "b"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{instance: "sync", identifier: "b"})
 
-      assert {:ok, %{identifier: "a"}} = ExternalIdentities.get(device.id, :iroh, "console")
-      assert {:ok, %{identifier: "b"}} = ExternalIdentities.get(device.id, :iroh, "sync")
-      assert ExternalIdentities.get(device.id, :iroh) == {:error, :not_found}
+      assert {:ok, %{identifier: "a"}} = NetworkIdentities.get(device.id, :iroh, "console")
+      assert {:ok, %{identifier: "b"}} = NetworkIdentities.get(device.id, :iroh, "sync")
+      assert NetworkIdentities.get(device.id, :iroh) == {:error, :not_found}
     end
   end
 
@@ -192,10 +192,10 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
     test "defaults when a device doesn't name one", %{device: device} do
       # Most services are singletons; a device running one of something
       # shouldn't have to say so.
-      assert {:ok, identity} = ExternalIdentities.report(device.id, "iroh", %{identifier: "solo"})
+      assert {:ok, identity} = NetworkIdentities.report(device.id, "iroh", %{identifier: "solo"})
 
-      assert identity.instance == ExternalIdentity.default_instance()
-      assert {:ok, ^identity} = ExternalIdentities.get(device.id, :iroh)
+      assert identity.instance == NetworkIdentity.default_instance()
+      assert {:ok, ^identity} = NetworkIdentities.get(device.id, :iroh)
     end
 
     test "blank and unusable values fall back to the default", %{device: device} do
@@ -203,21 +203,21 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # rather than colliding — which is the point.
       for {instance, label} <- [{"", "empty"}, {"   ", "whitespace"}, {nil, "nil"}, {123, "number"}] do
         assert {:ok, identity} =
-                 ExternalIdentities.report(device.id, "iroh", %{
+                 NetworkIdentities.report(device.id, "iroh", %{
                    instance: instance,
                    identifier: "key-#{label}"
                  })
 
-        assert identity.instance == ExternalIdentity.default_instance(),
+        assert identity.instance == NetworkIdentity.default_instance(),
                "a #{label} instance should have fallen back to the default"
       end
 
-      assert length(ExternalIdentities.list_for_device(device.id)) == 1
+      assert length(NetworkIdentities.list_for_device(device.id)) == 1
     end
 
     test "is trimmed", %{device: device} do
       assert {:ok, identity} =
-               ExternalIdentities.report(device.id, "iroh", %{
+               NetworkIdentities.report(device.id, "iroh", %{
                  instance: "  iroh_console  ",
                  identifier: "trimmed"
                })
@@ -227,7 +227,7 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
 
     test "an atom instance is accepted", %{device: device} do
       assert {:ok, identity} =
-               ExternalIdentities.report(device.id, "iroh", %{
+               NetworkIdentities.report(device.id, "iroh", %{
                  instance: :iroh_console,
                  identifier: "atom-instance"
                })
@@ -239,7 +239,7 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
   describe "report/3 against an operator-recorded identity" do
     setup %{device: device} do
       identity =
-        Fixtures.external_identity_fixture(device, %{
+        Fixtures.network_identity_fixture(device, %{
           service: :iroh,
           identifier: "operator-recorded",
           source: :operator
@@ -252,16 +252,16 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # This disagreement is the signal — a reflashed device, a wiped data
       # partition, or something claiming to be this device.
       assert {:error, :operator_managed} =
-               ExternalIdentities.report(device.id, "iroh", %{identifier: "device-claims-this"})
+               NetworkIdentities.report(device.id, "iroh", %{identifier: "device-claims-this"})
 
-      assert {:ok, unchanged} = ExternalIdentities.get(device.id, :iroh)
+      assert {:ok, unchanged} = NetworkIdentities.get(device.id, :iroh)
       assert unchanged.identifier == "operator-recorded"
       assert unchanged.source == :operator
     end
 
     test "a device agreeing is recorded as having been heard from", %{device: device, identity: identity} do
       assert {:ok, touched} =
-               ExternalIdentities.report(device.id, "iroh", %{identifier: "operator-recorded"})
+               NetworkIdentities.report(device.id, "iroh", %{identifier: "operator-recorded"})
 
       assert touched.source == :operator
       assert DateTime.compare(touched.last_reported_at, identity.last_reported_at) in [:gt, :eq]
@@ -270,29 +270,29 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
 
   describe "get/2 and list_for_device/1" do
     test "get/2 reports a missing identity rather than raising", %{device: device} do
-      assert ExternalIdentities.get(device.id, :iroh) == {:error, :not_found}
+      assert NetworkIdentities.get(device.id, :iroh) == {:error, :not_found}
     end
 
     test "list_for_device/1 is empty for a device that has reported nothing", %{device: device} do
-      assert ExternalIdentities.list_for_device(device.id) == []
+      assert NetworkIdentities.list_for_device(device.id) == []
     end
 
     test "identities are scoped to their own device", %{device: device, org: org, product: product, firmware: firmware} do
       other = Fixtures.device_fixture(org, product, firmware, %{identifier: "some-other-device"})
 
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "mine"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "mine"})
 
-      assert ExternalIdentities.list_for_device(other.id) == []
+      assert NetworkIdentities.list_for_device(other.id) == []
     end
   end
 
   describe "deleting a device" do
-    test "takes its external identities with it", %{device: device} do
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "goes-away"})
+    test "takes its network identities with it", %{device: device} do
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "goes-away"})
 
       {:ok, _device} = Devices.delete_device(device)
 
-      assert ExternalIdentities.list_for_device(device.id) == []
+      assert NetworkIdentities.list_for_device(device.id) == []
     end
 
     test "frees the key so the same hardware can be reprovisioned", %{
@@ -303,13 +303,13 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
     } do
       # A device is only soft deleted, so without an explicit cleanup its rows
       # would keep holding the (service, identifier) index forever.
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "reused-key"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "reused-key"})
       {:ok, _} = Devices.delete_device(device)
 
       replacement = Fixtures.device_fixture(org, product, firmware, %{identifier: "replacement"})
 
       assert {:ok, _} =
-               ExternalIdentities.report(replacement.id, "iroh", %{identifier: "reused-key"})
+               NetworkIdentities.report(replacement.id, "iroh", %{identifier: "reused-key"})
     end
   end
 
@@ -317,31 +317,31 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
     test "tells the device page when an identity changes", %{device: device} do
       Phoenix.PubSub.subscribe(NervesHub.PubSub, "internal:device:#{device.id}")
 
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "first"})
-      assert_receive %Broadcast{event: "external_identities:updated"}
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "first"})
+      assert_receive %Broadcast{event: "network_identities:updated"}
 
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "changed"})
-      assert_receive %Broadcast{event: "external_identities:updated"}
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "changed"})
+      assert_receive %Broadcast{event: "network_identities:updated"}
     end
 
     test "stays quiet when a device re-reports what we already had", %{device: device} do
       # Devices report on every reconnect. Re-rendering every open device page
       # each time would be pure noise.
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "steady"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "steady"})
 
       Phoenix.PubSub.subscribe(NervesHub.PubSub, "internal:device:#{device.id}")
 
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "steady"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "steady"})
 
-      refute_receive %Broadcast{event: "external_identities:updated"}, 100
+      refute_receive %Broadcast{event: "network_identities:updated"}, 100
     end
   end
 
   describe "get_owner_by_identifier/2" do
     test "finds the device that reported the key", %{device: device, org: org, product: product} do
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
-      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
+      assert {:ok, found} = NetworkIdentities.get_owner_by_identifier(:iroh, "abc123")
 
       assert found.org_id == org.id
       assert found.owner == "device"
@@ -350,14 +350,14 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       assert found.org_user_id == nil
       assert found.user_id == nil
       assert found.service == :iroh
-      assert found.instance == ExternalIdentity.default_instance()
+      assert found.instance == NetworkIdentity.default_instance()
       assert found.identifier == "abc123"
     end
 
     test "accepts the service as a string, as an :erpc caller would send it", %{device: device} do
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
-      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier("iroh", "abc123")
+      assert {:ok, found} = NetworkIdentities.get_owner_by_identifier("iroh", "abc123")
       assert found.device_id == device.id
     end
 
@@ -365,9 +365,9 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # The caller runs on a node with no NervesHub modules loaded, where a
       # struct is a map carrying a __struct__ key pointing at nothing. See the
       # cross-application contract note in AGENTS.md.
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
-      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
+      assert {:ok, found} = NetworkIdentities.get_owner_by_identifier(:iroh, "abc123")
 
       refute is_struct(found)
       refute Map.has_key?(found, :__struct__)
@@ -377,9 +377,9 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # Pins the shape for callers this repository cannot see and will not fail
       # to compile against. Adding a key here is safe; removing or renaming one
       # is a breaking change needing a coordinated release.
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
-      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
+      assert {:ok, found} = NetworkIdentities.get_owner_by_identifier(:iroh, "abc123")
 
       assert found |> Map.keys() |> Enum.sort() == [
                :device_id,
@@ -395,10 +395,10 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
     end
 
     test "returns not_found for a key nobody registered", %{device: device} do
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
       assert {:error, :not_found} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, "never-registered")
+               NetworkIdentities.get_owner_by_identifier(:iroh, "never-registered")
     end
 
     test "deleting a device takes its identities with it", %{device: device} do
@@ -406,10 +406,10 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # outright, so the key stops resolving rather than resolving to a deleted
       # device. It has to: the rows hold the (service, identifier) unique index,
       # and reprovisioning the same hardware would otherwise collide.
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "abc123"})
       {:ok, _} = Devices.delete_device(device)
 
-      assert {:error, :not_found} = ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
+      assert {:error, :not_found} = NetworkIdentities.get_owner_by_identifier(:iroh, "abc123")
     end
 
     test "refuses an identity whose device is soft deleted", %{device: device} do
@@ -417,54 +417,54 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # not supposed to outlive its device, but the join checks deleted_at
       # anyway: if a row ever did survive — a soft delete by some path that does
       # not clear identities — resolving it would admit a removed device.
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
       device |> Repo.soft_delete_changeset() |> Repo.update!()
 
       assert {:error, :owner_deleted} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
+               NetworkIdentities.get_owner_by_identifier(:iroh, "abc123")
     end
 
     test "does not match the same key under a different service", %{device: device} do
       # (service, identifier) is unique together, not identifier alone, so the
       # service has to be part of the lookup.
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
       assert {:error, :not_found} =
-               ExternalIdentities.get_owner_by_identifier(:wireguard, "abc123")
+               NetworkIdentities.get_owner_by_identifier(:wireguard, "abc123")
     end
 
     test "matches exactly, without normalising case", %{device: device} do
       # Case-folding cannot be done generically: iroh hex is case-insensitive in
       # practice, a WireGuard base64 key is not. Reporter and caller agree on a
       # form instead.
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "abc123"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
-      assert {:error, :not_found} = ExternalIdentities.get_owner_by_identifier(:iroh, "ABC123")
+      assert {:error, :not_found} = NetworkIdentities.get_owner_by_identifier(:iroh, "ABC123")
     end
 
     test "finds each endpoint of a device separately", %{device: device} do
       # A device running an iroh console and an iroh application holds one key
       # per instance, and either may be the one asking to use a relay.
       {:ok, _} =
-        ExternalIdentities.report(device.id, "iroh", %{identifier: "console", instance: "console"})
+        NetworkIdentities.report(device.id, "iroh", %{identifier: "console", instance: "console"})
 
       {:ok, _} =
-        ExternalIdentities.report(device.id, "iroh", %{identifier: "app", instance: "app"})
+        NetworkIdentities.report(device.id, "iroh", %{identifier: "app", instance: "app"})
 
       assert {:ok, %{instance: "console"}} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, "console")
+               NetworkIdentities.get_owner_by_identifier(:iroh, "console")
 
-      assert {:ok, %{instance: "app"}} = ExternalIdentities.get_owner_by_identifier(:iroh, "app")
+      assert {:ok, %{instance: "app"}} = NetworkIdentities.get_owner_by_identifier(:iroh, "app")
     end
 
     test "refuses a service NervesHub does not know" do
       assert {:error, :unsupported_service} =
-               ExternalIdentities.get_owner_by_identifier("zerotier", "abc123")
+               NetworkIdentities.get_owner_by_identifier("zerotier", "abc123")
     end
 
     test "returns not_found when nothing has been reported" do
-      assert {:error, :not_found} = ExternalIdentities.get_owner_by_identifier(:iroh, "abc123")
+      assert {:error, :not_found} = NetworkIdentities.get_owner_by_identifier(:iroh, "abc123")
     end
   end
 
@@ -474,8 +474,8 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       {:ok, org_user} = Accounts.add_org_user(org, member, %{role: :manage})
 
       identity =
-        %ExternalIdentity{}
-        |> ExternalIdentity.changeset(%{
+        %NetworkIdentity{}
+        |> NetworkIdentity.changeset(%{
           org_id: org.id,
           org_user_id: org_user.id,
           service: :iroh,
@@ -488,7 +488,7 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
     end
 
     test "resolves to its organisation and its owner", %{org: org, org_user: org_user, member: member} do
-      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier(:iroh, "laptop-key")
+      assert {:ok, found} = NetworkIdentities.get_owner_by_identifier(:iroh, "laptop-key")
 
       assert found.org_id == org.id
       assert found.owner == "org_user"
@@ -503,23 +503,23 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       :ok = Accounts.remove_org_user(org, member)
 
       assert {:error, :owner_deleted} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, "laptop-key")
+               NetworkIdentities.get_owner_by_identifier(:iroh, "laptop-key")
     end
 
     test "a device cannot take a key a person holds", %{device: device} do
       assert {:error, :claimed_elsewhere} =
-               ExternalIdentities.report(device.id, "iroh", %{identifier: "laptop-key"})
+               NetworkIdentities.report(device.id, "iroh", %{identifier: "laptop-key"})
 
       assert {:ok, %{owner: "org_user"}} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, "laptop-key")
+               NetworkIdentities.get_owner_by_identifier(:iroh, "laptop-key")
     end
   end
 
   describe "an identity recorded by hand" do
     setup %{org: org} do
       identity =
-        %ExternalIdentity{}
-        |> ExternalIdentity.changeset(%{
+        %NetworkIdentity{}
+        |> NetworkIdentity.changeset(%{
           org_id: org.id,
           service: :iroh,
           identifier: "registered-ahead",
@@ -531,7 +531,7 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
     end
 
     test "resolves to its organisation with no owner", %{org: org} do
-      assert {:ok, found} = ExternalIdentities.get_owner_by_identifier(:iroh, "registered-ahead")
+      assert {:ok, found} = NetworkIdentities.get_owner_by_identifier(:iroh, "registered-ahead")
 
       assert found.org_id == org.id
       assert found.owner == "org"
@@ -543,26 +543,26 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       # The intended flow for registering a device before it appears: put the
       # key in, and the device claims it on its next connection.
       assert {:ok, claimed} =
-               ExternalIdentities.report(device.id, "iroh", %{identifier: "registered-ahead"})
+               NetworkIdentities.report(device.id, "iroh", %{identifier: "registered-ahead"})
 
       assert claimed.id == unowned.id
       assert claimed.device_id == device.id
       assert claimed.source == :device_reported
 
       assert {:ok, %{owner: "device"}} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, "registered-ahead")
+               NetworkIdentities.get_owner_by_identifier(:iroh, "registered-ahead")
     end
 
     test "claiming replaces whatever the device held for that endpoint", %{device: device} do
       # One owner has one identity per endpoint, so the row the device was using
       # goes rather than colliding with the one it just claimed.
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "key-before"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "key-before"})
 
       assert {:ok, _} =
-               ExternalIdentities.report(device.id, "iroh", %{identifier: "registered-ahead"})
+               NetworkIdentities.report(device.id, "iroh", %{identifier: "registered-ahead"})
 
-      assert [%{identifier: "registered-ahead"}] = ExternalIdentities.list_for_device(device.id)
-      assert {:error, :not_found} = ExternalIdentities.get_owner_by_identifier(:iroh, "key-before")
+      assert [%{identifier: "registered-ahead"}] = NetworkIdentities.list_for_device(device.id)
+      assert {:error, :not_found} = NetworkIdentities.get_owner_by_identifier(:iroh, "key-before")
     end
 
     test "a device in another organisation is refused", %{org: org, tmp_dir: tmp_dir} do
@@ -576,10 +576,10 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
       stranger = Fixtures.device_fixture(other_org, other_product, other_firmware)
 
       assert {:error, :claimed_elsewhere} =
-               ExternalIdentities.report(stranger.id, "iroh", %{identifier: "registered-ahead"})
+               NetworkIdentities.report(stranger.id, "iroh", %{identifier: "registered-ahead"})
 
       assert {:ok, %{org_id: resolved_org}} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, "registered-ahead")
+               NetworkIdentities.get_owner_by_identifier(:iroh, "registered-ahead")
 
       assert resolved_org == org.id
     end
@@ -587,15 +587,15 @@ defmodule NervesHub.Devices.ExternalIdentitiesTest do
 
   describe "the schema" do
     test "services/0 lists what can be recorded" do
-      assert ExternalIdentity.services() == [:iroh, :netbird, :tailscale, :wireguard]
+      assert NetworkIdentity.services() == [:iroh, :netbird, :tailscale, :wireguard]
     end
 
     test "the device association loads through the standard preload path", %{device: device} do
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "preloaded"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "preloaded"})
 
-      device = Repo.preload(device, :external_identities)
+      device = Repo.preload(device, :network_identities)
 
-      assert [%ExternalIdentity{identifier: "preloaded"}] = device.external_identities
+      assert [%NetworkIdentity{identifier: "preloaded"}] = device.network_identities
     end
   end
 end

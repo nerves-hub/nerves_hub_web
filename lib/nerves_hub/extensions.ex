@@ -16,11 +16,11 @@ defmodule NervesHub.Extensions do
   """
 
   alias NervesHub.Devices.Device
-  alias NervesHub.Extensions.ExternalIdentity
   alias NervesHub.Extensions.Geo
   alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.LocalShell
   alias NervesHub.Extensions.Logging
+  alias NervesHub.Extensions.NetworkIdentity
   alias NervesHub.Extensions.State
   alias NervesHub.Extensions.Unsupported
   alias NervesHub.Products.Product
@@ -44,17 +44,17 @@ defmodule NervesHub.Extensions do
   @callback description() :: String.t()
   @callback enabled?() :: boolean()
 
-  @supported_extensions [:health, :geo, :local_shell, :logging, :external_identity]
-  @type extension() :: :health | :geo | :local_shell | :logging | :external_identity
+  @supported_extensions [:health, :geo, :local_shell, :logging, :network_identity]
+  @type extension() :: :health | :geo | :local_shell | :logging | :network_identity
 
   @doc """
   Get list of supported extensions as atoms with descriptive text.
   """
-  @spec list() :: [:external_identity | :geo | :health | :local_shell | :logging, ...]
+  @spec list() :: [:network_identity | :geo | :health | :local_shell | :logging, ...]
   def list(), do: @supported_extensions
 
   @spec module(extension()) ::
-          ExternalIdentity
+          NetworkIdentity
           | Geo
           | Health
           | LocalShell
@@ -63,7 +63,7 @@ defmodule NervesHub.Extensions do
   def module(:health), do: Health
   def module(:local_shell), do: LocalShell
   def module(:logging), do: Logging
-  def module(:external_identity), do: ExternalIdentity
+  def module(:network_identity), do: NetworkIdentity
 
   @spec module(extension(), Version.t()) :: module() | Unsupported
   def module(:health, ver) do
@@ -98,9 +98,9 @@ defmodule NervesHub.Extensions do
     end
   end
 
-  def module(:external_identity, ver) do
+  def module(:network_identity, ver) do
     if Version.match?(ver, "~> 0.0.1") do
-      ExternalIdentity
+      NetworkIdentity
     else
       Unsupported
     end

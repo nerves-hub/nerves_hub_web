@@ -22,9 +22,9 @@ defmodule NervesHubWeb.Helpers.Authorization do
   # Registering a key nobody has proven is a privileged act: it decides which
   # organisation that key answers for, and a key belonging to someone else would
   # place their machine on this organisation's network.
-  def authorized?(:"external_identity:view", role), do: role_check(:view, role)
-  def authorized?(:"external_identity:create", role), do: role_check(:manage, role)
-  def authorized?(:"external_identity:delete", role), do: role_check(:manage, role)
+  def authorized?(:"network_identity:view", role), do: role_check(:view, role)
+  def authorized?(:"network_identity:create", role), do: role_check(:manage, role)
+  def authorized?(:"network_identity:delete", role), do: role_check(:manage, role)
 
   def authorized?(:"certificate_authority:create", role), do: role_check(:admin, role)
   def authorized?(:"certificate_authority:update", role), do: role_check(:admin, role)

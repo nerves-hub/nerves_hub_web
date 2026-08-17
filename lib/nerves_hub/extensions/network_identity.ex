@@ -1,10 +1,10 @@
-defmodule NervesHub.Extensions.ExternalIdentity do
+defmodule NervesHub.Extensions.NetworkIdentity do
   @moduledoc """
   Lets a device announce the identities it holds on other networks.
 
   On attach the server asks once, and the device answers with everything it
   knows about itself — an iroh endpoint id, a NetBird or Tailscale peer key. See
-  `NervesHub.Devices.ExternalIdentity` for what is kept and why.
+  `NervesHub.Devices.NetworkIdentity` for what is kept and why.
 
   There is no interval here, unlike `geo` and `health`. An identity is
   long-lived by construction, so polling for it would be noise. A device whose
@@ -14,7 +14,7 @@ defmodule NervesHub.Extensions.ExternalIdentity do
 
   @behaviour NervesHub.Extensions
 
-  alias NervesHub.Devices.ExternalIdentities
+  alias NervesHub.Devices.NetworkIdentities
 
   require Logger
 
@@ -58,7 +58,7 @@ defmodule NervesHub.Extensions.ExternalIdentity do
     # A device on an older or simply wrong version of the client shouldn't take
     # its own connection down over this, so log it and carry on.
     Logger.warning(
-      "[ExternalIdentity] device #{state.device_info.device_id} sent an unusable report: " <>
+      "[NetworkIdentity] device #{state.device_info.device_id} sent an unusable report: " <>
         inspect(payload, limit: 5)
     )
 
@@ -67,7 +67,7 @@ defmodule NervesHub.Extensions.ExternalIdentity do
 
   @impl NervesHub.Extensions
   def handle_info(:request, state) do
-    {state, [{:push, "external_identity:request", %{}}]}
+    {state, [{:push, "network_identity:request", %{}}]}
   end
 
   defp record(%{"service" => service, "identifier" => identifier} = entry, device_id)
@@ -75,7 +75,7 @@ defmodule NervesHub.Extensions.ExternalIdentity do
     details = Map.get(entry, "details", %{})
 
     device_id
-    |> ExternalIdentities.report(service, %{
+    |> NetworkIdentities.report(service, %{
       identifier: identifier,
       # Names which endpoint of the service this is, for a device running
       # more than one. The context defaults it when absent.
@@ -87,7 +87,7 @@ defmodule NervesHub.Extensions.ExternalIdentity do
 
   defp record(entry, device_id) do
     Logger.warning(
-      "[ExternalIdentity] skipping malformed identity from device #{device_id}: " <>
+      "[NetworkIdentity] skipping malformed identity from device #{device_id}: " <>
         inspect(entry, limit: 5)
     )
   end
@@ -100,7 +100,7 @@ defmodule NervesHub.Extensions.ExternalIdentity do
   defp handled({:error, :unsupported_service}, service, device_id) do
     # Expected: a device may legitimately run something we have no schema for.
     Logger.debug(
-      "[ExternalIdentity] ignoring unsupported service #{inspect(service)} " <>
+      "[NetworkIdentity] ignoring unsupported service #{inspect(service)} " <>
         "from device #{device_id}"
     )
   end
@@ -116,7 +116,7 @@ defmodule NervesHub.Extensions.ExternalIdentity do
 
   defp handled({:error, changeset}, service, device_id) do
     Logger.warning(
-      "[ExternalIdentity] could not record #{service} identity for device " <>
+      "[NetworkIdentity] could not record #{service} identity for device " <>
         "#{device_id}: #{inspect(changeset.errors)}"
     )
   end

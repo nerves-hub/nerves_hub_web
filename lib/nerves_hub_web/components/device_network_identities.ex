@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Components.DeviceExternalIdentities do
+defmodule NervesHubWeb.Components.DeviceNetworkIdentities do
   @moduledoc """
   Shows the identities a device holds on networks NervesHub does not run.
 
@@ -13,7 +13,7 @@ defmodule NervesHubWeb.Components.DeviceExternalIdentities do
 
   use NervesHubWeb, :component
 
-  alias NervesHub.Devices.ExternalIdentity
+  alias NervesHub.Devices.NetworkIdentity
 
   attr(:identities, :list, default: [])
   attr(:enabled_device, :any, default: true)
@@ -46,7 +46,7 @@ defmodule NervesHubWeb.Components.DeviceExternalIdentities do
     ~H"""
     <.frame>
       <div class="text-base-500 flex items-center gap-2 px-4 pt-2 pb-4">
-        This device hasn't reported any external identities.
+        This device hasn't reported any network identities.
       </div>
     </.frame>
     """
@@ -105,7 +105,7 @@ defmodule NervesHubWeb.Components.DeviceExternalIdentities do
   defp frame(assigns) do
     ~H"""
     <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
-      External Identities
+      Network Identities
     </div>
     {render_slot(@inner_block)}
     """
@@ -149,7 +149,7 @@ defmodule NervesHubWeb.Components.DeviceExternalIdentities do
 
   defp long_value?(value), do: String.length(value) > 32
 
-  defp named_instance?(identity), do: identity.instance != ExternalIdentity.default_instance()
+  defp named_instance?(identity), do: identity.instance != NetworkIdentity.default_instance()
 
   # Brand capitalisation, which no generic humanising of the atom gets right.
   defp service_name(:iroh), do: "iroh"

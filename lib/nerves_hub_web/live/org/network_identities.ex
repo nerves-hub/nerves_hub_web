@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.Org.ExternalIdentities do
+defmodule NervesHubWeb.Live.Org.NetworkIdentities do
   @moduledoc """
   The keys an organisation's devices and people hold on networks NervesHub does
   not run.
@@ -17,8 +17,8 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
   use NervesHubWeb, :live_view
 
   alias NervesHub.Accounts
-  alias NervesHub.Devices.ExternalIdentities
-  alias NervesHub.Devices.ExternalIdentity
+  alias NervesHub.Devices.NetworkIdentities
+  alias NervesHub.Devices.NetworkIdentity
 
   # The page is named for iroh because that is what the keys are used for today.
   # The table underneath is not iroh-specific, so this is the one place that
@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
     {:noreply,
      socket
      |> page_title("Iroh Endpoints - #{socket.assigns.org.name}")
-     |> sidebar_tab(:external_identities)}
+     |> sidebar_tab(:network_identities)}
   end
 
   @impl Phoenix.LiveView
@@ -80,9 +80,9 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
   end
 
   def handle_event("register", %{"identity" => params}, %{assigns: %{current_scope: scope}} = socket) do
-    authorized!(:"external_identity:create", scope)
+    authorized!(:"network_identity:create", scope)
 
-    case ExternalIdentities.register(scope.org.id, @service, params) do
+    case NetworkIdentities.register(scope.org.id, @service, params) do
       {:ok, _identity} ->
         {:noreply,
          socket
@@ -113,9 +113,9 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
   end
 
   def handle_event("delete", %{"id" => id}, %{assigns: %{current_scope: scope}} = socket) do
-    authorized!(:"external_identity:delete", scope)
+    authorized!(:"network_identity:delete", scope)
 
-    case ExternalIdentities.delete(scope.org.id, String.to_integer(id)) do
+    case NetworkIdentities.delete(scope.org.id, String.to_integer(id)) do
       {:ok, _identity} ->
         {:noreply,
          socket
@@ -129,7 +129,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
 
   defp load_identities(socket) do
     identities =
-      ExternalIdentities.list_for_org(socket.assigns.org.id,
+      NetworkIdentities.list_for_org(socket.assigns.org.id,
         service: @service,
         owner: socket.assigns.owner_filter,
         search: socket.assigns.search
@@ -139,7 +139,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
   end
 
   defp registration_form() do
-    to_form(ExternalIdentity.changeset(%ExternalIdentity{}, %{}), as: :identity)
+    to_form(NetworkIdentity.changeset(%NetworkIdentity{}, %{}), as: :identity)
   end
 
   # Memberships rather than users, since that is what an identity attaches to:
@@ -182,9 +182,9 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentities do
   @doc false
   # What holds this key, for the table. A device and a membership are the two
   # owners; anything else was recorded by hand and belongs to the organisation.
-  def owner_label(%ExternalIdentity{device: %{identifier: identifier}}), do: {"Device", identifier}
+  def owner_label(%NetworkIdentity{device: %{identifier: identifier}}), do: {"Device", identifier}
 
-  def owner_label(%ExternalIdentity{org_user: %{user: %{name: name}}}), do: {"User", name}
+  def owner_label(%NetworkIdentity{org_user: %{user: %{name: name}}}), do: {"User", name}
 
-  def owner_label(%ExternalIdentity{}), do: {"Unassigned", "registered by hand"}
+  def owner_label(%NetworkIdentity{}), do: {"Unassigned", "registered by hand"}
 end

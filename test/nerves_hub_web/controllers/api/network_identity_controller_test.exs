@@ -1,8 +1,8 @@
-defmodule NervesHubWeb.API.ExternalIdentityControllerTest do
+defmodule NervesHubWeb.API.NetworkIdentityControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
   alias NervesHub.Devices
-  alias NervesHub.Devices.ExternalIdentities
+  alias NervesHub.Devices.NetworkIdentities
 
   @iroh_console "c8924b6c9b7a8528b1365ebec4b2e43b6edebef684f8521f12b8caaf6e1b2302"
   @iroh_app "5f691e39f55415be337b2e4cc0dd7291586ab7c4356bf32bab60f46fc78f95d5"
@@ -22,7 +22,7 @@ defmodule NervesHubWeb.API.ExternalIdentityControllerTest do
   end
 
   defp path(conn, org, product, device, params \\ []) do
-    Routes.api_external_identity_path(conn, :index, org.name, product.name, device.identifier, params)
+    Routes.api_network_identity_path(conn, :index, org.name, product.name, device.identifier, params)
   end
 
   describe "index" do
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.API.ExternalIdentityControllerTest do
 
     test "lists what the device reported", %{conn: conn, org: org, product: product, device: device} do
       {:ok, _} =
-        ExternalIdentities.report(device.id, "iroh", %{
+        NetworkIdentities.report(device.id, "iroh", %{
           identifier: @iroh_console,
           details: %{"relay" => "https://relay.example.com"}
         })
@@ -54,7 +54,7 @@ defmodule NervesHubWeb.API.ExternalIdentityControllerTest do
       {:ok, other} =
         Devices.create_device(%{identifier: "device-5678", org_id: org.id, product_id: product.id})
 
-      {:ok, _} = ExternalIdentities.report(other.id, "iroh", %{identifier: @iroh_console})
+      {:ok, _} = NetworkIdentities.report(other.id, "iroh", %{identifier: @iroh_console})
 
       conn = get(conn, path(conn, org, product, device))
 
@@ -64,9 +64,9 @@ defmodule NervesHubWeb.API.ExternalIdentityControllerTest do
 
   describe "filtering" do
     setup %{device: device} do
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: @iroh_console, instance: "console"})
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: @iroh_app, instance: "application"})
-      {:ok, _} = ExternalIdentities.report(device.id, "tailscale", %{identifier: @tailscale})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: @iroh_console, instance: "console"})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: @iroh_app, instance: "application"})
+      {:ok, _} = NetworkIdentities.report(device.id, "tailscale", %{identifier: @tailscale})
       :ok
     end
 

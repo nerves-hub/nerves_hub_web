@@ -1,8 +1,8 @@
-defmodule NervesHub.Devices.ExternalIdentities do
+defmodule NervesHub.Devices.NetworkIdentities do
   @moduledoc """
   Context for identities held on networks NervesHub does not run.
 
-  See `NervesHub.Devices.ExternalIdentity` for what is stored and why, including
+  See `NervesHub.Devices.NetworkIdentity` for what is stored and why, including
   who can hold one: a device, a membership, or nobody in particular.
 
   Writes arrive from two places with very different trust. A device announcing
@@ -30,7 +30,7 @@ defmodule NervesHub.Devices.ExternalIdentities do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
-  alias NervesHub.Devices.ExternalIdentity
+  alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
 
@@ -46,9 +46,9 @@ defmodule NervesHub.Devices.ExternalIdentities do
       to its caller rather than quietly the whole list.
     * `:instance` — only this endpoint of it, matched exactly.
   """
-  @spec list_for_device(pos_integer(), keyword()) :: [ExternalIdentity.t()]
+  @spec list_for_device(pos_integer(), keyword()) :: [NetworkIdentity.t()]
   def list_for_device(device_id, opts \\ []) do
-    ExternalIdentity
+    NetworkIdentity
     |> where(device_id: ^device_id)
     |> filter_by_service(opts[:service])
     |> filter_by_instance(opts[:instance])
@@ -64,9 +64,9 @@ defmodule NervesHub.Devices.ExternalIdentities do
   the default.
   """
   @spec get(pos_integer(), atom(), String.t()) ::
-          {:ok, ExternalIdentity.t()} | {:error, :not_found}
-  def get(device_id, service, instance \\ ExternalIdentity.default_instance()) do
-    ExternalIdentity
+          {:ok, NetworkIdentity.t()} | {:error, :not_found}
+  def get(device_id, service, instance \\ NetworkIdentity.default_instance()) do
+    NetworkIdentity
     |> where(device_id: ^device_id)
     |> where(service: ^service)
     |> where(instance: ^instance)
@@ -88,9 +88,9 @@ defmodule NervesHub.Devices.ExternalIdentities do
   Owners are preloaded, since a list of keys without whose they are is not much
   of a list.
   """
-  @spec list_for_org(pos_integer(), keyword()) :: [ExternalIdentity.t()]
+  @spec list_for_org(pos_integer(), keyword()) :: [NetworkIdentity.t()]
   def list_for_org(org_id, opts \\ []) do
-    ExternalIdentity
+    NetworkIdentity
     |> where(org_id: ^org_id)
     |> filter_by_service(opts[:service])
     |> filter_by_owner(opts[:owner])
@@ -163,7 +163,7 @@ defmodule NervesHub.Devices.ExternalIdentities do
   somebody outside the organisation doing the registering.
   """
   @spec register(pos_integer(), atom() | String.t(), map()) ::
-          {:ok, ExternalIdentity.t()}
+          {:ok, NetworkIdentity.t()}
           | {:error, :unsupported_service | :claimed_elsewhere | :invalid_member | Ecto.Changeset.t()}
   def register(org_id, service, attrs) do
     with {:ok, service} <- cast_service_result(service),
@@ -173,8 +173,8 @@ defmodule NervesHub.Devices.ExternalIdentities do
       if is_binary(identifier) and Repo.exists?(claimed_query(service, identifier)) do
         {:error, :claimed_elsewhere}
       else
-        %ExternalIdentity{}
-        |> ExternalIdentity.changeset(%{
+        %NetworkIdentity{}
+        |> NetworkIdentity.changeset(%{
           org_id: org_id,
           org_user_id: org_user_id,
           service: service,
@@ -220,7 +220,7 @@ defmodule NervesHub.Devices.ExternalIdentities do
   end
 
   defp claimed_query(service, identifier) do
-    ExternalIdentity
+    NetworkIdentity
     |> where(service: ^service)
     |> where(identifier: ^identifier)
   end
@@ -236,10 +236,10 @@ defmodule NervesHub.Devices.ExternalIdentities do
   about it.
   """
   @spec get_for_org(pos_integer(), atom() | String.t(), String.t()) ::
-          {:ok, ExternalIdentity.t()} | {:error, :not_found | :unsupported_service}
+          {:ok, NetworkIdentity.t()} | {:error, :not_found | :unsupported_service}
   def get_for_org(org_id, service, identifier) when is_binary(identifier) do
     with {:ok, service} <- cast_service_result(service) do
-      ExternalIdentity
+      NetworkIdentity
       |> where(org_id: ^org_id)
       |> where(service: ^service)
       |> where(identifier: ^identifier)
@@ -254,9 +254,9 @@ defmodule NervesHub.Devices.ExternalIdentities do
   Scoped to an organisation so a caller cannot delete one belonging to another
   by guessing an id.
   """
-  @spec delete(pos_integer(), pos_integer()) :: {:ok, ExternalIdentity.t()} | {:error, :not_found}
+  @spec delete(pos_integer(), pos_integer()) :: {:ok, NetworkIdentity.t()} | {:error, :not_found}
   def delete(org_id, id) do
-    ExternalIdentity
+    NetworkIdentity
     |> where(id: ^id)
     |> where(org_id: ^org_id)
     |> Repo.fetch()
@@ -320,7 +320,7 @@ defmodule NervesHub.Devices.ExternalIdentities do
   end
 
   defp owner_by_identifier(service, identifier) do
-    ExternalIdentity
+    NetworkIdentity
     |> where(service: ^service)
     |> where(identifier: ^identifier)
     |> join(:left, [ei], d in Device, on: d.id == ei.device_id)
@@ -387,7 +387,7 @@ defmodule NervesHub.Devices.ExternalIdentities do
   under its own instance; anything that omits one is the service's only endpoint.
   """
   @spec report(pos_integer(), atom() | String.t(), map()) ::
-          {:ok, ExternalIdentity.t()}
+          {:ok, NetworkIdentity.t()}
           | {:error,
              :unsupported_service
              | :operator_managed
@@ -437,34 +437,34 @@ defmodule NervesHub.Devices.ExternalIdentities do
     # Who, if anyone, already holds this key. Checked before the device's own row
     # so that a conflict is reported as a conflict, rather than arriving later as
     # a unique violation that repeats on every reconnect.
-    case Repo.get_by(ExternalIdentity, service: service, identifier: identifier) do
+    case Repo.get_by(NetworkIdentity, service: service, identifier: identifier) do
       nil ->
         record_for_instance(device, service, instance, identifier, details)
 
-      %ExternalIdentity{device_id: device_id, instance: ^instance} = existing
+      %NetworkIdentity{device_id: device_id, instance: ^instance} = existing
       when device_id == :erlang.map_get(:id, device) ->
         # The device's own row for this endpoint. Ordinary re-report, or a
         # detail change.
         update_own(existing, identifier, details, device)
 
-      %ExternalIdentity{device_id: device_id} when device_id == :erlang.map_get(:id, device) ->
+      %NetworkIdentity{device_id: device_id} when device_id == :erlang.map_get(:id, device) ->
         # The device already holds this key under a different endpoint. One key
         # names one endpoint, so this is the device misreporting rather than a
         # rotation, and quietly moving the other row would lose an endpoint.
         Logger.warning(
-          "[ExternalIdentities] device #{device.id} reported a #{service} key it already holds " <>
+          "[NetworkIdentities] device #{device.id} reported a #{service} key it already holds " <>
             "under another instance; leaving both alone"
         )
 
         {:error, :claimed_elsewhere}
 
-      %ExternalIdentity{device_id: nil, org_user_id: nil, org_id: org_id} = unclaimed
+      %NetworkIdentity{device_id: nil, org_user_id: nil, org_id: org_id} = unclaimed
       when org_id == :erlang.map_get(:org_id, device) ->
         claim(unclaimed, device, instance, details)
 
       other ->
         Logger.warning(
-          "[ExternalIdentities] device #{device.id} reported a #{service} key already held by " <>
+          "[NetworkIdentities] device #{device.id} reported a #{service} key already held by " <>
             "#{describe_owner(other)}; leaving it alone"
         )
 
@@ -477,8 +477,8 @@ defmodule NervesHub.Devices.ExternalIdentities do
   defp record_for_instance(device, service, instance, identifier, details) do
     case get(device.id, service, instance) do
       {:error, :not_found} ->
-        %ExternalIdentity{}
-        |> ExternalIdentity.changeset(%{
+        %NetworkIdentity{}
+        |> NetworkIdentity.changeset(%{
           org_id: device.org_id,
           device_id: device.id,
           service: service,
@@ -491,9 +491,9 @@ defmodule NervesHub.Devices.ExternalIdentities do
         |> Repo.insert()
         |> broadcast_if_ok(device.id)
 
-      {:ok, %ExternalIdentity{source: :operator} = existing} ->
+      {:ok, %NetworkIdentity{source: :operator} = existing} ->
         Logger.warning(
-          "[ExternalIdentities] device #{device.id} reported a #{service}/#{instance} identity " <>
+          "[NetworkIdentities] device #{device.id} reported a #{service}/#{instance} identity " <>
             "that differs from the operator-recorded one; ignoring the device's value"
         )
 
@@ -511,7 +511,7 @@ defmodule NervesHub.Devices.ExternalIdentities do
   # endpoint and the partial unique index would refuse the second.
   defp claim(unclaimed, device, instance, details) do
     superseded =
-      ExternalIdentity
+      NetworkIdentity
       |> where(device_id: ^device.id)
       |> where(service: ^unclaimed.service)
       |> where(instance: ^instance)
@@ -520,7 +520,7 @@ defmodule NervesHub.Devices.ExternalIdentities do
     |> Multi.delete_all(:superseded, superseded)
     |> Multi.update(
       :claimed,
-      ExternalIdentity.changeset(unclaimed, %{
+      NetworkIdentity.changeset(unclaimed, %{
         device_id: device.id,
         instance: instance,
         details: details,
@@ -532,7 +532,7 @@ defmodule NervesHub.Devices.ExternalIdentities do
     |> case do
       {:ok, %{claimed: claimed}} ->
         Logger.info(
-          "[ExternalIdentities] device #{device.id} claimed a #{unclaimed.service} key " <>
+          "[NetworkIdentities] device #{device.id} claimed a #{unclaimed.service} key " <>
             "that had been registered by hand"
         )
 
@@ -543,14 +543,14 @@ defmodule NervesHub.Devices.ExternalIdentities do
     end
   end
 
-  defp update_own(%ExternalIdentity{source: :operator} = existing, identifier, _details, device) do
+  defp update_own(%NetworkIdentity{source: :operator} = existing, identifier, _details, device) do
     if existing.identifier == identifier do
       # The device agrees with what the operator recorded, so record that we
       # heard from it and leave the row otherwise untouched.
       touch(existing)
     else
       Logger.warning(
-        "[ExternalIdentities] device #{device.id} reported a #{existing.service} identity " <>
+        "[NetworkIdentities] device #{device.id} reported a #{existing.service} identity " <>
           "that differs from the operator-recorded one; ignoring the device's value"
       )
 
@@ -562,30 +562,30 @@ defmodule NervesHub.Devices.ExternalIdentities do
     update(existing, identifier, details, device.id)
   end
 
-  defp describe_owner(%ExternalIdentity{device_id: id}) when not is_nil(id), do: "device #{id}"
+  defp describe_owner(%NetworkIdentity{device_id: id}) when not is_nil(id), do: "device #{id}"
 
-  defp describe_owner(%ExternalIdentity{org_user_id: id}) when not is_nil(id), do: "membership #{id}"
+  defp describe_owner(%NetworkIdentity{org_user_id: id}) when not is_nil(id), do: "membership #{id}"
 
-  defp describe_owner(%ExternalIdentity{org_id: id}), do: "organisation #{id} by hand"
+  defp describe_owner(%NetworkIdentity{org_id: id}), do: "organisation #{id} by hand"
 
   # An absent or unusable instance means "this service's only endpoint". Devices
   # that run one of something shouldn't have to say so.
   defp cast_instance(instance) when is_binary(instance) do
     case String.trim(instance) do
-      "" -> ExternalIdentity.default_instance()
+      "" -> NetworkIdentity.default_instance()
       trimmed -> trimmed
     end
   end
 
   defp cast_instance(instance) when is_atom(instance) and not is_nil(instance), do: Atom.to_string(instance)
 
-  defp cast_instance(_instance), do: ExternalIdentity.default_instance()
+  defp cast_instance(_instance), do: NetworkIdentity.default_instance()
 
   defp update(existing, identifier, details, device_id) do
     changed? = existing.identifier != identifier or existing.details != details
 
     existing
-    |> ExternalIdentity.changeset(%{
+    |> NetworkIdentity.changeset(%{
       identifier: identifier,
       details: details,
       last_reported_at: DateTime.utc_now()
@@ -599,9 +599,9 @@ defmodule NervesHub.Devices.ExternalIdentities do
     end)
   end
 
-  defp touch(%ExternalIdentity{} = identity) do
+  defp touch(%NetworkIdentity{} = identity) do
     identity
-    |> ExternalIdentity.changeset(%{last_reported_at: DateTime.utc_now()})
+    |> NetworkIdentity.changeset(%{last_reported_at: DateTime.utc_now()})
     |> Repo.update()
   end
 
@@ -610,7 +610,7 @@ defmodule NervesHub.Devices.ExternalIdentities do
       ChannelServer.broadcast(
         NervesHub.PubSub,
         "internal:device:#{device_id}",
-        "external_identities:updated",
+        "network_identities:updated",
         %{service: identity.service}
       )
 
@@ -631,13 +631,13 @@ defmodule NervesHub.Devices.ExternalIdentities do
   def cast_service(service)
 
   def cast_service(service) when is_atom(service) do
-    if service in ExternalIdentity.services(), do: {:ok, service}, else: :error
+    if service in NetworkIdentity.services(), do: {:ok, service}, else: :error
   end
 
   def cast_service(service) when is_binary(service) do
     # String.to_existing_atom/1 is not enough on its own — every service name is
     # already an existing atom, so it would happily return one we do not support.
-    Enum.find_value(ExternalIdentity.services(), :error, fn known ->
+    Enum.find_value(NetworkIdentity.services(), :error, fn known ->
       if Atom.to_string(known) == service, do: {:ok, known}
     end)
   end

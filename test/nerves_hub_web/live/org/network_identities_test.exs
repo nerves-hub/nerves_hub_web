@@ -1,8 +1,8 @@
-defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
+defmodule NervesHubWeb.Live.Org.NetworkIdentitiesTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Accounts.OrgUser
-  alias NervesHub.Devices.ExternalIdentities
+  alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Fixtures
 
   @endpoint_id "c8924b6c9b7a8528b1365ebec4b2e43b6edebef684f8521f12b8caaf6e1b2302"
@@ -50,7 +50,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
     end
 
     test "shows a device's endpoint and which device it is", %{conn: conn, org: org, device: device} do
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
 
       conn
       |> visit(path(org))
@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
     test "offers the whole endpoint id to the clipboard", %{conn: conn, org: org, device: device} do
       # Truncation is visual only. What gets copied is the key itself, since a
       # partial one is no use to whoever is being sent it.
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
 
       conn
       |> visit(path(org))
@@ -72,7 +72,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
     end
 
     test "shows an endpoint registered by hand as unassigned", %{conn: conn, org: org} do
-      {:ok, _} = ExternalIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
 
       conn
       |> visit(path(org))
@@ -82,7 +82,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
 
     test "does not show another organisation's endpoints", %{conn: conn, org: org, user: user} do
       other_org = Fixtures.org_fixture(user, %{name: "SomeoneElse"})
-      {:ok, _} = ExternalIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
 
       conn
       |> visit(path(org))
@@ -148,8 +148,8 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
 
   describe "search and filter" do
     setup %{org: org, device: device} do
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
-      {:ok, _} = ExternalIdentities.register(org.id, :iroh, %{identifier: String.duplicate("ab", 32)})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(org.id, :iroh, %{identifier: String.duplicate("ab", 32)})
       :ok
     end
 
@@ -190,14 +190,14 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
       |> assert_has("div", text: "Endpoint registered")
 
       assert {:ok, %{org_id: org_id, owner: "org"}} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
+               NetworkIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
 
       assert org_id == org.id
     end
 
     test "refuses one already registered, without saying where", %{conn: conn, org: org, user: user} do
       other_org = Fixtures.org_fixture(user, %{name: "AlreadyHasIt"})
-      {:ok, _} = ExternalIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
 
       # Whether another organisation holds a key is that organisation's
       # business, so the message says it is taken and nothing more.
@@ -225,7 +225,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
       |> assert_has("span", text: user.name)
 
       assert {:ok, %{owner: "org_user", user_id: user_id}} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
+               NetworkIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
 
       assert user_id == user.id
     end
@@ -239,7 +239,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
         NervesHub.Repo.get_by!(OrgUser, org_id: other_org.id, user_id: user.id)
 
       assert {:error, :invalid_member} =
-               ExternalIdentities.register(org.id, :iroh, %{
+               NetworkIdentities.register(org.id, :iroh, %{
                  identifier: @endpoint_id,
                  org_user_id: other_member.id
                })
@@ -259,7 +259,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
 
   describe "removing" do
     test "removes an endpoint", %{conn: conn, org: org} do
-      {:ok, _} = ExternalIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
 
       conn
       |> visit(path(org))
@@ -267,7 +267,7 @@ defmodule NervesHubWeb.Live.Org.ExternalIdentitiesTest do
       |> assert_has("div", text: "Endpoint removed")
 
       assert {:error, :not_found} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
+               NetworkIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
     end
   end
 end

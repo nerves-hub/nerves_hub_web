@@ -1,4 +1,4 @@
-defmodule NervesHub.Devices.ExternalIdentity do
+defmodule NervesHub.Devices.NetworkIdentity do
   @moduledoc """
   An identity held on a network that NervesHub does not operate.
 
@@ -121,7 +121,7 @@ defmodule NervesHub.Devices.ExternalIdentity do
   # URLs is well under a kilobyte.
   @max_details_bytes 4_096
 
-  schema "external_identities" do
+  schema "network_identities" do
     belongs_to(:org, Org)
     belongs_to(:device, Device)
     belongs_to(:org_user, OrgUser)
@@ -142,7 +142,7 @@ defmodule NervesHub.Devices.ExternalIdentity do
   end
 
   @doc """
-  Build a changeset for an external identity.
+  Build a changeset for an network identity.
 
   Every constraint the database holds is declared, so a violation comes back as
   a changeset error rather than a raised `Postgrex.Error`. A duplicated key is a
@@ -162,16 +162,16 @@ defmodule NervesHub.Devices.ExternalIdentity do
     |> foreign_key_constraint(:device_id)
     |> foreign_key_constraint(:org_user_id)
     |> unique_constraint([:service, :identifier],
-      name: :external_identities_service_identifier_index
+      name: :network_identities_service_identifier_index
     )
     |> unique_constraint([:device_id, :service, :instance],
-      name: :external_identities_device_service_instance_index
+      name: :network_identities_device_service_instance_index
     )
     |> unique_constraint([:org_user_id, :service, :instance],
-      name: :external_identities_org_user_service_instance_index
+      name: :network_identities_org_user_service_instance_index
     )
     |> check_constraint(:device_id,
-      name: :external_identities_one_owner,
+      name: :network_identities_one_owner,
       message: "an identity belongs to a device or a membership, not both"
     )
   end

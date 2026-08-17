@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.API.ExternalIdentityController do
+defmodule NervesHubWeb.API.NetworkIdentityController do
   @moduledoc """
   What a device holds on networks NervesHub does not run.
 
@@ -11,20 +11,20 @@ defmodule NervesHubWeb.API.ExternalIdentityController do
   use NervesHubWeb, :api_controller
   use OpenApiSpex.ControllerSpecs
 
-  alias NervesHub.Devices.ExternalIdentities
+  alias NervesHub.Devices.NetworkIdentities
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.ErrorSchemas
-  alias NervesHubWeb.API.Schemas.ExternalIdentitySchemas
+  alias NervesHubWeb.API.Schemas.NetworkIdentitySchemas
 
   security([%{"bearer_auth" => []}])
-  tags(["External Identities"])
+  tags(["Network Identities"])
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
   plug(:validate_role, [org: :view] when action in [:index])
 
   operation(:index,
-    summary: "List the External Identities a Device holds",
+    summary: "List the Network Identities a Device holds",
     description: """
     The keys this device has reported holding on other networks — an iroh
     endpoint id, a NetBird, Tailscale or WireGuard public key.
@@ -54,8 +54,7 @@ defmodule NervesHubWeb.API.ExternalIdentityController do
     ],
     responses:
       [
-        ok:
-          {"External Identity list response", "application/json", ExternalIdentitySchemas.ExternalIdentityListResponse},
+        ok: {"Network Identity list response", "application/json", NetworkIdentitySchemas.NetworkIdentityListResponse},
         unprocessable_entity: {"Unknown service", "application/json", ErrorSchemas.ChangesetErrorResponse}
       ] ++ @auth_error_responses
   )
@@ -63,12 +62,12 @@ defmodule NervesHubWeb.API.ExternalIdentityController do
   def index(%{assigns: %{device: device}} = conn, params) do
     with {:ok, service} <- filter_service(params["service"]) do
       identities =
-        ExternalIdentities.list_for_device(device.id,
+        NetworkIdentities.list_for_device(device.id,
           service: service,
           instance: filter_instance(params["instance"])
         )
 
-      render(conn, :index, external_identities: identities)
+      render(conn, :index, network_identities: identities)
     end
   end
 
@@ -79,7 +78,7 @@ defmodule NervesHubWeb.API.ExternalIdentityController do
   defp filter_service(""), do: {:ok, nil}
 
   defp filter_service(service) do
-    case ExternalIdentities.cast_service(service) do
+    case NetworkIdentities.cast_service(service) do
       {:ok, service} -> {:ok, service}
       :error -> {:error, :unsupported_service}
     end

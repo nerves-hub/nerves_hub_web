@@ -87,7 +87,7 @@ defmodule NervesHubWeb.Components.Navigation do
         :if={org_iroh_endpoints_ui_enabled?()}
         label="Iroh Endpoints"
         path={~p"/org/#{@scope.org}/settings/iroh-endpoints"}
-        selected={:external_identities == @selected_tab}
+        selected={:network_identities == @selected_tab}
         icon="data-[selected=false]:lucide-waypoints--light data-[selected=true]:lucide-waypoints"
       />
       <.nav_link

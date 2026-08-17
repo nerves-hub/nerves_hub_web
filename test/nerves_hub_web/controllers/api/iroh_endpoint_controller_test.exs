@@ -3,7 +3,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
 
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Devices
-  alias NervesHub.Devices.ExternalIdentities
+  alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Fixtures
 
   @endpoint_id "c8924b6c9b7a8528b1365ebec4b2e43b6edebef684f8521f12b8caaf6e1b2302"
@@ -18,7 +18,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
     end
 
     test "lists an endpoint with what holds it", %{conn: conn, org: org} do
-      {:ok, _} = ExternalIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
 
       conn = get(conn, Routes.api_iroh_endpoint_path(conn, :index, org.name))
 
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
 
     test "names the device holding one it reported", %{conn: conn, org: org, product: product} do
       device = device_fixture(org, product)
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
 
       conn = get(conn, Routes.api_iroh_endpoint_path(conn, :index, org.name))
 
@@ -50,7 +50,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
 
     test "does not list another organization's endpoints", %{conn: conn, org: org, user: user} do
       other_org = Fixtures.org_fixture(user, %{name: "SomeoneElse"})
-      {:ok, _} = ExternalIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
 
       conn = get(conn, Routes.api_iroh_endpoint_path(conn, :index, org.name))
 
@@ -59,8 +59,8 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
 
     test "lists only iroh, not every service the table holds", %{conn: conn, org: org, product: product} do
       device = device_fixture(org, product)
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
-      {:ok, _} = ExternalIdentities.report(device.id, "tailscale", %{identifier: @other_id})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.report(device.id, "tailscale", %{identifier: @other_id})
 
       conn = get(conn, Routes.api_iroh_endpoint_path(conn, :index, org.name))
 
@@ -71,7 +71,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
   describe "index filters" do
     setup %{conn: conn, org: org, product: product, user: user} do
       device = device_fixture(org, product)
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: @endpoint_id})
 
       {:ok, _} =
         post(conn, Routes.api_iroh_endpoint_path(conn, :create, org.name), %{
@@ -81,7 +81,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
         |> json_response(201)
         |> then(&{:ok, &1})
 
-      {:ok, _} = ExternalIdentities.register(org.id, :iroh, %{identifier: @unowned_id})
+      {:ok, _} = NetworkIdentities.register(org.id, :iroh, %{identifier: @unowned_id})
 
       [device: device]
     end
@@ -186,7 +186,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
       assert endpoint["owner"]["type"] == "none"
 
       assert {:ok, %{org_id: org_id, owner: "org"}} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
+               NetworkIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
 
       assert org_id == org.id
     end
@@ -214,7 +214,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
       assert owner["user_name"] == user.name
 
       assert {:ok, %{owner: "org_user", user_id: user_id}} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
+               NetworkIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
 
       assert user_id == user.id
     end
@@ -231,7 +231,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
 
     test "refuses a key registered elsewhere, without saying where", %{conn: conn, org: org, user: user} do
       other_org = Fixtures.org_fixture(user, %{name: "AlreadyHasIt"})
-      {:ok, _} = ExternalIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
 
       conn = post(conn, Routes.api_iroh_endpoint_path(conn, :create, org.name), %{"identifier" => @endpoint_id})
 
@@ -275,7 +275,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
 
   describe "show" do
     test "finds one by its key", %{conn: conn, org: org} do
-      {:ok, _} = ExternalIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
 
       conn = get(conn, Routes.api_iroh_endpoint_path(conn, :show, org.name, @endpoint_id))
 
@@ -292,7 +292,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
       # A key is not a secret — it is the one thing an outsider is most likely
       # to have — so knowing one must not read another organization's record.
       other_org = Fixtures.org_fixture(user, %{name: "NotYours"})
-      {:ok, _} = ExternalIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
 
       conn = get(conn, Routes.api_iroh_endpoint_path(conn, :show, org.name, @endpoint_id))
 
@@ -302,12 +302,12 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
 
   describe "delete" do
     test "removes one, and then it is gone", %{conn: conn, org: org} do
-      {:ok, _} = ExternalIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
 
       conn = delete(conn, Routes.api_iroh_endpoint_path(conn, :delete, org.name, @endpoint_id))
       assert response(conn, 204)
 
-      assert {:error, :not_found} = ExternalIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
+      assert {:error, :not_found} = NetworkIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
     end
 
     test "404s for a key nobody holds", %{conn: conn, org: org} do
@@ -318,12 +318,12 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
 
     test "will not remove another organization's", %{conn: conn, org: org, user: user} do
       other_org = Fixtures.org_fixture(user, %{name: "StillNotYours"})
-      {:ok, _} = ExternalIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(other_org.id, :iroh, %{identifier: @endpoint_id})
 
       conn = delete(conn, Routes.api_iroh_endpoint_path(conn, :delete, org.name, @endpoint_id))
 
       assert json_response(conn, 404)
-      assert {:ok, _} = ExternalIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
+      assert {:ok, _} = NetworkIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
     end
   end
 
@@ -340,7 +340,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
     end
 
     test "a view-only member may not delete", %{conn: conn, org: org, user: user} do
-      {:ok, _} = ExternalIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
+      {:ok, _} = NetworkIdentities.register(org.id, :iroh, %{identifier: @endpoint_id})
       org_user = NervesHub.Repo.get_by!(OrgUser, org_id: org.id, user_id: user.id)
       {:ok, _} = NervesHub.Accounts.change_org_user_role(org_user, :view)
 
@@ -348,7 +348,7 @@ defmodule NervesHubWeb.API.IrohEndpointControllerTest do
         delete(conn, Routes.api_iroh_endpoint_path(conn, :delete, org.name, @endpoint_id))
       end)
 
-      assert {:ok, _} = ExternalIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
+      assert {:ok, _} = NetworkIdentities.get_owner_by_identifier(:iroh, @endpoint_id)
     end
   end
 

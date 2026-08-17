@@ -1,9 +1,9 @@
-defmodule NervesHubWeb.API.Schemas.ExternalIdentitySchemas do
+defmodule NervesHubWeb.API.Schemas.NetworkIdentitySchemas do
   alias OpenApiSpex.Schema
 
   require OpenApiSpex
 
-  defmodule ExternalIdentity do
+  defmodule NetworkIdentity do
     require OpenApiSpex
 
     OpenApiSpex.schema(%{
@@ -51,12 +51,12 @@ defmodule NervesHubWeb.API.Schemas.ExternalIdentitySchemas do
     })
   end
 
-  defmodule ExternalIdentityListResponse do
+  defmodule NetworkIdentityListResponse do
     OpenApiSpex.schema(%{
-      description: "External Identity list response",
+      description: "Network Identity list response",
       type: :object,
       properties: %{
-        data: %Schema{description: "The identities this device holds", type: :array, items: ExternalIdentity}
+        data: %Schema{description: "The identities this device holds", type: :array, items: NetworkIdentity}
       },
       example: %{
         "data" => [

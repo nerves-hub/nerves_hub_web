@@ -79,7 +79,7 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Device Certificate management"
         },
         %Tag{
-          name: "External Identities",
+          name: "Network Identities",
           description: "Identities a Device holds on networks NervesHub does not run"
         },
         %Tag{

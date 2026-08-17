@@ -6,7 +6,7 @@ defmodule NervesHubWeb.API.IrohEndpointController do
   itself rather than by a row id: the key is what a caller has, it is unique
   per service, and an id would mean listing before you could act.
 
-  Fixed to iroh, like the page. `ExternalIdentityController` is the generic view
+  Fixed to iroh, like the page. `NetworkIdentityController` is the generic view
   of the same table, for reading what a device has reported about itself.
   """
 
@@ -14,7 +14,7 @@ defmodule NervesHubWeb.API.IrohEndpointController do
   use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Accounts
-  alias NervesHub.Devices.ExternalIdentities
+  alias NervesHub.Devices.NetworkIdentities
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.IrohEndpointSchemas
@@ -81,7 +81,7 @@ defmodule NervesHubWeb.API.IrohEndpointController do
   def index(%{assigns: %{current_scope: %{org: org}}} = conn, params) do
     with {:ok, owner} <- filter_owner(params["owner"]) do
       endpoints =
-        ExternalIdentities.list_for_org(org.id,
+        NetworkIdentities.list_for_org(org.id,
           service: @service,
           owner: owner,
           # Passed through as it arrives. The context trims it, treats a blank
@@ -136,12 +136,12 @@ defmodule NervesHubWeb.API.IrohEndpointController do
   def create(%{assigns: %{current_scope: %{org: org}}} = conn, params) do
     with {:ok, org_user_id} <- resolve_member(org, params["user_email"]),
          attrs = registration_attrs(params, org_user_id),
-         {:ok, registered} <- ExternalIdentities.register(org.id, @service, attrs),
+         {:ok, registered} <- NetworkIdentities.register(org.id, @service, attrs),
          # Read it back rather than render what register/3 returned. That struct
          # has no owner loaded, so an endpoint just attached to a person would
          # render as belonging to nobody — and create would disagree with show
          # about the same row.
-         {:ok, endpoint} <- ExternalIdentities.get_for_org(org.id, @service, registered.identifier) do
+         {:ok, endpoint} <- NetworkIdentities.get_for_org(org.id, @service, registered.identifier) do
       conn
       |> put_status(:created)
       |> put_resp_header(
@@ -163,7 +163,7 @@ defmodule NervesHubWeb.API.IrohEndpointController do
   )
 
   def show(%{assigns: %{current_scope: %{org: org}}} = conn, %{"identifier" => identifier}) do
-    with {:ok, endpoint} <- ExternalIdentities.get_for_org(org.id, @service, identifier) do
+    with {:ok, endpoint} <- NetworkIdentities.get_for_org(org.id, @service, identifier) do
       render(conn, :show, iroh_endpoint: endpoint)
     end
   end
@@ -184,8 +184,8 @@ defmodule NervesHubWeb.API.IrohEndpointController do
   )
 
   def delete(%{assigns: %{current_scope: %{org: org}}} = conn, %{"identifier" => identifier}) do
-    with {:ok, endpoint} <- ExternalIdentities.get_for_org(org.id, @service, identifier),
-         {:ok, _endpoint} <- ExternalIdentities.delete(org.id, endpoint.id) do
+    with {:ok, endpoint} <- NetworkIdentities.get_for_org(org.id, @service, identifier),
+         {:ok, _endpoint} <- NetworkIdentities.delete(org.id, endpoint.id) do
       send_resp(conn, :no_content, "")
     end
   end

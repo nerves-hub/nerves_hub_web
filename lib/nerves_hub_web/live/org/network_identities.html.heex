@@ -3,7 +3,7 @@
     <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Iroh Endpoints</h1>
     <div class="mr-auto"></div>
     <.button
-      :if={authorized?(:"external_identity:create", @current_scope)}
+      :if={authorized?(:"network_identity:create", @current_scope)}
       type="button"
       phx-click="toggle-registration"
       aria-label="Register an endpoint"
@@ -135,7 +135,7 @@
           </div>
 
           <div class="text-base-400 mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            <% {kind, who} = NervesHubWeb.Live.Org.ExternalIdentities.owner_label(identity) %>
+            <% {kind, who} = NervesHubWeb.Live.Org.NetworkIdentities.owner_label(identity) %>
             <span><span class="text-base-500">{kind}:</span> {who}</span>
             <span :if={identity.instance != "default"}>
               <span class="text-base-500">Instance:</span> {identity.instance}
@@ -154,7 +154,7 @@
         </div>
 
         <button
-          :if={authorized?(:"external_identity:delete", @current_scope)}
+          :if={authorized?(:"network_identity:delete", @current_scope)}
           class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-3 py-1.5 text-sm font-medium"
           phx-click="delete"
           phx-value-id={identity.id}
