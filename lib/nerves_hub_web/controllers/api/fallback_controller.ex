@@ -57,6 +57,41 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :claimed_elsewhere}) do
+    # Deliberately does not say where. Whether another organization holds a key
+    # is that organization's business, and this must not become a way to probe
+    # for which keys are in use.
+    conn
+    |> put_status(:conflict)
+    |> put_view(ErrorJSON)
+    |> render(:"409", %{
+      reason:
+        "That endpoint id is already registered. If it belongs to one of your devices, " <>
+          "it will be claimed the next time that device connects."
+    })
+  end
+
+  def call(conn, {:error, :invalid_member}) do
+    conn
+    |> put_status(422)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "That email address does not belong to a member of this organization."})
+  end
+
+  def call(conn, {:error, :unknown_owner}) do
+    conn
+    |> put_status(422)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "owner must be one of: device, user, none."})
+  end
+
+  def call(conn, {:error, :unsupported_service}) do
+    conn
+    |> put_status(422)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "That is not a service this NervesHub knows about."})
+  end
+
   def call(conn, {:error, :authentication_failed}) do
     conn
     |> put_status(401)

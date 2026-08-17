@@ -79,12 +79,20 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Device Certificate management"
         },
         %Tag{
+          name: "External Identities",
+          description: "Identities a Device holds on networks NervesHub does not run"
+        },
+        %Tag{
           name: "Deployment Groups",
           description: "Deployment Group and release management"
         },
         %Tag{
           name: "Firmwares",
           description: "Firmware uploading and management"
+        },
+        %Tag{
+          name: "Iroh Endpoints",
+          description: "Organization iroh endpoint id registration"
         },
         %Tag{
           name: "Organizations",

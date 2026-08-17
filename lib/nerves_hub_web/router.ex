@@ -123,6 +123,13 @@ defmodule NervesHubWeb.Router do
             delete("/:name", KeyController, :delete)
           end
 
+          scope "/iroh_endpoints" do
+            get("/", IrohEndpointController, :index)
+            post("/", IrohEndpointController, :create)
+            get("/:identifier", IrohEndpointController, :show)
+            delete("/:identifier", IrohEndpointController, :delete)
+          end
+
           scope "/ca_certificates" do
             get("/", CACertificateController, :index)
             get("/verification_token", CACertificateController, :verification_token)
@@ -163,6 +170,10 @@ defmodule NervesHubWeb.Router do
 
                   scope "/scripts", as: :device do
                     post("/:name_or_id", ScriptController, :send)
+                  end
+
+                  scope "/external_identities" do
+                    get("/", ExternalIdentityController, :index)
                   end
 
                   scope "/certificates" do
