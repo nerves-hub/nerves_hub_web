@@ -7,6 +7,7 @@ defmodule NervesHub.MixProject do
   alias NervesHub.Accounts.Org.Settings
   alias NervesHub.Firmwares.Upload.S3
   alias NervesHub.Helpers.Logging
+  alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.Release.Tasks
   alias NervesHub.Support.EctoTelemetryHandler
   alias NervesHub.Telemetry.FilteredSampler
@@ -43,8 +44,6 @@ defmodule NervesHub.MixProject do
       test_coverage: [
         tool: ExCoveralls,
         ignore_modules: [
-          NervesHubWeb,
-          NervesHub.Uploads.S3,
           # API support
           NervesHubWeb.ApiSpec,
           ~r/NervesHubWeb\.API\.Schemas\..*/,
@@ -73,7 +72,13 @@ defmodule NervesHub.MixProject do
           # Misc
           OpenApiSpec,
           NervesHubWeb.SentryEventFilter,
-          NervesHub.DeviceSSLTransport
+          NervesHub.DeviceSSLTransport,
+          NervesHubWeb,
+          NervesHub.Uploads.S3,
+          NervesHubWeb.AuthDecorator,
+          NervesHubWeb.HealthCheckEndpoint,
+          # schema file with no application code
+          InflightDeploymentCheck
         ]
       ]
     ]
