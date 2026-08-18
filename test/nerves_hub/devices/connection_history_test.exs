@@ -48,9 +48,9 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
 
       :ok = Connections.device_connected(connection.id)
 
-      # connecting + connected share the same ref/established_at, so the
-      # ReplacingMergeTree may keep both rows until merged; both are present.
-      assert_eventually(history_for(connection.id) != [])
+      # connecting + connected share the same ref/established_at, so the merged
+      # view collapses them to a single row
+      assert_eventually([%DeviceConnectionHistory{}] = history_for(connection.id))
     end
 
     test "device_disconnected/2 records a history row with the disconnect details", %{
@@ -60,11 +60,15 @@ defmodule NervesHub.Devices.ConnectionHistoryTest do
       :ok = Connections.device_connected(connection.id)
       :ok = Connections.device_disconnected(connection.id, "Stale connection")
 
+      # all three rows share the merge tree's sorting key, and the disconnect is
+      # written last, so the merged view collapses to it
       assert_eventually(
-        Enum.any?(history_for(connection.id), fn h ->
-          not is_nil(h.disconnected_at) and h.disconnected_reason == "Stale connection"
-        end)
+        [%DeviceConnectionHistory{disconnected_reason: "Stale connection"} = history] =
+          history_for(connection.id)
       )
+
+      assert history.device_id == device.id
+      refute is_nil(history.disconnected_at)
     end
 
     test "device_heartbeat/1 records a history row", %{device: device} do
