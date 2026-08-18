@@ -59,6 +59,13 @@ defmodule SocketClient do
     end
   end
 
+  @doc """
+  Push an event on an already-joined channel.
+  """
+  def push(socket, topic, event, payload) do
+    GenServer.call(socket, {:push, topic, event, payload})
+  end
+
   def clean_close(socket) do
     GenServer.call(socket, :clean_close)
   end
@@ -228,6 +235,11 @@ defmodule SocketClient do
 
   def handle_call(:reply, _from, socket) do
     {:reply, socket.assigns.reply, socket}
+  end
+
+  def handle_call({:push, topic, event, payload}, _from, socket) do
+    {:ok, _ref} = Slipstream.push(socket, topic, event, payload)
+    {:reply, :ok, socket}
   end
 
   def handle_call({:join, "device", params}, _from, socket) do

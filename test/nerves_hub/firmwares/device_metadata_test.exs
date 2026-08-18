@@ -1,16 +1,19 @@
 defmodule NervesHub.Firmwares.DeviceMetadataTest do
   @moduledoc """
-  Covers `Firmwares.metadata_from_device/2` resolving a device's dialect.
+  Covers `Firmwares.metadata_from_device/2` reading more than one device dialect.
 
   The compatibility cases matter most: devices in the field cannot be upgraded,
   so a Nerves device reporting `nerves_fw_*` must keep resolving exactly as it
-  did before this seam existed.
+  did before the update tool seam existed.
   """
   use NervesHub.DataCase, async: true
 
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Fixtures
+  alias NervesHub.Support.EspIdf
+
+  @elf_sha256 String.duplicate("ab", 32)
 
   defp nerves_params(overrides \\ %{}) do
     Map.merge(
@@ -30,10 +33,23 @@ defmodule NervesHub.Firmwares.DeviceMetadataTest do
     )
   end
 
+  defp esp_params(overrides \\ %{}) do
+    Map.merge(
+      %{
+        "esp_idf_project_name" => "my_product",
+        "esp_idf_version" => "1.2.3",
+        "esp_idf_app_elf_sha256" => @elf_sha256,
+        "esp_idf_ver" => "v5.2.1",
+        "esp_idf_chip_id" => 9
+      },
+      overrides
+    )
+  end
+
   describe "tool selection" do
     test "an explicit update_tool wins" do
-      params = Map.put(nerves_params(), "update_tool", "fwup")
-      assert UpdateTool.for_device_metadata(params) == UpdateTool.Fwup
+      params = Map.put(esp_params(), "update_tool", "esp-idf")
+      assert UpdateTool.for_device_metadata(params) == UpdateTool.EspIdf
     end
 
     test "an unknown update_tool falls back to sniffing" do
@@ -43,6 +59,10 @@ defmodule NervesHub.Firmwares.DeviceMetadataTest do
 
     test "nerves_fw_uuid identifies a Nerves device" do
       assert UpdateTool.for_device_metadata(nerves_params()) == UpdateTool.Fwup
+    end
+
+    test "esp_idf keys identify an ESP-IDF device" do
+      assert UpdateTool.for_device_metadata(esp_params()) == UpdateTool.EspIdf
     end
 
     # Devices that report nothing recognisable must keep being read as fwup,
@@ -83,6 +103,64 @@ defmodule NervesHub.Firmwares.DeviceMetadataTest do
     test "returns nil when nothing identifies the firmware" do
       product = product_fixture()
       assert {:ok, nil} = Firmwares.metadata_from_device(%{}, product.id)
+    end
+  end
+
+  describe "metadata_from_device/2 with an ESP-IDF device" do
+    test "reads esp_idf_* keys" do
+      product = product_fixture()
+
+      assert {:ok, metadata} = Firmwares.metadata_from_device(esp_params(), product.id)
+
+      assert metadata.product == "my_product"
+      assert metadata.version == "1.2.3"
+      assert metadata.platform == "esp32s3"
+      assert metadata.architecture == "xtensa"
+      assert metadata.description == "ESP-IDF v5.2.1"
+    end
+
+    # The device sends the raw hash and the server derives the UUID, so a device
+    # agent never has to know NervesHub's convention.
+    test "derives the same uuid the uploaded image was given" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+
+      raw = :crypto.strong_rand_bytes(32)
+
+      {:ok, path} =
+        EspIdf.create_firmware(product.name, elf_sha256: raw)
+
+      {:ok, firmware} = Firmwares.create_firmware(org, path)
+
+      params = esp_params(%{"esp_idf_app_elf_sha256" => Base.encode16(raw, case: :lower)})
+
+      assert {:ok, metadata} = Firmwares.metadata_from_device(params, product.id)
+      assert metadata.uuid == firmware.uuid
+    end
+
+    test "accepts a chip id sent as a string" do
+      product = product_fixture()
+      params = esp_params(%{"esp_idf_chip_id" => "13"})
+
+      assert {:ok, metadata} = Firmwares.metadata_from_device(params, product.id)
+      assert metadata.platform == "esp32c6"
+      assert metadata.architecture == "riscv"
+    end
+
+    test "normalises a non-semver PROJECT_VER rather than failing" do
+      product = product_fixture()
+      params = esp_params(%{"esp_idf_version" => "v2.1"})
+
+      assert {:ok, metadata} = Firmwares.metadata_from_device(params, product.id)
+      assert metadata.version == "2.1.0"
+    end
+
+    test "survives a malformed elf hash" do
+      product = product_fixture()
+      params = esp_params(%{"esp_idf_app_elf_sha256" => "not-hex"})
+
+      assert {:ok, nil} = Firmwares.metadata_from_device(params, product.id)
     end
   end
 

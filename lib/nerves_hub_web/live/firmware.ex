@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Live.Firmware do
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.current_scope))
     |> assign(:params, unsigned_params)
     |> allow_upload(:firmware,
-      accept: ~w(.fw),
+      accept: ~w(.fw .bin),
       max_entries: 1,
       auto_upload: true,
       max_file_size: max_file_size(),
@@ -269,45 +269,46 @@ defmodule NervesHubWeb.Live.Firmware do
         |> put_flash(:info, "Firmware uploaded successfully")
         |> push_patch(to: ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.product}/firmware")
 
-      {:error, :no_public_keys} ->
-        error_feedback(
-          socket,
-          "Please register public keys for verifying firmware signatures first"
-        )
+      {:error, error} ->
+        error_feedback(socket, upload_error(error))
+    end
+  end
 
-      {:error, :invalid_signature} ->
-        error_feedback(socket, "Firmware corrupt, signature invalid, or missing public key")
+  # Turns whatever `create_firmware/2` failed with into something a user can act
+  # on. A changeset is passed through untouched — `error_feedback/3` renders it.
+  defp upload_error(:no_public_keys) do
+    "Please register public keys for verifying firmware signatures first"
+  end
 
-      {:error,
-       %Ecto.Changeset{
-         errors: [product_id: {"can't be blank", [validation: :required]}]
-       }} ->
-        error_feedback(
-          socket,
-          "No matching product could be found. Please check that your Nerves application product name (`:app` or `:name` in `mix.exs`) matches your #{Application.get_env(:nerves_hub, :web_title_suffix)} product name."
-        )
+  defp upload_error(:invalid_signature) do
+    "Firmware corrupt, signature invalid, or missing public key"
+  end
 
-      {:error,
-       %Ecto.Changeset{
+  defp upload_error(:unrecognised_firmware_format) do
+    "Unrecognised firmware format. Expected an fwup archive (.fw) or an ESP-IDF application image (.bin)."
+  end
+
+  defp upload_error({:invalid_version, raw}) do
+    "Firmware version #{inspect(raw)} is not a valid semantic version. " <>
+      "For ESP-IDF, set PROJECT_VER in your CMakeLists.txt to something like \"1.2.3\"."
+  end
+
+  defp upload_error(%Ecto.Changeset{errors: [product_id: {"can't be blank", [validation: :required]}]}) do
+    "No matching product could be found. Please check that your Nerves application product name " <>
+      "(`:app` or `:name` in `mix.exs`) matches your #{Application.get_env(:nerves_hub, :web_title_suffix)} product name."
+  end
+
+  defp upload_error(%Ecto.Changeset{
          errors: [
            uuid: {"has already been taken", [constraint: :unique, constraint_name: "firmwares_product_id_uuid_index"]}
          ]
-       } = _changeset} ->
-        error_feedback(
-          socket,
-          "Firmware UUID has already been taken, has this version been uploaded already?"
-        )
-
-      {:error, error} when is_binary(error) ->
-        error_feedback(socket, error)
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        error_feedback(socket, changeset)
-
-      _ ->
-        error_feedback(socket, "Unknown error uploading firmware. Please contact support.")
-    end
+       }) do
+    "Firmware UUID has already been taken, has this version been uploaded already?"
   end
+
+  defp upload_error(%Ecto.Changeset{} = changeset), do: changeset
+  defp upload_error(error) when is_binary(error), do: error
+  defp upload_error(_error), do: "Unknown error uploading firmware. Please contact support."
 
   defp error_feedback(socket, changeset_or_message, opts \\ [])
 
@@ -333,9 +334,13 @@ defmodule NervesHubWeb.Live.Firmware do
     end
   end
 
+  defp format_signed(%{org_key_id: nil}, _org_keys), do: "Unsigned"
+
   defp format_signed(%{org_key_id: org_key_id}, org_keys) do
-    key = Enum.find(org_keys, &(&1.id == org_key_id))
-    "#{key.name}"
+    case Enum.find(org_keys, &(&1.id == org_key_id)) do
+      nil -> "Unknown key"
+      key -> key.name
+    end
   end
 
   defp max_file_size() do
