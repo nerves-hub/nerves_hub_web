@@ -11,8 +11,8 @@ defmodule NervesHub.Devices.ExternalIdentity do
 
   ## What `identifier` means
 
-  `identifier` is **the value the device cryptographically proves possession
-  of** — its iroh endpoint id, or its WireGuard/NetBird/Tailscale public key.
+  `identifier` is **the value the device claims possession of** — its iroh endpoint id, 
+  or its WireGuard/NetBird/Tailscale public key.
 
   It is deliberately not "whatever handle that service's UI shows you".
   Control-plane handles (a NetBird peer id, a Tailscale `StableNodeID`, an
