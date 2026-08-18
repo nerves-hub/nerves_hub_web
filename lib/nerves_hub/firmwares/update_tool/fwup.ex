@@ -5,6 +5,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
 
   @behaviour NervesHub.Firmwares.UpdateTool
 
+  alias NervesHub.Accounts.OrgKey
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -20,6 +21,51 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   # If a payload is smaller than this there is no point to do a delta, the overhead takes more space
   # in the best case
   @delta_overhead_limit 22
+
+  @impl UpdateTool
+  def tool_name(), do: "fwup"
+
+  @impl UpdateTool
+  def file_extension(), do: ".fw"
+
+  @impl UpdateTool
+  def recognises?(filepath) do
+    # A .fw archive is a zip, so it starts with the local file header magic.
+    case File.open(filepath, [:read, :binary], &IO.binread(&1, 4)) do
+      {:ok, <<"PK", 0x03, 0x04>>} -> true
+      _ -> false
+    end
+  end
+
+  @impl UpdateTool
+  def verify_signature(_filepath, []), do: {:error, :no_public_keys}
+
+  def verify_signature(filepath, keys) when is_binary(filepath) do
+    signed_key =
+      Enum.find(keys, fn %{key: key} ->
+        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath], env: []) do
+          {_, 0} ->
+            true
+
+          # fwup returns a 1 for invalid signatures
+          {_, 1} ->
+            false
+
+          {text, code} ->
+            Logger.warning("fwup returned code #{code} with #{text}")
+
+            false
+        end
+      end)
+
+    case signed_key do
+      %OrgKey{} = key ->
+        {:ok, key}
+
+      nil ->
+        {:error, :invalid_signature}
+    end
+  end
 
   @impl UpdateTool
   def get_firmware_metadata_from_file(filepath) do
@@ -93,8 +139,8 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   end
 
   @impl UpdateTool
-  def delta_updatable?(file_path) do
-    {:ok, feature_usage} = Confuse.Fwup.get_feature_usage(file_path)
+  def delta_updatable?(%{path: meta_conf_path}) do
+    {:ok, feature_usage} = Confuse.Fwup.get_feature_usage(meta_conf_path)
 
     feature_usage.raw_deltas? or feature_usage.fat_deltas?
   end
