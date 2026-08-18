@@ -43,9 +43,6 @@ config :nerves_hub,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
   log_include_mfa: System.get_env("LOG_INCLUDE_MFA", "false") == "true",
   web_title_suffix: System.get_env("WEB_TITLE_SUFFIX", "NervesHub"),
-  # Accept ESP-IDF application images (.bin) in addition to fwup archives.
-  # Off by default: such images are stored unsigned, so this changes what the
-  # platform will accept without a verified signature.
   esp_idf_firmware_enabled: System.get_env("ESP_IDF_FIRMWARE_ENABLED", "false") == "true",
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   email_sender: System.get_env("EMAIL_SENDER", "NervesHub"),

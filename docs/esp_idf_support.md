@@ -82,9 +82,11 @@ still send complete images to ESP-IDF devices.
 
 ### Device connectivity
 
-There is **no device agent yet**. NervesHub can store and serve ESP-IDF images,
-and the device protocol below is implemented server-side, but nothing on an
-ESP32 currently connects to NervesHub.
+There is library in early development which you can find at 
+https://github.com/nerves-hub/nerves-hub-link-esp32. 
+
+NervesHub can store and serve ESP-IDF images, and the device protocol below is 
+implemented server-side, but nothing on an ESP32 currently connects to NervesHub.
 
 ## The device protocol
 
@@ -112,8 +114,8 @@ Note that the device does **not** send a UUID. NervesHub derives it from
 an agent cannot get it subtly wrong.
 
 `update_tool` is optional — NervesHub also recognises a device by the keys it
-sends, and a device sending nothing recognisable is read as a Nerves device, as
-it was before this seam existed. Sending it explicitly is preferred.
+sends, and a device sending nothing recognisable is read as a Nerves device. 
+Sending it explicitly is preferred.
 
 ### Reporting update progress
 
@@ -124,12 +126,8 @@ Send `update_progress` with a `value` percentage and an optional `stage`
 {"value": 42, "stage": "downloading"}
 ```
 
-`fwup_progress` is the same message under its original name. Every deployed
-`nerves_hub_link` sends it and it will keep working indefinitely, but new agents
-should send `update_progress`.
-
-On completion, send `firmware_validated` once the new image has proven itself —
-this pairs naturally with `esp_ota_mark_app_valid_cancel_rollback()`.
+On completion, send `firmware_validated` once the new image has proven itself.
+This pairs naturally with `esp_ota_mark_app_valid_cancel_rollback()`.
 
 Failure is reported through `status_update` with a status of `"failed"` and a
 `reason`.
