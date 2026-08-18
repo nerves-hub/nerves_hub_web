@@ -68,6 +68,25 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   end
 
   @impl UpdateTool
+  def recognises_device_metadata?(params), do: Map.has_key?(params, "nerves_fw_uuid")
+
+  @impl UpdateTool
+  def metadata_from_device(params) do
+    %{
+      uuid: params["nerves_fw_uuid"],
+      architecture: params["nerves_fw_architecture"],
+      platform: params["nerves_fw_platform"],
+      product: params["nerves_fw_product"],
+      version: params["nerves_fw_version"],
+      author: params["nerves_fw_author"],
+      description: params["nerves_fw_description"],
+      fwup_version: params["fwup_version"],
+      vcs_identifier: params["nerves_fw_vcs_identifier"],
+      misc: params["nerves_fw_misc"]
+    }
+  end
+
+  @impl UpdateTool
   def get_firmware_metadata_from_file(filepath) do
     with {:ok, firmware_metadata} <- FwupUtil.metadata(filepath),
          {:ok, meta_conf_path} <- extract_meta_conf_locally(filepath),

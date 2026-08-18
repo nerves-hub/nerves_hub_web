@@ -425,21 +425,28 @@ defmodule NervesHub.Firmwares do
     {:ok, metadata}
   end
 
+  @doc """
+  Translate the firmware metadata a device reported on join.
+
+  Which keys are read depends on the device: a Nerves device reports
+  `nerves_fw_*`, an ESP-IDF device reports `esp_idf_*`. The update tool owns
+  that translation — see `NervesHub.Firmwares.UpdateTool.for_device_metadata/2`
+  for how one is chosen.
+
+  If the result is not a complete `FirmwareMetadata`, the reported UUID is
+  looked up instead, so a device that reports little still resolves to the
+  firmware NervesHub already holds.
+  """
+  # Returns the plain map shape (`FirmwareMetadata.metadata()`), not the struct —
+  # callers feed it to `FirmwareMetadata.changeset/2`. The spec previously said
+  # `FirmwareMetadata.t()`, which no code path has ever produced.
   @spec metadata_from_device(metadata :: map(), product_id :: pos_integer()) ::
-          {:ok, FirmwareMetadata.t() | nil}
-  def metadata_from_device(metadata, product_id) do
-    metadata = %{
-      uuid: Map.get(metadata, "nerves_fw_uuid"),
-      architecture: Map.get(metadata, "nerves_fw_architecture"),
-      platform: Map.get(metadata, "nerves_fw_platform"),
-      product: Map.get(metadata, "nerves_fw_product"),
-      version: Map.get(metadata, "nerves_fw_version"),
-      author: Map.get(metadata, "nerves_fw_author"),
-      description: Map.get(metadata, "nerves_fw_description"),
-      fwup_version: Map.get(metadata, "fwup_version"),
-      vcs_identifier: Map.get(metadata, "nerves_fw_vcs_identifier"),
-      misc: Map.get(metadata, "nerves_fw_misc")
-    }
+          {:ok, FirmwareMetadata.metadata() | nil}
+  def metadata_from_device(reported, product_id) do
+    metadata =
+      reported
+      |> UpdateTool.for_device_metadata()
+      |> then(& &1.metadata_from_device(reported))
 
     case FirmwareMetadata.changeset(%FirmwareMetadata{}, metadata).valid? do
       true ->
