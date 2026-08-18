@@ -2,6 +2,7 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
   alias NervesHub.Accounts
+  alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Upload
   alias NervesHub.Fixtures
   alias NervesHub.Support.Fwup
@@ -64,6 +65,60 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do
       conn = post(conn, Routes.api_firmware_path(conn, :create, org.name, product.name))
       assert json_response(conn, 422)["errors"] != %{}
+    end
+  end
+
+  describe "create firmware addressed to the wrong product" do
+    test "is rejected rather than filed under the declared product", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product
+    } do
+      org_key = Fixtures.org_key_fixture(org, user)
+      other_product = Fixtures.product_fixture(user, org)
+
+      # Built for `other_product`, uploaded to `product`.
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{
+          product: other_product.name
+        })
+
+      {boundary, body} = multipart_file(File.read!(signed_firmware_path))
+
+      conn =
+        conn
+        |> put_req_header("content-type", "multipart/form-data; boundary=#{boundary}")
+        |> post(Routes.api_firmware_path(conn, :create, org.name, product.name), body)
+
+      assert response = json_response(conn, 422)
+      assert response["errors"]["detail"] =~ other_product.name
+      assert response["errors"]["detail"] =~ product.name
+
+      # And nothing was stored anywhere.
+      assert Firmwares.get_firmwares_by_product(other_product.id) == []
+      assert Firmwares.get_firmwares_by_product(product.id) == []
+    end
+
+    test "an archive declaring the addressed product still uploads", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product
+    } do
+      org_key = Fixtures.org_key_fixture(org, user)
+
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: product.name})
+
+      {boundary, body} = multipart_file(File.read!(signed_firmware_path))
+
+      conn =
+        conn
+        |> put_req_header("content-type", "multipart/form-data; boundary=#{boundary}")
+        |> post(Routes.api_firmware_path(conn, :create, org.name, product.name), body)
+
+      assert json_response(conn, 201)["data"]
     end
   end
 

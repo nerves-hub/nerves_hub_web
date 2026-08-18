@@ -52,7 +52,7 @@ defmodule NervesHubWeb.API.FirmwareController do
     Logger.info("System Memory:" <> inspect(:memsup.get_system_memory_data()))
 
     with {%{path: filepath}, _params} <- Map.pop(params, "firmware"),
-         {:ok, firmware} <- Firmwares.create_firmware(org, filepath) do
+         {:ok, firmware} <- Firmwares.create_firmware(org, filepath, product: product) do
       firmware = Firmwares.preload_product(firmware)
 
       conn
