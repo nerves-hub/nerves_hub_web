@@ -25,6 +25,25 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :unrecognised_firmware_format}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "Unrecognised firmware format. Expected an fwup archive (.fw) or an ESP-IDF application image (.bin)."
+    })
+  end
+
+  def call(conn, {:error, {:invalid_version, raw}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "Firmware version #{inspect(raw)} is not a valid semantic version. For ESP-IDF, set PROJECT_VER in your CMakeLists.txt to something like \"1.2.3\"."
+    })
+  end
+
   def call(conn, {:error, {_key, message}}) do
     conn
     |> put_status(:unprocessable_entity)

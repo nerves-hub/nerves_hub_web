@@ -5,6 +5,7 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Upload
   alias NervesHub.Fixtures
+  alias NervesHub.Support.EspIdf
   alias NervesHub.Support.Fwup
 
   describe "index" do
@@ -119,6 +120,90 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
         |> post(Routes.api_firmware_path(conn, :create, org.name, product.name), body)
 
       assert json_response(conn, 201)["data"]
+    end
+  end
+
+  describe "create ESP-IDF firmware" do
+    test "uploads an ESP-IDF application image", %{conn: conn, org: org, product: product} do
+      {boundary, body} =
+        multipart_file(EspIdf.image(product: product.name, version: "1.4.2", chip_id: 0x0009))
+
+      path = Routes.api_firmware_path(conn, :create, org.name, product.name)
+
+      conn =
+        conn
+        |> put_req_header("content-type", "multipart/form-data; boundary=#{boundary}")
+        |> post(path, body)
+
+      assert data = json_response(conn, 201)["data"]
+      assert data["version"] == "1.4.2"
+      assert data["platform"] == "esp32s3"
+      assert data["architecture"] == "xtensa"
+
+      conn = get(conn, Routes.api_firmware_path(conn, :show, org.name, product.name, data["uuid"]))
+      assert json_response(conn, 200)["data"]["uuid"] == data["uuid"]
+    end
+
+    test "records the esp-idf tool and no signing key", %{conn: conn, org: org, product: product} do
+      {boundary, body} = multipart_file(EspIdf.image(product: product.name))
+
+      conn =
+        conn
+        |> put_req_header("content-type", "multipart/form-data; boundary=#{boundary}")
+        |> post(Routes.api_firmware_path(conn, :create, org.name, product.name), body)
+
+      uuid = json_response(conn, 201)["data"]["uuid"]
+
+      {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
+
+      assert firmware.tool == "esp-idf"
+      # ESP-IDF signing is not supported yet, so the image is stored unsigned.
+      assert is_nil(firmware.org_key_id)
+      assert firmware.tool_metadata["idf_ver"] == "v5.2.1"
+    end
+
+    test "uploads without the org having any fwup signing keys", %{conn: conn, org: org, product: product} do
+      # An fwup upload into this org would fail with :no_public_keys. ESP-IDF
+      # does not go through fwup signature verification at all.
+      assert Accounts.list_org_keys(org.id) == []
+
+      {boundary, body} = multipart_file(EspIdf.image(product: product.name))
+
+      conn =
+        conn
+        |> put_req_header("content-type", "multipart/form-data; boundary=#{boundary}")
+        |> post(Routes.api_firmware_path(conn, :create, org.name, product.name), body)
+
+      assert json_response(conn, 201)["data"]
+    end
+
+    test "rejects a PROJECT_VER that is not a semantic version", %{conn: conn, org: org, product: product} do
+      {boundary, body} = multipart_file(EspIdf.image(product: product.name, version: "not-a-version"))
+
+      conn =
+        conn
+        |> put_req_header("content-type", "multipart/form-data; boundary=#{boundary}")
+        |> post(Routes.api_firmware_path(conn, :create, org.name, product.name), body)
+
+      assert response = json_response(conn, 422)
+      assert response["errors"]["detail"] =~ "not a valid semantic version"
+      assert response["errors"]["detail"] =~ "PROJECT_VER"
+    end
+
+    test "rejects a file that is neither an fwup archive nor an ESP-IDF image", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      {boundary, body} = multipart_file("this is not firmware at all")
+
+      conn =
+        conn
+        |> put_req_header("content-type", "multipart/form-data; boundary=#{boundary}")
+        |> post(Routes.api_firmware_path(conn, :create, org.name, product.name), body)
+
+      assert response = json_response(conn, 422)
+      assert response["errors"]["detail"] =~ "Unrecognised firmware format"
     end
   end
 
