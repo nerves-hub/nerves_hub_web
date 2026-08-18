@@ -19,7 +19,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DevicePage.LogsTab
   alias NervesHubWeb.Components.DevicePage.SettingsTab
   alias NervesHubWeb.Components.DeviceUpdateStatus
-  alias NervesHubWeb.Components.FwupProgress
+  alias NervesHubWeb.Components.UpdateProgress
   alias NervesHubWeb.Presence
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.Socket.Broadcast
