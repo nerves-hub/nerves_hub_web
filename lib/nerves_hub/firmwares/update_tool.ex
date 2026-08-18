@@ -1,10 +1,37 @@
 defmodule NervesHub.Firmwares.UpdateTool do
   @moduledoc """
   A behaviour module for the tool that handles firmware updates.
+
+  ## Choosing a tool
+
+  A NervesHub instance can carry more than one tool at a time — an org shipping
+  fwup images to Nerves devices and ESP-IDF images to ESP32s uses both. Which
+  one runs is decided in two different ways depending on the direction:
+
+    * **On upload**, nothing has been recorded yet, so the file itself decides.
+      `for_file/1` asks each configured tool whether it recognises the bytes
+      (`c:recognises?/1`), which is a magic-number check rather than a guess
+      from the filename.
+
+    * **On read**, the `tool` column recorded at upload time decides —
+      `for_firmware/1`. A firmware is always handled by the tool that ingested
+      it, so adding or removing tools from the configuration never changes how
+      existing firmware is interpreted.
+
+  Configure the set of tools with:
+
+      config :nerves_hub, :update_tools, %{
+        "fwup" => NervesHub.Firmwares.UpdateTool.Fwup
+      }
+
+  The older single-tool keys (`:update_tool`, and before it `:delta_updater`)
+  still work and pin the instance to exactly that one tool.
   """
 
+  alias NervesHub.Accounts.OrgKey
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.FirmwareDelta
 
   defmodule Metadata do
     @enforce_keys [:architecture, :platform, :product, :uuid, :version]
@@ -52,13 +79,18 @@ defmodule NervesHub.Firmwares.UpdateTool do
 
   The `firmware_metadata` field has enforced fields that are expected.
   The `tool_metadata` field is a free-form map to capture information the tool needs.
+
+  A tool may add its own keys beyond these — `Fwup` carries the extracted
+  `meta.conf` path so that `c:delta_updatable?/1` can read it without a second
+  extraction. Only the tool that produced the map ever reads those keys.
   """
   @type metadata :: %{
-          firmware_metadata: Metadata.t(),
-          tool_metadata: map(),
-          tool: String.t(),
-          tool_delta_required_version: String.t(),
-          tool_full_required_version: String.t()
+          :firmware_metadata => Metadata.t(),
+          :tool_metadata => map(),
+          :tool => String.t(),
+          :tool_delta_required_version => String.t(),
+          :tool_full_required_version => String.t(),
+          optional(atom()) => term()
         }
   @typedoc """
   On delta creation we get a file, we get some size information and we get any
@@ -73,6 +105,38 @@ defmodule NervesHub.Firmwares.UpdateTool do
           tool: String.t(),
           tool_metadata: map()
         }
+
+  @doc """
+  The name recorded in `firmwares.tool`, and the key this tool is configured under.
+  """
+  @callback tool_name() :: String.t()
+
+  @doc """
+  The extension used when storing an archive this tool produced, leading dot included.
+  """
+  @callback file_extension() :: String.t()
+
+  @doc """
+  Whether this tool can handle the given file.
+
+  Called against every configured tool when a firmware is uploaded, so it should
+  read as little as possible — a magic number, not a full parse — and must never
+  raise on arbitrary bytes.
+  """
+  @callback recognises?(String.t()) :: boolean()
+
+  @doc """
+  Verify that an uploaded archive was signed by one of the org's keys.
+
+  Each image format carries its signature differently, so this cannot live
+  outside the tool: fwup verifies an Ed25519 signature over the archive, while
+  ESP-IDF appends a Secure Boot v2 signature block.
+
+  `{:ok, nil}` means the archive is legitimately unsigned and the tool accepts
+  it — the firmware is then recorded with no `org_key_id`.
+  """
+  @callback verify_signature(String.t(), [OrgKey.t()]) ::
+              {:ok, OrgKey.t() | nil} | {:error, term()}
 
   @doc """
   Retrieves metadata from a firmware file.
@@ -104,13 +168,74 @@ defmodule NervesHub.Firmwares.UpdateTool do
   @callback cleanup_firmware_delta_files(String.t()) :: :ok
 
   @doc """
-  Checks a firmware file's meta.conf to see if delta updating is enabled
+  Checks whether delta updating is enabled for the firmware the metadata describes.
+
+  Takes the map returned by `c:get_firmware_metadata_from_file/1` so that a tool
+  can reuse whatever it already extracted rather than re-reading the archive.
   """
-  @callback delta_updatable?(String.t()) :: boolean()
+  @callback delta_updatable?(metadata()) :: boolean()
 
   @doc """
   Check if a device is ready for a delta firmware update or requires a complete
   update.
   """
   @callback device_update_type(device :: Device.t(), Firmware.t()) :: :delta | :full
+
+  @doc """
+  Every tool this instance is configured to use, keyed by `tool_name/0`.
+  """
+  @spec all() :: %{String.t() => module()}
+  def all() do
+    case Application.get_env(:nerves_hub, :update_tools) do
+      nil -> legacy_tool() || default_tools()
+      tools -> tools
+    end
+  end
+
+  # Only fwup for now. `all/0` is the seam a second tool plugs into.
+  defp default_tools(), do: %{"fwup" => __MODULE__.Fwup}
+
+  # The pre-registry configuration pinned the whole instance to one tool. Honour
+  # it so that an existing deployment does not silently start accepting formats
+  # it never accepted before.
+  defp legacy_tool() do
+    configured =
+      Application.get_env(:nerves_hub, :update_tool) ||
+        Application.get_env(:nerves_hub, :delta_updater)
+
+    case configured do
+      nil -> nil
+      module -> %{module.tool_name() => module}
+    end
+  end
+
+  @doc """
+  The tool that handles an already-recorded firmware or delta.
+  """
+  @spec for_firmware(Firmware.t() | FirmwareDelta.t()) ::
+          {:ok, module()} | {:error, {:unknown_update_tool, String.t()}}
+  def for_firmware(%Firmware{tool: tool}), do: fetch(tool)
+  def for_firmware(%FirmwareDelta{tool: tool}), do: fetch(tool)
+
+  @doc """
+  The tool that recognises an uploaded file, by inspecting the file itself.
+  """
+  @spec for_file(String.t()) :: {:ok, module()} | {:error, :unrecognised_firmware_format}
+  def for_file(filepath) do
+    all()
+    |> Map.values()
+    |> Enum.find(& &1.recognises?(filepath))
+    |> case do
+      nil -> {:error, :unrecognised_firmware_format}
+      module -> {:ok, module}
+    end
+  end
+
+  @spec fetch(String.t() | nil) :: {:ok, module()} | {:error, {:unknown_update_tool, String.t()}}
+  defp fetch(tool) do
+    case Map.fetch(all(), tool) do
+      {:ok, module} -> {:ok, module}
+      :error -> {:error, {:unknown_update_tool, tool}}
+    end
+  end
 end
