@@ -263,51 +263,50 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp create_firmware(socket, filepath) do
-    case Firmwares.create_firmware(socket.assigns.current_scope.org, filepath) do
+    %{org: org, product: product} = socket.assigns.current_scope
+
+    case Firmwares.create_firmware(org, filepath, product: product) do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Firmware uploaded successfully")
-        |> push_patch(to: ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.product}/firmware")
+        |> push_patch(to: ~p"/org/#{org}/#{product}/firmware")
 
-      {:error, :no_public_keys} ->
-        error_feedback(
-          socket,
-          "Please register public keys for verifying firmware signatures first"
-        )
+      {:error, error} ->
+        error_feedback(socket, upload_error(error))
+    end
+  end
 
-      {:error, :invalid_signature} ->
-        error_feedback(socket, "Firmware corrupt, signature invalid, or missing public key")
+  # Turns whatever `create_firmware/3` failed with into something a user can act
+  # on. A changeset is passed through untouched — `error_feedback/3` renders it.
+  defp upload_error(:no_public_keys) do
+    "Please register public keys for verifying firmware signatures first"
+  end
 
-      {:error,
-       %Ecto.Changeset{
-         errors: [product_id: {"can't be blank", [validation: :required]}]
-       }} ->
-        error_feedback(
-          socket,
-          "No matching product could be found. Please check that your Nerves application product name (`:app` or `:name` in `mix.exs`) matches your #{Application.get_env(:nerves_hub, :web_title_suffix)} product name."
-        )
+  defp upload_error(:invalid_signature) do
+    "Firmware corrupt, signature invalid, or missing public key"
+  end
 
-      {:error,
-       %Ecto.Changeset{
+  defp upload_error({:product_mismatch, declared, expected}) do
+    "This firmware is built for the product #{inspect(declared)}, but was uploaded to " <>
+      "#{inspect(expected)}. Check the product name in your firmware build."
+  end
+
+  defp upload_error(%Ecto.Changeset{errors: [product_id: {"can't be blank", [validation: :required]}]}) do
+    "No matching product could be found. Please check that your Nerves application product name " <>
+      "(`:app` or `:name` in `mix.exs`) matches your #{Application.get_env(:nerves_hub, :web_title_suffix)} product name."
+  end
+
+  defp upload_error(%Ecto.Changeset{
          errors: [
            uuid: {"has already been taken", [constraint: :unique, constraint_name: "firmwares_product_id_uuid_index"]}
          ]
-       } = _changeset} ->
-        error_feedback(
-          socket,
-          "Firmware UUID has already been taken, has this version been uploaded already?"
-        )
-
-      {:error, error} when is_binary(error) ->
-        error_feedback(socket, error)
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        error_feedback(socket, changeset)
-
-      _ ->
-        error_feedback(socket, "Unknown error uploading firmware. Please contact support.")
-    end
+       }) do
+    "Firmware UUID has already been taken, has this version been uploaded already?"
   end
+
+  defp upload_error(%Ecto.Changeset{} = changeset), do: changeset
+  defp upload_error(error) when is_binary(error), do: error
+  defp upload_error(_error), do: "Unknown error uploading firmware. Please contact support."
 
   defp error_feedback(socket, changeset_or_message, opts \\ [])
 

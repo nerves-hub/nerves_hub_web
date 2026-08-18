@@ -322,6 +322,9 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("div", text: "Firmware corrupt, signature invalid, or missing public key")
     end
 
+    # Previously this reported "No matching product could be found", which
+    # pointed at the wrong thing: the problem is not that AnotherProduct is
+    # missing, it is that this firmware was uploaded to the wrong product.
     test "error if meta-product does not match product name", %{
       conn: conn,
       user: user,
@@ -341,7 +344,31 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> visit("/org/#{org.name}/#{product.name}/firmware")
       |> upload("Upload Firmware", signed_firmware_path)
       |> assert_path("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("div", text: "No matching product could be found.")
+      |> assert_has("div", text: "AnotherProduct")
+      |> assert_has("div", text: "CoolProduct")
+    end
+
+    # The same firmware uploaded to the product it was built for still works —
+    # the check must not reject a legitimate upload.
+    test "uploads firmware whose meta-product matches the product", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{
+          product: "CoolProduct",
+          dir: tmp_dir
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> upload("Upload Firmware", signed_firmware_path)
+      |> assert_has("div", text: "Firmware uploaded successfully")
     end
   end
 end
