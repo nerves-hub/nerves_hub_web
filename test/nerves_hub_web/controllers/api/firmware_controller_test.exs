@@ -5,6 +5,7 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Upload
   alias NervesHub.Fixtures
+  alias NervesHub.Products
   alias NervesHub.Support.EspIdf
   alias NervesHub.Support.Fwup
 
@@ -125,10 +126,12 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
   end
 
   describe "create ESP-IDF firmware" do
-    setup %{org: org, user: user} do
-      # ESP-IDF images must be signed, so the org needs the matching public key
-      # exactly as it needs an fwup key for a `.fw`.
-      {:ok, %{esp_key: Fixtures.esp_idf_key_fixture(org, user)}}
+    setup %{org: org, user: user, product: product} do
+      # Products take only fwup until opted in, and ESP-IDF images must be
+      # signed — so this needs both the setting and the matching public key.
+      {:ok, product} = Products.update_product(product, %{allowed_update_tools: ["fwup", "esp-idf"]})
+
+      {:ok, %{product: product, esp_key: Fixtures.esp_idf_key_fixture(org, user)}}
     end
 
     test "uploads an ESP-IDF application image", %{conn: conn, org: org, product: product} do

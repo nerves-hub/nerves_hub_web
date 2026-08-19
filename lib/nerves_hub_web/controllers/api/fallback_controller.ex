@@ -25,6 +25,17 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, {:update_tool_not_allowed, tool, product}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "The product #{inspect(product)} does not accept #{tool} firmware. " <>
+          "An organization owner can enable it in the product's settings."
+    })
+  end
+
   def call(conn, {:error, :firmware_not_signed}) do
     conn
     |> put_status(:unprocessable_entity)

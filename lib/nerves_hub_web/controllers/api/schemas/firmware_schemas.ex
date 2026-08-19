@@ -60,8 +60,9 @@ defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
       Upload failure.
 
       Changeset failures (a duplicate UUID, say) are keyed by field. Failures
-      raised before the changeset — an unrecognised format, an unsigned image,
-      a version that is not SemVer — carry a single `detail` message instead.
+      raised before the changeset — an unrecognised format, a format this
+      product does not accept, an unsigned image, a version that is not SemVer —
+      carry a single `detail` message instead.
       """,
       type: :object,
       oneOf: [

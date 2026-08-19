@@ -178,6 +178,18 @@ defmodule NervesHub.Fixtures do
     user
   end
 
+  @doc """
+  A product that accepts ESP-IDF images as well as fwup archives.
+
+  Products only take fwup by default, so anything uploading a `.bin` needs this
+  rather than `product_fixture/3`.
+  """
+  def esp_idf_product_fixture(user, org, params \\ %{}) do
+    params
+    |> Enum.into(%{allowed_update_tools: ["fwup", "esp-idf"]})
+    |> then(&product_fixture(user, org, &1))
+  end
+
   def product_fixture(_user, _org, params \\ %{})
 
   def product_fixture(%Accounts.User{}, %Accounts.Org{} = org, params) do

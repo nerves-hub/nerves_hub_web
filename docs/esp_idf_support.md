@@ -5,11 +5,45 @@ NervesHub can ingest ESP-IDF application images (`.bin`) alongside fwup archives
 **incomplete** — read the [Not supported yet](#not-supported-yet) section before
 relying on it.
 
+## Enabling it
+
+Support is off by default and has to be turned on in two places — once for the
+instance, and once for each product that should accept the format.
+
+### 1. The instance
+
+Set `ESP_IDF_FIRMWARE_ENABLED=true`. Without it no product can opt in and no
+`.bin` is recognised, whatever a product's settings say. Accepting a second
+image format changes what an instance will ingest and serve, so it is a
+deployment decision rather than something a version bump hands you.
+
+### 2. The product
+
+Under **Product → Settings → Firmware**:
+
+| Setting | Column | Default |
+| --- | --- | --- |
+| Accept ESP-IDF application images | `products.allowed_update_tools` | `["fwup"]` |
+| Allow unsigned ESP-IDF images | `products.allow_unsigned_esp_idf_firmware` | `false` |
+
+A product accepts only the formats listed in `allowed_update_tools`; uploading a
+`.bin` to a product that has not opted in is rejected with a message naming the
+product, not silently ingested. fwup is always in the list.
+
+The second setting is narrow on purpose: it excuses a *missing* signature block,
+and nothing else. An image that carries a signature is always verified against
+the organization's registered keys, and a bad signature is refused whether or
+not the setting is on. See [Firmware signing](#firmware-signing).
+
+Turning acceptance back off leaves the unsigned setting untouched, so a product
+that is switched off and on again comes back configured as it was.
+
 ## What works
 
 Upload an ESP-IDF application image through the web UI or the API exactly as you
 would an fwup archive. NervesHub picks the handling tool by inspecting the file
-itself, so there is nothing to configure per product and no flag to pass.
+itself rather than by extension, then checks that tool against the product's
+`allowed_update_tools`.
 
 ### Where the metadata comes from
 
@@ -56,11 +90,10 @@ Anything else is rejected at upload with a message naming `PROJECT_VER`.
 `esp32h2`, `esp32p4`. An unrecognised chip ID still uploads, recorded as
 `esp32-<id>` with architecture `unknown`.
 
-## Not supported yet
-
 ### Firmware signing
 
-**ESP-IDF images must be signed**, exactly as fwup archives must be. Register
+**ESP-IDF images must be signed** by default, exactly as fwup archives must be.
+Register
 the public half of your signing key against the organization, choosing the
 **ESP-IDF Secure Boot v2 (RSA-3072)** scheme:
 
@@ -75,13 +108,25 @@ is rejected. NervesHub deliberately ignores the public key embedded in the
 signature block: verifying against that would prove only that *somebody* signed
 the image, and anyone can self-sign.
 
-**ECDSA signatures are not supported.** That block uses a different layout, and
-P-192/P-256/P-384 variants; such an image is refused rather than misread.
+A product may accept unsigned images by setting **Allow unsigned ESP-IDF
+images**, which is useful while bringing a board up and before Secure Boot has
+been provisioned. It applies only to images with no signature block at all —
+a present-but-unverifiable signature is still refused, so the setting cannot be
+used to smuggle in an image signed by an unregistered key. Firmware uploaded
+this way is recorded with no signing key, and only ESP-IDF images may be left
+unsigned: the database still requires an `org_key_id` for every other tool.
+
+**ECDSA signatures are not supported.**
+
+That block uses a different layout, and P-192/P-256/P-384 variants; such an
+image is refused rather than misread.
 
 Note that none of this affects the device. Secure Boot v2 is enforced by the
 ESP32 bootloader against a key digest burned into eFuse, so an image signed with
 the wrong key will not boot regardless of what NervesHub concluded. Verification
 here is early failure and defence in depth, not the primary control.
+
+## Not supported yet
 
 ### Delta updates
 
@@ -157,5 +202,13 @@ table is out of scope and would need a different mechanism.
   normalisation, signature block handling, xdelta3 deltas.
 - `NervesHub.Support.EspIdf` — builds synthetic images for tests.
 
-To restrict an instance to a single tool, set `config :nerves_hub, :update_tool,
-NervesHub.Firmwares.UpdateTool.Fwup`. Otherwise both tools are enabled.
+- `NervesHub.Products.Product.accepts_update_tool?/2` — the per-product gate.
+
+`UpdateTool.all/0` is the set of tools an instance will *accept*, which the
+`ESP_IDF_FIRMWARE_ENABLED` flag governs. `UpdateTool.known/0` is the set it can
+*read*, which the flag does not: firmware already uploaded stays interpretable
+after the format is turned off again, so disabling the flag stops new uploads
+rather than orphaning existing ones.
+
+The older `config :nerves_hub, :update_tool, NervesHub.Firmwares.UpdateTool.Fwup`
+still works and pins an instance to exactly that one tool.

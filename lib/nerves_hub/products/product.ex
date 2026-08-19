@@ -10,6 +10,7 @@ defmodule NervesHub.Products.Product do
   alias NervesHub.Devices.UpdateStat
   alias NervesHub.Extensions.ProductExtensionsSetting
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.CustomHealthMetricsLabel
   alias NervesHub.Products.Notification
@@ -41,6 +42,16 @@ defmodule NervesHub.Products.Product do
     # Defaults to `true` so new products require unique firmware versions; the DB
     # column defaults to `false`, so existing products keep the prior behaviour.
     field(:require_unique_firmware_version, :boolean, default: true)
+
+    # Which firmware formats this product accepts. Defaults to fwup alone, so a
+    # product never starts accepting a new format because the platform gained
+    # support for one.
+    field(:allowed_update_tools, {:array, :string}, default: ["fwup"])
+
+    # Most ESP-IDF builds are unsigned, and requiring a signature would rule out
+    # the common case. Deliberately not a general `allow_unsigned_firmware`:
+    # fwup archives are always verified and no setting changes that.
+    field(:allow_unsigned_esp_idf_firmware, :boolean, default: false)
     embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
 
     field(:device_count, :integer, virtual: true)
@@ -59,11 +70,37 @@ defmodule NervesHub.Products.Product do
   @doc false
   def changeset(product, params) do
     product
-    |> cast(params, @required_params ++ [:require_unique_firmware_version])
+    |> cast(
+      params,
+      @required_params ++
+        [:require_unique_firmware_version, :allowed_update_tools, :allow_unsigned_esp_idf_firmware]
+    )
     |> cast_embed(:extensions)
     |> update_change(:name, &trim/1)
     |> validate_required(@required_params)
+    |> validate_allowed_update_tools()
     |> unique_constraint(:name, name: :products_org_id_name_index)
+  end
+
+  @doc """
+  Whether this product accepts firmware handled by `tool`.
+  """
+  @spec accepts_update_tool?(t(), String.t()) :: boolean()
+  def accepts_update_tool?(%__MODULE__{allowed_update_tools: tools}, tool) do
+    tool in (tools || ["fwup"])
+  end
+
+  # An unknown tool name would silently accept nothing, so it is rejected here
+  # rather than becoming a confusing upload failure later.
+  defp validate_allowed_update_tools(changeset) do
+    known = Map.keys(UpdateTool.known())
+
+    validate_change(changeset, :allowed_update_tools, fn :allowed_update_tools, tools ->
+      case Enum.reject(tools, &(&1 in known)) do
+        [] -> []
+        unknown -> [allowed_update_tools: "unknown update tool(s): #{Enum.join(unknown, ", ")}"]
+      end
+    end)
   end
 
   def delete_changeset(product, _params \\ %{}) do

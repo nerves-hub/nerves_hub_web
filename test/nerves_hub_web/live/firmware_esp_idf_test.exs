@@ -16,7 +16,7 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
 
   describe "index" do
     test "lists an ESP-IDF firmware alongside its tool", %{conn: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
+      product = Fixtures.esp_idf_product_fixture(user, org)
       _key = Fixtures.esp_idf_key_fixture(org, user)
       firmware = upload_esp_idf!(org, product, version: "1.4.0", chip_id: 0x0009)
 
@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
     end
 
     test "shows the key that signed it", %{conn: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
+      product = Fixtures.esp_idf_product_fixture(user, org)
       key = Fixtures.esp_idf_key_fixture(org, user)
       firmware = upload_esp_idf!(org, product)
 
@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
     end
 
     test "shows fwup and ESP-IDF firmware side by side", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
-      product = Fixtures.product_fixture(user, org)
+      product = Fixtures.esp_idf_product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       _esp_key = Fixtures.esp_idf_key_fixture(org, user)
       fwup_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -58,7 +58,7 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
 
   describe "show" do
     test "renders the ESP-IDF metadata", %{conn: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
+      product = Fixtures.esp_idf_product_fixture(user, org)
       _key = Fixtures.esp_idf_key_fixture(org, user)
       firmware = upload_esp_idf!(org, product, version: "2.1.0", chip_id: 0x000D)
 
@@ -73,7 +73,7 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
     end
 
     test "renders the signing key on the show page", %{conn: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
+      product = Fixtures.esp_idf_product_fixture(user, org)
       key = Fixtures.esp_idf_key_fixture(org, user)
       firmware = upload_esp_idf!(org, product)
 
@@ -85,7 +85,7 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
 
   describe "upload" do
     test "the file picker accepts ESP-IDF images", %{conn: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
+      product = Fixtures.esp_idf_product_fixture(user, org)
 
       # `accept` reaches the browser as the input's accept attribute, so this is
       # the only place a client-side rejection of .bin would show up.

@@ -291,6 +291,11 @@ defmodule NervesHubWeb.Live.Firmware do
       "#{inspect(expected)}. Check the product name in your firmware build."
   end
 
+  defp upload_error({:update_tool_not_allowed, tool, product}) do
+    "The product #{inspect(product)} does not accept #{tool} firmware. " <>
+      "An organization owner can enable it in the product's settings."
+  end
+
   defp upload_error(:firmware_not_signed) do
     "This ESP-IDF image is not signed. NervesHub requires firmware to be signed: sign it with `espsecure.py sign_data --version 2` and register the matching public key against your organization."
   end

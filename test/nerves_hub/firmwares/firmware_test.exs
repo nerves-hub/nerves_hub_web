@@ -29,10 +29,11 @@ defmodule NervesHub.Firmwares.FirmwareTest do
     end
   end
 
-  # `org_key_id` has been NOT NULL since 2018 (`firmware_must_be_signed`). It
-  # was briefly nullable while ESP-IDF images could not be signature-verified;
-  # now that they can, every format is signed and the column is NOT NULL again.
-  describe "signing is enforced by the database" do
+  # `org_key_id` was NOT NULL from 2018 (`firmware_must_be_signed`). A product
+  # may now allow unsigned ESP-IDF images, and that rule lives in `products` —
+  # it cannot be expressed as a constraint on this table. So the database holds
+  # the guarantee for fwup and defers to the application for ESP-IDF.
+  describe "signing is enforced by the database for fwup" do
     @describetag :tmp_dir
 
     setup %{tmp_dir: tmp_dir} do
@@ -45,21 +46,30 @@ defmodule NervesHub.Firmwares.FirmwareTest do
       {:ok, %{firmware: firmware}}
     end
 
-    test "no firmware may be left unsigned", %{firmware: firmware} do
-      assert_raise Postgrex.Error, ~r/org_key_id/, fn ->
+    test "an fwup firmware cannot be left unsigned", %{firmware: firmware} do
+      assert firmware.tool == "fwup"
+
+      assert_raise Postgrex.Error, ~r/firmwares_signed_unless_esp_idf/, fn ->
         Firmware
         |> where(id: ^firmware.id)
         |> Repo.update_all(set: [org_key_id: nil])
       end
     end
 
-    # Including ESP-IDF, which was the one exception while verification was
-    # unimplemented.
-    test "not even an esp-idf firmware", %{firmware: firmware} do
-      assert_raise Postgrex.Error, ~r/org_key_id/, fn ->
+    test "an esp-idf firmware may be unsigned", %{firmware: firmware} do
+      assert {1, _} =
+               Firmware
+               |> where(id: ^firmware.id)
+               |> Repo.update_all(set: [tool: "esp-idf", org_key_id: nil])
+    end
+
+    # `tool` is nullable, so `= 'esp-idf'` would evaluate to NULL here and a
+    # CHECK passes on NULL. `IS NOT DISTINCT FROM` is what closes that.
+    test "a firmware with no tool cannot be left unsigned either", %{firmware: firmware} do
+      assert_raise Postgrex.Error, ~r/firmwares_signed_unless_esp_idf/, fn ->
         Firmware
         |> where(id: ^firmware.id)
-        |> Repo.update_all(set: [tool: "esp-idf", org_key_id: nil])
+        |> Repo.update_all(set: [tool: nil, org_key_id: nil])
       end
     end
   end

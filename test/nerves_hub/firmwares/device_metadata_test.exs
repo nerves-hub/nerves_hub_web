@@ -124,7 +124,7 @@ defmodule NervesHub.Firmwares.DeviceMetadataTest do
     test "derives the same uuid the uploaded image was given" do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user)
-      product = Fixtures.product_fixture(user, org)
+      product = Fixtures.esp_idf_product_fixture(user, org)
       _esp_key = Fixtures.esp_idf_key_fixture(org, user)
 
       raw = :crypto.strong_rand_bytes(32)

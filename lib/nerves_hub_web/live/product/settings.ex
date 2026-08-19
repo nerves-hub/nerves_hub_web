@@ -3,7 +3,9 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
   alias NervesHub.DeviceLink
   alias NervesHub.Extensions
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Products
+  alias NervesHub.Products.Product
 
   def mount(_params, _session, socket) do
     product = Products.load_shared_secret_auth(socket.assigns.current_scope.product)
@@ -17,6 +19,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> assign(:shared_auth_enabled, DeviceLink.shared_secrets_enabled?())
       |> assign(:form, to_form(Ecto.Changeset.change(product)))
       |> assign(:available_extensions, extensions())
+      |> assign(:esp_idf_available, UpdateTool.esp_idf_enabled?())
 
     {:ok, socket}
   end
@@ -99,6 +102,30 @@ defmodule NervesHubWeb.Live.Product.Settings do
     {:noreply, socket}
   end
 
+  # Turning ESP-IDF off leaves `allow_unsigned_esp_idf_firmware` as it was. It
+  # has no effect while the format is refused, and keeping it means turning the
+  # format back on restores the setup the product had before.
+  def handle_event("update-allow-esp-idf-firmware", params, socket) do
+    authorized!(:"product:update", socket.assigns.current_scope)
+
+    allow = params["value"] == "on"
+    tools = if allow, do: ["fwup", "esp-idf"], else: ["fwup"]
+
+    update_setting(socket, %{allowed_update_tools: tools}, fn ->
+      "ESP-IDF application images are now #{(allow && "accepted") || "refused"} for this product."
+    end)
+  end
+
+  def handle_event("update-allow-unsigned-esp-idf-firmware", params, socket) do
+    authorized!(:"product:update", socket.assigns.current_scope)
+
+    allow = params["value"] == "on"
+
+    update_setting(socket, %{allow_unsigned_esp_idf_firmware: allow}, fn ->
+      "Unsigned ESP-IDF images are now #{(allow && "allowed") || "refused"} for this product."
+    end)
+  end
+
   def handle_event("update-extension", %{"extension" => extension} = params, socket) do
     value = params["value"]
     available = Extensions.list() |> Enum.map(&to_string/1)
@@ -130,6 +157,24 @@ defmodule NervesHubWeb.Live.Product.Settings do
       end
 
     {:noreply, socket}
+  end
+
+  defp update_setting(socket, attrs, message) do
+    case Products.update_product(socket.assigns.product, attrs) do
+      {:ok, product} ->
+        socket
+        |> assign(:product, product)
+        |> put_flash(:info, message.())
+        |> noreply()
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(
+          :error,
+          "Failed to update the setting. Please contact support if this problem persists."
+        )
+        |> noreply()
+    end
   end
 
   defp extensions() do
