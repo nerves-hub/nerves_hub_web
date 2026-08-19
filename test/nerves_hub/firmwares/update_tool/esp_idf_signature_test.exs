@@ -15,6 +15,7 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdfSignatureTest do
   use NervesHub.DataCase, async: true
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgKey
   alias NervesHub.Firmwares.UpdateTool.EspIdf
   alias NervesHub.Fixtures
 
@@ -105,6 +106,32 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdfSignatureTest do
 
       assert {:error, :firmware_not_signed} =
                EspIdf.verify_signature("#{@fixtures}/unsigned.bin", [key])
+    end
+  end
+
+  describe "key_digest/1" do
+    # Ground truth from the tool that burns it:
+    #
+    #     espsecure.py digest-sbv2-public-key --keyfile signing_key_public.pem \\
+    #       --output digest.bin
+    @efuse_digest "ae759974fab2337f93efca7805a8a60852eba9ce6917122c7a053080da15fb85"
+
+    test "matches the digest espsecure burns into eFuse" do
+      {:ok, key} =
+        "#{@fixtures}/signing_key_public.pem"
+        |> File.read!()
+        |> OrgKey.decode_rsa_public_key()
+
+      assert EspIdf.key_digest(key) == @efuse_digest
+    end
+
+    test "distinguishes two keys" do
+      other =
+        [size: 3072, public_exponent: 65_537]
+        |> then(&:public_key.generate_key({:rsa, &1[:size], &1[:public_exponent]}))
+        |> rsa_public_from()
+
+      refute EspIdf.key_digest(other) == @efuse_digest
     end
   end
 

@@ -48,6 +48,8 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
 
   @behaviour NervesHub.Firmwares.UpdateTool
 
+  import Bitwise
+
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
@@ -457,6 +459,45 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
         Logging.log_message_to_sentry("Could not cleanup delta files", %{reason: reason})
         :ok
     end
+  end
+
+  @doc """
+  The Secure Boot v2 key digest for an RSA public key, as lowercase hex.
+
+  This is the value `espsecure.py digest-sbv2-public-key` produces, burned into
+  eFuse and compared by the bootloader on every boot. It identifies a key in the
+  form an operator can check against a chip, which a PEM cannot.
+
+  It is a SHA-256 over the 776 byte public key section of a signature block:
+  the modulus, the exponent, and the two Montgomery constants the ESP32 RSA
+  peripheral needs, all little-endian.
+  """
+  @spec key_digest({:RSAPublicKey, non_neg_integer(), integer()}) :: String.t()
+  def key_digest({:RSAPublicKey, modulus, exponent}) do
+    size = byte_size(:binary.encode_unsigned(modulus))
+
+    # R^2 mod n, where R is 2^(modulus bits).
+    r_inverse = :crypto.mod_pow(2, size * 8 * 2, :binary.encode_unsigned(modulus))
+    m_prime = band(-inverse_mod_2_32(modulus), 0xFFFFFFFF)
+
+    blob =
+      little_endian(modulus, size) <>
+        <<exponent::little-32>> <>
+        little_endian(:binary.decode_unsigned(r_inverse), size) <>
+        <<m_prime::little-32>>
+
+    :sha256 |> :crypto.hash(blob) |> Base.encode16(case: :lower)
+  end
+
+  # Newton's iteration for a modular inverse mod 2^32: five doublings take a
+  # correct-to-1-bit guess to correct-to-32-bits.
+  defp inverse_mod_2_32(n) do
+    Enum.reduce(1..5, 1, fn _, x -> band(x * (2 - n * x), 0xFFFFFFFF) end)
+  end
+
+  defp little_endian(int, bytes) do
+    raw = :binary.encode_unsigned(int)
+    reverse_bytes(:binary.copy(<<0>>, bytes - byte_size(raw)) <> raw)
   end
 
   # ------------------------------------------------------------------ helpers

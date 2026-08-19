@@ -117,6 +117,15 @@ openssl rsa -in signing_key.pem -pubout -out signing_key_public.pem   # register
 espsecure.py sign_data --version 2 --keyfile signing_key.pem --output signed.bin app.bin
 ```
 
+A registered key is listed by its Secure Boot v2 **eFuse digest**, which is the
+same value the ESP32 bootloader compares on every boot, so you can check that
+NervesHub holds the key your chips will accept:
+
+```bash
+espsecure.py digest-sbv2-public-key --keyfile signing_key_public.pem --output digest.bin
+xxd -p digest.bin
+```
+
 An image must verify against a key the organization registered, or the upload is
 rejected. The public key embedded in the signature block is ignored — it proves
 only that somebody signed the image, and anyone can self-sign.

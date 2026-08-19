@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Live.Org.SigningKeysTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Fixtures
   alias NervesHub.Support.EspIdf
 
@@ -90,16 +92,19 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_has("div", text: "valid Ed25519 public key")
     end
 
-    # A PEM is 600+ bytes of base64; dumping it into the list tells nobody
-    # anything and pushes everything else off the row.
-    test "shows only the boundary lines of a PEM in the list", %{conn: conn, org: org, user: user} do
+    # A PEM is 600+ bytes of base64 whose visible parts read the same for every
+    # key. The eFuse digest identifies the key, and can be checked against a
+    # chip.
+    test "identifies a PEM by its eFuse digest in the list", %{conn: conn, org: org, user: user} do
       key = Fixtures.esp_idf_key_fixture(org, user)
+      {:ok, rsa} = OrgKey.decode_rsa_public_key(key.key)
 
       conn
       |> visit("/org/#{org.name}/settings/keys")
       |> assert_has("h3", text: key.name)
-      |> assert_has("div", text: "BEGIN PUBLIC KEY")
-      |> assert_has("div", text: "END PUBLIC KEY")
+      |> assert_has("span", text: "eFuse digest")
+      |> assert_has("span", text: UpdateTool.EspIdf.key_digest(rsa))
+      |> refute_has("span", text: "BEGIN PUBLIC KEY")
     end
   end
 
