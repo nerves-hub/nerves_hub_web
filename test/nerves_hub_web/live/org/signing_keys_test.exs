@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Fixtures
+  alias NervesHub.Support.EspIdf
 
   describe "list" do
     test "no signing keys", %{conn: conn, user: user} do
@@ -47,6 +48,58 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_has("div", text: "Signing Key created successfully.")
       |> assert_has("h3", text: "my amazing key")
       |> assert_has("div", text: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
+    end
+  end
+
+  describe "create an ESP-IDF signing key" do
+    test "accepts a PEM RSA-3072 public key", %{conn: conn, org: org} do
+      pem = EspIdf.signing_public_key()
+
+      conn
+      |> visit("/org/#{org.name}/settings/keys/new")
+      |> select("Scheme", option: "ESP-IDF Secure Boot v2 (RSA-3072)")
+      |> fill_in("Name", with: "esp release key")
+      |> fill_in("Key", with: pem)
+      |> click_button("Create Key")
+      |> assert_path("/org/#{org.name}/settings/keys")
+      |> assert_has("div", text: "Signing Key created successfully.")
+      |> assert_has("h3", text: "esp release key")
+      |> assert_has("code", text: "secure-boot-v2-rsa")
+    end
+
+    # The Ed25519 check would reject a PEM and vice versa, so the scheme has to
+    # reach the changeset — not just be stored after validation.
+    test "rejects an Ed25519 key submitted as RSA", %{conn: conn, org: org} do
+      conn
+      |> visit("/org/#{org.name}/settings/keys/new")
+      |> select("Scheme", option: "ESP-IDF Secure Boot v2 (RSA-3072)")
+      |> fill_in("Name", with: "wrong scheme")
+      |> fill_in("Key", with: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
+      |> click_button("Create Key")
+      |> assert_has("div", text: "expected a PEM-encoded RSA public key")
+    end
+
+    test "rejects a PEM submitted as Ed25519", %{conn: conn, org: org} do
+      pem = EspIdf.signing_public_key()
+
+      conn
+      |> visit("/org/#{org.name}/settings/keys/new")
+      |> fill_in("Name", with: "wrong scheme")
+      |> fill_in("Key", with: pem)
+      |> click_button("Create Key")
+      |> assert_has("div", text: "valid Ed25519 public key")
+    end
+
+    # A PEM is 600+ bytes of base64; dumping it into the list tells nobody
+    # anything and pushes everything else off the row.
+    test "shows only the boundary lines of a PEM in the list", %{conn: conn, org: org, user: user} do
+      key = Fixtures.esp_idf_key_fixture(org, user)
+
+      conn
+      |> visit("/org/#{org.name}/settings/keys")
+      |> assert_has("h3", text: key.name)
+      |> assert_has("div", text: "BEGIN PUBLIC KEY")
+      |> assert_has("div", text: "END PUBLIC KEY")
     end
   end
 

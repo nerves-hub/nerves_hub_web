@@ -16,7 +16,8 @@ defmodule NervesHubWeb.API.FirmwareJSON do
       author: firmware.author,
       platform: firmware.platform,
       version: firmware.version,
-      product: firmware.product.name
+      product: firmware.product.name,
+      tool: firmware.tool
     }
   end
 end
