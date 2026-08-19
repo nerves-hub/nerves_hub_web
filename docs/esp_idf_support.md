@@ -58,19 +58,36 @@ Anything else is rejected at upload with a message naming `PROJECT_VER`.
 
 ## Not supported yet
 
-### Firmware signing
+### Firmware signing (partial)
 
-**ESP-IDF images are stored unsigned.** NervesHub's organization keys hold
-32-byte Ed25519 public keys, which cannot represent the RSA-3072 or ECDSA-P256
-keys that ESP-IDF Secure Boot v2 uses. NervesHub will parse a Secure Boot v2
-signature block if one is present and check its image digest, but it has no
-trusted key to verify the signature against, so it accepts the upload either way
-and records no signing key. Such firmware shows as `Unsigned` in the UI.
+Secure Boot v2 **RSA-3072** signatures are verified. Register the public half of
+your signing key against the organization with the scheme `secure_boot_v2_rsa`:
 
-This is a real gap in the trust chain, not a cosmetic one. Until organization
-keys can hold an ESP-IDF signing key, treat upload access as equivalent to
-firmware-publishing authority, and rely on device-side Secure Boot v2 (which is
-enforced by the bootloader, independently of NervesHub) for image authenticity.
+```bash
+espsecure.py generate_signing_key --version 2 --scheme rsa3072 signing_key.pem
+openssl rsa -in signing_key.pem -pubout -out signing_key_public.pem   # register this
+espsecure.py sign_data --version 2 --keyfile signing_key.pem --output signed.bin app.bin
+```
+
+An image carrying a signature block must verify against a key the organization
+registered, or the upload is rejected. NervesHub deliberately ignores the public
+key embedded in the block: verifying against that would prove only that
+*somebody* signed the image, and anyone can self-sign.
+
+Still unsupported:
+
+- **ECDSA signatures.** The ECDSA block uses a different layout, and P-192/P-256/
+  P-384 variants. Such an image is refused rather than misread.
+- **Requiring a signature.** An image with *no* signature block is still
+  accepted and stored with no key recorded, showing as `Unsigned` in the UI.
+  Most ESP-IDF builds are unsigned, so requiring one would reject the common
+  case. If you need every image signed, that has to be enforced in your build
+  pipeline for now.
+
+Note that none of this affects the device: Secure Boot v2 is enforced by the
+ESP32 bootloader against a key digest burned into eFuse, so an image signed with
+the wrong key will not boot regardless of what NervesHub concluded. Verification
+here is early failure and defence in depth, not the primary control.
 
 ### Delta updates
 

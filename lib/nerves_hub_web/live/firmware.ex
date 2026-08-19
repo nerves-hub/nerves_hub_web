@@ -284,8 +284,16 @@ defmodule NervesHubWeb.Live.Firmware do
     "Firmware corrupt, signature invalid, or missing public key"
   end
 
-  defp upload_error(:esp_idf_signing_keys_not_supported) do
-    "This ESP-IDF image carries a Secure Boot v2 signature, but NervesHub cannot verify it: organization keys hold Ed25519 keys, which cannot represent the RSA-3072 or ECDSA-P256 keys Secure Boot v2 uses. Upload an unsigned image, or use fwup."
+  defp upload_error(:esp_idf_ecdsa_signatures_not_supported) do
+    "This ESP-IDF image is signed with ECDSA. NervesHub can only verify RSA-3072 Secure Boot v2 signatures at present."
+  end
+
+  defp upload_error(:unknown_signature_block_version) do
+    "This ESP-IDF image carries a signature block NervesHub does not recognise."
+  end
+
+  defp upload_error(:signature_block_corrupt) do
+    "The signature block on this ESP-IDF image failed its checksum — the file is likely damaged in transit."
   end
 
   defp upload_error(:unrecognised_firmware_format) do

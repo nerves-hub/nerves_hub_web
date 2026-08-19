@@ -25,8 +25,6 @@ defmodule NervesHub.Support.EspIdf do
       so it defaults to random bytes to keep separate images distinct
     * `:padding` — bytes of filler appended after the headers
   """
-  @sector 4096
-
   @spec image(keyword()) :: binary()
   def image(opts \\ []) do
     chip_id = Keyword.get(opts, :chip_id, 0x0009)
@@ -40,44 +38,6 @@ defmodule NervesHub.Support.EspIdf do
       segment_header() <>
       app_desc(version, product, idf_ver, elf_sha256) <>
       :binary.copy(<<0>>, padding)
-  end
-
-  @doc """
-  Build an image with a Secure Boot v2 signature sector appended.
-
-  The real layout, and the one `UpdateTool.EspIdf` has to find: the image is
-  padded to a 4 KB boundary, then a 4 KB sector is appended whose **first** 1216
-  bytes are the signature block. So the block starts at `size - 4096`.
-
-  The key and signature bytes are zeroed — nothing verifies them yet, and the
-  point of this helper is to exercise block *location* and the image digest.
-  """
-  @spec signed_image(keyword()) :: binary()
-  def signed_image(opts \\ []) do
-    image = image(opts)
-    padded = image <> :binary.copy(<<0>>, pad_to(byte_size(image), @sector))
-
-    padded <> signature_sector(:crypto.hash(:sha256, padded))
-  end
-
-  # magic(1) + version(1) + padding(2) + digest(32) + key(776) + signature(384)
-  # + crc(4) = 1200, then zero-filled to the end of the sector.
-  defp signature_sector(digest) do
-    block =
-      <<0xE7, 0x00, 0, 0>> <>
-        digest <>
-        :binary.copy(<<0>>, 776) <>
-        :binary.copy(<<0>>, 384) <>
-        <<0::little-32>>
-
-    block <> :binary.copy(<<0>>, @sector - byte_size(block))
-  end
-
-  defp pad_to(size, boundary) do
-    case rem(size, boundary) do
-      0 -> 0
-      remainder -> boundary - remainder
-    end
   end
 
   @doc """

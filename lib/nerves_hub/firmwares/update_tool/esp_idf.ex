@@ -45,13 +45,12 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
 
   @behaviour NervesHub.Firmwares.UpdateTool
 
+  alias NervesHub.Accounts.OrgKey
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.UpdateTool.Metadata
   alias NervesHub.Helpers.Logging
-
-  require Logger
 
   # esp_image_header_t.magic — first byte of every ESP-IDF image.
   @image_magic 0xE9
@@ -69,6 +68,8 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
   @sig_block_magic 0xE7
   @sig_block_size 1216
   @sig_sector_size 4096
+  @sig_version_rsa 0x02
+  @sig_version_ecdsa 0x03
 
   # esp_chip_id_t -> {platform, architecture}. Unknown IDs are carried through
   # rather than rejected, so a chip released after this list still uploads.
@@ -295,27 +296,95 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
 
   defp numeric?(part), do: part != "" and String.match?(part, ~r/^\d+$/)
 
+  @doc """
+  Verify a Secure Boot v2 signature block against the org's registered keys.
+
+  An unsigned image is accepted with no key recorded — NervesHub cannot require
+  signing for a format most builds do not sign. A *signed* image, though, must
+  verify against a key the organization registered, or it is rejected.
+
+  The embedded public key is deliberately ignored. The block carries the key it
+  was signed with, so verifying against that would prove only that somebody
+  signed the image — anyone can self-sign. Every candidate here is a key an
+  operator added to the org.
+  """
   @impl UpdateTool
   def verify_signature(filepath, keys) do
     case read_signature_block(filepath) do
       {:ok, nil} ->
-        # No Secure Boot v2 block. NervesHub's `org_keys` currently only accept
-        # 32-byte Ed25519 keys (see `NervesHub.Accounts.OrgKey`), which cannot
-        # represent the RSA-3072/ECDSA-P256 keys Secure Boot v2 uses — so there
-        # is nothing to check an ESP-IDF signature against yet, and the spike
-        # accepts unsigned images. Storing ESP signing keys is its own piece of
-        # work and blocks turning this into a real check.
-        Logger.warning("[UpdateTool.EspIdf] accepting unsigned ESP-IDF image", filepath: filepath)
+        # No signature block. ESP-IDF images are commonly unsigned, and the
+        # platform-wide gate (ESP_IDF_FIRMWARE_ENABLED) is what decides whether
+        # that is acceptable for this instance.
         {:ok, nil}
 
-      {:ok, %{digest: digest} = block} ->
-        with :ok <- verify_image_digest(filepath, digest) do
+      {:ok, block} ->
+        with :ok <- verify_crc(block),
+             :ok <- verify_image_digest(filepath, block.digest) do
           match_org_key(block, keys)
         end
 
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  # The block ends with a CRC32 of everything before it. A mismatch means the
+  # block is damaged rather than forged, and is worth distinguishing.
+  defp verify_crc(%{raw: raw, crc: crc}) do
+    if :erlang.crc32(binary_part(raw, 0, 1196)) == crc do
+      :ok
+    else
+      {:error, :signature_block_corrupt}
+    end
+  end
+
+  # Try every RSA key the org registered, exactly as the fwup tool tries every
+  # Ed25519 key. Keys of another scheme are not candidates.
+  defp match_org_key(%{version: @sig_version_rsa} = block, keys) do
+    keys
+    |> Enum.filter(&(&1.scheme == :secure_boot_v2_rsa))
+    |> Enum.find(&rsa_signature_valid?(block, &1))
+    |> case do
+      %OrgKey{} = key -> {:ok, key}
+      nil -> {:error, :invalid_signature}
+    end
+  end
+
+  # The ECDSA block is a different layout — a hash-type byte where RSA has
+  # padding, and the key and signature in different places — so it cannot be
+  # verified by the RSA path. Refused rather than misparsed.
+  defp match_org_key(%{version: @sig_version_ecdsa}, _keys) do
+    {:error, :esp_idf_ecdsa_signatures_not_supported}
+  end
+
+  defp match_org_key(_block, _keys), do: {:error, :unknown_signature_block_version}
+
+  defp rsa_signature_valid?(%{digest: digest, signature: signature}, %OrgKey{key: pem}) do
+    case OrgKey.decode_rsa_public_key(pem) do
+      {:ok, public_key} ->
+        :public_key.verify(
+          {:digest, digest},
+          :sha256,
+          signature,
+          public_key,
+          rsa_pss_options()
+        )
+
+      _ ->
+        false
+    end
+  rescue
+    # A malformed key or signature should fail this candidate, not the upload.
+    _ -> false
+  end
+
+  # espsecure.py signs with RSA-PSS: MGF1 over SHA-256 and a 32 byte salt.
+  defp rsa_pss_options() do
+    [
+      {:rsa_padding, :rsa_pkcs1_pss_padding},
+      {:rsa_pss_saltlen, 32},
+      {:rsa_mgf1_md, :sha256}
+    ]
   end
 
   @impl UpdateTool
@@ -435,16 +504,43 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
         {:ok, nil}
       else
         case pread(filepath, offset, @sig_block_size) do
-          {:ok,
-           <<@sig_block_magic, version::8, _padding::binary-size(2), digest::binary-size(32), key::binary-size(776),
-             signature::binary-size(384), _crc::little-32, _rest::binary>>} ->
-            {:ok, %{digest: digest, key: key, signature: signature, version: version}}
+          {:ok, <<@sig_block_magic, version::8, _::binary>> = raw} ->
+            {:ok, parse_signature_block(version, raw)}
 
           _ ->
             {:ok, nil}
         end
       end
     end
+  end
+
+  # Only the RSA block is destructured. The ECDSA block shares the magic but
+  # not the layout, so it is carried as far as `match_org_key/2`, which refuses
+  # it rather than reading RSA fields out of ECDSA bytes.
+  defp parse_signature_block(@sig_version_rsa = version, raw) do
+    <<_magic::8, _version::8, _padding::binary-size(2), digest::binary-size(32), modulus::binary-size(384),
+      exponent::little-32, _rinv::binary-size(384), _m_prime::little-32, signature::binary-size(384), crc::little-32,
+      _reserved::binary>> = raw
+
+    %{
+      version: version,
+      raw: raw,
+      digest: digest,
+      # Stored little-endian for the RSA peripheral; conventional big-endian
+      # everywhere else, including `:public_key`.
+      modulus: reverse_bytes(modulus),
+      exponent: exponent,
+      signature: reverse_bytes(signature),
+      crc: crc
+    }
+  end
+
+  defp parse_signature_block(version, <<_::binary-size(1196), crc::little-32, _::binary>> = raw) do
+    %{version: version, raw: raw, crc: crc}
+  end
+
+  defp reverse_bytes(binary) do
+    binary |> :binary.bin_to_list() |> Enum.reverse() |> :binary.list_to_bin()
   end
 
   defp pread(filepath, offset, length) do
@@ -486,13 +582,6 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
       |> :crypto.hash_final()
 
     if actual == expected, do: :ok, else: {:error, :image_digest_mismatch}
-  end
-
-  # TODO: needs `org_keys` to be able to hold a Secure Boot v2 public key before
-  # it can do anything. Left explicit rather than silently passing, so that a
-  # signed image cannot be mistaken for a verified one.
-  defp match_org_key(_block, _keys) do
-    {:error, :esp_idf_signing_keys_not_supported}
   end
 
   defp download_archive(firmware) do
