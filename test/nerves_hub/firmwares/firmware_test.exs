@@ -1,7 +1,11 @@
 defmodule NervesHub.Firmwares.FirmwareTest do
   use NervesHub.DataCase, async: true
 
+  import Ecto.Query
+
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Fixtures
+  alias NervesHub.Repo
 
   describe "version SemVer validation" do
     test "create_changeset rejects a non-semver version" do
@@ -22,6 +26,53 @@ defmodule NervesHub.Firmwares.FirmwareTest do
     test "update_changeset rejects a non-semver version" do
       changeset = Firmware.update_changeset(%Firmware{}, %{version: "latest"})
       assert "must be a valid semantic version" in errors_on(changeset).version
+    end
+  end
+
+  # `org_key_id` was NOT NULL from 2018 (`firmware_must_be_signed`) until
+  # ESP-IDF support needed it nullable. Dropping the column constraint outright
+  # would have widened "every firmware is signed" from something the database
+  # guaranteed to something only `Fwup.verify_signature/2` guarantees. A CHECK
+  # keeps it for fwup and opens it only for the format that cannot be verified.
+  describe "signing is still enforced by the database" do
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, %{firmware: firmware}}
+    end
+
+    test "an fwup firmware cannot be left unsigned", %{firmware: firmware} do
+      assert firmware.tool == "fwup"
+
+      assert_raise Postgrex.Error, ~r/firmwares_signed_unless_esp_idf/, fn ->
+        Firmware
+        |> where(id: ^firmware.id)
+        |> Repo.update_all(set: [org_key_id: nil])
+      end
+    end
+
+    # The whole point of the change — this row shape has to be allowed.
+    test "an esp-idf firmware may be unsigned", %{firmware: firmware} do
+      assert {1, _} =
+               Firmware
+               |> where(id: ^firmware.id)
+               |> Repo.update_all(set: [tool: "esp-idf", org_key_id: nil])
+    end
+
+    # `tool` is nullable, so `= 'esp-idf'` would evaluate to NULL here and a
+    # CHECK passes on NULL. `IS NOT DISTINCT FROM` is what closes that.
+    test "a firmware with no tool cannot be left unsigned either", %{firmware: firmware} do
+      assert_raise Postgrex.Error, ~r/firmwares_signed_unless_esp_idf/, fn ->
+        Firmware
+        |> where(id: ^firmware.id)
+        |> Repo.update_all(set: [tool: nil, org_key_id: nil])
+      end
     end
   end
 end

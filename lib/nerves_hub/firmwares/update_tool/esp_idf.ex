@@ -63,9 +63,12 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
   # Enough to cover both headers in one read.
   @header_read_size @app_desc_offset + @app_desc_size
 
-  # Secure Boot v2 appends a signature block on a 4 KB boundary after the image.
+  # Secure Boot v2 appends a 4 KB sector after the image and puts the signature
+  # block at the *start* of it. So the block begins at `size - 4096`, and the
+  # image the digest covers is everything before that.
   @sig_block_magic 0xE7
   @sig_block_size 1216
+  @sig_sector_size 4096
 
   # esp_chip_id_t -> {platform, architecture}. Unknown IDs are carried through
   # rather than rejected, so a chip released after this list still uploads.
@@ -417,11 +420,16 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
     |> Enum.map_join("-", &Base.encode16(&1, case: :lower))
   end
 
-  # Secure Boot v2 places the signature block on the first 4 KB boundary at or
-  # after the end of the image. Absent means unsigned, which is not an error.
+  # Absent means unsigned, which is not an error.
+  #
+  # This used to compute `ceil(size / 4096) * 4096 - @sig_block_size`. A signed
+  # image's size is already a multiple of 4096, so that resolved to
+  # `size - 1216` — the *end* of the trailing sector rather than its start, 2880
+  # bytes past the block. The magic was never found and every signed image was
+  # reported as unsigned.
   defp read_signature_block(filepath) do
     with {:ok, %{size: size}} <- File.stat(filepath) do
-      offset = ceil(size / 4096) * 4096 - @sig_block_size
+      offset = signature_block_offset(size)
 
       if offset <= 0 do
         {:ok, nil}
@@ -453,10 +461,14 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
     end
   end
 
-  # The block's digest covers the image up to the 4 KB boundary the block sits on.
+  # Where the signature sector starts, which is both where the block lives and
+  # where the signed image ends.
+  defp signature_block_offset(size), do: size - @sig_sector_size
+
+  # The block's digest covers everything before the signature sector.
   defp verify_image_digest(filepath, expected) do
     {:ok, %{size: size}} = File.stat(filepath)
-    image_length = ceil(size / 4096) * 4096 - @sig_block_size
+    image_length = signature_block_offset(size)
 
     actual =
       filepath

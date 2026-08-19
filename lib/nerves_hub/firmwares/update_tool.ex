@@ -214,12 +214,23 @@ defmodule NervesHub.Firmwares.UpdateTool do
     end
   end
 
+  @doc """
+  Every tool this build knows about, whether or not it is enabled for upload.
+
+  `all/0` governs what an instance will *accept*; this governs what it can
+  *read*. Firmware already in the database has to stay interpretable after a
+  format is turned off again, or disabling the flag would orphan it rather than
+  simply stopping new uploads.
+  """
+  @spec known() :: %{String.t() => module()}
+  def known(), do: %{"fwup" => __MODULE__.Fwup, "esp-idf" => __MODULE__.EspIdf}
+
   # fwup is always available. Anything else is off unless the platform turns it
   # on: enabling a format is a decision about what an instance will accept and
   # sign, not something a deploy should acquire by upgrading.
   defp default_tools() do
     if esp_idf_enabled?() do
-      %{"fwup" => __MODULE__.Fwup, "esp-idf" => __MODULE__.EspIdf}
+      known()
     else
       %{"fwup" => __MODULE__.Fwup}
     end
@@ -295,7 +306,9 @@ defmodule NervesHub.Firmwares.UpdateTool do
   end
 
   defp sniff_device_metadata(params, fallback) do
-    all()
+    # `known/0`, not `all/0`: a device running firmware uploaded before the
+    # format was disabled still has to have its metadata read.
+    known()
     |> Map.values()
     |> Enum.find(& &1.recognises_device_metadata?(params))
     |> Kernel.||(fallback)
@@ -303,7 +316,7 @@ defmodule NervesHub.Firmwares.UpdateTool do
 
   @spec fetch(String.t() | nil) :: {:ok, module()} | {:error, {:unknown_update_tool, String.t()}}
   defp fetch(tool) do
-    case Map.fetch(all(), tool) do
+    case Map.fetch(known(), tool) do
       {:ok, module} -> {:ok, module}
       :error -> {:error, {:unknown_update_tool, tool}}
     end

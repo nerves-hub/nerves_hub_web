@@ -25,6 +25,16 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :esp_idf_signing_keys_not_supported}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "This ESP-IDF image carries a Secure Boot v2 signature, but NervesHub cannot verify it: organization keys hold Ed25519 keys, which cannot represent the RSA-3072 or ECDSA-P256 keys Secure Boot v2 uses. Upload an unsigned image, or use fwup."
+    })
+  end
+
   def call(conn, {:error, :unrecognised_firmware_format}) do
     conn
     |> put_status(:unprocessable_entity)

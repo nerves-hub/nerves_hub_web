@@ -291,6 +291,10 @@ defmodule NervesHubWeb.Live.Firmware do
       "#{inspect(expected)}. Check the product name in your firmware build."
   end
 
+  defp upload_error(:esp_idf_signing_keys_not_supported) do
+    "This ESP-IDF image carries a Secure Boot v2 signature, but NervesHub cannot verify it: organization keys hold Ed25519 keys, which cannot represent the RSA-3072 or ECDSA-P256 keys Secure Boot v2 uses. Upload an unsigned image, or use fwup."
+  end
+
   defp upload_error(:unrecognised_firmware_format) do
     "Unrecognised firmware format. Expected an fwup archive (.fw) or an ESP-IDF application image (.bin)."
   end

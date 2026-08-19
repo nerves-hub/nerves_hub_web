@@ -662,8 +662,15 @@ defmodule NervesHub.Firmwares do
   end
 
   defp finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
-    {:ok, tool} = UpdateTool.for_firmware(target_firmware)
+    # Not a hard match: an unrecognised `tool` column (a format removed from the
+    # build, or corrupt data) should fail the delta rather than raise inside the
+    # worker.
+    with {:ok, tool} <- UpdateTool.for_firmware(target_firmware) do
+      finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata, tool)
+    end
+  end
 
+  defp finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata, tool) do
     upload_metadata =
       firmware_upload_config().delta_metadata(
         source_firmware.org_id,
