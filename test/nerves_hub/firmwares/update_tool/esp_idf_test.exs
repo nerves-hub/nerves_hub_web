@@ -153,29 +153,8 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdfTest do
       assert {:ok, nil} = EspIdf.verify_signature(write!(image()), [])
     end
 
-    # Regression: the block offset was computed as
-    # `ceil(size / 4096) * 4096 - 1216`, which for a signed image (whose size is
-    # already 4 KB aligned) resolves to `size - 1216` — the end of the trailing
-    # sector rather than its start. Every signed image was silently reported as
-    # unsigned. Nothing caught it because no test built a signed image.
-    test "finds the signature block in a signed image" do
-      path = write!(NervesHub.Support.EspIdf.signed_image())
-
-      # Not `{:ok, nil}` — that is the "no signature block here" answer. Getting
-      # this far means the block was located and its image digest verified.
-      assert {:error, :esp_idf_signing_keys_not_supported} =
-               EspIdf.verify_signature(path, [])
-    end
-
-    test "rejects a signed image whose body has been tampered with" do
-      signed = NervesHub.Support.EspIdf.signed_image()
-
-      # Flip a byte inside the image, leaving the signature sector intact.
-      <<head::binary-size(64), byte, rest::binary>> = signed
-      tampered = <<head::binary, Bitwise.bxor(byte, 0xFF), rest::binary>>
-
-      assert {:error, :image_digest_mismatch} =
-               EspIdf.verify_signature(write!(tampered), [])
-    end
+    # Signature verification against a real espsecure.py-signed image, including
+    # the offset regression this file used to cover with a hand-rolled signer,
+    # lives in `EspIdfSignatureTest`.
   end
 end

@@ -263,20 +263,18 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp create_firmware(socket, filepath) do
-    %{org: org, product: product} = socket.assigns.current_scope
-
-    case Firmwares.create_firmware(org, filepath, product: product) do
+    case Firmwares.create_firmware(socket.assigns.current_scope.org, filepath) do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Firmware uploaded successfully")
-        |> push_patch(to: ~p"/org/#{org}/#{product}/firmware")
+        |> push_patch(to: ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.product}/firmware")
 
       {:error, error} ->
         error_feedback(socket, upload_error(error))
     end
   end
 
-  # Turns whatever `create_firmware/3` failed with into something a user can act
+  # Turns whatever `create_firmware/2` failed with into something a user can act
   # on. A changeset is passed through untouched — `error_feedback/3` renders it.
   defp upload_error(:no_public_keys) do
     "Please register public keys for verifying firmware signatures first"
@@ -291,8 +289,16 @@ defmodule NervesHubWeb.Live.Firmware do
       "#{inspect(expected)}. Check the product name in your firmware build."
   end
 
-  defp upload_error(:esp_idf_signing_keys_not_supported) do
-    "This ESP-IDF image carries a Secure Boot v2 signature, but NervesHub cannot verify it: organization keys hold Ed25519 keys, which cannot represent the RSA-3072 or ECDSA-P256 keys Secure Boot v2 uses. Upload an unsigned image, or use fwup."
+  defp upload_error(:esp_idf_ecdsa_signatures_not_supported) do
+    "This ESP-IDF image is signed with ECDSA. NervesHub can only verify RSA-3072 Secure Boot v2 signatures at present."
+  end
+
+  defp upload_error(:unknown_signature_block_version) do
+    "This ESP-IDF image carries a signature block NervesHub does not recognise."
+  end
+
+  defp upload_error(:signature_block_corrupt) do
+    "The signature block on this ESP-IDF image failed its checksum — the file is likely damaged in transit."
   end
 
   defp upload_error(:unrecognised_firmware_format) do

@@ -25,13 +25,29 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
-  def call(conn, {:error, :esp_idf_signing_keys_not_supported}) do
+  def call(conn, {:error, :esp_idf_ecdsa_signatures_not_supported}) do
     conn
     |> put_status(:unprocessable_entity)
     |> put_view(ErrorJSON)
     |> render(:"422", %{
       reason:
-        "This ESP-IDF image carries a Secure Boot v2 signature, but NervesHub cannot verify it: organization keys hold Ed25519 keys, which cannot represent the RSA-3072 or ECDSA-P256 keys Secure Boot v2 uses. Upload an unsigned image, or use fwup."
+        "This ESP-IDF image is signed with ECDSA. NervesHub can only verify RSA-3072 Secure Boot v2 signatures at present."
+    })
+  end
+
+  def call(conn, {:error, :unknown_signature_block_version}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "This ESP-IDF image carries a signature block NervesHub does not recognise."})
+  end
+
+  def call(conn, {:error, :signature_block_corrupt}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "The signature block on this ESP-IDF image failed its checksum — the file is likely damaged in transit."
     })
   end
 
