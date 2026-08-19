@@ -36,6 +36,20 @@ defmodule NervesHubWeb.API.FirmwareController do
 
   operation(:create,
     summary: "Upload a Firmware for a Product",
+    description: """
+    Accepts an fwup archive (`.fw`) or an ESP-IDF application image (`.bin`).
+    The format is determined from the file itself, not its name or extension.
+
+    ESP-IDF images are only accepted when the platform has
+    `ESP_IDF_FIRMWARE_ENABLED` set.
+
+    **Firmware must be signed**, and the signature must verify against a key
+    registered to the organization: an Ed25519 key for fwup, or an RSA-3072
+    Secure Boot v2 key for ESP-IDF.
+
+    The firmware's own metadata declares which product it belongs to, and that
+    must match the product in the path.
+    """,
     parameters: [
       org_name: [in: :path, description: "Organization Name", type: :string, example: "example_org"],
       product_name: [in: :path, description: "Product Name", type: :string, example: "example_product"]
@@ -44,7 +58,7 @@ defmodule NervesHubWeb.API.FirmwareController do
     responses:
       [
         created: {"Firmware response", "application/json", FirmwareSchemas.FirmwareResponse},
-        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+        unprocessable_entity: {"Upload rejected", "application/json", FirmwareSchemas.FirmwareUploadErrorResponse}
       ] ++ @auth_error_responses
   )
 

@@ -299,9 +299,10 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
   @doc """
   Verify a Secure Boot v2 signature block against the org's registered keys.
 
-  An unsigned image is accepted with no key recorded — NervesHub cannot require
-  signing for a format most builds do not sign. A *signed* image, though, must
-  verify against a key the organization registered, or it is rejected.
+  Signing is **required**, as it has been for fwup since 2018. An image with no
+  signature block is refused rather than stored unsigned: an upload that cannot
+  be attributed to a key the organization holds is one nobody can vouch for
+  later.
 
   The embedded public key is deliberately ignored. The block carries the key it
   was signed with, so verifying against that would prove only that somebody
@@ -312,10 +313,7 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
   def verify_signature(filepath, keys) do
     case read_signature_block(filepath) do
       {:ok, nil} ->
-        # No signature block. ESP-IDF images are commonly unsigned, and the
-        # platform-wide gate (ESP_IDF_FIRMWARE_ENABLED) is what decides whether
-        # that is acceptable for this instance.
-        {:ok, nil}
+        {:error, :firmware_not_signed}
 
       {:ok, block} ->
         with :ok <- verify_crc(block),

@@ -25,6 +25,16 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, :firmware_not_signed}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "This ESP-IDF image is not signed. NervesHub requires firmware to be signed: sign it with `espsecure.py sign_data --version 2` and register the matching public key against your organization."
+    })
+  end
+
   def call(conn, {:error, :esp_idf_ecdsa_signatures_not_supported}) do
     conn
     |> put_status(:unprocessable_entity)

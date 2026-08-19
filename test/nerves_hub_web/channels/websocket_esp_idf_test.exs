@@ -65,6 +65,7 @@ defmodule NervesHubWeb.WebsocketEspIdfTest do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org, %{name: "my_app"})
+    _esp_key = Fixtures.esp_idf_key_fixture(org, user)
 
     # A real ESP-IDF image, uploaded the same way a user would.
     elf_sha256 = :crypto.strong_rand_bytes(32)

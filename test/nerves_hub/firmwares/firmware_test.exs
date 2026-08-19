@@ -29,12 +29,10 @@ defmodule NervesHub.Firmwares.FirmwareTest do
     end
   end
 
-  # `org_key_id` was NOT NULL from 2018 (`firmware_must_be_signed`) until
-  # ESP-IDF support needed it nullable. Dropping the column constraint outright
-  # would have widened "every firmware is signed" from something the database
-  # guaranteed to something only `Fwup.verify_signature/2` guarantees. A CHECK
-  # keeps it for fwup and opens it only for the format that cannot be verified.
-  describe "signing is still enforced by the database" do
+  # `org_key_id` has been NOT NULL since 2018 (`firmware_must_be_signed`). It
+  # was briefly nullable while ESP-IDF images could not be signature-verified;
+  # now that they can, every format is signed and the column is NOT NULL again.
+  describe "signing is enforced by the database" do
     @describetag :tmp_dir
 
     setup %{tmp_dir: tmp_dir} do
@@ -47,31 +45,21 @@ defmodule NervesHub.Firmwares.FirmwareTest do
       {:ok, %{firmware: firmware}}
     end
 
-    test "an fwup firmware cannot be left unsigned", %{firmware: firmware} do
-      assert firmware.tool == "fwup"
-
-      assert_raise Postgrex.Error, ~r/firmwares_signed_unless_esp_idf/, fn ->
+    test "no firmware may be left unsigned", %{firmware: firmware} do
+      assert_raise Postgrex.Error, ~r/org_key_id/, fn ->
         Firmware
         |> where(id: ^firmware.id)
         |> Repo.update_all(set: [org_key_id: nil])
       end
     end
 
-    # The whole point of the change — this row shape has to be allowed.
-    test "an esp-idf firmware may be unsigned", %{firmware: firmware} do
-      assert {1, _} =
-               Firmware
-               |> where(id: ^firmware.id)
-               |> Repo.update_all(set: [tool: "esp-idf", org_key_id: nil])
-    end
-
-    # `tool` is nullable, so `= 'esp-idf'` would evaluate to NULL here and a
-    # CHECK passes on NULL. `IS NOT DISTINCT FROM` is what closes that.
-    test "a firmware with no tool cannot be left unsigned either", %{firmware: firmware} do
-      assert_raise Postgrex.Error, ~r/firmwares_signed_unless_esp_idf/, fn ->
+    # Including ESP-IDF, which was the one exception while verification was
+    # unimplemented.
+    test "not even an esp-idf firmware", %{firmware: firmware} do
+      assert_raise Postgrex.Error, ~r/org_key_id/, fn ->
         Firmware
         |> where(id: ^firmware.id)
-        |> Repo.update_all(set: [tool: nil, org_key_id: nil])
+        |> Repo.update_all(set: [tool: "esp-idf", org_key_id: nil])
       end
     end
   end

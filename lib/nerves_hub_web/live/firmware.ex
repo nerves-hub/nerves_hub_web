@@ -263,18 +263,20 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp create_firmware(socket, filepath) do
-    case Firmwares.create_firmware(socket.assigns.current_scope.org, filepath) do
+    %{org: org, product: product} = socket.assigns.current_scope
+
+    case Firmwares.create_firmware(org, filepath, product: product) do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Firmware uploaded successfully")
-        |> push_patch(to: ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.product}/firmware")
+        |> push_patch(to: ~p"/org/#{org}/#{product}/firmware")
 
       {:error, error} ->
         error_feedback(socket, upload_error(error))
     end
   end
 
-  # Turns whatever `create_firmware/2` failed with into something a user can act
+  # Turns whatever `create_firmware/3` failed with into something a user can act
   # on. A changeset is passed through untouched — `error_feedback/3` renders it.
   defp upload_error(:no_public_keys) do
     "Please register public keys for verifying firmware signatures first"
@@ -287,6 +289,10 @@ defmodule NervesHubWeb.Live.Firmware do
   defp upload_error({:product_mismatch, declared, expected}) do
     "This firmware is built for the product #{inspect(declared)}, but was uploaded to " <>
       "#{inspect(expected)}. Check the product name in your firmware build."
+  end
+
+  defp upload_error(:firmware_not_signed) do
+    "This ESP-IDF image is not signed. NervesHub requires firmware to be signed: sign it with `espsecure.py sign_data --version 2` and register the matching public key against your organization."
   end
 
   defp upload_error(:esp_idf_ecdsa_signatures_not_supported) do

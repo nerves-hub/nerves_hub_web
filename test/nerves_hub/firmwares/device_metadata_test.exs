@@ -125,6 +125,7 @@ defmodule NervesHub.Firmwares.DeviceMetadataTest do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
+      _esp_key = Fixtures.esp_idf_key_fixture(org, user)
 
       raw = :crypto.strong_rand_bytes(32)
 

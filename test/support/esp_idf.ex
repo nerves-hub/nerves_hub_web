@@ -40,6 +40,87 @@ defmodule NervesHub.Support.EspIdf do
       :binary.copy(<<0>>, padding)
   end
 
+  @sector 4096
+
+  @doc """
+  Sign an image the way `espsecure.py sign_data --version 2` does.
+
+  Pads the image to a 4 KB boundary, then appends a 4 KB sector whose first
+  1216 bytes are the RSA-3072 signature block.
+
+  A signer written next to the verifier is normally a trap — both can share the
+  same mistake about the block's byte order and agree with each other while
+  disagreeing with the real tool. What makes it safe here is that
+  `EspIdfSignatureTest` verifies an image signed by the *actual* `espsecure.py`,
+  committed under `test/fixtures/esp_idf/`. That test is the ground truth; this
+  exists so other suites can vary product name and version without shelling out
+  to Python.
+  """
+  @spec signed_image(keyword()) :: binary()
+  def signed_image(opts \\ []) do
+    image = image(opts)
+    padded = image <> :binary.copy(<<0>>, pad_to(byte_size(image), @sector))
+    digest = :crypto.hash(:sha256, padded)
+
+    padded <> signature_sector(digest)
+  end
+
+  @doc """
+  The PEM public key matching `signed_image/1`, for registering as an org key.
+  """
+  @spec signing_public_key() :: String.t()
+  def signing_public_key(), do: File.read!("test/fixtures/esp_idf/signing_key_public.pem")
+
+  defp signature_sector(digest) do
+    {:RSAPrivateKey, _, modulus, exponent, _, _, _, _, _, _, _} = private_key()
+
+    signature =
+      :public_key.sign(
+        {:digest, digest},
+        :sha256,
+        private_key(),
+        [{:rsa_padding, :rsa_pkcs1_pss_padding}, {:rsa_pss_saltlen, 32}, {:rsa_mgf1_md, :sha256}]
+      )
+
+    # Stored little-endian for the ESP32 RSA peripheral.
+    block =
+      <<0xE7, 0x02, 0, 0>> <>
+        digest <>
+        reverse(pad_int(modulus, 384)) <>
+        <<exponent::little-32>> <>
+        :binary.copy(<<0>>, 384) <>
+        <<0::little-32>> <>
+        reverse(signature)
+
+    block = block <> <<:erlang.crc32(block)::little-32>>
+
+    block <> :binary.copy(<<0>>, @sector - byte_size(block))
+  end
+
+  defp private_key() do
+    "test/fixtures/esp_idf/signing_key_TEST_ONLY.pem"
+    |> File.read!()
+    |> :public_key.pem_decode()
+    |> hd()
+    |> :public_key.pem_entry_decode()
+  end
+
+  defp pad_int(int, bytes) do
+    raw = :binary.encode_unsigned(int)
+    :binary.copy(<<0>>, bytes - byte_size(raw)) <> raw
+  end
+
+  defp reverse(binary) do
+    binary |> :binary.bin_to_list() |> Enum.reverse() |> :binary.list_to_bin()
+  end
+
+  defp pad_to(size, boundary) do
+    case rem(size, boundary) do
+      0 -> 0
+      remainder -> boundary - remainder
+    end
+  end
+
   @doc """
   Write an image to `dir` and return its path.
   """
@@ -49,7 +130,16 @@ defmodule NervesHub.Support.EspIdf do
     name = Keyword.get(opts, :name, "esp-idf-#{System.unique_integer([:positive])}")
     path = Path.join(dir, "#{name}.bin")
 
-    File.write!(path, image(Keyword.put(opts, :product, product_name)))
+    opts = Keyword.put(opts, :product, product_name)
+
+    contents =
+      if Keyword.get(opts, :signed, true) do
+        signed_image(opts)
+      else
+        image(opts)
+      end
+
+    File.write!(path, contents)
 
     {:ok, path}
   end

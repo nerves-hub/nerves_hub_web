@@ -149,8 +149,8 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdfTest do
   end
 
   describe "verify_signature/2" do
-    test "accepts an unsigned image for now, with no key recorded" do
-      assert {:ok, nil} = EspIdf.verify_signature(write!(image()), [])
+    test "refuses an image with no signature block" do
+      assert {:error, :firmware_not_signed} = EspIdf.verify_signature(write!(image()), [])
     end
 
     # Signature verification against a real espsecure.py-signed image, including

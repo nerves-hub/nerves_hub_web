@@ -98,10 +98,13 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdfSignatureTest do
   end
 
   describe "an unsigned image" do
-    test "is still accepted with no key recorded", %{org: org, user: user} do
-      _key = esp_key!(org, user)
+    # Signing is required, as it has been for fwup since 2018. An upload nobody
+    # can attribute to a registered key is refused rather than stored.
+    test "is refused even when the org has a key", %{org: org, user: user} do
+      key = esp_key!(org, user)
 
-      assert {:ok, nil} = EspIdf.verify_signature("#{@fixtures}/unsigned.bin", [])
+      assert {:error, :firmware_not_signed} =
+               EspIdf.verify_signature("#{@fixtures}/unsigned.bin", [key])
     end
   end
 

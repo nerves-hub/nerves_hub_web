@@ -1,10 +1,6 @@
 defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
   @moduledoc """
   Covers ESP-IDF firmware in the web UI.
-
-  ESP-IDF images are unsigned today (see `NervesHub.Firmwares.UpdateTool.EspIdf`),
-  which makes them the first firmware NervesHub can hold with no `org_key_id`.
-  Most of what is checked here is that the firmware pages survive that.
   """
   use NervesHubWeb.ConnCase.Browser, async: false
 
@@ -14,13 +10,14 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
 
   defp upload_esp_idf!(org, product, opts \\ []) do
     {:ok, path} = EspIdf.create_firmware(product.name, opts)
-    {:ok, firmware} = Firmwares.create_firmware(org, path)
+    {:ok, firmware} = Firmwares.create_firmware(org, path, product: product)
     firmware
   end
 
   describe "index" do
     test "lists an ESP-IDF firmware alongside its tool", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
+      _key = Fixtures.esp_idf_key_fixture(org, user)
       firmware = upload_esp_idf!(org, product, version: "1.4.0", chip_id: 0x0009)
 
       conn
@@ -31,23 +28,22 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
       |> assert_has("td", text: "xtensa")
     end
 
-    # The list page renders `format_signed/2` for every row. Before ESP-IDF
-    # there was always an org key, so a nil `org_key_id` raised and took the
-    # whole page down.
-    test "renders a firmware with no signing key rather than crashing", %{conn: conn, user: user, org: org} do
+    test "shows the key that signed it", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
+      key = Fixtures.esp_idf_key_fixture(org, user)
       firmware = upload_esp_idf!(org, product)
 
-      assert is_nil(firmware.org_key_id)
+      assert firmware.org_key_id == key.id
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("code", text: "Unsigned")
+      |> assert_has("code", text: key.name)
     end
 
     test "shows fwup and ESP-IDF firmware side by side", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      _esp_key = Fixtures.esp_idf_key_fixture(org, user)
       fwup_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       esp_firmware = upload_esp_idf!(org, product)
 
@@ -63,6 +59,7 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
   describe "show" do
     test "renders the ESP-IDF metadata", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
+      _key = Fixtures.esp_idf_key_fixture(org, user)
       firmware = upload_esp_idf!(org, product, version: "2.1.0", chip_id: 0x000D)
 
       conn
@@ -75,13 +72,14 @@ defmodule NervesHubWeb.Live.FirmwareEspIdfTest do
       |> assert_has("span", text: "ESP-IDF v5.2.1")
     end
 
-    test "renders the show page for an unsigned firmware rather than crashing", %{conn: conn, user: user, org: org} do
+    test "renders the signing key on the show page", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
+      key = Fixtures.esp_idf_key_fixture(org, user)
       firmware = upload_esp_idf!(org, product)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
-      |> assert_has("code", text: "Unsigned")
+      |> assert_has("code", text: key.name)
     end
   end
 

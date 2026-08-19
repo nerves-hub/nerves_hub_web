@@ -58,10 +58,11 @@ Anything else is rejected at upload with a message naming `PROJECT_VER`.
 
 ## Not supported yet
 
-### Firmware signing (partial)
+### Firmware signing
 
-Secure Boot v2 **RSA-3072** signatures are verified. Register the public half of
-your signing key against the organization with the scheme `secure_boot_v2_rsa`:
+**ESP-IDF images must be signed**, exactly as fwup archives must be. Register
+the public half of your signing key against the organization, choosing the
+**ESP-IDF Secure Boot v2 (RSA-3072)** scheme:
 
 ```bash
 espsecure.py generate_signing_key --version 2 --scheme rsa3072 signing_key.pem
@@ -69,22 +70,15 @@ openssl rsa -in signing_key.pem -pubout -out signing_key_public.pem   # register
 espsecure.py sign_data --version 2 --keyfile signing_key.pem --output signed.bin app.bin
 ```
 
-An image carrying a signature block must verify against a key the organization
-registered, or the upload is rejected. NervesHub deliberately ignores the public
-key embedded in the block: verifying against that would prove only that
-*somebody* signed the image, and anyone can self-sign.
+An image must verify against a key the organization registered, or the upload
+is rejected. NervesHub deliberately ignores the public key embedded in the
+signature block: verifying against that would prove only that *somebody* signed
+the image, and anyone can self-sign.
 
-Still unsupported:
+**ECDSA signatures are not supported.** That block uses a different layout, and
+P-192/P-256/P-384 variants; such an image is refused rather than misread.
 
-- **ECDSA signatures.** The ECDSA block uses a different layout, and P-192/P-256/
-  P-384 variants. Such an image is refused rather than misread.
-- **Requiring a signature.** An image with *no* signature block is still
-  accepted and stored with no key recorded, showing as `Unsigned` in the UI.
-  Most ESP-IDF builds are unsigned, so requiring one would reject the common
-  case. If you need every image signed, that has to be enforced in your build
-  pipeline for now.
-
-Note that none of this affects the device: Secure Boot v2 is enforced by the
+Note that none of this affects the device. Secure Boot v2 is enforced by the
 ESP32 bootloader against a key digest burned into eFuse, so an image signed with
 the wrong key will not boot regardless of what NervesHub concluded. Verification
 here is early failure and defence in depth, not the primary control.

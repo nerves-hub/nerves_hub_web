@@ -70,4 +70,29 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
   end
 
   defp list_signing_keys(scope), do: Accounts.list_org_keys(scope)
+
+  defp scheme_options() do
+    [
+      {"fwup (Ed25519)", :ed25519},
+      {"ESP-IDF Secure Boot v2 (RSA-3072)", :secure_boot_v2_rsa}
+    ]
+  end
+
+  defp scheme_label(:ed25519), do: "ed25519"
+  defp scheme_label(:secure_boot_v2_rsa), do: "secure-boot-v2-rsa"
+  defp scheme_label(other), do: to_string(other)
+
+  # An Ed25519 key is one short line and is worth showing whole — it is how
+  # operators recognise it. A PEM is 600+ bytes of base64 that tells nobody
+  # anything, so show only the boundary lines.
+  defp key_preview(%{scheme: :ed25519, key: key}), do: key
+
+  defp key_preview(%{key: key}) do
+    key
+    |> String.split("\n", trim: true)
+    |> case do
+      [first | rest] when rest != [] -> "#{first} … #{List.last(rest)}"
+      other -> Enum.join(other, " ")
+    end
+  end
 end

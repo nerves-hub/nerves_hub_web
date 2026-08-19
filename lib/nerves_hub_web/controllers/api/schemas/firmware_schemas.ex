@@ -1,4 +1,6 @@
 defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
+  alias NervesHubWeb.API.Schemas.ErrorSchemas.ChangesetErrorResponse
+  alias NervesHubWeb.API.Schemas.ErrorSchemas.ErrorResponse
   alias OpenApiSpex.Schema
 
   require OpenApiSpex
@@ -12,7 +14,12 @@ defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
         architecture: %Schema{type: :string},
         platform: %Schema{type: :string},
         author: %Schema{type: :string},
-        product: %Schema{type: :string, description: "Product name"}
+        product: %Schema{type: :string, description: "Product name"},
+        tool: %Schema{
+          type: :string,
+          description: "The update tool that handles this firmware, determined from the uploaded file",
+          enum: ["fwup", "esp-idf"]
+        }
       },
       example: %{
         "uuid" => "d9f8c63a-1234-5678-abcd-ef0123456789",
@@ -20,7 +27,8 @@ defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
         "architecture" => "arm",
         "platform" => "rpi0",
         "author" => "NervesHub",
-        "product" => "MyProduct"
+        "product" => "MyProduct",
+        "tool" => "fwup"
       }
     })
   end
@@ -39,7 +47,30 @@ defmodule NervesHubWeb.API.Schemas.FirmwareSchemas do
           "architecture" => "arm",
           "platform" => "rpi0",
           "author" => "NervesHub",
-          "product" => "MyProduct"
+          "product" => "MyProduct",
+          "tool" => "fwup"
+        }
+      }
+    })
+  end
+
+  defmodule FirmwareUploadErrorResponse do
+    OpenApiSpex.schema(%{
+      description: """
+      Upload failure.
+
+      Changeset failures (a duplicate UUID, say) are keyed by field. Failures
+      raised before the changeset — an unrecognised format, an unsigned image,
+      a version that is not SemVer — carry a single `detail` message instead.
+      """,
+      type: :object,
+      oneOf: [
+        ChangesetErrorResponse,
+        ErrorResponse
+      ],
+      example: %{
+        "errors" => %{
+          "detail" => "This ESP-IDF image is not signed. NervesHub requires firmware to be signed."
         }
       }
     })
