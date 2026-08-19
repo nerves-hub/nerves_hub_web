@@ -16,6 +16,15 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:error, changeset: changeset)
   end
 
+  def call(conn, {:error, {:product_mismatch, declared, expected}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "This firmware is built for the product #{inspect(declared)}, but was uploaded to #{inspect(expected)}."
+    })
+  end
+
   def call(conn, {:error, {_key, message}}) do
     conn
     |> put_status(:unprocessable_entity)

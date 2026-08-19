@@ -43,8 +43,18 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
     |> put_change(:lib, connection.lib)
     |> put_change(:lib_version, connection.lib_version)
     |> put_change(:network_interface, to_string(connection.network_interface))
-    |> put_change(:version, DateTime.utc_now() |> DateTime.to_unix())
+    |> put_change(:version, current_version())
   end
+
+  # The `ReplacingMergeTree` dedupes on (org_id, product_id, device_id,
+  # established_at), which every row for a single connection shares, and keeps
+  # the row with the highest `version`. A connection's rows (connecting,
+  # connected, heartbeats, disconnected) are usually written within the same
+  # second, so a second-resolution version leaves them tied and ClickHouse picks
+  # between them arbitrarily - the merged view could report an already
+  # disconnected connection as still open. Microseconds keep the writes strictly
+  # ordered, so the most recent one always wins.
+  defp current_version(), do: DateTime.to_unix(DateTime.utc_now(), :microsecond)
 
   @doc """
   Builds a new history row from an existing one.
@@ -61,6 +71,6 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
     |> change()
     |> put_change(:disconnected_at, now)
     |> put_change(:disconnected_reason, "Stale connection")
-    |> put_change(:version, DateTime.to_unix(now))
+    |> put_change(:version, DateTime.to_unix(now, :microsecond))
   end
 end

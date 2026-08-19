@@ -303,19 +303,32 @@ defmodule NervesHub.Firmwares do
     |> where([f, p], p.id == ^product_id)
   end
 
+  @doc """
+  Store an uploaded firmware file.
+
+  Pass `:product` to require that the archive's own declared product name
+  matches the product the upload was addressed to. Without it the declared name
+  alone decides where the firmware lands, which is how this behaved before the
+  option existed.
+  """
   @spec create_firmware(
           org :: Org.t(),
           filepath :: Path.t(),
-          opts :: [{:upload_file_2, upload_file_2()}]
+          opts :: [{:upload_file_2, upload_file_2()} | {:product, Product.t()}]
         ) ::
           {:ok, Firmware.t()}
-          | {:error, Changeset.t() | :no_public_keys | :invalid_signature | any}
+          | {:error,
+             Changeset.t()
+             | :no_public_keys
+             | :invalid_signature
+             | {:product_mismatch, declared :: String.t(), expected :: String.t()}
+             | any}
   def create_firmware(org, filepath, opts \\ []) do
     upload_file_2 = opts[:upload_file_2] || (&firmware_upload_config().upload_file(&1, &2))
 
     Repo.transact(
       fn ->
-        with {:ok, params} <- build_firmware_params(org, filepath),
+        with {:ok, params} <- build_firmware_params(org, filepath, opts[:product]),
              {:ok, firmware} <- insert_firmware(params),
              :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
           {:ok, firmware}
@@ -866,13 +879,14 @@ defmodule NervesHub.Firmwares do
     :ok
   end
 
-  @spec build_firmware_params(Org.t(), Path.t()) :: {:ok, map()} | {:error, any()}
-  defp build_firmware_params(%{id: org_id} = org, filepath) do
+  @spec build_firmware_params(Org.t(), Path.t(), Product.t() | nil) :: {:ok, map()} | {:error, any()}
+  defp build_firmware_params(%{id: org_id} = org, filepath, expected_product) do
     org = NervesHub.Repo.preload(org, :org_keys)
 
     with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
          {:ok, %{path: conf_path, firmware_metadata: fm, tool_metadata: tm} = m} <-
-           update_tool().get_firmware_metadata_from_file(filepath) do
+           update_tool().get_firmware_metadata_from_file(filepath),
+         :ok <- check_expected_product(fm.product, expected_product) do
       filename = fm.uuid <> ".fw"
 
       params =
@@ -899,7 +913,7 @@ defmodule NervesHub.Firmwares do
           tool_metadata: tm
         }
         |> calculate_checksums()
-        |> resolve_product()
+        |> resolve_product(expected_product)
 
       {:ok, params}
     end
@@ -930,7 +944,17 @@ defmodule NervesHub.Firmwares do
     |> Enum.to_list()
   end
 
-  defp resolve_product(params) do
+  # The archive declares which product it belongs to. When the upload was
+  # addressed to a particular product, that has already been checked to match
+  # (see `check_expected_product/2`), so it can be used directly rather than
+  # looked up a second time.
+  defp resolve_product(params, %Product{} = product) do
+    params
+    |> Map.put(:product_id, product.id)
+    |> Map.put(:require_unique_firmware_version, product.require_unique_firmware_version)
+  end
+
+  defp resolve_product(params, nil) do
     case Products.get_product_by_org_id_and_name(params.org_id, params.product_name) do
       {:ok, product} ->
         params
@@ -940,6 +964,17 @@ defmodule NervesHub.Firmwares do
       _ ->
         params
     end
+  end
+
+  # Uploading to `/products/a/firmware` an archive that declares product "b"
+  # used to file the firmware under "b" and hand back a `location` header
+  # pointing at "a" — a link to something that is not there. The upload target
+  # wins, and a mismatch is refused rather than silently rerouted.
+  defp check_expected_product(_declared, nil), do: :ok
+  defp check_expected_product(declared, %Product{name: declared}), do: :ok
+
+  defp check_expected_product(declared, %Product{name: expected}) do
+    {:error, {:product_mismatch, declared, expected}}
   end
 
   defp update_tool() do
