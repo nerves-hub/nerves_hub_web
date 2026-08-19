@@ -36,6 +36,17 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, {:unsettable_product_params, params}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "These fields cannot be set on a product: #{Enum.map_join(params, ", ", &inspect/1)}. " <>
+          "A product cannot be renamed; its name identifies it in every URL."
+    })
+  end
+
   def call(conn, {:error, :firmware_not_signed}) do
     conn
     |> put_status(:unprocessable_entity)

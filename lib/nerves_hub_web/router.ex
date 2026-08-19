@@ -138,6 +138,8 @@ defmodule NervesHubWeb.Router do
               pipe_through([:api_product])
 
               get("/", ProductController, :show)
+              put("/", ProductController, :update)
+              patch("/", ProductController, :update)
               delete("/", ProductController, :delete)
 
               scope "/devices" do

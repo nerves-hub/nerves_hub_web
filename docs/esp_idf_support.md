@@ -38,6 +38,27 @@ not the setting is on. See [Firmware signing](#firmware-signing).
 Turning acceptance back off leaves the unsigned setting untouched, so a product
 that is switched off and on again comes back configured as it was.
 
+### Over the API
+
+Both settings are on the product resource, and settable with `PUT` or `PATCH`
+(org role `manage`):
+
+```bash
+curl -X PATCH \
+  -H "Authorization: token $NH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"allowed_update_tools": ["fwup", "esp-idf"]}' \
+  https://<host>/api/orgs/<org>/products/<product>
+```
+
+Only `require_unique_firmware_version`, `allowed_update_tools`, and
+`allow_unsigned_esp_idf_firmware` can be set. Any other field is a 422 rather
+than being ignored, so a request that cannot do what it says fails loudly — a
+product cannot be renamed this way, since its name identifies it in every URL.
+
+Listing a tool the instance has not enabled is also a 422; the instance flag
+bounds the product setting rather than the other way around.
+
 ## What works
 
 Upload an ESP-IDF application image through the web UI or the API exactly as you

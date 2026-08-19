@@ -91,14 +91,33 @@ defmodule NervesHub.Products.Product do
   end
 
   # An unknown tool name would silently accept nothing, so it is rejected here
-  # rather than becoming a confusing upload failure later.
+  # rather than becoming a confusing upload failure later. So is a tool this
+  # instance has not enabled: the UI hides such a toggle, but the API is a
+  # second door, and a product listing a format the instance will not sniff for
+  # is a setting that reads as on and behaves as off.
+  #
+  # `validate_change/3` only fires when the field is being changed, so an
+  # instance that turns a format off does not invalidate the products that had
+  # already opted into it.
   defp validate_allowed_update_tools(changeset) do
     known = Map.keys(UpdateTool.known())
+    enabled = Map.keys(UpdateTool.all())
 
     validate_change(changeset, :allowed_update_tools, fn :allowed_update_tools, tools ->
-      case Enum.reject(tools, &(&1 in known)) do
-        [] -> []
-        unknown -> [allowed_update_tools: "unknown update tool(s): #{Enum.join(unknown, ", ")}"]
+      unknown = Enum.reject(tools, &(&1 in known))
+      disabled = Enum.filter(tools, &(&1 in known and &1 not in enabled))
+
+      cond do
+        unknown != [] ->
+          [allowed_update_tools: "unknown update tool(s): #{Enum.join(unknown, ", ")}"]
+
+        disabled != [] ->
+          [
+            allowed_update_tools: "not enabled on this NervesHub instance: #{Enum.join(disabled, ", ")}"
+          ]
+
+        true ->
+          []
       end
     end)
   end
