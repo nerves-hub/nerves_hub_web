@@ -147,6 +147,10 @@ config :phoenix,
     leex: Engine
   ]
 
+config :sentry,
+  enable_source_code_context: true,
+  root_source_code_path: [File.cwd!()]
+
 config :swoosh, :api_client, Finch
 
 config :tailwind,

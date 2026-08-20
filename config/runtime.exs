@@ -438,8 +438,6 @@ config :opentelemetry, :resource, service: %{name: nerves_hub_app}
 config :sentry,
   dsn: System.get_env("SENTRY_DSN_URL"),
   environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
-  enable_source_code_context: true,
-  root_source_code_path: [File.cwd!()],
   before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
   release: "nerves_hub@#{Application.spec(:nerves_hub, :vsn)}",
   enable_logs: System.get_env("SENTRY_ENABLE_LOGGING", "false") == "true",
