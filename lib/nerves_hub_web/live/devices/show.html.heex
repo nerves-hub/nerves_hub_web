@@ -44,7 +44,7 @@
   <:big_header>
     <FwupProgress.render :if={@firmware_update_stage} stage={@firmware_update_stage} progress={@firmware_update_progress} />
 
-    <div class="flex shrink-0 items-center gap-3">
+    <div class="group/identifier flex shrink-0 items-center gap-3">
       <svg
         data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
         class="data-[connection-status=connected]:fill-success data-[connection-status=connecting]:fill-primary-500 data-[connection-status=disconnected]:fill-base-500 data-[connection-status=unknown]:fill-base-500 size-3 shrink-0 data-[connection-status=connecting]:animate-pulse"
@@ -57,6 +57,18 @@
       <h1 class="text-base-50 shrink-0 font-mono text-xl leading-[30px] font-semibold">
         {@device.identifier}
       </h1>
+      <button
+        id="copy-device-identifier"
+        type="button"
+        phx-hook="CopyToClipboard"
+        data-copy-value={@device.identifier}
+        aria-label="Copy device identifier"
+        title="Copy device identifier"
+        class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/identifier:opacity-100 focus-visible:opacity-100"
+      >
+        <span data-icon="copy" class="lucide-copy--light size-4"></span>
+        <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+      </button>
     </div>
 
     <div class="flex items-center gap-2">

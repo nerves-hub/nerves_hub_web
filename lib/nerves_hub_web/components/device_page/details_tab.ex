@@ -433,7 +433,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                     data-copy-value={value}
                     aria-label={"Copy #{key} value"}
                     title="Copy value"
-                    class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/meta:opacity-100 focus:opacity-100"
+                    class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/meta:opacity-100 focus-visible:opacity-100"
                   >
                     <span data-icon="copy" class="lucide-copy--light size-4"></span>
                     <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
