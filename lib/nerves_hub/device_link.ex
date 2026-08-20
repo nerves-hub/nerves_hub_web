@@ -15,6 +15,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceMessages
   alias NervesHub.Devices.Updates
   alias NervesHub.Extensions.Dispatch, as: ExtensionDispatch
   alias NervesHub.Firmwares
@@ -705,7 +706,12 @@ defmodule NervesHub.DeviceLink do
     "device:#{id}"
   end
 
+  # Everything broadcast on a device's own topic from here — the archive and the
+  # public key messages — is fastlaned by Phoenix straight to the device's
+  # transport, so the channel process never sees it and cannot record it. This
+  # is the last point at which it is visible. See `NervesHub.Devices.DeviceMessages`.
   defp broadcast(device_info, event, payload) do
+    :ok = DeviceMessages.record(device_info, :sent, :device, event, payload)
     :ok = ChannelServer.broadcast(NervesHub.PubSub, topic(device_info), event, payload)
   end
 end

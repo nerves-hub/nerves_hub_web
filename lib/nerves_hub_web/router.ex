@@ -351,6 +351,12 @@ defmodule NervesHubWeb.Router do
       )
 
       live(
+        "/org/:org_name/:product_name/devices/:device_identifier/data_history",
+        Live.Devices.Show,
+        :data_history
+      )
+
+      live(
         "/org/:org_name/:product_name/devices/:device_identifier/activity",
         Live.Devices.Show,
         :activity

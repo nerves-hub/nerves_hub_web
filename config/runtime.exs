@@ -1,6 +1,7 @@
 import Config
 
 alias NervesHub.DeviceLink.PeerVerification
+alias NervesHub.Devices.DeviceMessages
 alias NervesHub.Firmwares.Upload
 alias NervesHub.Firmwares.Upload.S3
 alias NervesHub.Repo
@@ -305,6 +306,12 @@ if config_env() == :prod do
     # Required for Clickhouse Cloud (https://github.com/plausible/analytics/discussions/3497)
     # (using a default order will cause issues for the migration table)
     config :ecto_ch, default_table_engine: "MergeTree"
+
+    # Batch sizing lives in `:analytics_buffer` below, shared with the other
+    # analytics write paths. This is only the cap on how much of a single
+    # message body is kept.
+    config :nerves_hub, DeviceMessages,
+      max_payload_bytes: String.to_integer(System.get_env("DEVICE_MESSAGES_MAX_PAYLOAD_BYTES", "8192"))
 
     config :nerves_hub, NervesHub.AnalyticsRepo,
       url: clickhouse_url,

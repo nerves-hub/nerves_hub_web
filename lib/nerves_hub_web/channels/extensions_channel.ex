@@ -13,6 +13,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHub.Devices.DeviceMessages
   alias NervesHubWeb.Channels.Effects
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
@@ -45,6 +46,8 @@ defmodule NervesHubWeb.ExtensionsChannel do
   @impl Phoenix.Channel
   @decorate with_span("Channels.ExtensionsChannel.handle_in")
   def handle_in(scoped_event, payload, socket) do
+    :ok = DeviceMessages.record(device_info(socket), :received, :extensions, scoped_event, payload)
+
     case DeviceLink.extension_message(socket.assigns.extensions, scoped_event, payload) do
       {:ok, extensions, effects} ->
         socket
@@ -67,6 +70,8 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   @decorate with_span("Channels.ExtensionsChannel.handle_info[Broadcast]")
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
+    :ok = DeviceMessages.record(device_info(socket), :sent, :extensions, event, payload)
+
     push(socket, event, payload)
     {:noreply, socket}
   end
@@ -82,5 +87,16 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
-  defp apply_effects(socket, effects), do: {:noreply, Effects.apply_all(socket, effects)}
+  defp apply_effects(socket, effects) do
+    device_info = device_info(socket)
+
+    Enum.each(effects, fn
+      {:push, event, payload} -> DeviceMessages.record(device_info, :sent, :extensions, event, payload)
+      _effect -> :ok
+    end)
+
+    {:noreply, Effects.apply_all(socket, effects)}
+  end
+
+  defp device_info(socket), do: socket.assigns.device_info
 end

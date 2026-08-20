@@ -213,6 +213,8 @@
   <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"} selected={@tab == :activity} label="Activity" />
   <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"} selected={@tab == :settings} label="Settings" />
 
+  <:tabbed_nav_end path={~p"/org/#{@org}/#{@product}/devices/#{@device}/data_history"} selected={@tab == :data_history} label="Data History" />
+
   <div class="flex h-0 flex-1 flex-col overflow-y-auto">
     <div :if={@device.deleted_at} class="bg-alert-soft flex h-[89px] shrink-0 items-center justify-center p-4">
       <div class="text-alert font-medium">

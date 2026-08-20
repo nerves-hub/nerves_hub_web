@@ -4,6 +4,7 @@ defmodule NervesHub.Application do
   alias NervesHub.Analytics.Buffer
   alias NervesHub.DeviceLink.Handlers
   alias NervesHub.Devices.DeviceConnectionHistory
+  alias NervesHub.Devices.DeviceMessage
   alias NervesHub.Devices.LogLine
   alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
@@ -161,7 +162,7 @@ defmodule NervesHub.Application do
     ]
   end
 
-  # Batches the two fleet-scale analytics write paths. Only started where there
+  # Batches the fleet-scale analytics write paths. Only started where there
   # is a ClickHouse to write to - callers no-op on the same `:analytics_enabled`
   # flag.
   defp analytics_buffers() do
@@ -170,6 +171,7 @@ defmodule NervesHub.Application do
 
       [
         Buffer.child_spec([schema: DeviceConnectionHistory] ++ opts),
+        Buffer.child_spec([schema: DeviceMessage] ++ opts),
         Buffer.child_spec([schema: LogLine] ++ opts)
       ]
     else
