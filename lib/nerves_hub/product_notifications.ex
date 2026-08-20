@@ -2,6 +2,7 @@ defmodule NervesHub.ProductNotifications do
   import Ecto.Query
 
   alias NervesHub.Accounts.Scope
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Products
   alias NervesHub.Products.Notification
@@ -113,6 +114,21 @@ defmodule NervesHub.ProductNotifications do
       level: :warning,
       metadata: %{identifier: identifier, auth_type: auth_type},
       event_key: "duplicate_device_identifier-#{identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
+  @spec create_wrong_websocket_host_notification!(device_info :: DeviceInfo.t(), host :: String.t()) ::
+          Notification.t()
+  def create_wrong_websocket_host_notification!(device_info, host) do
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device connected to the wrong host.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' connected to the management host instead of '#{host}', and was redirected. Please update the device's configuration.",
+      level: :warning,
+      metadata: %{identifier: device_info.device_identifier, host: host},
+      event_key: "wrong_websocket_host-#{device_info.device_identifier}"
     })
     |> insert_and_notify!()
   end

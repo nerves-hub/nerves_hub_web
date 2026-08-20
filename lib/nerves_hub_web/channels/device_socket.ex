@@ -3,6 +3,7 @@ defmodule NervesHubWeb.DeviceSocket do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHub.ProductNotifications
   alias Phoenix.Socket.Transport
 
   channel("console", NervesHubWeb.ConsoleChannel)
@@ -87,9 +88,9 @@ defmodule NervesHubWeb.DeviceSocket do
 
   @impl Phoenix.Socket
   def connect(params, socket, connect_info) do
-    case redirect_target(socket) do
-      nil -> do_connect(params, socket, connect_info)
-      host -> {:error, {:redirect, host}}
+    case do_connect(params, socket, connect_info) do
+      {:ok, socket} -> maybe_redirect(socket)
+      {:error, _reason} = error -> error
     end
   end
 
@@ -97,13 +98,40 @@ defmodule NervesHubWeb.DeviceSocket do
   # host. Rather than serving them from the management endpoint, point them at
   # the device websocket host. Only the management endpoint redirects; the device
   # endpoint is the destination, so redirecting there would loop.
-  defp redirect_target(%{endpoint: NervesHubWeb.Endpoint}) do
-    if Application.get_env(:nerves_hub, :redirect_to_devices_websocket_url, false) do
-      Application.get_env(:nerves_hub, :devices_websocket_url)
+  #
+  # This runs after authentication because the notification needs to name the
+  # product and the device, which we only know once the device has identified
+  # itself.
+  defp maybe_redirect(%{endpoint: NervesHubWeb.Endpoint, assigns: %{device_info: device_info}} = socket) do
+    case redirect_target() do
+      nil ->
+        {:ok, socket}
+
+      host ->
+        _ = ProductNotifications.create_wrong_websocket_host_notification!(device_info, host)
+
+        :telemetry.execute([:nerves_hub, :devices, :wrong_websocket_host], %{count: 1}, %{
+          identifier: device_info.device_identifier,
+          product_id: device_info.product_id,
+          host: host
+        })
+
+        {:error, {:redirect, host}}
     end
   end
 
-  defp redirect_target(_socket), do: nil
+  defp maybe_redirect(socket), do: {:ok, socket}
+
+  # Redirecting to nothing would strand the device, so an unset host means no
+  # redirect regardless of the flag.
+  defp redirect_target() do
+    with true <- Application.get_env(:nerves_hub, :redirect_to_devices_websocket_url, false),
+         host when is_binary(host) and host != "" <- Application.get_env(:nerves_hub, :devices_websocket_url) do
+      host
+    else
+      _ -> nil
+    end
+  end
 
   # Used by Devices connecting with SSL certificates
   @decorate with_span("Channels.DeviceSocket.connect:cert_auth")
