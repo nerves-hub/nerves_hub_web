@@ -28,7 +28,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :penalty_timeout_minutes
   ]
 
-  @derive {Phoenix.Param, key: :name}
+  @derive {Phoenix.Param, key: :id}
   schema "deployments" do
     belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:org, Org, where: [deleted_at: nil])

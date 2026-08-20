@@ -15,10 +15,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
-    %{"name" => name} = params
+    %{"id" => id} = params
     %{current_scope: %{org: org, product: product, user: user}} = socket.assigns
 
-    deployment_group = ManagedDeployments.get_by_product_and_name!(product, name, true)
+    deployment_group = ManagedDeployments.get_by_product_and_id_or_name!(product, id, true)
 
     Logger.metadata(user_id: user.id, product_id: product.id, deployment_group_id: deployment_group.id)
 

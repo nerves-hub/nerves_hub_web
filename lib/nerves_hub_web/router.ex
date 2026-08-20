@@ -280,7 +280,7 @@ defmodule NervesHubWeb.Router do
     get("/firmware/:uuid/download", DownloadController, :firmware)
 
     get(
-      "/deployment_groups/:name/audit_logs/download",
+      "/deployment_groups/:id/audit_logs/download",
       DeploymentGroupController,
       :export_audit_logs
     )
@@ -386,25 +386,25 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/deployment_groups/new", Live.DeploymentGroups.New)
 
       live(
-        "/org/:org_name/:product_name/deployment_groups/:name",
+        "/org/:org_name/:product_name/deployment_groups/:id",
         Live.DeploymentGroups.Show,
         :summary
       )
 
       live(
-        "/org/:org_name/:product_name/deployment_groups/:name/releases",
+        "/org/:org_name/:product_name/deployment_groups/:id/releases",
         Live.DeploymentGroups.Show,
         :releases
       )
 
       live(
-        "/org/:org_name/:product_name/deployment_groups/:name/activity",
+        "/org/:org_name/:product_name/deployment_groups/:id/activity",
         Live.DeploymentGroups.Show,
         :activity
       )
 
       live(
-        "/org/:org_name/:product_name/deployment_groups/:name/settings",
+        "/org/:org_name/:product_name/deployment_groups/:id/settings",
         Live.DeploymentGroups.Show,
         :settings
       )

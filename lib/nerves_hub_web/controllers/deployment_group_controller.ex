@@ -6,9 +6,9 @@ defmodule NervesHubWeb.DeploymentGroupController do
 
   plug(:validate_role, org: :view)
 
-  def export_audit_logs(%{assigns: %{org: org, product: product}} = conn, %{"name" => deployment_name}) do
+  def export_audit_logs(%{assigns: %{org: org, product: product}} = conn, %{"id" => id}) do
     {:ok, deployment_group} =
-      ManagedDeployments.get_deployment_group_by_name(product, deployment_name)
+      ManagedDeployments.get_deployment_group_by_id_or_name(product, id)
 
     case AuditLogs.logs_for(deployment_group) do
       [] ->
