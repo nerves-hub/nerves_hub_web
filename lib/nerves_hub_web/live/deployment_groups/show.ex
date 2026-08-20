@@ -18,7 +18,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{"id" => id} = params
     %{current_scope: %{org: org, product: product, user: user}} = socket.assigns
 
-    deployment_group = ManagedDeployments.get_by_product_and_id_or_name!(product, id, true)
+    deployment_group = ManagedDeployments.get_by_product_and_name_or_id!(product, id, true)
 
     Logger.metadata(user_id: user.id, product_id: product.id, deployment_group_id: deployment_group.id)
 

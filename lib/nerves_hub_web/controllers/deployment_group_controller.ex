@@ -8,7 +8,7 @@ defmodule NervesHubWeb.DeploymentGroupController do
 
   def export_audit_logs(%{assigns: %{org: org, product: product}} = conn, %{"id" => id}) do
     {:ok, deployment_group} =
-      ManagedDeployments.get_deployment_group_by_id_or_name(product, id)
+      ManagedDeployments.get_deployment_group_by_name_or_id(product, id)
 
     case AuditLogs.logs_for(deployment_group) do
       [] ->

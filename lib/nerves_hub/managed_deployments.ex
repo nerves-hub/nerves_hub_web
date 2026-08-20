@@ -133,15 +133,23 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  Looks up a Deployment Group by ID, falling back to its name.
+  Looks up a Deployment Group by name, falling back to its ID.
 
-  Supports old bookmarked/shared links that reference the name instead of the ID.
+  Supports old bookmarked/shared links that reference the ID instead of the name.
+  A deployment group's name can itself be numeric, so the name is tried first
+  to avoid misinterpreting it as an ID.
   """
-  @spec get_by_product_and_id_or_name!(Product.t(), String.t(), boolean()) :: DeploymentGroup.t()
-  def get_by_product_and_id_or_name!(product, id_or_name, with_device_count \\ false) do
-    case Integer.parse(id_or_name) do
-      {id, ""} -> get_by_product_and_id!(product, id, with_device_count)
-      _ -> get_by_product_and_name!(product, id_or_name, with_device_count)
+  @spec get_by_product_and_name_or_id!(Product.t(), String.t(), boolean()) :: DeploymentGroup.t()
+  def get_by_product_and_name_or_id!(product, name_or_id, with_device_count \\ false) do
+    case get_deployment_group_by_name(product, name_or_id) do
+      {:ok, _deployment_group} ->
+        get_by_product_and_name!(product, name_or_id, with_device_count)
+
+      {:error, :not_found} ->
+        case Integer.parse(name_or_id) do
+          {id, ""} -> get_by_product_and_id!(product, id, with_device_count)
+          _ -> get_by_product_and_name!(product, name_or_id, with_device_count)
+        end
     end
   end
 
@@ -189,16 +197,24 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  Looks up a Deployment Group by ID, falling back to its name.
+  Looks up a Deployment Group by name, falling back to its ID.
 
-  Supports old bookmarked/shared links that reference the name instead of the ID.
+  Supports old bookmarked/shared links that reference the ID instead of the name.
+  A deployment group's name can itself be numeric, so the name is tried first
+  to avoid misinterpreting it as an ID.
   """
-  @spec get_deployment_group_by_id_or_name(Product.t(), String.t()) ::
+  @spec get_deployment_group_by_name_or_id(Product.t(), String.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
-  def get_deployment_group_by_id_or_name(product, id_or_name) do
-    case Integer.parse(id_or_name) do
-      {id, ""} -> get_by_product_and_id_query(product, id) |> Repo.fetch()
-      _ -> get_deployment_group_by_name(product, id_or_name)
+  def get_deployment_group_by_name_or_id(product, name_or_id) do
+    case get_deployment_group_by_name(product, name_or_id) do
+      {:ok, deployment_group} ->
+        {:ok, deployment_group}
+
+      {:error, :not_found} ->
+        case Integer.parse(name_or_id) do
+          {id, ""} -> get_by_product_and_id_query(product, id) |> Repo.fetch()
+          _ -> {:error, :not_found}
+        end
     end
   end
 
