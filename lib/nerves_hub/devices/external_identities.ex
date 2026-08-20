@@ -38,11 +38,20 @@ defmodule NervesHub.Devices.ExternalIdentities do
 
   @doc """
   All identities recorded for a device, ordered by service then instance.
+
+  `opts` narrows the list:
+
+    * `:service` — only this protocol, as an atom. Cast a name that arrived from
+      outside with `cast_service/1` first; an unsupported one should be an error
+      to its caller rather than quietly the whole list.
+    * `:instance` — only this endpoint of it, matched exactly.
   """
-  @spec list_for_device(pos_integer()) :: [ExternalIdentity.t()]
-  def list_for_device(device_id) do
+  @spec list_for_device(pos_integer(), keyword()) :: [ExternalIdentity.t()]
+  def list_for_device(device_id, opts \\ []) do
     ExternalIdentity
     |> where(device_id: ^device_id)
+    |> filter_by_service(opts[:service])
+    |> filter_by_instance(opts[:instance])
     |> order_by(asc: :service, asc: :instance)
     |> Repo.all()
   end
@@ -93,6 +102,9 @@ defmodule NervesHub.Devices.ExternalIdentities do
 
   defp filter_by_service(query, nil), do: query
   defp filter_by_service(query, service), do: where(query, service: ^service)
+
+  defp filter_by_instance(query, nil), do: query
+  defp filter_by_instance(query, instance), do: where(query, instance: ^instance)
 
   defp filter_by_owner(query, nil), do: query
   defp filter_by_owner(query, :device), do: where(query, [ei], not is_nil(ei.device_id))
@@ -211,6 +223,29 @@ defmodule NervesHub.Devices.ExternalIdentities do
     ExternalIdentity
     |> where(service: ^service)
     |> where(identifier: ^identifier)
+  end
+
+  @doc """
+  Fetch one of an organisation's identities by the key it names.
+
+  Scoped to the organisation, because a key is not a secret — it is the one
+  thing an outsider is most likely to have — so knowing one must not be enough
+  to read the record another organisation keeps of it.
+
+  Owners are preloaded, since whose a key is is most of what there is to say
+  about it.
+  """
+  @spec get_for_org(pos_integer(), atom() | String.t(), String.t()) ::
+          {:ok, ExternalIdentity.t()} | {:error, :not_found | :unsupported_service}
+  def get_for_org(org_id, service, identifier) when is_binary(identifier) do
+    with {:ok, service} <- cast_service_result(service) do
+      ExternalIdentity
+      |> where(org_id: ^org_id)
+      |> where(service: ^service)
+      |> where(identifier: ^identifier)
+      |> preload([:device, org_user: :user])
+      |> Repo.fetch()
+    end
   end
 
   @doc """
@@ -584,11 +619,22 @@ defmodule NervesHub.Devices.ExternalIdentities do
 
   defp broadcast_if_ok(result, _device_id), do: result
 
-  defp cast_service(service) when is_atom(service) do
+  @doc """
+  The atom this schema uses for a service name, or `:error`.
+
+  Public because a caller taking a service from a query string has to know
+  whether it names one before filtering on it. Ecto raises on an unknown value,
+  and treating one as "no filter" would answer a typo with everything — which
+  reads as a device holding identities it does not have.
+  """
+  @spec cast_service(atom() | String.t()) :: {:ok, atom()} | :error
+  def cast_service(service)
+
+  def cast_service(service) when is_atom(service) do
     if service in ExternalIdentity.services(), do: {:ok, service}, else: :error
   end
 
-  defp cast_service(service) when is_binary(service) do
+  def cast_service(service) when is_binary(service) do
     # String.to_existing_atom/1 is not enough on its own — every service name is
     # already an existing atom, so it would happily return one we do not support.
     Enum.find_value(ExternalIdentity.services(), :error, fn known ->
@@ -596,5 +642,5 @@ defmodule NervesHub.Devices.ExternalIdentities do
     end)
   end
 
-  defp cast_service(_service), do: :error
+  def cast_service(_service), do: :error
 end
