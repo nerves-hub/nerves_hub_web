@@ -111,7 +111,8 @@ defmodule NervesHubWeb.DeviceSocket do
         _ = ProductNotifications.create_wrong_websocket_host_notification!(device_info, host)
 
         :telemetry.execute([:nerves_hub, :devices, :wrong_websocket_host], %{count: 1}, %{
-          identifier: device_info.device_identifier,
+          device_id: device_info.device_id,
+          device_identifier: device_info.device_identifier,
           product_id: device_info.product_id,
           host: host
         })

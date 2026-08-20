@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.DeviceSocketRedirectTest do
   use NervesHub.DataCase, async: false
 
+  import ExUnit.CaptureLog
+
   alias NervesHub.Fixtures
   alias NervesHub.Helpers.WebsocketConnectionError
   alias NervesHub.ProductNotifications
@@ -9,6 +11,8 @@ defmodule NervesHubWeb.DeviceSocketRedirectTest do
   alias NervesHub.Support.Utils
   alias NervesHubWeb.Endpoint
   alias Phoenix.Socket.Broadcast
+
+  require Logger
 
   @web_port Application.compile_env(:nerves_hub, Endpoint) |> get_in([:http, :port])
 
@@ -120,6 +124,54 @@ defmodule NervesHubWeb.DeviceSocketRedirectTest do
 
       {301, _} = connect_to_management_endpoint(auth, "device-a")
       assert_receive %Broadcast{event: "created"}
+    end
+
+    test "the redirect is logged", %{auth: auth} do
+      enable_redirect()
+
+      # config/test.exs pins the logger to :warning, and this is an info log.
+      level = Logger.level()
+      Logger.configure(level: :info)
+      on_exit(fn -> Logger.configure(level: level) end)
+
+      log =
+        capture_log(fn ->
+          {301, _} = connect_to_management_endpoint(auth, Ecto.UUID.generate())
+        end)
+
+      assert log =~ "Device connected to the wrong host, redirecting"
+    end
+
+    test "the redirect reports telemetry naming the device and product", %{
+      auth: auth,
+      product: product
+    } do
+      enable_redirect()
+
+      event = [:nerves_hub, :devices, :wrong_websocket_host]
+      test_pid = self()
+
+      :telemetry.attach(
+        "wrong-websocket-host-test",
+        event,
+        fn ^event, measurements, metadata, _ ->
+          send(test_pid, {:telemetry, measurements, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach("wrong-websocket-host-test") end)
+
+      identifier = Ecto.UUID.generate()
+
+      {301, _} = connect_to_management_endpoint(auth, identifier)
+
+      assert_receive {:telemetry, %{count: 1}, metadata}
+
+      assert metadata.device_identifier == identifier
+      assert metadata.product_id == product.id
+      assert metadata.host == "devices.nervescloud.com"
+      assert is_integer(metadata.device_id)
     end
 
     test "an unset device websocket host means no redirect", %{auth: auth} do
