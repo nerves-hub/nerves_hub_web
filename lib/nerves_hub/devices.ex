@@ -15,7 +15,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceFirmwares
-  alias NervesHub.Devices.ExternalIdentity
+  alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Extensions
@@ -289,10 +289,10 @@ defmodule NervesHub.Devices do
     |> preload([d, device_certificates: dc], device_certificates: dc)
   end
 
-  defp join_and_preload(query, :external_identities) do
+  defp join_and_preload(query, :network_identities) do
     query
-    |> join(:left, [d], ei in assoc(d, :external_identities), as: :external_identities)
-    |> preload([external_identities: ei], external_identities: ei)
+    |> join(:left, [d], ei in assoc(d, :network_identities), as: :network_identities)
+    |> preload([network_identities: ei], network_identities: ei)
   end
 
   defp join_and_preload(query, :latest_connection) do
@@ -380,14 +380,14 @@ defmodule NervesHub.Devices do
     # A device is only soft deleted, so these have to go explicitly: otherwise
     # they keep holding the (service, identifier) unique index and reprovisioning
     # the same hardware collides with the identity of the device just deleted.
-    external_identities_query = from(ei in ExternalIdentity, where: ei.device_id == ^device.id)
+    network_identities_query = from(ei in NetworkIdentity, where: ei.device_id == ^device.id)
 
     changeset = Repo.soft_delete_changeset(device)
 
     Multi.new()
     |> Multi.delete_all(:device_certificates, device_certificates_query)
     |> Multi.delete_all(:pinned_devices, pinned_devices_query)
-    |> Multi.delete_all(:external_identities, external_identities_query)
+    |> Multi.delete_all(:network_identities, network_identities_query)
     |> Multi.update(:device, changeset)
     |> Repo.transact()
     |> case do
@@ -560,8 +560,8 @@ defmodule NervesHub.Devices do
     # placed on that organisation's network by anything using them. Same
     # transaction as the move, so there is no window where the two disagree.
     |> Multi.update_all(
-      :external_identities,
-      from(ei in ExternalIdentity, where: ei.device_id == ^device.id),
+      :network_identities,
+      from(ei in NetworkIdentity, where: ei.device_id == ^device.id),
       set: [org_id: product.org_id, updated_at: DateTime.utc_now(:second)]
     )
     |> Multi.run(:audit_device, fn _, _ ->

@@ -14,10 +14,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
-  alias NervesHub.Devices.ExternalIdentities
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -1710,7 +1710,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
-  describe "external identities" do
+  describe "network identities" do
     test "explains an empty panel when the product hasn't enabled reporting", %{
       conn: conn,
       org: org,
@@ -1719,7 +1719,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "External Identities")
+      |> assert_has("div", text: "Network Identities")
       |> assert_has("div", text: "External identity reporting is not enabled for your product.")
     end
 
@@ -1729,11 +1729,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, _product} = Products.enable_extension_setting(product, "external_identity")
+      {:ok, _product} = Products.enable_extension_setting(product, "network_identity")
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "This device hasn't reported any external identities.")
+      |> assert_has("div", text: "This device hasn't reported any network identities.")
     end
 
     test "shows a reported identity with its service and label", %{
@@ -1743,7 +1743,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device
     } do
       {:ok, _} =
-        ExternalIdentities.report(device.id, "iroh", %{
+        NetworkIdentities.report(device.id, "iroh", %{
           identifier: "e13b8a4c9f2d",
           details: %{"relay_url" => "https://iroh.nervescloud.com"}
         })
@@ -1763,7 +1763,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, _} = ExternalIdentities.report(device.id, "tailscale", %{identifier: "nodekey-abc"})
+      {:ok, _} = NetworkIdentities.report(device.id, "tailscale", %{identifier: "nodekey-abc"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1777,7 +1777,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       ticket = String.duplicate("a", 170)
 
       {:ok, identity} =
-        ExternalIdentities.report(device.id, "iroh", %{
+        NetworkIdentities.report(device.id, "iroh", %{
           identifier: "short-id",
           details: %{"ticket" => ticket}
         })
@@ -1795,8 +1795,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       # Turning reporting off stops new reports; it doesn't make what was already
       # recorded untrue, and hiding it would just look like data loss.
-      {:ok, _} = ExternalIdentities.report(device.id, "iroh", %{identifier: "recorded-earlier"})
-      {:ok, _product} = Products.disable_extension_setting(product, "external_identity")
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "recorded-earlier"})
+      {:ok, _product} = Products.disable_extension_setting(product, "network_identity")
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1810,13 +1810,13 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device
     } do
       {:ok, _} =
-        ExternalIdentities.report(device.id, "iroh", %{
+        NetworkIdentities.report(device.id, "iroh", %{
           instance: "iroh_console",
           identifier: "console-endpoint-key"
         })
 
       {:ok, _} =
-        ExternalIdentities.report(device.id, "iroh", %{
+        NetworkIdentities.report(device.id, "iroh", %{
           instance: "kiosk_sync",
           identifier: "sync-endpoint-key"
         })
@@ -1836,7 +1836,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device
     } do
       # Saying "default" on every row would be noise.
-      {:ok, _} = ExternalIdentities.report(device.id, "netbird", %{identifier: "the-only-one"})
+      {:ok, _} = NetworkIdentities.report(device.id, "netbird", %{identifier: "the-only-one"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1846,7 +1846,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
     test "marks an operator-recorded identity as such", %{conn: conn, org: org, product: product, device: device} do
       _identity =
-        Fixtures.external_identity_fixture(device, %{
+        Fixtures.network_identity_fixture(device, %{
           identifier: "operator-set",
           source: :operator
         })
@@ -1857,14 +1857,14 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
 
     test "updates live when a device reports a new identity", %{conn: conn, org: org, product: product, device: device} do
-      {:ok, _product} = Products.enable_extension_setting(product, "external_identity")
+      {:ok, _product} = Products.enable_extension_setting(product, "network_identity")
 
       session =
         conn
         |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-        |> assert_has("div", text: "This device hasn't reported any external identities.")
+        |> assert_has("div", text: "This device hasn't reported any network identities.")
 
-      {:ok, _} = ExternalIdentities.report(device.id, "netbird", %{identifier: "peer-key-9000"})
+      {:ok, _} = NetworkIdentities.report(device.id, "netbird", %{identifier: "peer-key-9000"})
 
       assert_has(session, "span", text: "peer-key-9000", timeout: 1_000)
     end

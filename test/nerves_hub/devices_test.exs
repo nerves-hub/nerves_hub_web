@@ -20,9 +20,9 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceHealth
-  alias NervesHub.Devices.ExternalIdentities
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -1440,7 +1440,7 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
-  describe "move/3 and external identities" do
+  describe "move/3 and network identities" do
     test "an identity moves organisation with its device", %{device: device, user: user, tmp_dir: tmp_dir} do
       # The identity names an organisation of its own, and that is what other
       # networks resolve its key to. Left behind, this device would keep
@@ -1449,7 +1449,7 @@ defmodule NervesHub.DevicesTest do
       other_org = Fixtures.org_fixture(user, %{name: "receiving-org"})
       target_product = Fixtures.product_fixture(user, other_org)
 
-      identity = Fixtures.external_identity_fixture(device, %{identifier: "moves-with-me"})
+      identity = Fixtures.network_identity_fixture(device, %{identifier: "moves-with-me"})
       assert identity.org_id == device.org_id
 
       {:ok, moved} = Devices.move(device, target_product, user)
@@ -1458,7 +1458,7 @@ defmodule NervesHub.DevicesTest do
       assert Repo.reload!(identity).org_id == other_org.id
 
       assert {:ok, %{org_id: resolved}} =
-               ExternalIdentities.get_owner_by_identifier(:iroh, "moves-with-me")
+               NetworkIdentities.get_owner_by_identifier(:iroh, "moves-with-me")
 
       assert resolved == other_org.id
       _ = tmp_dir
@@ -1472,11 +1472,11 @@ defmodule NervesHub.DevicesTest do
       firmware: firmware
     } do
       untouched_device = Fixtures.device_fixture(org, product, firmware, %{identifier: "stays-put"})
-      untouched = Fixtures.external_identity_fixture(untouched_device, %{identifier: "not-moving"})
+      untouched = Fixtures.network_identity_fixture(untouched_device, %{identifier: "not-moving"})
 
       other_org = Fixtures.org_fixture(user, %{name: "receiving-org-2"})
       target_product = Fixtures.product_fixture(user, other_org)
-      _ = Fixtures.external_identity_fixture(device, %{identifier: "moving"})
+      _ = Fixtures.network_identity_fixture(device, %{identifier: "moving"})
 
       {:ok, _} = Devices.move(device, target_product, user)
 

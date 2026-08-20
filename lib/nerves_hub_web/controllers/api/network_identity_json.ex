@@ -1,14 +1,14 @@
-defmodule NervesHubWeb.API.ExternalIdentityJSON do
+defmodule NervesHubWeb.API.NetworkIdentityJSON do
   @moduledoc false
 
-  alias NervesHub.Devices.ExternalIdentity
+  alias NervesHub.Devices.NetworkIdentity
 
-  def index(%{external_identities: external_identities}) do
-    %{data: for(identity <- external_identities, do: external_identity(identity))}
+  def index(%{network_identities: network_identities}) do
+    %{data: for(identity <- network_identities, do: network_identity(identity))}
   end
 
-  def show(%{external_identity: external_identity}) do
-    %{data: external_identity(external_identity)}
+  def show(%{network_identity: network_identity}) do
+    %{data: network_identity(network_identity)}
   end
 
   @doc """
@@ -18,7 +18,7 @@ defmodule NervesHubWeb.API.ExternalIdentityJSON do
   add an owner to it — the two endpoints show the same rows and should not
   disagree about what one looks like.
   """
-  def external_identity(%ExternalIdentity{} = identity) do
+  def network_identity(%NetworkIdentity{} = identity) do
     %{
       identifier: identity.identifier,
       service: identity.service,

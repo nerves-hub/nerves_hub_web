@@ -15,11 +15,11 @@ defmodule NervesHub.DeviceLink.SerializationTest do
 
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.DeviceLink.Session
-  alias NervesHub.Extensions.ExternalIdentity
   alias NervesHub.Extensions.Geo
   alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.LocalShell
   alias NervesHub.Extensions.Logging
+  alias NervesHub.Extensions.NetworkIdentity
   alias NervesHub.Extensions.State
   alias NervesHubWeb.Channels.Scrollback
 
@@ -87,7 +87,7 @@ defmodule NervesHub.DeviceLink.SerializationTest do
         Geo,
         Logging,
         LocalShell,
-        ExternalIdentity
+        NetworkIdentity
       ]
 
       for extension <- extensions do

@@ -11,8 +11,8 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.DeviceConnection
-  alias NervesHub.Devices.ExternalIdentity
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
@@ -489,9 +489,9 @@ defmodule NervesHub.Fixtures do
     |> Repo.insert!()
   end
 
-  def external_identity_fixture(%Devices.Device{} = device, params \\ %{}) do
-    %ExternalIdentity{}
-    |> ExternalIdentity.changeset(
+  def network_identity_fixture(%Devices.Device{} = device, params \\ %{}) do
+    %NetworkIdentity{}
+    |> NetworkIdentity.changeset(
       Map.merge(
         %{
           # Identities name an organisation of their own; for a device-owned one
@@ -499,7 +499,7 @@ defmodule NervesHub.Fixtures do
           org_id: device.org_id,
           device_id: device.id,
           service: :iroh,
-          instance: ExternalIdentity.default_instance(),
+          instance: NetworkIdentity.default_instance(),
           identifier: "endpoint-#{counter()}",
           details: %{},
           source: :device_reported,
