@@ -460,6 +460,86 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
+    test "records the address a trusted balancer announced", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      # A device claiming to be somewhere else, with what the balancer saw
+      # appended after it.
+      headers =
+        Utils.nh1_key_secret_headers(auth, device.identifier) ++
+          [{"x-forwarded-for", "198.51.100.2, 203.0.113.7"}]
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: headers
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{ip_address: "203.0.113.7"} = Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "ignores a forwarded header when no balancer is trusted", %{user: user, tmp_dir: tmp_dir} do
+      forwarded_ip_header(nil)
+
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      headers =
+        Utils.nh1_key_secret_headers(auth, device.identifier) ++
+          [{"x-forwarded-for", "203.0.113.7"}]
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: headers
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{ip_address: "127.0.0.1"} = Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
+    defp forwarded_ip_header(header) do
+      config = Application.get_env(:nerves_hub, NervesHubWeb.Endpoint)
+
+      Application.put_env(
+        :nerves_hub,
+        NervesHubWeb.Endpoint,
+        Keyword.put(config, :forwarded_ip_header, header)
+      )
+
+      on_exit(fn -> Application.put_env(:nerves_hub, NervesHubWeb.Endpoint, config) end)
+    end
+
+    defp shared_secret_params(device) do
+      %{
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => device.product.name,
+        "nerves_fw_architecture" => "arm64",
+        "nerves_fw_version" => "0.0.0",
+        "nerves_fw_platform" => "test_host"
+      }
+    end
+
     test "rejects device key/secret with mismatched identifier", %{user: user, tmp_dir: tmp_dir} do
       {device, _firmware} = device_fixture(tmp_dir, user)
       assert {:ok, auth} = Devices.create_shared_secret_auth(device)

@@ -124,7 +124,39 @@ if config_env() == :prod do
 
     port = System.get_env("HTTP_PORT") || System.get_env("PORT") || "4000"
 
+    # Devices can reach us here as well as on the device endpoint, and here TLS is
+    # terminated by whatever is in front of us -- so the socket's peer is that
+    # balancer, and the device's own address arrives in a header. `x-forwarded-for`
+    # is near enough universal among balancers to be the default, and a deployment
+    # with nothing in front of it should set this to "none": the header is then
+    # only ever whatever the device chose to send, and believing it would let a
+    # device write its own address into its connection record.
+    forwarded_ip_header =
+      System.get_env("WEB_FORWARDED_IP_HEADER", "x-forwarded-for")
+      |> String.downcase()
+      |> case do
+        disabled when disabled in ["", "none"] ->
+          nil
+
+        header ->
+          if not String.starts_with?(header, "x-") do
+            raise """
+            WEB_FORWARDED_IP_HEADER was set to #{inspect(header)}, and it has to start with "x-"
+            (or be "none", to trust no header at all).
+
+            Phoenix passes a socket only the request headers with that prefix, so any other
+            header never reaches the code that would read it and the setting would quietly do
+            nothing. Behind Fly.io keep "x-forwarded-for" rather than reaching for
+            "fly-client-ip": the proxy appends what it saw to the right of it, which is the
+            value we take.
+            """
+          end
+
+          header
+      end
+
     config :nerves_hub, NervesHubWeb.Endpoint,
+      forwarded_ip_header: forwarded_ip_header,
       url: [
         host: host,
         scheme: System.get_env("WEB_SCHEME", "https"),

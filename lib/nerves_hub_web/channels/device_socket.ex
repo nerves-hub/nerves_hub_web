@@ -3,6 +3,7 @@ defmodule NervesHubWeb.DeviceSocket do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHubWeb.Helpers.ClientIP
   alias Phoenix.Socket.Transport
 
   channel("console", NervesHubWeb.ConsoleChannel)
@@ -92,7 +93,7 @@ defmodule NervesHubWeb.DeviceSocket do
   # answers the device with a 500 and buries the reason in a rendered error page.
   defp authenticate(socket, credentials, connect_info) do
     case DeviceLink.authenticate(credentials) do
-      {:ok, device_info} -> socket_and_assigns(socket, device_info, ip_address(connect_info))
+      {:ok, device_info} -> socket_and_assigns(socket, device_info, ip_address(socket, connect_info))
       {:error, reason} -> {:error, reason}
     end
   catch
@@ -117,17 +118,18 @@ defmodule NervesHubWeb.DeviceSocket do
     {:ok, socket}
   end
 
-  # The address the device reached us from. Behind a load balancer this is only
-  # the device's own if the balancer announced it -- see
-  # `NervesHub.DeviceSSLTransport` -- and is otherwise the balancer's.
-  defp ip_address(%{peer_data: %{address: address}}) when is_tuple(address) do
-    case :inet.ntoa(address) do
-      {:error, _reason} -> nil
-      formatted -> to_string(formatted)
-    end
+  # The address the device reached us from. How that is established differs
+  # between the two endpoints serving devices, so the endpoint reached decides
+  # which header, if any, may be believed -- see `NervesHubWeb.Helpers.ClientIP`.
+  defp ip_address(socket, connect_info) do
+    ClientIP.resolve(connect_info, forwarded_ip_header(socket.endpoint))
   end
 
-  defp ip_address(_connect_info), do: nil
+  defp forwarded_ip_header(endpoint) do
+    :nerves_hub
+    |> Application.get_env(endpoint, [])
+    |> Keyword.get(:forwarded_ip_header)
+  end
 
   @decorate with_span("Channels.DeviceSocket.on_connect")
   defp on_connect(%{assigns: %{device_info: device_info}} = socket) do

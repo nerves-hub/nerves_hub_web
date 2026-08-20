@@ -52,6 +52,11 @@ config :nerves_hub, NervesHub.Repo,
   migration_lock: :pg_advisory_lock
 
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
+  # Deliberately trusts no forwarding header, unlike the web endpoint: TLS
+  # terminates here, so nothing in front of us can reach into the stream to set
+  # one, and a forwarding header arriving on this endpoint could only have been
+  # written by the device itself.
+  forwarded_ip_header: nil,
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
     formats: [html: NervesHubWeb.ErrorDeviceHTML, json: ErrorJSON],
@@ -59,7 +64,13 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   ],
   pubsub_server: NervesHub.PubSub
 
+# Devices can also reach us through the web endpoint, where TLS is terminated
+# ahead of us and the socket's peer is whatever terminated it. This names the
+# header carrying the address that peer saw. Set it to `nil` when the endpoint is
+# exposed directly, since then the header is only whatever the device chose to
+# send. See `NervesHubWeb.Helpers.ClientIP`.
 config :nerves_hub, NervesHubWeb.Endpoint,
+  forwarded_ip_header: "x-forwarded-for",
   adapter: Bandit.PhoenixAdapter,
   secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
   live_view: [
