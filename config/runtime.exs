@@ -123,7 +123,26 @@ if config_env() == :prod do
 
     port = System.get_env("HTTP_PORT") || System.get_env("PORT") || "4000"
 
+    # `x-forwarded-for` by default; "none" for an endpoint exposed directly. It
+    # has to start with `x-`, because Phoenix passes a socket only the request
+    # headers with that prefix -- Fly's `fly-client-ip` never reaches us.
+    forwarded_ip_header =
+      System.get_env("WEB_FORWARDED_IP_HEADER", "x-forwarded-for")
+      |> String.downcase()
+      |> case do
+        disabled when disabled in ["", "none"] ->
+          nil
+
+        header ->
+          if not String.starts_with?(header, "x-") do
+            raise ~s|WEB_FORWARDED_IP_HEADER was set to #{inspect(header)}, and it has to start with "x-" (or be "none").|
+          end
+
+          header
+      end
+
     config :nerves_hub, NervesHubWeb.Endpoint,
+      forwarded_ip_header: forwarded_ip_header,
       url: [
         host: host,
         scheme: System.get_env("WEB_SCHEME", "https"),
@@ -215,6 +234,23 @@ if config_env() == :prod do
       else
         transport_options ++ [versions: [:"tlsv1.2"]]
       end
+
+    # The device endpoint terminates TLS, so a balancer in front of it can only
+    # pass the connection through and the device's address has to arrive ahead of
+    # the TLS handshake. Only v2 is supported; see `NervesHub.DeviceSSLTransport`.
+    proxy_protocol =
+      case System.get_env("DEVICE_PROXY_PROTOCOL") do
+        blank when blank in [nil, ""] ->
+          nil
+
+        "v2" ->
+          :v2
+
+        other ->
+          raise ~s|DEVICE_PROXY_PROTOCOL was set to #{inspect(other)}, and the only supported value is "v2".|
+      end
+
+    config :nerves_hub, NervesHub.DeviceSSLTransport, proxy_protocol: proxy_protocol
 
     config :nerves_hub, NervesHubWeb.DeviceEndpoint,
       url: [host: host],

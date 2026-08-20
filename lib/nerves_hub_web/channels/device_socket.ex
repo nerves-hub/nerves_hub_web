@@ -3,7 +3,10 @@ defmodule NervesHubWeb.DeviceSocket do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHubWeb.Helpers.ClientIP
   alias Phoenix.Socket.Transport
+
+  require Logger
 
   channel("console", NervesHubWeb.ConsoleChannel)
   channel("device:*", NervesHubWeb.DeviceChannel)
@@ -88,14 +91,14 @@ defmodule NervesHubWeb.DeviceSocket do
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
   @decorate with_span("Channels.DeviceSocket.connect:cert_auth")
-  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
-    authenticate(socket, {:ssl_cert, ssl_cert})
+  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}} = connect_info) when not is_nil(ssl_cert) do
+    authenticate(socket, {:ssl_cert, ssl_cert}, connect_info)
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
   @decorate with_span("Channels.DeviceSocket.connect:shared_secrets")
-  def connect(_params, socket, %{x_headers: x_headers}) when is_list(x_headers) and x_headers != [] do
-    authenticate(socket, {:shared_secret, Map.new(x_headers)})
+  def connect(_params, socket, %{x_headers: x_headers} = connect_info) when is_list(x_headers) and x_headers != [] do
+    authenticate(socket, {:shared_secret, Map.new(x_headers)}, connect_info)
   end
 
   def connect(_params, _socket, _connect_info) do
@@ -120,10 +123,14 @@ defmodule NervesHubWeb.DeviceSocket do
   # may be unreachable -- during a deploy, a partition, or before this node has
   # finished joining the cluster. Refusing is correct; raising is not, because it
   # answers the device with a 500 and buries the reason in a rendered error page.
-  defp authenticate(socket, credentials) do
+  defp authenticate(socket, credentials, connect_info) do
     case DeviceLink.authenticate(credentials) do
-      {:ok, device_info} -> socket_and_assigns(socket, device_info)
-      {:error, reason} -> {:error, reason}
+      {:ok, device_info} ->
+        log_client_ip(socket, device_info, connect_info)
+        socket_and_assigns(socket, device_info)
+
+      {:error, reason} ->
+        {:error, reason}
     end
   catch
     kind, reason ->
@@ -140,6 +147,37 @@ defmodule NervesHubWeb.DeviceSocket do
     _ = socket.endpoint.broadcast_from(self(), "device_socket:#{device_info.device_id}", "disconnect", %{})
 
     {:ok, assign(socket, :device_info, device_info)}
+  end
+
+  # Temporary, for confirming that the address a device connected from survives
+  # whatever sits in front of us. Nothing is stored and nothing decides on it.
+  #
+  # The two endpoints answer in different fields, so read the line accordingly.
+  #
+  # On the device endpoint, `announced` is always nil: no header is trusted
+  # there, because TLS terminates in the app and anything that arrived in a
+  # header could only have been written by the device. `peer` carries the
+  # answer, since `NervesHub.DeviceSSLTransport` has already replaced it with
+  # whatever the PROXY protocol header said. A public address means it worked;
+  # a private one -- `fdaa:` on Fly -- means the header never arrived.
+  #
+  # On the web endpoint, `peer` is always the balancer and stays that way.
+  # `announced` carries the answer, and nil there means the header never
+  # arrived or held nothing that parsed as an address.
+  defp log_client_ip(socket, device_info, connect_info) do
+    peer = ClientIP.resolve(connect_info)
+    announced = ClientIP.resolve(connect_info, forwarded_ip_header(socket.endpoint))
+
+    Logger.info(
+      "[DeviceIPCheck] device=#{device_info.device_identifier} endpoint=#{inspect(socket.endpoint)} " <>
+        "peer=#{inspect(peer)} announced=#{inspect(announced)}"
+    )
+  end
+
+  defp forwarded_ip_header(endpoint) do
+    :nerves_hub
+    |> Application.get_env(endpoint, [])
+    |> Keyword.get(:forwarded_ip_header)
   end
 
   @decorate with_span("Channels.DeviceSocket.on_connect")

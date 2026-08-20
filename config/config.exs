@@ -40,12 +40,21 @@ config :mime, :types, %{
   "application/fwup" => ["fw"]
 }
 
+# Devices authenticate with client certificates, so TLS terminates in the app
+# rather than at a load balancer. Set `proxy_protocol: :v2` when something in
+# front of us passes TLS through and announces the device with a PROXY protocol
+# header. See `NervesHub.DeviceSSLTransport`.
+config :nerves_hub, NervesHub.DeviceSSLTransport, proxy_protocol: nil
+
 config :nerves_hub, NervesHub.Repo,
   queue_target: 500,
   queue_interval: 5_000,
   migration_lock: :pg_advisory_lock
 
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
+  # Deliberately trusts no forwarding header: TLS terminates here, so nothing in
+  # front of us can reach into the stream to set one.
+  forwarded_ip_header: nil,
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
     formats: [html: NervesHubWeb.ErrorDeviceHTML, json: ErrorJSON],
@@ -53,7 +62,10 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   ],
   pubsub_server: NervesHub.PubSub
 
+# The web endpoint's TLS is terminated ahead of us, so the socket's peer is
+# whatever terminated it and a device's own address arrives in this header.
 config :nerves_hub, NervesHubWeb.Endpoint,
+  forwarded_ip_header: "x-forwarded-for",
   adapter: Bandit.PhoenixAdapter,
   secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
   live_view: [
