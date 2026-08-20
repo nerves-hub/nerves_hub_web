@@ -1,6 +1,8 @@
 defmodule NervesHub.AuditLogs.AuditLogTest do
   use NervesHub.DataCase, async: true
 
+  import Ecto.Changeset, only: [get_change: 2]
+
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Fixtures
 
@@ -13,6 +15,40 @@ defmodule NervesHub.AuditLogs.AuditLogTest do
       description = "what just happened?!"
       al = AuditLog.build(user, device, description)
       assert al.description == description
+    end
+  end
+
+  describe "changeset" do
+    test "leaves a description at the limit alone", %{device: device, user: user} do
+      description = String.duplicate("a", 500)
+
+      changeset =
+        AuditLog.build(user, device, description)
+        |> AuditLog.changeset()
+
+      assert get_change(changeset, :description) == description
+    end
+
+    test "truncates a description over the limit", %{device: device, user: user} do
+      changeset =
+        AuditLog.build(user, device, String.duplicate("a", 501))
+        |> AuditLog.changeset()
+
+      truncated = get_change(changeset, :description)
+
+      assert String.length(truncated) == 500
+      assert String.ends_with?(truncated, "…")
+    end
+
+    test "truncation counts graphemes, not bytes", %{device: device, user: user} do
+      changeset =
+        AuditLog.build(user, device, String.duplicate("日", 600))
+        |> AuditLog.changeset()
+
+      truncated = get_change(changeset, :description)
+
+      assert String.length(truncated) == 500
+      assert String.valid?(truncated)
     end
   end
 end
