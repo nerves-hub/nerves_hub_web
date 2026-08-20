@@ -127,6 +127,23 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
+    test "records the address a device connected from", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
+      SocketClient.join_and_wait(socket)
+
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{ip_address: "127.0.0.1"} = Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
     test "Can connect and authenticate to channel using client ssl certificate with TLS 1.3", %{
       user: user,
       tmp_dir: tmp_dir
@@ -676,6 +693,7 @@ defmodule NervesHubWeb.WebsocketTest do
       assert recent_datetime(device_connection.established_at)
       assert recent_datetime(device_connection.last_seen_at)
       assert device_connection.disconnected_at == nil
+      assert device_connection.ip_address == "127.0.0.1"
 
       _ = SocketClient.clean_close(socket)
       :timer.sleep(10)

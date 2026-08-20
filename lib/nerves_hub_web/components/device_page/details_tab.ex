@@ -315,6 +315,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </span>
             </div>
 
+            <div :if={@device.latest_connection && @device.latest_connection.ip_address} class="flex min-h-7 items-center gap-4 px-4">
+              <span class="text-base-500 text-sm">IP Address:</span>
+              <span class="text-base-300 text-sm">{@device.latest_connection.ip_address}</span>
+            </div>
+
             <div class="flex min-h-7 items-center gap-4 px-4">
               <span class="text-base-500 text-sm">Added:</span>
               <span class="text-base-300 text-sm">{@device.inserted_at |> NaiveDateTime.to_date() |> Date.to_string()}</span>

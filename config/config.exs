@@ -40,6 +40,12 @@ config :mime, :types, %{
   "application/fwup" => ["fw"]
 }
 
+# Devices authenticate with client certificates, so TLS terminates in the app
+# rather than at a load balancer. Set `proxy_protocol: :v2` when something in
+# front of us passes TLS through and announces the device with a PROXY protocol
+# header. See `NervesHub.DeviceSSLTransport`.
+config :nerves_hub, NervesHub.DeviceSSLTransport, proxy_protocol: nil
+
 config :nerves_hub, NervesHub.Repo,
   queue_target: 500,
   queue_interval: 5_000,

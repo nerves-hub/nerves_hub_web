@@ -58,14 +58,14 @@ defmodule NervesHubWeb.DeviceSocket do
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
   @decorate with_span("Channels.DeviceSocket.connect:cert_auth")
-  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
-    authenticate(socket, {:ssl_cert, ssl_cert})
+  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}} = connect_info) when not is_nil(ssl_cert) do
+    authenticate(socket, {:ssl_cert, ssl_cert}, connect_info)
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
   @decorate with_span("Channels.DeviceSocket.connect:shared_secrets")
-  def connect(_params, socket, %{x_headers: x_headers}) when is_list(x_headers) and x_headers != [] do
-    authenticate(socket, {:shared_secret, Map.new(x_headers)})
+  def connect(_params, socket, %{x_headers: x_headers} = connect_info) when is_list(x_headers) and x_headers != [] do
+    authenticate(socket, {:shared_secret, Map.new(x_headers)}, connect_info)
   end
 
   def connect(_params, _socket, _connect_info) do
@@ -90,9 +90,9 @@ defmodule NervesHubWeb.DeviceSocket do
   # may be unreachable -- during a deploy, a partition, or before this node has
   # finished joining the cluster. Refusing is correct; raising is not, because it
   # answers the device with a 500 and buries the reason in a rendered error page.
-  defp authenticate(socket, credentials) do
+  defp authenticate(socket, credentials, connect_info) do
     case DeviceLink.authenticate(credentials) do
-      {:ok, device_info} -> socket_and_assigns(socket, device_info)
+      {:ok, device_info} -> socket_and_assigns(socket, device_info, ip_address(connect_info))
       {:error, reason} -> {:error, reason}
     end
   catch
@@ -105,17 +105,34 @@ defmodule NervesHubWeb.DeviceSocket do
       {:error, :platform_unavailable}
   end
 
-  defp socket_and_assigns(socket, device_info) do
+  defp socket_and_assigns(socket, device_info, ip_address) do
     # disconnect devices using the same identifier
     _ = socket.endpoint.broadcast_from(self(), "device_socket:#{device_info.device_id}", "disconnect", %{})
 
-    {:ok, assign(socket, :device_info, device_info)}
+    socket =
+      socket
+      |> assign(:device_info, device_info)
+      |> assign(:ip_address, ip_address)
+
+    {:ok, socket}
   end
+
+  # The address the device reached us from. Behind a load balancer this is only
+  # the device's own if the balancer announced it -- see
+  # `NervesHub.DeviceSSLTransport` -- and is otherwise the balancer's.
+  defp ip_address(%{peer_data: %{address: address}}) when is_tuple(address) do
+    case :inet.ntoa(address) do
+      {:error, _reason} -> nil
+      formatted -> to_string(formatted)
+    end
+  end
+
+  defp ip_address(_connect_info), do: nil
 
   @decorate with_span("Channels.DeviceSocket.on_connect")
   defp on_connect(%{assigns: %{device_info: device_info}} = socket) do
     # Report connection and use connection id as reference
-    {:ok, device_info} = DeviceLink.connect(device_info)
+    {:ok, device_info} = DeviceLink.connect(device_info, socket.assigns[:ip_address])
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: device_info.connection_ref,

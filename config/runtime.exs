@@ -217,6 +217,33 @@ if config_env() == :prod do
         transport_options ++ [versions: [:"tlsv1.2"]]
       end
 
+    # When a load balancer passes TLS through to us it hides the device behind
+    # its own address, and can't add a forwarding header because it never sees
+    # inside the stream. The PROXY protocol is how it tells us who connected.
+    # Only v2 is supported; see `NervesHub.DeviceSSLTransport`.
+    proxy_protocol =
+      case System.get_env("DEVICE_PROXY_PROTOCOL") do
+        nil ->
+          nil
+
+        "" ->
+          nil
+
+        "v2" ->
+          :v2
+
+        other ->
+          raise """
+          DEVICE_PROXY_PROTOCOL was set to #{inspect(other)}, and the only supported value is "v2".
+
+          Version 1 of the PROXY protocol can't be read without risking a read into the TLS
+          handshake that follows it, so configure the load balancer to send v2 instead. On
+          Fly.io that is `proxy_proto_options = { version = "v2" }`.
+          """
+      end
+
+    config :nerves_hub, NervesHub.DeviceSSLTransport, proxy_protocol: proxy_protocol
+
     config :nerves_hub, NervesHubWeb.DeviceEndpoint,
       url: [host: host],
       https: [
