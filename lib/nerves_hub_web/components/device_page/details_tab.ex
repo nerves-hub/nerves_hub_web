@@ -315,9 +315,23 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </span>
             </div>
 
-            <div :if={@device.latest_connection && @device.latest_connection.ip_address} class="flex min-h-7 items-center gap-4 px-4">
+            <div :if={@device.latest_connection && @device.latest_connection.ip_address} class="group/ip flex min-h-7 items-center gap-4 px-4">
               <span class="text-base-500 text-sm">IP Address:</span>
-              <span class="text-base-300 text-sm">{@device.latest_connection.ip_address}</span>
+              <div class="flex min-w-0 items-center gap-1.5">
+                <span class="text-base-300 font-mono text-sm">{@device.latest_connection.ip_address}</span>
+                <button
+                  id="copy-ip-address"
+                  type="button"
+                  phx-hook="CopyToClipboard"
+                  data-copy-value={@device.latest_connection.ip_address}
+                  aria-label="Copy IP address"
+                  title="Copy value"
+                  class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/ip:opacity-100 focus-visible:opacity-100"
+                >
+                  <span data-icon="copy" class="lucide-copy--light size-4"></span>
+                  <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+                </button>
+              </div>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
