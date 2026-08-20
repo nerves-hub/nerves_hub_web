@@ -1,17 +1,34 @@
 defmodule NervesHub.Devices.ExternalIdentities do
   @moduledoc """
-  Context for the identities a device holds on networks NervesHub does not run.
+  Context for identities held on networks NervesHub does not run.
 
-  See `NervesHub.Devices.ExternalIdentity` for what is stored and why.
+  See `NervesHub.Devices.ExternalIdentity` for what is stored and why, including
+  who can hold one: a device, a membership, or nobody in particular.
 
-  Writes arrive from two places with very different trust: a device announcing
-  itself over its socket, and (later) an operator recording an identity by hand.
-  `report/3` is the device-facing path and is deliberately the more restricted
-  of the two.
+  Writes arrive from two places with very different trust. A device announcing
+  itself over its own connection has proven the key it is reporting. An operator
+  typing one into a form has proven nothing — they may have mistyped it, or be
+  claiming a key belonging to somebody else.
+
+  That asymmetry decides the rules here:
+
+    * A device **takes over** a key an operator recorded by hand in the same
+      organisation. Possession beats assertion, and this is the intended flow:
+      register a key, then watch the device claim it.
+    * A device is **refused** a key held in another organisation, loudly. Left to
+      the unique index it would fail on every reconnect forever, looking like a
+      network fault rather than the conflict it is.
+    * An operator is **refused** a key already known anywhere else, for the same
+      reason from the other side: first-come-wins on an unproven key lets one
+      organisation take another's traffic, or squat a key so its real owner can
+      never register.
   """
 
   import Ecto.Query
 
+  alias Ecto.Multi
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.ExternalIdentity
   alias NervesHub.Repo
@@ -48,16 +65,188 @@ defmodule NervesHub.Devices.ExternalIdentities do
   end
 
   @doc """
-  Fetch the device that proved possession of `identifier` on `service`.
+  Identities belonging to an organisation, newest first.
+
+  `opts` narrows the list:
+
+    * `:service` — only this protocol.
+    * `:owner` — `:device`, `:org_user`, or `:unowned`.
+    * `:search` — matches the start of an identifier, or anywhere in a device's
+      identifier or a user's name. Prefix rather than substring on the key
+      because that is the half an operator has: logs and tables show a key
+      truncated, so the beginning is what they can copy.
+
+  Owners are preloaded, since a list of keys without whose they are is not much
+  of a list.
+  """
+  @spec list_for_org(pos_integer(), keyword()) :: [ExternalIdentity.t()]
+  def list_for_org(org_id, opts \\ []) do
+    ExternalIdentity
+    |> where(org_id: ^org_id)
+    |> filter_by_service(opts[:service])
+    |> filter_by_owner(opts[:owner])
+    |> filter_by_search(opts[:search])
+    |> order_by([ei], desc: ei.inserted_at, asc: ei.id)
+    |> preload([:device, org_user: :user])
+    |> Repo.all()
+  end
+
+  defp filter_by_service(query, nil), do: query
+  defp filter_by_service(query, service), do: where(query, service: ^service)
+
+  defp filter_by_owner(query, nil), do: query
+  defp filter_by_owner(query, :device), do: where(query, [ei], not is_nil(ei.device_id))
+  defp filter_by_owner(query, :org_user), do: where(query, [ei], not is_nil(ei.org_user_id))
+
+  defp filter_by_owner(query, :unowned), do: where(query, [ei], is_nil(ei.device_id) and is_nil(ei.org_user_id))
+
+  defp filter_by_owner(query, _other), do: query
+
+  defp filter_by_search(query, search) when is_binary(search) do
+    case String.trim(search) do
+      "" ->
+        query
+
+      term ->
+        prefix = escape_like(term) <> "%"
+        anywhere = "%" <> escape_like(term) <> "%"
+
+        query
+        |> join(:left, [ei], d in Device, on: d.id == ei.device_id, as: :device)
+        |> join(:left, [ei], ou in OrgUser, on: ou.id == ei.org_user_id, as: :org_user)
+        |> join(:left, [org_user: ou], u in User, on: u.id == ou.user_id, as: :user)
+        |> where(
+          [ei, device: d, user: u],
+          ilike(ei.identifier, ^prefix) or ilike(d.identifier, ^anywhere) or
+            ilike(u.name, ^anywhere)
+        )
+    end
+  end
+
+  defp filter_by_search(query, _search), do: query
+
+  # A search for "abc_" should look for that, not treat the underscore as a
+  # wildcard and match everything.
+  defp escape_like(term) do
+    String.replace(term, ["\\", "%", "_"], fn char -> "\\" <> char end)
+  end
+
+  @doc """
+  Record an identity by hand, against an organisation.
+
+  For something NervesHub does not manage — a laptop, a jump host — or for a
+  device being registered before it first connects, which then claims the row
+  itself. Pass `:org_user_id` to attach it to a membership, or leave it off for
+  an identity the organisation holds directly.
+
+  Returns `{:error, :claimed_elsewhere}` when the key is already recorded
+  anywhere, including in another organisation. Nothing about a typed-in key is
+  proven, so first-come-wins would let one organisation take another's traffic
+  by registering a key it does not hold — or squat one so its real owner never
+  can. The caller is expected to say so plainly rather than retry.
+
+  Returns `{:error, :invalid_member}` when `:org_user_id` names a membership of
+  some other organisation. The id arrives from a form and is therefore a
+  request, not a fact: without this, a crafted one would attach a key to
+  somebody outside the organisation doing the registering.
+  """
+  @spec register(pos_integer(), atom() | String.t(), map()) ::
+          {:ok, ExternalIdentity.t()}
+          | {:error, :unsupported_service | :claimed_elsewhere | :invalid_member | Ecto.Changeset.t()}
+  def register(org_id, service, attrs) do
+    with {:ok, service} <- cast_service_result(service),
+         {:ok, org_user_id} <- cast_member(org_id, attrs[:org_user_id] || attrs["org_user_id"]) do
+      identifier = attrs[:identifier] || attrs["identifier"]
+
+      if is_binary(identifier) and Repo.exists?(claimed_query(service, identifier)) do
+        {:error, :claimed_elsewhere}
+      else
+        %ExternalIdentity{}
+        |> ExternalIdentity.changeset(%{
+          org_id: org_id,
+          org_user_id: org_user_id,
+          service: service,
+          instance: cast_instance(attrs[:instance] || attrs["instance"]),
+          identifier: identifier,
+          details: attrs[:details] || attrs["details"] || %{},
+          source: :operator
+        })
+        |> Repo.insert()
+      end
+    end
+  end
+
+  # "" arrives from a select whose blank option means "nobody".
+  defp cast_member(_org_id, nil), do: {:ok, nil}
+  defp cast_member(_org_id, ""), do: {:ok, nil}
+
+  defp cast_member(org_id, org_user_id) do
+    with {:ok, id} <- cast_member_id(org_user_id),
+         true <- Repo.exists?(member_query(org_id, id)) do
+      {:ok, id}
+    else
+      _other -> {:error, :invalid_member}
+    end
+  end
+
+  defp cast_member_id(id) when is_integer(id), do: {:ok, id}
+
+  defp cast_member_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {parsed, ""} -> {:ok, parsed}
+      _other -> :error
+    end
+  end
+
+  defp cast_member_id(_id), do: :error
+
+  defp member_query(org_id, org_user_id) do
+    OrgUser
+    |> where(id: ^org_user_id)
+    |> where(org_id: ^org_id)
+    |> where([ou], is_nil(ou.deleted_at))
+  end
+
+  defp claimed_query(service, identifier) do
+    ExternalIdentity
+    |> where(service: ^service)
+    |> where(identifier: ^identifier)
+  end
+
+  @doc """
+  Remove an identity.
+
+  Scoped to an organisation so a caller cannot delete one belonging to another
+  by guessing an id.
+  """
+  @spec delete(pos_integer(), pos_integer()) :: {:ok, ExternalIdentity.t()} | {:error, :not_found}
+  def delete(org_id, id) do
+    ExternalIdentity
+    |> where(id: ^id)
+    |> where(org_id: ^org_id)
+    |> Repo.fetch()
+    |> case do
+      {:ok, identity} -> Repo.delete(identity)
+      {:error, :not_found} -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Fetch the owner that proved possession of `identifier` on `service`.
 
   The reverse of `get/3`: that one starts from a device, this one starts from
-  the key. `ExternalIdentity` carries a unique index on `(service, identifier)`
-  precisely so this is a point lookup — a key belongs to at most one device.
+  the key. `(service, identifier)` is unique across the whole table, so this is
+  a point lookup and a key resolves to exactly one organisation.
 
-  A soft-deleted device comes back as `{:error, :device_deleted}` rather than
-  `{:error, :not_found}`. Both mean "do not admit this key", but they mean
-  different things to whoever reads the logs: one is a key nobody ever
-  registered, the other a device removed while still holding one.
+  Returns the organisation the key speaks for, and who holds it — a device, a
+  membership, or neither for one an operator recorded by hand.
+
+  An identity whose owner has been removed is refused, not returned. Devices and
+  memberships are both soft deleted, so the rows survive; treating them as live
+  would let a decommissioned device, or somebody removed from an organisation,
+  keep whatever access the key grants. `{:error, :owner_deleted}` says so
+  distinctly from `{:error, :not_found}` — both mean refuse, but one is a key
+  nobody registered and the other is access that has been taken away.
 
   Matching is exact, and nothing here normalises case, because it cannot: an
   iroh endpoint id is hex and case-insensitive in practice, while a WireGuard
@@ -70,12 +259,11 @@ defmodule NervesHub.Devices.ExternalIdentities do
   It is not unused — do not remove it.** See "Cross-application contracts" in
   `AGENTS.md`.
 
-  Today's caller is the iroh relay authorization service, which answers
-  `iroh-relay`'s access hook. A relay first proves the endpoint holds the
-  private key for the endpoint id it claims, then asks whether that key belongs
-  to a device we know and which organisation owns it. The organisation becomes
-  the relay "fabric", which is what stops one customer's devices reaching
-  another's.
+  Today's caller answers a relay's access check: the relay proves the peer holds
+  the private key for the endpoint id it claims, then asks whether that key is
+  one of ours and which organisation it belongs to. The organisation decides
+  which network the peer is placed on, which is what stops one customer's
+  devices reaching another's.
 
   Being an `:erpc` target shapes the return value in two ways:
 
@@ -87,48 +275,77 @@ defmodule NervesHub.Devices.ExternalIdentities do
       removing one breaks a caller this repository cannot see and will not fail
       to compile against. The test pins the shape for that reason.
   """
-  @spec get_device_by_identifier(atom() | String.t(), String.t()) ::
-          {:ok, map()} | {:error, :not_found | :device_deleted | :unsupported_service}
-  def get_device_by_identifier(service, identifier) when is_binary(identifier) do
+  @spec get_owner_by_identifier(atom() | String.t(), String.t()) ::
+          {:ok, map()} | {:error, :not_found | :owner_deleted | :unsupported_service}
+  def get_owner_by_identifier(service, identifier) when is_binary(identifier) do
     case cast_service(service) do
-      {:ok, service} -> device_by_identifier(service, identifier)
+      {:ok, service} -> owner_by_identifier(service, identifier)
       :error -> {:error, :unsupported_service}
     end
   end
 
-  defp device_by_identifier(service, identifier) do
+  defp owner_by_identifier(service, identifier) do
     ExternalIdentity
     |> where(service: ^service)
     |> where(identifier: ^identifier)
-    |> join(:inner, [ei], d in Device, on: d.id == ei.device_id)
-    |> select([ei, d], %{
-      device_id: d.id,
-      device_identifier: d.identifier,
-      org_id: d.org_id,
-      product_id: d.product_id,
+    |> join(:left, [ei], d in Device, on: d.id == ei.device_id)
+    |> join(:left, [ei, _d], ou in OrgUser, on: ou.id == ei.org_user_id)
+    |> select([ei, d, ou], %{
+      org_id: ei.org_id,
       service: ei.service,
       instance: ei.instance,
-      deleted_at: d.deleted_at
+      identifier: ei.identifier,
+      owner:
+        fragment(
+          "CASE WHEN ? IS NOT NULL THEN 'device' WHEN ? IS NOT NULL THEN 'org_user' ELSE 'org' END",
+          ei.device_id,
+          ei.org_user_id
+        ),
+      device_id: ei.device_id,
+      device_identifier: d.identifier,
+      org_user_id: ei.org_user_id,
+      user_id: ou.user_id,
+      device_deleted_at: d.deleted_at,
+      org_user_deleted_at: ou.deleted_at
     })
     |> Repo.fetch()
     |> case do
-      {:ok, %{deleted_at: nil} = found} -> {:ok, Map.delete(found, :deleted_at)}
-      {:ok, _deleted} -> {:error, :device_deleted}
-      {:error, :not_found} -> {:error, :not_found}
+      {:ok, %{device_deleted_at: nil, org_user_deleted_at: nil} = found} ->
+        {:ok, Map.drop(found, [:device_deleted_at, :org_user_deleted_at])}
+
+      {:ok, _removed} ->
+        {:error, :owner_deleted}
+
+      {:error, :not_found} ->
+        {:error, :not_found}
     end
   end
 
   @doc """
   Record an identity a device has reported about itself.
 
+  The device has proven this key on its own connection, so this is the trusted
+  path — but proving a key says nothing about who registered it first, which is
+  where the interesting cases are.
+
   Returns `{:error, :unsupported_service}` for a service this NervesHub does not
   know about. A device is free to run something we have no schema for, and that
   must not disturb its connection — the caller is expected to skip it.
 
-  Returns `{:error, :operator_managed}` when an operator has recorded a
-  different identity for this device, service and instance. That disagreement is
-  worth surfacing rather than resolving silently: it means the device was
-  reflashed, its state partition was wiped, or something is claiming to be it.
+  Returns `{:error, :claimed_elsewhere}` when the key is already held by another
+  device, by a membership, or by another organisation. Nothing is changed, and
+  it is logged as a warning: a key in two places is either a cloned image or
+  somebody registering a key they do not own, and both want a person to look.
+
+  Returns `{:error, :operator_managed}` when an operator recorded a *different*
+  key for this device, service and instance. That disagreement means the device
+  was reflashed, its state partition was wiped, or something is claiming to be
+  it.
+
+  A key an operator recorded by hand in this device's own organisation is
+  **taken over** rather than refused: the row becomes device-owned. That is the
+  intended flow for registering a device ahead of it appearing — put the key in,
+  and the device claims it on its next connection.
 
   `attrs` may carry an `:instance` naming which endpoint of the service this is.
   A device running both an iroh console and an iroh application reports each
@@ -136,24 +353,99 @@ defmodule NervesHub.Devices.ExternalIdentities do
   """
   @spec report(pos_integer(), atom() | String.t(), map()) ::
           {:ok, ExternalIdentity.t()}
-          | {:error, :unsupported_service | :operator_managed | Ecto.Changeset.t()}
+          | {:error,
+             :unsupported_service
+             | :operator_managed
+             | :claimed_elsewhere
+             | :device_not_found
+             | Ecto.Changeset.t()}
   def report(device_id, service, attrs) do
+    with {:ok, service} <- cast_service_result(service),
+         {:ok, device} <- fetch_device(device_id) do
+      do_report(device, service, attrs)
+    end
+  end
+
+  defp cast_service_result(service) do
     case cast_service(service) do
-      {:ok, service} -> do_report(device_id, service, attrs)
+      {:ok, service} -> {:ok, service}
       :error -> {:error, :unsupported_service}
     end
   end
 
-  defp do_report(device_id, service, attrs) do
+  # The organisation is read from the device rather than passed in, so a caller
+  # cannot record an identity into an organisation the device does not belong to.
+  defp fetch_device(device_id) do
+    Device
+    |> where(id: ^device_id)
+    |> where([d], is_nil(d.deleted_at))
+    |> select([d], %{id: d.id, org_id: d.org_id})
+    |> Repo.fetch(:device_not_found)
+  end
+
+  defp do_report(device, service, attrs) do
     identifier = attrs[:identifier] || attrs["identifier"]
     details = attrs[:details] || attrs["details"] || %{}
     instance = cast_instance(attrs[:instance] || attrs["instance"])
 
-    case get(device_id, service, instance) do
+    # A device that reports nothing usable goes straight to the changeset, which
+    # is where "identifier is required" gets said. Looking it up first would ask
+    # Ecto to compare against nil, which it refuses.
+    if is_binary(identifier) and identifier != "" do
+      claim_or_record(device, service, instance, identifier, details)
+    else
+      record_for_instance(device, service, instance, identifier, details)
+    end
+  end
+
+  defp claim_or_record(device, service, instance, identifier, details) do
+    # Who, if anyone, already holds this key. Checked before the device's own row
+    # so that a conflict is reported as a conflict, rather than arriving later as
+    # a unique violation that repeats on every reconnect.
+    case Repo.get_by(ExternalIdentity, service: service, identifier: identifier) do
+      nil ->
+        record_for_instance(device, service, instance, identifier, details)
+
+      %ExternalIdentity{device_id: device_id, instance: ^instance} = existing
+      when device_id == :erlang.map_get(:id, device) ->
+        # The device's own row for this endpoint. Ordinary re-report, or a
+        # detail change.
+        update_own(existing, identifier, details, device)
+
+      %ExternalIdentity{device_id: device_id} when device_id == :erlang.map_get(:id, device) ->
+        # The device already holds this key under a different endpoint. One key
+        # names one endpoint, so this is the device misreporting rather than a
+        # rotation, and quietly moving the other row would lose an endpoint.
+        Logger.warning(
+          "[ExternalIdentities] device #{device.id} reported a #{service} key it already holds " <>
+            "under another instance; leaving both alone"
+        )
+
+        {:error, :claimed_elsewhere}
+
+      %ExternalIdentity{device_id: nil, org_user_id: nil, org_id: org_id} = unclaimed
+      when org_id == :erlang.map_get(:org_id, device) ->
+        claim(unclaimed, device, instance, details)
+
+      other ->
+        Logger.warning(
+          "[ExternalIdentities] device #{device.id} reported a #{service} key already held by " <>
+            "#{describe_owner(other)}; leaving it alone"
+        )
+
+        {:error, :claimed_elsewhere}
+    end
+  end
+
+  # No one holds the key. The device may still have a row for this endpoint —
+  # a rotated key — in which case that row moves rather than a second appearing.
+  defp record_for_instance(device, service, instance, identifier, details) do
+    case get(device.id, service, instance) do
       {:error, :not_found} ->
         %ExternalIdentity{}
         |> ExternalIdentity.changeset(%{
-          device_id: device_id,
+          org_id: device.org_id,
+          device_id: device.id,
           service: service,
           instance: instance,
           identifier: identifier,
@@ -162,26 +454,84 @@ defmodule NervesHub.Devices.ExternalIdentities do
           last_reported_at: DateTime.utc_now()
         })
         |> Repo.insert()
-        |> broadcast_if_ok(device_id)
+        |> broadcast_if_ok(device.id)
 
       {:ok, %ExternalIdentity{source: :operator} = existing} ->
-        if existing.identifier == identifier do
-          # The device agrees with what the operator recorded, so record that we
-          # heard from it and leave the row otherwise untouched.
-          touch(existing)
-        else
-          Logger.warning(
-            "[ExternalIdentities] device #{device_id} reported a #{service}/#{instance} identity " <>
-              "that differs from the operator-recorded one; ignoring the device's value"
-          )
+        Logger.warning(
+          "[ExternalIdentities] device #{device.id} reported a #{service}/#{instance} identity " <>
+            "that differs from the operator-recorded one; ignoring the device's value"
+        )
 
-          {:error, :operator_managed}
-        end
+        _ = existing
+        {:error, :operator_managed}
 
       {:ok, existing} ->
-        update(existing, identifier, details, device_id)
+        update(existing, identifier, details, device.id)
     end
   end
+
+  # An operator recorded this key by hand and the device has now proven it, so
+  # the row becomes the device's. Any row the device held for the same endpoint
+  # is removed in the same transaction, since one owner has one identity per
+  # endpoint and the partial unique index would refuse the second.
+  defp claim(unclaimed, device, instance, details) do
+    superseded =
+      ExternalIdentity
+      |> where(device_id: ^device.id)
+      |> where(service: ^unclaimed.service)
+      |> where(instance: ^instance)
+
+    Multi.new()
+    |> Multi.delete_all(:superseded, superseded)
+    |> Multi.update(
+      :claimed,
+      ExternalIdentity.changeset(unclaimed, %{
+        device_id: device.id,
+        instance: instance,
+        details: details,
+        source: :device_reported,
+        last_reported_at: DateTime.utc_now()
+      })
+    )
+    |> Repo.transact()
+    |> case do
+      {:ok, %{claimed: claimed}} ->
+        Logger.info(
+          "[ExternalIdentities] device #{device.id} claimed a #{unclaimed.service} key " <>
+            "that had been registered by hand"
+        )
+
+        broadcast_if_ok({:ok, claimed}, device.id)
+
+      {:error, _step, reason, _changes} ->
+        {:error, reason}
+    end
+  end
+
+  defp update_own(%ExternalIdentity{source: :operator} = existing, identifier, _details, device) do
+    if existing.identifier == identifier do
+      # The device agrees with what the operator recorded, so record that we
+      # heard from it and leave the row otherwise untouched.
+      touch(existing)
+    else
+      Logger.warning(
+        "[ExternalIdentities] device #{device.id} reported a #{existing.service} identity " <>
+          "that differs from the operator-recorded one; ignoring the device's value"
+      )
+
+      {:error, :operator_managed}
+    end
+  end
+
+  defp update_own(existing, identifier, details, device) do
+    update(existing, identifier, details, device.id)
+  end
+
+  defp describe_owner(%ExternalIdentity{device_id: id}) when not is_nil(id), do: "device #{id}"
+
+  defp describe_owner(%ExternalIdentity{org_user_id: id}) when not is_nil(id), do: "membership #{id}"
+
+  defp describe_owner(%ExternalIdentity{org_id: id}), do: "organisation #{id} by hand"
 
   # An absent or unusable instance means "this service's only endpoint". Devices
   # that run one of something shouldn't have to say so.

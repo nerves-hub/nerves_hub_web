@@ -1,13 +1,35 @@
 defmodule NervesHub.Devices.ExternalIdentity do
   @moduledoc """
-  An identity a device holds on a network that NervesHub does not operate.
+  An identity held on a network that NervesHub does not operate.
 
   Devices increasingly reach the outside world over something other than their
   NervesHub socket — an iroh endpoint, a NetBird or Tailscale peer, a plain
-  WireGuard interface. Those networks each name a device by a long-lived public
-  key, and each keeps *where* the device currently is (endpoint addresses, relay
+  WireGuard interface. Those networks each name a peer by a long-lived public
+  key, and each keeps *where* that peer currently is (endpoint addresses, relay
   assignment) separate and changeable. This schema records that pairing so an
-  operator can see, and act on, a device's identity elsewhere.
+  operator can see, and act on, an identity elsewhere.
+
+  ## Who holds one
+
+  A device, a person, or nobody in particular:
+
+    * `device_id` — reported by the device itself over its own connection.
+    * `org_user_id` — a **membership**, not a user. Someone in three
+      organisations holds three identities, each scoped to the one it speaks
+      for, and losing the membership takes the identity's access with it.
+    * neither — recorded by an operator for something NervesHub does not manage.
+
+  Never both owners at once; a database constraint enforces it. They could
+  disagree about which organisation the identity belongs to, and that answer has
+  to be unambiguous.
+
+  ## `org_id`
+
+  Every identity names an organisation, whether or not it has an owner, because
+  that is what consumers resolve a key to. It is stored rather than derived, and
+  so it has to be kept true: `NervesHub.Devices.move/3` updates it in the same
+  transaction that moves a device, or a moved device would keep answering for
+  the organisation it left.
 
   ## What `identifier` means
 
@@ -45,27 +67,48 @@ defmodule NervesHub.Devices.ExternalIdentity do
 
   ## Uniqueness
 
-  Two unique indexes back this table:
+  Three unique indexes back this table:
 
-    * `(device_id, service, instance)` — one identity per endpoint, so "this
-      device's iroh console ticket" has exactly one answer.
-    * `(service, identifier)` — two devices cannot claim the same key, and one
-      device cannot report the same key under two instances. This is what catches
-      a cloned SD card: imaging a provisioned device copies its `/data`, so every
-      device in the batch boots holding the same key. Without this the fleet
-      simply misbehaves; with it, the second device to report fails loudly.
+    * `(service, identifier)` — no two owners may claim the same key, anywhere.
+      This is what makes the table a registry rather than a set of per-owner
+      lists: a key resolves to one organisation, so a consumer never has two
+      answers to choose between. It also catches a cloned SD card, where imaging
+      a provisioned device copies its `/data` and every device in the batch boots
+      holding the same key. Without it the fleet simply misbehaves; with it, the
+      second device to report fails loudly.
+    * `(device_id, service, instance)` and `(org_user_id, service, instance)` —
+      one identity per endpoint per owner, so "this device's iroh console" has
+      exactly one answer. Both are **partial**, over rows where that owner is
+      set. A plain composite index would let every operator-recorded row collide
+      silently, since NULL != NULL in Postgres — the same trap that keeps
+      `instance` from being nullable.
+
+  A consequence worth stating: because `(service, identifier)` is global, one key
+  belongs to one organisation. Somebody working across three of them runs three
+  endpoints, one per organisation, which is what `instance` is for.
   """
 
   use Ecto.Schema
 
   import Ecto.Changeset
 
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Devices.Device
 
   @type t :: %__MODULE__{}
 
-  @required_params [:device_id, :service, :identifier]
-  @optional_params [:instance, :details, :source, :last_reported_at]
+  # `org_id` is required of every identity, owned or not: it is what a key
+  # resolves to. The owner is optional and there is at most one of them.
+  @required_params [:org_id, :service, :identifier]
+  @optional_params [
+    :device_id,
+    :org_user_id,
+    :instance,
+    :details,
+    :source,
+    :last_reported_at
+  ]
 
   @default_instance "default"
 
@@ -78,8 +121,10 @@ defmodule NervesHub.Devices.ExternalIdentity do
   # URLs is well under a kilobyte.
   @max_details_bytes 4_096
 
-  schema "device_external_identities" do
+  schema "external_identities" do
+    belongs_to(:org, Org)
     belongs_to(:device, Device)
+    belongs_to(:org_user, OrgUser)
 
     field(:service, Ecto.Enum, values: [:iroh, :netbird, :tailscale, :wireguard])
     field(:instance, :string, default: @default_instance)
@@ -99,9 +144,10 @@ defmodule NervesHub.Devices.ExternalIdentity do
   @doc """
   Build a changeset for an external identity.
 
-  Both unique constraints are declared so a violation comes back as a changeset
-  error rather than a raised `Postgrex.Error` — a device reporting a duplicated
-  key is a situation to surface, not to crash on.
+  Every constraint the database holds is declared, so a violation comes back as
+  a changeset error rather than a raised `Postgrex.Error`. A duplicated key is a
+  situation to surface — to the operator who typed it, or in the logs when a
+  cloned device reports one — not to crash on.
   """
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(%__MODULE__{} = identity, params) do
@@ -111,13 +157,36 @@ defmodule NervesHub.Devices.ExternalIdentity do
     |> validate_length(:identifier, min: 1, max: @max_identifier_length)
     |> validate_length(:instance, min: 1, max: @max_identifier_length)
     |> validate_details_size()
+    |> validate_single_owner()
+    |> foreign_key_constraint(:org_id)
     |> foreign_key_constraint(:device_id)
-    |> unique_constraint([:device_id, :service, :instance],
-      name: :device_external_identities_device_id_service_instance_index
-    )
+    |> foreign_key_constraint(:org_user_id)
     |> unique_constraint([:service, :identifier],
-      name: :device_external_identities_service_identifier_index
+      name: :external_identities_service_identifier_index
     )
+    |> unique_constraint([:device_id, :service, :instance],
+      name: :external_identities_device_service_instance_index
+    )
+    |> unique_constraint([:org_user_id, :service, :instance],
+      name: :external_identities_org_user_service_instance_index
+    )
+    |> check_constraint(:device_id,
+      name: :external_identities_one_owner,
+      message: "an identity belongs to a device or a membership, not both"
+    )
+  end
+
+  # Caught here as well as by the database constraint, so the message lands on a
+  # field and reaches a form rather than arriving as a bare constraint error.
+  defp validate_single_owner(changeset) do
+    device_id = get_field(changeset, :device_id)
+    org_user_id = get_field(changeset, :org_user_id)
+
+    if device_id && org_user_id do
+      add_error(changeset, :device_id, "an identity belongs to a device or a membership, not both")
+    else
+      changeset
+    end
   end
 
   @doc """

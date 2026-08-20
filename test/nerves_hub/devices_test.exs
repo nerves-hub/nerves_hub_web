@@ -20,6 +20,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceHealth
+  alias NervesHub.Devices.ExternalIdentities
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Updates
@@ -1436,6 +1437,50 @@ defmodule NervesHub.DevicesTest do
         worker: FirmwareDeltaBuilder,
         args: %{"source_id" => device_firmware.id, "target_id" => target_firmware.id}
       )
+    end
+  end
+
+  describe "move/3 and external identities" do
+    test "an identity moves organisation with its device", %{device: device, user: user, tmp_dir: tmp_dir} do
+      # The identity names an organisation of its own, and that is what other
+      # networks resolve its key to. Left behind, this device would keep
+      # answering for the organisation it just left, and be placed on that
+      # organisation's network by anything using it.
+      other_org = Fixtures.org_fixture(user, %{name: "receiving-org"})
+      target_product = Fixtures.product_fixture(user, other_org)
+
+      identity = Fixtures.external_identity_fixture(device, %{identifier: "moves-with-me"})
+      assert identity.org_id == device.org_id
+
+      {:ok, moved} = Devices.move(device, target_product, user)
+
+      assert moved.org_id == other_org.id
+      assert Repo.reload!(identity).org_id == other_org.id
+
+      assert {:ok, %{org_id: resolved}} =
+               ExternalIdentities.get_owner_by_identifier(:iroh, "moves-with-me")
+
+      assert resolved == other_org.id
+      _ = tmp_dir
+    end
+
+    test "identities for other devices are left alone", %{
+      device: device,
+      user: user,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      untouched_device = Fixtures.device_fixture(org, product, firmware, %{identifier: "stays-put"})
+      untouched = Fixtures.external_identity_fixture(untouched_device, %{identifier: "not-moving"})
+
+      other_org = Fixtures.org_fixture(user, %{name: "receiving-org-2"})
+      target_product = Fixtures.product_fixture(user, other_org)
+      _ = Fixtures.external_identity_fixture(device, %{identifier: "moving"})
+
+      {:ok, _} = Devices.move(device, target_product, user)
+
+      assert Repo.reload!(untouched).org_id == org.id
     end
   end
 
