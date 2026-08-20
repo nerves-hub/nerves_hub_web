@@ -81,6 +81,10 @@ config :nerves_hub,
   devices_websocket_url:
     System.get_env("DEVICES_WEBSOCKET_HOST") || System.get_env("DEVICE_HOST") || System.get_env("WEB_HOST") ||
       System.get_env("HOST"),
+  # Some devices connect to the management host instead of the device host. When
+  # enabled, the management endpoint answers those connections with a redirect to
+  # `:devices_websocket_url` instead of serving them.
+  redirect_to_devices_websocket_url: System.get_env("REDIRECT_TO_DEVICES_WEBSOCKET_URL", "false") == "true",
   clean_up_soft_deleted_devices: System.get_env("CLEAN_UP_SOFT_DELETED_DEVICES", "false") == "true",
   default_lifo_deployment_queue: System.get_env("DEFAULT_LIFO_DEPLOYMENT_QUEUE", "false") == "true",
   featurebase_app_id: System.get_env("FEATUREBASE_APP_ID"),

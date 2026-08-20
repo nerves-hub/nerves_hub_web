@@ -85,20 +85,39 @@ defmodule NervesHubWeb.DeviceSocket do
     assign(socket, :last_heartbeat, System.monotonic_time(:second))
   end
 
-  # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
+  def connect(params, socket, connect_info) do
+    case redirect_target(socket) do
+      nil -> do_connect(params, socket, connect_info)
+      host -> {:error, {:redirect, host}}
+    end
+  end
+
+  # Some devices are configured with the management host rather than the device
+  # host. Rather than serving them from the management endpoint, point them at
+  # the device websocket host. Only the management endpoint redirects; the device
+  # endpoint is the destination, so redirecting there would loop.
+  defp redirect_target(%{endpoint: NervesHubWeb.Endpoint}) do
+    if Application.get_env(:nerves_hub, :redirect_to_devices_websocket_url, false) do
+      Application.get_env(:nerves_hub, :devices_websocket_url)
+    end
+  end
+
+  defp redirect_target(_socket), do: nil
+
+  # Used by Devices connecting with SSL certificates
   @decorate with_span("Channels.DeviceSocket.connect:cert_auth")
-  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
+  defp do_connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
     authenticate(socket, {:ssl_cert, ssl_cert})
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
   @decorate with_span("Channels.DeviceSocket.connect:shared_secrets")
-  def connect(_params, socket, %{x_headers: x_headers}) when is_list(x_headers) and x_headers != [] do
+  defp do_connect(_params, socket, %{x_headers: x_headers}) when is_list(x_headers) and x_headers != [] do
     authenticate(socket, {:shared_secret, Map.new(x_headers)})
   end
 
-  def connect(_params, _socket, _connect_info) do
+  defp do_connect(_params, _socket, _connect_info) do
     {:error, :no_auth}
   end
 
