@@ -64,22 +64,54 @@ defmodule NervesHubWeb.Helpers.ClientIP do
   def resolve(connect_info, forwarded_header \\ nil, trailing_hops \\ 0)
 
   def resolve(connect_info, forwarded_header, trailing_hops) when is_binary(forwarded_header) do
-    forwarded_address(connect_info, forwarded_header, trailing_hops) || peer_address(connect_info)
+    case forwarded_address(header_values(connect_info, forwarded_header), trailing_hops) do
+      nil -> peer_address(connect_info)
+      address -> format(address)
+    end
   end
 
   def resolve(connect_info, nil, _trailing_hops), do: peer_address(connect_info)
 
+  @doc """
+  The same question for a plug pipeline rather than a socket: where the request
+  came from, as an address rather than a string.
+
+  Falls back to `conn.remote_ip`, so this always answers with an address.
+
+  Only for callers that have established a balancer is really in front of them.
+  A caller acting on the answer — throttling by it, admitting on it — has to
+  hold that assertion itself rather than assume it from a header being named,
+  because a forged header is cheap and the answer here is only as good as the
+  hop that wrote it.
+  """
+  @spec remote_ip(Plug.Conn.t(), String.t() | nil, non_neg_integer()) :: :inet.ip_address()
+  def remote_ip(conn, forwarded_header \\ nil, trailing_hops \\ 0)
+
+  def remote_ip(conn, forwarded_header, trailing_hops) when is_binary(forwarded_header) do
+    conn
+    |> Plug.Conn.get_req_header(forwarded_header)
+    |> forwarded_address(trailing_hops)
+    |> Kernel.||(conn.remote_ip)
+  end
+
+  def remote_ip(conn, nil, _trailing_hops), do: conn.remote_ip
+
   defp peer_address(%{peer_data: %{address: address}}) when is_tuple(address), do: format(address)
   defp peer_address(_connect_info), do: nil
+
+  defp header_values(%{x_headers: x_headers}, forwarded_header) when is_list(x_headers) do
+    for {header, value} <- x_headers, header == forwarded_header, do: value
+  end
+
+  defp header_values(_connect_info, _forwarded_header), do: []
 
   # Counted from the right, past the entries the infrastructure appended. The
   # client owns the left of the list and can put anything it likes there, but it
   # cannot push its own value rightwards past the ones added after it, so the
   # entry we land on does not move.
-  defp forwarded_address(%{x_headers: x_headers}, forwarded_header, trailing_hops) when is_list(x_headers) do
-    x_headers
-    |> Enum.filter(fn {header, _value} -> header == forwarded_header end)
-    |> Enum.flat_map(fn {_header, value} -> String.split(value, ",") end)
+  defp forwarded_address(values, trailing_hops) do
+    values
+    |> Enum.flat_map(&String.split(&1, ","))
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
     |> Enum.reverse()
@@ -88,13 +120,11 @@ defmodule NervesHubWeb.Helpers.ClientIP do
     |> parse()
   end
 
-  defp forwarded_address(_connect_info, _forwarded_header, _trailing_hops), do: nil
-
   defp parse(nil), do: nil
 
   defp parse(address) do
     case :inet.parse_address(to_charlist(strip_port(address))) do
-      {:ok, parsed} -> format(parsed)
+      {:ok, parsed} -> parsed
       {:error, _reason} -> nil
     end
   end

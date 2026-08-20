@@ -69,9 +69,16 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 # header carrying the address that peer saw. Set it to `nil` when the endpoint is
 # exposed directly, since then the header is only whatever the device chose to
 # send. See `NervesHubWeb.Helpers.ClientIP`.
+#
+# `behind_trusted_proxy` is the separate assertion that something in front of us
+# really does overwrite that header. Reading the header is worth doing on the
+# chance it is right, which is why it is on by default; *deciding* on it is only
+# safe once someone has confirmed the deployment, so throttling stays on the
+# socket's peer until this is turned on.
 config :nerves_hub, NervesHubWeb.Endpoint,
   forwarded_ip_header: "x-forwarded-for",
   forwarded_ip_trailing_hops: 0,
+  behind_trusted_proxy: false,
   adapter: Bandit.PhoenixAdapter,
   secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
   live_view: [

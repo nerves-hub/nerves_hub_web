@@ -163,9 +163,24 @@ if config_env() == :prod do
     # the wrong count reads a plausible looking address off the wrong machine.
     forwarded_ip_trailing_hops = String.to_integer(System.get_env("WEB_FORWARDED_IP_TRAILING_HOPS", "0"))
 
+    # Naming a header says where an address would arrive; this says the header can
+    # be believed. Kept separate because the two carry different risk: recording a
+    # forged address is bad data, while throttling on one lets a caller evade the
+    # limit by rotating a header it made up.
+    behind_trusted_proxy = System.get_env("WEB_BEHIND_TRUSTED_PROXY", "false") == "true"
+
+    if behind_trusted_proxy and is_nil(forwarded_ip_header) do
+      raise """
+      WEB_BEHIND_TRUSTED_PROXY is set, but WEB_FORWARDED_IP_HEADER is "none", so there is no
+      header for the proxy to be trusted about. Name the header it overwrites, or leave both
+      unset.
+      """
+    end
+
     config :nerves_hub, NervesHubWeb.Endpoint,
       forwarded_ip_header: forwarded_ip_header,
       forwarded_ip_trailing_hops: forwarded_ip_trailing_hops,
+      behind_trusted_proxy: behind_trusted_proxy,
       url: [
         host: host,
         scheme: System.get_env("WEB_SCHEME", "https"),
