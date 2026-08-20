@@ -56,6 +56,66 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: "no-firmware-device")
     end
+
+    test "with a button for copying the identifier", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has(
+        ~s(button#copy-device-identifier[phx-hook="CopyToClipboard"][data-copy-value="#{device.identifier}"])
+      )
+    end
+
+    test "with a button for copying each metadata value", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device.id,
+          "data" => %{"metadata" => %{"serial_number" => "SN-1234"}},
+          "status" => :healthy,
+          "status_reasons" => %{}
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has(~s(button#copy-metadata-serial_number[phx-hook="CopyToClipboard"][data-copy-value="SN-1234"]))
+    end
+  end
+
+  describe "the copy buttons" do
+    test "reveal on keyboard focus, but not after a mouse click", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device.id,
+          "data" => %{"metadata" => %{"serial_number" => "SN-1234"}},
+          "status" => :healthy,
+          "status_reasons" => %{}
+        })
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      # A click leaves the button focused, so `focus:` would keep it visible
+      # after the pointer moves away. `focus-visible:` only matches keyboard
+      # focus, which is what we want here.
+      for id <- ["copy-device-identifier", "copy-metadata-serial_number"] do
+        session
+        |> assert_has(~s(button##{id}[class*="focus-visible:opacity-100"]))
+        |> refute_has(~s(button##{id}[class*="focus:opacity-100"]))
+      end
+    end
   end
 
   describe "who is currently viewing the device page" do
