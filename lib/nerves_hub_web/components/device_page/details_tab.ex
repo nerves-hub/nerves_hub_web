@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Scripts
+  alias NervesHubWeb.Components.DeviceExternalIdentities
   alias NervesHubWeb.Components.DeviceLocation
   alias NervesHubWeb.Components.HealthStatus
   alias Phoenix.Socket.Broadcast
@@ -577,6 +578,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             enabled_device={@device.extensions.geo}
             location={extract_location_data(@device)}
             enable_location_editor={!!assigns[:enable_location_editor]}
+          />
+        </div>
+
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
+          <DeviceExternalIdentities.render
+            enabled_product={@product.extensions.external_identity}
+            enabled_device={@device.extensions.external_identity}
+            identities={@device.external_identities}
           />
         </div>
 

@@ -15,6 +15,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceFirmwares
+  alias NervesHub.Devices.ExternalIdentity
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Extensions
@@ -288,6 +289,12 @@ defmodule NervesHub.Devices do
     |> preload([d, device_certificates: dc], device_certificates: dc)
   end
 
+  defp join_and_preload(query, :external_identities) do
+    query
+    |> join(:left, [d], ei in assoc(d, :external_identities), as: :external_identities)
+    |> preload([external_identities: ei], external_identities: ei)
+  end
+
   defp join_and_preload(query, :latest_connection) do
     query
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
@@ -369,11 +376,18 @@ defmodule NervesHub.Devices do
   def delete_device(%Device{} = device) do
     device_certificates_query = from(dc in DeviceCertificate, where: dc.device_id == ^device.id)
     pinned_devices_query = from(p in PinnedDevice, where: p.device_id == ^device.id)
+
+    # A device is only soft deleted, so these have to go explicitly: otherwise
+    # they keep holding the (service, identifier) unique index and reprovisioning
+    # the same hardware collides with the identity of the device just deleted.
+    external_identities_query = from(ei in ExternalIdentity, where: ei.device_id == ^device.id)
+
     changeset = Repo.soft_delete_changeset(device)
 
     Multi.new()
     |> Multi.delete_all(:device_certificates, device_certificates_query)
     |> Multi.delete_all(:pinned_devices, pinned_devices_query)
+    |> Multi.delete_all(:external_identities, external_identities_query)
     |> Multi.update(:device, changeset)
     |> Repo.transact()
     |> case do
