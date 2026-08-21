@@ -750,6 +750,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
+  # Every one of these depends only on the product, so sorting, paging and
+  # filtering the list cannot change them - and `handle_params/3` runs on all
+  # three. Load them once and leave them; a failed load clears `filters_ready?`
+  # and gets retried on the next navigation.
+  defp assign_filter_data(%{assigns: %{filters_ready?: true}} = socket), do: socket
+
   defp assign_filter_data(%{assigns: %{current_scope: %{product: product}}} = socket) do
     socket
     |> start_async(:update_filter_data, fn ->
