@@ -101,14 +101,12 @@ defmodule NervesHub.DeviceEvents do
 
   def manual_update(device, firmware, user, opts \\ []) do
     Repo.transact(fn ->
-      url =
-        if opts[:delta] do
-          {:ok, url} = Firmwares.get_delta_url(device, firmware)
-          url
-        else
-          {:ok, url} = Firmwares.get_firmware_url(firmware)
-          url
-        end
+      # When a delta is being sent it is the delta that the device downloads, so
+      # it is the delta that describes the download.
+      {:ok, firmware_or_delta} =
+        if opts[:delta], do: Firmwares.get_delta(device, firmware), else: {:ok, firmware}
+
+      {:ok, url} = Firmwares.get_firmware_url(firmware_or_delta)
 
       firmware_url =
         if opts[:firmware_proxy_url] do
@@ -129,7 +127,10 @@ defmodule NervesHub.DeviceEvents do
       payload = %UpdatePayload{
         update_available: true,
         firmware_url: firmware_url,
-        firmware_meta: meta
+        firmware_meta: meta,
+        size: firmware_or_delta.size,
+        checksum: firmware_or_delta.checksum,
+        partials_checksums: firmware_or_delta.partials_checksums
       }
 
       :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
