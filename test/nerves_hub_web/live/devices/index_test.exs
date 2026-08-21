@@ -388,6 +388,37 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> refute_has("a", text: device2.identifier)
     end
 
+    # `Devices.filter/3` preloads only the columns behind the health icon and its
+    # tooltip, so this asserts the tooltip still has what it renders from.
+    test "renders the health tooltip from the trimmed preload", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product, firmware: firmware} = fixture
+
+      healthy = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => healthy.id,
+          "data" => %{"metrics" => %{"cpu_temp" => 41.2}},
+          "status" => :healthy
+        })
+
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device.id,
+          "data" => %{"metrics" => %{"cpu_temp" => 41.2}},
+          "status" => :warning,
+          "status_reasons" => %{"warning" => %{"cpu_temp" => %{"value" => 41.2, "threshold" => 40}}}
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+      # from `status_reasons`
+      |> assert_has("div", text: "Warning: Cpu Temp: 41.2 (threshold is 40)")
+      # from `status`, when there are no reasons to show
+      |> assert_has("div", text: "Device is healthy.")
+    end
+
     test "by health status", %{conn: conn, fixture: fixture} do
       %{
         device: device,

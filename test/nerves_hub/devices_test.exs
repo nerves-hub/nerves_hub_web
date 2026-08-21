@@ -2753,6 +2753,45 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "filter/3 health preload" do
+    setup %{device: device} do
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device.id,
+          "data" => %{"metrics" => %{"cpu_temp" => 41.2}, "alarms" => %{"SomeAlarm" => "boom"}},
+          "status" => "warning",
+          "status_reasons" => %{"warning" => %{"cpu_temp" => %{"value" => 41.2, "threshold" => 40}}}
+        })
+
+      :ok
+    end
+
+    test "loads what the device list renders", %{product: product, user: user, device: device} do
+      health = filtered_health(product, user, device)
+
+      assert health.status == :warning
+      assert health.status_reasons == %{"warning" => %{"cpu_temp" => %{"value" => 41.2, "threshold" => 40}}}
+    end
+
+    # The list only renders the health icon and its tooltip. `data` holds every
+    # metric the device last reported, so it stays in the database - anything
+    # needing it should load the device through `get_by_identifier!/3` instead.
+    test "leaves the metrics payload behind", %{product: product, user: user, device: device} do
+      assert filtered_health(product, user, device).data == nil
+    end
+
+    defp filtered_health(product, user, device) do
+      opts = %{
+        sort: {:asc, :identifier},
+        filters: %{display_deleted: "exclude", identifier: device.identifier}
+      }
+
+      {[%Device{} = filtered], _meta} = Devices.filter(product, user, opts)
+
+      filtered.latest_health
+    end
+  end
+
   def to_device_info(device) do
     %DeviceInfo{
       device_id: device.id,
