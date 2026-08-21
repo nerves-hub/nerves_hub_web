@@ -47,8 +47,7 @@ defmodule NervesHubWeb.Live.CommandPaletteTest do
     product: product,
     deployment_group: deployment_group
   } do
-    href =
-      "/org/#{org.name}/#{product.name}/deployment_groups/#{URI.encode(deployment_group.name)}"
+    href = "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.id}"
 
     conn
     |> visit(deployment_groups_path(org, product))

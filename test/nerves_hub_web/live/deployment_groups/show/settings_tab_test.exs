@@ -79,7 +79,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
       ManagedDeployments.get_deployment_group(deployment_group.id)
 
     conn
-    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{reloaded_deployment_group.name}"))
+    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{reloaded_deployment_group.id}"))
     |> assert_has("div", text: "Deployment Group updated")
 
     assert reloaded_deployment_group.name == "Moussaka"
@@ -117,7 +117,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SettingsTabTest do
     |> fill_in("Tag(s) distributed to", with: "")
     |> fill_in("Version requirement", with: "")
     |> click_button("Save changes")
-    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}"))
+    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.id}"))
 
     deployment_group = Repo.reload(deployment_group)
 

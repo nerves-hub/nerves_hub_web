@@ -1611,4 +1611,34 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert other_dg.id in ids
     end
   end
+
+  describe "get_by_product_and_name_or_id!/3" do
+    test "finds a deployment group by name", %{product: product, deployment_group: deployment_group} do
+      result = ManagedDeployments.get_by_product_and_name_or_id!(product, deployment_group.name)
+
+      assert result.id == deployment_group.id
+    end
+
+    test "falls back to id when no name matches", %{product: product, deployment_group: deployment_group} do
+      result = ManagedDeployments.get_by_product_and_name_or_id!(product, to_string(deployment_group.id))
+
+      assert result.id == deployment_group.id
+    end
+
+    test "prefers a numeric name over an id, even when a deployment group with that id exists", %{
+      product: product,
+      deployment_group: other_deployment_group,
+      firmware: firmware,
+      user: user
+    } do
+      numeric_name = to_string(other_deployment_group.id)
+
+      numerically_named_group =
+        Fixtures.deployment_group_fixture(firmware, %{name: numeric_name, user: user})
+
+      result = ManagedDeployments.get_by_product_and_name_or_id!(product, numeric_name)
+
+      assert result.id == numerically_named_group.id
+    end
+  end
 end

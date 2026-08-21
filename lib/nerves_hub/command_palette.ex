@@ -99,6 +99,7 @@ defmodule NervesHub.CommandPalette do
     |> order_by([dg], asc: dg.name)
     |> limit(^limit)
     |> select([dg, product: p, org: o], %{
+      id: dg.id,
       name: dg.name,
       org_name: o.name,
       product_name: p.name

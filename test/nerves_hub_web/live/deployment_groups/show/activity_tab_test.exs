@@ -45,14 +45,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ActivityTabTest do
         NervesHub.AuditLogs.audit!(user, deployment_group, "Pagination test entry #{i}")
       end)
 
-      encoded_name = URI.encode(deployment_group.name)
-
       conn
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/activity")
       |> assert_has("button[phx-value-page=\"2\"]")
       |> click_button(~s(button[phx-click="paginate"][phx-value-page="2"]), "2")
       |> assert_path(
-        "/org/#{org.name}/#{product.name}/deployment_groups/#{encoded_name}/activity",
+        "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.id}/activity",
         query_params: %{"page_number" => "2", "page_size" => "25"}
       )
       |> assert_has("div.flex.items-center.gap-6", count: 6)
@@ -69,13 +67,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ActivityTabTest do
         NervesHub.AuditLogs.audit!(user, deployment_group, "Page size test entry #{i}")
       end)
 
-      encoded_name = URI.encode(deployment_group.name)
-
       conn
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/activity")
       |> click_button("50")
       |> assert_path(
-        "/org/#{org.name}/#{product.name}/deployment_groups/#{encoded_name}/activity",
+        "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.id}/activity",
         query_params: %{"page_number" => "1", "page_size" => "50"}
       )
       |> assert_has("div.flex.items-center.gap-6", count: 50)

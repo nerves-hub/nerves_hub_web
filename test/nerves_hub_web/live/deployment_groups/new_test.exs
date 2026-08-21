@@ -32,19 +32,22 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
       firmware =
         Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "taramasalata"})
 
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new")
-      |> assert_has("h1", text: "Add Deployment Group")
-      |> assert_has("option", text: "Choose a platform")
-      |> select("Platform", option: firmware.platform)
-      |> select("Architecture", option: firmware.architecture)
-      |> fill_in("Name", with: "Moussaka")
-      |> fill_in("Tag(s) distributed to", with: "josh, lars")
-      |> select("Firmware", option: firmware.uuid, exact_option: false)
-      |> click_button("Save changes")
-      |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/Moussaka"))
-      |> assert_has("div", text: "Deployment Group created")
-      |> assert_has("h1", text: "Moussaka")
+      conn =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new")
+        |> assert_has("h1", text: "Add Deployment Group")
+        |> assert_has("option", text: "Choose a platform")
+        |> select("Platform", option: firmware.platform)
+        |> select("Architecture", option: firmware.architecture)
+        |> fill_in("Name", with: "Moussaka")
+        |> fill_in("Tag(s) distributed to", with: "josh, lars")
+        |> select("Firmware", option: firmware.uuid, exact_option: false)
+        |> click_button("Save changes")
+        |> assert_has("div", text: "Deployment Group created")
+        |> assert_has("h1", text: "Moussaka")
+
+      deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Moussaka"))
+      assert_path(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.id}")
 
       [%{resource_type: DeploymentGroup}, %{resource_type: DeploymentGroup}] = AuditLogs.logs_by(user)
     end
@@ -93,35 +96,39 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
   end
 
   test "delta updates are enabled by default", %{conn: conn, org: org, product: product} do
-    conn
-    |> assert_has("input[name='deployment_group[delta_updatable]']", value: "true")
-    |> fill_in("Name", with: "Canaries")
-    |> select("Platform", option: "platform")
-    |> select("Architecture", option: "x86_64")
-    |> select("Firmware", option: "1.0.0", exact_option: false)
-    |> submit()
-    |> assert_path(~p"/org/#{org}/#{product}/deployment_groups/Canaries")
+    conn =
+      conn
+      |> assert_has("input[name='deployment_group[delta_updatable]']", value: "true")
+      |> fill_in("Name", with: "Canaries")
+      |> select("Platform", option: "platform")
+      |> select("Architecture", option: "x86_64")
+      |> select("Firmware", option: "1.0.0", exact_option: false)
+      |> submit()
 
     deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
+    assert_path(conn, ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group.id}")
+
     assert deployment_group.delta_updatable
   end
 
   test "disable delta updates when creating a deployment group", %{conn: conn, org: org, product: product} do
-    conn
-    |> assert_has("input[name='deployment_group[delta_updatable]']", checked: true)
-    |> fill_in("Name", with: "Canaries")
-    |> uncheck("Delta updates")
-    |> select("Platform", option: "platform")
-    |> select("Architecture", option: "x86_64")
-    |> select("Firmware", option: "1.0.0", exact_option: false)
-    |> submit()
-    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/Canaries")
+    conn =
+      conn
+      |> assert_has("input[name='deployment_group[delta_updatable]']", checked: true)
+      |> fill_in("Name", with: "Canaries")
+      |> uncheck("Delta updates")
+      |> select("Platform", option: "platform")
+      |> select("Architecture", option: "x86_64")
+      |> select("Firmware", option: "1.0.0", exact_option: false)
+      |> submit()
 
     deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
+    assert_path(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.id}")
+
     refute deployment_group.delta_updatable
   end
 
-  test "can update only version", %{conn: conn, org: org, product: product, fixture: fixture} do
+  test "can update only version", %{conn: conn, product: product, fixture: fixture} do
     conn
     |> fill_in("Name", with: "Canaries")
     |> select("Platform", option: "platform")
@@ -130,7 +137,6 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
     |> fill_in("Tag(s) distributed to", with: "a, b")
     |> fill_in("Version requirement", with: "1.2.3")
     |> submit()
-    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/Canaries")
 
     deployment_group = ManagedDeployments.get_by_product_and_name!(product, "Canaries")
 
@@ -152,27 +158,32 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
   end
 
   test "can set notes when creating a deployment group", %{conn: conn, org: org, product: product} do
-    conn
-    |> fill_in("Name", with: "Canaries")
-    |> fill_in("Notes", with: "Created for the summer campaign hardware batch")
-    |> select("Platform", option: "platform")
-    |> select("Architecture", option: "x86_64")
-    |> select("Firmware", option: "1.0.0", exact_option: false)
-    |> submit()
-    |> assert_path(~p"/org/#{org}/#{product}/deployment_groups/Canaries")
+    conn =
+      conn
+      |> fill_in("Name", with: "Canaries")
+      |> fill_in("Notes", with: "Created for the summer campaign hardware batch")
+      |> select("Platform", option: "platform")
+      |> select("Architecture", option: "x86_64")
+      |> select("Firmware", option: "1.0.0", exact_option: false)
+      |> submit()
 
     deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
+    assert_path(conn, ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group.id}")
+
     assert deployment_group.notes == "Created for the summer campaign hardware batch"
   end
 
   test "notes is optional when creating a deployment group", %{conn: conn, org: org, product: product} do
-    conn
-    |> fill_in("Name", with: "Canaries")
-    |> select("Platform", option: "platform")
-    |> select("Architecture", option: "x86_64")
-    |> select("Firmware", option: "1.0.0", exact_option: false)
-    |> submit()
-    |> assert_path(~p"/org/#{org}/#{product}/deployment_groups/Canaries")
+    conn =
+      conn
+      |> fill_in("Name", with: "Canaries")
+      |> select("Platform", option: "platform")
+      |> select("Architecture", option: "x86_64")
+      |> select("Firmware", option: "1.0.0", exact_option: false)
+      |> submit()
+
+    deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
+    assert_path(conn, ~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group.id}")
 
     deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
     assert deployment_group.notes == nil

@@ -107,7 +107,7 @@ defmodule NervesHubWeb.Components.CommandPalette do
                 <.result_group :if={results.deployment_groups != []} title="Deployment Groups">
                   <.result_item
                     :for={group <- results.deployment_groups}
-                    navigate={~p"/org/#{group.org_name}/#{group.product_name}/deployment_groups/#{group.name}"}
+                    navigate={~p"/org/#{group.org_name}/#{group.product_name}/deployment_groups/#{group.id}"}
                     icon="lucide-rocket--light"
                     label={group.name}
                     hint={"#{group.org_name} / #{group.product_name}"}

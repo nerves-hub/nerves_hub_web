@@ -108,21 +108,61 @@ defmodule NervesHub.ManagedDeployments do
   def get_by_product_and_name!(product, name, with_device_count \\ false)
 
   def get_by_product_and_name!(product, name, true) do
-    subquery =
-      Device
-      |> select([d], %{device_count: count()})
-      |> Repo.exclude_deleted()
-      |> where([d], d.deployment_id == parent_as(:deployment_group).id)
-
     get_by_product_and_name_query(product, name)
-    |> join(:left_lateral, [d], dev in subquery(subquery), on: true, as: :devices)
-    |> select_merge([_f, devices: devices], %{device_count: devices.device_count})
+    |> with_device_count_lateral()
     |> Repo.one!()
   end
 
   def get_by_product_and_name!(product, name, false) do
     get_by_product_and_name_query(product, name)
     |> Repo.one!()
+  end
+
+  @spec get_by_product_and_id!(Product.t(), integer(), boolean()) :: DeploymentGroup.t()
+  def get_by_product_and_id!(product, id, with_device_count \\ false)
+
+  def get_by_product_and_id!(product, id, true) do
+    get_by_product_and_id_query(product, id)
+    |> with_device_count_lateral()
+    |> Repo.one!()
+  end
+
+  def get_by_product_and_id!(product, id, false) do
+    get_by_product_and_id_query(product, id)
+    |> Repo.one!()
+  end
+
+  @doc """
+  Looks up a Deployment Group by name, falling back to its ID.
+
+  Supports old bookmarked/shared links that reference the ID instead of the name.
+  A deployment group's name can itself be numeric, so the name is tried first
+  to avoid misinterpreting it as an ID.
+  """
+  @spec get_by_product_and_name_or_id!(Product.t(), String.t(), boolean()) :: DeploymentGroup.t()
+  def get_by_product_and_name_or_id!(product, name_or_id, with_device_count \\ false) do
+    case get_deployment_group_by_name(product, name_or_id) do
+      {:ok, _deployment_group} ->
+        get_by_product_and_name!(product, name_or_id, with_device_count)
+
+      {:error, :not_found} ->
+        case Integer.parse(name_or_id) do
+          {id, ""} -> get_by_product_and_id!(product, id, with_device_count)
+          _ -> get_by_product_and_name!(product, name_or_id, with_device_count)
+        end
+    end
+  end
+
+  defp with_device_count_lateral(query) do
+    subquery =
+      Device
+      |> select([d], %{device_count: count()})
+      |> Repo.exclude_deleted()
+      |> where([d], d.deployment_id == parent_as(:deployment_group).id)
+
+    query
+    |> join(:left_lateral, [d], dev in subquery(subquery), on: true, as: :devices)
+    |> select_merge([_f, devices: devices], %{device_count: devices.device_count})
   end
 
   @spec get_by_product_and_platforms(Product.t(), [binary()]) :: [DeploymentGroup.t()]
@@ -156,10 +196,43 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.fetch()
   end
 
+  @doc """
+  Looks up a Deployment Group by name, falling back to its ID.
+
+  Supports old bookmarked/shared links that reference the ID instead of the name.
+  A deployment group's name can itself be numeric, so the name is tried first
+  to avoid misinterpreting it as an ID.
+  """
+  @spec get_deployment_group_by_name_or_id(Product.t(), String.t()) ::
+          {:ok, DeploymentGroup.t()} | {:error, :not_found}
+  def get_deployment_group_by_name_or_id(product, name_or_id) do
+    case get_deployment_group_by_name(product, name_or_id) do
+      {:ok, deployment_group} ->
+        {:ok, deployment_group}
+
+      {:error, :not_found} ->
+        case Integer.parse(name_or_id) do
+          {id, ""} -> get_by_product_and_id_query(product, id) |> Repo.fetch()
+          _ -> {:error, :not_found}
+        end
+    end
+  end
+
   defp get_by_product_and_name_query(%Product{id: product_id}, name) do
     DeploymentGroup
     |> from(as: :deployment_group)
     |> where(name: ^name)
+    |> where(product_id: ^product_id)
+    |> join(:left, [deployment_group: d], p in assoc(d, :product), as: :product)
+    |> join_current_release(true)
+    |> join_counts()
+    |> preload([product: p], product: p)
+  end
+
+  defp get_by_product_and_id_query(%Product{id: product_id}, id) do
+    DeploymentGroup
+    |> from(as: :deployment_group)
+    |> where([deployment_group: d], d.id == ^id)
     |> where(product_id: ^product_id)
     |> join(:left, [deployment_group: d], p in assoc(d, :product), as: :product)
     |> join_current_release(true)
