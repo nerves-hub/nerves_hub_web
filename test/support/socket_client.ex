@@ -39,6 +39,10 @@ defmodule SocketClient do
     GenServer.call(socket, :status)
   end
 
+  def push(socket, topic, event, payload) do
+    GenServer.call(socket, {:push, topic, event, payload})
+  end
+
   def state(socket) do
     GenServer.call(socket, :state)
   end
@@ -271,6 +275,11 @@ defmodule SocketClient do
       |> assign(:joined_extensions?, true)
       |> assign(:reply, %{})
 
+    {:reply, :ok, socket}
+  end
+
+  def handle_call({:push, topic, event, payload}, _from, socket) do
+    {:ok, _ref} = Slipstream.push(socket, topic, event, payload)
     {:reply, :ok, socket}
   end
 
