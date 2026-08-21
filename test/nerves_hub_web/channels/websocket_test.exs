@@ -592,6 +592,45 @@ defmodule NervesHubWeb.WebsocketTest do
     end
   end
 
+  describe "clients which omit the join_ref" do
+    @tag :tmp_dir
+    test "messages from a legacy Slipstream client are still handled", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+      %{db_cert: _certificate} = Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} =
+        SocketClient.start_link(with_legacy_join_ref_serializer(@socket_config))
+
+      SocketClient.join_and_wait(socket, %{"device_api_version" => "2.2.0"})
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      # Older Slipstream releases send this with a `nil` join_ref. Phoenix used
+      # to discard it as stale, which is why `DeviceSocket` had to patch the
+      # join_ref back in before handing the message to the channel.
+      SocketClient.push(socket, "device", "connection_types", %{
+        "values" => ["ethernet", "wifi"]
+      })
+
+      eventually(
+        assert(
+          Connections.get_latest_for_device(device.id).metadata["connection_types"] == [
+            "ethernet",
+            "wifi"
+          ]
+        )
+      )
+
+      close_socket_cleanly(socket)
+    end
+  end
+
   describe "connection status is tracked" do
     test "set connection status upon connection and disconnection", %{user: user} do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
@@ -1431,6 +1470,23 @@ defmodule NervesHubWeb.WebsocketTest do
 
       _ ->
         config
+    end
+  end
+
+  # As `with_serializer/1`, but selects the serializer variant which omits the
+  # `join_ref` on every message after `phx_join`, the way older Slipstream
+  # releases did.
+  defp with_legacy_join_ref_serializer(config) do
+    case Process.get(:websocket_serializer) do
+      :msgpack ->
+        uri = Keyword.fetch!(config, :uri) <> "?vsn=3.0.0"
+
+        config
+        |> Keyword.put(:uri, uri)
+        |> Keyword.put(:serializer, SocketClient.LegacyJoinRefMsgpackSerializer)
+
+      _ ->
+        Keyword.put(config, :serializer, SocketClient.LegacyJoinRefSerializer)
     end
   end
 end
