@@ -5,6 +5,7 @@ defmodule NervesHub.Devices.LogLines do
 
   import Ecto.Query
 
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
@@ -53,7 +54,7 @@ defmodule NervesHub.Devices.LogLines do
 
     case Ecto.Changeset.apply_action(changeset, :create) do
       {:ok, log_line} ->
-        _ = AnalyticsRepo.insert_all(LogLine, [changeset.changes], settings: [async_insert: 1])
+        _ = Buffer.insert(LogLine, changeset)
 
         _ =
           ChannelServer.broadcast(
