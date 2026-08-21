@@ -131,6 +131,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:live_refresh_timer, nil)
     |> assign(:live_refresh_pending?, false)
     |> assign(:received_connection_change_identifiers, %{})
+    |> assign(:subscribed_device_ids, MapSet.new())
     |> assign(:current_alarms, [])
     |> assign(:metrics_keys, [])
     |> assign(:deployment_groups, [])
@@ -841,21 +842,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     %{devices: old_devices, device_statuses: old_device_statuses, paginate_opts: paginate_opts} =
       socket.assigns
 
-    Enum.each(
-      old_devices.result || [],
-      fn device -> socket.endpoint.unsubscribe("internal:device:#{device.id}") end
-    )
-
     updated_device_statuses =
       Map.new(updated_devices, fn device ->
-        socket.endpoint.subscribe("internal:device:#{device.id}")
-
         status = socket.assigns.received_connection_change_identifiers[device.id]
 
         {device.id, status || Tracker.connection_status(device)}
       end)
 
     socket
+    |> sync_device_subscriptions(updated_devices)
     |> assign(:devices, AsyncResult.ok(old_devices, updated_devices))
     |> assign(:device_statuses, AsyncResult.ok(old_device_statuses, updated_device_statuses))
     |> assign(:received_connection_change_identifiers, %{})
@@ -1268,6 +1263,27 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:selected_have_deployment_groups, has_deployment_groups)
     |> assign(:valid_deployment_groups_for_selected, valid_dgs)
     |> assign(:target_deployment_group, nil)
+  end
+
+  # A refresh usually returns the page it already had, so only the devices that
+  # came or went change hands. Re-subscribing to the whole page each time cost
+  # two registry writes per device for a set that had not moved.
+  #
+  # The subscribed ids are tracked here rather than read back off `:devices`,
+  # which is an `AsyncResult` the display code resets on its own schedule.
+  defp sync_device_subscriptions(socket, devices) do
+    subscribed = socket.assigns.subscribed_device_ids
+    wanted = MapSet.new(devices, & &1.id)
+
+    Enum.each(MapSet.difference(subscribed, wanted), fn device_id ->
+      socket.endpoint.unsubscribe("internal:device:#{device_id}")
+    end)
+
+    Enum.each(MapSet.difference(wanted, subscribed), fn device_id ->
+      socket.endpoint.subscribe("internal:device:#{device_id}")
+    end)
+
+    assign(socket, :subscribed_device_ids, wanted)
   end
 
   defp safe_refresh(socket) do
