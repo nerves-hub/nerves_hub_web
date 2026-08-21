@@ -593,14 +593,20 @@ defmodule NervesHub.Firmwares do
 
   def get_delta_or_firmware(%Device{}, %DeploymentGroup{current_release: %{firmware: target}}), do: {:ok, target}
 
-  @spec get_delta_url(Device.t(), Firmware.t()) ::
-          {:ok, String.t()}
-          | {:error, :failure}
-  def get_delta_url(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
+  @doc """
+  The delta that takes the device from the firmware it is running to `firmware`.
+
+  Returns the delta itself rather than a URL for it, because the delta is what
+  the device downloads, and so it is the delta's size and checksums that
+  describe that download.
+  """
+  @spec get_delta(Device.t(), Firmware.t()) ::
+          {:ok, FirmwareDelta.t()}
+          | {:error, :not_found}
+  def get_delta(%Device{firmware_metadata: %{uuid: source_uuid}}, %Firmware{id: target_id, product_id: product_id}) do
     source_uuid
     |> firmware_delta_query(product_id, target_id)
-    |> Repo.one()
-    |> get_firmware_url()
+    |> Repo.fetch()
   end
 
   @spec get_delta_if_ready(Device.t(), Firmware.t(), Firmware.t()) ::
@@ -622,7 +628,7 @@ defmodule NervesHub.Firmwares do
   end
 
   # Builds the FirmwareDelta query from the device's current (source) firmware
-  # UUID to the target firmware id. Shared by delta_ready?/2 and get_delta_url/2.
+  # UUID to the target firmware id. Shared by delta_ready?/2 and get_delta/2.
   defp firmware_delta_query(source_uuid, product_id, target_id) do
     source_firmware_id_query =
       Firmware
