@@ -3,6 +3,7 @@ defmodule NervesHub.Devices.LogLinesTest do
   # which is a ClickHouse database that does not support concurrent writes.
   use NervesHub.DataCase, async: false
 
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.LogLine
@@ -19,6 +20,7 @@ defmodule NervesHub.Devices.LogLinesTest do
     device2 = Fixtures.device_fixture(org, product, firmware)
     device3 = Fixtures.device_fixture(org, product, firmware)
 
+    :ok = Buffer.flush(LogLine)
     AnalyticsRepo.query("TRUNCATE TABLE device_log_lines", [])
 
     {:ok,
@@ -51,6 +53,8 @@ defmodule NervesHub.Devices.LogLinesTest do
       level: ^level,
       message: ^message
     } = log
+
+    :ok = Buffer.flush(LogLine)
 
     [
       %LogLine{
@@ -88,6 +92,8 @@ defmodule NervesHub.Devices.LogLinesTest do
       message: ^message
     } = log
 
+    :ok = Buffer.flush(LogLine)
+
     [
       %LogLine{
         timestamp: ^logged_at,
@@ -104,6 +110,8 @@ defmodule NervesHub.Devices.LogLinesTest do
       random_log(device)
       random_log(device2)
     end
+
+    :ok = Buffer.flush(LogLine)
 
     recent = LogLines.recent(device)
 

@@ -39,9 +39,11 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
     |> put_change(:last_seen_at, connection.last_seen_at)
     |> put_change(:disconnected_at, connection.disconnected_at)
     |> put_change(:ref, connection.id)
-    |> put_change(:disconnected_reason, connection.disconnected_reason)
-    |> put_change(:lib, connection.lib)
-    |> put_change(:lib_version, connection.lib_version)
+    # `disconnected_at` is the only Nullable column on the table; the String
+    # columns below are not, so an unset one has to become "" rather than nil.
+    |> put_change(:disconnected_reason, to_string(connection.disconnected_reason))
+    |> put_change(:lib, to_string(connection.lib))
+    |> put_change(:lib_version, to_string(connection.lib_version))
     |> put_change(:network_interface, to_string(connection.network_interface))
     |> put_change(:version, current_version())
   end

@@ -312,6 +312,11 @@ if config_env() == :prod do
       pool_count: String.to_integer(System.get_env("ANALYTICS_POOL_COUNT", "1")),
       queue_target: 3_000
 
+    config :nerves_hub, :analytics_buffer,
+      max_batch_size: String.to_integer(System.get_env("ANALYTICS_BUFFER_MAX_BATCH_SIZE", "1000")),
+      max_delay: to_timeout(millisecond: String.to_integer(System.get_env("ANALYTICS_BUFFER_MAX_DELAY_MS", "500"))),
+      max_buffer_size: String.to_integer(System.get_env("ANALYTICS_BUFFER_MAX_SIZE", "50000"))
+
     config :nerves_hub,
       analytics_auto_migrator: System.get_env("ANALYTICS_AUTO_MIGRATOR", "true") == "true"
 
