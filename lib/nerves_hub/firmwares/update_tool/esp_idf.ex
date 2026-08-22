@@ -418,35 +418,35 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
     ]
   end
 
-  # Nothing on the device applies a patch to an OTA slot, so no ESP-IDF image can
-  # be delta updated regardless of how it was built or which deployment group it
-  # belongs to. `create_firmware_delta_file/3` is written and tested against the
-  # format the device will read, so this is the switch when that lands.
-  #
-  # `detools` is in the runtime image already (see the Dockerfile), so the
-  # device is the only thing still missing. Keep it that way: a missing binary
-  # fails every delta, and a deployment group whose deltas all fail stops
-  # sending updates entirely -- see
-  # `ManagedDeployments.Distributed.Orchestrator.trigger_update/1`.
+  # An ESP-IDF application image is a plain blob and any two of them can be
+  # patched, so this is a property of the format rather than of a build. Which
+  # devices are *sent* a patch is a narrower question, answered per device in
+  # `device_update_type/2`.
   @impl UpdateTool
-  def supports_deltas?(), do: false
+  def supports_deltas?(), do: true
 
   @impl UpdateTool
   def delta_updatable?(_metadata) do
-    # False until a device agent can apply a patch. Reporting `true` would have
-    # deployment groups generate and store xdelta3 patches that
-    # `device_update_type/2` never sends, and show delta updates in the UI as
-    # though they were working. Moves together with `device_update_type/2`.
-    false
+    # Nothing about how an image was built decides this. Unlike a fwup archive,
+    # which has to be assembled with delta support, an ESP-IDF image is a blob
+    # and a patch is computed over the whole of it.
+    true
   end
 
+  @doc """
+  Whether this device gets a patch or the whole image.
+
+  Always a patch, where one exists. Unlike fwup, where the applier is a system
+  binary whose version varies from the firmware around it, the ESP-IDF applier
+  ships inside the image: a device running an agent that can patch is the only
+  kind of device there is.
+
+  Having no patch yet is not this function's problem. `Firmwares` only reaches
+  for one that finished generating and sends the whole image otherwise, so a
+  pair that has never been built, or is still building, resolves on its own.
+  """
   @impl UpdateTool
-  def device_update_type(%Device{}, %Firmware{}) do
-    # Deltas are generated and stored, but always sent as full images: applying
-    # an xdelta3 patch requires the device to read back its inactive OTA slot
-    # and patch into it, which no device agent does yet.
-    :full
-  end
+  def device_update_type(%Device{}, %Firmware{}), do: :delta
 
   # Not reached yet: `delta_updatable?/1` reports false, so
   # `Firmwares.generate_firmware_delta/3` refuses before getting here. The

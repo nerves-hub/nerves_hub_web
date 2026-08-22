@@ -1,6 +1,8 @@
 defmodule NervesHub.Firmwares.UpdateTool.EspIdfTest do
   use ExUnit.Case, async: true
 
+  alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.UpdateTool.EspIdf
   alias NervesHub.Firmwares.UpdateTool.Metadata
 
@@ -46,6 +48,27 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdfTest do
     File.write!(path, binary)
     on_exit(fn -> File.rm(path) end)
     path
+  end
+
+  describe "deltas" do
+    # A property of the format, not of a build. Unlike a fwup archive, which has
+    # to be assembled with delta support, an ESP-IDF image is a blob and a patch
+    # is computed over the whole of it.
+    test "the format can be patched, however an image was built" do
+      assert EspIdf.supports_deltas?()
+      assert EspIdf.delta_updatable?(%{})
+      assert EspIdf.delta_updatable?(%{"esp_idf_version" => "1.0.0"})
+    end
+
+    # The applier ships inside the image rather than being a system binary with
+    # its own version, so there is no per-device question to ask. Whether a
+    # patch actually exists is decided in `Firmwares`, which sends the whole
+    # image when one does not.
+    test "a device gets a patch" do
+      device = %Device{firmware_metadata: %{uuid: "abc"}}
+
+      assert :delta = EspIdf.device_update_type(device, %Firmware{})
+    end
   end
 
   describe "create_firmware_delta_file/3" do

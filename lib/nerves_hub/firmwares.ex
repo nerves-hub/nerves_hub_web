@@ -643,18 +643,18 @@ defmodule NervesHub.Firmwares do
     # checked when an update is sent. Neither answers whether the format can be
     # patched at all.
     #
-    # Without that question, a group with deltas enabled generates patches for
-    # an ESP-IDF image — which no device can apply, so `device_update_type/2`
-    # always sends the full image — and the patch is built, stored, and never
-    # used. It also shows in the UI as though deltas were working.
-    with {:ok, tool} <- UpdateTool.for_firmware(target_firmware) do
-      if tool.supports_deltas?() do
-        do_generate_firmware_delta(firmware_delta, source_firmware, target_firmware)
-      else
-        Logger.info("Skipping delta for #{target_firmware.uuid}: #{target_firmware.tool} images cannot be patched.")
+    # Every format currently shipped answers yes, so this reads as a formality.
+    # It is not: a format arrives without an applier, not with one — ESP-IDF
+    # spent two releases here answering no — and the cost of asking late is a
+    # patch built and stored that nothing can ever use. Asked here as well as in
+    # `attempt_firmware_delta/3` because a job queued before a format changed
+    # its answer arrives straight at this function.
+    if delta_capable_format?(target_firmware) do
+      do_generate_firmware_delta(firmware_delta, source_firmware, target_firmware)
+    else
+      Logger.info("Skipping delta for #{target_firmware.uuid}: #{target_firmware.tool} images cannot be patched.")
 
-        {:error, :no_delta_support_in_firmware}
-      end
+      {:error, :no_delta_support_in_firmware}
     end
   end
 
