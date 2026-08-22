@@ -38,9 +38,17 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   end
 
   @impl UpdateTool
-  def verify_signature(_filepath, []), do: {:error, :no_public_keys}
-
   def verify_signature(filepath, keys) when is_binary(filepath) do
+    # Only Ed25519 keys are fwup keys. An org may also hold Secure Boot v2 RSA
+    # keys, which are PEM and would just be handed to `fwup --verify` as a
+    # multi-line argument that can never match.
+    case Enum.filter(keys, &(&1.scheme == :ed25519)) do
+      [] -> {:error, :no_public_keys}
+      candidates -> find_signing_key(filepath, candidates)
+    end
+  end
+
+  defp find_signing_key(filepath, keys) do
     signed_key =
       Enum.find(keys, fn %{key: key} ->
         case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath], env: []) do

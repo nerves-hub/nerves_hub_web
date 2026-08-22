@@ -668,8 +668,15 @@ defmodule NervesHub.Firmwares do
   end
 
   defp finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
-    {:ok, tool} = UpdateTool.for_firmware(target_firmware)
+    # Not a hard match: an unrecognised `tool` column (a format removed from the
+    # build, or corrupt data) should fail the delta rather than raise inside the
+    # worker.
+    with {:ok, tool} <- UpdateTool.for_firmware(target_firmware) do
+      finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata, tool)
+    end
+  end
 
+  defp finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata, tool) do
     upload_metadata =
       firmware_upload_config().delta_metadata(
         source_firmware.org_id,
@@ -885,7 +892,8 @@ defmodule NervesHub.Firmwares do
     org = NervesHub.Repo.preload(org, :org_keys)
 
     with {:ok, tool} <- UpdateTool.for_file(filepath),
-         {:ok, org_key} <- tool.verify_signature(filepath, org.org_keys),
+         :ok <- check_tool_allowed(tool, expected_product),
+         {:ok, org_key} <- verify_signature(tool, filepath, org.org_keys, expected_product),
          {:ok, %{firmware_metadata: fm, tool_metadata: tm} = m} <-
            tool.get_firmware_metadata_from_file(filepath),
          :ok <- check_expected_product(fm.product, expected_product) do
@@ -967,6 +975,42 @@ defmodule NervesHub.Firmwares do
         params
     end
   end
+
+  # A product accepts only the formats it opted into. Checked before the
+  # signature, so an uploader hears "this product does not take ESP-IDF images"
+  # rather than a complaint about the signing of a format it will not take.
+  defp check_tool_allowed(_tool, nil), do: :ok
+
+  defp check_tool_allowed(tool, %Product{} = product) do
+    if Product.accepts_update_tool?(product, tool.tool_name()) do
+      :ok
+    else
+      {:error, {:update_tool_not_allowed, tool.tool_name(), product.name}}
+    end
+  end
+
+  # A product may accept unsigned ESP-IDF images, because most ESP-IDF builds
+  # are not signed. A *present but invalid* signature is still refused — the
+  # setting excuses the absence of a signature, never a bad one.
+  defp verify_signature(tool, filepath, org_keys, product) do
+    case tool.verify_signature(filepath, org_keys) do
+      {:error, :firmware_not_signed} ->
+        if unsigned_allowed?(tool, product) do
+          {:ok, nil}
+        else
+          {:error, :firmware_not_signed}
+        end
+
+      result ->
+        result
+    end
+  end
+
+  defp unsigned_allowed?(tool, %Product{allow_unsigned_esp_idf_firmware: true}) do
+    tool.tool_name() == "esp-idf"
+  end
+
+  defp unsigned_allowed?(_tool, _product), do: false
 
   # Uploading to `/products/a/firmware` an archive that declares product "b"
   # used to file the firmware under "b" and hand back a `location` header

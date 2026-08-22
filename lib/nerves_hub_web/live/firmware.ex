@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Live.Firmware do
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.current_scope))
     |> assign(:params, unsigned_params)
     |> allow_upload(:firmware,
-      accept: ~w(.fw),
+      accept: ~w(.fw .bin),
       max_entries: 1,
       auto_upload: true,
       max_file_size: max_file_size(),
@@ -291,6 +291,36 @@ defmodule NervesHubWeb.Live.Firmware do
       "#{inspect(expected)}. Check the product name in your firmware build."
   end
 
+  defp upload_error({:update_tool_not_allowed, tool, product}) do
+    "The product #{inspect(product)} does not accept #{tool} firmware. " <>
+      "An organization owner can enable it in the product's settings."
+  end
+
+  defp upload_error(:firmware_not_signed) do
+    "This ESP-IDF image is not signed. Sign it with `espsecure.py sign_data --version 2` and register the matching public key against your organization, or allow unsigned images in this product's settings."
+  end
+
+  defp upload_error(:esp_idf_ecdsa_signatures_not_supported) do
+    "This ESP-IDF image is signed with ECDSA. NervesHub can only verify RSA-3072 Secure Boot v2 signatures at present."
+  end
+
+  defp upload_error(:unknown_signature_block_version) do
+    "This ESP-IDF image carries a signature block NervesHub does not recognise."
+  end
+
+  defp upload_error(:signature_block_corrupt) do
+    "The signature block on this ESP-IDF image failed its checksum — the file is likely damaged in transit."
+  end
+
+  defp upload_error(:unrecognised_firmware_format) do
+    "Unrecognised firmware format. Expected an fwup archive (.fw) or an ESP-IDF application image (.bin)."
+  end
+
+  defp upload_error({:invalid_version, raw}) do
+    "Firmware version #{inspect(raw)} is not a valid semantic version. " <>
+      "For ESP-IDF, set PROJECT_VER in your CMakeLists.txt to something like \"1.2.3\"."
+  end
+
   defp upload_error(%Ecto.Changeset{errors: [product_id: {"can't be blank", [validation: :required]}]}) do
     "No matching product could be found. Please check that your Nerves application product name " <>
       "(`:app` or `:name` in `mix.exs`) matches your #{Application.get_env(:nerves_hub, :web_title_suffix)} product name."
@@ -332,9 +362,13 @@ defmodule NervesHubWeb.Live.Firmware do
     end
   end
 
+  defp format_signed(%{org_key_id: nil}, _org_keys), do: "Unsigned"
+
   defp format_signed(%{org_key_id: org_key_id}, org_keys) do
-    key = Enum.find(org_keys, &(&1.id == org_key_id))
-    "#{key.name}"
+    case Enum.find(org_keys, &(&1.id == org_key_id)) do
+      nil -> "Unknown key"
+      key -> key.name
+    end
   end
 
   defp max_file_size() do
