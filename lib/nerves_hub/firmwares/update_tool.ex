@@ -169,6 +169,16 @@ defmodule NervesHub.Firmwares.UpdateTool do
   @callback cleanup_firmware_delta_files(String.t()) :: :ok
 
   @doc """
+  Whether this format can be delta updated at all.
+
+  Distinct from `c:delta_updatable?/1`, which answers for one archive: this
+  answers for the format. A tool returning false never has deltas generated for
+  it, however a deployment group is configured — generating a patch nothing can
+  apply costs worker time and object storage and reports success in the UI.
+  """
+  @callback supports_deltas?() :: boolean()
+
+  @doc """
   Checks whether delta updating is enabled for the firmware the metadata describes.
 
   Takes the map returned by `c:get_firmware_metadata_from_file/1` so that a tool

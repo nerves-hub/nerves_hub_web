@@ -638,6 +638,27 @@ defmodule NervesHub.Firmwares do
           :ok
           | {:error, Ecto.Changeset.t() | :no_delta_support_in_firmware}
   def generate_firmware_delta(firmware_delta, source_firmware, target_firmware) do
+    # Whether deltas are *wanted* is a deployment group setting, and whether a
+    # particular archive can be patched is `delta_updatable` on the firmware,
+    # checked when an update is sent. Neither answers whether the format can be
+    # patched at all.
+    #
+    # Without that question, a group with deltas enabled generates patches for
+    # an ESP-IDF image — which no device can apply, so `device_update_type/2`
+    # always sends the full image — and the patch is built, stored, and never
+    # used. It also shows in the UI as though deltas were working.
+    with {:ok, tool} <- UpdateTool.for_firmware(target_firmware) do
+      if tool.supports_deltas?() do
+        do_generate_firmware_delta(firmware_delta, source_firmware, target_firmware)
+      else
+        Logger.info("Skipping delta for #{target_firmware.uuid}: #{target_firmware.tool} images cannot be patched.")
+
+        {:error, :no_delta_support_in_firmware}
+      end
+    end
+  end
+
+  defp do_generate_firmware_delta(firmware_delta, source_firmware, target_firmware) do
     {:ok, work_dir} = Briefly.create(type: :directory)
 
     Logger.info("Creating firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}.")
@@ -726,16 +747,44 @@ defmodule NervesHub.Firmwares do
     |> preload([d, p], product: p)
   end
 
+  @doc """
+  Whether this firmware's format can be delta updated at all.
+
+  Distinct from the `delta_updatable` flag on the firmware, which answers for
+  one archive. This answers for the format, and a format that cannot be patched
+  answers no however anything is configured.
+  """
+  @spec delta_capable_format?(Firmware.t()) :: boolean()
+  def delta_capable_format?(firmware) do
+    case UpdateTool.for_firmware(firmware) do
+      {:ok, tool} -> tool.supports_deltas?()
+      {:error, _} -> false
+    end
+  end
+
   @spec attempt_firmware_delta(
           source_id :: non_neg_integer(),
           target_id :: non_neg_integer(),
           recalculate_deployment_statuses :: boolean()
         ) ::
           {:ok, :started}
+          | {:ok, :no_delta_support}
           | {:error, :delta_already_exists}
           | {:error, :failed_to_insert_delta}
           | {:error, :failed_to_insert_job}
   def attempt_firmware_delta(source_id, target_id, recalculate_deployment_statuses \\ true) do
+    # Nothing is recorded for a format that cannot be patched, because nothing
+    # was attempted. Starting one and failing it reads in the UI as "Deltas
+    # failed to generate", which describes a broken build rather than a
+    # deployment group doing exactly what it should.
+    if delta_capable_format?(get_firmware!(target_id)) do
+      do_attempt_firmware_delta(source_id, target_id, recalculate_deployment_statuses)
+    else
+      {:ok, :no_delta_support}
+    end
+  end
+
+  defp do_attempt_firmware_delta(source_id, target_id, recalculate_deployment_statuses) do
     Repo.transact(fn ->
       with {:error, :not_found} <-
              get_firmware_delta_by_source_and_target(source_id, target_id, [:processing, :completed]),
