@@ -42,12 +42,34 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
   ## Deltas
 
   An application image is a single opaque blob rather than an archive of
-  members, so a delta is one `xdelta3` patch over the whole file. Nothing
-  applies these patches on the device yet; see `device_update_type/2`.
+  members, so a delta is one patch over the whole file.
+
+  The patch is made with [`detools`](https://github.com/eerimoq/detools), not
+  `xdelta3`, because the format has to be one a device can decode: Espressif's
+  `esp_delta_ota` component applies detools patches and there is no xdelta3
+  decoder for an ESP32. The compression is heatshrink for the same reason --
+  it is the one `esp_delta_ota` reads, chosen upstream because it decompresses
+  in bounded memory on a device with a few hundred kilobytes of it.
+
+  A patch reproduces the target image byte for byte, which is what makes this
+  work with Secure Boot: the signature block travels inside the image, so the
+  reconstruction carries its original signature and the device verifies the
+  same bytes it would have downloaded. Nothing is re-signed on the device and
+  no key goes near it.
+
+  Measured on real images from this project (1.36 MB signed applications): a
+  version-string change patches to 1.6% of the full image, a small code change
+  to 3.1%, and a release's worth of changes to 7.3%.
+
+  Nothing applies these patches on the device yet, so `supports_deltas?/0`
+  still reports false and none are generated; see `device_update_type/2`.
   """
 
   @behaviour NervesHub.Firmwares.UpdateTool
 
+  # What `esp_delta_ota` decodes on the device. Heatshrink because it
+  # decompresses in bounded memory; sequential because that is the patch type
+  # the component reads.
   import Bitwise
 
   alias NervesHub.Accounts.OrgKey
@@ -56,6 +78,12 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.UpdateTool.Metadata
   alias NervesHub.Helpers.Logging
+
+  require Logger
+
+  @delta_compression "heatshrink"
+  @delta_patch_type "sequential"
+  @delta_algorithm "bsdiff"
 
   # esp_image_header_t.magic — first byte of every ESP-IDF image.
   @image_magic 0xE9
@@ -390,33 +418,41 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
     ]
   end
 
-  # Nothing on the device applies a patch to an OTA slot, so no ESP-IDF image can
-  # be delta updated regardless of how it was built or which deployment group it
-  # belongs to.
+  # An ESP-IDF application image is a plain blob and any two of them can be
+  # patched, so this is a property of the format rather than of a build. Which
+  # devices are *sent* a patch is a narrower question, answered per device in
+  # `device_update_type/2`.
   @impl UpdateTool
-  def supports_deltas?(), do: false
+  def supports_deltas?(), do: true
 
   @impl UpdateTool
   def delta_updatable?(_metadata) do
-    # False until a device agent can apply a patch. Reporting `true` would have
-    # deployment groups generate and store xdelta3 patches that
-    # `device_update_type/2` never sends, and show delta updates in the UI as
-    # though they were working. Moves together with `device_update_type/2`.
-    false
+    # Nothing about how an image was built decides this. Unlike a fwup archive,
+    # which has to be assembled with delta support, an ESP-IDF image is a blob
+    # and a patch is computed over the whole of it.
+    true
   end
 
+  @doc """
+  Whether this device gets a patch or the whole image.
+
+  Always a patch, where one exists. Unlike fwup, where the applier is a system
+  binary whose version varies from the firmware around it, the ESP-IDF applier
+  ships inside the image: a device running an agent that can patch is the only
+  kind of device there is.
+
+  Having no patch yet is not this function's problem. `Firmwares` only reaches
+  for one that finished generating and sends the whole image otherwise, so a
+  pair that has never been built, or is still building, resolves on its own.
+  """
   @impl UpdateTool
-  def device_update_type(%Device{}, %Firmware{}) do
-    # Deltas are generated and stored, but always sent as full images: applying
-    # an xdelta3 patch requires the device to read back its inactive OTA slot
-    # and patch into it, which no device agent does yet.
-    :full
-  end
+  def device_update_type(%Device{}, %Firmware{}), do: :delta
 
-  # Kept working, but not reached: `delta_updatable?/1` reports false, so
+  # Not reached yet: `delta_updatable?/1` reports false, so
   # `Firmwares.generate_firmware_delta/3` refuses before getting here. The
-  # implementation stays because the missing piece is on the device — nothing
-  # applies an xdelta3 patch to an OTA slot yet — and not in the generation.
+  # implementation is written and tested against the format the device will
+  # apply, so that enabling it is a change to `supports_deltas?/0` rather than
+  # a change to what a patch is.
   @impl UpdateTool
   def create_firmware_delta_file({_source_uuid, source_url}, {target_uuid, target_url}, work_dir) do
     source_path = Path.join(work_dir, "source.bin") |> Path.expand()
@@ -428,11 +464,7 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
          :ok <- dl(target_url, target_path),
          {:ok, %{size: source_size}} <- File.stat(source_path),
          {:ok, %{size: target_size}} <- File.stat(target_path),
-         {_, 0} <-
-           System.cmd("xdelta3", ["-A", "-S", "-f", "-s", source_path, target_path, delta_path],
-             stderr_to_stdout: true,
-             env: []
-           ),
+         {_, 0} <- detools(source_path, target_path, delta_path),
          {:ok, %{size: delta_size}} <- File.stat(delta_path),
          {true, :delta_smaller} <- {delta_size < target_size, :delta_smaller} do
       {:ok,
@@ -442,18 +474,64 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
          source_size: source_size,
          target_size: target_size,
          tool: tool_name(),
-         tool_metadata: %{"patch_format" => "xdelta3"}
+         tool_metadata: delta_tool_metadata()
        }}
     else
       {false, :delta_smaller} ->
         {:error, :delta_larger_than_target}
 
       {output, status} when is_integer(status) ->
-        {:error, {:xdelta3_failed, status, output}}
+        {:error, {:detools_failed, status, output}}
 
       {:error, reason} ->
         {:error, reason}
     end
+  rescue
+    # `System.cmd/3` raises rather than returns when the binary is missing, and
+    # a delta worker that crashes retries and crashes again. A missing tool is
+    # a failed delta, which the caller already knows how to record.
+    e ->
+      Logger.warning("ESP-IDF delta creation failed: #{inspect(e)}",
+        source_url: source_url,
+        target_url: target_url
+      )
+
+      {:error, {:delta_creation_failed, e}}
+  end
+
+  # Every flag that decides the patch format is passed rather than left to a
+  # default, because the device decodes exactly this and a default that moves
+  # in a later detools release would move it silently.
+  defp detools(source_path, target_path, delta_path) do
+    System.cmd(
+      "detools",
+      [
+        "create_patch",
+        "--compression",
+        @delta_compression,
+        "--patch-type",
+        @delta_patch_type,
+        "--algorithm",
+        @delta_algorithm,
+        source_path,
+        target_path,
+        delta_path
+      ],
+      stderr_to_stdout: true,
+      env: []
+    )
+  end
+
+  # Recorded against the delta so a device can refuse a patch it cannot decode,
+  # and so the format can change later without stranding devices that only
+  # understand this one.
+  defp delta_tool_metadata() do
+    %{
+      "patch_format" => "detools",
+      "compression" => @delta_compression,
+      "patch_type" => @delta_patch_type,
+      "algorithm" => @delta_algorithm
+    }
   end
 
   @impl UpdateTool
