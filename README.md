@@ -39,7 +39,8 @@ While [mise](https://mise.jdx.dev/) is recommended, you can also use [asdf-vm](h
 
 Modify the `.tool-versions` if you want to use a later version of Erlang, Elixir, or NodeJS.
 
-You'll also need to install `fwup` and `xdelta3`. See the [fwup installation
+You'll also need to install `fwup`, `xdelta3`, and `detools` (`pip install
+detools`, used for ESP-IDF firmware deltas). See the [fwup installation
 instructions](https://github.com/fhunleth/fwup#installing) and the [xdelta3
 instructions](https://github.com/jmacd/xdelta).
 
