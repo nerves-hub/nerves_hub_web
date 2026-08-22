@@ -705,6 +705,32 @@ defmodule NervesHub.FirmwaresTest do
 
       {:ok, :delta_already_exists} = Firmwares.attempt_firmware_delta(source.id, target.id)
     end
+
+    # An ESP-IDF image can never be patched, so there is nothing to record. A
+    # started-then-failed delta reads in the UI as "Deltas failed to generate",
+    # and -- worse -- leaves the deployment group in `:deltas_failed`, where the
+    # orchestrator refuses to send anything at all. A group of ESP32s would
+    # silently stop receiving updates because of a patch that was never possible.
+    test "it records nothing for a format that cannot be patched", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, target} =
+        target
+        |> Ecto.Changeset.change(%{tool: "esp-idf"})
+        |> Repo.update()
+
+      assert {:ok, :no_delta_support} = Firmwares.attempt_firmware_delta(source.id, target.id)
+
+      assert {:error, :not_found} =
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+
+      assert [] = all_enqueued(worker: FirmwareDeltaBuilder)
+    end
   end
 
   describe "get_firmwares_by_product_and_platform/2" do
