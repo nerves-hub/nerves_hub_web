@@ -73,6 +73,39 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
     end
   end
 
+  describe "atomvm settings" do
+    test "toggling acceptance adds the format", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+      {:ok, view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
+
+      assert html =~ "Accept AtomVM packbeam archives"
+
+      html =
+        view
+        |> element("#allow-atomvm-firmware")
+        |> render_click(%{"value" => "on"})
+
+      assert html =~ "AtomVM packbeam archives are now accepted"
+      assert Repo.reload(product).allowed_update_tools == ["fwup", "atomvm"]
+    end
+
+    # Each toggle adds or removes its own format. Rewriting the list, as the
+    # ESP-IDF toggle used to, silently dropped whichever others were set.
+    test "toggling one format leaves the others alone", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+      {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
+
+      view |> element("#allow-esp-idf-firmware") |> render_click(%{"value" => "on"})
+      view |> element("#allow-atomvm-firmware") |> render_click(%{"value" => "on"})
+
+      assert Enum.sort(Repo.reload(product).allowed_update_tools) == ["atomvm", "esp-idf", "fwup"]
+
+      view |> element("#allow-esp-idf-firmware") |> render_click(%{})
+
+      assert Enum.sort(Repo.reload(product).allowed_update_tools) == ["atomvm", "fwup"]
+    end
+  end
+
   describe "shared secrets" do
     setup do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])
@@ -147,5 +180,19 @@ defmodule NervesHubWeb.Live.Product.SettingsPlatformGateTest do
     {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
 
     refute html =~ "Accept ESP-IDF application images"
+  end
+
+  test "the atomvm settings are hidden when the platform has not enabled atomvm", %{
+    conn: conn,
+    org: org,
+    user: user
+  } do
+    Application.put_env(:nerves_hub, :atomvm_firmware_enabled, false)
+    on_exit(fn -> Application.put_env(:nerves_hub, :atomvm_firmware_enabled, true) end)
+
+    product = Fixtures.product_fixture(user, org)
+    {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
+
+    refute html =~ "Accept AtomVM packbeam archives"
   end
 end

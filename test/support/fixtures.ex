@@ -191,6 +191,18 @@ defmodule NervesHub.Fixtures do
     |> then(&product_fixture(user, org, &1))
   end
 
+  @doc """
+  A product that accepts AtomVM packbeam archives.
+
+  Products only take fwup by default, so anything uploading an `.avm` needs this
+  rather than `product_fixture/3`.
+  """
+  def atomvm_product_fixture(user, org, params \\ %{}) do
+    params
+    |> Enum.into(%{allowed_update_tools: ["fwup", "atomvm"]})
+    |> then(&product_fixture(user, org, &1))
+  end
+
   def product_fixture(_user, _org, params \\ %{})
 
   def product_fixture(%Accounts.User{}, %Accounts.Org{} = org, params) do
