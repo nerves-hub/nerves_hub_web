@@ -10,6 +10,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareTransfer
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
@@ -401,38 +402,19 @@ defmodule NervesHub.Firmwares do
     end)
   end
 
+  @doc """
+  Verify an fwup archive against a set of org keys.
+
+  Signature checking now belongs to the update tool that recognises the archive
+  — see `c:NervesHub.Firmwares.UpdateTool.verify_signature/2` — because each
+  image format carries its signature differently. This remains as the fwup entry
+  point; the upload path resolves the tool instead of calling it directly.
+  """
   @spec verify_signature(String.t(), [OrgKey.t()]) ::
           {:ok, OrgKey.t()}
           | {:error, :invalid_signature}
           | {:error, :no_public_keys}
-  def verify_signature(_filepath, []), do: {:error, :no_public_keys}
-
-  def verify_signature(filepath, keys) when is_binary(filepath) do
-    signed_key =
-      Enum.find(keys, fn %{key: key} ->
-        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath], env: []) do
-          {_, 0} ->
-            true
-
-          # fwup returns a 1 for invalid signatures
-          {_, 1} ->
-            false
-
-          {text, code} ->
-            Logger.warning("fwup returned code #{code} with #{text}")
-
-            false
-        end
-      end)
-
-    case signed_key do
-      %OrgKey{} = key ->
-        {:ok, key}
-
-      nil ->
-        {:error, :invalid_signature}
-    end
-  end
+  defdelegate verify_signature(filepath, keys), to: Fwup
 
   @doc """
   Returns metadata for a Firmware struct
@@ -558,8 +540,12 @@ defmodule NervesHub.Firmwares do
       source_firmware_uuid: Map.get(fw_meta, :uuid)
     )
 
-    firmware.delta_updatable and
-      :delta == update_tool().device_update_type(device, firmware)
+    with true <- firmware.delta_updatable,
+         {:ok, tool} <- UpdateTool.for_firmware(firmware) do
+      :delta == tool.device_update_type(device, firmware)
+    else
+      _ -> false
+    end
   end
 
   @spec delta_ready?(Device.t(), Firmware.t()) :: boolean()
@@ -652,29 +638,31 @@ defmodule NervesHub.Firmwares do
     {:ok, source_url} = firmware_upload_config().download_file(source_firmware)
     {:ok, target_url} = firmware_upload_config().download_file(target_firmware)
 
-    case update_tool().create_firmware_delta_file(
-           {source_firmware.uuid, source_url},
-           {target_firmware.uuid, target_url},
-           work_dir
-         ) do
-      {:ok, delta_file_metadata} ->
-        case finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
-          {:ok, _delta} ->
-            :ok
+    with {:ok, tool} <- UpdateTool.for_firmware(target_firmware),
+         {:ok, delta_file_metadata} <-
+           tool.create_firmware_delta_file(
+             {source_firmware.uuid, source_url},
+             {target_firmware.uuid, target_url},
+             work_dir
+           ) do
+      case finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
+        {:ok, _delta} ->
+          :ok
 
-          {:error, err} ->
-            _ = fail_firmware_delta(firmware_delta)
-            {:error, err}
-        end
-
-      {:error, _} = error ->
-        error
+        {:error, err} ->
+          _ = fail_firmware_delta(firmware_delta)
+          {:error, err}
+      end
+    else
+      {:error, _} = error -> error
     end
   after
     Briefly.cleanup()
   end
 
   defp finalize_delta(firmware_delta, source_firmware, target_firmware, delta_file_metadata) do
+    {:ok, tool} = UpdateTool.for_firmware(target_firmware)
+
     upload_metadata =
       firmware_upload_config().delta_metadata(
         source_firmware.org_id,
@@ -705,14 +693,14 @@ defmodule NervesHub.Firmwares do
 
       Logger.info("Created firmware delta successfully.")
 
-      :ok = update_tool().cleanup_firmware_delta_files(delta_file_metadata.filepath)
+      :ok = tool.cleanup_firmware_delta_files(delta_file_metadata.filepath)
 
       {:ok, firmware_delta}
     else
       {:error, error} ->
         Logger.error("Failed when finalizing firmware delta: #{inspect(error)}")
 
-        :ok = update_tool().cleanup_firmware_delta_files(delta_file_metadata.filepath)
+        :ok = tool.cleanup_firmware_delta_files(delta_file_metadata.filepath)
 
         {:error, error}
     end
@@ -889,11 +877,12 @@ defmodule NervesHub.Firmwares do
   defp build_firmware_params(%{id: org_id} = org, filepath, expected_product) do
     org = NervesHub.Repo.preload(org, :org_keys)
 
-    with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
-         {:ok, %{path: conf_path, firmware_metadata: fm, tool_metadata: tm} = m} <-
-           update_tool().get_firmware_metadata_from_file(filepath),
+    with {:ok, tool} <- UpdateTool.for_file(filepath),
+         {:ok, org_key} <- tool.verify_signature(filepath, org.org_keys),
+         {:ok, %{firmware_metadata: fm, tool_metadata: tm} = m} <-
+           tool.get_firmware_metadata_from_file(filepath),
          :ok <- check_expected_product(fm.product, expected_product) do
-      filename = fm.uuid <> ".fw"
+      filename = fm.uuid <> tool.file_extension()
 
       params =
         %{
@@ -904,8 +893,8 @@ defmodule NervesHub.Firmwares do
           filepath: filepath,
           misc: fm.misc,
           org_id: org_id,
-          org_key_id: org_key_id,
-          delta_updatable: update_tool().delta_updatable?(conf_path),
+          org_key_id: org_key && org_key.id,
+          delta_updatable: tool.delta_updatable?(m),
           platform: fm.platform,
           product_name: fm.product,
           upload_metadata: firmware_upload_config().metadata(org_id, filename),
@@ -981,14 +970,5 @@ defmodule NervesHub.Firmwares do
 
   defp check_expected_product(declared, %Product{name: expected}) do
     {:error, {:product_mismatch, declared, expected}}
-  end
-
-  defp update_tool() do
-    Application.get_env(
-      :nerves_hub,
-      :update_tool,
-      # Fall back to old config key
-      Application.get_env(:nerves_hub, :delta_updater, Fwup)
-    )
   end
 end
