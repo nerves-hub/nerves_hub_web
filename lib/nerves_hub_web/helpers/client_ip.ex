@@ -12,7 +12,9 @@ defmodule NervesHubWeb.Helpers.ClientIP do
   instead. Which header to use is a property of the platform deployment rather
   than of the request, so an endpoint names it in its config:
 
-      config :nerves_hub, NervesHubWeb.Endpoint, forwarded_ip_header: "x-forwarded-for"
+      config :nerves_hub, NervesHubWeb.Endpoint,
+        forwarded_ip_header: "x-forwarded-for",
+        forwarded_ip_trailing_hops: 0
 
   That is the default, because a web endpoint almost always has something in
   front of it, and reading the peer instead would quietly record the same
@@ -20,9 +22,30 @@ defmodule NervesHubWeb.Helpers.ClientIP do
   it to `nil`: nothing is overwriting the header there, so it holds whatever the
   device chose to send.
 
+  A forwarded header is a list, and the client owns the left of it: whatever it
+  sent arrives untouched, with each proxy appending what it saw to the right. So
+  the address is counted from the right, and `forwarded_ip_trailing_hops` says
+  how many entries at that end belong to infrastructure rather than to the
+  device. Nothing to the left of the entry we land on can shift it, which is
+  what keeps a forged header harmless.
+
+  Zero suits a proxy that appends only its own observation, which is what nginx
+  does with `$proxy_add_x_forwarded_for`. Fly.io needs one: it appends two
+  entries, the address it observed and then the app's own anycast address, so
+  the device is second from the right and the rightmost entry is the same
+  address for an entire fleet. Confirmed against a live request:
+
+      x-forwarded-for: 1.2.3.4, 182.48.134.168, 66.241.125.59
+                       ^ forged  ^ the device    ^ the app's Fly address
+
+  Getting the count wrong records a plausible looking address belonging to the
+  wrong machine, so confirm it against a real request rather than reasoning
+  about it.
+
   The header has to start with `x-`. Phoenix hands a socket only the request
   headers with that prefix, so a balancer's own header, eg. Fly's `Fly-Client-IP`,
-  never reaches us.
+  never reaches us — which is why the count exists rather than reading the one
+  header that would answer this by itself.
   """
 
   import Bitwise
@@ -37,34 +60,35 @@ defmodule NervesHubWeb.Helpers.ClientIP do
   fail, since the balancer's address is merely wrong, where a device's own
   claim about itself would be worse than wrong.
   """
-  @spec resolve(map(), String.t() | nil) :: String.t() | nil
-  def resolve(connect_info, forwarded_header \\ nil)
+  @spec resolve(map(), String.t() | nil, non_neg_integer()) :: String.t() | nil
+  def resolve(connect_info, forwarded_header \\ nil, trailing_hops \\ 0)
 
-  def resolve(connect_info, forwarded_header) when is_binary(forwarded_header) do
-    forwarded_address(connect_info, forwarded_header) || peer_address(connect_info)
+  def resolve(connect_info, forwarded_header, trailing_hops) when is_binary(forwarded_header) do
+    forwarded_address(connect_info, forwarded_header, trailing_hops) || peer_address(connect_info)
   end
 
-  def resolve(connect_info, nil), do: peer_address(connect_info)
+  def resolve(connect_info, nil, _trailing_hops), do: peer_address(connect_info)
 
   defp peer_address(%{peer_data: %{address: address}}) when is_tuple(address), do: format(address)
   defp peer_address(_connect_info), do: nil
 
-  # The rightmost value wins. Each proxy appends what it saw to the right of
-  # whatever was already there, so the last entry is the one written by the hop
-  # closest to us — the hop we are trusting — while everything to its left was
-  # supplied by the client and can say anything at all. A client that sends its
-  # own `x-forwarded-for` only manages to prepend a lie.
-  defp forwarded_address(%{x_headers: x_headers}, forwarded_header) when is_list(x_headers) do
+  # Counted from the right, past the entries the infrastructure appended. The
+  # client owns the left of the list and can put anything it likes there, but it
+  # cannot push its own value rightwards past the ones added after it, so the
+  # entry we land on does not move.
+  defp forwarded_address(%{x_headers: x_headers}, forwarded_header, trailing_hops) when is_list(x_headers) do
     x_headers
     |> Enum.filter(fn {header, _value} -> header == forwarded_header end)
     |> Enum.flat_map(fn {_header, value} -> String.split(value, ",") end)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
-    |> List.last()
+    |> Enum.reverse()
+    |> Enum.drop(trailing_hops)
+    |> List.first()
     |> parse()
   end
 
-  defp forwarded_address(_connect_info, _forwarded_header), do: nil
+  defp forwarded_address(_connect_info, _forwarded_header, _trailing_hops), do: nil
 
   defp parse(nil), do: nil
 

@@ -122,13 +122,13 @@ defmodule NervesHubWeb.DeviceSocket do
   # between the two endpoints serving devices, so the endpoint reached decides
   # which header, if any, may be believed -- see `NervesHubWeb.Helpers.ClientIP`.
   defp ip_address(socket, connect_info) do
-    ClientIP.resolve(connect_info, forwarded_ip_header(socket.endpoint))
-  end
+    config = Application.get_env(:nerves_hub, socket.endpoint, [])
 
-  defp forwarded_ip_header(endpoint) do
-    :nerves_hub
-    |> Application.get_env(endpoint, [])
-    |> Keyword.get(:forwarded_ip_header)
+    ClientIP.resolve(
+      connect_info,
+      Keyword.get(config, :forwarded_ip_header),
+      Keyword.get(config, :forwarded_ip_trailing_hops, 0)
+    )
   end
 
   @decorate with_span("Channels.DeviceSocket.on_connect")

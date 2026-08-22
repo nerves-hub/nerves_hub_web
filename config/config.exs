@@ -71,6 +71,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 # send. See `NervesHubWeb.Helpers.ClientIP`.
 config :nerves_hub, NervesHubWeb.Endpoint,
   forwarded_ip_header: "x-forwarded-for",
+  forwarded_ip_trailing_hops: 0,
   adapter: Bandit.PhoenixAdapter,
   secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
   live_view: [

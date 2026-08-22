@@ -146,17 +146,26 @@ if config_env() == :prod do
 
             Phoenix passes a socket only the request headers with that prefix, so any other
             header never reaches the code that would read it and the setting would quietly do
-            nothing. Behind Fly.io keep "x-forwarded-for" rather than reaching for
-            "fly-client-ip": the proxy appends what it saw to the right of it, which is the
-            value we take.
+            nothing. Behind Fly.io keep "x-forwarded-for", which "fly-client-ip" cannot
+            replace for that reason, and set WEB_FORWARDED_IP_TRAILING_HOPS=1 so the app's
+            own anycast address at the end of it is skipped.
             """
           end
 
           header
       end
 
+    # How many entries at the end of that header were added by infrastructure
+    # rather than by the device. The address is counted from the right, so this
+    # decides which entry is read. Fly.io appends two -- the address it observed
+    # and then the app's own anycast address -- so it needs 1, while a proxy that
+    # appends only its own observation needs 0. Confirm it against a real request:
+    # the wrong count reads a plausible looking address off the wrong machine.
+    forwarded_ip_trailing_hops = String.to_integer(System.get_env("WEB_FORWARDED_IP_TRAILING_HOPS", "0"))
+
     config :nerves_hub, NervesHubWeb.Endpoint,
       forwarded_ip_header: forwarded_ip_header,
+      forwarded_ip_trailing_hops: forwarded_ip_trailing_hops,
       url: [
         host: host,
         scheme: System.get_env("WEB_SCHEME", "https"),

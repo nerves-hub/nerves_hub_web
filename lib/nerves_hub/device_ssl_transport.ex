@@ -25,17 +25,28 @@ defmodule NervesHub.DeviceSSLTransport do
 
       config :nerves_hub, NervesHub.DeviceSSLTransport, proxy_protocol: :v2
 
-  On Fly.io that pairs with a `proxy_proto` handler on the device service:
+  On Fly.io that pairs with a `proxy_proto` handler on the device service, and
+  the setting belongs in the same file, in the same commit:
+
+      [env]
+        DEVICE_PROXY_PROTOCOL = "v2"
 
       [[services.ports]]
         port = 443
         handlers = ["proxy_proto"]
         proxy_proto_options = { version = "v2" }
 
-  Both sides have to move together. A balancer sending the header to a listener
-  that isn't expecting it looks like a malformed ClientHello, and a listener
-  expecting a header that never arrives waits until it times out — either way
-  devices can't connect, so treat turning this on as a single change to both.
+  Both sides have to move together, and where they are configured decides
+  whether they can. A balancer sending the header to a listener that isn't
+  expecting it looks like a malformed ClientHello; a listener expecting a header
+  that never arrives waits until it times out. Either way devices can't connect.
+
+  Setting it through `fly secrets set` is the way to get exactly that: without
+  `--stage` it restarts every machine as soon as it is run, so the whole fleet
+  starts expecting a header that the handler won't send until the deploy that
+  adds it. Keeping both in `fly.toml` means each machine picks up the pair
+  together as the rolling deploy reaches it, and a rollback puts them back
+  together too.
   """
 
   @behaviour ThousandIsland.Transport
@@ -63,6 +74,17 @@ defmodule NervesHub.DeviceSSLTransport do
   # socket and says nothing can't hold a connection process open. The header is
   # a few dozen bytes and the balancer writes it immediately.
   @proxy_header_timeout 5_000
+
+  # The header timeout above only covers the header. Without this, a client that
+  # sends a well formed one and then stalls holds a connection process for as
+  # long as it likes, because `:ssl.handshake/2` has no timeout of its own --
+  # which is equally true of the transport this replaces, so this is a gap being
+  # closed rather than one being opened.
+  #
+  # Generous on purpose: a device on a poor cellular link doing full mutual TLS
+  # is the case that must not be cut off, and 30s is far past any handshake that
+  # was ever going to finish.
+  @tls_handshake_timeout 30_000
 
   # Options that configure the listening socket rather than TLS. Everything else
   # in `transport_options` is held back for `:ssl.handshake/3`, which rejects
@@ -140,7 +162,7 @@ defmodule NervesHub.DeviceSSLTransport do
   defp do_handshake(socket) do
     with {:ok, peer} <- read_proxy_header(socket),
          {:ok, ssl_options} <- ssl_options(socket),
-         {:ok, ssl_socket} <- SSL.upgrade(socket, ssl_options) do
+         {:ok, ssl_socket} <- upgrade_to_tls(socket, ssl_options) do
       # A header can legitimately describe no client (a health check from the
       # balancer itself), in which case the socket's own peer is the truth.
       if peer, do: Process.put(@peer_key, peer)
@@ -168,12 +190,30 @@ defmodule NervesHub.DeviceSSLTransport do
     end
   end
 
+  # `ThousandIsland.Transports.SSL.upgrade/2` without the timeout it doesn't take.
+  defp upgrade_to_tls(socket, ssl_options) do
+    # Both shapes are `:ssl`'s own: the third element carries protocol extensions
+    # and is only present for the handshakes that negotiate any.
+    case :ssl.handshake(socket, ssl_options, @tls_handshake_timeout) do
+      {:ok, ssl_socket} -> {:ok, ssl_socket}
+      {:ok, ssl_socket, _protocol_extensions} -> {:ok, ssl_socket}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   # The options `listen/2` held back, found by the port the connection arrived
   # on. `sockname/1` on an accepted socket is the listener's own address.
+  #
+  # A listener always records its options before it accepts anything, so the
+  # miss below is unreachable today. Answering it with a closed socket rather
+  # than letting `:persistent_term.get/1` raise keeps a future change to the
+  # listener plumbing to a refused connection instead of a crashing one.
   defp ssl_options(socket) do
-    case :inet.sockname(socket) do
-      {:ok, {_address, port}} -> {:ok, :persistent_term.get({@ssl_options_key, port})}
-      {:error, _reason} -> {:error, :closed}
+    with {:ok, {_address, port}} <- :inet.sockname(socket),
+         ssl_options when not is_nil(ssl_options) <- :persistent_term.get({@ssl_options_key, port}, nil) do
+      {:ok, ssl_options}
+    else
+      _no_listener -> {:error, :closed}
     end
   end
 

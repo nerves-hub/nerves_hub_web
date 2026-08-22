@@ -28,12 +28,37 @@ defmodule NervesHubWeb.Helpers.ClientIPTest do
       assert "203.0.113.7" == ClientIP.resolve(connect_info, @header)
     end
 
-    test "takes the rightmost value, which is the one the balancer appended" do
+    test "takes the rightmost value when nothing was appended past the device" do
       # What a device claiming to be somewhere else produces: its own value is
-      # still there, but everything the balancer saw comes after it.
+      # still there, but what the proxy saw comes after it.
       connect_info = connect_info({10, 0, 0, 1}, [{@header, "198.51.100.2, 203.0.113.7"}])
 
       assert "203.0.113.7" == ClientIP.resolve(connect_info, @header)
+    end
+
+    test "skips the entries the infrastructure appended past the device" do
+      # The shape Fly.io produces: the address it observed, then the app's own
+      # anycast address. Taking the rightmost would record the app for every
+      # device in the fleet.
+      connect_info = connect_info({10, 0, 0, 1}, [{@header, "203.0.113.7, 66.241.125.59"}])
+
+      assert "203.0.113.7" == ClientIP.resolve(connect_info, @header, 1)
+    end
+
+    test "a device cannot shift which entry is read by forging its own" do
+      # Prepending values only pushes the list leftwards. The two entries Fly
+      # appends stay at the end, so the count still lands on the device.
+      forged = connect_info({10, 0, 0, 1}, [{@header, "1.2.3.4, 203.0.113.7, 66.241.125.59"}])
+      piled_on = connect_info({10, 0, 0, 1}, [{@header, "1.2.3.4, 5.6.7.8, 203.0.113.7, 66.241.125.59"}])
+
+      assert "203.0.113.7" == ClientIP.resolve(forged, @header, 1)
+      assert "203.0.113.7" == ClientIP.resolve(piled_on, @header, 1)
+    end
+
+    test "falls back to the socket when the header holds fewer entries than the count" do
+      connect_info = connect_info({10, 0, 0, 1}, [{@header, "66.241.125.59"}])
+
+      assert "10.0.0.1" == ClientIP.resolve(connect_info, @header, 1)
     end
 
     test "takes the rightmost value across repeated headers" do
