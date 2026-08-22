@@ -102,6 +102,24 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, {:invalid_query_param, reason}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: reason})
+  end
+
+  def call(conn, {:error, :analytics_not_enabled}) do
+    conn
+    |> put_status(:not_implemented)
+    |> put_view(ErrorJSON)
+    |> render(:"501", %{
+      reason:
+        "This platform has no analytics database configured, so device logs are not stored. " <>
+          "Contact your Ops team for more information."
+    })
+  end
+
   def call(conn, {:error, {_key, message}}) do
     conn
     |> put_status(:unprocessable_entity)
