@@ -430,6 +430,35 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
+  describe "generate_firmware_delta/3 for a format that cannot be patched" do
+    @tag :tmp_dir
+    test "refuses, without downloading either image", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # An ESP-IDF image can never be patched — nothing on the device applies
+      # one — so a deployment group with deltas enabled must not have patches
+      # built for it. Downloading is what makes that expensive: two full images
+      # fetched to produce a file that is never sent.
+      {:ok, target} =
+        target
+        |> Ecto.Changeset.change(%{tool: "esp-idf"})
+        |> Repo.update()
+
+      reject(&UploadFile.download_file/1)
+      reject(&UpdateToolDefault.create_firmware_delta_file/3)
+
+      assert {:ok, firmware_delta} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      assert {:error, :no_delta_support_in_firmware} =
+               Firmwares.generate_firmware_delta(firmware_delta, source, target)
+    end
+  end
+
   describe "create_firmware_delta/2" do
     @tag :tmp_dir
     test "creates a new firmware delta when one doesn't exist, and saves the checksum and partials checksums", %{

@@ -390,6 +390,12 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
     ]
   end
 
+  # Nothing on the device applies a patch to an OTA slot, so no ESP-IDF image can
+  # be delta updated regardless of how it was built or which deployment group it
+  # belongs to.
+  @impl UpdateTool
+  def supports_deltas?(), do: false
+
   @impl UpdateTool
   def delta_updatable?(_metadata) do
     # False until a device agent can apply a patch. Reporting `true` would have
@@ -407,6 +413,10 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
     :full
   end
 
+  # Kept working, but not reached: `delta_updatable?/1` reports false, so
+  # `Firmwares.generate_firmware_delta/3` refuses before getting here. The
+  # implementation stays because the missing piece is on the device — nothing
+  # applies an xdelta3 patch to an OTA slot yet — and not in the generation.
   @impl UpdateTool
   def create_firmware_delta_file({_source_uuid, source_url}, {target_uuid, target_url}, work_dir) do
     source_path = Path.join(work_dir, "source.bin") |> Path.expand()
