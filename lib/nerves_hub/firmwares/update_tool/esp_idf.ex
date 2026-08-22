@@ -423,11 +423,10 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
   # belongs to. `create_firmware_delta_file/3` is written and tested against the
   # format the device will read, so this is the switch when that lands.
   #
-  # Before flipping it: `detools` has to be in the runtime image. It is a dev
-  # and test dependency today and deliberately not in the Dockerfile, because a
-  # feature that is off should not put a Python toolchain in production. A
-  # missing binary would fail every delta, and a deployment group whose deltas
-  # all fail stops sending updates entirely -- see
+  # `detools` is in the runtime image already (see the Dockerfile), so the
+  # device is the only thing still missing. Keep it that way: a missing binary
+  # fails every delta, and a deployment group whose deltas all fail stops
+  # sending updates entirely -- see
   # `ManagedDeployments.Distributed.Orchestrator.trigger_update/1`.
   @impl UpdateTool
   def supports_deltas?(), do: false
