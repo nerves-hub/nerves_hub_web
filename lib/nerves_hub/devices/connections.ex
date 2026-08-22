@@ -26,9 +26,9 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Creates a device connection, reported from device socket
   """
-  @spec device_connecting(pos_integer(), pos_integer(), pos_integer()) ::
+  @spec device_connecting(pos_integer(), pos_integer(), pos_integer(), String.t() | nil) ::
           {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
-  def device_connecting(org_id, product_id, device_id) do
+  def device_connecting(org_id, product_id, device_id, ip_address \\ nil) do
     conflict_query =
       DeviceConnection
       |> update([ldc],
@@ -44,11 +44,12 @@ defmodule NervesHub.Devices.Connections do
           status: fragment("EXCLUDED.status"),
           lib: fragment("EXCLUDED.lib"),
           lib_version: fragment("EXCLUDED.lib_version"),
-          network_interface: fragment("EXCLUDED.network_interface")
+          network_interface: fragment("EXCLUDED.network_interface"),
+          ip_address: fragment("EXCLUDED.ip_address")
         ]
       )
 
-    DeviceConnection.connecting_changeset(org_id, product_id, device_id)
+    DeviceConnection.connecting_changeset(org_id, product_id, device_id, ip_address)
     |> Repo.insert(on_conflict: conflict_query, conflict_target: [:device_id])
     |> case do
       {:ok, device_connection} ->
