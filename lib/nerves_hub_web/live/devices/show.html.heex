@@ -42,7 +42,7 @@
   </:top_bar>
 
   <:big_header>
-    <FwupProgress.render :if={@firmware_update_stage} stage={@firmware_update_stage} progress={@firmware_update_progress} />
+    <UpdateProgress.render :if={@firmware_update_stage} stage={@firmware_update_stage} progress={@firmware_update_progress} />
 
     <div class="group/identifier flex shrink-0 items-center gap-3">
       <svg

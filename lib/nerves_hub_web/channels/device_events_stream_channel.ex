@@ -28,10 +28,14 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     end
   end
 
+  # `NervesHub.FirmwareUpdates` broadcasts `firmware_update_progress` with string
+  # keys. This previously matched on `fwup_progress` with a `:percent` atom key —
+  # neither of which is ever broadcast — so nothing was forwarded to external
+  # subscribers.
   @impl Phoenix.Channel
-  def handle_info(%Broadcast{event: "fwup_progress", payload: %{percent: percent}}, socket) do
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: payload}, socket) do
     # Forward the firmware update progress to the connected client
-    push(socket, "firmware_update", %{percent: percent})
+    push(socket, "firmware_update", %{percent: payload["progress"], stage: payload["stage"]})
 
     {:noreply, socket}
   end

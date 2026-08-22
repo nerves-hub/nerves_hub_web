@@ -5,6 +5,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
 
   @behaviour NervesHub.Firmwares.UpdateTool
 
+  alias NervesHub.Accounts.OrgKey
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -20,6 +21,78 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   # If a payload is smaller than this there is no point to do a delta, the overhead takes more space
   # in the best case
   @delta_overhead_limit 22
+
+  @impl UpdateTool
+  def tool_name(), do: "fwup"
+
+  @impl UpdateTool
+  def file_extension(), do: ".fw"
+
+  @impl UpdateTool
+  def recognises?(filepath) do
+    # A .fw archive is a zip, so it starts with the local file header magic.
+    case File.open(filepath, [:read, :binary], &IO.binread(&1, 4)) do
+      {:ok, <<"PK", 0x03, 0x04>>} -> true
+      _ -> false
+    end
+  end
+
+  @impl UpdateTool
+  def verify_signature(filepath, keys) when is_binary(filepath) do
+    # Only Ed25519 keys are fwup keys. An org may also hold Secure Boot v2 RSA
+    # keys, which are PEM and would just be handed to `fwup --verify` as a
+    # multi-line argument that can never match.
+    case Enum.filter(keys, &(&1.scheme == :ed25519)) do
+      [] -> {:error, :no_public_keys}
+      candidates -> find_signing_key(filepath, candidates)
+    end
+  end
+
+  defp find_signing_key(filepath, keys) do
+    signed_key =
+      Enum.find(keys, fn %{key: key} ->
+        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath], env: []) do
+          {_, 0} ->
+            true
+
+          # fwup returns a 1 for invalid signatures
+          {_, 1} ->
+            false
+
+          {text, code} ->
+            Logger.warning("fwup returned code #{code} with #{text}")
+
+            false
+        end
+      end)
+
+    case signed_key do
+      %OrgKey{} = key ->
+        {:ok, key}
+
+      nil ->
+        {:error, :invalid_signature}
+    end
+  end
+
+  @impl UpdateTool
+  def recognises_device_metadata?(params), do: Map.has_key?(params, "nerves_fw_uuid")
+
+  @impl UpdateTool
+  def metadata_from_device(params) do
+    %{
+      uuid: params["nerves_fw_uuid"],
+      architecture: params["nerves_fw_architecture"],
+      platform: params["nerves_fw_platform"],
+      product: params["nerves_fw_product"],
+      version: params["nerves_fw_version"],
+      author: params["nerves_fw_author"],
+      description: params["nerves_fw_description"],
+      fwup_version: params["fwup_version"],
+      vcs_identifier: params["nerves_fw_vcs_identifier"],
+      misc: params["nerves_fw_misc"]
+    }
+  end
 
   @impl UpdateTool
   def get_firmware_metadata_from_file(filepath) do
@@ -93,8 +166,8 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   end
 
   @impl UpdateTool
-  def delta_updatable?(file_path) do
-    {:ok, feature_usage} = Confuse.Fwup.get_feature_usage(file_path)
+  def delta_updatable?(%{path: meta_conf_path}) do
+    {:ok, feature_usage} = Confuse.Fwup.get_feature_usage(meta_conf_path)
 
     feature_usage.raw_deltas? or feature_usage.fat_deltas?
   end
