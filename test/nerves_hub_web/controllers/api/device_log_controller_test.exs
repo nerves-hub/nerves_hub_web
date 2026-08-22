@@ -194,6 +194,46 @@ defmodule NervesHubWeb.API.DeviceLogControllerTest do
     end
   end
 
+  describe "index, searched" do
+    setup %{device: device, now: now} do
+      log(device, level: "error", message: "Failed to reach the sensor bus", timestamp: DateTime.add(now, -30))
+      log(device, level: "info", message: "SENSOR BUS back online", timestamp: DateTime.add(now, -20))
+      log(device, level: "info", message: "battery at 100% charge", timestamp: DateTime.add(now, -10))
+
+      :ok
+    end
+
+    test "matches the message, ignoring case", %{conn: conn, org: org, product: product, device: device} do
+      conn = get(conn, path(conn, org, product, device, search: "sensor bus"))
+
+      assert messages(json_response(conn, 200)) == ["SENSOR BUS back online", "Failed to reach the sensor bus"]
+    end
+
+    test "matches a term nothing logged against nothing", %{conn: conn, org: org, product: product, device: device} do
+      conn = get(conn, path(conn, org, product, device, search: "thermostat"))
+
+      assert json_response(conn, 200)["data"] == []
+    end
+
+    test "takes wildcards literally", %{conn: conn, org: org, product: product, device: device} do
+      conn = get(conn, path(conn, org, product, device, search: "%"))
+
+      assert messages(json_response(conn, 200)) == ["battery at 100% charge"]
+    end
+
+    test "narrows alongside the other filters", %{conn: conn, org: org, product: product, device: device} do
+      conn = get(conn, path(conn, org, product, device, search: "sensor bus", level: "error"))
+
+      assert messages(json_response(conn, 200)) == ["Failed to reach the sensor bus"]
+    end
+
+    test "an empty search is no filter at all", %{conn: conn, org: org, product: product, device: device} do
+      conn = get(conn, path(conn, org, product, device, search: "  "))
+
+      assert length(json_response(conn, 200)["data"]) == 3
+    end
+  end
+
   describe "index, filtered by time" do
     setup %{device: device, now: now} do
       log(device, message: "old", timestamp: DateTime.add(now, -3600))

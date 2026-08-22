@@ -28,6 +28,16 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceLogControllerSpecs do
     example: "error,warning"
   }
 
+  @search_parameter %OpenApiSpex.Parameter{
+    name: :search,
+    in: :query,
+    description:
+      "Only lines whose message contains this text, ignoring case. Matched literally, so `%` and `_` are searched for rather than treated as wildcards",
+    required: false,
+    schema: %OpenApiSpex.Schema{type: :string},
+    example: "sensor bus"
+  }
+
   @since_parameter %OpenApiSpex.Parameter{
     name: :since,
     in: :query,
@@ -67,6 +77,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceLogControllerSpecs do
 
   @query_parameters [
     @level_parameter,
+    @search_parameter,
     @since_parameter,
     @before_parameter,
     @limit_parameter,

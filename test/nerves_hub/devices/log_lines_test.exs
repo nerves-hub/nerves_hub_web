@@ -137,6 +137,39 @@ defmodule NervesHub.Devices.LogLinesTest do
       assert LogLines.for_device(device, levels: ["emergency"]) == []
     end
 
+    test "searches the message, ignoring case", %{device: device} do
+      log(device, message: "Failed to reach the sensor bus")
+      log(device, message: "SENSOR BUS back online")
+      log(device, message: "polling temperature")
+
+      :ok = Buffer.flush(LogLine)
+
+      assert length(LogLines.for_device(device, search: "sensor bus")) == 2
+      assert messages(LogLines.for_device(device, search: "temperature")) == ["polling temperature"]
+      assert LogLines.for_device(device, search: "nothing logged this") == []
+    end
+
+    test "searches for wildcards literally", %{device: device} do
+      log(device, message: "battery at 100% charge")
+      log(device, message: "polling temperature")
+
+      :ok = Buffer.flush(LogLine)
+
+      # As a LIKE pattern a bare % matches every line. As a substring it only
+      # finds the line that has one.
+      assert messages(LogLines.for_device(device, search: "%")) == ["battery at 100% charge"]
+      assert messages(LogLines.for_device(device, search: "100%")) == ["battery at 100% charge"]
+    end
+
+    test "combines search with the other filters", %{device: device} do
+      log(device, level: "error", message: "sensor bus gone")
+      log(device, level: "info", message: "sensor bus fine")
+
+      :ok = Buffer.flush(LogLine)
+
+      assert messages(LogLines.for_device(device, search: "sensor bus", levels: ["error"])) == ["sensor bus gone"]
+    end
+
     test "bounds a window with since and before", %{device: device} do
       now = DateTime.utc_now()
 

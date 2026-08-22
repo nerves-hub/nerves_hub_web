@@ -26,6 +26,9 @@ defmodule NervesHub.Devices.LogLines do
 
   - `:levels` — only these levels. A device is free to log at any level it
     likes, so this is matched as given rather than against a fixed list.
+  - `:search` — only lines whose message contains this text, ignoring case.
+    Matched literally: a device that logs `100%` is found by searching for
+    `100%`, not by a wildcard.
   - `:since` — at or after this time (inclusive).
   - `:before` — strictly before this time (exclusive), so the timestamp of the
     oldest line in a page can be passed straight back as the next page's
@@ -36,6 +39,7 @@ defmodule NervesHub.Devices.LogLines do
   """
   @type filter_opt ::
           {:levels, [String.t()] | nil}
+          | {:search, String.t() | nil}
           | {:since, DateTime.t() | nil}
           | {:before, DateTime.t() | nil}
           | {:limit, pos_integer()}
@@ -73,6 +77,7 @@ defmodule NervesHub.Devices.LogLines do
     |> where(product_id: ^device.product_id)
     |> where(device_id: ^device.id)
     |> filter_levels(Keyword.get(opts, :levels))
+    |> filter_search(Keyword.get(opts, :search))
     |> filter_since(Keyword.get(opts, :since))
     |> filter_before(Keyword.get(opts, :before))
     |> order_by([l], [{^order, l.timestamp}])
@@ -83,6 +88,15 @@ defmodule NervesHub.Devices.LogLines do
   defp filter_levels(query, nil), do: query
   defp filter_levels(query, []), do: query
   defp filter_levels(query, levels), do: where(query, [l], l.level in ^levels)
+
+  defp filter_search(query, nil), do: query
+  defp filter_search(query, ""), do: query
+
+  # positionCaseInsensitive rather than ILIKE, so the needle is taken literally
+  # — a message full of `%` or `_` is searchable without anyone escaping it.
+  defp filter_search(query, search) do
+    where(query, [l], fragment("positionCaseInsensitive(?, ?) > 0", l.message, ^search))
+  end
 
   defp filter_since(query, nil), do: query
   defp filter_since(query, %DateTime{} = since), do: where(query, [l], l.timestamp >= ^since)

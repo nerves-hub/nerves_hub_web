@@ -5,6 +5,9 @@ defmodule NervesHubWeb.API.DeviceLogController do
   Read-only. Log lines arrive on the device's own connection and there is no
   way to write one here.
 
+  Lines can be narrowed by level, by a window of time, and by a search term
+  matched against the message text.
+
   Whether the logging extension is currently enabled for the product or the
   device governs whether new lines arrive, not whether stored ones can be read,
   so turning it off leaves everything collected before that still readable.
@@ -49,11 +52,12 @@ defmodule NervesHubWeb.API.DeviceLogController do
 
   defp query_opts(params) do
     with {:ok, levels} <- levels(params["level"]),
+         {:ok, search} <- search(params["search"]),
          {:ok, since} <- timestamp("since", params["since"]),
          {:ok, before} <- timestamp("before", params["before"]),
          {:ok, limit} <- limit(params["limit"]),
          {:ok, order} <- order(params["order"]) do
-      {:ok, [levels: levels, since: since, before: before, limit: limit, order: order]}
+      {:ok, [levels: levels, search: search, since: since, before: before, limit: limit, order: order]}
     end
   end
 
@@ -76,6 +80,20 @@ defmodule NervesHubWeb.API.DeviceLogController do
   end
 
   defp levels(level), do: {:error, {:invalid_query_param, "level must be a string, got #{inspect(level)}."}}
+
+  # Matched literally against the message, ignoring case. Only the surrounding
+  # whitespace is trimmed — whitespace inside the term is part of what the
+  # caller is looking for.
+  defp search(nil), do: {:ok, nil}
+
+  defp search(search) when is_binary(search) do
+    case String.trim(search) do
+      "" -> {:ok, nil}
+      trimmed -> {:ok, trimmed}
+    end
+  end
+
+  defp search(search), do: {:error, {:invalid_query_param, "search must be a string, got #{inspect(search)}."}}
 
   defp timestamp(_name, nil), do: {:ok, nil}
   defp timestamp(_name, ""), do: {:ok, nil}
