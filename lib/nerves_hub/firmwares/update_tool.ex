@@ -182,6 +182,27 @@ defmodule NervesHub.Firmwares.UpdateTool do
   @callback device_update_type(device :: Device.t(), Firmware.t()) :: :delta | :full
 
   @doc """
+  Whether this tool recognises the firmware metadata a device reported on join.
+
+  Devices predate the tool registry and mostly cannot be upgraded in the field,
+  so a device is not required to say which format it speaks. A tool identifies
+  its own metadata by the keys present — `nerves_fw_uuid` for fwup, for example.
+
+  A device that *can* say so should send `"update_tool"` in its join params,
+  which takes precedence over this.
+  """
+  @callback recognises_device_metadata?(params :: map()) :: boolean()
+
+  @doc """
+  Translate the firmware metadata a device reported into NervesHub's shape.
+
+  Returns a plain map for `NervesHub.Firmwares.FirmwareMetadata.changeset/2`.
+  Values that cannot be derived should be `nil` rather than omitted — a device
+  reporting partial metadata falls back to a database lookup by UUID.
+  """
+  @callback metadata_from_device(params :: map()) :: map()
+
+  @doc """
   Every tool this instance is configured to use, keyed by `tool_name/0`.
   """
   @spec all() :: %{String.t() => module()}
@@ -229,6 +250,33 @@ defmodule NervesHub.Firmwares.UpdateTool do
       nil -> {:error, :unrecognised_firmware_format}
       module -> {:ok, module}
     end
+  end
+
+  @doc """
+  The tool that handles the firmware metadata a device reported.
+
+  Prefers an explicit `"update_tool"` in the params, then asks each tool whether
+  it recognises the keys, and finally falls back to `fallback` — which exists so
+  that a device reporting nothing recognisable is still read the way it was
+  before this seam existed, rather than losing its metadata.
+  """
+  @spec for_device_metadata(map(), module()) :: module()
+  def for_device_metadata(params, fallback \\ __MODULE__.Fwup) do
+    declared = params["update_tool"]
+
+    with true <- is_binary(declared),
+         {:ok, module} <- fetch(declared) do
+      module
+    else
+      _ -> sniff_device_metadata(params, fallback)
+    end
+  end
+
+  defp sniff_device_metadata(params, fallback) do
+    all()
+    |> Map.values()
+    |> Enum.find(& &1.recognises_device_metadata?(params))
+    |> Kernel.||(fallback)
   end
 
   @spec fetch(String.t() | nil) :: {:ok, module()} | {:error, {:unknown_update_tool, String.t()}}
