@@ -115,6 +115,60 @@ defmodule NervesHubWeb.Helpers.ClientIPTest do
     end
   end
 
+  describe "remote_ip/2 for a plug pipeline" do
+    test "reports the address the proxy announced" do
+      conn = conn_from({10, 0, 0, 1}, [{@header, "203.0.113.7"}])
+
+      assert {203, 0, 113, 7} == ClientIP.remote_ip(conn, @header)
+    end
+
+    test "takes the rightmost value when nothing was appended past the caller" do
+      conn = conn_from({10, 0, 0, 1}, [{@header, "198.51.100.2, 203.0.113.7"}])
+
+      assert {203, 0, 113, 7} == ClientIP.remote_ip(conn, @header)
+    end
+
+    test "skips the entries the infrastructure appended past the caller" do
+      conn = conn_from({10, 0, 0, 1}, [{@header, "203.0.113.7, 66.241.125.59"}])
+
+      assert {203, 0, 113, 7} == ClientIP.remote_ip(conn, @header, 1)
+    end
+
+    test "a caller cannot shift which entry is read by forging its own" do
+      forged = conn_from({10, 0, 0, 1}, [{@header, "1.2.3.4, 203.0.113.7, 66.241.125.59"}])
+
+      assert {203, 0, 113, 7} == ClientIP.remote_ip(forged, @header, 1)
+    end
+
+    test "falls back to the socket when no header is trusted" do
+      conn = conn_from({10, 0, 0, 1}, [{@header, "203.0.113.7"}])
+
+      assert {10, 0, 0, 1} == ClientIP.remote_ip(conn, nil)
+    end
+
+    test "falls back to the socket when the header is absent" do
+      assert {10, 0, 0, 1} == ClientIP.remote_ip(conn_from({10, 0, 0, 1}), @header)
+    end
+
+    test "falls back to the socket when the header isn't an address" do
+      conn = conn_from({10, 0, 0, 1}, [{@header, "unknown"}])
+
+      assert {10, 0, 0, 1} == ClientIP.remote_ip(conn, @header)
+    end
+
+    test "reads an IPv6 address" do
+      conn = conn_from({10, 0, 0, 1}, [{@header, "2001:db8::1"}])
+
+      assert {0x2001, 0xDB8, 0, 0, 0, 0, 0, 1} == ClientIP.remote_ip(conn, @header)
+    end
+  end
+
+  defp conn_from(remote_ip, headers \\ []) do
+    Enum.reduce(headers, %{Plug.Test.conn(:get, "/") | remote_ip: remote_ip}, fn {header, value}, conn ->
+      Plug.Conn.put_req_header(conn, header, value)
+    end)
+  end
+
   defp connect_info(address, x_headers \\ []) do
     %{peer_data: %{address: address, port: 51_234, ssl_cert: nil}, x_headers: x_headers}
   end
