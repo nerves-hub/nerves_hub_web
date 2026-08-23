@@ -60,15 +60,16 @@ docs/                 Design docs
 
 - `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes.
 - `devices.ex` / `devices/` — device lifecycle, connections, health status,
-  metrics.
+  metrics, and network identities (a device's identity on networks NervesHub
+  doesn't run, such as iroh or NetBird).
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment).
 - `firmwares.ex` / `firmwares/` and `archives.ex` / `archives/` — firmware and
   archive artifacts, uploads, and firmware **delta** building.
 - `products.ex` / `products/` — products and product settings.
 - `extensions.ex` / `extensions/` — the device **extension framework**
-  (`health`, `geo`, `local_shell`, `logging`); extensions attach per-device and
-  exchange messages over the extensions channel.
+  (`health`, `geo`, `local_shell`, `logging`, `network_identity`); extensions
+  attach per-device and exchange messages over the extensions channel.
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,
@@ -123,6 +124,39 @@ docs/                 Design docs
 - Never weaken a test, disable a lint, or add a suppression to get green — if
   you're blocked, say so.
 
+### Cross-application contracts
+
+A NervesHub cluster can be joined by other applications, which call context
+functions over `:erpc` rather than reimplementing them. Distributed Erlang gives
+no compile-time link, so **a context function can have no caller in this
+repository and still be in use.** Renaming or removing one does not fail here;
+it fails at runtime, in a deployment this repository cannot see.
+
+Such a function says so in its `@doc`, in these words:
+
+> Called over `:erpc` by other applications in the cluster
+
+**Do not remove a function carrying that line because a search finds no local
+caller.** That is what it is telling you. `grep -rn "Called over \`:erpc\`" lib/`
+lists them.
+
+When writing one:
+
+- **Say it in the `@doc`**, using the line above so it can be found, along with
+  what the caller uses it for and that having no local caller is expected.
+- **Return plain maps, not schema structs.** A struct on a node that does not
+  define its module is a map with a `__struct__` key pointing at nothing, which
+  callers then work around.
+- **Treat the return shape as published.** Adding a key is safe. Renaming or
+  removing one breaks a caller you cannot see, so it needs a coordinated
+  release.
+- **Pin the shape in a test**, so a change that would break a remote caller
+  fails here instead.
+
+Keeping the marker in the `@doc` rather than in a list here is deliberate: the
+fact belongs next to the code it constrains, and a list would go stale the
+moment a consumer changed.
+
 ## Testing
 
 - **Setup once:** `MIX_ENV=test mix test.setup`. **Run:** `mix test`.
@@ -155,7 +189,7 @@ docs/                 Design docs
     tests assert with `assert_eventually`; under a loaded runner they can fail
     and pass on re-run / in isolation. Verify with a re-run before assuming a
     regression.
-  - **Firmware delta tests need `fwup` + `mtools` + `xdelta3` installed.**
+  - **Firmware delta tests need `fwup` + `mtools` + `xdelta3` + `detools` installed.** (`detools` is pinned in `mise.toml`, so `mise install` fetches it; otherwise `pip install detools`. ESP-IDF deltas use it rather than xdelta3, because that is the format `esp_delta_ota` reads on the device.)
     Without them, a couple of `NervesHub.Firmwares.UpdateToolTest` cases fail
     locally — an environment failure, not a code one.
 

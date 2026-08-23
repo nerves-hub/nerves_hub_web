@@ -22,6 +22,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -1439,6 +1440,50 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "move/3 and network identities" do
+    test "an identity moves organisation with its device", %{device: device, user: user, tmp_dir: tmp_dir} do
+      # The identity names an organisation of its own, and that is what other
+      # networks resolve its key to. Left behind, this device would keep
+      # answering for the organisation it just left, and be placed on that
+      # organisation's network by anything using it.
+      other_org = Fixtures.org_fixture(user, %{name: "receiving-org"})
+      target_product = Fixtures.product_fixture(user, other_org)
+
+      identity = Fixtures.network_identity_fixture(device, %{identifier: "moves-with-me"})
+      assert identity.org_id == device.org_id
+
+      {:ok, moved} = Devices.move(device, target_product, user)
+
+      assert moved.org_id == other_org.id
+      assert Repo.reload!(identity).org_id == other_org.id
+
+      assert {:ok, %{org_id: resolved}} =
+               NetworkIdentities.get_owner_by_identifier(:iroh, "moves-with-me")
+
+      assert resolved == other_org.id
+      _ = tmp_dir
+    end
+
+    test "identities for other devices are left alone", %{
+      device: device,
+      user: user,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      untouched_device = Fixtures.device_fixture(org, product, firmware, %{identifier: "stays-put"})
+      untouched = Fixtures.network_identity_fixture(untouched_device, %{identifier: "not-moving"})
+
+      other_org = Fixtures.org_fixture(user, %{name: "receiving-org-2"})
+      target_product = Fixtures.product_fixture(user, other_org)
+      _ = Fixtures.network_identity_fixture(device, %{identifier: "moving"})
+
+      {:ok, _} = Devices.move(device, target_product, user)
+
+      assert Repo.reload!(untouched).org_id == org.id
+    end
+  end
+
   describe "move_many/3" do
     test "many devices can be moved to a product", %{
       org: org,
@@ -2705,6 +2750,45 @@ defmodule NervesHub.DevicesTest do
       %{ok: count} = BulkActions.remove_many_from_deployment_group({[device.id], product})
 
       assert count == 0
+    end
+  end
+
+  describe "filter/3 health preload" do
+    setup %{device: device} do
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device.id,
+          "data" => %{"metrics" => %{"cpu_temp" => 41.2}, "alarms" => %{"SomeAlarm" => "boom"}},
+          "status" => "warning",
+          "status_reasons" => %{"warning" => %{"cpu_temp" => %{"value" => 41.2, "threshold" => 40}}}
+        })
+
+      :ok
+    end
+
+    test "loads what the device list renders", %{product: product, user: user, device: device} do
+      health = filtered_health(product, user, device)
+
+      assert health.status == :warning
+      assert health.status_reasons == %{"warning" => %{"cpu_temp" => %{"value" => 41.2, "threshold" => 40}}}
+    end
+
+    # The list only renders the health icon and its tooltip. `data` holds every
+    # metric the device last reported, so it stays in the database - anything
+    # needing it should load the device through `get_by_identifier!/3` instead.
+    test "leaves the metrics payload behind", %{product: product, user: user, device: device} do
+      assert filtered_health(product, user, device).data == nil
+    end
+
+    defp filtered_health(product, user, device) do
+      opts = %{
+        sort: {:asc, :identifier},
+        filters: %{display_deleted: "exclude", identifier: device.identifier}
+      }
+
+      {[%Device{} = filtered], _meta} = Devices.filter(product, user, opts)
+
+      filtered.latest_health
     end
   end
 

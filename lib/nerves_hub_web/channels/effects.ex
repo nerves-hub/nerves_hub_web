@@ -27,6 +27,32 @@ defmodule NervesHubWeb.Channels.Effects do
   @spec apply_all(Socket.t(), [Effect.t()]) :: Socket.t()
   def apply_all(socket, effects), do: Enum.reduce(effects, socket, &apply_one(&2, &1))
 
+  @doc """
+  Re-arm a repeating timer whose message has just arrived.
+
+  `:start_timer` promises delivery every `interval_ms`, and the VM's timer
+  wheel only does one-shots, so the repeat has to be re-armed somewhere. It
+  happens here, before the message is dispatched, rather than by asking the
+  extension to re-arm itself: `NervesHub.Extensions.Dispatch` swallows an
+  extension that raises, and a re-arm missed that way would stop the timer for
+  the life of the connection with nothing to show for it.
+
+  Messages that are not a live interval's are returned untouched.
+  """
+  @spec reschedule(Socket.t(), message :: term()) :: Socket.t()
+  def reschedule(socket, message) do
+    socket.assigns[@timers]
+    |> Kernel.||(%{})
+    |> Enum.find(fn {_key, timer} -> match?({:interval, _ref, ^message, _ms}, timer) end)
+    |> case do
+      nil ->
+        socket
+
+      {key, {:interval, _ref, _message, interval_ms}} ->
+        put_timer(socket, key, {:interval, Process.send_after(self(), message, interval_ms), message, interval_ms})
+    end
+  end
+
   defp apply_one(socket, {:push, event, payload}) do
     :ok = Channel.push(socket, event, payload)
     socket
@@ -54,11 +80,16 @@ defmodule NervesHubWeb.Channels.Effects do
     put_timer(socket, key, {:send_after, ref})
   end
 
+  # `:timer.send_interval/2` spawns a process per interval, and that process
+  # lives as long as the connection does. One per device for the health check
+  # alone came to 1425 processes and about 40MB on a production device node.
+  # `Process.send_after/3` uses the VM's timer wheel and costs no process at
+  # all, so the repeat is re-armed in `reschedule/2` instead.
   defp apply_one(socket, {:start_timer, key, message, interval_ms}) do
     socket = cancel(socket, key)
-    {:ok, ref} = :timer.send_interval(interval_ms, message)
+    ref = Process.send_after(self(), message, interval_ms)
 
-    put_timer(socket, key, {:interval, ref})
+    put_timer(socket, key, {:interval, ref, message, interval_ms})
   end
 
   defp apply_one(socket, {:cancel_timer, key}), do: cancel(socket, key)
@@ -94,5 +125,5 @@ defmodule NervesHubWeb.Channels.Effects do
   end
 
   defp cancel_ref({:send_after, ref}), do: Process.cancel_timer(ref)
-  defp cancel_ref({:interval, ref}), do: :timer.cancel(ref)
+  defp cancel_ref({:interval, ref, _message, _interval_ms}), do: Process.cancel_timer(ref)
 end

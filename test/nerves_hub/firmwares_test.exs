@@ -430,6 +430,34 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
+  describe "generate_firmware_delta/3 for a format that cannot be patched" do
+    @tag :tmp_dir
+    test "refuses, without downloading either image", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Every format shipped today can be patched, so the format that cannot is
+      # a stub. It is still worth covering: a format arrives without an applier
+      # and gains one later, and until it does, a deployment group with deltas
+      # enabled must not have patches built for it. Downloading is what makes
+      # that expensive — two full images fetched to produce a file nothing can
+      # use.
+      stub(UpdateToolDefault, :supports_deltas?, fn -> false end)
+
+      reject(&UploadFile.download_file/1)
+      reject(&UpdateToolDefault.create_firmware_delta_file/3)
+
+      assert {:ok, firmware_delta} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      assert {:error, :no_delta_support_in_firmware} =
+               Firmwares.generate_firmware_delta(firmware_delta, source, target)
+    end
+  end
+
   describe "create_firmware_delta/2" do
     @tag :tmp_dir
     test "creates a new firmware delta when one doesn't exist, and saves the checksum and partials checksums", %{
@@ -675,6 +703,29 @@ defmodule NervesHub.FirmwaresTest do
       %FirmwareDelta{} = Fixtures.firmware_delta_fixture(source, target)
 
       {:ok, :delta_already_exists} = Firmwares.attempt_firmware_delta(source.id, target.id)
+    end
+
+    # Nothing to record when nothing was attempted. A started-then-failed delta
+    # reads in the UI as "Deltas failed to generate", and -- worse -- leaves the
+    # deployment group in `:deltas_failed`, where the orchestrator refuses to
+    # send anything at all. A whole group would stop receiving updates because
+    # of a patch that was never possible.
+    test "it records nothing for a format that cannot be patched", %{
+      firmware: source,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      stub(UpdateToolDefault, :supports_deltas?, fn -> false end)
+
+      assert {:ok, :no_delta_support} = Firmwares.attempt_firmware_delta(source.id, target.id)
+
+      assert {:error, :not_found} =
+               Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+
+      assert [] = all_enqueued(worker: FirmwareDeltaBuilder)
     end
   end
 

@@ -1,7 +1,11 @@
 defmodule NervesHub.Application do
   use Application
 
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.DeviceLink.Handlers
+  alias NervesHub.Devices.DeviceConnectionHistory
+  alias NervesHub.Devices.DeviceMessage
+  alias NervesHub.Devices.LogLine
   alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.RateLimit.LogLines
@@ -39,9 +43,9 @@ defmodule NervesHub.Application do
           NervesHubWeb.Presence,
           {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
           NervesHubWeb.RateLimitPubSub,
-          {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
-          {PartitionSupervisor, child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
+          {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000}
         ] ++
+        analytics_buffers() ++
         device_link_handlers() ++
         cli_session_cache() ++
         deployments_orchestrator(deploy_env()) ++
@@ -156,6 +160,23 @@ defmodule NervesHub.Application do
         id: :analytics_repo_migrator
       )
     ]
+  end
+
+  # Batches the fleet-scale analytics write paths. Only started where there
+  # is a ClickHouse to write to - callers no-op on the same `:analytics_enabled`
+  # flag.
+  defp analytics_buffers() do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      opts = Application.get_env(:nerves_hub, :analytics_buffer, [])
+
+      [
+        Buffer.child_spec([schema: DeviceConnectionHistory] ++ opts),
+        Buffer.child_spec([schema: DeviceMessage] ++ opts),
+        Buffer.child_spec([schema: LogLine] ++ opts)
+      ]
+    else
+      []
+    end
   end
 
   defp ecto_repos() do

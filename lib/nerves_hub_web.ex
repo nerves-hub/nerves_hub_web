@@ -118,6 +118,9 @@ defmodule NervesHubWeb do
 
       def analytics_enabled?(), do: Application.get_env(:nerves_hub, :analytics_enabled)
 
+      def org_iroh_endpoints_ui_enabled?(),
+        do: Application.get_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, false)
+
       unquote(tab_component_functions())
     end
   end
@@ -250,6 +253,12 @@ defmodule NervesHubWeb do
       import NervesHubWeb.Components.Icons
       import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, tag_input: 1, core_label: 1, error: 1, logo: 1]
 
+      # The sidebar asks this before rendering the link to the Iroh Endpoints
+      # page. Hiding the link is presentation; the route refuses too.
+      def org_iroh_endpoints_ui_enabled?() do
+        Application.get_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, false)
+      end
+
       # Routes generation with the ~p sigil
       unquote(verified_routes())
     end
@@ -367,6 +376,13 @@ defmodule NervesHubWeb do
 
       def analytics_enabled?() do
         Application.get_env(:nerves_hub, :analytics_enabled)
+      end
+
+      # The organisation's Iroh Endpoints page, off unless a deployment turns it
+      # on. The nav link and the route both ask, because hiding a link is not
+      # access control — the URL is still typeable.
+      def org_iroh_endpoints_ui_enabled?() do
+        Application.get_env(:nerves_hub, :org_iroh_endpoints_ui_enabled, false)
       end
 
       # Routes generation with the ~p sigil

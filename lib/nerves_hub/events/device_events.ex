@@ -6,6 +6,7 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceMessages
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Devices.Updates
@@ -101,14 +102,12 @@ defmodule NervesHub.DeviceEvents do
 
   def manual_update(device, firmware, user, opts \\ []) do
     Repo.transact(fn ->
-      url =
-        if opts[:delta] do
-          {:ok, url} = Firmwares.get_delta_url(device, firmware)
-          url
-        else
-          {:ok, url} = Firmwares.get_firmware_url(firmware)
-          url
-        end
+      # When a delta is being sent it is the delta that the device downloads, so
+      # it is the delta that describes the download.
+      {:ok, firmware_or_delta} =
+        if opts[:delta], do: Firmwares.get_delta(device, firmware), else: {:ok, firmware}
+
+      {:ok, url} = Firmwares.get_firmware_url(firmware_or_delta)
 
       firmware_url =
         if opts[:firmware_proxy_url] do
@@ -129,7 +128,10 @@ defmodule NervesHub.DeviceEvents do
       payload = %UpdatePayload{
         update_available: true,
         firmware_url: firmware_url,
-        firmware_meta: meta
+        firmware_meta: meta,
+        size: firmware_or_delta.size,
+        checksum: firmware_or_delta.checksum,
+        partials_checksums: firmware_or_delta.partials_checksums
       }
 
       :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
@@ -151,6 +153,18 @@ defmodule NervesHub.DeviceEvents do
   end
 
   defp broadcast(device, event, payload) do
+    :ok = record_send(device, event, payload)
     :ok = ChannelServer.broadcast(NervesHub.PubSub, topic(device), event, payload)
+  end
+
+  # `NervesHubWeb.DeviceChannel` intercepts these two, so they stop at the
+  # channel and are turned into other messages — the device never sees them,
+  # and recording them here would claim a send that did not happen. Everything
+  # else on this topic is fastlaned straight to the device's transport, which
+  # means this broadcast is the only place it can be seen at all.
+  defp record_send(_device, event, _payload) when event in ["updated", "deployment_updated"], do: :ok
+
+  defp record_send(device, event, payload) do
+    DeviceMessages.record(device, :sent, :device, event, payload)
   end
 end

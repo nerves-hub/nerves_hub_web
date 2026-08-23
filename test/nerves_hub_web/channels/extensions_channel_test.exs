@@ -4,6 +4,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
@@ -410,6 +411,170 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert_push("attach", %{"extensions" => ["geo"]})
     Products.enable_extension_setting(product, "health")
     assert_push("attach", %{"extensions" => ["health"]})
+  end
+
+  describe "the network identity extension" do
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      # Opt in at the product level, which is where every extension starts off.
+      product = Products.get_product!(device.product_id)
+      {:ok, _product} = Products.enable_extension_setting(product, "network_identity")
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      %{device: device, socket: socket, certificate: certificate}
+    end
+
+    defp join_extensions(socket) do
+      assert {:ok, attach_list, socket} =
+               subscribe_and_join(socket, ExtensionsChannel, "extensions", %{
+                 "device_api_version" => "2.2.0",
+                 "network_identity" => "0.0.1"
+               })
+
+      {attach_list, socket}
+    end
+
+    test "is offered to a device that supports it", %{socket: socket} do
+      {attach_list, _socket} = join_extensions(socket)
+      assert "network_identity" in attach_list
+    end
+
+    test "asks the device for its identities once on attach", %{socket: socket} do
+      {_attach_list, socket} = join_extensions(socket)
+
+      push(socket, "network_identity:attached")
+      assert_push("network_identity:request", %{})
+    end
+
+    test "records what the device reports and tells the UI", %{device: device, socket: socket} do
+      {_attach_list, socket} = join_extensions(socket)
+
+      push(socket, "network_identity:attached")
+      assert_push("network_identity:request", %{})
+
+      @endpoint.subscribe("internal:device:#{device.id}")
+
+      push(socket, "network_identity:report", %{
+        "identities" => [
+          %{
+            "service" => "iroh",
+            "identifier" => "abc123",
+            "details" => %{"ticket" => "a-connection-ticket"}
+          }
+        ]
+      })
+
+      assert_receive %Broadcast{event: "network_identities:updated"}
+
+      assert [identity] = NetworkIdentities.list_for_device(device.id)
+      assert identity.service == :iroh
+      assert identity.identifier == "abc123"
+      assert identity.details == %{"ticket" => "a-connection-ticket"}
+    end
+
+    test "records two endpoints of one service separately", %{device: device, socket: socket} do
+      # A device running an iroh console and an iroh application reports both.
+      # They are both iroh, and neither should overwrite the other.
+      {_attach_list, socket} = join_extensions(socket)
+      push(socket, "network_identity:attached")
+      assert_push("network_identity:request", %{})
+
+      @endpoint.subscribe("internal:device:#{device.id}")
+
+      push(socket, "network_identity:report", %{
+        "identities" => [
+          %{"service" => "iroh", "instance" => "iroh_console", "identifier" => "console-key"},
+          %{"service" => "iroh", "instance" => "kiosk_sync", "identifier" => "sync-key"}
+        ]
+      })
+
+      assert_receive %Broadcast{event: "network_identities:updated"}
+      assert_receive %Broadcast{event: "network_identities:updated"}
+
+      assert [%{instance: "iroh_console"}, %{instance: "kiosk_sync"}] =
+               NetworkIdentities.list_for_device(device.id)
+    end
+
+    test "records several identities from one report", %{device: device, socket: socket} do
+      {_attach_list, socket} = join_extensions(socket)
+      push(socket, "network_identity:attached")
+      assert_push("network_identity:request", %{})
+
+      @endpoint.subscribe("internal:device:#{device.id}")
+
+      push(socket, "network_identity:report", %{
+        "identities" => [
+          %{"service" => "iroh", "identifier" => "iroh-key"},
+          %{"service" => "netbird", "identifier" => "netbird-key"}
+        ]
+      })
+
+      assert_receive %Broadcast{event: "network_identities:updated"}
+      assert_receive %Broadcast{event: "network_identities:updated"}
+
+      assert [%{service: :iroh}, %{service: :netbird}] =
+               NetworkIdentities.list_for_device(device.id)
+    end
+
+    test "a service we don't support doesn't cost the device its other identities", %{device: device, socket: socket} do
+      {_attach_list, socket} = join_extensions(socket)
+      push(socket, "network_identity:attached")
+      assert_push("network_identity:request", %{})
+
+      @endpoint.subscribe("internal:device:#{device.id}")
+
+      push(socket, "network_identity:report", %{
+        "identities" => [
+          %{"service" => "zerotier", "identifier" => "unsupported"},
+          %{"service" => "iroh", "identifier" => "still-recorded"}
+        ]
+      })
+
+      assert_receive %Broadcast{event: "network_identities:updated"}
+
+      assert [%{service: :iroh, identifier: "still-recorded"}] =
+               NetworkIdentities.list_for_device(device.id)
+    end
+
+    test "a malformed report does not take the connection down", %{device: device, socket: socket} do
+      {_attach_list, socket} = join_extensions(socket)
+      push(socket, "network_identity:attached")
+      assert_push("network_identity:request", %{})
+
+      push(socket, "network_identity:report", %{"identities" => "not-a-list"})
+      push(socket, "network_identity:report", %{"identities" => [%{"nonsense" => true}]})
+
+      @endpoint.subscribe("internal:device:#{device.id}")
+
+      # The channel is still serving this device: a good report after the bad
+      # ones still lands.
+      push(socket, "network_identity:report", %{
+        "identities" => [%{"service" => "iroh", "identifier" => "after-the-garbage"}]
+      })
+
+      assert_receive %Broadcast{event: "network_identities:updated"}
+
+      assert [%{identifier: "after-the-garbage"}] = NetworkIdentities.list_for_device(device.id)
+    end
+
+    test "is not offered to a device whose product has it switched off", %{device: device, certificate: certificate} do
+      product = Products.get_product!(device.product_id)
+      {:ok, _product} = Products.disable_extension_setting(product, "network_identity")
+
+      # The allowed set is worked out when the device authenticates, so this
+      # needs a fresh connection rather than the one opened during setup.
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {attach_list, _socket} = join_extensions(socket)
+
+      refute "network_identity" in attach_list
+    end
   end
 
   def device_fixture(user, device_params \\ %{}, opts) do

@@ -1,6 +1,7 @@
 import Config
 
 alias NervesHub.DeviceLink.PeerVerification
+alias NervesHub.Devices.DeviceMessages
 alias NervesHub.Firmwares.Upload
 alias NervesHub.Firmwares.Upload.S3
 alias NervesHub.Repo
@@ -43,6 +44,8 @@ config :nerves_hub,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
   log_include_mfa: System.get_env("LOG_INCLUDE_MFA", "false") == "true",
   web_title_suffix: System.get_env("WEB_TITLE_SUFFIX", "NervesHub"),
+  esp_idf_firmware_enabled: System.get_env("ESP_IDF_FIRMWARE_ENABLED", "false") == "true",
+  atomvm_firmware_enabled: System.get_env("ATOMVM_FIRMWARE_ENABLED", "false") == "true",
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   email_sender: System.get_env("EMAIL_SENDER", "NervesHub"),
   support_email_platform_name: System.get_env("SUPPORT_EMAIL_PLATFORM_NAME", "NervesHub"),
@@ -228,6 +231,22 @@ if config_env() == :prod do
         http_options: [
           log_protocol_errors: false
         ],
+        # The sockets set `compress: true`, so Bandit builds a zlib deflate and
+        # inflate context per connection and holds both for as long as the
+        # device stays connected. At the default mem_level of 8 the deflate
+        # hash table alone is 128KB, and measured end to end that is 271KB per
+        # device -- around 375MB of `:erlang.memory(:system)` on a node holding
+        # 1400 devices.
+        #
+        # Device frames are small and repetitive, so the hash table buys
+        # nothing here: over a representative mix of heartbeats, progress and
+        # health reports, mem_level 4 emits byte-identical output to mem_level
+        # 8. It costs 121KB less per connection.
+        #
+        # This has to live in Bandit's server-wide `websocket_options`. Bandit
+        # reads `deflate_options` from there, not from the per-socket
+        # `websocket:` list in the endpoint.
+        websocket_options: [deflate_options: [mem_level: 4]],
         thousand_island_options: [
           transport_module: NervesHub.DeviceSSLTransport,
           transport_options: transport_options
@@ -310,11 +329,22 @@ if config_env() == :prod do
     # (using a default order will cause issues for the migration table)
     config :ecto_ch, default_table_engine: "MergeTree"
 
+    # Batch sizing lives in `:analytics_buffer` below, shared with the other
+    # analytics write paths. This is only the cap on how much of a single
+    # message body is kept.
+    config :nerves_hub, DeviceMessages,
+      max_payload_bytes: String.to_integer(System.get_env("DEVICE_MESSAGES_MAX_PAYLOAD_BYTES", "8192"))
+
     config :nerves_hub, NervesHub.AnalyticsRepo,
       url: clickhouse_url,
       pool_size: String.to_integer(System.get_env("ANALYTICS_POOL_SIZE", "10")),
       pool_count: String.to_integer(System.get_env("ANALYTICS_POOL_COUNT", "1")),
       queue_target: 3_000
+
+    config :nerves_hub, :analytics_buffer,
+      max_batch_size: String.to_integer(System.get_env("ANALYTICS_BUFFER_MAX_BATCH_SIZE", "1000")),
+      max_delay: to_timeout(millisecond: String.to_integer(System.get_env("ANALYTICS_BUFFER_MAX_DELAY_MS", "500"))),
+      max_buffer_size: String.to_integer(System.get_env("ANALYTICS_BUFFER_MAX_SIZE", "50000"))
 
     config :nerves_hub,
       analytics_auto_migrator: System.get_env("ANALYTICS_AUTO_MIGRATOR", "true") == "true"
@@ -324,6 +354,19 @@ if config_env() == :prod do
     config :nerves_hub, analytics_enabled: false
   end
 end
+
+# The organisation's Iroh Endpoints page. Read in every environment so it can be
+# switched on locally the same way it is in a deployment.
+config :nerves_hub,
+  org_iroh_endpoints_ui_enabled: System.get_env("ORG_IROH_ENDPOINTS_UI_ENABLED", "false") == "true",
+  # Where a deployment sends people who want to know about its own relays —
+  # a hosted offering, or an internal runbook for a self-hosted one. The page
+  # links to the iroh project either way; this is the deployment's own page,
+  # so it is a setting rather than a URL in the source.
+  org_iroh_endpoints_info_url: System.get_env("ORG_IROH_ENDPOINTS_INFO_URL"),
+  # What to call that link. Falls back to the host of the URL above, which is a
+  # fair name for a link and one less thing to set.
+  org_iroh_endpoints_info_label: System.get_env("ORG_IROH_ENDPOINTS_INFO_LABEL")
 
 ##
 # Firmware upload backend.

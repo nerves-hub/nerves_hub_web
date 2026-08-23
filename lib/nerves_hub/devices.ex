@@ -15,6 +15,8 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceFirmwares
+  alias NervesHub.Devices.DeviceHealth
+  alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Extensions
@@ -132,10 +134,19 @@ defmodule NervesHub.Devices do
   def filter(product, user, opts) do
     common_filter_query(user)
     |> preload([latest_connection: lc], latest_connection: lc)
-    |> preload([latest_health: lh], latest_health: lh)
+    |> preload(latest_health: ^health_status_query())
     |> preload([deployment_group: dg], deployment_group: dg)
     |> preload([inflight_update: ifu], inflight_update: ifu)
     |> CommonFiltering.filter(product, opts)
+  end
+
+  # The device list renders the health icon and its tooltip, and nothing else
+  # off `latest_health` - but the row carries every metric the device last
+  # reported in `data`. Preloading from a narrowed query rather than the joined
+  # binding leaves that payload in the database. The join itself stays: the
+  # alarm and health status filters read `data` from it in SQL.
+  defp health_status_query() do
+    from(dh in DeviceHealth, select: [:id, :status, :status_reasons])
   end
 
   @spec filter_query(Product.t(), User.t(), map()) :: Ecto.Query.t()
@@ -288,6 +299,12 @@ defmodule NervesHub.Devices do
     |> preload([d, device_certificates: dc], device_certificates: dc)
   end
 
+  defp join_and_preload(query, :network_identities) do
+    query
+    |> join(:left, [d], ei in assoc(d, :network_identities), as: :network_identities)
+    |> preload([network_identities: ei], network_identities: ei)
+  end
+
   defp join_and_preload(query, :latest_connection) do
     query
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
@@ -369,11 +386,18 @@ defmodule NervesHub.Devices do
   def delete_device(%Device{} = device) do
     device_certificates_query = from(dc in DeviceCertificate, where: dc.device_id == ^device.id)
     pinned_devices_query = from(p in PinnedDevice, where: p.device_id == ^device.id)
+
+    # A device is only soft deleted, so these have to go explicitly: otherwise
+    # they keep holding the (service, identifier) unique index and reprovisioning
+    # the same hardware collides with the identity of the device just deleted.
+    network_identities_query = from(ei in NetworkIdentity, where: ei.device_id == ^device.id)
+
     changeset = Repo.soft_delete_changeset(device)
 
     Multi.new()
     |> Multi.delete_all(:device_certificates, device_certificates_query)
     |> Multi.delete_all(:pinned_devices, pinned_devices_query)
+    |> Multi.delete_all(:network_identities, network_identities_query)
     |> Multi.update(:device, changeset)
     |> Repo.transact()
     |> case do
@@ -540,6 +564,16 @@ defmodule NervesHub.Devices do
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
     |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query/1)
+    # The device's identities on other networks name an organisation of their
+    # own, and that is what those networks resolve a key to. Left behind, this
+    # device would keep answering for the organisation it just left — and be
+    # placed on that organisation's network by anything using them. Same
+    # transaction as the move, so there is no window where the two disagree.
+    |> Multi.update_all(
+      :network_identities,
+      from(ei in NetworkIdentity, where: ei.device_id == ^device.id),
+      set: [org_id: product.org_id, updated_at: DateTime.utc_now(:second)]
+    )
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, description)
     end)

@@ -84,6 +84,13 @@ defmodule NervesHubWeb.Components.Navigation do
       />
       <.nav_link label="Users" path={~p"/org/#{@scope.org}/settings/users"} selected={:users == @selected_tab} icon="data-[selected=false]:lucide-users--light data-[selected=true]:lucide-users" />
       <.nav_link
+        :if={org_iroh_endpoints_ui_enabled?()}
+        label="Iroh Endpoints"
+        path={~p"/org/#{@scope.org}/settings/iroh-endpoints"}
+        selected={:iroh_endpoints == @selected_tab}
+        icon="data-[selected=false]:lucide-waypoints--light data-[selected=true]:lucide-waypoints"
+      />
+      <.nav_link
         label="Certificates"
         path={~p"/org/#{@scope.org}/settings/certificates"}
         selected={:certificates == @selected_tab}
