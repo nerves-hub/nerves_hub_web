@@ -63,6 +63,32 @@ defmodule NervesHubWeb.Channels.EffectsTest do
       refute_receive {Health, :check}, 200
     end
 
+    test "a tick carrying the same message does not start a second timer" do
+      # This is the shape `Extensions.Health.attach/1` produces: ask for a
+      # report now, then every interval. Both arrive as the same term.
+      message = {Health, :check}
+
+      socket =
+        Effects.apply_all(socket(), [
+          {:send_self, message},
+          {:start_timer, {"health", :check}, message, 100}
+        ])
+
+      # The tick. The channel reschedules on every delivery, without knowing
+      # whether it came from the timer or not.
+      assert_receive ^message, 50
+      socket = Effects.reschedule(socket, message)
+
+      # Only the one timer from attach should fire, once per interval.
+      assert_receive ^message, 500
+      refute_receive ^message, 50
+      socket = Effects.reschedule(socket, message)
+
+      assert_receive ^message, 500
+      refute_receive ^message, 50
+      _ = Effects.reschedule(socket, message)
+    end
+
     test "re-arming a message that is not a live timer changes nothing" do
       socket = socket()
 

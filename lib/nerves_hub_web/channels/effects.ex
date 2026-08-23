@@ -48,8 +48,19 @@ defmodule NervesHubWeb.Channels.Effects do
       nil ->
         socket
 
-      {key, {:interval, _ref, _message, interval_ms}} ->
-        put_timer(socket, key, {:interval, Process.send_after(self(), message, interval_ms), message, interval_ms})
+      {key, {:interval, ref, _message, interval_ms}} ->
+        # Only re-arm when this message came from the timer. The same term can
+        # also arrive through `:send_self` — an extension's `:tick` on attach
+        # uses the very message its interval does — and re-arming on that
+        # would leave the original timer running alongside the new one, so the
+        # extension would hear from two timers every interval from then on.
+        # `read_timer/1` is `false` once the timer has fired; a cancelled ref
+        # never stays in the map, so that is the only way to get `false` here.
+        if Process.read_timer(ref) == false do
+          put_timer(socket, key, {:interval, Process.send_after(self(), message, interval_ms), message, interval_ms})
+        else
+          socket
+        end
     end
   end
 
