@@ -169,6 +169,16 @@ defmodule NervesHub.Firmwares.UpdateTool do
   @callback cleanup_firmware_delta_files(String.t()) :: :ok
 
   @doc """
+  Whether this format can be delta updated at all.
+
+  Distinct from `c:delta_updatable?/1`, which answers for one archive: this
+  answers for the format. A tool returning false never has deltas generated for
+  it, however a deployment group is configured — generating a patch nothing can
+  apply costs worker time and object storage and reports success in the UI.
+  """
+  @callback supports_deltas?() :: boolean()
+
+  @doc """
   Checks whether delta updating is enabled for the firmware the metadata describes.
 
   Takes the map returned by `c:get_firmware_metadata_from_file/1` so that a tool
@@ -223,30 +233,51 @@ defmodule NervesHub.Firmwares.UpdateTool do
   simply stopping new uploads.
   """
   @spec known() :: %{String.t() => module()}
-  def known(), do: %{"fwup" => __MODULE__.Fwup, "esp-idf" => __MODULE__.EspIdf}
+  def known(), do: %{"fwup" => __MODULE__.Fwup, "esp-idf" => __MODULE__.EspIdf, "atomvm" => __MODULE__.AtomVM}
 
   # fwup is always available. Anything else is off unless the platform turns it
   # on: enabling a format is a decision about what an instance will accept and
   # sign, not something a deploy should acquire by upgrading.
   defp default_tools() do
-    if esp_idf_enabled?() do
-      known()
-    else
-      %{"fwup" => __MODULE__.Fwup}
-    end
+    %{"fwup" => __MODULE__.Fwup}
+    |> enable(esp_idf_enabled?(), "esp-idf", __MODULE__.EspIdf)
+    |> enable(atomvm_enabled?(), "atomvm", __MODULE__.AtomVM)
   end
+
+  # Each format is gated on its own flag. Building the map from `known/0` would
+  # mean turning one format on turned them all on.
+  defp enable(tools, false, _name, _module), do: tools
+  defp enable(tools, true, name, module), do: Map.put(tools, name, module)
 
   @doc """
   Whether this instance accepts ESP-IDF application images.
 
-  Set by `ESP_IDF_FIRMWARE_ENABLED` at runtime. Off by default — ESP-IDF images
-  cannot currently be signature-verified (see
-  `NervesHub.Firmwares.UpdateTool.EspIdf`), so accepting them is a deliberate
-  choice about an instance's trust model.
+  Set by `ESP_IDF_FIRMWARE_ENABLED` at runtime. Off by default: accepting a
+  second firmware format is a deliberate choice about an instance's trust
+  model, not something a deploy should acquire by upgrading. A signed image is
+  verified against the organization's keys, and an unsigned one is refused
+  unless the product sets `allow_unsigned_esp_idf_firmware` — see
+  `NervesHub.Firmwares.UpdateTool.EspIdf`.
   """
   @spec esp_idf_enabled?() :: boolean()
   def esp_idf_enabled?() do
     Application.get_env(:nerves_hub, :esp_idf_firmware_enabled, false)
+  end
+
+  @doc """
+  Whether this instance accepts AtomVM packbeam archives.
+
+  Set by `ATOMVM_FIRMWARE_ENABLED` at runtime. Off by default: accepting a
+  firmware format is a decision about what an instance will take and store, not
+  something a deploy should acquire by upgrading.
+
+  A packbeam is verified like anything else, and a product may excuse a missing
+  signature with `allow_unsigned_atomvm_firmware`. See
+  `NervesHub.Firmwares.UpdateTool.AtomVM`.
+  """
+  @spec atomvm_enabled?() :: boolean()
+  def atomvm_enabled?() do
+    Application.get_env(:nerves_hub, :atomvm_firmware_enabled, false)
   end
 
   # The pre-registry configuration pinned the whole instance to one tool. Honour

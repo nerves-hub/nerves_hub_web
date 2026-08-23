@@ -166,6 +166,9 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   end
 
   @impl UpdateTool
+  def supports_deltas?(), do: true
+
+  @impl UpdateTool
   def delta_updatable?(%{path: meta_conf_path}) do
     {:ok, feature_usage} = Confuse.Fwup.get_feature_usage(meta_conf_path)
 

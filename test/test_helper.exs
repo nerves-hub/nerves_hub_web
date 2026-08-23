@@ -1,8 +1,10 @@
-# The ESP-IDF update tool is off by default (ESP_IDF_FIRMWARE_ENABLED); the
-# suite exercises it, so enable it here. This has to be `put_env` rather than a
-# line in config/test.exs, because config/runtime.exs runs afterwards in every
-# environment and would set it straight back to false.
+# The ESP-IDF and AtomVM update tools are off by default
+# (ESP_IDF_FIRMWARE_ENABLED, ATOMVM_FIRMWARE_ENABLED); the suite exercises both,
+# so enable them here. This has to be `put_env` rather than a line in
+# config/test.exs, because config/runtime.exs runs afterwards in every
+# environment and would set them straight back to false.
 Application.put_env(:nerves_hub, :esp_idf_firmware_enabled, true)
+Application.put_env(:nerves_hub, :atomvm_firmware_enabled, true)
 
 Mimic.copy(Ecto.UUID)
 Mimic.copy(ProcessHub)
