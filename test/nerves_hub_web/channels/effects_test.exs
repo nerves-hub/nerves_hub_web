@@ -6,6 +6,12 @@ defmodule NervesHubWeb.Channels.EffectsTest do
 
   defp socket(), do: Effects.init(%Socket{})
 
+  defp timer_processes() do
+    Enum.count(Process.list(), fn pid ->
+      match?({:current_function, {:timer, :interval_loop, _}}, Process.info(pid, :current_function))
+    end)
+  end
+
   describe "repeating timers" do
     test "delivers the message and keeps delivering it once re-armed" do
       socket = Effects.apply_all(socket(), [{:start_timer, {"health", :check}, {Health, :check}, 20}])
@@ -21,14 +27,24 @@ defmodule NervesHubWeb.Channels.EffectsTest do
     end
 
     test "costs no process, unlike :timer.send_interval/2" do
-      before = :erlang.system_info(:process_count)
+      before = timer_processes()
 
       socket =
         Enum.reduce(1..50, socket(), fn i, socket ->
           Effects.apply_all(socket, [{:start_timer, {"health", i}, {Health, i}, 60_000}])
         end)
 
-      assert :erlang.system_info(:process_count) - before == 0
+      # Counting `:timer.interval_loop` processes rather than every process on
+      # the node: the suite runs async, so a total is other tests' noise.
+      assert timer_processes() == before
+
+      # `Process.send_after/3` hands back a bare reference. `:timer` hands back
+      # `{:interval, ref}`, so this tells the two apart without counting
+      # anything.
+      for {_key, timer} <- socket.assigns.link_timers do
+        assert {:interval, ref, {Health, _}, 60_000} = timer
+        assert is_reference(ref)
+      end
 
       # and they are all still cancellable
       Enum.reduce(1..50, socket, fn i, socket ->
