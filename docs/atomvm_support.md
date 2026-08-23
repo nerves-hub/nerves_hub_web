@@ -18,10 +18,8 @@ instance, and once for each product that should accept the format.
 Set `ATOMVM_FIRMWARE_ENABLED=true`. Without it, no `.avm` is recognised and no
 product can opt in.
 
-Off by default. Accepting a firmware format is a decision about what an
-instance will take and store, not something a deploy should acquire by
-upgrading, and an unsigned packbeam is accepted where an unsigned fwup archive
-would not be. See [Firmware signing](#firmware-signing).
+Off by default. Accepting a firmware format is a decision about what an instance
+will take and store, not something a deploy should acquire by upgrading.
 
 ### 2. The product
 
@@ -30,6 +28,7 @@ Under **Product → Settings → Firmware**:
 | Setting | Column | Default |
 | --- | --- | --- |
 | Accept AtomVM packbeam archives | `products.allowed_update_tools` | `["fwup"]` |
+| Allow unsigned AtomVM archives | `products.allow_unsigned_atomvm_firmware` | `false` |
 
 A product accepts only the formats listed in `allowed_update_tools`; fwup is
 always among them. Uploading an `.avm` to a product that has not opted in is
@@ -177,13 +176,16 @@ is true of a signed fwup archive.
 ### What NervesHub does with it
 
 An archive carrying a signature is verified against the organization's Ed25519
-keys, and one that does not verify is refused whatever the product allows.
+keys, and one that does not verify is refused whatever the product allows. The
+setting below excuses the absence of a signature, never a bad one.
 
-An archive carrying no signature is accepted and recorded with no key. Nothing
-in the wider AtomVM toolchain signs by default, so refusing unsigned archives
-would refuse everything built by anything but this tooling. Requiring signatures
-is a per-product decision to add later, in the shape
-`allow_unsigned_esp_idf_firmware` already has.
+An archive carrying no signature is refused unless the product sets
+**Allow unsigned AtomVM archives**. That defaults to off, so turning the format
+on gives you signed-only, which is the safer of the two surprises.
+
+The setting exists because nothing in the wider AtomVM toolchain signs by
+default: a product whose firmware is built without `nh-avm` has no way to sign
+yet, and would otherwise be unable to upload at all.
 
 Namespacing and versioning are deliberate. AtomVM may define its own signing
 one day: the entry is named under `nerves_hub/` so it cannot collide with

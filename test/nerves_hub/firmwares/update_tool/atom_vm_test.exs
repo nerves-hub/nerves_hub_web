@@ -230,10 +230,11 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVMTest do
   describe "signatures" do
     defp org_key(public), do: %{scheme: :ed25519, key: public}
 
-    # Nothing in the wider AtomVM toolchain signs by default, so refusing these
-    # would refuse every archive built by anything but our own tooling.
-    test "an unsigned archive is accepted with no key" do
-      assert {:ok, nil} = AtomVM.verify_signature(write!(Builder.packbeam()), [])
+    # The product setting decides whether this is fatal; the tool only reports
+    # what it found.
+    test "an unsigned archive reports that it is unsigned" do
+      assert {:error, :firmware_not_signed} =
+               AtomVM.verify_signature(write!(Builder.packbeam()), [])
     end
 
     test "a signed archive returns the key that verified it" do

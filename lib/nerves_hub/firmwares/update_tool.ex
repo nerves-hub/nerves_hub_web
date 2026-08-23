@@ -268,10 +268,12 @@ defmodule NervesHub.Firmwares.UpdateTool do
   Whether this instance accepts AtomVM packbeam archives.
 
   Set by `ATOMVM_FIRMWARE_ENABLED` at runtime. Off by default: accepting a
-  firmware format is a decision about what an instance will take and store, and
-  an unsigned packbeam is accepted where an unsigned fwup archive would not be.
-  See `NervesHub.Firmwares.UpdateTool.AtomVM` for how signing works when an
-  archive carries one.
+  firmware format is a decision about what an instance will take and store, not
+  something a deploy should acquire by upgrading.
+
+  A packbeam is verified like anything else, and a product may excuse a missing
+  signature with `allow_unsigned_atomvm_firmware`. See
+  `NervesHub.Firmwares.UpdateTool.AtomVM`.
   """
   @spec atomvm_enabled?() :: boolean()
   def atomvm_enabled?() do

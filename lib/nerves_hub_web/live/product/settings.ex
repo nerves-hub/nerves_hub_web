@@ -15,12 +15,20 @@ defmodule NervesHubWeb.Live.Product.Settings do
   @optional_tools %{
     "esp-idf" => %{
       label: "ESP-IDF application images",
-      description: "Allow .bin images built by ESP-IDF to be uploaded to this product, alongside fwup archives."
+      description: "Allow .bin images built by ESP-IDF to be uploaded to this product, alongside fwup archives.",
+      unsigned_field: :allow_unsigned_esp_idf_firmware,
+      unsigned_label: "Allow unsigned ESP-IDF images",
+      unsigned_description:
+        "Accept ESP-IDF images that carry no Secure Boot v2 signature block. An image that is signed is always verified against this organization's signing keys, whether or not this is set."
     },
     "atomvm" => %{
       label: "AtomVM packbeam archives",
       description:
-        "Allow .avm archives built by rebar3 atomvm packbeam to be uploaded to this product, alongside fwup archives."
+        "Allow .avm archives built by rebar3 atomvm packbeam to be uploaded to this product, alongside fwup archives.",
+      unsigned_field: :allow_unsigned_atomvm_firmware,
+      unsigned_label: "Allow unsigned AtomVM archives",
+      unsigned_description:
+        "Accept packbeam archives that carry no signature. Nothing in the AtomVM toolchain signs by default, so a product built without nh-avm needs this. An archive that is signed is always verified, whether or not this is set."
     }
   }
 
@@ -146,14 +154,20 @@ defmodule NervesHubWeb.Live.Product.Settings do
     end
   end
 
-  def handle_event("update-allow-unsigned-esp-idf-firmware", params, socket) do
+  def handle_event("update-allow-unsigned", %{"tool" => tool} = params, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
-    allow = params["value"] == "on"
+    case Enum.find(socket.assigns.optional_tools, &(&1.name == tool)) do
+      nil ->
+        {:noreply, socket}
 
-    update_setting(socket, %{allow_unsigned_esp_idf_firmware: allow}, fn ->
-      "Unsigned ESP-IDF images are now #{(allow && "allowed") || "refused"} for this product."
-    end)
+      %{unsigned_field: field, label: label} ->
+        allow = params["value"] == "on"
+
+        update_setting(socket, %{field => allow}, fn ->
+          "Unsigned #{label} are now #{(allow && "allowed") || "refused"} for this product."
+        end)
+    end
   end
 
   def handle_event("update-extension", %{"extension" => extension} = params, socket) do

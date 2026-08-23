@@ -1038,9 +1038,10 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  # A product may accept unsigned ESP-IDF images, because most ESP-IDF builds
-  # are not signed. A *present but invalid* signature is still refused — the
-  # setting excuses the absence of a signature, never a bad one.
+  # A product may accept unsigned images for a format that can arrive that way:
+  # most ESP-IDF builds are not signed, and nothing but `nh-avm` signs a
+  # packbeam. A *present but invalid* signature is still refused — the setting
+  # excuses the absence of a signature, never a bad one.
   defp verify_signature(tool, filepath, org_keys, product) do
     case tool.verify_signature(filepath, org_keys) do
       {:error, :firmware_not_signed} ->
@@ -1055,8 +1056,15 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  defp unsigned_allowed?(tool, %Product{allow_unsigned_esp_idf_firmware: true}) do
-    tool.tool_name() == "esp-idf"
+  # Per format, because they are unsigned for unrelated reasons and a product
+  # may reasonably allow one and not the other. fwup is absent on purpose: an
+  # fwup archive is always verified.
+  defp unsigned_allowed?(tool, %Product{} = product) do
+    case tool.tool_name() do
+      "esp-idf" -> product.allow_unsigned_esp_idf_firmware
+      "atomvm" -> product.allow_unsigned_atomvm_firmware
+      _other -> false
+    end
   end
 
   defp unsigned_allowed?(_tool, _product), do: false

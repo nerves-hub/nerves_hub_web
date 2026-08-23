@@ -151,16 +151,16 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVM do
   end
 
   @doc """
-  Verify a packbeam's signature, if it carries one.
+  Verify a packbeam's signature.
 
-  An archive with no signature entry is accepted with no key. Nothing in the
-  AtomVM toolchain signs by default, so refusing unsigned archives here would
-  refuse every archive built by anything but this project's own tooling.
-  Requiring signatures is a product-level decision to make later, in the shape
-  `allow_unsigned_esp_idf_firmware` already has.
+  An archive with no signature entry reports `{:error, :firmware_not_signed}`,
+  which a product may excuse with `allow_unsigned_atomvm_firmware`. Nothing in
+  the wider AtomVM toolchain signs by default, so a product built with other
+  tooling has no way to sign yet and needs that escape.
 
-  An archive that *is* signed is verified, and a bad signature is refused
-  whatever the product allows.
+  A signature that is present and does not verify is refused whatever the
+  product allows. The setting excuses the absence of a signature, never a bad
+  one.
   """
   @impl UpdateTool
   def verify_signature(filepath, keys) do
@@ -168,7 +168,7 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVM do
          {:ok, entries} <- entries(binary) do
       case Enum.find(entries, &(&1.name == @signature_entry)) do
         nil ->
-          {:ok, nil}
+          {:error, :firmware_not_signed}
 
         %{offset: offset, data: payload} ->
           # Everything before the signature entry begins. See

@@ -57,7 +57,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
         |> element("#allow-unsigned-esp-idf-firmware")
         |> render_click(%{"value" => "on"})
 
-      assert html =~ "Unsigned ESP-IDF images are now allowed"
+      assert html =~ "Unsigned ESP-IDF application images are now allowed"
       assert Repo.reload(product).allow_unsigned_esp_idf_firmware
     end
 
@@ -87,6 +87,53 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
       assert html =~ "AtomVM packbeam archives are now accepted"
       assert Repo.reload(product).allowed_update_tools == ["fwup", "atomvm"]
+    end
+
+    # Only meaningful once the format is accepted at all, same as ESP-IDF.
+    test "the unsigned setting appears once the format is accepted", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+      {:ok, view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
+
+      refute html =~ "Allow unsigned AtomVM archives"
+
+      html =
+        view
+        |> element("#allow-atomvm-firmware")
+        |> render_click(%{"value" => "on"})
+
+      assert html =~ "Allow unsigned AtomVM archives"
+
+      html =
+        view
+        |> element("#allow-unsigned-atomvm-firmware")
+        |> render_click(%{"value" => "on"})
+
+      assert html =~ "Unsigned AtomVM packbeam archives are now allowed"
+      assert Repo.reload(product).allow_unsigned_atomvm_firmware
+    end
+
+    # Turning the format on gives signed-only until someone says otherwise.
+    test "unsigned archives are refused by default", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+      {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
+
+      view |> element("#allow-atomvm-firmware") |> render_click(%{"value" => "on"})
+
+      refute Repo.reload(product).allow_unsigned_atomvm_firmware
+    end
+
+    # Two formats, two settings: allowing one unsigned must not allow the other.
+    test "the unsigned settings are independent", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+      {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
+
+      view |> element("#allow-esp-idf-firmware") |> render_click(%{"value" => "on"})
+      view |> element("#allow-atomvm-firmware") |> render_click(%{"value" => "on"})
+      view |> element("#allow-unsigned-atomvm-firmware") |> render_click(%{"value" => "on"})
+
+      reloaded = Repo.reload(product)
+      assert reloaded.allow_unsigned_atomvm_firmware
+      refute reloaded.allow_unsigned_esp_idf_firmware
     end
 
     # Each toggle adds or removes its own format. Rewriting the list, as the

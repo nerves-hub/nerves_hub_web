@@ -20,7 +20,7 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
         },
         allowed_update_tools: %Schema{
           type: :array,
-          items: %Schema{type: :string, enum: ["fwup", "esp-idf"]},
+          items: %Schema{type: :string, enum: ["fwup", "esp-idf", "atomvm"]},
           description: """
           The firmware formats this product accepts. `fwup` is always present.
 
@@ -37,13 +37,27 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
           carry a signature is always verified against the organization's
           registered signing keys.
           """
+        },
+        allow_unsigned_atomvm_firmware: %Schema{
+          type: :boolean,
+          description: """
+          Accept AtomVM packbeam archives that carry no signature entry.
+
+          Nothing in the AtomVM toolchain signs by default, so a product built
+          without `nh-avm` has no way to sign yet.
+
+          This excuses a missing signature and nothing else: an archive that
+          does carry one is always verified against the organization's
+          registered signing keys.
+          """
         }
       },
       example: %{
         "name" => "Example Product",
         "require_unique_firmware_version" => true,
         "allowed_update_tools" => ["fwup"],
-        "allow_unsigned_esp_idf_firmware" => false
+        "allow_unsigned_esp_idf_firmware" => false,
+        "allow_unsigned_atomvm_firmware" => false
       }
     })
   end
@@ -60,7 +74,8 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
           "name" => "Example Product",
           "require_unique_firmware_version" => true,
           "allowed_update_tools" => ["fwup"],
-          "allow_unsigned_esp_idf_firmware" => false
+          "allow_unsigned_esp_idf_firmware" => false,
+          "allow_unsigned_atomvm_firmware" => false
         }
       }
     })
@@ -79,7 +94,8 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
             "name" => "Example Product",
             "require_unique_firmware_version" => true,
             "allowed_update_tools" => ["fwup"],
-            "allow_unsigned_esp_idf_firmware" => false
+            "allow_unsigned_esp_idf_firmware" => false,
+            "allow_unsigned_atomvm_firmware" => false
           },
           %{
             "name" => "Another Example Product",
@@ -127,13 +143,14 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
         require_unique_firmware_version: %Schema{type: :boolean},
         allowed_update_tools: %Schema{
           type: :array,
-          items: %Schema{type: :string, enum: ["fwup", "esp-idf"]}
+          items: %Schema{type: :string, enum: ["fwup", "esp-idf", "atomvm"]}
         },
-        allow_unsigned_esp_idf_firmware: %Schema{type: :boolean}
+        allow_unsigned_esp_idf_firmware: %Schema{type: :boolean},
+        allow_unsigned_atomvm_firmware: %Schema{type: :boolean}
       },
       example: %{
-        "allowed_update_tools" => ["fwup", "esp-idf"],
-        "allow_unsigned_esp_idf_firmware" => true
+        "allowed_update_tools" => ["fwup", "atomvm"],
+        "allow_unsigned_atomvm_firmware" => true
       }
     })
   end

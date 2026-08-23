@@ -199,7 +199,13 @@ defmodule NervesHub.Fixtures do
   """
   def atomvm_product_fixture(user, org, params \\ %{}) do
     params
-    |> Enum.into(%{allowed_update_tools: ["fwup", "atomvm"]})
+    |> Enum.into(%{
+      allowed_update_tools: ["fwup", "atomvm"],
+      # Signing is covered by its own tests. Everything else that uploads a
+      # packbeam would otherwise have to carry a keypair to say nothing about
+      # signing.
+      allow_unsigned_atomvm_firmware: true
+    })
     |> then(&product_fixture(user, org, &1))
   end
 

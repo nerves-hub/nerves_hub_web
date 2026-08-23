@@ -32,17 +32,44 @@ defmodule NervesHub.Firmwares.AtomVMUploadTest do
     assert firmware.product_id == product.id
   end
 
-  # Packbeam carries no signature, so an archive is recorded unsigned rather
-  # than being refused for lacking one.
-  test "records it with no signing key, without a product opt-in", %{user: user, org: org} do
-    product = Fixtures.atomvm_product_fixture(user, org)
-    _key = Fixtures.org_key_fixture(org, user)
+  # Nothing in the wider AtomVM toolchain signs by default, so a product built
+  # without nh-avm needs this to upload at all.
+  test "records an unsigned archive with no key when the product allows it", %{user: user, org: org} do
+    product = Fixtures.atomvm_product_fixture(user, org, %{allow_unsigned_atomvm_firmware: true})
     {:ok, path} = AtomVM.create_firmware(product.name)
 
     assert {:ok, firmware} = Firmwares.create_firmware(org, path, product: product)
-
     assert is_nil(firmware.org_key_id)
-    refute product.allow_unsigned_esp_idf_firmware
+  end
+
+  # Turning the format on gives signed-only, which is the safer of the two
+  # surprises.
+  test "refuses an unsigned archive by default", %{user: user, org: org} do
+    product = Fixtures.atomvm_product_fixture(user, org, %{allow_unsigned_atomvm_firmware: false})
+    {:ok, path} = AtomVM.create_firmware(product.name)
+
+    assert {:error, :firmware_not_signed} = Firmwares.create_firmware(org, path, product: product)
+  end
+
+  # The setting excuses a missing signature, never a bad one.
+  test "the unsigned setting does not excuse a bad signature", %{user: user, org: org} do
+    product = Fixtures.atomvm_product_fixture(user, org, %{allow_unsigned_atomvm_firmware: true})
+    {_public, seed} = AtomVM.keypair()
+    {other, _} = AtomVM.keypair()
+
+    %OrgKey{}
+    |> OrgKey.changeset(%{
+      org_id: org.id,
+      created_by_id: user.id,
+      name: "other-#{System.unique_integer([:positive])}",
+      key: other,
+      scheme: :ed25519
+    })
+    |> NervesHub.Repo.insert!()
+
+    {:ok, path} = AtomVM.create_firmware(product.name, version: "4.0.0", sign_with: seed)
+
+    assert {:error, :invalid_signature} = Firmwares.create_firmware(org, path, product: product)
   end
 
   # An organization signs AtomVM firmware with the key it already uses for fwup:
