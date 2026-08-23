@@ -328,6 +328,36 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     end
   end
 
+  test "rendering a device-reported metric key mints no atoms", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    # Metric keys are whatever the device put in its health report, and atoms
+    # are never reclaimed -- so deriving assign keys from them used to make the
+    # node permanently heavier for every novel key a fleet reported.
+    key = "totally_novel_metric_#{System.unique_integer([:positive])}"
+
+    {1, _} =
+      Repo.insert_all(DeviceMetric, [
+        DeviceMetric.save_with_timestamp(%{
+          device_id: device.id,
+          key: key,
+          value: 12.5,
+          inserted_at: DateTime.now!("Etc/UTC")
+        }).changes
+      ])
+
+    before_count = :erlang.system_info(:atom_count)
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+    |> assert_has("##{key}-chart", timeout: 100)
+
+    assert :erlang.system_info(:atom_count) == before_count
+  end
+
   defp save_metrics_with_timestamp(device_id, timestamp) do
     entries =
       Enum.map(@metrics, fn {key, val} ->
