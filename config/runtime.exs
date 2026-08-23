@@ -225,6 +225,22 @@ if config_env() == :prod do
         http_options: [
           log_protocol_errors: false
         ],
+        # The sockets set `compress: true`, so Bandit builds a zlib deflate and
+        # inflate context per connection and holds both for as long as the
+        # device stays connected. At the default mem_level of 8 the deflate
+        # hash table alone is 128KB, and measured end to end that is 271KB per
+        # device -- around 375MB of `:erlang.memory(:system)` on a node holding
+        # 1400 devices.
+        #
+        # Device frames are small and repetitive, so the hash table buys
+        # nothing here: over a representative mix of heartbeats, progress and
+        # health reports, mem_level 4 emits byte-identical output to mem_level
+        # 8. It costs 121KB less per connection.
+        #
+        # This has to live in Bandit's server-wide `websocket_options`. Bandit
+        # reads `deflate_options` from there, not from the per-socket
+        # `websocket:` list in the endpoint.
+        websocket_options: [deflate_options: [mem_level: 4]],
         thousand_island_options: [
           transport_module: NervesHub.DeviceSSLTransport,
           transport_options: transport_options
