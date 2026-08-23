@@ -349,13 +349,16 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
         }).changes
       ])
 
-    before_count = :erlang.system_info(:atom_count)
-
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     |> assert_has("##{key}-chart", timeout: 100)
 
-    assert :erlang.system_info(:atom_count) == before_count
+    # Asserted on the specific atoms rather than on `:erlang.system_info(:atom_count)`,
+    # which is global and moves under any other test running alongside this one.
+    # These two are what the tab used to derive from the metric name.
+    for never_an_atom <- [key <> "_chart_data", key <> "_has_chart_data"] do
+      assert_raise ArgumentError, fn -> String.to_existing_atom(never_an_atom) end
+    end
   end
 
   defp save_metrics_with_timestamp(device_id, timestamp) do
