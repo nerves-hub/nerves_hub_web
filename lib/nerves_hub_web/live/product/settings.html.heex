@@ -87,47 +87,45 @@
             </div>
           </div>
 
-          <div :if={@esp_idf_available} class="flex h-16 items-center gap-6 p-2">
+          <div :for={tool <- @optional_tools} class="flex h-16 items-center gap-6 p-2">
             <div class="bg-base-800 border-base-700 flex h-8 items-center rounded-full border px-2 py-1">
               <input
-                id="allow-esp-idf-firmware"
-                name="allow-esp-idf-firmware"
+                id={"allow-#{tool.name}-firmware"}
+                name={"allow-#{tool.name}-firmware"}
                 type="checkbox"
                 class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
-                phx-click="update-allow-esp-idf-firmware"
-                checked={Product.accepts_update_tool?(@product, "esp-idf")}
+                phx-click="update-allowed-update-tool"
+                phx-value-tool={tool.name}
+                checked={Product.accepts_update_tool?(@product, tool.name)}
                 disabled={!authorized?(:"product:update", @current_scope)}
               />
             </div>
             <div class="flex flex-col">
-              <div class="text-base-300 font-medium">Accept ESP-IDF application images</div>
-              <div class="text-base-400 text-xs">
-                Allow <code>.bin</code> images built by ESP-IDF to be uploaded to this product, alongside fwup archives.
-              </div>
+              <div class="text-base-300 font-medium">Accept {tool.label}</div>
+              <div class="text-base-400 text-xs">{tool.description}</div>
             </div>
           </div>
 
           <div
-            :if={@esp_idf_available && Product.accepts_update_tool?(@product, "esp-idf")}
+            :for={tool <- @optional_tools}
+            :if={Product.accepts_update_tool?(@product, tool.name)}
             class="flex h-16 items-center gap-6 p-2"
           >
             <div class="bg-base-800 border-base-700 flex h-8 items-center rounded-full border px-2 py-1">
               <input
-                id="allow-unsigned-esp-idf-firmware"
-                name="allow-unsigned-esp-idf-firmware"
+                id={"allow-unsigned-#{tool.name}-firmware"}
+                name={"allow-unsigned-#{tool.name}-firmware"}
                 type="checkbox"
                 class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
-                phx-click="update-allow-unsigned-esp-idf-firmware"
-                checked={@product.allow_unsigned_esp_idf_firmware}
+                phx-click="update-allow-unsigned"
+                phx-value-tool={tool.name}
+                checked={Map.get(@product, tool.unsigned_field)}
                 disabled={!authorized?(:"product:update", @current_scope)}
               />
             </div>
             <div class="flex flex-col">
-              <div class="text-base-300 font-medium">Allow unsigned ESP-IDF images</div>
-              <div class="text-base-400 text-xs">
-                Accept ESP-IDF images that carry no Secure Boot v2 signature block. An image that is signed
-                is always verified against this organization's signing keys, whether or not this is set.
-              </div>
+              <div class="text-base-300 font-medium">{tool.unsigned_label}</div>
+              <div class="text-base-400 text-xs">{tool.unsigned_description}</div>
             </div>
           </div>
         </div>

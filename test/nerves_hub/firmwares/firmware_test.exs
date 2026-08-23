@@ -49,7 +49,7 @@ defmodule NervesHub.Firmwares.FirmwareTest do
     test "an fwup firmware cannot be left unsigned", %{firmware: firmware} do
       assert firmware.tool == "fwup"
 
-      assert_raise Postgrex.Error, ~r/firmwares_signed_unless_esp_idf/, fn ->
+      assert_raise Postgrex.Error, ~r/firmwares_signed_unless_optional_format/, fn ->
         Firmware
         |> where(id: ^firmware.id)
         |> Repo.update_all(set: [org_key_id: nil])
@@ -63,10 +63,19 @@ defmodule NervesHub.Firmwares.FirmwareTest do
                |> Repo.update_all(set: [tool: "esp-idf", org_key_id: nil])
     end
 
-    # `tool` is nullable, so `= 'esp-idf'` would evaluate to NULL here and a
+    # Nothing signs a packbeam today, so an AtomVM firmware is always stored
+    # without a key rather than sometimes.
+    test "an atomvm firmware may be unsigned", %{firmware: firmware} do
+      assert {1, _} =
+               Firmware
+               |> where(id: ^firmware.id)
+               |> Repo.update_all(set: [tool: "atomvm", org_key_id: nil])
+    end
+
+    # `tool` is nullable, so `IN (...)` would evaluate to NULL here and a
     # CHECK passes on NULL. `IS NOT DISTINCT FROM` is what closes that.
     test "a firmware with no tool cannot be left unsigned either", %{firmware: firmware} do
-      assert_raise Postgrex.Error, ~r/firmwares_signed_unless_esp_idf/, fn ->
+      assert_raise Postgrex.Error, ~r/firmwares_signed_unless_optional_format/, fn ->
         Firmware
         |> where(id: ^firmware.id)
         |> Repo.update_all(set: [tool: nil, org_key_id: nil])

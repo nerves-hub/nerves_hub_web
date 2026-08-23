@@ -7,6 +7,31 @@ defmodule NervesHubWeb.Live.Product.Settings do
   alias NervesHub.Products
   alias NervesHub.Products.Product
 
+  # How each optional format is described to a human. The tool module knows the
+  # format; naming it for a settings page is presentation, so it lives here.
+  # fwup is not listed: it is always accepted and cannot be turned off.
+  # `label` is a noun, so it reads as both a heading ("Accept ...") and a flash
+  # message ("... are now accepted").
+  @optional_tools %{
+    "esp-idf" => %{
+      label: "ESP-IDF application images",
+      description: "Allow .bin images built by ESP-IDF to be uploaded to this product, alongside fwup archives.",
+      unsigned_field: :allow_unsigned_esp_idf_firmware,
+      unsigned_label: "Allow unsigned ESP-IDF images",
+      unsigned_description:
+        "Accept ESP-IDF images that carry no Secure Boot v2 signature block. An image that is signed is always verified against this organization's signing keys, whether or not this is set."
+    },
+    "atomvm" => %{
+      label: "AtomVM packbeam archives",
+      description:
+        "Allow .avm archives built by rebar3 atomvm packbeam to be uploaded to this product, alongside fwup archives.",
+      unsigned_field: :allow_unsigned_atomvm_firmware,
+      unsigned_label: "Allow unsigned AtomVM archives",
+      unsigned_description:
+        "Accept packbeam archives that carry no signature. Nothing in the AtomVM toolchain signs by default, so a product built without nh-avm needs this. An archive that is signed is always verified, whether or not this is set."
+    }
+  }
+
   def mount(_params, _session, socket) do
     product = Products.load_shared_secret_auth(socket.assigns.current_scope.product)
 
@@ -20,6 +45,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> assign(:form, to_form(Ecto.Changeset.change(product)))
       |> assign(:available_extensions, extensions())
       |> assign(:esp_idf_available, UpdateTool.esp_idf_enabled?())
+      |> assign(:optional_tools, optional_tools())
 
     {:ok, socket}
   end
@@ -102,28 +128,46 @@ defmodule NervesHubWeb.Live.Product.Settings do
     {:noreply, socket}
   end
 
-  # Turning ESP-IDF off leaves `allow_unsigned_esp_idf_firmware` as it was. It
-  # has no effect while the format is refused, and keeping it means turning the
-  # format back on restores the setup the product had before.
-  def handle_event("update-allow-esp-idf-firmware", params, socket) do
+  # Adds or removes one format, rather than rewriting the list: a product may
+  # accept several, and replacing the list would silently drop the others.
+  #
+  # Turning a format off leaves its other settings — `allow_unsigned_esp_idf_firmware`,
+  # say — as they were. They have no effect while the format is refused, and
+  # keeping them means turning it back on restores the setup the product had.
+  def handle_event("update-allowed-update-tool", %{"tool" => tool} = params, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
-    allow = params["value"] == "on"
-    tools = if allow, do: ["fwup", "esp-idf"], else: ["fwup"]
+    case Enum.find(socket.assigns.optional_tools, &(&1.name == tool)) do
+      nil ->
+        # A format this instance does not offer. The changeset would refuse it
+        # too, but not with a message that would mean anything to the reader.
+        {:noreply, socket}
 
-    update_setting(socket, %{allowed_update_tools: tools}, fn ->
-      "ESP-IDF application images are now #{(allow && "accepted") || "refused"} for this product."
-    end)
+      %{label: label} ->
+        allow = params["value"] == "on"
+        current = socket.assigns.product.allowed_update_tools
+        tools = if allow, do: Enum.uniq(current ++ [tool]), else: current -- [tool]
+
+        update_setting(socket, %{allowed_update_tools: tools}, fn ->
+          "#{label} are now #{(allow && "accepted") || "refused"} for this product."
+        end)
+    end
   end
 
-  def handle_event("update-allow-unsigned-esp-idf-firmware", params, socket) do
+  def handle_event("update-allow-unsigned", %{"tool" => tool} = params, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
-    allow = params["value"] == "on"
+    case Enum.find(socket.assigns.optional_tools, &(&1.name == tool)) do
+      nil ->
+        {:noreply, socket}
 
-    update_setting(socket, %{allow_unsigned_esp_idf_firmware: allow}, fn ->
-      "Unsigned ESP-IDF images are now #{(allow && "allowed") || "refused"} for this product."
-    end)
+      %{unsigned_field: field, label: label} ->
+        allow = params["value"] == "on"
+
+        update_setting(socket, %{field => allow}, fn ->
+          "Unsigned #{label} are now #{(allow && "allowed") || "refused"} for this product."
+        end)
+    end
   end
 
   def handle_event("update-extension", %{"extension" => extension} = params, socket) do
@@ -157,6 +201,17 @@ defmodule NervesHubWeb.Live.Product.Settings do
       end
 
     {:noreply, socket}
+  end
+
+  # Only formats this instance has enabled, so a product cannot be set to accept
+  # something `Product.validate_allowed_update_tools/1` would then refuse.
+  defp optional_tools() do
+    enabled = Map.keys(UpdateTool.all())
+
+    @optional_tools
+    |> Enum.filter(fn {name, _details} -> name in enabled end)
+    |> Enum.sort_by(fn {name, _details} -> name end)
+    |> Enum.map(fn {name, details} -> Map.put(details, :name, name) end)
   end
 
   defp update_setting(socket, attrs, message) do

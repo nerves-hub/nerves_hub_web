@@ -102,7 +102,7 @@ defmodule NervesHubWeb.API.ProductController do
     render(conn, :show, product: product)
   end
 
-  @settable_params ~w(require_unique_firmware_version allowed_update_tools allow_unsigned_esp_idf_firmware)
+  @settable_params ~w(require_unique_firmware_version allowed_update_tools allow_unsigned_esp_idf_firmware allow_unsigned_atomvm_firmware)
 
   operation(:update,
     summary: "Update a Product's settings",

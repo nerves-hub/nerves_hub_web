@@ -61,8 +61,10 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
   version-string change patches to 1.6% of the full image, a small code change
   to 3.1%, and a release's worth of changes to 7.3%.
 
-  Nothing applies these patches on the device yet, so `supports_deltas?/0`
-  still reports false and none are generated; see `device_update_type/2`.
+  Every ESP-IDF device is sent a patch where one exists. The applier ships
+  inside the image rather than being a system binary of independent vintage, so
+  there is no device that can take the format but not the patch; see
+  `device_update_type/2`.
   """
 
   @behaviour NervesHub.Firmwares.UpdateTool
@@ -448,11 +450,9 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
   @impl UpdateTool
   def device_update_type(%Device{}, %Firmware{}), do: :delta
 
-  # Not reached yet: `delta_updatable?/1` reports false, so
-  # `Firmwares.generate_firmware_delta/3` refuses before getting here. The
-  # implementation is written and tested against the format the device will
-  # apply, so that enabling it is a change to `supports_deltas?/0` rather than
-  # a change to what a patch is.
+  # The patch has to be one `esp_delta_ota` can decode on the device, which is
+  # what fixes the compression, patch type and algorithm rather than any
+  # property of the images; see the module docs.
   @impl UpdateTool
   def create_firmware_delta_file({_source_uuid, source_url}, {target_uuid, target_url}, work_dir) do
     source_path = Path.join(work_dir, "source.bin") |> Path.expand()
