@@ -21,6 +21,13 @@ defmodule NervesHubWeb.Live.Product.Settings do
       unsigned_description:
         "Accept ESP-IDF images that carry no Secure Boot v2 signature block. An image that is signed is always verified against this organization's signing keys, whether or not this is set."
     },
+    "rauc" => %{
+      label: "RAUC bundles",
+      description:
+        "Allow .raucb bundles to be uploaded to this product, alongside fwup archives. Bundles must be in the verity format and signed by a certificate registered as an organization key."
+      # No unsigned variant: RAUC will not build an unsigned bundle, so there is
+      # nothing for a product to opt into.
+    },
     "atomvm" => %{
       label: "AtomVM packbeam archives",
       description:

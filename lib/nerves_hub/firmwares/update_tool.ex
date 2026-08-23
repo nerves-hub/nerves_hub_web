@@ -22,7 +22,8 @@ defmodule NervesHub.Firmwares.UpdateTool do
 
       config :nerves_hub, :update_tools, %{
         "fwup" => NervesHub.Firmwares.UpdateTool.Fwup,
-        "esp-idf" => NervesHub.Firmwares.UpdateTool.EspIdf
+        "esp-idf" => NervesHub.Firmwares.UpdateTool.EspIdf,
+        "rauc" => NervesHub.Firmwares.UpdateTool.Rauc
       }
 
   The older single-tool keys (`:update_tool`, and before it `:delta_updater`)
@@ -233,7 +234,13 @@ defmodule NervesHub.Firmwares.UpdateTool do
   simply stopping new uploads.
   """
   @spec known() :: %{String.t() => module()}
-  def known(), do: %{"fwup" => __MODULE__.Fwup, "esp-idf" => __MODULE__.EspIdf, "atomvm" => __MODULE__.AtomVM}
+  def known(),
+    do: %{
+      "fwup" => __MODULE__.Fwup,
+      "esp-idf" => __MODULE__.EspIdf,
+      "atomvm" => __MODULE__.AtomVM,
+      "rauc" => __MODULE__.Rauc
+    }
 
   # fwup is always available. Anything else is off unless the platform turns it
   # on: enabling a format is a decision about what an instance will accept and
@@ -242,12 +249,34 @@ defmodule NervesHub.Firmwares.UpdateTool do
     %{"fwup" => __MODULE__.Fwup}
     |> enable(esp_idf_enabled?(), "esp-idf", __MODULE__.EspIdf)
     |> enable(atomvm_enabled?(), "atomvm", __MODULE__.AtomVM)
+    |> enable(rauc_enabled?(), "rauc", __MODULE__.Rauc)
   end
 
   # Each format is gated on its own flag. Building the map from `known/0` would
   # mean turning one format on turned them all on.
   defp enable(tools, false, _name, _module), do: tools
   defp enable(tools, true, name, module), do: Map.put(tools, name, module)
+
+  @doc """
+  Whether this instance accepts RAUC bundles.
+
+  Set by `RAUC_FIRMWARE_ENABLED` at runtime. Off by default for the same reason
+  as the others: accepting a format is a decision about what an instance will
+  take, not something a deploy should acquire by upgrading.
+
+  Unlike ESP-IDF and AtomVM there is no unsigned variant to allow — RAUC refuses
+  to build an unsigned bundle — but an organization still needs an
+  `x509_certificate` key registered before an upload can be verified. Turning
+  this on before anyone has done so leaves uploads failing with
+  `:no_public_keys`.
+
+  RAUC 1.9 or newer is required at both ends; see
+  `NervesHub.Firmwares.UpdateTool.Rauc`.
+  """
+  @spec rauc_enabled?() :: boolean()
+  def rauc_enabled?() do
+    Application.get_env(:nerves_hub, :rauc_firmware_enabled, false)
+  end
 
   @doc """
   Whether this instance accepts ESP-IDF application images.

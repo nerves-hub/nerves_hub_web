@@ -291,6 +291,25 @@ defmodule NervesHubWeb.Live.Firmware do
       "#{inspect(expected)}. Check the product name in your firmware build."
   end
 
+  defp upload_error({:missing_manifest_field, field}) do
+    "This RAUC bundle's manifest has no #{field}. NervesHub needs it to match " <>
+      "the bundle to a deployment."
+  end
+
+  defp upload_error({:missing_manifest_section, key}) do
+    "This RAUC bundle's manifest has no [meta.nerveshub] section, so NervesHub " <>
+      "cannot read #{key}. Meta sections require RAUC 1.9 or newer — older " <>
+      "versions drop them silently while building the bundle, so the section " <>
+      "can be present in your manifest and absent from the bundle."
+  end
+
+  defp upload_error(:plain_bundle_unsupported) do
+    "This is a RAUC bundle in the plain format. NervesHub reads verity bundles, " <>
+      "which is also the format required for the streaming installs that make " <>
+      "RAUC worth using. Rebuild with `format=verity` in the manifest's " <>
+      "[bundle] section."
+  end
+
   defp upload_error({:update_tool_not_allowed, tool, product}) do
     "The product #{inspect(product)} does not accept #{tool} firmware. " <>
       "An organization owner can enable it in the product's settings."
