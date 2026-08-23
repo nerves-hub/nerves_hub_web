@@ -76,21 +76,30 @@ defmodule NervesHubWeb.ExtensionsChannel do
     {:noreply, socket}
   end
 
-  @decorate with_span("Channels.ExtensionsChannel.handle_info[Broadcast]")
-  def handle_info({mod, msg} = message, socket) do
-    # Before dispatching, not after: an extension that raises is swallowed by
-    # `NervesHub.Extensions.Dispatch`, and re-arming afterwards would let that
-    # silently end a repeating timer for the rest of the connection.
-    socket = Effects.reschedule(socket, message)
+  # A timer armed through `Effects` delivering; `timer_fired/2` re-arms it.
+  @decorate with_span("Channels.ExtensionsChannel.handle_info[timer]")
+  def handle_info({:timeout, _ref, _payload} = timer, socket) do
+    case Effects.timer_fired(socket, timer) do
+      {:deliver, {mod, msg}, socket} -> extension_info(socket, mod, msg)
+      {:drop, socket} -> {:noreply, socket}
+      :not_timer -> {:noreply, socket}
+    end
+  end
 
+  @decorate with_span("Channels.ExtensionsChannel.handle_info[extension]")
+  def handle_info({mod, msg}, socket) do
+    extension_info(socket, mod, msg)
+  end
+
+  def handle_info(_msg, socket), do: {:noreply, socket}
+
+  defp extension_info(socket, mod, msg) do
     {:ok, extensions, effects} = DeviceLink.extension_info(socket.assigns.extensions, mod, msg)
 
     socket
     |> assign(:extensions, extensions)
     |> apply_effects(effects)
   end
-
-  def handle_info(_msg, socket), do: {:noreply, socket}
 
   defp apply_effects(socket, effects) do
     device_info = device_info(socket)
