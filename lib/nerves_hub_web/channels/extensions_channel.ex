@@ -77,7 +77,12 @@ defmodule NervesHubWeb.ExtensionsChannel do
   end
 
   @decorate with_span("Channels.ExtensionsChannel.handle_info[Broadcast]")
-  def handle_info({mod, msg}, socket) do
+  def handle_info({mod, msg} = message, socket) do
+    # Before dispatching, not after: an extension that raises is swallowed by
+    # `NervesHub.Extensions.Dispatch`, and re-arming afterwards would let that
+    # silently end a repeating timer for the rest of the connection.
+    socket = Effects.reschedule(socket, message)
+
     {:ok, extensions, effects} = DeviceLink.extension_info(socket.assigns.extensions, mod, msg)
 
     socket

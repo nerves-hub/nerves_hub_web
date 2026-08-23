@@ -80,7 +80,8 @@ defmodule NervesHubWeb.API.ProductControllerTest do
                "name" => product.name,
                "require_unique_firmware_version" => true,
                "allowed_update_tools" => ["fwup"],
-               "allow_unsigned_esp_idf_firmware" => false
+               "allow_unsigned_esp_idf_firmware" => false,
+               "allow_unsigned_atomvm_firmware" => false
              }
     end
   end

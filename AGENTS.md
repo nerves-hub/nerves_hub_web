@@ -189,7 +189,7 @@ moment a consumer changed.
     tests assert with `assert_eventually`; under a loaded runner they can fail
     and pass on re-run / in isolation. Verify with a re-run before assuming a
     regression.
-  - **Firmware delta tests need `fwup` + `mtools` + `xdelta3` installed.**
+  - **Firmware delta tests need `fwup` + `mtools` + `xdelta3` + `detools` installed.** (`detools` is pinned in `mise.toml`, so `mise install` fetches it; otherwise `pip install detools`. ESP-IDF deltas use it rather than xdelta3, because that is the format `esp_delta_ota` reads on the device.)
     Without them, a couple of `NervesHub.Firmwares.UpdateToolTest` cases fail
     locally — an environment failure, not a code one.
 

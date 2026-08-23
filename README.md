@@ -39,9 +39,17 @@ While [mise](https://mise.jdx.dev/) is recommended, you can also use [asdf-vm](h
 
 Modify the `.tool-versions` if you want to use a later version of Erlang, Elixir, or NodeJS.
 
-You'll also need to install `fwup` and `xdelta3`. See the [fwup installation
+You'll also need `fwup` and `xdelta3`, which build firmware deltas for
+fwup-based firmware. See the [fwup installation
 instructions](https://github.com/fhunleth/fwup#installing) and the [xdelta3
 instructions](https://github.com/jmacd/xdelta).
+
+ESP-IDF firmware deltas are built with [detools](https://github.com/eerimoq/detools)
+rather than xdelta3, because that is the format devices decode. On mise you
+already have it: `mise.toml` pins the version and `mise install` fetches it,
+which needs `uv` or `pipx` for mise to install Python packages with
+(`mise use -g uv@latest`). Otherwise install it yourself with `pip install
+detools`.
 
 If you are using a Debian/Ubuntu system, it's recommended to install the `inotify-tools` package:
 

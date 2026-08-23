@@ -3,12 +3,13 @@ defmodule NervesHubWeb.ConsoleChannel do
   use Phoenix.Channel
 
   alias NervesHub.Devices.DeviceMessages
+  alias NervesHubWeb.Channels.Scrollback
   alias Phoenix.Socket.Broadcast
 
   def join("console", payload, socket) do
     send(self(), {:after_join, payload})
 
-    {:ok, assign(socket, %{current_line: "", buffer: CircularBuffer.new(1024)})}
+    {:ok, assign(socket, :scrollback, Scrollback.new())}
   end
 
   def terminate(_, _socket) do
@@ -18,18 +19,8 @@ defmodule NervesHubWeb.ConsoleChannel do
   def handle_in("up", payload, socket) do
     :ok = record(socket, :received, "up", payload)
 
-    current_line = socket.assigns.current_line <> payload["data"]
-    [current_line | lines] = Enum.reverse(String.split(current_line, "\n"))
-
-    buffer =
-      Enum.reduce(Enum.reverse(lines), socket.assigns.buffer, fn line, buffer ->
-        CircularBuffer.insert(buffer, line <> "\n")
-      end)
-
-    socket =
-      socket
-      |> assign(:current_line, current_line)
-      |> assign(:buffer, buffer)
+    scrollback = Scrollback.append(socket.assigns.scrollback, payload["data"])
+    socket = assign(socket, :scrollback, scrollback)
 
     user_topic(socket)
     |> socket.endpoint.broadcast!("up", payload)
@@ -87,8 +78,7 @@ defmodule NervesHubWeb.ConsoleChannel do
     metadata = %{version: socket.assigns.version}
     send(pid, {:metadata, metadata})
 
-    lines = Enum.join(socket.assigns.buffer) <> socket.assigns.current_line
-    send(pid, {:cache, lines})
+    send(pid, {:cache, Scrollback.text(socket.assigns.scrollback)})
 
     {:noreply, socket}
   end

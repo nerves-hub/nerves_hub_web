@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   alias NervesHub.Devices.Metrics
   alias NervesHub.Products
+  alias Phoenix.LiveView.AsyncResult
 
   @time_frame_opts [
     {"hour", 3},
@@ -45,27 +46,54 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   @tick_interval 55_000
 
   def tab_params(_params, _uri, socket) do
-    _ = if connected?(socket), do: Process.send_after(self(), :tick, @tick_interval)
-
     socket
+    |> schedule_tick()
     |> update_from_and_until_timestamps()
     |> assign(:time_frame_opts, @time_frame_opts)
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(socket.assigns.device.id))
     |> assign(:custom_health_labels, Products.custom_health_metrics_labels(socket.assigns.product))
     |> assign(:editing_label_key, nil)
+    |> assign(:chart_data, %{})
+    |> assign(:has_chart_data, %{})
     |> async_assign_charts()
     |> cont()
   end
 
   def cleanup() do
-    [:time_frame, :time_frame_opts, :charts, :custom_health_labels, :editing_label_key]
+    [
+      :time_frame,
+      :time_frame_opts,
+      :charts,
+      :chart_data,
+      :has_chart_data,
+      :custom_health_labels,
+      :editing_label_key
+    ]
+  end
+
+  def hooked_async("load_chart:" <> key, {:ok, results}, socket) do
+    socket
+    |> put_chart_data(key, AsyncResult.ok(chart_data(socket, key), results))
+    |> halt()
+  end
+
+  def hooked_async("load_chart:" <> key, {:exit, reason}, socket) do
+    _ =
+      Sentry.capture_message("Unexpected error when loading device health charts",
+        extra: %{key: key, reason: reason},
+        result: :none
+      )
+
+    socket
+    |> put_chart_data(key, AsyncResult.failed(chart_data(socket, key), {:exit, reason}))
+    |> halt()
   end
 
   def hooked_async("update_chart:" <> key, {:ok, results}, socket) do
     {from, until} = fetch_from_and_until(socket)
 
     socket
-    |> assign(has_chart_data_key(key), Enum.any?(results))
+    |> put_has_chart_data(key, Enum.any?(results))
     |> push_event("update-charts", %{
       key: key,
       data: results,
@@ -158,16 +186,15 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
         socket
         |> push_event("add-data-point", %{key: key, data: data, from: from, until: until})
-        |> assign(has_chart_data_key(key), true)
+        |> put_has_chart_data(key, true)
       end)
     end
     |> halt()
   end
 
   def hooked_info(:tick, socket) do
-    Process.send_after(self(), :tick, @tick_interval)
-
     socket
+    |> schedule_tick()
     |> update_from_and_until_timestamps()
     |> then(fn socket ->
       {from, until} = fetch_from_and_until(socket)
@@ -307,7 +334,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
               </div>
             </div>
             <div class="relative flex h-[200px] w-full">
-              <.async_result :let={chart_data} assign={assigns[chart_data_key(key)]}>
+              <.async_result :let={chart_data} assign={@chart_data[key]}>
                 <:loading>
                   <div class="bg-base-900/70 absolute inset-0 flex items-center justify-center">
                     <span class="text-base-500 font-extralight">Loading history for {key}...</span>
@@ -330,7 +357,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                   data-maxtime={Jason.encode!(@charts_until_timestamp)}
                   data-unit="minute"
                 ></canvas>
-                <div :if={not assigns[has_chart_data_key(key)] && Enum.empty?(chart_data)} class="bg-base-900/70 absolute inset-0 flex items-center justify-center">
+                <div :if={!@has_chart_data[key] && Enum.empty?(chart_data)} class="bg-base-900/70 absolute inset-0 flex items-center justify-center">
                   <span class="text-base-500 font-extralight">No metrics for {key} found for the selected period.</span>
                 </div>
               </.async_result>
@@ -409,10 +436,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> metrics_to_chart()
     |> Enum.reduce(socket, fn key, socket ->
       socket
-      |> assign_async(chart_data_key(key), fn ->
-        {:ok, %{chart_data_key(key) => formatted_metrics(device_id, key, time_frame)}}
-      end)
-      |> assign(has_chart_data_key(key), false)
+      |> put_chart_data(key, AsyncResult.loading())
+      |> put_has_chart_data(key, false)
+      |> start_async("load_chart:#{key}", fn -> formatted_metrics(device_id, key, time_frame) end)
     end)
   end
 
@@ -492,6 +518,22 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> chart_title()
   end
 
+  # `tab_params/3` runs from a `:handle_params` hook, so it fires again every
+  # time the user navigates back onto this tab. A tick left over from an earlier
+  # visit that lands while the tab is open re-arms itself alongside the new one,
+  # and from then on both chains run for the life of the LiveView. Hold the ref
+  # so a stale tick can be cancelled -- which is also why `:tick_timer` is not
+  # in `cleanup/0`; dropping it would lose the only handle we have on it.
+  defp schedule_tick(socket) do
+    _ = if ref = socket.assigns[:tick_timer], do: Process.cancel_timer(ref)
+
+    if connected?(socket) do
+      assign(socket, :tick_timer, Process.send_after(self(), :tick, @tick_interval))
+    else
+      assign(socket, :tick_timer, nil)
+    end
+  end
+
   defp get_time_unit({"hour", _}), do: "minute"
   defp get_time_unit({"day", 1}), do: "hour"
   defp get_time_unit({"day", _}), do: "day"
@@ -509,8 +551,21 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> String.capitalize()
   end
 
-  defp chart_data_key(key), do: String.to_atom("#{key}_chart_data")
-  defp has_chart_data_key(key), do: String.to_atom("#{key}_has_chart_data")
+  # Charts are keyed by metric name, and metric names come from the device --
+  # `Extensions.Health` stores whatever keys a report carries. Deriving an
+  # assign key per metric meant `String.to_atom/1` on device-controlled input,
+  # and atoms are never reclaimed, so a fleet reporting novel keys made every
+  # node that rendered this tab permanently heavier. A map keyed by the string
+  # mints nothing.
+  defp chart_data(socket, key), do: Map.get(socket.assigns.chart_data, key, AsyncResult.loading())
+
+  defp put_chart_data(socket, key, result) do
+    assign(socket, :chart_data, Map.put(socket.assigns.chart_data, key, result))
+  end
+
+  defp put_has_chart_data(socket, key, has_data?) do
+    assign(socket, :has_chart_data, Map.put(socket.assigns.has_chart_data, key, has_data?))
+  end
 
   defp validate_time_unit(unit) when unit in ~w(hour day minute second), do: unit
   defp validate_time_unit(_unit), do: elem(@default_time_frame, 0)
