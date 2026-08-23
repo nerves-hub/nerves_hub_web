@@ -119,6 +119,107 @@ defmodule NervesHub.Devices.LogLinesTest do
     assert Enum.all?(recent, &(&1.device_id == device.id))
   end
 
+  describe "for_device/2" do
+    test "filters by level", %{device: device} do
+      log(device, level: "info", message: "info line")
+      log(device, level: "error", message: "error line")
+      log(device, level: "debug", message: "debug line")
+
+      :ok = Buffer.flush(LogLine)
+
+      assert messages(LogLines.for_device(device, levels: ["error"])) == ["error line"]
+
+      assert messages(LogLines.for_device(device, levels: ["error", "debug"], order: :asc)) == [
+               "error line",
+               "debug line"
+             ]
+
+      assert LogLines.for_device(device, levels: ["emergency"]) == []
+    end
+
+    test "searches the message, ignoring case", %{device: device} do
+      log(device, message: "Failed to reach the sensor bus")
+      log(device, message: "SENSOR BUS back online")
+      log(device, message: "polling temperature")
+
+      :ok = Buffer.flush(LogLine)
+
+      assert length(LogLines.for_device(device, search: "sensor bus")) == 2
+      assert messages(LogLines.for_device(device, search: "temperature")) == ["polling temperature"]
+      assert LogLines.for_device(device, search: "nothing logged this") == []
+    end
+
+    test "searches for wildcards literally", %{device: device} do
+      log(device, message: "battery at 100% charge")
+      log(device, message: "polling temperature")
+
+      :ok = Buffer.flush(LogLine)
+
+      # As a LIKE pattern a bare % matches every line. As a substring it only
+      # finds the line that has one.
+      assert messages(LogLines.for_device(device, search: "%")) == ["battery at 100% charge"]
+      assert messages(LogLines.for_device(device, search: "100%")) == ["battery at 100% charge"]
+    end
+
+    test "combines search with the other filters", %{device: device} do
+      log(device, level: "error", message: "sensor bus gone")
+      log(device, level: "info", message: "sensor bus fine")
+
+      :ok = Buffer.flush(LogLine)
+
+      assert messages(LogLines.for_device(device, search: "sensor bus", levels: ["error"])) == ["sensor bus gone"]
+    end
+
+    test "bounds a window with since and before", %{device: device} do
+      now = DateTime.utc_now()
+
+      log(device, message: "old", timestamp: DateTime.add(now, -3600))
+      log(device, message: "recent", timestamp: DateTime.add(now, -60))
+
+      :ok = Buffer.flush(LogLine)
+
+      # since is inclusive, before is exclusive, so the timestamp of the oldest
+      # line in a page is the next page's before without repeating that line.
+      assert messages(LogLines.for_device(device, since: DateTime.add(now, -60))) == ["recent"]
+      assert messages(LogLines.for_device(device, before: DateTime.add(now, -60))) == ["old"]
+      assert LogLines.for_device(device, since: DateTime.add(now, -30)) == []
+    end
+
+    test "orders and limits", %{device: device} do
+      now = DateTime.utc_now()
+
+      for n <- 1..3, do: log(device, message: "line #{n}", timestamp: DateTime.add(now, -n))
+
+      :ok = Buffer.flush(LogLine)
+
+      assert messages(LogLines.for_device(device)) == ["line 1", "line 2", "line 3"]
+      assert messages(LogLines.for_device(device, order: :asc)) == ["line 3", "line 2", "line 1"]
+      assert messages(LogLines.for_device(device, limit: 1)) == ["line 1"]
+    end
+
+    test "only returns the device's own lines", %{device: device, device2: device2} do
+      log(device, message: "mine")
+      log(device2, message: "theirs")
+
+      :ok = Buffer.flush(LogLine)
+
+      assert messages(LogLines.for_device(device)) == ["mine"]
+    end
+  end
+
+  defp messages(log_lines), do: Enum.map(log_lines, & &1.message)
+
+  defp log(device, attrs) do
+    {:ok, log_line} =
+      LogLines.async_create(to_device_info(device), %{
+        "timestamp" => attrs[:timestamp] || DateTime.utc_now(),
+        "level" => attrs[:level] || "info",
+        "message" => attrs[:message] || "hello"
+      })
+
+    log_line
+  end
+
   defp random_word(n \\ 6) do
     1..n |> Enum.map(fn _ -> Enum.random(?a..?z) end) |> to_string()
   end
