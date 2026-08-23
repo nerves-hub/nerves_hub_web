@@ -71,9 +71,44 @@ defmodule NervesHub.Support.AtomVM do
     name = Keyword.get(opts, :name, "atomvm-#{System.unique_integer([:positive])}")
     path = Path.join(dir, "#{name}.avm")
 
-    File.write!(path, opts |> Keyword.put(:product, product_name) |> packbeam())
+    archive = opts |> Keyword.put(:product, product_name) |> packbeam()
+
+    archive =
+      case Keyword.get(opts, :sign_with) do
+        nil -> archive
+        seed -> sign(archive, seed)
+      end
+
+    File.write!(path, archive)
 
     {:ok, path}
+  end
+
+  @doc """
+  An Ed25519 keypair in the shape NervesHub stores and `nh-avm` signs with.
+
+  The public half is base64, which is how fwup writes a `.pub` file and how an
+  organization key is stored. The private half is the raw 32 byte seed.
+  """
+  @spec keypair() :: {binary(), binary()}
+  def keypair() do
+    {public, seed} = :crypto.generate_key(:eddsa, :ed25519)
+    {Base.encode64(public), seed}
+  end
+
+  @doc """
+  Sign an archive, appending the signature as the last entry.
+
+  Mirrors `nh_signature:sign/2` in nerves_hub_link_atomvm_esp32. The signed
+  range is every byte before the signature entry begins, so signing is a pure
+  append and nothing before it moves.
+  """
+  @spec sign(binary(), binary()) :: binary()
+  def sign(archive, seed) do
+    prefix = binary_part(archive, 0, byte_size(archive) - byte_size(terminator()))
+    signature = :crypto.sign(:eddsa, :none, prefix, [seed, :ed25519])
+
+    prefix <> entry("nerves_hub/signature", @data_flag, <<"NH1", 1::8, signature::binary>>) <> terminator()
   end
 
   @doc "The 24 byte header every packbeam starts with."

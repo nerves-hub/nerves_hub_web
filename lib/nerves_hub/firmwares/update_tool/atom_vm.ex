@@ -65,26 +65,37 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVM do
 
   ## Signatures
 
-  Nothing signs a packbeam today. `atomvm_packbeam` writes no signature,
-  `avmpack_is_valid` checks the 24 byte magic and nothing else, and AtomVM has
-  no verification step, so every archive that reaches NervesHub is unsigned.
-  `verify_signature/2` therefore returns `{:ok, nil}` — legitimately unsigned —
-  rather than a failure a product flag would have to excuse. Accepting unsigned
-  firmware is instead an instance-wide decision, which is why
-  `NervesHub.Firmwares.UpdateTool.atomvm_enabled?/0` defaults to false.
+  The packbeam format has no signature of its own: `atomvm_packbeam` writes
+  none and `avmpack_is_valid` compares the 24 byte magic and nothing else. So
+  one is added as a convention, in the shape fwup uses — the signature travels
+  inside the archive, as a sibling of what it signs.
 
-  What is missing is a convention, not room in the file. fwup's approach carries
-  over directly: signing an fwup archive adds a `meta.conf.ed25519` entry
-  *inside* the zip, alongside the `meta.conf` it signs, and `meta.conf` covers
-  the payload by hash. The signature is a sibling of what it signs, never part
-  of it. A packbeam has the same shape available — a manifest entry listing the
-  hash of every other entry, plus a signature entry over that manifest, both
-  data files the VM already ignores when loading. What matters is only that the
-  signed byte range excludes the signature itself, which this satisfies.
+      magic
+      entry, entry, ...                 the archive as built
+      nerves_hub/signature   (data)     appended
+      terminator
 
-  Defining that would change this module and the device agent. It would not
-  change the packbeam format, and it needs no migration: a signed archive simply
-  records an `org_key_id` the way an fwup archive does.
+  The signed range is every byte before the signature entry begins, which is
+  the one rule such a scheme has to get right: the signed bytes must exclude
+  the signature, or it cannot be checked without knowing what it was. Because
+  the signature is appended, nothing before it moves, and both ends compute the
+  same range without agreeing on anything else.
+
+  The signature is Ed25519 over that range, and the key is the organization's
+  existing fwup key. An fwup private key is a 32 byte seed followed by its
+  public key, and the public half is byte for byte what NervesHub already
+  stores — so an organization signs AtomVM firmware with the key it already
+  has, and this verifies against the key it already holds.
+
+  A signed archive still boots on a stock AtomVM: the entry is a data file, the
+  class the VM skips when it looks for code. Signing can only add a check,
+  never take a device away.
+
+  See `nh_signature` and the `nh-avm` tool in `nerves_hub_link_atomvm_esp32`,
+  which produce this and which the device uses to verify before it installs.
+
+  Unsigned archives are still accepted, because nothing in the wider AtomVM
+  toolchain signs by default; see `verify_signature/2`.
 
   ## Deltas
 
@@ -119,6 +130,12 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVM do
   # crafted archive from handing the term decoder something enormous.
   @max_application_entry_size 64 * 1024
 
+  # Where a signature lives, and the shape of what is in it. Namespaced so it
+  # cannot collide with a scheme AtomVM may define, and versioned so that one
+  # would be additive.
+  @signature_entry "nerves_hub/signature"
+  @signature_version 1
+
   @impl UpdateTool
   def tool_name(), do: "atomvm"
 
@@ -134,13 +151,73 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVM do
   end
 
   @doc """
-  Packbeam carries no signature, so every archive is legitimately unsigned.
+  Verify a packbeam's signature, if it carries one.
 
-  See the "Signatures" section above for why this is `{:ok, nil}` rather than
-  `{:error, :firmware_not_signed}`.
+  An archive with no signature entry is accepted with no key. Nothing in the
+  AtomVM toolchain signs by default, so refusing unsigned archives here would
+  refuse every archive built by anything but this project's own tooling.
+  Requiring signatures is a product-level decision to make later, in the shape
+  `allow_unsigned_esp_idf_firmware` already has.
+
+  An archive that *is* signed is verified, and a bad signature is refused
+  whatever the product allows.
   """
   @impl UpdateTool
-  def verify_signature(_filepath, _keys), do: {:ok, nil}
+  def verify_signature(filepath, keys) do
+    with {:ok, binary} <- File.read(filepath),
+         {:ok, entries} <- entries(binary) do
+      case Enum.find(entries, &(&1.name == @signature_entry)) do
+        nil ->
+          {:ok, nil}
+
+        %{offset: offset, data: payload} ->
+          # Everything before the signature entry begins. See
+          # `nh_signature` in nerves_hub_link_atomvm_esp32.
+          verify_payload(binary_part(binary, 0, offset), payload, keys)
+      end
+    end
+  end
+
+  defp verify_payload(signed, <<"NH1", @signature_version::8, signature::binary-size(64)>>, keys) do
+    keys
+    |> Enum.filter(&(&1.scheme == :ed25519))
+    |> Enum.find(&verifies?(signed, signature, &1))
+    |> case do
+      nil -> {:error, :invalid_signature}
+      key -> {:ok, key}
+    end
+  end
+
+  defp verify_payload(_signed, <<"NH1", version::8, _rest::binary>>, _keys) do
+    {:error, {:unsupported_signature_version, version}}
+  end
+
+  defp verify_payload(_signed, _payload, _keys), do: {:error, :malformed_signature}
+
+  # An organization's Ed25519 key is stored the way fwup writes it: base64 of
+  # the 32 raw bytes. The same key signs both formats.
+  defp verifies?(signed, signature, %{key: key}) do
+    case decode_public_key(key) do
+      {:ok, public} -> :crypto.verify(:eddsa, :none, signed, signature, [public, :ed25519])
+      :error -> false
+    end
+  rescue
+    # A key that is the right length but not a point on the curve fails this
+    # candidate, not the upload.
+    _ -> false
+  end
+
+  defp decode_public_key(key) when is_binary(key) do
+    key
+    |> String.trim()
+    |> Base.decode64()
+    |> case do
+      {:ok, <<public::binary-size(32)>>} -> {:ok, public}
+      _ -> :error
+    end
+  end
+
+  defp decode_public_key(_key), do: :error
 
   @impl UpdateTool
   def get_firmware_metadata_from_file(filepath) do
@@ -254,17 +331,26 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVM do
   def entries(_), do: {:error, :not_a_packbeam}
 
   # A zero size or a zero flags word terminates the archive.
-  defp walk(<<0::32, _::binary>>, acc), do: {:ok, Enum.reverse(acc)}
-  defp walk(<<_size::32, 0::32, _::binary>>, acc), do: {:ok, Enum.reverse(acc)}
+  defp walk(binary, acc), do: walk(binary, @magic_size, acc)
 
-  defp walk(<<size::32, flags::32, _reserved::32, _::binary>> = binary, acc) when size > @entry_header_size do
+  defp walk(<<0::32, _::binary>>, _offset, acc), do: {:ok, Enum.reverse(acc)}
+  defp walk(<<_size::32, 0::32, _::binary>>, _offset, acc), do: {:ok, Enum.reverse(acc)}
+
+  defp walk(<<size::32, flags::32, _reserved::32, _::binary>> = binary, offset, acc) when size > @entry_header_size do
     case binary do
       <<entry::binary-size(^size), rest::binary>> ->
         body = binary_part(entry, @entry_header_size, size - @entry_header_size)
 
         case split_name(body) do
-          {:ok, name, data} -> walk(rest, [%{name: name, flags: flags, data: data} | acc])
-          :error -> {:error, :malformed_packbeam_entry}
+          {:ok, name, data} ->
+            # The offset is what a signature needs: the signed range ends where
+            # the signature entry begins.
+            walk(rest, offset + size, [
+              %{name: name, flags: flags, data: data, offset: offset} | acc
+            ])
+
+          :error ->
+            {:error, :malformed_packbeam_entry}
         end
 
       _ ->
@@ -275,7 +361,7 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVM do
   # Anything else — a size that cannot hold its own header, or a trailing
   # fragment too short to read — is a malformed archive rather than the end of
   # a well formed one.
-  defp walk(_, _acc), do: {:error, :malformed_packbeam_entry}
+  defp walk(_, _offset, _acc), do: {:error, :malformed_packbeam_entry}
 
   # The name is NUL terminated and padded so the data that follows starts on a
   # 4 byte boundary, measured from the start of the entry.

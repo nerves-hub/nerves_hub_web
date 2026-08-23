@@ -228,10 +228,106 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVMTest do
   end
 
   describe "signatures" do
-    # Nothing signs a packbeam today, so an archive is legitimately unsigned
-    # rather than failing verification.
-    test "every archive verifies as unsigned" do
+    defp org_key(public), do: %{scheme: :ed25519, key: public}
+
+    # Nothing in the wider AtomVM toolchain signs by default, so refusing these
+    # would refuse every archive built by anything but our own tooling.
+    test "an unsigned archive is accepted with no key" do
       assert {:ok, nil} = AtomVM.verify_signature(write!(Builder.packbeam()), [])
+    end
+
+    test "a signed archive returns the key that verified it" do
+      {public, seed} = Builder.keypair()
+      path = write!(Builder.sign(Builder.packbeam(), seed))
+
+      assert {:ok, %{key: ^public}} = AtomVM.verify_signature(path, [org_key(public)])
+    end
+
+    test "the right key is found among several" do
+      {public, seed} = Builder.keypair()
+      {other, _} = Builder.keypair()
+      {another, _} = Builder.keypair()
+      path = write!(Builder.sign(Builder.packbeam(), seed))
+
+      assert {:ok, %{key: ^public}} =
+               AtomVM.verify_signature(path, [org_key(other), org_key(public), org_key(another)])
+    end
+
+    # The point of the whole exercise.
+    test "a byte changed inside the signed range is refused" do
+      {public, seed} = Builder.keypair()
+      signed = Builder.sign(Builder.packbeam(), seed)
+
+      middle = div(byte_size(signed), 2)
+      <<head::binary-size(^middle), byte, tail::binary>> = signed
+      tampered = <<head::binary, Bitwise.bxor(byte, 1), tail::binary>>
+
+      assert {:error, :invalid_signature} =
+               AtomVM.verify_signature(write!(tampered), [org_key(public)])
+    end
+
+    test "an archive signed by someone else is refused" do
+      {_public, seed} = Builder.keypair()
+      {other, _} = Builder.keypair()
+      path = write!(Builder.sign(Builder.packbeam(), seed))
+
+      assert {:error, :invalid_signature} = AtomVM.verify_signature(path, [org_key(other)])
+    end
+
+    # A signature present with no key to check it against must never pass.
+    test "a signed archive with no keys is refused" do
+      {_public, seed} = Builder.keypair()
+      path = write!(Builder.sign(Builder.packbeam(), seed))
+
+      assert {:error, :invalid_signature} = AtomVM.verify_signature(path, [])
+    end
+
+    # Secure Boot v2 keys belong to ESP-IDF and would never match.
+    test "only ed25519 org keys are tried" do
+      {public, seed} = Builder.keypair()
+      path = write!(Builder.sign(Builder.packbeam(), seed))
+      rsa = %{scheme: :secure_boot_v2_rsa, key: public}
+
+      assert {:error, :invalid_signature} = AtomVM.verify_signature(path, [rsa])
+    end
+
+    # A scheme AtomVM may define later is additive, not a breaking change.
+    test "an unknown signature version is reported as one" do
+      {public, seed} = Builder.keypair()
+      signed = Builder.sign(Builder.packbeam(), seed)
+      bumped = :binary.replace(signed, <<"NH1", 1::8>>, <<"NH1", 99::8>>)
+
+      assert {:error, {:unsupported_signature_version, 99}} =
+               AtomVM.verify_signature(write!(bumped), [org_key(public)])
+    end
+
+    # Signing must not take devices away: a signed archive still has to be
+    # something a stock AtomVM, and this parser, can read.
+    test "a signed archive is still a readable packbeam" do
+      {_public, seed} = Builder.keypair()
+      signed = Builder.sign(Builder.packbeam(product: "blinky", version: "2.0.0"), seed)
+      path = write!(signed)
+
+      assert {:ok, %{firmware_metadata: metadata, tool_metadata: tool_metadata}} =
+               AtomVM.get_firmware_metadata_from_file(path)
+
+      assert metadata.product == "blinky"
+      assert metadata.version == "2.0.0"
+      assert tool_metadata["packbeam_size"] == byte_size(signed)
+    end
+
+    # Signing changes the bytes, so it changes the identity. Same as fwup.
+    test "signing changes the uuid" do
+      {_public, seed} = Builder.keypair()
+      archive = Builder.packbeam()
+
+      {:ok, %{firmware_metadata: unsigned}} =
+        AtomVM.get_firmware_metadata_from_file(write!(archive))
+
+      {:ok, %{firmware_metadata: signed}} =
+        AtomVM.get_firmware_metadata_from_file(write!(Builder.sign(archive, seed)))
+
+      refute unsigned.uuid == signed.uuid
     end
   end
 

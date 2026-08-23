@@ -18,10 +18,10 @@ instance, and once for each product that should accept the format.
 Set `ATOMVM_FIRMWARE_ENABLED=true`. Without it, no `.avm` is recognised and no
 product can opt in.
 
-Off by default because nothing signs a packbeam today, so every archive an
-instance accepts is unsigned. That is a decision about the instance's
-trust model rather than something a deploy should acquire by upgrading. See
-[Firmware signing](#firmware-signing).
+Off by default. Accepting a firmware format is a decision about what an
+instance will take and store, not something a deploy should acquire by
+upgrading, and an unsigned packbeam is accepted where an unsigned fwup archive
+would not be. See [Firmware signing](#firmware-signing).
 
 ### 2. The product
 
@@ -128,25 +128,67 @@ would sort wrongly.
 
 ## Firmware signing
 
-None today. `atomvm_packbeam` writes no signature, `avmpack_is_valid` checks
-the 24 byte magic and nothing else, and AtomVM has no verification step. Every
-archive is therefore recorded as legitimately unsigned, with no `org_key_id`,
-rather than failing verification — which is why the instance-wide flag is the
-place the trust decision is made.
+The packbeam format has no signature of its own: `atomvm_packbeam` writes none
+and `avmpack_is_valid` compares the 24 byte magic and nothing else. NervesHub
+adds one as a convention, in the shape fwup uses, where the signature travels
+inside the archive as a sibling of what it signs.
 
-What is missing is a convention, not room in the file. fwup's approach carries
-over directly: signing an fwup archive adds a `meta.conf.ed25519` entry *inside*
-the zip, alongside the `meta.conf` it signs, and `meta.conf` covers the payload
-by hash. The signature is a sibling of what it signs, never part of it.
+```
+magic
+entry, entry, ...                 the archive as built
+nerves_hub/signature   (data)     appended
+terminator
+```
 
-A packbeam has the same shape available. A manifest entry listing the hash of
-every other entry, plus a signature entry over that manifest, are both data
-files the VM already ignores when loading. What matters is only that the signed
-byte range excludes the signature itself, which this satisfies.
+The signed range is every byte before the signature entry begins. That is the
+one rule such a scheme has to get right: the signed bytes must exclude the
+signature itself, or it cannot be checked without already knowing what it was.
+Because the signature is appended, nothing before it moves, so both ends
+compute the same range without agreeing on anything else.
 
-Defining that would change NervesHub and the device agent. It would not change
-the packbeam format, and it needs no database change: a signed archive would
-simply record an `org_key_id` the way an fwup archive does.
+A signed archive still boots on a stock AtomVM. The entry is a data file, the
+same class as `priv/application.bin`, which the VM skips when it looks for
+code. Signing can only add a check, never take a device away.
+
+### The key is your fwup key
+
+An fwup private key is a 32 byte Ed25519 seed followed by its public key, and
+that trailing half is byte for byte the `.pub` file NervesHub already stores as
+an organization key. So an organization signs AtomVM firmware with the key it
+already uses for fwup, and there is no new key management.
+
+### Signing an archive
+
+The `nh-avm` tool ships with
+[nerves_hub_link_atomvm_esp32](https://github.com/nerves-hub/nerves_hub_link_atomvm_esp32):
+
+```bash
+nh-avm sign --key fwup-key.priv --in app.avm --out app-signed.avm
+nh-avm verify --key fwup-key.pub --in app-signed.avm
+```
+
+`nh-avm keygen` writes the same file format for anyone not already using fwup,
+and `fwup -g` produces files it accepts.
+
+Signing changes the archive's bytes, so a signed archive has a different UUID
+than the unsigned one. That is correct: it is a different artifact, and the same
+is true of a signed fwup archive.
+
+### What NervesHub does with it
+
+An archive carrying a signature is verified against the organization's Ed25519
+keys, and one that does not verify is refused whatever the product allows.
+
+An archive carrying no signature is accepted and recorded with no key. Nothing
+in the wider AtomVM toolchain signs by default, so refusing unsigned archives
+would refuse everything built by anything but this tooling. Requiring signatures
+is a per-product decision to add later, in the shape
+`allow_unsigned_esp_idf_firmware` already has.
+
+Namespacing and versioning are deliberate. AtomVM may define its own signing
+one day: the entry is named under `nerves_hub/` so it cannot collide with
+whatever that turns out to be, and the payload leads with a magic and a version
+(`NH1`, version 1) so a second scheme is additive rather than a breaking change.
 
 ## Limitations
 

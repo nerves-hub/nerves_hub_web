@@ -6,6 +6,7 @@ defmodule NervesHub.Firmwares.AtomVMUploadTest do
   """
   use NervesHub.DataCase, async: false
 
+  alias NervesHub.Accounts.OrgKey
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.Support.AtomVM
@@ -42,6 +43,51 @@ defmodule NervesHub.Firmwares.AtomVMUploadTest do
 
     assert is_nil(firmware.org_key_id)
     refute product.allow_unsigned_esp_idf_firmware
+  end
+
+  # An organization signs AtomVM firmware with the key it already uses for fwup:
+  # the public half NervesHub stores is byte for byte the trailing half of an
+  # fwup private key.
+  test "records the org key that signed the archive", %{user: user, org: org} do
+    product = Fixtures.atomvm_product_fixture(user, org)
+    {public, seed} = AtomVM.keypair()
+
+    org_key =
+      %OrgKey{}
+      |> OrgKey.changeset(%{
+        org_id: org.id,
+        created_by_id: user.id,
+        name: "atomvm-#{System.unique_integer([:positive])}",
+        key: public,
+        scheme: :ed25519
+      })
+      |> NervesHub.Repo.insert!()
+
+    {:ok, path} = AtomVM.create_firmware(product.name, version: "3.0.0", sign_with: seed)
+
+    assert {:ok, firmware} = Firmwares.create_firmware(org, path, product: product)
+    assert firmware.org_key_id == org_key.id
+  end
+
+  # A signature that does not check out is refused whatever the product allows.
+  test "refuses an archive whose signature does not verify", %{user: user, org: org} do
+    product = Fixtures.atomvm_product_fixture(user, org)
+    {_public, seed} = AtomVM.keypair()
+    {other, _} = AtomVM.keypair()
+
+    %OrgKey{}
+    |> OrgKey.changeset(%{
+      org_id: org.id,
+      created_by_id: user.id,
+      name: "other-#{System.unique_integer([:positive])}",
+      key: other,
+      scheme: :ed25519
+    })
+    |> NervesHub.Repo.insert!()
+
+    {:ok, path} = AtomVM.create_firmware(product.name, version: "3.1.0", sign_with: seed)
+
+    assert {:error, :invalid_signature} = Firmwares.create_firmware(org, path, product: product)
   end
 
   test "refuses a packbeam for a product that has not opted in", %{user: user, org: org} do
