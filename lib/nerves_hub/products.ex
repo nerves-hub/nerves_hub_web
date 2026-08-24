@@ -55,6 +55,7 @@ defmodule NervesHub.Products do
       |> join(:inner, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
       |> where([_d, dc], dc.status == :connected)
+      |> Repo.exclude_deleted()
       |> select([d], count())
 
     select_merge(query, %{connected_devices_count: subquery(connected_devices_count)})
@@ -70,6 +71,7 @@ defmodule NervesHub.Products do
       |> join(:left, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
       |> where([_d, dc], is_nil(dc) or dc.status != :connected)
+      |> Repo.exclude_deleted()
       |> select([d], count())
 
     select_merge(query, %{disconnected_devices_count: subquery(disconnected_devices_count)})
