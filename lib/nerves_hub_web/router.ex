@@ -96,6 +96,8 @@ defmodule NervesHubWeb.Router do
 
       get("/scripts", ScriptController, :index)
       post("/scripts/:name_or_id", ScriptController, :send)
+
+      get("/logs", DeviceLogController, :index)
     end
 
     scope "/" do
@@ -146,6 +148,8 @@ defmodule NervesHubWeb.Router do
               pipe_through([:api_product])
 
               get("/", ProductController, :show)
+              put("/", ProductController, :update)
+              patch("/", ProductController, :update)
               delete("/", ProductController, :delete)
 
               scope "/devices" do
@@ -170,6 +174,10 @@ defmodule NervesHubWeb.Router do
 
                   scope "/scripts", as: :device do
                     post("/:name_or_id", ScriptController, :send)
+                  end
+
+                  scope "/logs" do
+                    get("/", DeviceLogController, :index)
                   end
 
                   scope "/network_identities" do
@@ -351,6 +359,12 @@ defmodule NervesHubWeb.Router do
       )
 
       live(
+        "/org/:org_name/:product_name/devices/:device_identifier/data_history",
+        Live.Devices.Show,
+        :data_history
+      )
+
+      live(
         "/org/:org_name/:product_name/devices/:device_identifier/activity",
         Live.Devices.Show,
         :activity
@@ -375,11 +389,9 @@ defmodule NervesHubWeb.Router do
       )
 
       live("/org/:org_name/:product_name/firmware", Live.Firmware, :index)
-      live("/org/:org_name/:product_name/firmware/upload", Live.Firmware, :upload)
       live("/org/:org_name/:product_name/firmware/:firmware_uuid", Live.Firmware, :show)
 
       live("/org/:org_name/:product_name/archives", Live.Archives, :index)
-      live("/org/:org_name/:product_name/archives/upload", Live.Archives, :upload)
       live("/org/:org_name/:product_name/archives/:archive_uuid", Live.Archives, :show)
 
       live("/org/:org_name/:product_name/deployment_groups", Live.DeploymentGroups.Index)

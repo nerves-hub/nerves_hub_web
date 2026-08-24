@@ -41,7 +41,8 @@ defmodule NervesHub.Extensions.Logging do
            @rate_limit_token_cost
          ) do
       {:allow, _} ->
-        schedule_create(device_info, log_line)
+        _ = LogLines.async_create(device_info, log_line)
+        :noop
 
       {:deny, _} ->
         :noop
@@ -53,15 +54,5 @@ defmodule NervesHub.Extensions.Logging do
   @impl NervesHub.Extensions
   def handle_info(_, state) do
     {state, []}
-  end
-
-  defp schedule_create(device_info, log_line) do
-    _ =
-      Task.Supervisor.start_child(
-        {:via, PartitionSupervisor, {NervesHub.AnalyticsEventsProcessing, self()}},
-        fn -> {:ok, _} = LogLines.async_create(device_info, log_line) end
-      )
-
-    :noop
   end
 end

@@ -67,7 +67,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
       %DeviceConnection{id: ^connection_id, last_seen_at: last_seen_at, status: :connected} =
         Repo.reload(connection)
 
-      assert last_seen_at > first_seen_at
+      assert DateTime.after?(last_seen_at, first_seen_at)
       assert %DeviceConnection{status: :connected} = Connections.get_latest_for_device(device.id)
     end
   end

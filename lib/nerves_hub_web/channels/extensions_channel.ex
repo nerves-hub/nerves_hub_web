@@ -13,6 +13,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHub.Devices.DeviceMessages
   alias NervesHubWeb.Channels.Effects
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
@@ -45,6 +46,8 @@ defmodule NervesHubWeb.ExtensionsChannel do
   @impl Phoenix.Channel
   @decorate with_span("Channels.ExtensionsChannel.handle_in")
   def handle_in(scoped_event, payload, socket) do
+    :ok = DeviceMessages.record(device_info(socket), :received, :extensions, scoped_event, payload)
+
     case DeviceLink.extension_message(socket.assigns.extensions, scoped_event, payload) do
       {:ok, extensions, effects} ->
         socket
@@ -67,12 +70,30 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   @decorate with_span("Channels.ExtensionsChannel.handle_info[Broadcast]")
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
+    :ok = DeviceMessages.record(device_info(socket), :sent, :extensions, event, payload)
+
     push(socket, event, payload)
     {:noreply, socket}
   end
 
-  @decorate with_span("Channels.ExtensionsChannel.handle_info[Broadcast]")
+  # A timer armed through `Effects` delivering; `timer_fired/2` re-arms it.
+  @decorate with_span("Channels.ExtensionsChannel.handle_info[timer]")
+  def handle_info({:timeout, _ref, _payload} = timer, socket) do
+    case Effects.timer_fired(socket, timer) do
+      {:deliver, {mod, msg}, socket} -> extension_info(socket, mod, msg)
+      {:drop, socket} -> {:noreply, socket}
+      :not_timer -> {:noreply, socket}
+    end
+  end
+
+  @decorate with_span("Channels.ExtensionsChannel.handle_info[extension]")
   def handle_info({mod, msg}, socket) do
+    extension_info(socket, mod, msg)
+  end
+
+  def handle_info(_msg, socket), do: {:noreply, socket}
+
+  defp extension_info(socket, mod, msg) do
     {:ok, extensions, effects} = DeviceLink.extension_info(socket.assigns.extensions, mod, msg)
 
     socket
@@ -80,7 +101,16 @@ defmodule NervesHubWeb.ExtensionsChannel do
     |> apply_effects(effects)
   end
 
-  def handle_info(_msg, socket), do: {:noreply, socket}
+  defp apply_effects(socket, effects) do
+    device_info = device_info(socket)
 
-  defp apply_effects(socket, effects), do: {:noreply, Effects.apply_all(socket, effects)}
+    Enum.each(effects, fn
+      {:push, event, payload} -> DeviceMessages.record(device_info, :sent, :extensions, event, payload)
+      _effect -> :ok
+    end)
+
+    {:noreply, Effects.apply_all(socket, effects)}
+  end
+
+  defp device_info(socket), do: socket.assigns.device_info
 end

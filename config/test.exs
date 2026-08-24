@@ -70,6 +70,8 @@ config :nerves_hub, NervesHubWeb.Endpoint,
 
 config :nerves_hub, Oban, testing: :manual
 config :nerves_hub, S3, bucket: "mybucket"
+# Short enough that analytics writes land within an `assert_eventually`.
+config :nerves_hub, :analytics_buffer, max_delay: to_timeout(millisecond: 50)
 config :nerves_hub, :firmware_download_options, plug: {Req.Test, NervesHub}
 config :nerves_hub, analytics_enabled: true
 config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File

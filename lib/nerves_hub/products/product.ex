@@ -10,6 +10,7 @@ defmodule NervesHub.Products.Product do
   alias NervesHub.Devices.UpdateStat
   alias NervesHub.Extensions.ProductExtensionsSetting
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.CustomHealthMetricsLabel
   alias NervesHub.Products.Notification
@@ -41,6 +42,21 @@ defmodule NervesHub.Products.Product do
     # Defaults to `true` so new products require unique firmware versions; the DB
     # column defaults to `false`, so existing products keep the prior behaviour.
     field(:require_unique_firmware_version, :boolean, default: true)
+
+    # Which firmware formats this product accepts. fwup alone by default; a
+    # product accepts another format only once someone opts it in.
+    field(:allowed_update_tools, {:array, :string}, default: ["fwup"])
+
+    # Whether a format that *can* arrive unsigned is accepted that way. One field
+    # per format rather than a general `allow_unsigned_firmware`, because they
+    # are different decisions: an ESP-IDF image with no Secure Boot v2 block and
+    # a packbeam with no `nerves_hub/signature` entry are unsigned for unrelated
+    # reasons, and a product may reasonably want one and not the other.
+    #
+    # fwup is deliberately absent. An fwup archive is always verified and no
+    # setting changes that.
+    field(:allow_unsigned_esp_idf_firmware, :boolean, default: false)
+    field(:allow_unsigned_atomvm_firmware, :boolean, default: false)
     embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
 
     field(:device_count, :integer, virtual: true)
@@ -59,11 +75,59 @@ defmodule NervesHub.Products.Product do
   @doc false
   def changeset(product, params) do
     product
-    |> cast(params, @required_params ++ [:require_unique_firmware_version])
+    |> cast(
+      params,
+      @required_params ++
+        [
+          :require_unique_firmware_version,
+          :allowed_update_tools,
+          :allow_unsigned_esp_idf_firmware,
+          :allow_unsigned_atomvm_firmware
+        ]
+    )
     |> cast_embed(:extensions)
     |> update_change(:name, &trim/1)
     |> validate_required(@required_params)
+    |> validate_allowed_update_tools()
     |> unique_constraint(:name, name: :products_org_id_name_index)
+  end
+
+  @doc """
+  Whether this product accepts firmware handled by `tool`.
+  """
+  @spec accepts_update_tool?(t(), String.t()) :: boolean()
+  def accepts_update_tool?(%__MODULE__{allowed_update_tools: tools}, tool) do
+    tool in (tools || ["fwup"])
+  end
+
+  # A tool must exist, and must be enabled for this instance — a product listing
+  # a format the instance will not recognise is a setting that reads as on and
+  # behaves as off.
+  #
+  # `validate_change/3` only fires when the field is being changed, so an
+  # instance that turns a format off does not invalidate the products that had
+  # already opted into it.
+  defp validate_allowed_update_tools(changeset) do
+    known = Map.keys(UpdateTool.known())
+    enabled = Map.keys(UpdateTool.all())
+
+    validate_change(changeset, :allowed_update_tools, fn :allowed_update_tools, tools ->
+      unknown = Enum.reject(tools, &(&1 in known))
+      disabled = Enum.filter(tools, &(&1 in known and &1 not in enabled))
+
+      cond do
+        unknown != [] ->
+          [allowed_update_tools: "unknown update tool(s): #{Enum.join(unknown, ", ")}"]
+
+        disabled != [] ->
+          [
+            allowed_update_tools: "not enabled on this NervesHub instance: #{Enum.join(disabled, ", ")}"
+          ]
+
+        true ->
+          []
+      end
+    end)
   end
 
   def delete_changeset(product, _params \\ %{}) do

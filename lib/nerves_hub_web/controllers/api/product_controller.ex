@@ -14,6 +14,7 @@ defmodule NervesHubWeb.API.ProductController do
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
   plug(:validate_role, [org: :admin] when action in [:create, :delete])
+  plug(:validate_role, [org: :manage] when action in [:update])
   plug(:validate_role, [org: :view] when action in [:show])
 
   operation(:index,
@@ -99,6 +100,58 @@ defmodule NervesHubWeb.API.ProductController do
 
   def show(%{assigns: %{product: product}} = conn, _params) do
     render(conn, :show, product: product)
+  end
+
+  @settable_params ~w(require_unique_firmware_version allowed_update_tools allow_unsigned_esp_idf_firmware allow_unsigned_atomvm_firmware)
+
+  operation(:update,
+    summary: "Update a Product's settings",
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ],
+      product_name: [
+        in: :path,
+        description: "Product Name",
+        type: :string,
+        example: "example_product"
+      ]
+    ],
+    request_body: {
+      "Product update request body",
+      "application/json",
+      ProductSchemas.ProductUpdateRequest,
+      required: true
+    },
+    responses:
+      [
+        ok: {"Product response", "application/json", ProductSchemas.ProductShowResponse},
+        not_found: {"Not Found", "application/json", ErrorSchemas.ErrorResponse},
+        unprocessable_entity: {"Unprocessable Entity", "application/json", ErrorSchemas.ChangesetErrorResponse}
+      ] ++ @auth_error_responses
+  )
+
+  def update(%{assigns: %{product: product}} = conn, params) do
+    # A whitelist that silently drops what it does not recognise turns a typo,
+    # or an attempt to rename a product, into a 200 that changed nothing. Name
+    # the rejected fields instead.
+    with :ok <- reject_unsettable(params),
+         {:ok, product} <- Products.update_product(product, Map.take(params, @settable_params)) do
+      render(conn, :show, product: product)
+    end
+  end
+
+  defp reject_unsettable(params) do
+    params
+    |> Map.keys()
+    |> Enum.reject(&(&1 in @settable_params or &1 in ~w(org_name product_name)))
+    |> case do
+      [] -> :ok
+      unsettable -> {:error, {:unsettable_product_params, unsettable}}
+    end
   end
 
   operation(:delete,

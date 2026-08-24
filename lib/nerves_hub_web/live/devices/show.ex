@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
+  alias NervesHubWeb.Components.DevicePage.DataHistoryTab
   alias NervesHubWeb.Components.DevicePage.DetailsTab
   alias NervesHubWeb.Components.DevicePage.FirmwareHistoryTab
   alias NervesHubWeb.Components.DevicePage.HealthTab
@@ -19,7 +20,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DevicePage.LogsTab
   alias NervesHubWeb.Components.DevicePage.SettingsTab
   alias NervesHubWeb.Components.DeviceUpdateStatus
-  alias NervesHubWeb.Components.FwupProgress
+  alias NervesHubWeb.Components.UpdateProgress
   alias NervesHubWeb.Presence
   alias Phoenix.LiveView.AsyncResult
   alias Phoenix.Socket.Broadcast
@@ -29,6 +30,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   @tab_components [
     ActivityTab,
     ConsoleTab,
+    DataHistoryTab,
     DetailsTab,
     FirmwareHistoryTab,
     HealthTab,
@@ -448,6 +450,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     ~H"""
     <ActivityTab.render :if={@tab == :activity} {assigns} />
     <ConsoleTab.render :if={@tab == :console} {assigns} />
+    <DataHistoryTab.render :if={@tab == :data_history} {assigns} />
     <DetailsTab.render :if={@tab == :details} {assigns} />
     <FirmwareHistoryTab.render :if={@tab == :firmware_history} {assigns} />
     <HealthTab.render :if={@tab == :health} {assigns} />

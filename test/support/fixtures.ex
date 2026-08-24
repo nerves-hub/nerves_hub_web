@@ -20,6 +20,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Repo
   alias NervesHub.Scripts
   alias NervesHub.Support
+  alias NervesHub.Support.EspIdf
   alias NervesHub.Support.Fwup
   alias Ueberauth.Auth.Credentials
   alias Ueberauth.Auth.Extra
@@ -124,6 +125,26 @@ defmodule NervesHub.Fixtures do
     org_key
   end
 
+  @doc """
+  Register the public key that `Support.EspIdf.signed_image/1` signs with.
+
+  ESP-IDF images must be signed, so an org uploading one needs this the way it
+  needs an fwup key for a `.fw`.
+  """
+  def esp_idf_key_fixture(%Accounts.Org{} = org, %Accounts.User{} = user) do
+    params = %{
+      org_id: org.id,
+      created_by_id: user.id,
+      name: "esp-idf-key-#{counter()}",
+      key: EspIdf.signing_public_key(),
+      scheme: :secure_boot_v2_rsa
+    }
+
+    {:ok, org_key} = Accounts.create_org_key(params)
+
+    org_key
+  end
+
   def ca_certificate_fixture(%Accounts.Org{} = org, opts \\ []) do
     opts = Keyword.merge([template: :root_ca], opts)
     ca_key = X509.PrivateKey.new_ec(:secp256r1)
@@ -156,6 +177,36 @@ defmodule NervesHub.Fixtures do
     {:ok, user} = Accounts.confirm_user(user)
 
     user
+  end
+
+  @doc """
+  A product that accepts ESP-IDF images as well as fwup archives.
+
+  Products only take fwup by default, so anything uploading a `.bin` needs this
+  rather than `product_fixture/3`.
+  """
+  def esp_idf_product_fixture(user, org, params \\ %{}) do
+    params
+    |> Enum.into(%{allowed_update_tools: ["fwup", "esp-idf"]})
+    |> then(&product_fixture(user, org, &1))
+  end
+
+  @doc """
+  A product that accepts AtomVM packbeam archives.
+
+  Products only take fwup by default, so anything uploading an `.avm` needs this
+  rather than `product_fixture/3`.
+  """
+  def atomvm_product_fixture(user, org, params \\ %{}) do
+    params
+    |> Enum.into(%{
+      allowed_update_tools: ["fwup", "atomvm"],
+      # Signing is covered by its own tests. Everything else that uploads a
+      # packbeam would otherwise have to carry a keypair to say nothing about
+      # signing.
+      allow_unsigned_atomvm_firmware: true
+    })
+    |> then(&product_fixture(user, org, &1))
   end
 
   def product_fixture(_user, _org, params \\ %{})

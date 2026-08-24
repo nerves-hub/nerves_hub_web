@@ -446,7 +446,7 @@ defmodule NervesHub.ManagedDeployments do
   defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: {:ok, :no_deltas_started}
 
   @spec trigger_delta_generation_for_deployment_group(DeploymentGroup.t()) ::
-          {:ok, :deltas_started | :deltas_already_generated | :some_deltas_started}
+          {:ok, :deltas_started | :deltas_already_generated | :some_deltas_started | :no_delta_support}
           | {:error, :deltas_not_enabled | :delta_generation_failed}
   def trigger_delta_generation_for_deployment_group(%{delta_updatable: false}) do
     {:error, :deltas_not_enabled}
@@ -460,6 +460,7 @@ defmodule NervesHub.ManagedDeployments do
     |> then(fn results ->
       cond do
         Enum.any?(results, &match?({:error, _}, &1)) -> {:error, :delta_generation_failed}
+        Enum.all?(results, &match?({:ok, :no_delta_support}, &1)) -> {:ok, :no_delta_support}
         Enum.all?(results, &match?({:ok, :delta_already_exists}, &1)) -> {:ok, :deltas_already_generated}
         not Enum.any?(results, &match?({:ok, :delta_already_exists}, &1)) -> {:ok, :deltas_started}
         true -> {:ok, :some_deltas_started}

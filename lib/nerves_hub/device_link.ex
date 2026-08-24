@@ -15,6 +15,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceMessages
   alias NervesHub.Devices.Updates
   alias NervesHub.Extensions.Dispatch, as: ExtensionDispatch
   alias NervesHub.Firmwares
@@ -76,7 +77,13 @@ defmodule NervesHub.DeviceLink do
     {session, []}
   end
 
-  def device_message(session, "fwup_progress", %{"value" => percent} = params) do
+  # `fwup_progress` is what every deployed nerves_hub_link sends, and devices in
+  # the field cannot be made to send anything else, so it can never be retired.
+  # `update_progress` is the same message under a name that does not presume
+  # fwup, and is what a non-Nerves agent should send. Both carry the same
+  # payload: a `value` percentage and an optional `stage`.
+  def device_message(session, event, %{"value" => percent} = params)
+      when event in ["fwup_progress", "update_progress"] do
     {stage, percent} =
       case {params["stage"], percent} do
         {nil, 100} -> {"completed", nil}
@@ -629,32 +636,37 @@ defmodule NervesHub.DeviceLink do
     :ok
   end
 
-  # The reported firmware is the same as what we already know about
-  defp update_firmware_metadata(
-         %Device{firmware_metadata: %{uuid: uuid}} = device,
-         %{"nerves_fw_uuid" => uuid} = params
-       ) do
-    validation_status = fetch_validation_status(params)
-    auto_revert_detected? = firmware_auto_revert_detected?(params)
-
-    Devices.update_firmware_metadata(device, nil, validation_status, auto_revert_detected?)
-  end
-
-  # A new UUID is being reported from an update
+  # Whether the device is reporting the firmware we already have on record has
+  # to be decided *after* its metadata is resolved, not from a raw parameter.
+  # This used to match on `nerves_fw_uuid`, which only a Nerves device sends —
+  # so any other device took the "this is a new firmware" path on every single
+  # join, and `firmware_update_successful/2` recorded an audit entry, telemetry
+  # and an update stat each time it merely reconnected.
   defp update_firmware_metadata(%{firmware_metadata: previous_metadata} = device, params) do
-    with {:ok, metadata} <- Firmwares.metadata_from_device(params, device.product_id),
-         validation_status = fetch_validation_status(params),
-         auto_revert_detected? = firmware_auto_revert_detected?(params),
-         {:ok, device} <-
-           Devices.update_firmware_metadata(
-             device,
-             metadata,
-             validation_status,
-             auto_revert_detected?
-           ) do
-      FirmwareUpdates.firmware_update_successful(device, previous_metadata)
+    with {:ok, metadata} <- Firmwares.metadata_from_device(params, device.product_id) do
+      validation_status = fetch_validation_status(params)
+      auto_revert_detected? = firmware_auto_revert_detected?(params)
+
+      if same_firmware?(previous_metadata, metadata) do
+        Devices.update_firmware_metadata(device, nil, validation_status, auto_revert_detected?)
+      else
+        with {:ok, device} <-
+               Devices.update_firmware_metadata(
+                 device,
+                 metadata,
+                 validation_status,
+                 auto_revert_detected?
+               ) do
+          FirmwareUpdates.firmware_update_successful(device, previous_metadata)
+        end
+      end
     end
   end
+
+  # A device with no resolvable firmware, or one we have nothing on record for,
+  # is never "the same" — the first report has to be written.
+  defp same_firmware?(%{uuid: uuid}, %{uuid: uuid}) when not is_nil(uuid), do: true
+  defp same_firmware?(_previous, _reported), do: false
 
   defp fetch_validation_status(params) do
     params
@@ -705,7 +717,12 @@ defmodule NervesHub.DeviceLink do
     "device:#{id}"
   end
 
+  # Everything broadcast on a device's own topic from here — the archive and the
+  # public key messages — is fastlaned by Phoenix straight to the device's
+  # transport, so the channel process never sees it and cannot record it. This
+  # is the last point at which it is visible. See `NervesHub.Devices.DeviceMessages`.
   defp broadcast(device_info, event, payload) do
+    :ok = DeviceMessages.record(device_info, :sent, :device, event, payload)
     :ok = ChannelServer.broadcast(NervesHub.PubSub, topic(device_info), event, payload)
   end
 end

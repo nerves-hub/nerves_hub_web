@@ -25,6 +25,101 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, {:update_tool_not_allowed, tool, product}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "The product #{inspect(product)} does not accept #{tool} firmware. " <>
+          "An organization owner can enable it in the product's settings."
+    })
+  end
+
+  def call(conn, {:error, {:unsettable_product_params, params}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "These fields cannot be set on a product: #{Enum.map_join(params, ", ", &inspect/1)}. " <>
+          "A product cannot be renamed; its name identifies it in every URL."
+    })
+  end
+
+  def call(conn, {:error, :firmware_not_signed}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "This ESP-IDF image is not signed. Sign it with `espsecure.py sign_data --version 2` and register the matching public key against your organization, or allow unsigned images in this product's settings."
+    })
+  end
+
+  def call(conn, {:error, :esp_idf_ecdsa_signatures_not_supported}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "This ESP-IDF image is signed with ECDSA. NervesHub can only verify RSA-3072 Secure Boot v2 signatures at present."
+    })
+  end
+
+  def call(conn, {:error, :unknown_signature_block_version}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "This ESP-IDF image carries a signature block NervesHub does not recognise."})
+  end
+
+  def call(conn, {:error, :signature_block_corrupt}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "The signature block on this ESP-IDF image failed its checksum — the file is likely damaged in transit."
+    })
+  end
+
+  def call(conn, {:error, :unrecognised_firmware_format}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "Unrecognised firmware format. Expected an fwup archive (.fw) or an ESP-IDF application image (.bin)."
+    })
+  end
+
+  def call(conn, {:error, {:invalid_version, raw}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "Firmware version #{inspect(raw)} is not a valid semantic version. For ESP-IDF, set PROJECT_VER in your CMakeLists.txt to something like \"1.2.3\"."
+    })
+  end
+
+  def call(conn, {:error, {:invalid_query_param, reason}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: reason})
+  end
+
+  def call(conn, {:error, :analytics_not_enabled}) do
+    conn
+    |> put_status(:not_implemented)
+    |> put_view(ErrorJSON)
+    |> render(:"501", %{
+      reason:
+        "This platform has no analytics database configured, so device logs are not stored. " <>
+          "Contact your Ops team for more information."
+    })
+  end
+
   def call(conn, {:error, {_key, message}}) do
     conn
     |> put_status(:unprocessable_entity)

@@ -2,12 +2,14 @@
 defmodule NervesHubWeb.ConsoleChannel do
   use Phoenix.Channel
 
+  alias NervesHub.Devices.DeviceMessages
+  alias NervesHubWeb.Channels.Scrollback
   alias Phoenix.Socket.Broadcast
 
   def join("console", payload, socket) do
     send(self(), {:after_join, payload})
 
-    {:ok, assign(socket, %{current_line: "", buffer: CircularBuffer.new(1024)})}
+    {:ok, assign(socket, :scrollback, Scrollback.new())}
   end
 
   def terminate(_, _socket) do
@@ -15,18 +17,10 @@ defmodule NervesHubWeb.ConsoleChannel do
   end
 
   def handle_in("up", payload, socket) do
-    current_line = socket.assigns.current_line <> payload["data"]
-    [current_line | lines] = Enum.reverse(String.split(current_line, "\n"))
+    :ok = record(socket, :received, "up", payload)
 
-    buffer =
-      Enum.reduce(Enum.reverse(lines), socket.assigns.buffer, fn line, buffer ->
-        CircularBuffer.insert(buffer, line <> "\n")
-      end)
-
-    socket =
-      socket
-      |> assign(:current_line, current_line)
-      |> assign(:buffer, buffer)
+    scrollback = Scrollback.append(socket.assigns.scrollback, payload["data"])
+    socket = assign(socket, :scrollback, scrollback)
 
     user_topic(socket)
     |> socket.endpoint.broadcast!("up", payload)
@@ -35,6 +29,8 @@ defmodule NervesHubWeb.ConsoleChannel do
   end
 
   def handle_in("file-data/start", payload, socket) do
+    :ok = record(socket, :received, "file-data/start", payload)
+
     user_topic(socket)
     |> socket.endpoint.broadcast!("file-data/start", payload)
 
@@ -42,6 +38,8 @@ defmodule NervesHubWeb.ConsoleChannel do
   end
 
   def handle_in("file-data", payload, socket) do
+    :ok = record(socket, :received, "file-data", payload)
+
     user_topic(socket)
     |> socket.endpoint.broadcast!("file-data", payload)
 
@@ -49,6 +47,8 @@ defmodule NervesHubWeb.ConsoleChannel do
   end
 
   def handle_in("file-data/stop", payload, socket) do
+    :ok = record(socket, :received, "file-data/stop", payload)
+
     user_topic(socket)
     |> socket.endpoint.broadcast!("file-data/stop", payload)
 
@@ -78,8 +78,7 @@ defmodule NervesHubWeb.ConsoleChannel do
     metadata = %{version: socket.assigns.version}
     send(pid, {:metadata, metadata})
 
-    lines = Enum.join(socket.assigns.buffer) <> socket.assigns.current_line
-    send(pid, {:cache, lines})
+    send(pid, {:cache, Scrollback.text(socket.assigns.scrollback)})
 
     {:noreply, socket}
   end
@@ -90,8 +89,17 @@ defmodule NervesHubWeb.ConsoleChannel do
   end
 
   def handle_info(%Broadcast{payload: payload, event: event}, socket) do
+    :ok = record(socket, :sent, event, payload)
+
     push(socket, event, payload)
     {:noreply, socket}
+  end
+
+  # Console traffic is recorded by size only, never by content — it is raw
+  # terminal I/O, so its contents are whatever was typed at a prompt.
+  # See `NervesHub.Devices.DeviceMessages`.
+  defp record(socket, direction, event, payload) do
+    DeviceMessages.record_size_only(socket.assigns.device_info, direction, :console, event, payload)
   end
 
   defp device_topic(socket), do: "device:console:#{socket.assigns.device_info.device_id}"

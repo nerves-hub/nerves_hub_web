@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Components.FwupProgress do
+defmodule NervesHubWeb.Components.UpdateProgress do
   use NervesHubWeb, :component
 
   attr(:progress, :any)

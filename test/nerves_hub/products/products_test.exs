@@ -2,6 +2,7 @@ defmodule NervesHub.ProductsTest do
   use NervesHub.DataCase, async: true
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Products
@@ -205,6 +206,61 @@ defmodule NervesHub.ProductsTest do
 
       assert Products.custom_health_metrics_labels(product) == %{"cpu_temp" => "CPU Heat"}
       assert Products.custom_health_metrics_labels(other_product) == %{}
+    end
+  end
+
+  describe "get_products/2 with counts" do
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      product = Fixtures.product_fixture(user, org)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      scope =
+        user
+        |> Scope.for_user()
+        |> Scope.put_org(org)
+
+      %{scope: scope, org: org, product: product, firmware: firmware}
+    end
+
+    test "counts connected and disconnected devices", context do
+      connect(context, :connected)
+      connect(context, :disconnected)
+      connect(context, :disconnected)
+
+      assert [product] = Products.get_products(context.scope, with_counts: true)
+      assert product.connected_devices_count == 1
+      assert product.disconnected_devices_count == 2
+    end
+
+    test "counts a device that has never connected as disconnected", context do
+      Fixtures.device_fixture(context.org, context.product, context.firmware)
+
+      assert [product] = Products.get_products(context.scope, with_counts: true)
+      assert product.connected_devices_count == 0
+      assert product.disconnected_devices_count == 1
+    end
+
+    test "does not count soft deleted devices", context do
+      connect(context, :connected)
+      connect(context, :disconnected)
+
+      {:ok, _} = Devices.delete_device(connect(context, :connected))
+      {:ok, _} = Devices.delete_device(connect(context, :disconnected))
+
+      assert [product] = Products.get_products(context.scope, with_counts: true)
+      assert product.connected_devices_count == 1
+      assert product.disconnected_devices_count == 1
+    end
+
+    defp connect(context, status) do
+      device = Fixtures.device_fixture(context.org, context.product, context.firmware)
+      Fixtures.device_connection_fixture(device, %{status: status})
+      device
     end
   end
 end

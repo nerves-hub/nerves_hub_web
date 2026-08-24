@@ -5,6 +5,7 @@ defmodule NervesHub.Devices.LogLines do
 
   import Ecto.Query
 
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
@@ -18,8 +19,34 @@ defmodule NervesHub.Devices.LogLines do
           meta: map()
         }
 
+  @default_limit 25
+
+  @typedoc """
+  How to narrow a device's logs.
+
+  - `:levels` — only these levels. A device is free to log at any level it
+    likes, so this is matched as given rather than against a fixed list.
+  - `:search` — only lines whose message contains this text, ignoring case.
+    Matched literally: a device that logs `100%` is found by searching for
+    `100%`, not by a wildcard.
+  - `:since` — at or after this time (inclusive).
+  - `:before` — strictly before this time (exclusive), so the timestamp of the
+    oldest line in a page can be passed straight back as the next page's
+    `:before` without repeating that line.
+  - `:limit` — how many lines to return, newest first unless `:order` says
+    otherwise. Defaults to #{@default_limit}.
+  - `:order` — `:desc` (newest first, the default) or `:asc`.
+  """
+  @type filter_opt ::
+          {:levels, [String.t()] | nil}
+          | {:search, String.t() | nil}
+          | {:since, DateTime.t() | nil}
+          | {:before, DateTime.t() | nil}
+          | {:limit, pos_integer()}
+          | {:order, :asc | :desc}
+
   @doc """
-  Retrieves the most recent 25 log lines for a device.
+  Retrieves the most recent #{@default_limit} log lines for a device.
 
   ## Examples
 
@@ -28,14 +55,54 @@ defmodule NervesHub.Devices.LogLines do
 
   """
   @spec recent(Device.t()) :: list(LogLine.t())
-  def recent(device) do
+  def recent(device), do: for_device(device)
+
+  @doc """
+  Retrieves a device's log lines, newest first, narrowed by `opts`.
+
+  See `t:filter_opt/0` for what can be narrowed.
+
+  ## Examples
+
+      iex> for_device(device, levels: ["error"], limit: 10)
+      [%LogLine{}, %LogLine{}]
+
+  """
+  @spec for_device(Device.t(), [filter_opt()]) :: list(LogLine.t())
+  def for_device(%Device{} = device, opts \\ []) do
+    order = Keyword.get(opts, :order, :desc)
+    limit = Keyword.get(opts, :limit, @default_limit)
+
     LogLine
     |> where(product_id: ^device.product_id)
     |> where(device_id: ^device.id)
-    |> order_by(desc: :timestamp)
-    |> limit(25)
+    |> filter_levels(Keyword.get(opts, :levels))
+    |> filter_search(Keyword.get(opts, :search))
+    |> filter_since(Keyword.get(opts, :since))
+    |> filter_before(Keyword.get(opts, :before))
+    |> order_by([l], [{^order, l.timestamp}])
+    |> limit(^limit)
     |> AnalyticsRepo.all()
   end
+
+  defp filter_levels(query, nil), do: query
+  defp filter_levels(query, []), do: query
+  defp filter_levels(query, levels), do: where(query, [l], l.level in ^levels)
+
+  defp filter_search(query, nil), do: query
+  defp filter_search(query, ""), do: query
+
+  # positionCaseInsensitive rather than ILIKE, so the needle is taken literally
+  # — a message full of `%` or `_` is searchable without anyone escaping it.
+  defp filter_search(query, search) do
+    where(query, [l], fragment("positionCaseInsensitive(?, ?) > 0", l.message, ^search))
+  end
+
+  defp filter_since(query, nil), do: query
+  defp filter_since(query, %DateTime{} = since), do: where(query, [l], l.timestamp >= ^since)
+
+  defp filter_before(query, nil), do: query
+  defp filter_before(query, %DateTime{} = before), do: where(query, [l], l.timestamp < ^before)
 
   @doc """
   Creates a log line for a device.
@@ -53,7 +120,7 @@ defmodule NervesHub.Devices.LogLines do
 
     case Ecto.Changeset.apply_action(changeset, :create) do
       {:ok, log_line} ->
-        _ = AnalyticsRepo.insert_all(LogLine, [changeset.changes], settings: [async_insert: 1])
+        _ = Buffer.insert(LogLine, changeset)
 
         _ =
           ChannelServer.broadcast(
