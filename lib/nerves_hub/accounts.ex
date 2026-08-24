@@ -409,6 +409,7 @@ defmodule NervesHub.Accounts do
       |> join(:inner, [d], p in assoc(d, :product))
       |> where([_d, _dc, p], p.org_id == parent_as(:org).id)
       |> where([_d, dc], dc.status == :connected)
+      |> Repo.exclude_deleted()
       |> select([d], %{count: count()})
 
     disconnected_org_devices_count =
@@ -417,6 +418,7 @@ defmodule NervesHub.Accounts do
       |> join(:inner, [d], p in assoc(d, :product))
       |> where([_d, _dc, p], p.org_id == parent_as(:org).id)
       |> where([_d, dc], is_nil(dc) or dc.status != :connected)
+      |> Repo.exclude_deleted()
       |> select([d], %{count: count()})
 
     Org
@@ -438,6 +440,7 @@ defmodule NervesHub.Accounts do
       |> join(:inner, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
       |> where([_d, dc], dc.status == :connected)
+      |> Repo.exclude_deleted()
       |> select([d], %{count: count()})
 
     disconnected_devices_count =
@@ -445,6 +448,7 @@ defmodule NervesHub.Accounts do
       |> join(:left, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
       |> where([_d, dc], is_nil(dc) or dc.status != :connected)
+      |> Repo.exclude_deleted()
       |> select([d], %{count: count()})
 
     Product
