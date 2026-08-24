@@ -25,25 +25,31 @@ defmodule NervesHubWeb.DeploymentGroupController do
   end
 
   def export_device_ids(%{assigns: %{current_scope: scope}} = conn, %{"name" => deployment_name}) do
-    {:ok, deployment_group} =
-      ManagedDeployments.get_deployment_group_by_name(scope.product, deployment_name)
+    case ManagedDeployments.get_deployment_group_by_name(scope.product, deployment_name) do
+      {:ok, deployment_group} ->
+        conn =
+          conn
+          |> put_resp_content_type("text/csv")
+          |> put_resp_header(
+            "content-disposition",
+            ~s[attachment; filename="#{deployment_group.name}-device-ids.csv"]
+          )
+          |> send_chunked(:ok)
 
-    conn =
-      conn
-      |> put_resp_content_type("text/csv")
-      |> put_resp_header(
-        "content-disposition",
-        ~s[attachment; filename="#{deployment_group.name}-device-ids.csv"]
-      )
-      |> send_chunked(:ok)
+        {:ok, conn} = chunk(conn, CSV.dump_to_iodata([["identifier"]]))
 
-    {:ok, conn} = chunk(conn, CSV.dump_to_iodata([["identifier"]]))
+        {:ok, conn} =
+          ManagedDeployments.device_identifiers_reducer(deployment_group, conn, fn conn, identifier ->
+            chunk(conn, CSV.dump_to_iodata([[identifier]]))
+          end)
 
-    {:ok, conn} =
-      ManagedDeployments.device_identifiers_reducer(deployment_group, conn, fn conn, identifier ->
-        chunk(conn, CSV.dump_to_iodata([[identifier]]))
-      end)
+        conn
 
-    conn
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> put_view(html: NervesHubWeb.ErrorHTML)
+        |> render("404.html")
+    end
   end
 end
