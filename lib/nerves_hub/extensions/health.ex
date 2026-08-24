@@ -1,7 +1,6 @@
 defmodule NervesHub.Extensions.Health do
   @behaviour NervesHub.Extensions
 
-  alias NervesHub.Devices
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
@@ -94,7 +93,12 @@ defmodule NervesHub.Extensions.Health do
     :ok = PubSub.broadcast_to_device(device.id, "health:check", %{})
   end
 
-  # Bound for whoever is watching the device in the UI, and nothing else.
-  #
-  # This deliberately does not ride the device topic. Keeping it off the wire
+  defp health_interval_minutes() do
+    extension_config = Application.get_env(:nerves_hub, :extension_config, [])
+
+    case get_in(extension_config, [:health, :interval_minutes]) do
+      i when is_integer(i) and i > 0 -> i
+      _ -> @default_interval_minutes
+    end
+  end
 end

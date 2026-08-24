@@ -6,7 +6,6 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeploymentOrchestratorEvents
-  alias NervesHub.Devices
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering

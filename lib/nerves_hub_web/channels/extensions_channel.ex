@@ -15,9 +15,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   alias NervesHub.DeviceLink.Client, as: DeviceLink
   alias NervesHub.Devices.DeviceMessages
   alias NervesHub.Extensions
-  alias NervesHub.Helpers.Logging
   alias NervesHubWeb.Channels.Effects
-  alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
   @impl Phoenix.Channel

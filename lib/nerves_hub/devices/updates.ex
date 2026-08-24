@@ -20,6 +20,7 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -27,7 +28,6 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias NervesHub.Devices.PubSub
   alias NervesHub.Repo
 
   require Logger

@@ -5,6 +5,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.NetworkIdentities
+  alias NervesHub.Devices.PubSub, as: DevicesPubSub
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
@@ -457,7 +458,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       push(socket, "network_identity:attached")
       assert_push("network_identity:request", %{})
 
-      @endpoint.subscribe("internal:device:#{device.id}")
+      DevicesPubSub.subscribe(device.id)
 
       push(socket, "network_identity:report", %{
         "identities" => [
@@ -484,7 +485,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       push(socket, "network_identity:attached")
       assert_push("network_identity:request", %{})
 
-      @endpoint.subscribe("internal:device:#{device.id}")
+      DevicesPubSub.subscribe(device.id)
 
       push(socket, "network_identity:report", %{
         "identities" => [
@@ -505,7 +506,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       push(socket, "network_identity:attached")
       assert_push("network_identity:request", %{})
 
-      @endpoint.subscribe("internal:device:#{device.id}")
+      DevicesPubSub.subscribe(device.id)
 
       push(socket, "network_identity:report", %{
         "identities" => [
@@ -526,7 +527,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       push(socket, "network_identity:attached")
       assert_push("network_identity:request", %{})
 
-      @endpoint.subscribe("internal:device:#{device.id}")
+      DevicesPubSub.subscribe(device.id)
 
       push(socket, "network_identity:report", %{
         "identities" => [
@@ -549,7 +550,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       push(socket, "network_identity:report", %{"identities" => "not-a-list"})
       push(socket, "network_identity:report", %{"identities" => [%{"nonsense" => true}]})
 
-      @endpoint.subscribe("internal:device:#{device.id}")
+      DevicesPubSub.subscribe(device.id)
 
       # The channel is still serving this device: a good report after the bad
       # ones still lands.
