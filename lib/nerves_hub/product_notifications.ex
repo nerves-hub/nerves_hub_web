@@ -11,7 +11,7 @@ defmodule NervesHub.ProductNotifications do
 
   @spec subscribe(pos_integer()) :: :ok
   def subscribe(product_id) do
-    :ok = Group.join(NervesHub.Group, topic(product_id), %{})
+    :ok = Group.join(NervesHub.Group, key(product_id), %{})
   end
 
   @spec paginated_list(Product.t(), integer(), integer()) :: {[Notification.t()], Flop.Meta.t()}
@@ -32,7 +32,7 @@ defmodule NervesHub.ProductNotifications do
       |> Repo.delete_all()
 
     _ =
-      Group.dispatch(NervesHub.Group, topic(product.id), %Broadcast{
+      Group.dispatch(NervesHub.Group, key(product.id), %Broadcast{
         topic: topic(product.id),
         event: "dismissed",
         payload: %{dismissed_by: %{id: user.id, name: user.name}}
@@ -158,7 +158,7 @@ defmodule NervesHub.ProductNotifications do
       )
 
     _ =
-      Group.dispatch(NervesHub.Group, topic(notification.product_id), %Broadcast{
+      Group.dispatch(NervesHub.Group, key(notification.product_id), %Broadcast{
         topic: topic(notification.product_id),
         event: "created",
         payload: %{}
@@ -166,6 +166,10 @@ defmodule NervesHub.ProductNotifications do
 
     notification
   end
+
+  # Group key. "/" is Group's hierarchy separator, matching the other pub/sub
+  # wrappers.
+  defp key(product_id), do: "product_notifications/#{product_id}"
 
   # Preserved as the previous `Phoenix.PubSub` topic string.
   defp topic(product_id), do: "product_notifications:#{product_id}"

@@ -7,6 +7,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs
+  alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
@@ -1277,8 +1278,8 @@ defmodule NervesHub.DevicesTest do
       {:ok, {_release, deployment_group}} =
         ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
-      deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
-      Group.join(NervesHub.Group, deployment_topic, %{})
+      deployment_topic = DeploymentOrchestratorEvents.topic(deployment_group)
+      :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
       _device = Deployments.update_deployment_group(device, deployment_group)
 
@@ -1391,8 +1392,8 @@ defmodule NervesHub.DevicesTest do
       {:ok, {_release, deployment_group}} =
         ManagedDeployments.create_deployment_release(deployment_group, target_firmware, nil, user, %{})
 
-      deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
-      Group.join(NervesHub.Group, deployment_topic, %{})
+      deployment_topic = DeploymentOrchestratorEvents.topic(deployment_group)
+      :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
       BulkActions.move_many_to_deployment_group([device1.id, device2.id], deployment_group, user)
 
