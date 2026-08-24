@@ -21,10 +21,10 @@ defmodule NervesHub.Extensions do
   alias NervesHub.Extensions.LocalShell
   alias NervesHub.Extensions.Logging
   alias NervesHub.Extensions.NetworkIdentity
+  alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
   alias NervesHub.Extensions.Unsupported
   alias NervesHub.Products.Product
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   @typedoc """
   What every extension callback returns: the extension's new state, plus any
@@ -110,18 +110,15 @@ defmodule NervesHub.Extensions do
     Unsupported
   end
 
-  def broadcast_extension_event(target, event, extension) do
-    ChannelServer.broadcast_from!(
-      NervesHub.PubSub,
-      self(),
-      topic(target),
-      event,
-      %{
-        "extensions" => [extension]
-      }
-    )
+  def broadcast_extension_event(%Device{} = device, event, extension) do
+    # web -> device: only the device's extensions channel consumes this.
+    PubSub.broadcast_to_device(device.id, event, %{"extensions" => [extension]})
   end
 
-  defp topic(%Device{} = device), do: "device:#{device.id}:extensions"
-  defp topic(%Product{} = product), do: "product:#{product.id}:extensions"
+  def broadcast_extension_event(%Product{} = product, event, extension) do
+    # Product-wide fan-out to every device's extensions channel stays on
+    # Phoenix.PubSub (dense fan-out, no targeted-dispatch win); routed through
+    # the wrapper for consistency with the per-device path.
+    PubSub.broadcast_to_product(product.id, event, %{"extensions" => [extension]})
+  end
 end

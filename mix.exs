@@ -107,6 +107,7 @@ defmodule NervesHub.MixProject do
       {:floki, "~> 0.38.0"},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
+      {:group, "~> 0.2.0"},
       {:hackney, "~> 1.16"},
       {:hammer, "~> 7.4.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},

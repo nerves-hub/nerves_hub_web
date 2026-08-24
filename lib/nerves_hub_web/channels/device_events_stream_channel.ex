@@ -10,6 +10,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
 
   alias NervesHub.Accounts
   alias NervesHub.Devices
+  alias NervesHub.Devices.PubSub
   alias NervesHubWeb.Helpers.Authorization
   alias Phoenix.Socket.Broadcast
 
@@ -20,7 +21,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     # Socket already has authenticated user, just validate device access
     if authorized?(socket.assigns.user, device_identifier) do
       device = Devices.get_by_identifier!(device_identifier)
-      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "internal:device:#{device.id}")
+      :ok = PubSub.subscribe(device.id)
 
       {:ok, socket}
     else

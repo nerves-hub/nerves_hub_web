@@ -19,6 +19,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Devices.Updates
+  alias NervesHub.Extensions.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.FirmwareUpdates
@@ -27,7 +28,6 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
-  alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
   setup %{fixture: %{device: device}} do
@@ -332,8 +332,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
         :ok = Connections.device_connected(connection.id)
 
-        topic = "internal:device:#{device.id}"
-        ChannelServer.broadcast!(NervesHub.PubSub, topic, "health_check_report", %{})
+        PubSub.broadcast_report(device.id, "health_check_report", %{})
 
         render(view)
       end)
