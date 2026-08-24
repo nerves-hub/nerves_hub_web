@@ -83,6 +83,16 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.aggregate(:count)
   end
 
+  @spec device_identifiers(DeploymentGroup.t()) :: [String.t()]
+  def device_identifiers(%DeploymentGroup{id: id}) do
+    Device
+    |> where([d], d.deployment_id == ^id)
+    |> Repo.exclude_deleted()
+    |> order_by([d], asc: d.identifier)
+    |> select([d], d.identifier)
+    |> Repo.all()
+  end
+
   @spec get_deployment_group(DeploymentGroup.t() | Device.t() | integer()) ::
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get_deployment_group(%DeploymentGroup{id: id}), do: get_deployment_group(id)
