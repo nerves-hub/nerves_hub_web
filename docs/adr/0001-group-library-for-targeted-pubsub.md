@@ -29,7 +29,8 @@ live on web nodes):
   firmware validated, update progress, geo, logs).
 - console and local-shell byte streams (`device:console:<id>`,
   `user:console:<id>`, `user:local_shell:<id>`, …).
-- `device:<id>:extensions` — per-device health/geo extension traffic.
+- `device:<id>:extensions` — per-device health/geo extension traffic, in the
+  device → web direction only (see below).
 - product/firmware UI topics (`product:<id>`, `firmware:<id>`,
   `product_notifications:<id>`).
 
@@ -86,11 +87,12 @@ Concrete shape:
    - **Origin-node stamping** (`RateLimitPubSub`, `CLISessionCache`): the
      message carries `node()`; the receiving GenServer drops it when
      `origin == node()` because the local write already happened inline.
-   - **Direction-split keys** (`Extensions.PubSub`): the device-side channel is
-     both a member and the origin of the report flow, so the topic is split
-     into `device:extensions/<id>` (web → device) and
-     `device:extensions:reports/<id>` (device → web). No process is ever both a
-     sender and a member of the same key, so nothing receives its own message.
+   - **Direction-split transports** (`Extensions.PubSub`): the device-side
+     channel is both a consumer of the web → device flow and the origin of the
+     report flow, so the topic is split by direction —
+     `device:extensions:reports/<id>` (device → web) moves to `:group`, and
+     web → device stays on `Phoenix.PubSub`. The channel is not a member of the
+     reports group, so it can never receive its own report.
 
 4. **Kept on `Phoenix.PubSub` deliberately:**
 
@@ -98,15 +100,27 @@ Concrete shape:
      online device in the product. That is genuine dense fan-out with no
      targeted-dispatch win, and moving it to `:group` would trade a rare
      broadcast for continuous membership churn as devices connect/disconnect.
+   - `device:<id>:extensions`, **web → device** (`health:check`, per-device
+     `attach`/`detach`) — the same trade, and worse. The consumer is the
+     device's own `ExtensionsChannel`, which exists for as long as the device is
+     connected, so `:group` would mean a cluster-replicated join on every
+     connect and a leave on every disconnect, plus a row per online device on
+     every node — churn that scales with the *fleet* rather than with the number
+     of open pages — in exchange for targeting a handful of operator-triggered
+     messages. Its device → web half is sparse and does move to `:group`.
    - `deployment:<id>` — multi-subscriber, not a sparse per-entity topic.
+
+   The rule this leaves: a topic earns `:group` when its **membership** is
+   sparse and its **traffic** is not. Membership that tracks device connections
+   never qualifies.
 
 ## Consequences
 
 **Positive**
 
-- Device → UI, console, and extension traffic is delivered only to nodes with a
-  live consumer; idle device nodes stop receiving-and-discarding other devices'
-  events.
+- Device → UI, console, and extension *report* traffic is delivered only to
+  nodes with a live consumer; idle device nodes stop receiving-and-discarding
+  other devices' events.
 - Rate-limit and CLI-session-cache state — and its membership — no longer exist
   on device nodes.
 - Liveness checks (`console_active?`, `local_shell_active?`, `shell_active?`)

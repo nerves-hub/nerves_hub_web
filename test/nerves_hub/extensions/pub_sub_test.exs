@@ -4,7 +4,7 @@ defmodule NervesHub.Extensions.PubSubTest do
   alias NervesHub.Extensions.PubSub
   alias Phoenix.Socket.Broadcast
 
-  # Unique per test so concurrent tests don't share a Group key.
+  # Unique per test so concurrent tests don't share a group key or topic.
   setup do
     %{device_id: System.unique_integer([:positive])}
   end
@@ -26,10 +26,10 @@ defmodule NervesHub.Extensions.PubSubTest do
     assert_receive %Broadcast{event: "health_check_report"}, 500
   end
 
-  test "a report is NOT echoed to the device-side channel (self-exclusion via key split)", %{
+  test "a report is NOT echoed to the device-side channel (self-exclusion via direction split)", %{
     device_id: device_id
   } do
-    # The device-side channel joins the web->device key only.
+    # The device-side channel subscribes to the web->device topic only.
     :ok = PubSub.subscribe_device(device_id)
 
     :ok = PubSub.broadcast_report(device_id, "health_check_report", %{})
@@ -45,6 +45,16 @@ defmodule NervesHub.Extensions.PubSubTest do
     :ok = PubSub.broadcast_to_device(device_id, "health:check", %{})
 
     refute_receive %Broadcast{event: "health:check"}, 200
+  end
+
+  test "the device-side subscription is node-local, so it is not a group member", %{
+    device_id: device_id
+  } do
+    # The whole point of keeping web->device on Phoenix.PubSub: a connected
+    # device must not put a cluster-replicated membership row on every node.
+    :ok = PubSub.subscribe_device(device_id)
+
+    assert Group.members(NervesHub.Group, "device:extensions/#{device_id}") == []
   end
 
   describe "product-wide events (Phoenix.PubSub)" do
