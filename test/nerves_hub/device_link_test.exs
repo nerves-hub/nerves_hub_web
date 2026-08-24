@@ -3,14 +3,17 @@ defmodule NervesHub.DeviceLinkTest do
   use Mimic
 
   alias NervesHub.AuditLogs.AuditLog
+  alias NervesHub.Consoles
   alias NervesHub.DeviceLink
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.DeviceLink.Session
+  alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias Phoenix.Socket.Broadcast
 
   setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
@@ -418,6 +421,53 @@ defmodule NervesHub.DeviceLinkTest do
     test "a progress message with no value is ignored", %{session: session} do
       assert {_session, []} = DeviceLink.device_message(session, "update_progress", %{})
     end
+  end
+
+  describe "device_notify/2 :after_join connecting code" do
+    test "echoes the connecting code to the console for devices too old to run scripts", %{
+      device: device
+    } do
+      {:ok, device} = Devices.update_device(device, %{connecting_code: ~s/dbg("boo")/})
+
+      # Stand in for the device-side console channel, which is what carries the
+      # echo down to the device.
+      :ok = Consoles.PubSub.join_console(device.id)
+
+      session = %Session{device_info: connected_device_info(device), device_api_version: "2.0.0"}
+      params = %{"device_api_version" => "2.0.0"}
+
+      {_session, effects} = DeviceLink.device_notify(session, {:after_join, params})
+
+      assert effects == []
+      assert_receive %Broadcast{event: "dn", payload: %{"data" => ~s/dbg("boo")\n\r/}}, 500
+    end
+
+    test "pushes a script instead of echoing when the device can run scripts", %{device: device} do
+      {:ok, device} = Devices.update_device(device, %{connecting_code: ~s/dbg("boo")/})
+
+      :ok = Consoles.PubSub.join_console(device.id)
+
+      session = %Session{device_info: connected_device_info(device), device_api_version: "2.1.0"}
+      params = %{"device_api_version" => "2.1.0"}
+
+      {_session, effects} = DeviceLink.device_notify(session, {:after_join, params})
+
+      assert [{:push, "scripts/run", %{"text" => ~s/dbg("boo")/}}] = effects
+      refute_receive %Broadcast{event: "dn"}, 200
+    end
+  end
+
+  # `after_join/2` reaches for the org, the allowed extension list and a live
+  # connection, none of which the minimal `to_device_info/1` above populates.
+  defp connected_device_info(device) do
+    {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+    %{
+      to_device_info(device)
+      | org_id: device.org_id,
+        allowed_extensions: [],
+        connection_ref: connection.id
+    }
   end
 
   def to_device_info(device) do
