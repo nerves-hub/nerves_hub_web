@@ -9,6 +9,11 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   def tab_params(_params, _uri, socket) do
     device_id = socket.assigns.device.id
 
+    # Only one of the two terminal tabs is hooked at a time, so release the
+    # other's monitor rather than leaving it waking us for a tab we are not
+    # rendering.
+    :ok = Consoles.PubSub.demonitor_local_shell(device_id)
+
     # Monitor console liveness before seeding so a join/leave between the seed
     # read and now still arrives as an event (see Consoles.PubSub.monitor_console/1).
     # The seed is a synchronous ETS-backed read (not the old blocking probe), so

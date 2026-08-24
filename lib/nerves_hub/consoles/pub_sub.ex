@@ -81,11 +81,20 @@ defmodule NervesHub.Consoles.PubSub do
   Membership presence is eventually consistent, so pair this with an initial
   `console_active?/1` read for the current value — and monitor *before* that read
   so a change in the gap still arrives as an event rather than being lost. The
-  monitor is cleaned up automatically when the calling process dies.
+  monitor is cleaned up automatically when the calling process dies, and
+  `demonitor_console/1` releases it sooner.
+
+  Calling this repeatedly for the same device is a no-op; see `monitor/1`.
   """
   @spec monitor_console(integer()) :: :ok
   def monitor_console(device_id) do
-    Group.monitor(@group, console_key(device_id))
+    monitor(console_key(device_id))
+  end
+
+  @doc "Stop monitoring console liveness for this device."
+  @spec demonitor_console(integer()) :: :ok
+  def demonitor_console(device_id) do
+    Group.demonitor(@group, console_key(device_id))
   end
 
   @doc """
@@ -173,7 +182,13 @@ defmodule NervesHub.Consoles.PubSub do
   """
   @spec monitor_local_shell(integer()) :: :ok
   def monitor_local_shell(device_id) do
-    Group.monitor(@group, local_shell_key(device_id))
+    monitor(local_shell_key(device_id))
+  end
+
+  @doc "Stop monitoring local-shell liveness for this device."
+  @spec demonitor_local_shell(integer()) :: :ok
+  def demonitor_local_shell(device_id) do
+    Group.demonitor(@group, local_shell_key(device_id))
   end
 
   @doc "Ask the device-side local shell to connect `pid` (the user channel)."
@@ -202,6 +217,17 @@ defmodule NervesHub.Consoles.PubSub do
   def broadcast_to_user_local_shell(device_id, event, payload) do
     message = %Broadcast{topic: user_local_shell_topic(device_id), event: event, payload: payload}
     Group.dispatch(@group, user_local_shell_key(device_id), message)
+  end
+
+  # `Group.monitor/2` registers into a `keys: :duplicate` registry, so it never
+  # reports "already monitored" — every call leaves another row behind. Delivery
+  # is unaffected (the library dedupes subscribers by pid before sending), but
+  # the rows accumulate for the life of the caller, and the LiveView tabs that
+  # monitor re-run `tab_params/3` on every navigation within the tab.
+  # Unregistering first keeps it to exactly one.
+  defp monitor(key) do
+    :ok = Group.demonitor(@group, key)
+    Group.monitor(@group, key)
   end
 
   # -- Group keys ("/" is Group's hierarchy separator) ------------------------

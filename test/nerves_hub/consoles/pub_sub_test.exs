@@ -44,6 +44,50 @@ defmodule NervesHub.Consoles.PubSubTest do
     end
   end
 
+  describe "liveness monitors" do
+    # `Group.monitor/2` is backed by a duplicate-key registry, and the library
+    # dedupes subscribers by pid before delivering, so a leaked registration is
+    # invisible from the outside. Reaching into the registry is the only way to
+    # see it -- hence the coupling to `Group`'s key shape here.
+    defp monitor_entries(key) do
+      NervesHub.Group
+      |> Group.registry_name()
+      |> Registry.lookup({NervesHub.Group, nil, {:exact, key}})
+    end
+
+    test "monitoring the same device repeatedly registers once", %{device_id: device_id} do
+      :ok = PubSub.monitor_console(device_id)
+      :ok = PubSub.monitor_console(device_id)
+      :ok = PubSub.monitor_console(device_id)
+
+      assert [{pid, _}] = monitor_entries("console/#{device_id}")
+      assert pid == self()
+    end
+
+    test "demonitor_console stops console events", %{device_id: device_id} do
+      :ok = PubSub.monitor_console(device_id)
+      :ok = PubSub.demonitor_console(device_id)
+
+      assert [] == monitor_entries("console/#{device_id}")
+
+      :ok = PubSub.join_console(device_id)
+      refute_receive {:group, _events, _info}, 200
+    end
+
+    test "demonitor_local_shell stops local shell events", %{device_id: device_id} do
+      :ok = PubSub.monitor_local_shell(device_id)
+      :ok = PubSub.demonitor_local_shell(device_id)
+
+      :ok = PubSub.join_local_shell(device_id)
+      refute_receive {:group, _events, _info}, 200
+    end
+
+    test "demonitoring something never monitored is a no-op", %{device_id: device_id} do
+      assert :ok = PubSub.demonitor_console(device_id)
+      assert :ok = PubSub.demonitor_local_shell(device_id)
+    end
+  end
+
   describe "console connect handshake" do
     test "connect_to_console reaches the joined console channel", %{device_id: device_id} do
       :ok = PubSub.join_console(device_id)

@@ -92,4 +92,45 @@ defmodule NervesHubWeb.Live.Devices.Show.LocalShellTabTest do
     session
     |> assert_has("div", text: "The device's local shell isn't currently available.", timeout: 1000)
   end
+
+  test "switching terminal tabs leaves only the active tab's liveness monitor", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    {:ok, _product} = Products.enable_extension_setting(product, "local_shell")
+    {:ok, _device} = Devices.enable_extension_setting(device, "local_shell")
+
+    # The tabs are `patch` links, so both tabs run in the same LiveView process
+    # and a monitor taken by one outlives a switch to the other.
+    session =
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/console")
+      |> unwrap(fn view ->
+        send(self(), {:live_view, view.pid})
+        render(view)
+      end)
+
+    assert_received {:live_view, live_view}
+
+    assert monitoring?(live_view, "console/#{device.id}")
+    refute monitoring?(live_view, "local_shell/#{device.id}")
+
+    session
+    |> click_link("System Shell")
+    |> assert_has("h1", text: device.identifier)
+
+    assert monitoring?(live_view, "local_shell/#{device.id}")
+    refute monitoring?(live_view, "console/#{device.id}")
+  end
+
+  # See the note in NervesHub.Consoles.PubSubTest: a monitor registration is not
+  # observable through delivery, so this reaches into `Group`'s registry.
+  defp monitoring?(pid, key) do
+    NervesHub.Group
+    |> Group.registry_name()
+    |> Registry.lookup({NervesHub.Group, nil, {:exact, key}})
+    |> Enum.any?(fn {entry_pid, _} -> entry_pid == pid end)
+  end
 end

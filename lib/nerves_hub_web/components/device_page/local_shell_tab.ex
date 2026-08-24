@@ -10,6 +10,11 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
 
     enabled? = !!device.extensions.local_shell && !!product.extensions.local_shell
 
+    # Only one of the two terminal tabs is hooked at a time, so release the
+    # other's monitor rather than leaving it waking us for a tab we are not
+    # rendering.
+    :ok = Consoles.PubSub.demonitor_console(device.id)
+
     # Monitor shell liveness before seeding so an attach/detach in the gap still
     # arrives as an event (see Consoles.PubSub.monitor_local_shell/1). The seed is
     # a synchronous ETS-backed read, so a stale async result can't land after and
