@@ -1,6 +1,8 @@
 defmodule NervesHub.CLISessionCache do
   use GenServer
 
+  alias NervesHub.DeviceLink.Handlers
+
   @table :cli_session_cache
 
   def start_link(_) do
@@ -128,20 +130,35 @@ defmodule NervesHub.CLISessionCache do
   end
 
   defp fetch_data_from_cluster() do
-    # Gets all connected nodes excluding the current node
-    nodes = Node.list()
+    fetch_from(candidates())
+  end
 
-    if Enum.empty?(nodes) do
-      :no_nodes_available
-    else
-      # Query the first available node to dump its table via RPC
-      [target_node | _] = nodes
+  # Prefer nodes known to carry the platform stack. `Node.list/0` is every node
+  # that joined the topology, which is not the same thing: `device` nodes do not
+  # run this cache, and neither does anything else that joins without carrying
+  # the platform stack. Asking one of those for the table is a wasted round trip
+  # at best.
+  #
+  # At boot the `:pg` group may not have synced yet, and a cold cache is worse
+  # than an imperfect guess, so fall back to any connected node — `fetch_from/1`
+  # skips whatever cannot answer.
+  defp candidates() do
+    case Handlers.nodes() -- [node()] do
+      [] -> Node.list()
+      platform -> platform
+    end
+  end
 
-      # :ets.tab2list/1 converts the entire ETS table into a list of tuples
-      case :rpc.call(target_node, :ets, :tab2list, [@table]) do
-        {:badrpc, _reason} -> :no_nodes_available
-        data when is_list(data) -> {:ok, data}
-      end
+  defp fetch_from([]), do: :no_nodes_available
+
+  # Walks the candidates rather than taking the head and giving up: a single
+  # node that cannot answer used to leave this node with an empty cache for the
+  # life of the process.
+  defp fetch_from([node | rest]) do
+    # :ets.tab2list/1 converts the entire ETS table into a list of tuples
+    case :rpc.call(node, :ets, :tab2list, [@table]) do
+      {:badrpc, _reason} -> fetch_from(rest)
+      data when is_list(data) -> {:ok, data}
     end
   end
 end
