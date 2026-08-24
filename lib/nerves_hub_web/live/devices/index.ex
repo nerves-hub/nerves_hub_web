@@ -108,12 +108,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   def handle_params(unsigned_params, _uri, %{assigns: %{product: product}} = socket) do
     filters = DeviceFiltering.parse_filters(unsigned_params)
+    sort = DeviceFiltering.parse_sort(unsigned_params)
     changes = pagination_changes(unsigned_params)
     pagination_opts = Map.merge(@default_pagination, changes)
 
     socket
-    |> assign(:current_sort, Map.get(unsigned_params, "sort", "identifier"))
-    |> assign(:sort_direction, Map.get(unsigned_params, "sort_direction", "asc"))
+    |> assign(:current_sort, sort.sort)
+    |> assign(:sort_direction, sort.sort_direction)
     |> assign(:current_filters, filters)
     |> assign(:advanced_query_error, advanced_query_error(filters.advanced_query, product.id))
     |> assign(:paginate_opts, pagination_opts)

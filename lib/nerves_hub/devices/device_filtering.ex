@@ -58,6 +58,8 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   @default_sort %{sort_direction: "asc", sort: "identifier"}
   @sort_types %{sort_direction: :string, sort: :string}
+  @sortable_fields ~w(identifier connection_established_at connection_last_seen_at tags)
+  @sort_directions ~w(asc desc)
 
   def default_filters(), do: @default_filters
 
@@ -73,11 +75,23 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   @doc """
   Casts raw (string-keyed) params into a sort opts map, applying defaults for
-  any missing values.
+  any missing/invalid values.
   """
   def parse_sort(params) do
-    Map.merge(@default_sort, sort_changes(params))
+    @default_sort
+    |> Map.merge(sort_changes(params))
+    |> validate_sort()
   end
+
+  defp validate_sort(%{sort: sort} = sort_opts) when sort not in @sortable_fields do
+    validate_sort(%{sort_opts | sort: @default_sort.sort})
+  end
+
+  defp validate_sort(%{sort_direction: direction} = sort_opts) when direction not in @sort_directions do
+    %{sort_opts | sort_direction: @default_sort.sort_direction}
+  end
+
+  defp validate_sort(sort_opts), do: sort_opts
 
   def transform_deployment_filter(%{deployment_id: ""} = filters), do: Map.delete(filters, :deployment_id)
 
