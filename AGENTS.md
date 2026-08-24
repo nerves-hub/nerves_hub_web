@@ -39,8 +39,11 @@ Key runtime pieces:
 - **Deployment orchestration** — one singleton `Orchestrator` process per
   deployment group, owned by ProcessHub (`NervesHub.ManagedDeployments.Distributed`).
 - **Presence/liveness** — `NervesHub.Tracker` + Phoenix Presence.
-- **Cross-node messaging** — `Phoenix.PubSub` on per-entity topics (per device,
-  per product, per firmware, …).
+- **Cross-node messaging** — two transports. `Phoenix.PubSub` for dense
+  fan-out, and the `group` library for per-entity topics whose consumers are
+  sparse (per device, per console session, per product, per firmware). See
+  [docs/cross_node_messaging.md](docs/cross_node_messaging.md) for which is
+  which and how to choose for something new.
 
 ## Repository layout
 
