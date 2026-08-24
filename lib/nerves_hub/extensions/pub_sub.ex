@@ -76,7 +76,7 @@ defmodule NervesHub.Extensions.PubSub do
   @doc "Join the calling process (a device Show LiveView) to receive device -> web reports."
   @spec subscribe_reports(integer()) :: :ok
   def subscribe_reports(device_id) do
-    Group.join(@group, reports_key(device_id), %{})
+    :ok = Group.join(@group, reports_key(device_id), %{})
   end
 
   @doc "Send a device -> web extensions report (`health_check_report`)."

@@ -27,13 +27,18 @@ defmodule NervesHub.Devices.PubSub do
   """
   @spec subscribe(integer()) :: :ok
   def subscribe(device_id) do
-    Group.join(@group, key(device_id), %{})
+    :ok = Group.join(@group, key(device_id), %{})
   end
 
   @doc "Remove the calling process from a device's event group."
   @spec unsubscribe(integer()) :: :ok
   def unsubscribe(device_id) do
-    Group.leave(@group, key(device_id))
+    # Unsubscribing from something never subscribed to is not an error, matching
+    # `Phoenix.PubSub.unsubscribe/2`, which callers here are drop-in replacing.
+    case Group.leave(@group, key(device_id)) do
+      :ok -> :ok
+      {:error, :not_in_group} -> :ok
+    end
   end
 
   @doc """

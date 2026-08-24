@@ -34,13 +34,18 @@ defmodule NervesHub.Products.PubSub do
   @doc "Join the calling process (a product-scoped LiveView) to the product's event group."
   @spec subscribe(integer()) :: :ok
   def subscribe(product_id) do
-    Group.join(@group, key(product_id), %{})
+    :ok = Group.join(@group, key(product_id), %{})
   end
 
   @doc "Leave the product's event group."
   @spec unsubscribe(integer()) :: :ok
   def unsubscribe(product_id) do
-    Group.leave(@group, key(product_id))
+    # Unsubscribing from something never subscribed to is not an error, matching
+    # `Phoenix.PubSub.unsubscribe/2`, which callers here are drop-in replacing.
+    case Group.leave(@group, key(product_id)) do
+      :ok -> :ok
+      {:error, :not_in_group} -> :ok
+    end
   end
 
   @doc """

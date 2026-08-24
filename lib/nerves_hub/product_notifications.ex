@@ -11,7 +11,7 @@ defmodule NervesHub.ProductNotifications do
 
   @spec subscribe(pos_integer()) :: :ok
   def subscribe(product_id) do
-    Group.join(NervesHub.Group, topic(product_id), %{})
+    :ok = Group.join(NervesHub.Group, topic(product_id), %{})
   end
 
   @spec paginated_list(Product.t(), integer(), integer()) :: {[Notification.t()], Flop.Meta.t()}

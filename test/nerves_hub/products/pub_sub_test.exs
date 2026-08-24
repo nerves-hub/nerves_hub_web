@@ -67,4 +67,12 @@ defmodule NervesHub.Products.PubSubTest do
 
     _ = other
   end
+
+  test "unsubscribing without having subscribed is not an error", %{product_id: product_id} do
+    assert :ok = PubSub.unsubscribe(product_id)
+
+    :ok = PubSub.subscribe(product_id)
+    assert :ok = PubSub.unsubscribe(product_id)
+    assert :ok = PubSub.unsubscribe(product_id)
+  end
 end

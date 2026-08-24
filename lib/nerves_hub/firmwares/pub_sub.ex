@@ -41,7 +41,7 @@ defmodule NervesHub.Firmwares.PubSub do
   """
   @spec subscribe_delta_target(target_id :: integer()) :: :ok
   def subscribe_delta_target(target_id) do
-    Group.join(@group, key(target_id), %{})
+    :ok = Group.join(@group, key(target_id), %{})
   end
 
   @doc """

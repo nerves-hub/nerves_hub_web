@@ -94,7 +94,7 @@ defmodule NervesHub.Consoles.PubSub do
   @doc "Stop monitoring console liveness for this device."
   @spec demonitor_console(integer()) :: :ok
   def demonitor_console(device_id) do
-    Group.demonitor(@group, console_key(device_id))
+    :ok = Group.demonitor(@group, console_key(device_id))
   end
 
   @doc """
@@ -126,7 +126,7 @@ defmodule NervesHub.Consoles.PubSub do
   @doc "Subscribe the calling process to the device->user console output stream."
   @spec subscribe_user_console(integer()) :: :ok
   def subscribe_user_console(device_id) do
-    Group.join(@group, user_console_key(device_id), %{})
+    :ok = Group.join(@group, user_console_key(device_id), %{})
   end
 
   @doc "Send a user->device console message (keystrokes, file transfer, input)."
@@ -148,7 +148,7 @@ defmodule NervesHub.Consoles.PubSub do
   @doc "Join the device-side extensions channel to the local-shell registry (on attach)."
   @spec join_local_shell(integer()) :: :ok
   def join_local_shell(device_id) do
-    Group.join(@group, local_shell_key(device_id), %{})
+    :ok = Group.join(@group, local_shell_key(device_id), %{})
   end
 
   @doc """
@@ -188,7 +188,7 @@ defmodule NervesHub.Consoles.PubSub do
   @doc "Stop monitoring local-shell liveness for this device."
   @spec demonitor_local_shell(integer()) :: :ok
   def demonitor_local_shell(device_id) do
-    Group.demonitor(@group, local_shell_key(device_id))
+    :ok = Group.demonitor(@group, local_shell_key(device_id))
   end
 
   @doc "Ask the device-side local shell to connect `pid` (the user channel)."
@@ -209,7 +209,7 @@ defmodule NervesHub.Consoles.PubSub do
   @doc "Subscribe the calling process to the device->user local-shell output stream."
   @spec subscribe_user_local_shell(integer()) :: :ok
   def subscribe_user_local_shell(device_id) do
-    Group.join(@group, user_local_shell_key(device_id), %{})
+    :ok = Group.join(@group, user_local_shell_key(device_id), %{})
   end
 
   @doc "Send a device->user local-shell message (output)."
@@ -227,7 +227,7 @@ defmodule NervesHub.Consoles.PubSub do
   # Unregistering first keeps it to exactly one.
   defp monitor(key) do
     :ok = Group.demonitor(@group, key)
-    Group.monitor(@group, key)
+    :ok = Group.monitor(@group, key)
   end
 
   # -- Group keys ("/" is Group's hierarchy separator) ------------------------
