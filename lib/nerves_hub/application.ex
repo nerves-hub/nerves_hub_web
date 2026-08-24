@@ -37,19 +37,18 @@ defmodule NervesHub.Application do
         ecto_repos() ++
         [
           {Phoenix.PubSub, name: NervesHub.PubSub},
-          {Group, name: NervesHub.Group},
-          NervesHub.GroupClusterConnection,
+          # Ahead of the group tree: `RateLimitPubSub` applies peer throttle
+          # increments into this storage the moment it joins its group.
+          {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
+          NervesHub.GroupSupervisor,
           {Cluster.Supervisor, [libcluster_topology()]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
-          {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
-          {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000}
+          {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}
         ] ++
         analytics_buffers() ++
         device_link_handlers() ++
-        cli_session_cache() ++
-        rate_limit_pub_sub() ++
         deployments_orchestrator(deploy_env()) ++
         endpoints(deploy_env())
 
@@ -86,22 +85,6 @@ defmodule NervesHub.Application do
     case Application.get_env(:nerves_hub, :app) do
       "device" -> scope
       _ -> scope ++ [Handlers]
-    end
-  end
-
-  defp cli_session_cache() do
-    case Application.get_env(:nerves_hub, :app) do
-      "device" -> []
-      _ -> [NervesHub.CLISessionCache]
-    end
-  end
-
-  # Only web/all nodes serve the throttled `check_cli_session` endpoint, and only
-  # they connect to the "web" Group cluster this joins, so device nodes skip it.
-  defp rate_limit_pub_sub() do
-    case Application.get_env(:nerves_hub, :app) do
-      "device" -> []
-      _ -> [NervesHubWeb.RateLimitPubSub]
     end
   end
 
