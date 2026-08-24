@@ -28,13 +28,22 @@ defmodule NervesHubWeb.DeploymentGroupController do
     {:ok, deployment_group} =
       ManagedDeployments.get_deployment_group_by_name(scope.product, deployment_name)
 
-    identifiers = ManagedDeployments.device_identifiers(deployment_group)
+    conn =
+      conn
+      |> put_resp_content_type("text/csv")
+      |> put_resp_header(
+        "content-disposition",
+        ~s[attachment; filename="#{deployment_group.name}-device-ids.csv"]
+      )
+      |> send_chunked(:ok)
 
-    csv =
-      [["identifier"] | Enum.map(identifiers, &[&1])]
-      |> CSV.dump_to_iodata()
-      |> IO.iodata_to_binary()
+    {:ok, conn} = chunk(conn, CSV.dump_to_iodata([["identifier"]]))
 
-    send_download(conn, {:binary, csv}, filename: "#{deployment_group.name}-device-ids.csv")
+    {:ok, conn} =
+      ManagedDeployments.device_identifiers_reducer(deployment_group, conn, fn conn, identifier ->
+        chunk(conn, CSV.dump_to_iodata([[identifier]]))
+      end)
+
+    conn
   end
 end

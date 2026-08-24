@@ -83,14 +83,23 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.aggregate(:count)
   end
 
-  @spec device_identifiers(DeploymentGroup.t()) :: [String.t()]
-  def device_identifiers(%DeploymentGroup{id: id}) do
-    Device
-    |> where([d], d.deployment_id == ^id)
-    |> Repo.exclude_deleted()
-    |> order_by([d], asc: d.identifier)
-    |> select([d], d.identifier)
-    |> Repo.all()
+  @spec device_identifiers_reducer(DeploymentGroup.t(), any(), fun()) :: any()
+  def device_identifiers_reducer(%DeploymentGroup{id: id}, acc, callback) do
+    Repo.transact(fn ->
+      Device
+      |> where([d], d.deployment_id == ^id)
+      |> Repo.exclude_deleted()
+      |> order_by([d], asc: d.identifier)
+      |> select([d], d.identifier)
+      |> Repo.stream(max_rows: 500)
+      |> Enum.reduce_while(acc, fn identifier, acc ->
+        case callback.(acc, identifier) do
+          {:ok, acc} -> {:cont, acc}
+          {:error, _} -> {:halt, acc}
+        end
+      end)
+      |> then(fn res -> {:ok, res} end)
+    end)
   end
 
   @spec get_deployment_group(DeploymentGroup.t() | Device.t() | integer()) ::
