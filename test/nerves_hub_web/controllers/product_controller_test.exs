@@ -86,8 +86,8 @@ defmodule NervesHubWeb.ProductControllerTest do
     org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-    deployment_group = Fixtures.deployment_group_fixture(firmware)
-    other_deployment_group = Fixtures.deployment_group_fixture(firmware)
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+    other_deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
 
     device_in_group =
       Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})

@@ -59,17 +59,14 @@ defmodule NervesHub.Devices.DeviceFiltering do
   @default_sort %{sort_direction: "asc", sort: "identifier"}
   @sort_types %{sort_direction: :string, sort: :string}
 
-  @spec default_filters() :: map()
   def default_filters(), do: @default_filters
 
-  @spec default_sort() :: map()
   def default_sort(), do: @default_sort
 
   @doc """
   Casts raw (string-keyed) params into the filter map, applying defaults for
   any missing values.
   """
-  @spec parse_filters(map()) :: map()
   def parse_filters(params) do
     Map.merge(@default_filters, filter_changes(params))
   end
@@ -78,12 +75,10 @@ defmodule NervesHub.Devices.DeviceFiltering do
   Casts raw (string-keyed) params into a sort opts map, applying defaults for
   any missing values.
   """
-  @spec parse_sort(map()) :: map()
   def parse_sort(params) do
     Map.merge(@default_sort, sort_changes(params))
   end
 
-  @spec transform_deployment_filter(map()) :: map()
   def transform_deployment_filter(%{deployment_id: ""} = filters), do: Map.delete(filters, :deployment_id)
 
   def transform_deployment_filter(%{deployment_id: "-1"} = filters), do: %{filters | deployment_id: nil}
@@ -94,7 +89,6 @@ defmodule NervesHub.Devices.DeviceFiltering do
   Casts raw (string-keyed) params into only the filter fields present in
   `params`, without filling in defaults for missing ones.
   """
-  @spec filter_changes(map()) :: map()
   def filter_changes(params) do
     # when the metrics key is switched from being selected to being an empty value,
     # the metrics value is not cleared, this addresses that.
@@ -114,7 +108,6 @@ defmodule NervesHub.Devices.DeviceFiltering do
   Casts raw (string-keyed) params into only the sort fields present in
   `params`, without filling in defaults for missing ones.
   """
-  @spec sort_changes(map()) :: map()
   def sort_changes(params) do
     Ecto.Changeset.cast({@default_sort, @sort_types}, params, Map.keys(@default_sort)).changes
   end

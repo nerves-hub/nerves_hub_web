@@ -2,6 +2,7 @@ defmodule NervesHub.ProductsTest do
   use NervesHub.DataCase, async: true
 
   alias NervesHub.Accounts
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHub.Products.Product
@@ -114,7 +115,10 @@ defmodule NervesHub.ProductsTest do
         Fixtures.device_certificate_fixture_without_der(device, otp_cert)
 
       # Generate CSV
-      {:ok, csv_io} = Products.devices_export_reducer(product, [], fn res, line -> {:ok, [line | res]} end)
+      devices_query = Devices.filter_query(product, user, %{sort: {:asc, :identifier}})
+
+      {:ok, csv_io} =
+        Products.devices_export_reducer(devices_query, product, [], fn res, line -> {:ok, [line | res]} end)
 
       [[id, desc, tags, product_name, org_name, cert_io] | _] = csv_io
 
