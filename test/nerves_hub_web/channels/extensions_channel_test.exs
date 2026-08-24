@@ -2,6 +2,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   use NervesHubWeb.ChannelCase
   use DefaultMocks
 
+  alias NervesHub.Consoles
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.NetworkIdentities
@@ -99,6 +100,45 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert_receive %Broadcast{event: "health_check_report"}
 
     assert Repo.aggregate(Devices.DeviceHealth, :count) == 1
+  end
+
+  test "a device detaching the local shell it never attached does not take the channel down", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
+
+    product = Products.get_product!(device.product_id)
+    {:ok, _product} = Products.enable_extension_setting(product, "local_shell")
+    {:ok, device} = Devices.enable_extension_setting(device, "local_shell")
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _attach_list, extensions_channel} =
+      subscribe_and_join_with_default_device_api_version(
+        socket,
+        ExtensionsChannel,
+        "extensions",
+        %{"local_shell" => "0.0.1"}
+      )
+
+    ref = Process.monitor(extensions_channel.channel_pid)
+
+    # `Extensions.Dispatch` routes "detached" to `LocalShell.detach/1` on the
+    # extension being allowed alone -- it never checks that an "attached" came
+    # first, and it does not rescue the call. A device can therefore send these
+    # in any order, including a detach for a shell it never attached and a
+    # repeat detach after a real one.
+    push(extensions_channel, "local_shell:detached")
+    push(extensions_channel, "local_shell:attached")
+    push(extensions_channel, "local_shell:detached")
+    push(extensions_channel, "local_shell:detached")
+
+    refute_receive {:DOWN, ^ref, :process, _, _}, 200
+    refute Consoles.PubSub.local_shell_active?(device.id)
+
+    close_cleanly(extensions_channel)
   end
 
   test "joining extensions channel suggests attaching geo, health, and logging", %{tmp_dir: tmp_dir} do

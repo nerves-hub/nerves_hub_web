@@ -142,10 +142,22 @@ defmodule NervesHub.Consoles.PubSub do
     Group.join(@group, local_shell_key(device_id), %{})
   end
 
-  @doc "Leave the local-shell registry (on detach)."
+  @doc """
+  Leave the local-shell registry (on detach).
+
+  Leaving when never attached is not an error. `detach/1` is driven by a
+  device-sent `local_shell:detached`, which `Extensions.Dispatch` delivers
+  without checking that an `attached` came first -- and it does not rescue the
+  call, so returning `Group.leave/2`'s `{:error, :not_in_group}` raw would let a
+  device take down its own extensions channel by sending `detached` twice, or
+  without ever attaching.
+  """
   @spec leave_local_shell(integer()) :: :ok
   def leave_local_shell(device_id) do
-    Group.leave(@group, local_shell_key(device_id))
+    case Group.leave(@group, local_shell_key(device_id)) do
+      :ok -> :ok
+      {:error, :not_in_group} -> :ok
+    end
   end
 
   @doc "Is the local shell currently attached on this device?"

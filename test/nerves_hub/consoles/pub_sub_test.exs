@@ -121,6 +121,18 @@ defmodule NervesHub.Consoles.PubSubTest do
       assert eventually(fn -> not PubSub.local_shell_active?(device_id) end)
     end
 
+    test "leaving without attaching is not an error", %{device_id: device_id} do
+      # A device drives detach by sending `local_shell:detached`, and
+      # `Extensions.Dispatch` forwards it without checking that an `attached`
+      # came first, and does not rescue the call. Returning an error here would
+      # let a device crash its own extensions channel.
+      assert :ok = PubSub.leave_local_shell(device_id)
+
+      :ok = PubSub.join_local_shell(device_id)
+      assert :ok = PubSub.leave_local_shell(device_id)
+      assert :ok = PubSub.leave_local_shell(device_id)
+    end
+
     test "monitor_local_shell delivers join and leave events to the caller", %{
       device_id: device_id
     } do
