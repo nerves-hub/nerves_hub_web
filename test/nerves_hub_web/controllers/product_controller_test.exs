@@ -73,4 +73,32 @@ defmodule NervesHubWeb.ProductControllerTest do
         :ignore
     end)
   end
+
+  test "download device list csv respects deployment_id filter", %{
+    conn: conn,
+    org: org,
+    product: product,
+    user: user,
+    tmp_dir: tmp_dir
+  } do
+    Repo.delete_all(Device)
+
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+    deployment_group = Fixtures.deployment_group_fixture(firmware)
+    other_deployment_group = Fixtures.deployment_group_fixture(firmware)
+
+    device_in_group =
+      Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+
+    _device_in_other_group =
+      Fixtures.device_fixture(org, product, firmware, %{deployment_id: other_deployment_group.id})
+
+    conn = get(conn, ~p"/org/#{org}/#{product}/devices/export?deployment_id=#{deployment_group.id}")
+
+    [[id | _]] = NimbleCSV.RFC4180.parse_string(conn.resp_body)
+
+    assert id == device_in_group.identifier
+  end
 end

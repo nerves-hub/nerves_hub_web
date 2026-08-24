@@ -266,16 +266,14 @@ defmodule NervesHub.Products do
     |> Repo.update()
   end
 
-  @spec devices_export_reducer(Product.t(), any(), fun()) :: any()
-  def devices_export_reducer(%Product{} = product, acc, callback) do
+  @spec devices_export_reducer(Ecto.Query.t(), Product.t(), any(), fun()) :: any()
+  def devices_export_reducer(%Ecto.Query{} = devices_query, %Product{} = product, acc, callback) do
     product = Repo.preload(product, [:org])
 
     Repo.transact(
       fn ->
-        Device
-        |> select([d, dc], [:id, :identifier, :description, :tags, :deleted_at, :product_id])
-        |> where([d], d.product_id == ^product.id)
-        |> Repo.exclude_deleted()
+        devices_query
+        |> select([d], [:id, :identifier, :description, :tags, :deleted_at, :product_id])
         |> Repo.stream(max_rows: 500)
         |> Stream.chunk_every(100)
         |> Stream.flat_map(&Repo.preload(&1, :device_certificates))

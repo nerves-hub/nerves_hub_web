@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
@@ -33,53 +34,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # Delay frequent refresh triggers to this interval
   @refresh_delay 1000
 
-  @default_filters %{
-    connection: "",
-    connection_type: "",
-    firmware_version: "",
-    platform: "",
-    healthy: "",
-    health_status: "",
-    identifier: "",
-    tags: "",
-    updates: "",
-    has_no_tags: false,
-    alarm_status: "",
-    alarm: "",
-    metrics_key: "",
-    metrics_operator: "gt",
-    metrics_value: "",
-    deployment_id: "",
-    is_pinned: false,
-    search: "",
-    display_deleted: "exclude",
-    only_updating: false,
-    advanced_query: ""
-  }
-
-  @filter_types %{
-    connection: :string,
-    connection_type: :string,
-    firmware_version: :string,
-    platform: :string,
-    healthy: :string,
-    health_status: :string,
-    identifier: :string,
-    tags: :string,
-    updates: :string,
-    has_no_tags: :boolean,
-    alarm_status: :string,
-    alarm: :string,
-    metrics_key: :string,
-    metrics_operator: :string,
-    metrics_value: :string,
-    deployment_id: :string,
-    is_pinned: :boolean,
-    search: :string,
-    display_deleted: :string,
-    only_updating: :boolean,
-    advanced_query: :string
-  }
+  @default_filters DeviceFiltering.default_filters()
 
   @default_page 1
   @default_page_size 25
@@ -151,7 +106,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_params(unsigned_params, _uri, %{assigns: %{product: product}} = socket) do
-    filters = Map.merge(@default_filters, filter_changes(unsigned_params))
+    filters = DeviceFiltering.parse_filters(unsigned_params)
     changes = pagination_changes(unsigned_params)
     pagination_opts = Map.merge(@default_pagination, changes)
 
@@ -172,8 +127,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp self_path(%{assigns: %{current_scope: scope}} = socket, extra) do
     params = Enum.into(stringify_keys(extra), socket.assigns.params)
     pagination = pagination_changes(params)
-    filter = filter_changes(params)
-    sort = sort_changes(params)
+    filter = DeviceFiltering.filter_changes(params)
+    sort = DeviceFiltering.sort_changes(params)
 
     query =
       filter
@@ -824,7 +779,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
       sort:
         {String.to_existing_atom(socket.assigns.sort_direction), String.to_existing_atom(socket.assigns.current_sort)},
-      filters: transform_deployment_filter(socket.assigns.current_filters)
+      filters: DeviceFiltering.transform_deployment_filter(socket.assigns.current_filters)
     }
 
     if socket.assigns[:devices] && socket.assigns.devices.ok? do
@@ -1062,17 +1017,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
         String.to_existing_atom(socket.assigns.sort_direction),
         String.to_existing_atom(socket.assigns.current_sort)
       },
-      filters: transform_deployment_filter(socket.assigns.current_filters)
+      filters: DeviceFiltering.transform_deployment_filter(socket.assigns.current_filters)
     }
 
     Devices.filter_query(scope.product, scope.user, opts)
   end
-
-  defp transform_deployment_filter(%{deployment_id: ""} = filters), do: Map.delete(filters, :deployment_id)
-
-  defp transform_deployment_filter(%{deployment_id: "-1"} = filters), do: %{filters | deployment_id: nil}
-
-  defp transform_deployment_filter(filters), do: %{filters | deployment_id: String.to_integer(filters.deployment_id)}
 
   defp update_device_statuses(socket, device_id, status) do
     updated_statuses = Map.replace(socket.assigns.device_statuses.result, device_id, status)
@@ -1127,27 +1076,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
       params,
       Map.keys(@default_pagination)
     ).changes
-  end
-
-  defp filter_changes(params) do
-    # when the metrics key is switched from being selected to being an empty value,
-    # the metrics value is not cleared, this addresses that.
-    params =
-      if params["metrics_key"] == "" do
-        params
-        |> Map.put("metrics_operator", "gt")
-        |> Map.put("metrics_value", "")
-      else
-        params
-      end
-
-    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters), empty_values: []).changes
-  end
-
-  @sort_default %{sort_direction: "asc", sort: "identifier"}
-  @sort_types %{sort_direction: :string, sort: :string}
-  defp sort_changes(params) do
-    Ecto.Changeset.cast({@sort_default, @sort_types}, params, Map.keys(@sort_default)).changes
   end
 
   defp stringify_keys(params) do

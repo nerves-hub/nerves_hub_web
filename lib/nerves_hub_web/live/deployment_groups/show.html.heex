@@ -6,14 +6,6 @@
 
     <div class="mr-6 ml-auto flex items-center gap-2">
       <.button
-        aria-label="Export device IDs"
-        type="link"
-        href={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/device_ids/download"}
-        download
-      >
-        <span class="lucide-download--light text-base-300 size-5" />
-      </.button>
-      <.button
         :if={authorized?(:"deployment_group:toggle", @current_scope)}
         aria-label={"#{(@deployment_group.is_active && "Pause") || "Resume"} deployment"}
         type="button"

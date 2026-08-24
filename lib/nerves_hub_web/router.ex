@@ -284,12 +284,6 @@ defmodule NervesHubWeb.Router do
       DeploymentGroupController,
       :export_audit_logs
     )
-
-    get(
-      "/deployment_groups/:name/device_ids/download",
-      DeploymentGroupController,
-      :export_device_ids
-    )
   end
 
   scope "/", NervesHubWeb do
