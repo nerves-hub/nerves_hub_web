@@ -5,9 +5,11 @@ defmodule NervesHub.Devices.UpdatesTest do
   alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias Phoenix.Socket.Broadcast
 
   setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
@@ -80,11 +82,11 @@ defmodule NervesHub.Devices.UpdatesTest do
     test "updates device firmware_validation_status and broadcasts", %{device: device} do
       device_info = to_device_info(device)
 
-      NervesHub.Devices.PubSub.subscribe(device.id)
+      PubSub.subscribe(device.id)
 
       :ok = Updates.firmware_validated(device_info)
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "firmware:validated"}, 500
+      assert_receive %Broadcast{event: "firmware:validated"}, 500
 
       device = Repo.reload(device)
       assert device.firmware_validation_status == :validated

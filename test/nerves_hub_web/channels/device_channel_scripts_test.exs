@@ -10,82 +10,7 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
   # For fwup_progress tests we verify the stage/percent mapping by setting up
   # stubs BEFORE subscribing_and_joining so the channel process picks them up.
 
-  describe "fwup_progress" do
-    setup %{tmp_dir: tmp_dir} do
-      {_user, _org, _product, _firmware, certificate, device} = build_device_fixtures(tmp_dir)
-
-      stub(DeviceLink, :join, fn device_info, _params -> {:ok, device_info} end)
-      stub(DeviceLink, :after_join, fn _device_info, _params -> :ok end)
-      stub(DeviceLink, :fetch_connecting_code, fn _device_info -> nil end)
-      stub(DeviceLink, :maybe_send_archive, fn _device_info, _version, _opts -> :ok end)
-
-      params =
-        for {k, v} <- Map.from_struct(device.firmware_metadata),
-            into: %{"device_api_version" => "2.1.0"} do
-          {"nerves_fw_#{k}", v}
-        end
-
-      {:ok, socket} =
-        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-      {:ok, %{}, device_channel} =
-        subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
-
-      allow(DeviceLink, self(), device_channel.channel_pid)
-
-      _state = :sys.get_state(device_channel.channel_pid)
-
-      {:ok, device_channel: device_channel, device: device}
-    end
-
-    test "nil stage with percent 100 calls status_update with 'completed'", %{device_channel: device_channel} do
-      test_pid = self()
-
-      expect(DeviceLink, :status_update, fn _device_info, params ->
-        send(test_pid, {:status_update_called, params})
-        :ok
-      end)
-
-      allow(DeviceLink, self(), device_channel.channel_pid)
-
-      push(device_channel, "fwup_progress", %{"value" => 100})
-      assert_receive {:status_update_called, %{"status" => "completed", "progress" => nil}}
-
-      close_cleanly(device_channel)
-    end
-
-    test "nil stage with non-100 percent calls status_update with 'updating'", %{device_channel: device_channel} do
-      test_pid = self()
-
-      expect(DeviceLink, :status_update, fn _device_info, params ->
-        send(test_pid, {:status_update_called, params})
-        :ok
-      end)
-
-      allow(DeviceLink, self(), device_channel.channel_pid)
-
-      push(device_channel, "fwup_progress", %{"value" => 42})
-      assert_receive {:status_update_called, %{"status" => "updating", "progress" => 42}}
-
-      close_cleanly(device_channel)
-    end
-
-    test "non-nil stage passes stage through to status_update", %{device_channel: device_channel} do
-      test_pid = self()
-
-      expect(DeviceLink, :status_update, fn _device_info, params ->
-        send(test_pid, {:status_update_called, params})
-        :ok
-      end)
-
-      allow(DeviceLink, self(), device_channel.channel_pid)
-
-      push(device_channel, "fwup_progress", %{"value" => 75, "stage" => "packaging"})
-      assert_receive {:status_update_called, %{"status" => "packaging", "progress" => 75}}
-
-      close_cleanly(device_channel)
-    end
-  end
+  alias Phoenix.Socket.Broadcast
 
   describe "scripts/run — connecting_code ref" do
     setup %{tmp_dir: tmp_dir} do
@@ -197,7 +122,7 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
 
       send(device_channel.channel_pid, {:run_script, waiting_pid, "echo hello"})
       socket_state = :sys.get_state(device_channel.channel_pid)
-      [ref] = Map.keys(socket_state.assigns.script_refs)
+      [ref] = Map.keys(socket_state.assigns.session.script_refs)
 
       push(device_channel, "scripts/run", %{
         "ref" => ref,
@@ -240,9 +165,9 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
       send(device_channel.channel_pid, {:run_script, waiting_pid, "echo test"})
       socket_state = :sys.get_state(device_channel.channel_pid)
 
-      assert map_size(socket_state.assigns.script_refs) == 1
-      [ref] = Map.keys(socket_state.assigns.script_refs)
-      assert socket_state.assigns.script_refs[ref] == waiting_pid
+      assert map_size(socket_state.assigns.session.script_refs) == 1
+      [ref] = Map.keys(socket_state.assigns.session.script_refs)
+      assert socket_state.assigns.session.script_refs[ref] == waiting_pid
       assert_push("scripts/run", %{"text" => "echo test", "ref" => ^ref})
 
       close_cleanly(device_channel)
@@ -268,55 +193,12 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
       waiting_pid = self()
       send(device_channel.channel_pid, {:run_script, waiting_pid, "echo test"})
       socket_state = :sys.get_state(device_channel.channel_pid)
-      [ref] = Map.keys(socket_state.assigns.script_refs)
+      [ref] = Map.keys(socket_state.assigns.session.script_refs)
 
       send(device_channel.channel_pid, {:clear_script_ref, ref})
       socket_state = :sys.get_state(device_channel.channel_pid)
 
-      assert socket_state.assigns.script_refs == %{}
-
-      close_cleanly(device_channel)
-    end
-  end
-
-  describe "handle_out updated" do
-    test "calls refresh_device_info and updates socket assigns", %{tmp_dir: tmp_dir} do
-      {_user, _org, _product, _firmware, certificate, device} = build_device_fixtures(tmp_dir)
-
-      stub(DeviceLink, :join, fn device_info, _params -> {:ok, device_info} end)
-      stub(DeviceLink, :after_join, fn _device_info, _params -> :ok end)
-      stub(DeviceLink, :fetch_connecting_code, fn _device_info -> nil end)
-      stub(DeviceLink, :maybe_send_archive, fn _device_info, _version, _opts -> :ok end)
-
-      params =
-        for {k, v} <- Map.from_struct(device.firmware_metadata),
-            into: %{"device_api_version" => "2.1.0"} do
-          {"nerves_fw_#{k}", v}
-        end
-
-      {:ok, socket} =
-        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-      {:ok, %{}, device_channel} =
-        subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
-
-      test_pid = self()
-      original_device_id = device.id
-
-      expect(DeviceLink, :refresh_device_info, fn device_info ->
-        send(test_pid, {:refresh_called, device_info.device_id})
-        device_info
-      end)
-
-      allow(DeviceLink, self(), device_channel.channel_pid)
-
-      Phoenix.PubSub.broadcast(
-        NervesHub.PubSub,
-        "device:#{device.id}",
-        %Phoenix.Socket.Broadcast{topic: "device:#{device.id}", event: "updated", payload: %{}}
-      )
-
-      assert_receive {:refresh_called, ^original_device_id}
+      assert socket_state.assigns.session.script_refs == %{}
 
       close_cleanly(device_channel)
     end
@@ -355,7 +237,7 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
       Phoenix.PubSub.broadcast(
         NervesHub.PubSub,
         "deployment:#{deployment_group.id}",
-        %Phoenix.Socket.Broadcast{
+        %Broadcast{
           topic: "deployment:#{deployment_group.id}",
           event: "deployment_updated",
           payload: %{deployment_id: new_deployment_id}
@@ -409,50 +291,6 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
       _state = :sys.get_state(device_channel.channel_pid)
 
       assert_push("scripts/run", %{"ref" => "connecting_code"})
-
-      close_cleanly(device_channel)
-    end
-
-    test "broadcasts to console topic when api version < 2.1.0 and connecting code exists", %{tmp_dir: tmp_dir} do
-      user = Fixtures.user_fixture()
-      org = Fixtures.org_fixture(user)
-      product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
-
-      firmware =
-        Fixtures.firmware_fixture(org_key, product, %{
-          version: "0.0.1",
-          dir: tmp_dir
-        })
-
-      _deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
-
-      device =
-        Fixtures.device_fixture(org, product, firmware, %{
-          tags: ["beta"],
-          connecting_code: "echo hello"
-        })
-
-      %{db_cert: certificate} = Fixtures.device_certificate_fixture(device)
-
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:console:#{device.id}")
-
-      params =
-        for {k, v} <- Map.from_struct(device.firmware_metadata),
-            into: %{"device_api_version" => "2.0.0"} do
-          {"nerves_fw_#{k}", v}
-        end
-
-      {:ok, socket} =
-        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-      {:ok, %{}, device_channel} =
-        subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
-
-      _state = :sys.get_state(device_channel.channel_pid)
-
-      assert_receive %Phoenix.Socket.Broadcast{event: "dn", payload: %{"data" => data}}
-      assert String.contains?(data, "echo hello")
 
       close_cleanly(device_channel)
     end

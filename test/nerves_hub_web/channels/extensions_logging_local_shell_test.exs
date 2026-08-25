@@ -195,8 +195,8 @@ defmodule NervesHubWeb.Extensions.LoggingLocalShellTest do
       push(ext_channel, "local_shell:attached", %{})
       state = :sys.get_state(ext_channel.channel_pid)
 
-      assert state.assigns.current_line == ""
-      assert state.assigns.buffer != nil
+      assert state.assigns.link_scrollback.current_line == ""
+      assert state.assigns.link_scrollback.buffer != nil
 
       close_cleanly(ext_channel)
     end
@@ -214,8 +214,8 @@ defmodule NervesHubWeb.Extensions.LoggingLocalShellTest do
       refute ConsolePubSub.local_shell_active?(device.id)
 
       state = :sys.get_state(ext_channel.channel_pid)
-      assert is_nil(state.assigns.current_line)
-      assert is_nil(state.assigns.buffer)
+      assert state.assigns.link_scrollback.current_line == ""
+      assert Enum.empty?(state.assigns.link_scrollback.buffer)
 
       close_cleanly(ext_channel)
     end
@@ -245,7 +245,7 @@ defmodule NervesHubWeb.Extensions.LoggingLocalShellTest do
       state = :sys.get_state(ext_channel.channel_pid)
 
       # "partial" (last segment without trailing newline) stays as current_line
-      assert String.ends_with?(state.assigns.current_line, "partial")
+      assert String.ends_with?(state.assigns.link_scrollback.current_line, "partial")
 
       close_cleanly(ext_channel)
     end

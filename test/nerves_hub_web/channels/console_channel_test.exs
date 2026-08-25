@@ -7,6 +7,7 @@ defmodule NervesHubWeb.ConsoleChannelTest do
   alias NervesHubWeb.ConsoleChannel
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
+  alias Phoenix.Socket.Broadcast
 
   defp build_socket(tmp_dir) do
     user = Fixtures.user_fixture()
@@ -46,8 +47,8 @@ defmodule NervesHubWeb.ConsoleChannelTest do
 
       state = :sys.get_state(console_channel.channel_pid)
 
-      assert state.assigns.current_line == ""
-      assert state.assigns.buffer != nil
+      assert state.assigns.scrollback.current_line == ""
+      assert state.assigns.scrollback.buffer != nil
 
       close_cleanly(console_channel)
     end
@@ -91,7 +92,7 @@ defmodule NervesHubWeb.ConsoleChannelTest do
 
       push(console_channel, "up", %{"data" => "hello from device\n"})
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "up", payload: %{"data" => "hello from device\n"}}, 500
+      assert_receive %Broadcast{event: "up", payload: %{"data" => "hello from device\n"}}, 500
 
       close_cleanly(console_channel)
     end
@@ -105,7 +106,7 @@ defmodule NervesHubWeb.ConsoleChannelTest do
       push(console_channel, "up", %{"data" => "line1\nline2\npartial"})
       state = :sys.get_state(console_channel.channel_pid)
 
-      assert String.ends_with?(state.assigns.current_line, "partial")
+      assert String.ends_with?(state.assigns.scrollback.current_line, "partial")
 
       close_cleanly(console_channel)
     end
@@ -119,7 +120,7 @@ defmodule NervesHubWeb.ConsoleChannelTest do
       push(console_channel, "up", %{"data" => "complete line\n"})
       state = :sys.get_state(console_channel.channel_pid)
 
-      buf_contents = Enum.join(state.assigns.buffer)
+      buf_contents = Enum.join(state.assigns.scrollback.buffer)
       assert String.contains?(buf_contents, "complete line")
 
       close_cleanly(console_channel)
@@ -137,7 +138,7 @@ defmodule NervesHubWeb.ConsoleChannelTest do
 
       push(console_channel, "file-data/start", %{"filename" => "test.txt"})
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "file-data/start", payload: %{"filename" => "test.txt"}}, 500
+      assert_receive %Broadcast{event: "file-data/start", payload: %{"filename" => "test.txt"}}, 500
 
       close_cleanly(console_channel)
     end
@@ -152,7 +153,7 @@ defmodule NervesHubWeb.ConsoleChannelTest do
 
       push(console_channel, "file-data", %{"chunk" => "aGVsbG8="})
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "file-data", payload: %{"chunk" => "aGVsbG8="}}, 500
+      assert_receive %Broadcast{event: "file-data", payload: %{"chunk" => "aGVsbG8="}}, 500
 
       close_cleanly(console_channel)
     end
@@ -167,7 +168,7 @@ defmodule NervesHubWeb.ConsoleChannelTest do
 
       push(console_channel, "file-data/stop", %{})
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "file-data/stop", payload: %{}}, 500
+      assert_receive %Broadcast{event: "file-data/stop", payload: %{}}, 500
 
       close_cleanly(console_channel)
     end
@@ -205,7 +206,7 @@ defmodule NervesHubWeb.ConsoleChannelTest do
       # (Phoenix.Channel.Server only calls handle_out for broadcasts matching the socket topic)
       send(
         console_channel.channel_pid,
-        %Phoenix.Socket.Broadcast{topic: "user:console:#{device.id}", event: "dn", payload: %{"data" => "input"}}
+        %Broadcast{topic: "user:console:#{device.id}", event: "dn", payload: %{"data" => "input"}}
       )
 
       assert_push("dn", %{"data" => "input"})

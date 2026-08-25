@@ -3,24 +3,26 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupFilteringTest do
 
   import Ecto.Query
 
+  alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentGroupFiltering
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Repo
 
   # Build a base query with all three named bindings expected by DeploymentGroupFiltering.
   # Mirrors the query built in ManagedDeployments.filter/2 — the private join_counts helper
   # is reproduced here since it's not part of the public API.
-  defp base_query do
+  defp base_query() do
     device_count_subquery =
-      NervesHub.Devices.Device
+      Device
       |> select([d], %{device_count: count()})
       |> Repo.exclude_deleted()
       |> where([d], d.deployment_id == parent_as(:deployment_group).id)
 
     releases_count_subquery =
-      NervesHub.ManagedDeployments.DeploymentRelease
+      DeploymentRelease
       |> select([d], %{releases_count: count()})
       |> where([d], d.deployment_group_id == parent_as(:deployment_group).id)
 
@@ -262,7 +264,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupFilteringTest do
         |> DeploymentGroupFiltering.sort({:asc, :platform})
         |> Repo.all()
 
-      platforms = Enum.map(results, &get_in(&1, [Access.key(:current_release), Access.key(:firmware), Access.key(:platform)]))
+      platforms =
+        Enum.map(results, &get_in(&1, [Access.key(:current_release), Access.key(:firmware), Access.key(:platform)]))
+
       assert platforms == Enum.sort(platforms)
     end
 
@@ -273,7 +277,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupFilteringTest do
         |> DeploymentGroupFiltering.sort({:desc, :platform})
         |> Repo.all()
 
-      platforms = Enum.map(results, &get_in(&1, [Access.key(:current_release), Access.key(:firmware), Access.key(:platform)]))
+      platforms =
+        Enum.map(results, &get_in(&1, [Access.key(:current_release), Access.key(:firmware), Access.key(:platform)]))
+
       assert platforms == Enum.sort(platforms, :desc)
     end
 
@@ -284,7 +290,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupFilteringTest do
         |> DeploymentGroupFiltering.sort({:asc, :architecture})
         |> Repo.all()
 
-      archs = Enum.map(results, &get_in(&1, [Access.key(:current_release), Access.key(:firmware), Access.key(:architecture)]))
+      archs =
+        Enum.map(results, &get_in(&1, [Access.key(:current_release), Access.key(:firmware), Access.key(:architecture)]))
+
       assert archs == Enum.sort(archs)
     end
 
@@ -295,7 +303,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupFilteringTest do
         |> DeploymentGroupFiltering.sort({:desc, :architecture})
         |> Repo.all()
 
-      archs = Enum.map(results, &get_in(&1, [Access.key(:current_release), Access.key(:firmware), Access.key(:architecture)]))
+      archs =
+        Enum.map(results, &get_in(&1, [Access.key(:current_release), Access.key(:firmware), Access.key(:architecture)]))
+
       assert archs == Enum.sort(archs, :desc)
     end
 

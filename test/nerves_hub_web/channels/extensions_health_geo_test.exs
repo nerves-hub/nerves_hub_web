@@ -57,23 +57,21 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
   # ---- Extensions.Health ----
 
   describe "Extensions.Health attach" do
-    test "assigns health_interval and health_timer on attach", %{tmp_dir: tmp_dir} do
+    test "starts a health check timer on attach", %{tmp_dir: tmp_dir} do
       {socket, _device} = build_socket(tmp_dir)
       ext_channel = join_extensions(socket, %{"health" => "0.0.1"})
 
       push(ext_channel, "health:attached", %{})
       state = :sys.get_state(ext_channel.channel_pid)
 
-      assert is_integer(state.assigns.health_interval)
-      assert state.assigns.health_interval > 0
-      assert state.assigns.health_timer != nil
+      assert Map.has_key?(state.assigns.link_timers, {"health", :check})
 
       close_cleanly(ext_channel)
     end
   end
 
   describe "Extensions.Health detach" do
-    test "cancels health timer and nils assigns on detach", %{tmp_dir: tmp_dir} do
+    test "cancels health timer on detach", %{tmp_dir: tmp_dir} do
       {socket, _device} = build_socket(tmp_dir)
       ext_channel = join_extensions(socket, %{"health" => "0.0.1"})
       attach_extension(ext_channel, "health")
@@ -81,7 +79,7 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
       push(ext_channel, "health:detached", %{})
       state = :sys.get_state(ext_channel.channel_pid)
 
-      assert is_nil(state.assigns.health_timer)
+      refute Map.has_key?(state.assigns.link_timers, {"health", :check})
 
       close_cleanly(ext_channel)
     end
@@ -158,14 +156,14 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
       state = :sys.get_state(ext_channel.channel_pid)
 
       # With interval 0, no timer assigned
-      refute Map.has_key?(state.assigns, :geo_timer)
+      refute Map.has_key?(state.assigns.link_timers, {"geo", :location_request})
 
       assert_push("geo:location:request", %{})
 
       close_cleanly(ext_channel)
     end
 
-    test "sets geo_timer when interval > 0", %{tmp_dir: tmp_dir} do
+    test "sets geo timer when interval > 0", %{tmp_dir: tmp_dir} do
       Application.put_env(:nerves_hub, :extension_config, geo: [interval_minutes: 60])
       on_exit(fn -> Application.delete_env(:nerves_hub, :extension_config) end)
 
@@ -175,8 +173,7 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
       push(ext_channel, "geo:attached", %{})
       state = :sys.get_state(ext_channel.channel_pid)
 
-      assert state.assigns.geo_timer != nil
-      assert state.assigns.geo_interval == 60
+      assert Map.has_key?(state.assigns.link_timers, {"geo", :location_request})
 
       assert_push("geo:location:request", %{})
 
@@ -185,7 +182,7 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
   end
 
   describe "Extensions.Geo detach" do
-    test "cancels geo timer and nils assigns on detach", %{tmp_dir: tmp_dir} do
+    test "cancels geo timer on detach", %{tmp_dir: tmp_dir} do
       Application.put_env(:nerves_hub, :extension_config, geo: [interval_minutes: 60])
       on_exit(fn -> Application.delete_env(:nerves_hub, :extension_config) end)
 
@@ -198,7 +195,7 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
       push(ext_channel, "geo:detached", %{})
       state = :sys.get_state(ext_channel.channel_pid)
 
-      assert is_nil(state.assigns.geo_timer)
+      refute Map.has_key?(state.assigns.link_timers, {"geo", :location_request})
 
       close_cleanly(ext_channel)
     end

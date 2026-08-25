@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Plugs.RedirectorServerAuthTest do
     end
 
     test "appends query string to path when conn has one" do
-      conn = %Plug.Conn{build_conn(:get, "/original") | query_string: "foo=bar&baz=qux"}
+      conn = %{build_conn(:get, "/original") | query_string: "foo=bar&baz=qux"}
       result = Redirector.call(conn, to: "/destination")
 
       assert redirected_to(result) == "/destination?foo=bar&baz=qux"
@@ -47,14 +47,14 @@ defmodule NervesHubWeb.Plugs.RedirectorServerAuthTest do
     end
 
     test "appends conn query string to external URL that has no query" do
-      conn = %Plug.Conn{build_conn(:get, "/original") | query_string: "ref=test"}
+      conn = %{build_conn(:get, "/original") | query_string: "ref=test"}
       result = Redirector.call(conn, external: "https://example.com/path")
 
       assert redirected_to(result) == "https://example.com/path?ref=test"
     end
 
     test "merges conn query string into existing external URL query params, conn params winning on conflict" do
-      conn = %Plug.Conn{build_conn(:get, "/original") | query_string: "key=new"}
+      conn = %{build_conn(:get, "/original") | query_string: "key=new"}
       result = Redirector.call(conn, external: "https://example.com/path?key=old&other=1")
 
       location = redirected_to(result)
