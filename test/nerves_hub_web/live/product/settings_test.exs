@@ -242,4 +242,27 @@ defmodule NervesHubWeb.Live.Product.SettingsPlatformGateTest do
 
     refute html =~ "Accept AtomVM packbeam archives"
   end
+
+  test "a format with no unsigned variant does not crash the unsigned toggle", %{
+    conn: conn,
+    org: org,
+    user: user
+  } do
+    Application.put_env(:nerves_hub, :rauc_firmware_enabled, true)
+    on_exit(fn -> Application.put_env(:nerves_hub, :rauc_firmware_enabled, false) end)
+
+    product = Fixtures.product_fixture(user, org)
+    {:ok, view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
+
+    assert html =~ "Accept RAUC bundles"
+    # RAUC will not build an unsigned bundle, so no toggle is rendered for it.
+    refute html =~ "Allow unsigned RAUC"
+
+    # The event is still reachable by anything that can send one, and matching
+    # only the formats that *do* carry an unsigned field made that a
+    # CaseClauseError rather than a no-op.
+    assert render_click(view, "update-allow-unsigned", %{"tool" => "rauc", "value" => "on"})
+
+    assert NervesHub.Repo.reload(product).allowed_update_tools == ["fwup"]
+  end
 end

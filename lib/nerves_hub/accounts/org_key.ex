@@ -13,7 +13,7 @@ defmodule NervesHub.Accounts.OrgKey do
   @required_params [:org_id, :created_by_id, :name, :key]
   @optional_params [:scheme]
 
-  @schemes [:ed25519, :secure_boot_v2_rsa]
+  @schemes [:ed25519, :secure_boot_v2_rsa, :x509_certificate]
 
   schema "org_keys" do
     belongs_to(:org, Org)
@@ -25,8 +25,14 @@ defmodule NervesHub.Accounts.OrgKey do
 
     # Which signature scheme `key` belongs to. `ed25519` is an fwup signing key;
     # `secure_boot_v2_rsa` is a PEM RSA-3072 public key used to verify ESP-IDF
-    # Secure Boot v2 signature blocks. The two formats are unrelated, so every
-    # consumer filters by scheme rather than trying each key against each tool.
+    # Secure Boot v2 signature blocks; `x509_certificate` is a PEM certificate
+    # used as the trust anchor for RAUC's CMS signatures. The formats are
+    # unrelated, so every consumer filters by scheme rather than trying each key
+    # against each tool.
+    #
+    # `x509_certificate` is the odd one out in that it holds a *certificate*
+    # rather than a bare public key: CMS verification is chain verification, and
+    # a public key alone cannot anchor a chain.
     field(:scheme, Ecto.Enum, values: @schemes, default: :ed25519)
 
     timestamps()
@@ -88,6 +94,13 @@ defmodule NervesHub.Accounts.OrgKey do
   # Secure Boot v2 signs with RSA-3072. Anything shorter is rejected here rather
   # than at verification time, where a too-small key would simply never match
   # and look like a signing problem instead of a registration mistake.
+  defp key_format_check(:x509_certificate, pem) do
+    case decode_certificate(pem) do
+      {:ok, _certificate} -> []
+      :error -> [key: "invalid key, expected a PEM-encoded X.509 certificate"]
+    end
+  end
+
   defp key_format_check(:secure_boot_v2_rsa, pem) do
     case decode_rsa_public_key(pem) do
       {:ok, {:RSAPublicKey, modulus, _exponent}} ->
@@ -125,6 +138,29 @@ defmodule NervesHub.Accounts.OrgKey do
   end
 
   def decode_rsa_public_key(_), do: :error
+
+  @doc """
+  Decode an `x509_certificate` key into an Erlang certificate record.
+
+  Accepts the first PEM entry, so a file holding a leaf followed by its issuers
+  decodes to the leaf. RAUC verifies against a keyring rather than a single
+  certificate, and a chain is written to `verify_signature/2`'s CA file in the
+  order it was given.
+  """
+  @spec decode_certificate(String.t()) :: {:ok, tuple()} | :error
+  def decode_certificate(pem) when is_binary(pem) do
+    case :public_key.pem_decode(pem) do
+      [{:Certificate, _der, _cipher} = entry | _] ->
+        {:ok, :public_key.pem_entry_decode(entry)}
+
+      _ ->
+        :error
+    end
+  rescue
+    _ -> :error
+  end
+
+  def decode_certificate(_), do: :error
 
   defp bit_size_of(modulus) when is_integer(modulus) do
     modulus |> :binary.encode_unsigned() |> byte_size() |> Kernel.*(8)

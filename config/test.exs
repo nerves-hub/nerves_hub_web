@@ -31,13 +31,17 @@ config :nerves_hub, NervesHub.SwooshMailer, adapter: Test
 config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
 config :nerves_hub, NervesHub.Uploads.File, local_path: System.tmp_dir(), public_path: "/uploads"
 
+# Both endpoints listen for real during tests, so two checkouts running their
+# suites at once collide on the port and the second fails to boot with
+# `:eaddrinuse` — which reads as a broken application rather than a busy port.
+# Worktrees make that a normal thing to do rather than an accident.
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   code_reloader: false,
   check_origin: false,
   watchers: [],
   server: true,
   https: [
-    port: 4101,
+    port: String.to_integer(System.get_env("DEVICE_ENDPOINT_TEST_PORT", "4101")),
     otp_app: :nerves_hub,
     thousand_island_options: [
       transport_options: [
@@ -57,8 +61,10 @@ config :nerves_hub, NervesHubWeb.DeviceSocket,
     enabled: true
   ]
 
+# See the note on DeviceEndpoint below: both endpoints listen during tests, so
+# both need a way out of a port collision between concurrent checkouts.
 config :nerves_hub, NervesHubWeb.Endpoint,
-  http: [port: 4100],
+  http: [port: String.to_integer(System.get_env("WEB_ENDPOINT_TEST_PORT", "4100"))],
   server: true,
   secret_key_base: "x7Vj9rmmRke//ctlapsPNGHXCRTnArTPbfsv6qX4PChFT9ARiNR5Ua8zoRilNCmX",
   live_view: [signing_salt: "FnV9rP_c2BL11dvh"],
