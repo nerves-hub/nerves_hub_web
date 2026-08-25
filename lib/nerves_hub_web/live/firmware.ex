@@ -300,6 +300,12 @@ defmodule NervesHubWeb.Live.Firmware do
       "the bundle to a deployment."
   end
 
+  defp upload_error({:invalid_manifest_field, field}) do
+    "This RAUC bundle's manifest has a #{field} that is not a UUID. NervesHub " <>
+      "stores firmware identifiers in a UUID column, so a declared uuid has to " <>
+      "be one — a UUIDv4 generated once per build is the usual answer."
+  end
+
   defp upload_error({:missing_manifest_section, key}) do
     "This RAUC bundle's manifest has no [meta.nerveshub] section, so NervesHub " <>
       "cannot read #{key}. Meta sections require RAUC 1.9 or newer — older " <>
