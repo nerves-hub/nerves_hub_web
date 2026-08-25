@@ -6,6 +6,7 @@ defmodule NervesHubWeb.API.FallbackController do
   """
   use NervesHubWeb, :api_controller
 
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHubWeb.API.ChangesetJSON
   alias NervesHubWeb.API.ErrorJSON
 
@@ -88,7 +89,7 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_status(:unprocessable_entity)
     |> put_view(ErrorJSON)
     |> render(:"422", %{
-      reason: "Unrecognised firmware format. Expected an fwup archive (.fw) or an ESP-IDF application image (.bin)."
+      reason: "Unrecognised firmware format. This instance accepts #{UpdateTool.accepted_formats()}."
     })
   end
 

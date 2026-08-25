@@ -226,6 +226,22 @@ defmodule NervesHub.Firmwares.UpdateTool do
   end
 
   @doc """
+  The formats this instance accepts, phrased for an error message.
+
+  Built from `all/0` rather than written out. The two places that report an
+  unrecognised upload had both drifted, still naming only fwup and ESP-IDF long
+  after AtomVM and RAUC were added, and a hand-maintained list cannot say which
+  formats *this* instance has turned on.
+  """
+  @spec accepted_formats() :: String.t()
+  def accepted_formats() do
+    all()
+    |> Enum.map(fn {name, module} -> "#{name} (#{module.file_extension()})" end)
+    |> Enum.sort()
+    |> Enum.join(", ")
+  end
+
+  @doc """
   Every tool this build knows about, whether or not it is enabled for upload.
 
   `all/0` governs what an instance will *accept*; this governs what it can

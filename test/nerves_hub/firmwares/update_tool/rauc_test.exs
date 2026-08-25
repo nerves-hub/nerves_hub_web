@@ -302,6 +302,43 @@ defmodule NervesHub.Firmwares.UpdateTool.RaucTest do
     test "a key outside any section is ignored" do
       assert Rauc.parse_manifest("stray=value\n") == %{}
     end
+
+    test "a repeated key takes the last value" do
+      # GLib's key file, which is what a RAUC manifest is, says a later value
+      # overrides an earlier one — so this is the value `rauc` itself would
+      # read. Getting it backwards would have NervesHub and the device
+      # disagreeing about `compatible`, which is what product and platform are
+      # derived from.
+      parsed =
+        Rauc.parse_manifest("""
+        [update]
+        compatible=first
+        compatible=second
+        version=1.0.0
+        """)
+
+      assert parsed["update"]["compatible"] == "second"
+      assert parsed["update"]["version"] == "1.0.0"
+    end
+
+    test "a repeated key in a section that already exists also takes the last value" do
+      # The section is reopened, so the update goes through the merge branch
+      # rather than the "first entry in a new section" branch.
+      parsed =
+        Rauc.parse_manifest("""
+        [update]
+        compatible=first
+
+        [bundle]
+        format=verity
+
+        [update]
+        compatible=second
+        """)
+
+      assert parsed["update"]["compatible"] == "second"
+      assert parsed["bundle"]["format"] == "verity"
+    end
   end
 
   describe "deltas" do

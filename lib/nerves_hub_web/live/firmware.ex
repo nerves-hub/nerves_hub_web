@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   alias NervesHub.Accounts
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.Upload
   alias NervesHub.Products
   alias NervesHubWeb.Components.Pager
@@ -339,7 +340,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp upload_error(:unrecognised_firmware_format) do
-    "Unrecognised firmware format. Expected an fwup archive (.fw) or an ESP-IDF application image (.bin)."
+    "Unrecognised firmware format. This instance accepts #{UpdateTool.accepted_formats()}."
   end
 
   defp upload_error({:invalid_version, raw}) do

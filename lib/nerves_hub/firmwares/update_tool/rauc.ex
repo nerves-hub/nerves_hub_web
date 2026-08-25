@@ -521,8 +521,14 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
         section != nil ->
           case String.split(line, "=", parts: 2) do
             [key, value] ->
-              entry = {String.trim(key), String.trim(value)}
-              {section, Map.update(sections, section, Map.new([entry]), &Map.new([entry | Map.to_list(&1)]))}
+              key = String.trim(key)
+              value = String.trim(value)
+              # Last value wins, which is what GLib's key file says and what
+              # RAUC itself would read. Building the map by prepending the new
+              # entry and calling `Map.new/1` did the opposite, because
+              # `Map.new/1` keeps the *last* occurrence of a duplicate key and
+              # the older entry came after it in the list.
+              {section, Map.update(sections, section, %{key => value}, &Map.put(&1, key, value))}
 
             _ ->
               {section, sections}
