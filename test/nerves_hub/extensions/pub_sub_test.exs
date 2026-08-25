@@ -1,18 +1,26 @@
 defmodule NervesHub.Extensions.PubSubTest do
   use ExUnit.Case, async: true
 
+  alias NervesHub.Devices.Device
   alias NervesHub.Extensions.PubSub
   alias Phoenix.Socket.Broadcast
 
-  # Unique per test so concurrent tests don't share a group key or topic.
+  # Unique per test so concurrent tests don't share a group key or topic. The
+  # struct is built rather than inserted: nothing here reads it back, and
+  # `broadcast_to_device/3` only needs the ids to attribute what it records.
   setup do
-    %{device_id: System.unique_integer([:positive])}
+    device_id = System.unique_integer([:positive])
+
+    %{device_id: device_id, device: %Device{id: device_id, org_id: 1, product_id: 1}}
   end
 
-  test "broadcast_to_device reaches the device-side extensions channel", %{device_id: device_id} do
+  test "broadcast_to_device reaches the device-side extensions channel", %{
+    device_id: device_id,
+    device: device
+  } do
     :ok = PubSub.subscribe_device(device_id)
 
-    :ok = PubSub.broadcast_to_device(device_id, "health:check", %{})
+    :ok = PubSub.broadcast_to_device(device, "health:check", %{})
 
     topic = "device:#{device_id}:extensions"
     assert_receive %Broadcast{topic: ^topic, event: "health:check", payload: %{}}, 500
@@ -39,10 +47,13 @@ defmodule NervesHub.Extensions.PubSubTest do
     refute_receive %Broadcast{event: "health_check_report"}, 200
   end
 
-  test "a report subscriber does NOT receive web->device commands", %{device_id: device_id} do
+  test "a report subscriber does NOT receive web->device commands", %{
+    device_id: device_id,
+    device: device
+  } do
     :ok = PubSub.subscribe_reports(device_id)
 
-    :ok = PubSub.broadcast_to_device(device_id, "health:check", %{})
+    :ok = PubSub.broadcast_to_device(device, "health:check", %{})
 
     refute_receive %Broadcast{event: "health:check"}, 200
   end

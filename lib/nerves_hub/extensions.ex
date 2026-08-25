@@ -112,7 +112,7 @@ defmodule NervesHub.Extensions do
 
   def broadcast_extension_event(%Device{} = device, event, extension) do
     # web -> device: only the device's extensions channel consumes this.
-    PubSub.broadcast_to_device(device.id, event, %{"extensions" => [extension]})
+    PubSub.broadcast_to_device(device, event, %{"extensions" => [extension]})
   end
 
   def broadcast_extension_event(%Product{} = product, event, extension) do

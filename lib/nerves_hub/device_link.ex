@@ -44,6 +44,19 @@ defmodule NervesHub.DeviceLink do
   @spec device_join(DeviceInfo.t(), params :: map()) ::
           {:ok, Session.t(), [Effect.t()]} | {:error, any()}
   def device_join(device_info, params) do
+    :ok = DeviceMessages.record(device_info, :received, :device, "join", params)
+
+    case do_device_join(device_info, params) do
+      {:ok, session, effects} ->
+        :ok = record_pushes(device_info, :device, effects)
+        {:ok, session, effects}
+
+      other ->
+        other
+    end
+  end
+
+  defp do_device_join(device_info, params) do
     params = sanitize_device_api_version(params)
 
     case join(device_info, params) do
@@ -73,7 +86,15 @@ defmodule NervesHub.DeviceLink do
   The device sent us something.
   """
   @spec device_message(Session.t(), event :: String.t(), payload :: map()) :: {Session.t(), [Effect.t()]}
-  def device_message(session, "firmware_validated", _payload) do
+  def device_message(session, event, payload) do
+    :ok = DeviceMessages.record(session.device_info, :received, :device, event, payload)
+
+    session
+    |> do_device_message(event, payload)
+    |> record_effect_pushes(:device)
+  end
+
+  defp do_device_message(session, "firmware_validated", _payload) do
     :ok = firmware_validated(session.device_info)
     {session, []}
   end
@@ -83,8 +104,8 @@ defmodule NervesHub.DeviceLink do
   # `update_progress` is the same message under a name that does not presume
   # fwup, and is what a non-Nerves agent should send. Both carry the same
   # payload: a `value` percentage and an optional `stage`.
-  def device_message(session, event, %{"value" => percent} = params)
-      when event in ["fwup_progress", "update_progress"] do
+  defp do_device_message(session, event, %{"value" => percent} = params)
+       when event in ["fwup_progress", "update_progress"] do
     {stage, percent} =
       case {params["stage"], percent} do
         {nil, 100} -> {"completed", nil}
@@ -97,26 +118,26 @@ defmodule NervesHub.DeviceLink do
     {session, []}
   end
 
-  def device_message(session, "connection_types", %{"values" => types}) do
+  defp do_device_message(session, "connection_types", %{"values" => types}) do
     :ok = update_connection_metadata(session.device_info.connection_ref, %{"connection_types" => types})
 
     {session, []}
   end
 
-  def device_message(session, "status_update", params) do
+  defp do_device_message(session, "status_update", params) do
     :ok = status_update(session.device_info, params)
     {session, []}
   end
 
-  def device_message(session, "rebooting", _payload), do: {session, []}
+  defp do_device_message(session, "rebooting", _payload), do: {session, []}
 
-  def device_message(session, "scripts/run", %{
-        "ref" => "connecting_code",
-        "result" => result,
-        "return" => return,
-        "output" => output
-      })
-      when result == "error" or return == "nil" do
+  defp do_device_message(session, "scripts/run", %{
+         "ref" => "connecting_code",
+         "result" => result,
+         "return" => return,
+         "output" => output
+       })
+       when result == "error" or return == "nil" do
     :telemetry.execute([:nerves_hub, :devices, :connecting_code_failure], %{
       output: output,
       identifier: session.device_info.device_identifier
@@ -125,12 +146,12 @@ defmodule NervesHub.DeviceLink do
     {session, []}
   end
 
-  def device_message(session, "scripts/run", %{"ref" => "connecting_code"}) do
+  defp do_device_message(session, "scripts/run", %{"ref" => "connecting_code"}) do
     :telemetry.execute([:nerves_hub, :devices, :connecting_code_success], %{count: 1})
     {session, []}
   end
 
-  def device_message(session, "scripts/run", params) do
+  defp do_device_message(session, "scripts/run", params) do
     ref = params["ref"]
 
     case session.script_refs[ref] do
@@ -152,7 +173,7 @@ defmodule NervesHub.DeviceLink do
     end
   end
 
-  def device_message(session, "report_network_interface", %{"interface" => interface}) do
+  defp do_device_message(session, "report_network_interface", %{"interface" => interface}) do
     case report_network_interface(session.device_info, interface) do
       {:ok, device_info} ->
         {%{session | device_info: device_info}, []}
@@ -166,7 +187,7 @@ defmodule NervesHub.DeviceLink do
     end
   end
 
-  def device_message(session, event, params) do
+  defp do_device_message(session, event, params) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.
     :telemetry.execute([:nerves_hub, :devices, :unhandled_in], %{count: 1}, %{
@@ -182,7 +203,13 @@ defmodule NervesHub.DeviceLink do
   Something in the platform addressed this device's link directly.
   """
   @spec device_notify(Session.t(), message :: term()) :: {Session.t(), [Effect.t()]}
-  def device_notify(session, {:after_join, params}) do
+  def device_notify(session, message) do
+    session
+    |> do_device_notify(message)
+    |> record_effect_pushes(:device)
+  end
+
+  defp do_device_notify(session, {:after_join, params}) do
     :ok = after_join(session.device_info, params)
 
     effects =
@@ -194,15 +221,15 @@ defmodule NervesHub.DeviceLink do
   end
 
   # we can ignore this message
-  def device_notify(session, %Broadcast{event: "deployments/update"}), do: {session, []}
+  defp do_device_notify(session, %Broadcast{event: "deployments/update"}), do: {session, []}
 
   # listen for notifications about archive updates for deployment groups
-  def device_notify(session, %Broadcast{event: "archives/updated"}) do
+  defp do_device_notify(session, %Broadcast{event: "archives/updated"}) do
     :ok = maybe_send_archive(session.device_info, session.device_api_version, audit_log: true)
     {session, []}
   end
 
-  def device_notify(session, {:run_script, pid, text}) do
+  defp do_device_notify(session, {:run_script, pid, text}) do
     if safe_to_run_scripts?(session) do
       ref = Base.encode64(:crypto.strong_rand_bytes(4), padding: false)
       session = %{session | script_refs: Map.put(session.script_refs, ref, pid)}
@@ -221,11 +248,11 @@ defmodule NervesHub.DeviceLink do
   # The script never answered. Drop the reference, and the timeout's own
   # bookkeeping with it -- a one-shot timer that has fired leaves an entry
   # behind otherwise, and on a connection held for weeks those accumulate.
-  def device_notify(session, {:clear_script_ref, ref}) do
+  defp do_device_notify(session, {:clear_script_ref, ref}) do
     {release_script_ref(session, ref), [cancel_script_timeout(ref)]}
   end
 
-  def device_notify(session, message) do
+  defp do_device_notify(session, message) do
     :telemetry.execute([:nerves_hub, :devices, :unhandled_info], %{count: 1}, %{
       identifier: session.device_info.device_identifier,
       msg: message
@@ -238,14 +265,20 @@ defmodule NervesHub.DeviceLink do
   An intercepted broadcast, handled before the device sees anything.
   """
   @spec device_broadcast(Session.t(), event :: String.t(), payload :: map()) :: {Session.t(), [Effect.t()]}
-  def device_broadcast(session, "updated", _payload) do
+  def device_broadcast(session, event, payload) do
+    session
+    |> do_device_broadcast(event, payload)
+    |> record_effect_pushes(:device)
+  end
+
+  defp do_device_broadcast(session, "updated", _payload) do
     device_info = refresh_device_info(session.device_info)
     :ok = maybe_send_archive(device_info, session.device_api_version, audit_log: true)
 
     follow_deployment_group(%{session | device_info: device_info})
   end
 
-  def device_broadcast(session, "deployment_updated", payload) do
+  defp do_device_broadcast(session, "deployment_updated", payload) do
     device_info = %{session.device_info | deployment_id: payload.deployment_id}
     :ok = maybe_send_archive(device_info, session.device_api_version, audit_log: true)
 
@@ -463,7 +496,12 @@ defmodule NervesHub.DeviceLink do
   """
   @spec extension_message(ExtensionDispatch.extensions(), scoped_event :: String.t(), payload :: term()) ::
           {:ok, ExtensionDispatch.extensions(), [extension_effect()]} | :unknown
-  defdelegate extension_message(extensions, scoped_event, payload), to: ExtensionDispatch, as: :message
+  def extension_message(extensions, scoped_event, payload) do
+    device_info = ExtensionDispatch.device_info(extensions)
+    :ok = record_extension_received(device_info, scoped_event, payload)
+
+    record_extension_pushes(ExtensionDispatch.message(extensions, scoped_event, payload), device_info)
+  end
 
   @doc """
   Deliver a message addressed to an extension module.
@@ -473,7 +511,12 @@ defmodule NervesHub.DeviceLink do
   """
   @spec extension_info(ExtensionDispatch.extensions(), module(), msg :: term()) ::
           {:ok, ExtensionDispatch.extensions(), [extension_effect()]}
-  defdelegate extension_info(extensions, module, msg), to: ExtensionDispatch, as: :info
+  def extension_info(extensions, module, msg) do
+    record_extension_pushes(
+      ExtensionDispatch.info(extensions, module, msg),
+      ExtensionDispatch.device_info(extensions)
+    )
+  end
 
   @doc """
   The device has confirmed the firmware it is running is good.
@@ -716,6 +759,46 @@ defmodule NervesHub.DeviceLink do
   defp topic(%DeviceInfo{device_id: id}) do
     "device:#{id}"
   end
+
+  # A push is the only effect that reaches the device; subscribing, timers and
+  # scrollback stay on the connection and have nothing to record.
+  #
+  # Recorded here, where the effect is produced, rather than where it is carried
+  # out. The connection holding the device is not always this node — it may be
+  # reached over `:erpc`, with no database of its own to write to — so the point
+  # of production is the last place every deployment has in common. That makes
+  # this a record of what the platform sent, in the same sense as the fastlaned
+  # sends below: `record_pushes/3` cannot know the device received it, only that
+  # it was put on its way.
+  defp record_pushes(device_info, topic, effects) do
+    Enum.each(effects, fn
+      {:push, event, payload} -> DeviceMessages.record(device_info, :sent, topic, event, payload)
+      _effect -> :ok
+    end)
+  end
+
+  defp record_effect_pushes({session, effects}, topic) do
+    :ok = record_pushes(session.device_info, topic, effects)
+    {session, effects}
+  end
+
+  # A device whose declared extensions are all unknown to this deployment has no
+  # `DeviceInfo` to attribute traffic to. Nothing is dispatched for it either, so
+  # there is nothing the record would be missing.
+  defp record_extension_received(nil, _event, _payload), do: :ok
+
+  defp record_extension_received(device_info, event, payload) do
+    DeviceMessages.record(device_info, :received, :extensions, event, payload)
+  end
+
+  defp record_extension_pushes(_result, nil), do: :ok
+
+  defp record_extension_pushes({:ok, extensions, effects}, device_info) do
+    :ok = record_pushes(device_info, :extensions, effects)
+    {:ok, extensions, effects}
+  end
+
+  defp record_extension_pushes(other, _device_info), do: other
 
   # Everything broadcast on a device's own topic from here — the archive and the
   # public key messages — is fastlaned by Phoenix straight to the device's
