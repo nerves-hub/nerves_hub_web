@@ -173,6 +173,8 @@ defmodule NervesHub.Extensions.Dispatch do
   defp translate({:scrollback_append, _data} = effect, _key, _mod), do: effect
   defp translate({:scrollback_replay, _pid} = effect, _key, _mod), do: effect
   defp translate({:scrollback_clear} = effect, _key, _mod), do: effect
+  defp translate({:group_join, _group_key} = effect, _key, _mod), do: effect
+  defp translate({:group_leave, _group_key} = effect, _key, _mod), do: effect
 
   defp put_state(extensions, key, state) do
     update_in(extensions[key], &%{&1 | state: state})
