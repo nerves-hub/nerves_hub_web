@@ -53,10 +53,19 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
 
   ## The UUID
 
-  RAUC has no notion of one, so it is derived from a SHA-256 over the manifest
-  as embedded in the signature — **the same value RAUC itself computes** and
-  reports as `hash` in `rauc info --output-format=json`. Verified against a
-  bundle built by RAUC 1.13: the digest matches byte for byte.
+  RAUC has no notion of one, so it is derived from the SHA-256 over the manifest
+  as embedded in the signature — the digest RAUC itself computes and reports as
+  `hash` in `rauc info --output-format=json`. Verified against a bundle built by
+  RAUC 1.13: the digest matches byte for byte.
+
+  What NervesHub stores is the **first 128 bits of that digest**, formatted as a
+  UUID, because `firmware.uuid` is a UUID column. That is a truncation, and it
+  is the same truncation RAUC applies when it renders `bundle.hash` — so a
+  device and NervesHub still arrive at the same string, which is the whole
+  point. It does mean the stored identifier carries half the collision
+  resistance of the digest it came from: 128 bits, not 256. For firmware built
+  by an organization for itself that is a description rather than a concern, but
+  it is a property of the identifier rather than an accident of the format.
 
   That identity is what makes the UUID usable, rather than merely unique. RAUC
   records the installed bundle's hash against the slot it went into
@@ -231,10 +240,16 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
         with {:ok, <<sigsize::unsigned-big-integer-size(64)>>} <-
                :file.pread(file, size - @footer_size, @footer_size),
              :ok <- validate_signature_size(sigsize, size) do
-          # `validate_signature_size/2` has already ruled out a read that runs
-          # off the end, so `:eof` should not happen. It is handled anyway
-          # because `pread` may return it and a bare `:eof` escaping to a caller
-          # — none of which match on it — would be worse than a failed upload.
+          # `:truncated_bundle` is not reachable from any sequence of bytes:
+          # `validate_signature_size/2` rejects every footer that would read off
+          # the end before a read happens, and the ordering that guarantees that
+          # is pinned by "each class of bad footer gets its own error".
+          #
+          # What is left is the window between `File.stat/1` above and this
+          # read — a file that shrinks underneath an upload in progress. The
+          # clause stays for that: without it `pread` returning `:eof` would
+          # raise `CaseClauseError` inside an upload, which is a worse way to
+          # find out than a failed upload with a reason.
           case :file.pread(file, size - @footer_size - sigsize, sigsize) do
             {:ok, signature} -> {:ok, signature}
             :eof -> {:error, :truncated_bundle}
@@ -242,7 +257,8 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
           end
         else
           {:error, reason} -> {:error, reason}
-          :eof -> {:error, :truncated_bundle}
+          # Includes `:eof` and a short read, both of which mean the footer is
+          # not eight readable bytes.
           _ -> {:error, :not_a_bundle}
         end
       after
@@ -301,9 +317,10 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
       cms_path = Path.join(dir, "signature.der")
       out_path = Path.join(dir, "manifest.raucm")
 
-      with :ok <- File.write(cms_path, signature),
+      with {:ok, openssl} <- openssl_executable(),
+           :ok <- File.write(cms_path, signature),
            {:ok, args} <- openssl_args(dir, cms_path, out_path, certificate),
-           {_output, 0} <- System.cmd("openssl", args, stderr_to_stdout: true, env: []),
+           {_output, 0} <- System.cmd(openssl, args, stderr_to_stdout: true, env: []),
            {:ok, manifest} <- File.read(out_path) do
         # Belt and braces: openssl usually refuses a detached signature outright
         # (below), but an empty manifest is not one either way.
@@ -320,6 +337,21 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
           {:error, reason}
       end
     end)
+  end
+
+  # `System.cmd/3` raises when the executable is not on the path, rather than
+  # returning an error like everything else on this path does — and an
+  # `ErlangError` surfacing from an upload reads as a bug in NervesHub rather
+  # than as a missing package.
+  #
+  # Not a live risk: the runtime image installs `openssl`. It is handled because
+  # the shell-out is a runtime dependency that nothing else in NervesHub has,
+  # and "openssl is not installed" is worth saying out loud when it is true.
+  defp openssl_executable() do
+    case System.find_executable("openssl") do
+      nil -> {:error, :openssl_not_available}
+      path -> {:ok, path}
+    end
   end
 
   # A detached CMS has nothing to extract, and openssl says so in as many words.
@@ -369,6 +401,16 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
          out_path,
          "-CAfile",
          ca_path,
+         # `-CAfile` reads as "trust exactly this certificate" and is not that.
+         # It suppresses openssl's default CA *file* and leaves the default CA
+         # directory — and, on 3.x, the default CA store — in play. Without the
+         # two flags below, a bundle whose signer chains to any root the host
+         # happens to trust verifies against an organization that never issued
+         # it, which is every public CA on a stock Ubuntu image.
+         #
+         # So these, not `-CAfile`, are what scope trust to the org's keyring.
+         "-no-CApath",
+         "-no-CAstore",
          # RAUC's signing certificates are not issued for any particular
          # purpose, and openssl's default expects an S/MIME signer. Without
          # this a perfectly good bundle fails as "unsupported certificate
@@ -441,8 +483,10 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
   @doc """
   The UUID NervesHub records, from a SHA-256 over the manifest.
 
-  The same value `rauc info` reports as `manifest-hash`, which is what lets a
-  device work out what it is running without being told.
+  The **first 128 bits** of that digest, formatted as a UUID — RAUC's own
+  truncated rendering of `bundle.hash`, not the full digest. Matching RAUC's
+  truncation is what lets a device work out what it is running without being
+  told; see the module documentation for what the truncation costs.
   """
   @spec uuid_from_manifest(String.t()) :: String.t()
   def uuid_from_manifest(manifest) do
@@ -495,7 +539,17 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
     dir = Path.join(System.tmp_dir!(), "rauc-#{System.unique_integer([:positive])}")
 
     try do
-      File.mkdir_p!(dir)
+      # `mkdir!` rather than `mkdir_p!`. The name carries a unique integer, so
+      # it should not exist — and if it does, that is somebody else's directory
+      # rather than one to reuse. `mkdir_p!` succeeds on a directory an attacker
+      # created first, and `ca.pem` is written into this one.
+      File.mkdir!(dir)
+      # 0700 rather than the 0755 `mkdir` leaves behind. Nothing in here is
+      # secret — a bundle's signature and the organization's *public*
+      # certificate — but the rest of the machine has no reason to read it, and
+      # a narrower mode closes the window on `ca.pem` between write and use.
+      File.chmod!(dir, 0o700)
+
       fun.(dir)
     after
       File.rm_rf(dir)

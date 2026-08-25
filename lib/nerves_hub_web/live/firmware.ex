@@ -40,7 +40,7 @@ defmodule NervesHubWeb.Live.Firmware do
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.current_scope))
     |> assign(:params, unsigned_params)
     |> allow_upload(:firmware,
-      accept: ~w(.fw .bin),
+      accept: ~w(.fw .bin .raucb),
       max_entries: 1,
       auto_upload: true,
       max_file_size: max_file_size(),
@@ -309,6 +309,12 @@ defmodule NervesHubWeb.Live.Firmware do
       "which is also the format required for the streaming installs that make " <>
       "RAUC worth using. Rebuild with `format=verity` in the manifest's " <>
       "[bundle] section."
+  end
+
+  defp upload_error(:openssl_not_available) do
+    "NervesHub could not run `openssl`, which it needs to read a RAUC bundle's " <>
+      "signature. This is a server configuration problem rather than something " <>
+      "wrong with the bundle — openssl has to be installed and on the path."
   end
 
   defp upload_error({:update_tool_not_allowed, tool, product}) do

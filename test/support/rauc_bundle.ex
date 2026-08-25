@@ -142,6 +142,139 @@ defmodule NervesHub.Support.RaucBundle do
     path
   end
 
+  @doc """
+  A self-signed certificate authority, and the private key that issues from it.
+
+  `keypair/1` builds a self-signed certificate, which is both signer and trust
+  anchor. That is what an organization registering one key in NervesHub has, but
+  it cannot demonstrate a chain: a self-signed stranger is in nobody's trust
+  store, so it fails verification for the right reason by accident. Proving that
+  trust is scoped to the org's own certificate needs a signer that chains to a
+  root somebody *else* trusts — this, plus `keypair_issued_by/2`.
+  """
+  def ca_keypair(common_name \\ "test-authority") do
+    dir = tmp_dir()
+    key_path = Path.join(dir, "ca-key.pem")
+    cert_path = Path.join(dir, "ca-cert.pem")
+
+    {_, 0} =
+      System.cmd(
+        "openssl",
+        [
+          "req",
+          "-x509",
+          "-newkey",
+          "rsa:2048",
+          "-keyout",
+          key_path,
+          "-out",
+          cert_path,
+          "-days",
+          "1",
+          "-nodes",
+          "-subj",
+          "/CN=#{common_name}",
+          # Stated rather than left to openssl's default, because the whole
+          # point of this fixture is that the certificate can issue another.
+          "-addext",
+          "basicConstraints=critical,CA:TRUE",
+          "-addext",
+          "keyUsage=critical,keyCertSign,cRLSign"
+        ],
+        stderr_to_stdout: true,
+        env: []
+      )
+
+    %{
+      certificate: File.read!(cert_path),
+      certificate_path: cert_path,
+      key_path: key_path,
+      dir: dir
+    }
+  end
+
+  @doc """
+  A signing certificate issued by `ca`, in the shape `write/3` wants.
+
+  An end entity: no `basicConstraints`, so it can sign a bundle but not issue.
+  """
+  def keypair_issued_by(ca, common_name \\ "issued-signer") do
+    dir = tmp_dir()
+    key_path = Path.join(dir, "key.pem")
+    csr_path = Path.join(dir, "request.csr")
+    cert_path = Path.join(dir, "cert.pem")
+
+    {_, 0} =
+      System.cmd(
+        "openssl",
+        [
+          "req",
+          "-new",
+          "-newkey",
+          "rsa:2048",
+          "-keyout",
+          key_path,
+          "-out",
+          csr_path,
+          "-nodes",
+          "-subj",
+          "/CN=#{common_name}"
+        ],
+        stderr_to_stdout: true,
+        env: []
+      )
+
+    {_, 0} =
+      System.cmd(
+        "openssl",
+        [
+          "x509",
+          "-req",
+          "-in",
+          csr_path,
+          "-CA",
+          ca.certificate_path,
+          "-CAkey",
+          ca.key_path,
+          "-CAcreateserial",
+          "-days",
+          "1",
+          "-out",
+          cert_path
+        ],
+        stderr_to_stdout: true,
+        env: []
+      )
+
+    %{
+      certificate: File.read!(cert_path),
+      certificate_path: cert_path,
+      key_path: key_path,
+      dir: dir
+    }
+  end
+
+  @doc """
+  Stage `certificate` as a system-trusted root, and point openssl at it.
+
+  Returns the directory. `SSL_CERT_DIR` is what openssl consults as its default
+  `CApath`, and a child `openssl` inherits it — `System.cmd(..., env: [])` adds
+  nothing to the environment but does not clear it. The directory has to be
+  rehashed, because a `CApath` is looked up by subject hash rather than scanned.
+
+  `SSL_CERT_DIR` and not `SSL_CERT_FILE`: passing `-CAfile` already suppresses
+  the default CA *file*, so overriding that one proves nothing. The default
+  *directory* is the part `-CAfile` leaves in play.
+  """
+  def trust_as_system_root(certificate) do
+    dir = tmp_dir()
+    File.write!(Path.join(dir, "root.pem"), certificate)
+
+    {_, 0} = System.cmd("openssl", ["rehash", dir], stderr_to_stdout: true, env: [])
+
+    dir
+  end
+
   defp tmp_dir() do
     dir = Path.join(System.tmp_dir!(), "rauc-fixture-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)

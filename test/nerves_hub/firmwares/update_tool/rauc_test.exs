@@ -66,6 +66,82 @@ defmodule NervesHub.Firmwares.UpdateTool.RaucTest do
 
       assert {:error, :no_signature} = Rauc.read_signature(path)
     end
+
+    test "a footer claiming an implausible size is refused", %{signer: signer} do
+      # Reachable only above @max_signature_size (64 MiB) *and* within the file,
+      # because `:signature_exceeds_bundle` is checked first — so the bundle has
+      # to be genuinely enormous. Written sparse: one pwrite past a hole costs a
+      # few blocks on disk rather than 64 MiB.
+      path = Path.join(signer.dir, "enormous")
+      max = 64 * 1024 * 1024
+      size = max + 4096 + 8
+      sigsize = max + 1
+
+      {:ok, file} = File.open(path, [:write, :binary])
+      :ok = :file.pwrite(file, size - 8, <<sigsize::unsigned-big-integer-size(64)>>)
+      :ok = File.close(file)
+
+      assert %{size: ^size} = File.stat!(path)
+      assert {:error, :implausible_signature_size} = Rauc.read_signature(path)
+    end
+
+    test "each class of bad footer gets its own error", %{signer: signer} do
+      # The order of these clauses is what makes `:truncated_bundle` unreachable
+      # from file contents alone: every footer that would read off the end is
+      # rejected before any read happens. Pinned here so a reordering shows up
+      # as a failing test rather than as a read at a negative offset.
+      payload = :binary.copy(<<0>>, 4096)
+
+      footers = [
+        {0, :no_signature},
+        {4097, :signature_exceeds_bundle},
+        {999_999, :signature_exceeds_bundle}
+      ]
+
+      for {sigsize, expected} <- footers do
+        path = Path.join(signer.dir, "footer-#{sigsize}")
+        File.write!(path, payload <> <<sigsize::unsigned-big-integer-size(64)>>)
+
+        assert {:error, ^expected} = Rauc.read_signature(path),
+               "footer claiming #{sigsize} bytes should be #{expected}"
+      end
+
+      # 4096 — the whole file bar the footer — is the largest claim that is
+      # still in bounds, and it reads rather than being rejected. That is the
+      # boundary the clause ordering turns on, so it is asserted rather than
+      # inferred from the rejections above.
+      exact = Path.join(signer.dir, "footer-exact")
+      File.write!(exact, payload <> <<4096::unsigned-big-integer-size(64)>>)
+
+      assert {:ok, ^payload} = Rauc.read_signature(exact)
+    end
+  end
+
+  describe "openssl's error vocabulary" do
+    test "still says \"no content\" for a detached signature", %{signer: signer, path: path} do
+      # `classify/2` tells a plain bundle from a broken one by matching this
+      # string, because the alternative is decoding the CMS ourselves to ask
+      # whether it has an eContent. That is defensible only while the string
+      # holds, so it is pinned against openssl directly rather than through
+      # NervesHub — if this fails, openssl changed its wording and plain bundles
+      # are about to start being reported as generic failures.
+      RaucBundle.write(path, signer, detached: true)
+      {:ok, signature} = Rauc.read_signature(path)
+
+      cms_path = Path.join(signer.dir, "detached.der")
+      File.write!(cms_path, signature)
+
+      {output, status} =
+        System.cmd(
+          "openssl",
+          ["cms", "-verify", "-inform", "DER", "-in", cms_path, "-out", Path.join(signer.dir, "out"), "-noverify"],
+          stderr_to_stdout: true,
+          env: []
+        )
+
+      assert status != 0
+      assert output =~ "no content"
+    end
   end
 
   describe "verify_signature/2" do
@@ -156,6 +232,27 @@ defmodule NervesHub.Firmwares.UpdateTool.RaucTest do
       # The manifest is inside the squashfs rather than the signature, which
       # would mean unpacking a filesystem to read four lines of INI.
       assert {:error, :plain_bundle_unsupported} = Rauc.get_firmware_metadata_from_file(path)
+    end
+
+    test "a manifest altered inside the signature is refused", %{signer: signer, path: path} do
+      RaucBundle.write(path, signer)
+
+      original = File.read!(path)
+      assert :binary.match(original, "version=1.4.2") != :nomatch
+
+      # Same length, so every DER length in the CMS stays correct and the
+      # structure still parses. What changes is the content the digest was
+      # taken over.
+      tampered = :binary.replace(original, "version=1.4.2", "version=9.9.9")
+      assert byte_size(tampered) == byte_size(original)
+      File.write!(path, tampered)
+
+      # Metadata is read on a path with no keys to hand, so the signer's chain
+      # is not checked here — but the signature over the content is, which is
+      # what stops the manifest being edited after signing. Swapping `-verify`
+      # for non-verifying extraction would pass every other test in this file.
+      assert {:error, {:openssl_failed, _status, _output}} =
+               Rauc.get_firmware_metadata_from_file(path)
     end
   end
 
@@ -392,5 +489,112 @@ defmodule NervesHub.Firmwares.UpdateTool.RaucModernBundleTest do
       end)
 
     assert meta.uuid == expected
+  end
+end
+
+defmodule NervesHub.Firmwares.UpdateTool.RaucTrustScopeTest do
+  @moduledoc """
+  That an org's certificate is the *only* trust anchor for its bundles.
+
+  `openssl cms -verify -CAfile ca.pem` reads as "trust exactly this", and it is
+  not. `-CAfile` suppresses openssl's default CA *file*; the default CA
+  *directory* and, on 3.x, the default CA *store* are still consulted. So a
+  bundle whose signer chains to any root the host happens to trust verifies
+  against an organization that never issued it.
+
+  The rest of the suite cannot see this, because `RaucBundle.keypair/1` builds
+  self-signed certificates. A self-signed stranger is in nobody's trust store,
+  so it fails for the right reason by accident.
+  """
+
+  # Mutates `SSL_CERT_DIR` on the whole OS process, which every other openssl
+  # child would inherit.
+  use ExUnit.Case, async: false
+
+  alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Firmwares.UpdateTool.Rauc
+  alias NervesHub.Support.RaucBundle
+
+  setup do
+    authority = RaucBundle.ca_keypair()
+    signer = RaucBundle.keypair_issued_by(authority)
+
+    trusted_dir = RaucBundle.trust_as_system_root(authority.certificate)
+    previous = System.get_env("SSL_CERT_DIR")
+    System.put_env("SSL_CERT_DIR", trusted_dir)
+
+    on_exit(fn ->
+      if previous, do: System.put_env("SSL_CERT_DIR", previous), else: System.delete_env("SSL_CERT_DIR")
+    end)
+
+    path = Path.join(signer.dir, "bundle.raucb")
+    RaucBundle.write(path, signer)
+
+    %{authority: authority, signer: signer, path: path}
+  end
+
+  test "a signer trusted by the host is still not the org's signer", %{path: path} do
+    # The org has its own, unrelated certificate registered. It did not issue
+    # the bundle's signer and has nothing to do with the authority that did.
+    stranger = RaucBundle.keypair("some-other-org")
+    key = %OrgKey{name: "theirs", key: stranger.certificate, scheme: :x509_certificate}
+
+    assert {:error, :invalid_signature} = Rauc.verify_signature(path, [key])
+  end
+
+  test "the org's own certificate still verifies its own bundle" do
+    # The other half of the same fix: scoping trust must not break the case
+    # NervesHub actually has, which is a self-signed certificate registered as
+    # the org key.
+    signer = RaucBundle.keypair("the-org")
+    key = %OrgKey{name: "ours", key: signer.certificate, scheme: :x509_certificate}
+    path = Path.join(signer.dir, "own.raucb")
+    RaucBundle.write(path, signer)
+
+    assert {:ok, ^key} = Rauc.verify_signature(path, [key])
+  end
+
+  test "an org that registered the issuing authority still verifies", %{
+    authority: authority,
+    path: path
+  } do
+    # Trust scoped to the org's keyring, not narrowed to self-signed leaves:
+    # an org that registers the CA it issues from keeps working.
+    key = %OrgKey{name: "ours", key: authority.certificate, scheme: :x509_certificate}
+
+    assert {:ok, ^key} = Rauc.verify_signature(path, [key])
+  end
+end
+
+defmodule NervesHub.Firmwares.UpdateTool.RaucRuntimeDependencyTest do
+  @moduledoc """
+  That a missing `openssl` is reported rather than raised.
+
+  The shell-out is a runtime dependency nothing else in NervesHub has. The
+  runtime image installs it, so this is not a live risk — but `System.cmd/3`
+  raises when the executable is absent, and an `ErlangError` coming out of an
+  upload reads as a bug in NervesHub rather than as a missing package.
+  """
+
+  # Mutates `PATH` on the whole OS process.
+  use ExUnit.Case, async: false
+
+  alias NervesHub.Firmwares.UpdateTool.Rauc
+  alias NervesHub.Support.RaucBundle
+
+  test "a missing openssl is an error, not a raise" do
+    signer = RaucBundle.keypair()
+    path = Path.join(signer.dir, "bundle.raucb")
+    RaucBundle.write(path, signer)
+
+    previous = System.get_env("PATH")
+    on_exit(fn -> System.put_env("PATH", previous) end)
+
+    # An empty path is the cheapest way to make openssl unfindable without
+    # touching the machine the suite is running on.
+    System.put_env("PATH", "")
+
+    assert {:error, :openssl_not_available} = Rauc.extract_manifest(path)
+    assert {:error, :openssl_not_available} = Rauc.get_firmware_metadata_from_file(path)
   end
 end

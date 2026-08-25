@@ -169,4 +169,56 @@ defmodule NervesHub.Firmwares.RaucUploadTest do
     assert {:error, :unrecognised_firmware_format} =
              Firmwares.create_firmware(org, @bundle, product: product)
   end
+
+  describe "the metadata path is never the trust decision" do
+    # `extract_manifest/1` reads the manifest with `-noverify`, which skips the
+    # signer's *chain*. That is only safe while every RAUC upload also goes
+    # through `verify_signature/2` against a key the org holds — nothing in
+    # `Firmwares` may excuse a RAUC bundle the way a product can excuse an
+    # unsigned ESP-IDF image or packbeam.
+
+    test "no product setting excuses an unverified bundle", %{
+      org: org,
+      user: user,
+      product: product
+    } do
+      product = allow_rauc(product)
+
+      # Both existing escape hatches, turned on at once. Neither names rauc, and
+      # this is what stops one being added without anybody noticing that RAUC
+      # metadata is read on a path with no chain verification.
+      {:ok, product} =
+        Products.update_product(product, %{
+          allow_unsigned_esp_idf_firmware: true,
+          allow_unsigned_atomvm_firmware: true
+        })
+
+      stranger = RaucBundle.keypair("stranger")
+
+      {:ok, _} =
+        NervesHub.Accounts.create_org_key(%{
+          org_id: org.id,
+          created_by_id: user.id,
+          name: "stranger-#{System.unique_integer([:positive])}",
+          key: stranger.certificate,
+          scheme: :x509_certificate
+        })
+
+      assert {:error, :invalid_signature} =
+               Firmwares.create_firmware(org, @bundle, product: product)
+    end
+
+    test "an org holding no certificate cannot upload one either", %{product: product, org: org} do
+      product = allow_rauc(product)
+
+      {:ok, product} =
+        Products.update_product(product, %{
+          allow_unsigned_esp_idf_firmware: true,
+          allow_unsigned_atomvm_firmware: true
+        })
+
+      assert {:error, :no_public_keys} =
+               Firmwares.create_firmware(org, @bundle, product: product)
+    end
+  end
 end
