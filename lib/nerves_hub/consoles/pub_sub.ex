@@ -145,21 +145,42 @@ defmodule NervesHub.Consoles.PubSub do
 
   # -- Local shell ------------------------------------------------------------
 
-  @doc "Join the device-side extensions channel to the local-shell registry (on attach)."
+  @doc """
+  The group key the device-side extensions channel joins while the shell is
+  attached.
+
+  Public because the join cannot always happen here. `Group.join/4` joins the
+  calling process, and the process that has to be joined is the one holding the
+  device's connection — which is only this one when `NervesHub.DeviceLink` runs
+  in the connection's own process. `LocalShell` therefore returns
+  `{:group_join, key}` / `{:group_leave, key}` effects and lets the connection
+  carry them out; see `NervesHub.DeviceLink.Effect`.
+  """
+  @spec local_shell_key(integer()) :: String.t()
+  def local_shell_key(device_id), do: "local_shell/#{device_id}"
+
+  @doc """
+  Join the local-shell registry from the calling process.
+
+  For a caller that is itself the device's connection. `LocalShell` does not use
+  this — it returns a `{:group_join, key}` effect, because the extension does not
+  run in the connection's process on every deployment.
+  """
   @spec join_local_shell(integer()) :: :ok
   def join_local_shell(device_id) do
     :ok = Group.join(@group, local_shell_key(device_id), %{})
   end
 
   @doc """
-  Leave the local-shell registry (on detach).
+  Leave the local-shell registry from the calling process.
 
   Leaving when never attached is not an error. `detach/1` is driven by a
   device-sent `local_shell:detached`, which `Extensions.Dispatch` delivers
   without checking that an `attached` came first -- and it does not rescue the
   call, so returning `Group.leave/2`'s `{:error, :not_in_group}` raw would let a
   device take down its own extensions channel by sending `detached` twice, or
-  without ever attaching.
+  without ever attaching. The `{:group_leave, key}` effect tolerates it the same
+  way.
   """
   @spec leave_local_shell(integer()) :: :ok
   def leave_local_shell(device_id) do
@@ -236,7 +257,6 @@ defmodule NervesHub.Consoles.PubSub do
   defp device_console_key(device_id), do: "device:console/#{device_id}"
   defp internal_console_key(device_id), do: "device:console:internal/#{device_id}"
   defp user_console_key(device_id), do: "user:console/#{device_id}"
-  defp local_shell_key(device_id), do: "local_shell/#{device_id}"
   defp user_local_shell_key(device_id), do: "user:local_shell/#{device_id}"
 
   # -- Topic strings (preserved as the previous `Phoenix.PubSub` topics) ------
