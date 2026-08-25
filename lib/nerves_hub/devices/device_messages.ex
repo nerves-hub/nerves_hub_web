@@ -54,7 +54,7 @@ defmodule NervesHub.Devices.DeviceMessages do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceMessage
   alias NervesHub.Devices.DeviceMessages.Payload
-  alias Phoenix.Channel.Server, as: ChannelServer
+  alias NervesHub.Devices.PubSub
 
   @type direction() :: DeviceMessage.direction()
   @type topic() :: DeviceMessage.topic()
@@ -163,12 +163,7 @@ defmodule NervesHub.Devices.DeviceMessages do
   # Sent as the schema struct rather than the raw row so the tab renders a live
   # message exactly as it renders one read back from ClickHouse.
   defp broadcast(device_id, row) do
-    ChannelServer.broadcast(
-      NervesHub.PubSub,
-      topic(device_id),
-      broadcast_event(),
-      struct!(DeviceMessage, row)
-    )
+    PubSub.broadcast(device_id, broadcast_event(), struct!(DeviceMessage, row))
   end
 
   defp device_id(%DeviceInfo{device_id: id}), do: id

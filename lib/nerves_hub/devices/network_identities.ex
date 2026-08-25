@@ -31,8 +31,8 @@ defmodule NervesHub.Devices.NetworkIdentities do
   alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.NetworkIdentity
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -606,14 +606,7 @@ defmodule NervesHub.Devices.NetworkIdentities do
   end
 
   defp broadcast_if_ok({:ok, identity} = result, device_id) do
-    _ =
-      ChannelServer.broadcast(
-        NervesHub.PubSub,
-        "internal:device:#{device_id}",
-        "network_identities:updated",
-        %{service: identity.service}
-      )
-
+    :ok = PubSub.broadcast(device_id, "network_identities:updated", %{service: identity.service})
     result
   end
 

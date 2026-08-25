@@ -2,7 +2,7 @@ defmodule NervesHub.Extensions.Geo do
   @behaviour NervesHub.Extensions
 
   alias NervesHub.Devices.Connections
-  alias Phoenix.Channel.Server, as: ChannelServer
+  alias NervesHub.Devices.PubSub
 
   @impl NervesHub.Extensions
   def description() do
@@ -44,9 +44,8 @@ defmodule NervesHub.Extensions.Geo do
     :ok = Connections.merge_update_metadata(device_info.connection_ref, %{location: location})
 
     _ =
-      ChannelServer.broadcast(
-        NervesHub.PubSub,
-        "internal:device:#{device_info.device_id}",
+      PubSub.broadcast(
+        device_info.device_id,
         "location:updated",
         location
       )

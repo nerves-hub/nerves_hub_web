@@ -10,7 +10,7 @@ defmodule NervesHub.Devices.LogLines do
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.LogLine
-  alias Phoenix.Channel.Server, as: ChannelServer
+  alias NervesHub.Devices.PubSub
 
   @type log_line_payload :: %{
           timestamp: DateTime.t(),
@@ -123,9 +123,8 @@ defmodule NervesHub.Devices.LogLines do
         _ = Buffer.insert(LogLine, changeset)
 
         _ =
-          ChannelServer.broadcast(
-            NervesHub.PubSub,
-            "internal:device:#{device_info.device_id}",
+          PubSub.broadcast(
+            device_info.device_id,
             "logs:received",
             log_line
           )

@@ -4,16 +4,16 @@ defmodule NervesHubWeb.UserConsoleChannel do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Consoles.PubSub
   alias NervesHub.Devices
   alias NervesHubWeb.Helpers.Authorization
   alias Phoenix.Socket.Broadcast
 
   def join("user:console:identifier-" <> identifier, _, socket) do
     if device = authorized?(socket.assigns.user, identifier) do
-      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "user:console:#{device.id}")
+      :ok = PubSub.subscribe_user_console(device.id)
 
-      topic = "device:console:#{device.id}"
-      _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic, {:connect, self()})
+      _ = PubSub.connect_to_console(device.id, self())
 
       {:ok, assign(socket, :device_id, device.id)}
     else
@@ -28,30 +28,26 @@ defmodule NervesHubWeb.UserConsoleChannel do
   end
 
   def handle_in("file-data/start", payload, socket) do
-    topic = "device:console:#{socket.assigns.device_id}"
     payload = Map.put(payload, :uploaded_by, socket.assigns.user.id)
-    socket.endpoint.broadcast!(topic, "file-data/start", payload)
+    PubSub.broadcast_to_console(socket.assigns.device_id, "file-data/start", payload)
     {:noreply, socket}
   end
 
   def handle_in("file-data", payload, socket) do
-    topic = "device:console:#{socket.assigns.device_id}"
-    socket.endpoint.broadcast!(topic, "file-data", payload)
+    PubSub.broadcast_to_console(socket.assigns.device_id, "file-data", payload)
     {:noreply, socket}
   end
 
   def handle_in("file-data/stop", payload, socket) do
-    topic = "device:console:#{socket.assigns.device_id}"
     payload = Map.put(payload, :uploaded_by, socket.assigns.user.id)
-    socket.endpoint.broadcast!(topic, "file-data/stop", payload)
+    PubSub.broadcast_to_console(socket.assigns.device_id, "file-data/stop", payload)
     {:noreply, socket}
   end
 
   def handle_in(event, payload, socket) do
     # Key presses are coming in here raw
     # Send them to the device
-    topic = "device:console:#{socket.assigns.device_id}"
-    socket.endpoint.broadcast!(topic, event, payload)
+    PubSub.broadcast_to_console(socket.assigns.device_id, event, payload)
     {:noreply, socket}
   end
 

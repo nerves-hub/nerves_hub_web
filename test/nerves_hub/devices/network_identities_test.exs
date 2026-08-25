@@ -5,6 +5,7 @@ defmodule NervesHub.Devices.NetworkIdentitiesTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Devices.NetworkIdentity
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
@@ -315,7 +316,7 @@ defmodule NervesHub.Devices.NetworkIdentitiesTest do
 
   describe "broadcasts" do
     test "tells the device page when an identity changes", %{device: device} do
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "internal:device:#{device.id}")
+      PubSub.subscribe(device.id)
 
       {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "first"})
       assert_receive %Broadcast{event: "network_identities:updated"}
@@ -329,7 +330,7 @@ defmodule NervesHub.Devices.NetworkIdentitiesTest do
       # each time would be pure noise.
       {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "steady"})
 
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "internal:device:#{device.id}")
+      PubSub.subscribe(device.id)
 
       {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "steady"})
 
@@ -338,7 +339,7 @@ defmodule NervesHub.Devices.NetworkIdentitiesTest do
   end
 
   describe "get_owner_by_identifier/2" do
-    test "finds the device that reported the key", %{device: device, org: org, product: product} do
+    test "finds the device that reported the key", %{device: device, org: org} do
       {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "abc123"})
 
       assert {:ok, found} = NetworkIdentities.get_owner_by_identifier(:iroh, "abc123")
