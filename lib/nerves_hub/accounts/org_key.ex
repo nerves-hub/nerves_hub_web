@@ -162,6 +162,33 @@ defmodule NervesHub.Accounts.OrgKey do
 
   def decode_certificate(_), do: :error
 
+  @doc """
+  A certificate's SHA-256 fingerprint, formatted as `openssl x509
+  -fingerprint -sha256` prints it.
+
+  A PEM is 600+ bytes of base64 that reads the same for every certificate, so
+  it is useless for recognising one. The fingerprint is what an operator can
+  compare against the keyring built into an image.
+  """
+  @spec certificate_fingerprint(binary()) :: {:ok, String.t()} | :error
+  def certificate_fingerprint(pem) when is_binary(pem) do
+    case :public_key.pem_decode(pem) do
+      [{:Certificate, der, _cipher} | _] ->
+        {:ok,
+         :sha256
+         |> :crypto.hash(der)
+         |> Base.encode16()
+         |> String.replace(~r/(..)(?=.)/, "\\1:")}
+
+      _ ->
+        :error
+    end
+  rescue
+    _ -> :error
+  end
+
+  def certificate_fingerprint(_), do: :error
+
   defp bit_size_of(modulus) when is_integer(modulus) do
     modulus |> :binary.encode_unsigned() |> byte_size() |> Kernel.*(8)
   end
