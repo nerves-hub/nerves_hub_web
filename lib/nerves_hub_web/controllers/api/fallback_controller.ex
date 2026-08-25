@@ -6,8 +6,11 @@ defmodule NervesHubWeb.API.FallbackController do
   """
   use NervesHubWeb, :api_controller
 
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHubWeb.API.ChangesetJSON
   alias NervesHubWeb.API.ErrorJSON
+
+  require Logger
 
   def call(conn, {:error, %Ecto.Changeset{} = changeset}) do
     conn
@@ -83,12 +86,41 @@ defmodule NervesHubWeb.API.FallbackController do
     })
   end
 
+  def call(conn, {:error, {:openssl_failed, status, output}}) do
+    # openssl's own message is the only thing that explains this one, and it is
+    # not something to hand to an API caller — so it goes to the log and the
+    # response says where to look.
+    Logger.error("openssl rejected a RAUC bundle (exit #{status}): #{output}")
+
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "NervesHub could not verify this RAUC bundle: openssl exited #{status}. " <>
+          "If the bundle is not corrupt, the server log has openssl's own message."
+    })
+  end
+
+  def call(conn, {:error, {:temp_dir_unavailable, reason}}) do
+    Logger.error("could not create a temporary directory to verify a RAUC bundle: #{inspect(reason)}")
+
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "NervesHub could not create a temporary directory to verify this bundle. " <>
+          "This is a server problem rather than something wrong with the bundle."
+    })
+  end
+
   def call(conn, {:error, :unrecognised_firmware_format}) do
     conn
     |> put_status(:unprocessable_entity)
     |> put_view(ErrorJSON)
     |> render(:"422", %{
-      reason: "Unrecognised firmware format. Expected an fwup archive (.fw) or an ESP-IDF application image (.bin)."
+      reason: "Unrecognised firmware format. This instance accepts #{UpdateTool.accepted_formats()}."
     })
   end
 

@@ -21,6 +21,13 @@ defmodule NervesHubWeb.Live.Product.Settings do
       unsigned_description:
         "Accept ESP-IDF images that carry no Secure Boot v2 signature block. An image that is signed is always verified against this organization's signing keys, whether or not this is set."
     },
+    "rauc" => %{
+      label: "RAUC bundles",
+      description:
+        "Allow .raucb bundles to be uploaded to this product, alongside fwup archives. Bundles must be in the verity format and signed by a certificate registered as an organization key."
+      # No unsigned variant: RAUC will not build an unsigned bundle, so there is
+      # nothing for a product to opt into.
+    },
     "atomvm" => %{
       label: "AtomVM packbeam archives",
       description:
@@ -167,6 +174,17 @@ defmodule NervesHubWeb.Live.Product.Settings do
         update_setting(socket, %{field => allow}, fn ->
           "Unsigned #{label} are now #{(allow && "allowed") || "refused"} for this product."
         end)
+
+      %{} ->
+        # A format with no unsigned variant. RAUC is one: it will not build an
+        # unsigned bundle, so there is nothing for a product to opt into and
+        # `@optional_tools` gives it no `unsigned_field`.
+        #
+        # The template only renders a toggle for formats that have one, so this
+        # is not reachable by clicking. It is reachable by anything that can
+        # send the event, and matching only the formats that do carry the field
+        # made that a `CaseClauseError` rather than a no-op.
+        {:noreply, socket}
     end
   end
 
