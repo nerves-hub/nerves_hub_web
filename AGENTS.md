@@ -59,6 +59,10 @@ rel/                  Release config
 docs/                 Design docs
 ```
 
+Every environment variable `config/runtime.exs` reads is documented in
+[docs/runtime_configuration.md](docs/runtime_configuration.md); keep it in step
+when adding or removing one.
+
 ### `lib/nerves_hub/` (contexts)
 
 - `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes.
