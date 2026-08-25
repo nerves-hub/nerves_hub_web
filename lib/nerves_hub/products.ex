@@ -55,6 +55,7 @@ defmodule NervesHub.Products do
       |> join(:inner, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
       |> where([_d, dc], dc.status == :connected)
+      |> Repo.exclude_deleted()
       |> select([d], count())
 
     select_merge(query, %{connected_devices_count: subquery(connected_devices_count)})
@@ -70,6 +71,7 @@ defmodule NervesHub.Products do
       |> join(:left, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
       |> where([_d, dc], is_nil(dc) or dc.status != :connected)
+      |> Repo.exclude_deleted()
       |> select([d], count())
 
     select_merge(query, %{disconnected_devices_count: subquery(disconnected_devices_count)})
@@ -266,16 +268,14 @@ defmodule NervesHub.Products do
     |> Repo.update()
   end
 
-  @spec devices_export_reducer(Product.t(), any(), fun()) :: any()
-  def devices_export_reducer(%Product{} = product, acc, callback) do
+  @spec devices_export_reducer(Ecto.Query.t(), Product.t(), any(), fun()) :: any()
+  def devices_export_reducer(%Ecto.Query{} = devices_query, %Product{} = product, acc, callback) do
     product = Repo.preload(product, [:org])
 
     Repo.transact(
       fn ->
-        Device
-        |> select([d, dc], [:id, :identifier, :description, :tags, :deleted_at, :product_id])
-        |> where([d], d.product_id == ^product.id)
-        |> Repo.exclude_deleted()
+        devices_query
+        |> select([d], [:id, :identifier, :description, :tags, :deleted_at, :product_id])
         |> Repo.stream(max_rows: 500)
         |> Stream.chunk_every(100)
         |> Stream.flat_map(&Repo.preload(&1, :device_certificates))

@@ -8,6 +8,124 @@ defmodule NervesHub.Devices.DeviceFiltering do
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Types.Tag
 
+  @default_filters %{
+    connection: "",
+    connection_type: "",
+    firmware_version: "",
+    platform: "",
+    healthy: "",
+    health_status: "",
+    identifier: "",
+    tags: "",
+    updates: "",
+    has_no_tags: false,
+    alarm_status: "",
+    alarm: "",
+    metrics_key: "",
+    metrics_operator: "gt",
+    metrics_value: "",
+    deployment_id: "",
+    is_pinned: false,
+    search: "",
+    display_deleted: "exclude",
+    only_updating: false,
+    advanced_query: ""
+  }
+
+  @filter_types %{
+    connection: :string,
+    connection_type: :string,
+    firmware_version: :string,
+    platform: :string,
+    healthy: :string,
+    health_status: :string,
+    identifier: :string,
+    tags: :string,
+    updates: :string,
+    has_no_tags: :boolean,
+    alarm_status: :string,
+    alarm: :string,
+    metrics_key: :string,
+    metrics_operator: :string,
+    metrics_value: :string,
+    deployment_id: :string,
+    is_pinned: :boolean,
+    search: :string,
+    display_deleted: :string,
+    only_updating: :boolean,
+    advanced_query: :string
+  }
+
+  @default_sort %{sort_direction: "asc", sort: "identifier"}
+  @sort_types %{sort_direction: :string, sort: :string}
+  @sortable_fields ~w(identifier connection_established_at connection_last_seen_at tags)
+  @sort_directions ~w(asc desc)
+
+  def default_filters(), do: @default_filters
+
+  def default_sort(), do: @default_sort
+
+  @doc """
+  Casts raw (string-keyed) params into the filter map, applying defaults for
+  any missing values.
+  """
+  def parse_filters(params) do
+    Map.merge(@default_filters, filter_changes(params))
+  end
+
+  @doc """
+  Casts raw (string-keyed) params into a sort opts map, applying defaults for
+  any missing/invalid values.
+  """
+  def parse_sort(params) do
+    @default_sort
+    |> Map.merge(sort_changes(params))
+    |> validate_sort()
+  end
+
+  defp validate_sort(%{sort: sort} = sort_opts) when sort not in @sortable_fields do
+    validate_sort(%{sort_opts | sort: @default_sort.sort})
+  end
+
+  defp validate_sort(%{sort_direction: direction} = sort_opts) when direction not in @sort_directions do
+    %{sort_opts | sort_direction: @default_sort.sort_direction}
+  end
+
+  defp validate_sort(sort_opts), do: sort_opts
+
+  def transform_deployment_filter(%{deployment_id: ""} = filters), do: Map.delete(filters, :deployment_id)
+
+  def transform_deployment_filter(%{deployment_id: "-1"} = filters), do: %{filters | deployment_id: nil}
+
+  def transform_deployment_filter(filters), do: %{filters | deployment_id: String.to_integer(filters.deployment_id)}
+
+  @doc """
+  Casts raw (string-keyed) params into only the filter fields present in
+  `params`, without filling in defaults for missing ones.
+  """
+  def filter_changes(params) do
+    # when the metrics key is switched from being selected to being an empty value,
+    # the metrics value is not cleared, this addresses that.
+    params =
+      if params["metrics_key"] == "" do
+        params
+        |> Map.put("metrics_operator", "gt")
+        |> Map.put("metrics_value", "")
+      else
+        params
+      end
+
+    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters), empty_values: []).changes
+  end
+
+  @doc """
+  Casts raw (string-keyed) params into only the sort fields present in
+  `params`, without filling in defaults for missing ones.
+  """
+  def sort_changes(params) do
+    Ecto.Changeset.cast({@default_sort, @sort_types}, params, Map.keys(@default_sort)).changes
+  end
+
   @spec build_filters(Ecto.Query.t(), %{optional(atom) => String.t()}) :: Ecto.Query.t()
   def build_filters(query, filters) do
     Enum.reduce(filters, query, fn {key, value}, query ->

@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   alias NervesHub.Accounts
   alias NervesHub.Devices.Pinning
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Products
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.PinnedDevices
@@ -72,7 +73,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   def subscribe(%{assigns: %{pinned_devices: devices}} = socket) do
     if connected?(socket) do
       Enum.each(devices, fn device ->
-        socket.endpoint.subscribe("internal:device:#{device.id}")
+        PubSub.subscribe(device.id)
       end)
     end
 

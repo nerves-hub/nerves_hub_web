@@ -6,6 +6,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Accounts
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.Consoles
   alias NervesHub.DeviceLink.Authentication
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.DeviceLink.Effect
@@ -285,9 +286,8 @@ defmodule NervesHub.DeviceLink do
       [{:push, "scripts/run", %{"text" => connecting_code, "ref" => "connecting_code"}}]
     else
       text = ~s/#{connecting_code}\n\r/
-      topic = "device:console:#{session.device_info.device_id}"
 
-      :ok = ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, "dn", %{"data" => text})
+      :ok = Consoles.PubSub.broadcast_to_console(session.device_info.device_id, "dn", %{"data" => text})
 
       []
     end

@@ -10,6 +10,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareTransfer
+  alias NervesHub.Firmwares.PubSub
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Helpers.Logging
@@ -21,7 +22,6 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteFirmware
   alias NervesHub.Workers.FirmwareDeltaBuilder
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -339,15 +339,7 @@ defmodule NervesHub.Firmwares do
     )
     |> case do
       {:ok, firmware} ->
-        _ =
-          NervesHubWeb.Endpoint.broadcast_from(
-            self(),
-            "product:#{firmware.product_id}",
-            "firmware/created",
-            %{
-              firmware: firmware
-            }
-          )
+        _ = Products.PubSub.broadcast_from(firmware.product_id, "firmware/created", %{firmware: firmware})
 
         {:ok, firmware}
 
@@ -371,15 +363,7 @@ defmodule NervesHub.Firmwares do
     end)
     |> case do
       {:ok, firmware} ->
-        _ =
-          NervesHubWeb.Endpoint.broadcast_from(
-            self(),
-            "product:#{firmware.product_id}",
-            "firmware/deleted",
-            %{
-              firmware: firmware
-            }
-          )
+        _ = Products.PubSub.broadcast_from(firmware.product_id, "firmware/deleted", %{firmware: firmware})
 
         {:ok, firmware}
 
@@ -886,19 +870,11 @@ defmodule NervesHub.Firmwares do
     {:ok, firmware_delta}
   end
 
-  @spec subscribe_firmware_delta_target(target_id :: integer()) :: :ok
-  def subscribe_firmware_delta_target(target_id) do
-    _ = NervesHubWeb.Endpoint.subscribe("firmware:#{target_id}")
-    :ok
-  end
-
+  # Pipeline adapter for the delta lifecycle functions above, which all thread an
+  # `{:ok, delta} | {:error, term()}` through. The transport lives in
+  # `NervesHub.Firmwares.PubSub`.
   defp notify_firmware_delta_target({:ok, %FirmwareDelta{} = firmware_delta}) do
-    :ok =
-      ChannelServer.broadcast(NervesHub.PubSub, "firmware:#{firmware_delta.target_id}", "delta/status_update", %{
-        delta_id: firmware_delta.id,
-        source_firmware_id: firmware_delta.source_id,
-        status: firmware_delta.status
-      })
+    :ok = PubSub.broadcast_delta_status(firmware_delta)
 
     {:ok, firmware_delta}
   end
