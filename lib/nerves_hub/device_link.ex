@@ -498,9 +498,16 @@ defmodule NervesHub.DeviceLink do
           {:ok, ExtensionDispatch.extensions(), [extension_effect()]} | :unknown
   def extension_message(extensions, scoped_event, payload) do
     device_info = ExtensionDispatch.device_info(extensions)
-    :ok = record_extension_received(device_info, scoped_event, payload)
+    :ok = record(device_info, :received, :extensions, scoped_event, payload)
 
-    record_extension_pushes(ExtensionDispatch.message(extensions, scoped_event, payload), device_info)
+    case ExtensionDispatch.message(extensions, scoped_event, payload) do
+      {:ok, extensions, effects} ->
+        :ok = record_pushes(device_info, :extensions, effects)
+        {:ok, extensions, effects}
+
+      :unknown ->
+        :unknown
+    end
   end
 
   @doc """
@@ -512,10 +519,11 @@ defmodule NervesHub.DeviceLink do
   @spec extension_info(ExtensionDispatch.extensions(), module(), msg :: term()) ::
           {:ok, ExtensionDispatch.extensions(), [extension_effect()]}
   def extension_info(extensions, module, msg) do
-    record_extension_pushes(
-      ExtensionDispatch.info(extensions, module, msg),
-      ExtensionDispatch.device_info(extensions)
-    )
+    device_info = ExtensionDispatch.device_info(extensions)
+    {:ok, extensions, effects} = ExtensionDispatch.info(extensions, module, msg)
+    :ok = record_pushes(device_info, :extensions, effects)
+
+    {:ok, extensions, effects}
   end
 
   @doc """
@@ -772,36 +780,24 @@ defmodule NervesHub.DeviceLink do
   # it was put on its way.
   defp record_pushes(device_info, topic, effects) do
     Enum.each(effects, fn
-      {:push, event, payload} -> DeviceMessages.record(device_info, :sent, topic, event, payload)
+      {:push, event, payload} -> record(device_info, :sent, topic, event, payload)
       _effect -> :ok
     end)
+  end
+
+  # A device whose declared extensions are all unknown to this deployment has no
+  # `DeviceInfo` to attribute traffic to. Nothing is dispatched for it either, so
+  # there is nothing the record would be missing.
+  defp record(nil, _direction, _topic, _event, _payload), do: :ok
+
+  defp record(device_info, direction, topic, event, payload) do
+    DeviceMessages.record(device_info, direction, topic, event, payload)
   end
 
   defp record_effect_pushes({session, effects}, topic) do
     :ok = record_pushes(session.device_info, topic, effects)
     {session, effects}
   end
-
-  # A device whose declared extensions are all unknown to this deployment has no
-  # `DeviceInfo` to attribute traffic to. Nothing is dispatched for it either, so
-  # there is nothing the record would be missing.
-  defp record_extension_received(nil, _event, _payload), do: :ok
-
-  defp record_extension_received(device_info, event, payload) do
-    DeviceMessages.record(device_info, :received, :extensions, event, payload)
-  end
-
-  # Nothing to attribute the pushes to, so nothing is recorded — but the result
-  # still has to travel: the caller is waiting on `{:ok, extensions, effects}`
-  # or `:unknown`, not on whether recording happened.
-  defp record_extension_pushes(result, nil), do: result
-
-  defp record_extension_pushes({:ok, extensions, effects}, device_info) do
-    :ok = record_pushes(device_info, :extensions, effects)
-    {:ok, extensions, effects}
-  end
-
-  defp record_extension_pushes(other, _device_info), do: other
 
   # Everything broadcast on a device's own topic from here — the archive and the
   # public key messages — is fastlaned by Phoenix straight to the device's
