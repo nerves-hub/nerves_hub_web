@@ -164,6 +164,32 @@ defmodule NervesHub.Firmwares.UpdateTool.RaucTest do
       assert {:error, :invalid_signature} = Rauc.verify_signature(path, [key])
     end
 
+    test "refuses a signer that is not valid for signing", %{path: path} do
+      # A certificate carrying extendedKeyUsage=codeSigning is the obvious
+      # choice for firmware and the wrong one here: openssl's CMS verification
+      # applies the S/MIME signing purpose, which codeSigning alone excludes.
+      #
+      # NervesHub used to pass `-purpose any` and accept this. The bundle then
+      # failed on every device it reached, mid-install, with the device
+      # reporting "unsuitable certificate purpose" -- a long way from the
+      # upload that could have caught it.
+      code_signing = RaucBundle.keypair("code-signer", extended_key_usage: "codeSigning")
+      RaucBundle.write(path, code_signing)
+
+      key = %OrgKey{name: "code", key: code_signing.certificate, scheme: :x509_certificate}
+
+      assert {:error, :unsuitable_certificate_purpose} = Rauc.verify_signature(path, [key])
+    end
+
+    test "a signer with no extended key usage is fine", %{signer: signer, key: key, path: path} do
+      # The ordinary case, and the reason `-purpose any` looked unnecessary
+      # rather than harmful: a certificate with no EKU is valid for every
+      # purpose, so the default check passes it without help.
+      RaucBundle.write(path, signer)
+
+      assert {:ok, %OrgKey{}} = Rauc.verify_signature(path, [key])
+    end
+
     test "ignores keys belonging to other tools", %{signer: signer, path: path} do
       RaucBundle.write(path, signer)
 
