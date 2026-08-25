@@ -8,8 +8,14 @@ defmodule NervesHub.Extensions.HealthTest do
   """
 
   use ExUnit.Case, async: true
+  # =======
+  #   use NervesHub.DataCase, async: true
+  #   use Mimic
+
+  #   import ExUnit.CaptureLog
 
   alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
@@ -118,6 +124,18 @@ defmodule NervesHub.Extensions.HealthTest do
       assert State.get(state, :mode) == :watched
       assert {:start_timer, :check, @watched_ms} = timer(effects)
     end
+
+    test "uses a custom interval from application config" do
+      original = Application.get_env(:nerves_hub, :extension_config)
+      Application.put_env(:nerves_hub, :extension_config, health: [interval_minutes: 5])
+      on_exit(fn -> Application.put_env(:nerves_hub, :extension_config, original) end)
+
+      state = State.new(%DeviceInfo{device_id: 1, device_identifier: "x"})
+      {_new_state, effects} = Health.attach(state)
+
+      expected_interval = to_timeout(minute: 5)
+      assert Enum.any?(effects, &match?({:start_timer, :check, ^expected_interval}, &1))
+    end
   end
 
   defp timer(effects) do
@@ -149,6 +167,47 @@ defmodule NervesHub.Extensions.HealthTest do
     # Membership is given up by the group noticing the exit, not by the exit
     # itself, so the read has to wait for the group rather than the process.
     wait_until(fn -> not PubSub.health_watched?(device_id) end)
+    # =======
+    #       {new_state, effects} = Health.handle_in("report", report, state)
+    #       assert new_state == state
+    #       assert effects == []
+    #     end
+
+    #     test "handles a report with no metrics key", %{state: state} do
+    #       report = %{"value" => %{"alarms" => []}}
+
+    #       {new_state, effects} = Health.handle_in("report", report, state)
+    #       assert new_state == state
+    #       assert effects == []
+    #     end
+
+    #     test "logs a warning and returns empty effects when health save fails", %{state: state} do
+    #       stub(NervesHub.Devices.Health, :save_device_health, fn _ -> {:error, :db_unavailable} end)
+
+    #       log =
+    #         capture_log(fn ->
+    #           {new_state, effects} = Health.handle_in("report", %{"value" => %{}}, state)
+    #           assert new_state == state
+    #           assert effects == []
+    #         end)
+
+    #       assert log =~ "Failed to save health check data"
+    #     end
+
+    #     test "logs a warning and returns empty effects when metrics save fails", %{state: state} do
+    #       stub(NervesHub.Devices.Health, :save_device_health, fn _ -> {:ok, :saved} end)
+    #       stub(Metrics, :save_metrics, fn _, _ -> :error end)
+
+    #       log =
+    #         capture_log(fn ->
+    #           {new_state, effects} = Health.handle_in("report", %{"value" => %{}}, state)
+    #           assert new_state == state
+    #           assert effects == []
+    #         end)
+
+    #       assert log =~ "Failed to save metrics report"
+    #     end
+    # >>>>>>> 4b72d094 (Target the last batch of meaningful coverage additions)
   end
 
   defp wait_until(fun, attempts \\ 50) do

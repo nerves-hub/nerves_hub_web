@@ -117,4 +117,71 @@ defmodule NervesHub.Extensions.NetworkIdentityTest do
       assert effects == []
     end
   end
+
+  describe "handle_in/3 report with error outcomes from context" do
+    test "ignores unsupported service without crashing", %{state: state} do
+      identities = [%{"service" => "foobar_unknown_xyz", "identifier" => "some-key"}]
+
+      {new_state, effects} = NetworkIdentity.handle_in("report", %{"identities" => identities}, state)
+      assert new_state == state
+      assert effects == []
+    end
+
+    test "handles device_not_found when state points to a nonexistent device" do
+      unknown_device_info = %DeviceInfo{device_id: 0, device_identifier: "ghost"}
+      state = State.new(unknown_device_info)
+      identities = [%{"service" => "iroh", "identifier" => "some-endpoint-id"}]
+
+      {new_state, effects} = NetworkIdentity.handle_in("report", %{"identities" => identities}, state)
+      assert new_state == state
+      assert effects == []
+    end
+
+    test "handles claimed_elsewhere when another device holds the same key", %{device: device} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      other_device = Fixtures.device_fixture(org, product, firmware)
+
+      shared_key = "shared-endpoint-#{System.unique_integer([:positive])}"
+      Fixtures.network_identity_fixture(other_device, %{service: :iroh, identifier: shared_key})
+
+      device_info = %DeviceInfo{
+        device_id: device.id,
+        device_identifier: device.identifier,
+        org_id: device.org_id,
+        product_id: device.product_id
+      }
+
+      state_for_device = State.new(device_info)
+      identities = [%{"service" => "iroh", "identifier" => shared_key}]
+
+      {new_state, effects} = NetworkIdentity.handle_in("report", %{"identities" => identities}, state_for_device)
+      assert new_state == state_for_device
+      assert effects == []
+    end
+
+    test "handles operator_managed when device reports a different key than operator recorded", %{
+      state: state,
+      device: device
+    } do
+      operator_key = "operator-endpoint-#{System.unique_integer([:positive])}"
+
+      Fixtures.network_identity_fixture(device, %{
+        service: :iroh,
+        identifier: operator_key,
+        source: :operator,
+        device_id: device.id
+      })
+
+      device_key = "device-endpoint-#{System.unique_integer([:positive])}"
+      identities = [%{"service" => "iroh", "identifier" => device_key}]
+
+      {new_state, effects} = NetworkIdentity.handle_in("report", %{"identities" => identities}, state)
+      assert new_state == state
+      assert effects == []
+    end
+  end
 end
