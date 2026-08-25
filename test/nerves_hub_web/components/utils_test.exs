@@ -3,6 +3,20 @@ defmodule NervesHubWeb.Components.UtilsTest do
 
   alias NervesHubWeb.Components.Utils
 
+  describe "format_serial/1 with integer" do
+    test "integer serial number is formatted in hex" do
+      n = 112_346_101_875_805_641_052_401_911_002_393_715_100
+      assert Utils.format_serial(n) == "54:85:12:79:FB:15:C2:FC:26:B2:50:35:4C:EF:A1:9C"
+    end
+  end
+
+  describe "tags_to_string/1 with non-list" do
+    test "returns the value unchanged when it's not a list or map" do
+      assert Utils.tags_to_string("already a string") == "already a string"
+      assert Utils.tags_to_string(nil) == nil
+    end
+  end
+
   describe "format_serial/1" do
     test "serial number is formatted in hex" do
       assert Utils.format_serial("112346101875805641052401911002393715100") ==

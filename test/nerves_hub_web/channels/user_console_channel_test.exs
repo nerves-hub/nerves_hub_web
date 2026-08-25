@@ -44,6 +44,45 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
     end
   end
 
+  describe "handle_in" do
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      device = device_fixture(user, %{identifier: "console-test-device"}, tmp_dir)
+      user_token = Accounts.create_user_api_token(user, "test-token")
+      {:ok, socket} = connect(APISocket, %{"token" => user_token})
+
+      {:ok, _reply, channel} =
+        subscribe_and_join(socket, UserConsoleChannel, "user:console:identifier-#{device.identifier}")
+
+      %{channel: channel, user_name: user.name}
+    end
+
+    test "message event broadcasts to the channel", %{channel: channel, user_name: name} do
+      push(channel, "message", %{"data" => "hello"})
+      assert_broadcast("message", %{name: ^name})
+    end
+
+    test "file-data/start event is relayed without crashing", %{channel: channel} do
+      push(channel, "file-data/start", %{"filename" => "test.txt"})
+      refute_receive {:error, _}, 100
+    end
+
+    test "file-data event is relayed without crashing", %{channel: channel} do
+      push(channel, "file-data", %{"chunk" => "abc"})
+      refute_receive {:error, _}, 100
+    end
+
+    test "file-data/stop event is relayed without crashing", %{channel: channel} do
+      push(channel, "file-data/stop", %{"filename" => "test.txt"})
+      refute_receive {:error, _}, 100
+    end
+
+    test "unknown events are forwarded to the console without crashing", %{channel: channel} do
+      push(channel, "phx_ctrl_c", %{})
+      refute_receive {:error, _}, 100
+    end
+  end
+
   defp device_fixture(user, device_params, tmp_dir) do
     org = Fixtures.org_fixture(user)
     {:ok, org_user} = Accounts.get_org_user(org, user)

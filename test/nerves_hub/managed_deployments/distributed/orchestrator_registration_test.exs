@@ -67,6 +67,25 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistrationTest 
       assert :ok = OrchestratorRegistration.start_orchestrators()
     end
 
+    test "treats :rollback variant as already_started when only that error" do
+      deployment = %{id: 5}
+      spec = Orchestrator.child_spec(deployment)
+      pid = self()
+
+      stub(ManagedDeployments, :should_run_orchestrator, fn -> [deployment] end)
+      stub(ProcessHub, :process_list, fn :deployment_orchestrators, :global -> [] end)
+
+      future_ref = make_ref()
+      stub(ProcessHub, :start_children, fn :deployment_orchestrators, [^spec], _ -> future_ref end)
+      stub(ProcessHub.Future, :await, fn ^future_ref -> :awaited end)
+      # format returns the :rollback tuple shape
+      stub(ProcessHub.StartResult, :format, fn :awaited ->
+        {:error, [{spec.id, {:already_started, pid}}], :rollback}
+      end)
+
+      assert :ok = OrchestratorRegistration.start_orchestrators()
+    end
+
     test "logs and reports error when non-already-started error occurs" do
       deployment = %{id: 4}
       spec = Orchestrator.child_spec(deployment)
@@ -81,6 +100,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistrationTest 
       stub(Sentry, :capture_message, fn _, _ -> :ok end)
 
       assert :ok = OrchestratorRegistration.start_orchestrators()
+    end
+  end
+
+  describe "child_spec/1" do
+    test "returns the expected spec shape" do
+      spec = OrchestratorRegistration.child_spec(nil)
+      assert spec.restart == :permanent
     end
   end
 

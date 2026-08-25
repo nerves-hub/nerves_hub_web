@@ -331,6 +331,56 @@ defmodule NervesHub.LoggerTest do
     end
   end
 
+  describe "log_event [:nerves_hub, :devices, :stale_connections]" do
+    test "logs stale connection cleanup with count" do
+      log =
+        capture_log(fn ->
+          NHLogger.log_event([:nerves_hub, :devices, :stale_connections], %{count: 3}, [], :ok)
+        end)
+
+      assert log =~ "stale connection"
+    end
+  end
+
+  describe "log_event [:nerves_hub, :devices, :join_failure]" do
+    test "logs Join failure warning" do
+      metadata = [error: :some_error, channel: "device", device_identifier: "dev-fail"]
+
+      log =
+        capture_log(fn ->
+          NHLogger.log_event([:nerves_hub, :devices, :join_failure], %{}, metadata, :ok)
+        end)
+
+      assert log =~ "Join failure"
+    end
+  end
+
+  describe "log_event [:nerves_hub, :devices, :unhandled_info]" do
+    test "logs Unhandled handle_info message" do
+      metadata = [msg: :unexpected, params: %{}, device_identifier: "dev-x"]
+
+      log =
+        capture_log(fn ->
+          NHLogger.log_event([:nerves_hub, :devices, :unhandled_info], %{}, metadata, :ok)
+        end)
+
+      assert log =~ "Unhandled handle_info"
+    end
+  end
+
+  describe "log_event [:nerves_hub, :devices, :unhandled_in]" do
+    test "logs Unhandled handle_in message" do
+      metadata = [msg: "unknown_event", device_identifier: "dev-y"]
+
+      log =
+        capture_log(fn ->
+          NHLogger.log_event([:nerves_hub, :devices, :unhandled_in], %{}, metadata, :ok)
+        end)
+
+      assert log =~ "Unhandled handle_in"
+    end
+  end
+
   # ---- ssl_log_filter/2 ----
 
   describe "ssl_log_filter/2" do

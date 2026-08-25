@@ -44,6 +44,34 @@ defmodule NervesHubWeb.UserLocalShellChannelTest do
     end
   end
 
+  describe "handle_in" do
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      device = device_fixture(user, %{identifier: "shell-test-device"}, tmp_dir)
+      user_token = Accounts.create_user_api_token(user, "test-token")
+      {:ok, socket} = connect(APISocket, %{"token" => user_token})
+
+      {:ok, _reply, channel} =
+        subscribe_and_join(
+          socket,
+          UserLocalShellChannel,
+          "user:local_shell:identifier-#{device.identifier}"
+        )
+
+      %{channel: channel}
+    end
+
+    test "input event is forwarded to device", %{channel: channel} do
+      push(channel, "input", %{"data" => "\r"})
+      refute_receive {:error, _}, 100
+    end
+
+    test "window_size event is forwarded to device", %{channel: channel} do
+      push(channel, "window_size", %{"cols" => 80, "rows" => 24})
+      refute_receive {:error, _}, 100
+    end
+  end
+
   defp device_fixture(user, device_params, tmp_dir) do
     org = Fixtures.org_fixture(user)
     {:ok, org_user} = Accounts.get_org_user(org, user)
