@@ -218,6 +218,42 @@ defmodule NervesHub.Firmwares.UpdateTool.RaucTest do
                Rauc.get_firmware_metadata_from_file(path)
     end
 
+    test "a declared uuid is preferred over the derived one", %{signer: signer, path: path} do
+      declared = "9f3a1c22-6f1b-4d0e-9b3a-0d2f7c5e8a41"
+      manifest = RaucBundle.manifest(meta: [uuid: declared])
+      RaucBundle.write(path, signer, manifest: manifest)
+
+      # The point of declaring it: a uuid derived by hashing the manifest cannot
+      # be written into the image the manifest describes, so a device flashed by
+      # anything other than `rauc install` could not know what it was running.
+      # Declaring it lets the build put the same value in both places.
+      assert {:ok, %{firmware_metadata: %{uuid: ^declared}}} =
+               Rauc.get_firmware_metadata_from_file(path)
+    end
+
+    test "without a declared uuid it is still derived from the manifest",
+         %{signer: signer, path: path} do
+      RaucBundle.write(path, signer)
+
+      {:ok, %{firmware_metadata: %{uuid: uuid}}} =
+        Rauc.get_firmware_metadata_from_file(path)
+
+      # Every bundle built before uuid could be declared keeps the identity it
+      # already had.
+      assert {:ok, _} = Ecto.UUID.cast(uuid)
+      refute uuid == "9f3a1c22-6f1b-4d0e-9b3a-0d2f7c5e8a41"
+    end
+
+    test "a declared uuid that is not a uuid is refused", %{signer: signer, path: path} do
+      manifest = RaucBundle.manifest(meta: [uuid: "release-1"])
+      RaucBundle.write(path, signer, manifest: manifest)
+
+      # firmware.uuid is a UUID column. Caught here, against the manifest that
+      # caused it, rather than later as a changeset cast error.
+      assert {:error, {:invalid_manifest_field, "[meta.nerveshub] uuid"}} =
+               Rauc.get_firmware_metadata_from_file(path)
+    end
+
     test "a missing version is refused", %{signer: signer, path: path} do
       manifest = RaucBundle.manifest(update: [version: nil])
       RaucBundle.write(path, signer, manifest: manifest)
