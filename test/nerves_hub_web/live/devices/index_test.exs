@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.IndexTest do
-  use NervesHubWeb.ConnCase.Browser, async: true
+  use NervesHubWeb.ConnCase.Browser, async: false
 
   import Ecto.Query, only: [where: 2]
 
