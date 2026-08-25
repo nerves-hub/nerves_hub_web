@@ -791,7 +791,10 @@ defmodule NervesHub.DeviceLink do
     DeviceMessages.record(device_info, :received, :extensions, event, payload)
   end
 
-  defp record_extension_pushes(_result, nil), do: :ok
+  # Nothing to attribute the pushes to, so nothing is recorded — but the result
+  # still has to travel: the caller is waiting on `{:ok, extensions, effects}`
+  # or `:unknown`, not on whether recording happened.
+  defp record_extension_pushes(result, nil), do: result
 
   defp record_extension_pushes({:ok, extensions, effects}, device_info) do
     :ok = record_pushes(device_info, :extensions, effects)
