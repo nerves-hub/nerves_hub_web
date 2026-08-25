@@ -305,16 +305,20 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
           {:ok, key}
 
         nil ->
-          # "This certificate cannot sign anything" and "this certificate did
-          # not sign this bundle" are different problems, and only one of them
-          # is fixed by uploading a different file. Reported separately so the
-          # message points at the key rather than at the bundle.
-          if Enum.any?(attempts, fn {_key, result} -> unsuitable_purpose?(result) end) do
-            {:error, :unsuitable_certificate_purpose}
-          else
-            {:error, :invalid_signature}
-          end
+          no_key_matched(attempts)
       end
+    end
+  end
+
+  # "This certificate cannot sign anything" and "this certificate did not sign
+  # this bundle" are different problems, and only one of them is fixed by
+  # uploading a different file. Reported separately so the message points at
+  # the key rather than at the bundle.
+  defp no_key_matched(attempts) do
+    if Enum.any?(attempts, fn {_key, result} -> unsuitable_purpose?(result) end) do
+      {:error, :unsuitable_certificate_purpose}
+    else
+      {:error, :invalid_signature}
     end
   end
 
