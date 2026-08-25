@@ -90,7 +90,7 @@ defmodule NervesHub.Extensions.Health do
   end
 
   def request_health_check(device) do
-    :ok = PubSub.broadcast_to_device(device.id, "health:check", %{})
+    :ok = PubSub.broadcast_to_device(device, "health:check", %{})
   end
 
   defp health_interval_minutes() do
