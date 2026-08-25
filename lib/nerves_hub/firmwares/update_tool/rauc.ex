@@ -53,7 +53,18 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
 
   ## The UUID
 
-  RAUC has no notion of one, so it is derived from the SHA-256 over the manifest
+  Declared if the manifest declares one, derived otherwise.
+
+  A build that sets `uuid` in `[meta.nerveshub]` is naming the firmware itself,
+  and that is preferred. The reason is that a *derived* uuid cannot be embedded
+  in the firmware it identifies — it hashes the manifest, which records the
+  rootfs's own sha256, so writing it into the image changes it. A device
+  flashed by anything other than `rauc install` was therefore unable to say
+  what it was running until its first update. Declaring the uuid breaks that
+  circularity: the same value goes into the manifest and into the image. A
+  declared value must be a UUID, because `firmware.uuid` is a UUID column.
+
+  Without one it is derived from the SHA-256 over the manifest
   as embedded in the signature — the digest RAUC itself computes and reports as
   `hash` in `rauc info --output-format=json`. Verified against a bundle built by
   RAUC 1.13: the digest matches byte for byte.
@@ -431,14 +442,15 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
 
     with {:ok, compatible} <- required(compatible, "[update] compatible"),
          {:ok, version} <- required(Map.get(update, "version"), "[update] version"),
-         {:ok, architecture} <- required_meta(ours, "architecture") do
+         {:ok, architecture} <- required_meta(ours, "architecture"),
+         {:ok, uuid} <- uuid(ours, manifest) do
       {:ok,
        %{
          firmware_metadata: %UpdateTool.Metadata{
            architecture: architecture,
            platform: Map.get(ours, "platform", compatible),
            product: Map.get(ours, "product", compatible),
-           uuid: uuid_from_manifest(manifest),
+           uuid: uuid,
            version: version,
            author: Map.get(ours, "author"),
            description: Map.get(update, "description"),
@@ -456,6 +468,34 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
          tool_delta_required_version: @minimum_device_version,
          tool_full_required_version: @minimum_device_version
        }}
+    end
+  end
+
+  # Declared if the manifest declares one, derived otherwise.
+  #
+  # A derived uuid cannot be embedded in the firmware it identifies: it hashes
+  # the manifest, which records the rootfs's own sha256, so writing it into the
+  # image would change it. That left a device flashed by anything other than
+  # `rauc install` — UUU or dd at a factory — unable to say what it was running
+  # until its first update, which is a poor default for a fleet.
+  #
+  # A build that sets `uuid` in `[meta.nerveshub]` writes the same value into
+  # the manifest and into the image, so the device knows its identity from its
+  # first boot however it was flashed. Both sides then name the same firmware,
+  # which is what `firmware.uuid` has to match for a device to be recognised.
+  defp uuid(ours, manifest) do
+    case Map.get(ours, "uuid") do
+      nil ->
+        {:ok, uuid_from_manifest(manifest)}
+
+      declared ->
+        # `firmware.uuid` is a UUID column, so a declared value that is not one
+        # would fail later as a cast error against a changeset, well away from
+        # the manifest that caused it.
+        case Ecto.UUID.cast(declared) do
+          {:ok, uuid} -> {:ok, uuid}
+          :error -> {:error, {:invalid_manifest_field, "[meta.nerveshub] uuid"}}
+        end
     end
   end
 
