@@ -78,6 +78,22 @@ the manifest out of it. This is a runtime dependency nothing else in NervesHub
 has; the official container image installs it. If it is missing, uploads fail
 with a message saying so rather than crashing.
 
+### A note for developers
+
+`.raucb` is registered as a MIME type in `config/config.exs`, because
+`allow_upload` refuses any extension it cannot resolve to a known type. That
+config is read at **compile time** by the `mime` library, so a working tree with
+a stale `_build/mime` raises when the firmware page mounts — which takes out the
+firmware index for every product, not only RAUC uploads. If you see that after
+pulling this branch:
+
+```bash
+mix deps.compile mime --force
+```
+
+A fresh build is unaffected, so this is a local-development hazard rather than a
+deployment one.
+
 `rauc` itself is **not** required on the server. Everything NervesHub needs is
 reachable from the bundle's footer, and `rauc` would pull in glib, dbus and
 libcurl for a server that never installs a bundle — only reads one.

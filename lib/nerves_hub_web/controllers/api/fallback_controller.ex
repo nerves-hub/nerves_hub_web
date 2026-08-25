@@ -10,6 +10,8 @@ defmodule NervesHubWeb.API.FallbackController do
   alias NervesHubWeb.API.ChangesetJSON
   alias NervesHubWeb.API.ErrorJSON
 
+  require Logger
+
   def call(conn, {:error, %Ecto.Changeset{} = changeset}) do
     conn
     |> put_status_from_changeset(changeset)
@@ -81,6 +83,35 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_view(ErrorJSON)
     |> render(:"422", %{
       reason: "The signature block on this ESP-IDF image failed its checksum — the file is likely damaged in transit."
+    })
+  end
+
+  def call(conn, {:error, {:openssl_failed, status, output}}) do
+    # openssl's own message is the only thing that explains this one, and it is
+    # not something to hand to an API caller — so it goes to the log and the
+    # response says where to look.
+    Logger.error("openssl rejected a RAUC bundle (exit #{status}): #{output}")
+
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "NervesHub could not verify this RAUC bundle: openssl exited #{status}. " <>
+          "If the bundle is not corrupt, the server log has openssl's own message."
+    })
+  end
+
+  def call(conn, {:error, {:temp_dir_unavailable, reason}}) do
+    Logger.error("could not create a temporary directory to verify a RAUC bundle: #{inspect(reason)}")
+
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "NervesHub could not create a temporary directory to verify this bundle. " <>
+          "This is a server problem rather than something wrong with the bundle."
     })
   end
 

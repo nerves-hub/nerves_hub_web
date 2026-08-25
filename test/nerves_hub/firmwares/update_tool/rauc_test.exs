@@ -251,8 +251,34 @@ defmodule NervesHub.Firmwares.UpdateTool.RaucTest do
       # is not checked here — but the signature over the content is, which is
       # what stops the manifest being edited after signing. Swapping `-verify`
       # for non-verifying extraction would pass every other test in this file.
-      assert {:error, {:openssl_failed, _status, _output}} =
+      assert {:error, {:openssl_failed, status, output}} =
                Rauc.get_firmware_metadata_from_file(path)
+
+      # Pinned to the *reason*, not merely to failure. Asserting only
+      # `{:openssl_failed, _, _}` would pass just as happily if openssl fell
+      # over for an unrelated reason, and tamper detection would quietly stop
+      # being covered.
+      assert status != 0
+      assert output =~ "verify"
+    end
+
+    test "a bundle openssl cannot read reports openssl's own words", %{signer: signer} do
+      # The bytes are a bundle by shape — squashfs magic and a footer pointing
+      # at something the right size — but the signature is not a CMS structure
+      # at all, so openssl fails for a reason NervesHub has no name for. That
+      # reason has to survive as far as the caller.
+      path = Path.join(signer.dir, "not-really-cms")
+      junk = :binary.copy("x", 512)
+
+      File.write!(
+        path,
+        "hsqs" <> :binary.copy(<<0>>, 4092) <> junk <> <<byte_size(junk)::unsigned-big-integer-size(64)>>
+      )
+
+      assert {:error, {:openssl_failed, status, output}} = Rauc.get_firmware_metadata_from_file(path)
+
+      assert status != 0
+      refute output == ""
     end
   end
 

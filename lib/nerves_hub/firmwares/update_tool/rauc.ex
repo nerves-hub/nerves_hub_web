@@ -542,23 +542,39 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
   end
 
   defp in_tmp(fun) do
-    dir = Path.join(System.tmp_dir!(), "rauc-#{System.unique_integer([:positive])}")
+    # `Briefly` rather than a hand-rolled name: it is what the rest of NervesHub
+    # already uses for scratch directories (see
+    # `Firmwares.do_generate_firmware_delta/3`), the name it picks carries 20
+    # random bytes, and it reaps the directory if this process dies before the
+    # `after` below gets to run.
+    #
+    # Two things are still done by hand, because Briefly's defaults are not what
+    # this directory needs.
+    case Briefly.create(type: :directory) do
+      {:ok, dir} ->
+        try do
+          # Briefly creates its per-process root 0755 and leaves the directory
+          # inside it at whatever the umask gives. `ca.pem` is written in here,
+          # and that file is what tells openssl who to trust, so the rest of the
+          # machine has no business reading or replacing it.
+          with :ok <- File.chmod(dir, 0o700) do
+            fun.(dir)
+          end
+        after
+          # Deliberately not `Briefly.cleanup/0`, which removes every Briefly
+          # path the *calling process* owns. During an upload that includes the
+          # firmware file itself, which `BrieflyUploadWriter` hands to this
+          # process — cleaning up here would delete the bundle being verified.
+          #
+          # Briefly's own reaping is tied to process exit, and a LiveView
+          # outlives many uploads, so without this the signature copies would
+          # sit in the temp directory until the operator navigated away. One
+          # copy is written per organization certificate tried.
+          File.rm_rf(dir)
+        end
 
-    try do
-      # `mkdir!` rather than `mkdir_p!`. The name carries a unique integer, so
-      # it should not exist — and if it does, that is somebody else's directory
-      # rather than one to reuse. `mkdir_p!` succeeds on a directory an attacker
-      # created first, and `ca.pem` is written into this one.
-      File.mkdir!(dir)
-      # 0700 rather than the 0755 `mkdir` leaves behind. Nothing in here is
-      # secret — a bundle's signature and the organization's *public*
-      # certificate — but the rest of the machine has no reason to read it, and
-      # a narrower mode closes the window on `ca.pem` between write and use.
-      File.chmod!(dir, 0o700)
-
-      fun.(dir)
-    after
-      File.rm_rf(dir)
+      {:error, reason} ->
+        {:error, {:temp_dir_unavailable, reason}}
     end
   end
 end

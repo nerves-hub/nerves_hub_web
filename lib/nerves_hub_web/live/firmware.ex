@@ -10,6 +10,8 @@ defmodule NervesHubWeb.Live.Firmware do
   alias NervesHubWeb.Components.Sorting
   alias Phoenix.Socket.Broadcast
 
+  require Logger
+
   embed_templates("firmware_templates/*")
 
   @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
@@ -310,6 +312,24 @@ defmodule NervesHubWeb.Live.Firmware do
       "which is also the format required for the streaming installs that make " <>
       "RAUC worth using. Rebuild with `format=verity` in the manifest's " <>
       "[bundle] section."
+  end
+
+  # openssl said no for a reason NervesHub does not have a name for. Its own
+  # message is the only thing that explains why, and it was previously dropped
+  # on the floor — leaving an operator with "Unknown error uploading firmware"
+  # and no way to tell a corrupt bundle from a broken openssl invocation.
+  defp upload_error({:openssl_failed, status, output}) do
+    Logger.error("openssl rejected a RAUC bundle (exit #{status}): #{output}")
+
+    "NervesHub could not verify this RAUC bundle: openssl exited #{status}. " <>
+      "If the bundle is not corrupt, the server log has openssl's own message."
+  end
+
+  defp upload_error({:temp_dir_unavailable, reason}) do
+    Logger.error("could not create a temporary directory to verify a RAUC bundle: #{inspect(reason)}")
+
+    "NervesHub could not create a temporary directory to verify this bundle. " <>
+      "This is a server problem rather than something wrong with the bundle."
   end
 
   defp upload_error(:openssl_not_available) do
