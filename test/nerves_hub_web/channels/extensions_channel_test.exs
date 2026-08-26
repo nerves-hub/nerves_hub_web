@@ -781,7 +781,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
                %{"health" => "0.0.1"}
              )
 
-    PubSub.broadcast_to_device(device.id, "health:check", %{})
+    PubSub.broadcast_to_device(device, "health:check", %{})
     assert_push("health:check", _)
   end
 

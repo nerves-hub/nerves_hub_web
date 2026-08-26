@@ -10,8 +10,6 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
   # For fwup_progress tests we verify the stage/percent mapping by setting up
   # stubs BEFORE subscribing_and_joining so the channel process picks them up.
 
-  alias Phoenix.Socket.Broadcast
-
   describe "scripts/run — connecting_code ref" do
     setup %{tmp_dir: tmp_dir} do
       {_user, _org, _product, _firmware, certificate, device} = build_device_fixtures(tmp_dir)

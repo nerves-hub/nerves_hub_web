@@ -86,7 +86,7 @@ defmodule NervesHub.Accounts.OrgKeyTest do
 
   describe "schemes/0" do
     test "returns the list of supported schemes" do
-      assert [:ed25519, :secure_boot_v2_rsa] = OrgKey.schemes()
+      assert [:ed25519, :secure_boot_v2_rsa, :x509_certificate] = OrgKey.schemes()
     end
   end
 
