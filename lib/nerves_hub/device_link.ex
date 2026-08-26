@@ -18,6 +18,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceMessages
   alias NervesHub.Devices.Updates
+  alias NervesHub.Extensions
   alias NervesHub.Extensions.Dispatch, as: ExtensionDispatch
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
@@ -680,9 +681,13 @@ defmodule NervesHub.DeviceLink do
     :ok
   end
 
+  # The device answers by joining the `extensions` topic, declaring one version
+  # per extension it wants. It picks those versions out of what this says the
+  # platform has, so a device implementing two versions of an extension does not
+  # have to guess which one it is talking to.
   defp maybe_request_extensions(device_info, device_api_version) do
     if Version.match?(device_api_version, ">= 2.2.0"),
-      do: broadcast(device_info, "extensions:get", %{})
+      do: broadcast(device_info, "extensions:get", %{"extensions" => Extensions.advertisement()})
 
     :ok
   end
