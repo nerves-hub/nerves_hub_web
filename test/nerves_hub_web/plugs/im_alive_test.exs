@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Plugs.ImAliveTest do
   use NervesHubWeb.ConnCase, async: true
 
+  alias NervesHubWeb.Plugs.ImAlive
+
   describe "GET /status/alive" do
     test "returns 200 OK when the database is reachable", %{conn: conn} do
       conn = get(conn, "/status/alive")
@@ -28,8 +30,6 @@ defmodule NervesHubWeb.Plugs.ImAliveTest do
 
   describe "non-health-check paths" do
     test "passes the conn through untouched for non-status paths" do
-      alias NervesHubWeb.Plugs.ImAlive
-
       conn = %{build_conn(:get, "/some/other/path") | request_path: "/some/other/path"}
       result = ImAlive.call(conn, [])
 
@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Plugs.ImAliveTest do
 
   describe "status_path_spec/0" do
     test "returns a map keyed on the default status path" do
-      spec = NervesHubWeb.Plugs.ImAlive.status_path_spec()
+      spec = ImAlive.status_path_spec()
       assert is_map(spec)
       assert Map.has_key?(spec, "/status/alive")
     end

@@ -4,7 +4,7 @@ defmodule NervesHub.Extensions.StateTest do
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Extensions.State
 
-  defp device_info do
+  defp device_info() do
     %DeviceInfo{device_id: 1, device_identifier: "test-device"}
   end
 
