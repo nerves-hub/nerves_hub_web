@@ -22,7 +22,7 @@ defmodule NervesHub.Support.RaucBundle do
   Self-signed: the certificate is both the signer and the trust anchor, which is
   what an organization registering a single key in NervesHub has.
   """
-  def keypair(common_name \\ "test-signer") do
+  def keypair(common_name \\ "test-signer", opts \\ []) do
     dir = tmp_dir()
     key_path = Path.join(dir, "key.pem")
     cert_path = Path.join(dir, "cert.pem")
@@ -44,7 +44,7 @@ defmodule NervesHub.Support.RaucBundle do
           "-nodes",
           "-subj",
           "/CN=#{common_name}"
-        ],
+        ] ++ extra_extensions(opts),
         stderr_to_stdout: true,
         # Nothing here needs the caller's environment, and inheriting it means
         # openssl reads whatever OPENSSL_* the shell happened to carry.
@@ -57,6 +57,20 @@ defmodule NervesHub.Support.RaucBundle do
       key_path: key_path,
       dir: dir
     }
+  end
+
+  # `extended_key_usage: "codeSigning"` produces the certificate that started
+  # this: valid for code signing, and therefore *not* valid for the S/MIME
+  # signing purpose openssl's CMS verification applies. RAUC refuses it on the
+  # device with "unsuitable certificate purpose".
+  #
+  # A certificate with no EKU is valid for every purpose, which is what the
+  # default fixture makes and what a working signer looks like.
+  defp extra_extensions(opts) do
+    case Keyword.get(opts, :extended_key_usage) do
+      nil -> []
+      usage -> ["-addext", "extendedKeyUsage=#{usage}"]
+    end
   end
 
   @doc """

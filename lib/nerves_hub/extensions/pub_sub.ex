@@ -50,6 +50,8 @@ defmodule NervesHub.Extensions.PubSub do
   pub/sub goes through one module.
   """
 
+  alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceMessages
   alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
@@ -68,9 +70,14 @@ defmodule NervesHub.Extensions.PubSub do
   end
 
   @doc "Send a web -> device extensions event (`health:check`, `attach`, `detach`)."
-  @spec broadcast_to_device(integer(), String.t(), map()) :: :ok
-  def broadcast_to_device(device_id, event, payload) do
-    ChannelServer.broadcast!(NervesHub.PubSub, topic(device_id), event, payload)
+  @spec broadcast_to_device(Device.t(), String.t(), map()) :: :ok
+  def broadcast_to_device(%Device{} = device, event, payload) do
+    # Recorded here rather than in the channel that pushes it. The connection
+    # holding the device is not always this node, and a connection reached over
+    # `:erpc` has no database to write to, so this is the last point every
+    # deployment has in common. See `NervesHub.Devices.DeviceMessages`.
+    :ok = DeviceMessages.record(device, :sent, :extensions, event, payload)
+    ChannelServer.broadcast!(NervesHub.PubSub, topic(device.id), event, payload)
   end
 
   @doc "Join the calling process (a device Show LiveView) to receive device -> web reports."

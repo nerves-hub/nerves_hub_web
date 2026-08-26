@@ -80,6 +80,22 @@ defmodule NervesHubWeb.Channels.Effects do
     socket
   end
 
+  defp apply_one(socket, {:group_join, key}) do
+    :ok = Group.join(NervesHub.Group, key, %{})
+    socket
+  end
+
+  # Leaving a group never joined is not an error here. A leave is driven by
+  # something the device said -- `local_shell:detached` is delivered without
+  # checking that an attach came first -- so surfacing `{:error, :not_in_group}`
+  # would let a device take down its own channel by detaching twice.
+  defp apply_one(socket, {:group_leave, key}) do
+    case Group.leave(NervesHub.Group, key) do
+      :ok -> socket
+      {:error, :not_in_group} -> socket
+    end
+  end
+
   defp apply_one(socket, {:send_self, message}) do
     send(self(), message)
     socket

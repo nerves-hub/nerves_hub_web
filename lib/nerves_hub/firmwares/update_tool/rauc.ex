@@ -295,17 +295,40 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
 
   defp find_signing_key(filepath, keys) do
     with {:ok, signature} <- read_signature(filepath) do
-      signed_key =
-        Enum.find(keys, fn %OrgKey{key: certificate} ->
-          match?({:ok, _manifest}, verify_cms(signature, certificate))
+      attempts =
+        Enum.map(keys, fn %OrgKey{key: certificate} = key ->
+          {key, verify_cms(signature, certificate)}
         end)
 
-      case signed_key do
-        %OrgKey{} = key -> {:ok, key}
-        nil -> {:error, :invalid_signature}
+      case Enum.find(attempts, fn {_key, result} -> match?({:ok, _manifest}, result) end) do
+        {%OrgKey{} = key, _result} ->
+          {:ok, key}
+
+        nil ->
+          no_key_matched(attempts)
       end
     end
   end
+
+  # "This certificate cannot sign anything" and "this certificate did not sign
+  # this bundle" are different problems, and only one of them is fixed by
+  # uploading a different file. Reported separately so the message points at
+  # the key rather than at the bundle.
+  defp no_key_matched(attempts) do
+    if Enum.any?(attempts, fn {_key, result} -> unsuitable_purpose?(result) end) do
+      {:error, :unsuitable_certificate_purpose}
+    else
+      {:error, :invalid_signature}
+    end
+  end
+
+  # openssl's own wording. It comes from its error table rather than a locale,
+  # which is what makes matching on it reasonable.
+  defp unsuitable_purpose?({:error, {:openssl_failed, _status, output}}) do
+    String.contains?(output, "unsuitable certificate purpose")
+  end
+
+  defp unsuitable_purpose?(_result), do: false
 
   @doc """
   The manifest, as text.
@@ -421,13 +444,20 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
          #
          # So these, not `-CAfile`, are what scope trust to the org's keyring.
          "-no-CApath",
-         "-no-CAstore",
-         # RAUC's signing certificates are not issued for any particular
-         # purpose, and openssl's default expects an S/MIME signer. Without
-         # this a perfectly good bundle fails as "unsupported certificate
-         # purpose", which reads like a bad signature.
-         "-purpose",
-         "any"
+         "-no-CAstore"
+         # No `-purpose any` here, deliberately.
+         #
+         # RAUC verifies a bundle with CMS_verify, which applies openssl's
+         # default S/MIME signing purpose. Relaxing it here made NervesHub
+         # accept bundles no device could install: a certificate carrying
+         # `extendedKeyUsage=codeSigning` -- the obvious choice for firmware --
+         # passes `-purpose any` and is then refused on every device with
+         # "unsuitable certificate purpose", mid-install.
+         #
+         # A certificate with no EKU is valid for every purpose and passes the
+         # default check, which is the ordinary case and needs no help. So the
+         # flag only ever admitted certificates that were going to fail later,
+         # somewhere far more expensive than an upload.
        ]}
     end
   end

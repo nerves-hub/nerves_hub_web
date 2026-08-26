@@ -300,6 +300,15 @@ defmodule NervesHubWeb.Live.Firmware do
       "the bundle to a deployment."
   end
 
+  defp upload_error(:unsuitable_certificate_purpose) do
+    "This bundle's signing certificate is not valid for signing. RAUC verifies " <>
+      "with openssl's CMS, which expects a certificate usable for S/MIME " <>
+      "signing — an `extendedKeyUsage` of `codeSigning` alone excludes that, " <>
+      "and a device would refuse the bundle mid-install. Reissue the signing " <>
+      "certificate without a restrictive extendedKeyUsage; `openssl x509 " <>
+      "-purpose` should report \"S/MIME signing: Yes\"."
+  end
+
   defp upload_error({:invalid_manifest_field, field}) do
     "This RAUC bundle's manifest has a #{field} that is not a UUID. NervesHub " <>
       "stores firmware identifiers in a UUID column, so a declared uuid has to " <>

@@ -32,16 +32,16 @@ defmodule NervesHub.Extensions.LocalShell do
 
   @impl NervesHub.Extensions
   def attach(state) do
-    :ok = Consoles.PubSub.join_local_shell(state.device_info.device_id)
+    key = Consoles.PubSub.local_shell_key(state.device_info.device_id)
 
-    {state, [{:push, "local_shell:request_shell", %{}}, {:scrollback_clear}]}
+    {state, [{:group_join, key}, {:push, "local_shell:request_shell", %{}}, {:scrollback_clear}]}
   end
 
   @impl NervesHub.Extensions
   def detach(state) do
-    :ok = Consoles.PubSub.leave_local_shell(state.device_info.device_id)
+    key = Consoles.PubSub.local_shell_key(state.device_info.device_id)
 
-    {state, [{:scrollback_clear}]}
+    {state, [{:group_leave, key}, {:scrollback_clear}]}
   end
 
   @impl NervesHub.Extensions
