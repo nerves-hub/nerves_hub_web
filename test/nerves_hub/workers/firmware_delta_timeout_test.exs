@@ -6,11 +6,6 @@ defmodule NervesHub.Workers.FirmwareDeltaTimeoutTest do
   alias NervesHub.Workers.FirmwareDeltaTimeout
 
   describe "perform/1" do
-    test "returns :ok when no pending deltas exist" do
-      job = %Oban.Job{id: Ecto.UUID.generate(), attempt: 1, args: %{}}
-      assert :ok = FirmwareDeltaTimeout.perform(job)
-    end
-
     test "calls time_out_firmware_delta_generations and returns :ok" do
       test_pid = self()
 

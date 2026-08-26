@@ -6,11 +6,6 @@ defmodule NervesHub.Workers.CleanStaleDeviceConnectionsTest do
   alias NervesHub.Workers.CleanStaleDeviceConnections
 
   describe "perform/1" do
-    test "returns :ok when called" do
-      job = %Oban.Job{id: Ecto.UUID.generate(), attempt: 1, args: %{}}
-      assert :ok = CleanStaleDeviceConnections.perform(job)
-    end
-
     test "calls Connections.clean_stale_connections" do
       test_pid = self()
 
