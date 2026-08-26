@@ -184,7 +184,11 @@ defmodule NervesHub.MixProject do
   defp aliases() do
     [
       setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.setup": [
+        "tailwind.install --if-missing",
+        "esbuild.install --if-missing",
+        "cmd --cd assets npm install"
+      ],
       "assets.build": ["compile", "tailwind default", "esbuild default", "esbuild stoplight"],
       "assets.deploy": [
         "tailwind default --minify",
