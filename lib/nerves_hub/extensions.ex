@@ -90,11 +90,15 @@ defmodule NervesHub.Extensions do
     end
   end
 
+  # Two extensions, one key. 0.0.x sends one log line per message; 0.1.x puts a
+  # second's worth in one, which is what lets a device stop paying a message
+  # per line. A device gets the module for the version it declared, so both
+  # keep working and neither has to know about the other.
   def module(:logging, ver) do
-    if Version.match?(ver, "~> 0.0.1") do
-      Logging
-    else
-      Unsupported
+    cond do
+      Version.match?(ver, "~> 0.0.1") -> Logging
+      Version.match?(ver, "~> 0.1.0") -> Logging.Batched
+      true -> Unsupported
     end
   end
 
