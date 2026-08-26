@@ -10,6 +10,10 @@ defmodule NervesHub.DeviceLink.Effect do
     * `{:push, event, payload}` — send a message to the device
     * `{:subscribe, topic}` / `{:unsubscribe, topic}` — follow or stop following
       a PubSub topic on the connection's behalf
+    * `{:group_join, key}` / `{:group_leave, key}` — join or leave a `:group`
+      key on the connection's behalf. `Group.dispatch/3` delivers to the
+      processes that joined a key, so a group whose point is to reach the
+      device has to be joined by the connection and by nothing else.
     * `{:send_self, message}` — deliver `message` back to the connection now
     * `{:send_after, key, message, delay_ms}` — deliver it once, later
     * `{:start_timer, key, message, interval_ms}` — deliver it repeatedly
@@ -18,9 +22,11 @@ defmodule NervesHub.DeviceLink.Effect do
     * `{:scrollback_replay, pid}` — send everything recorded to `pid` as `{:cache, text}`
     * `{:scrollback_clear}` — forget it
 
-  `message` and `key` are opaque to whoever carries the effect out: it sends the
-  one and files timers under the other, and inspects neither. That is what lets
-  a connection be held somewhere that has none of the platform's code.
+  `message`, `key` and a group key are opaque to whoever carries the effect out:
+  it sends the one, files timers under the next, and joins the last without
+  inspecting any of them. That is what lets a connection be held somewhere that
+  has none of the platform's code — including somewhere that cannot compute the
+  group key itself.
 
   Scrollback is here for the same reason timers are. The platform has no use for
   a device's terminal output beyond passing it on, and the record is large and
@@ -32,6 +38,8 @@ defmodule NervesHub.DeviceLink.Effect do
           {:push, event :: String.t(), payload :: map()}
           | {:subscribe, topic :: String.t()}
           | {:unsubscribe, topic :: String.t()}
+          | {:group_join, key :: String.t()}
+          | {:group_leave, key :: String.t()}
           | {:send_self, message :: term()}
           | {:send_after, key :: term(), message :: term(), delay_ms :: non_neg_integer()}
           | {:start_timer, key :: term(), message :: term(), interval_ms :: pos_integer()}

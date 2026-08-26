@@ -2,6 +2,7 @@ defmodule NervesHubWeb.API.DeviceController do
   use NervesHubWeb, :api_controller
 
   alias NervesHub.Accounts
+  alias NervesHub.Consoles
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.BulkActions
@@ -152,12 +153,10 @@ defmodule NervesHubWeb.API.DeviceController do
     code
     |> String.graphemes()
     |> Enum.each(fn character ->
-      Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{
-        "data" => character
-      })
+      Consoles.PubSub.broadcast_to_console(device.id, "dn", %{"data" => character})
     end)
 
-    Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{"data" => "\r"})
+    Consoles.PubSub.broadcast_to_console(device.id, "dn", %{"data" => "\r"})
 
     send_resp(conn, :no_content, "")
   end

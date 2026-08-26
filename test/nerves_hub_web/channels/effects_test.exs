@@ -134,4 +134,36 @@ defmodule NervesHubWeb.Channels.EffectsTest do
       refute_receive {:timeout, _ref, _payload}, 200
     end
   end
+
+  describe "group membership" do
+    test "joins the process carrying the effect out" do
+      key = "effects-test/#{System.unique_integer([:positive])}"
+
+      _socket = Effects.apply_all(socket(), [{:group_join, key}])
+
+      assert [{pid, _meta}] = Group.members(NervesHub.Group, key)
+      assert pid == self()
+    end
+
+    test "leaving gives up the membership" do
+      key = "effects-test/#{System.unique_integer([:positive])}"
+
+      socket = Effects.apply_all(socket(), [{:group_join, key}])
+      _socket = Effects.apply_all(socket, [{:group_leave, key}])
+
+      assert Group.members(NervesHub.Group, key) == []
+    end
+
+    # A leave is driven by something the device said, and nothing checks that a
+    # join came first, so a device must not be able to raise here by detaching
+    # twice or without attaching.
+    test "leaving a group never joined is not an error" do
+      key = "effects-test/#{System.unique_integer([:positive])}"
+
+      assert %Socket{} = Effects.apply_all(socket(), [{:group_leave, key}])
+
+      socket = Effects.apply_all(socket(), [{:group_join, key}, {:group_leave, key}])
+      assert %Socket{} = Effects.apply_all(socket, [{:group_leave, key}])
+    end
+  end
 end

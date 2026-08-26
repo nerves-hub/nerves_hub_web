@@ -8,12 +8,12 @@ defmodule NervesHub.FirmwareUpdates do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
@@ -256,9 +256,8 @@ defmodule NervesHub.FirmwareUpdates do
   end
 
   defp broadcast_firmware_update_status!(device_id, status, extra_info) do
-    topic = "internal:device:#{device_id}"
     payload = Map.put(extra_info, "stage", status)
-    ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, "firmware_update_progress", payload)
+    PubSub.broadcast(device_id, "firmware_update_progress", payload)
   end
 
   defp maybe_update_update_attempts(%{inflight_update: %{status: :requested}} = device) do

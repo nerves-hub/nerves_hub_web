@@ -108,7 +108,7 @@
 
           <div
             :for={tool <- @optional_tools}
-            :if={Product.accepts_update_tool?(@product, tool.name)}
+            :if={tool[:unsigned_field] && Product.accepts_update_tool?(@product, tool.name)}
             class="flex h-16 items-center gap-6 p-2"
           >
             <div class="bg-base-800 border-base-700 flex h-8 items-center rounded-full border px-2 py-1">

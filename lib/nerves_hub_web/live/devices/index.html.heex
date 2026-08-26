@@ -5,7 +5,7 @@
       <.button type="link" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/new"} aria-label="Add new device">
         <span class="lucide-plus--light text-base-300 size-5" /> Add Device
       </.button>
-      <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export"} download>
+      <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export?#{@params}"} download>
         <span class="lucide-download--light text-base-300 size-5" />
       </.button>
     </div>

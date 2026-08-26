@@ -3,10 +3,14 @@ defmodule NervesHubWeb.Live.Firmware do
 
   alias NervesHub.Accounts
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.Upload
+  alias NervesHub.Products
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
   alias Phoenix.Socket.Broadcast
+
+  require Logger
 
   embed_templates("firmware_templates/*")
 
@@ -17,7 +21,7 @@ defmodule NervesHubWeb.Live.Firmware do
     if connected?(socket) do
       Logger.metadata(user_id: scope.user.id, product_id: scope.product.id)
 
-      :ok = socket.endpoint.subscribe("product:#{scope.product.id}")
+      :ok = Products.PubSub.subscribe(scope.product.id)
     end
 
     socket
@@ -39,7 +43,7 @@ defmodule NervesHubWeb.Live.Firmware do
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.current_scope))
     |> assign(:params, unsigned_params)
     |> allow_upload(:firmware,
-      accept: ~w(.fw .bin),
+      accept: ~w(.fw .bin .raucb),
       max_entries: 1,
       auto_upload: true,
       max_file_size: max_file_size(),
@@ -291,6 +295,64 @@ defmodule NervesHubWeb.Live.Firmware do
       "#{inspect(expected)}. Check the product name in your firmware build."
   end
 
+  defp upload_error({:missing_manifest_field, field}) do
+    "This RAUC bundle's manifest has no #{field}. NervesHub needs it to match " <>
+      "the bundle to a deployment."
+  end
+
+  defp upload_error(:unsuitable_certificate_purpose) do
+    "This bundle's signing certificate is not valid for signing. RAUC verifies " <>
+      "with openssl's CMS, which expects a certificate usable for S/MIME " <>
+      "signing — an `extendedKeyUsage` of `codeSigning` alone excludes that, " <>
+      "and a device would refuse the bundle mid-install. Reissue the signing " <>
+      "certificate without a restrictive extendedKeyUsage; `openssl x509 " <>
+      "-purpose` should report \"S/MIME signing: Yes\"."
+  end
+
+  defp upload_error({:invalid_manifest_field, field}) do
+    "This RAUC bundle's manifest has a #{field} that is not a UUID. NervesHub " <>
+      "stores firmware identifiers in a UUID column, so a declared uuid has to " <>
+      "be one — a UUIDv4 generated once per build is the usual answer."
+  end
+
+  defp upload_error({:missing_manifest_section, key}) do
+    "This RAUC bundle's manifest has no [meta.nerveshub] section, so NervesHub " <>
+      "cannot read #{key}. Meta sections require RAUC 1.9 or newer — older " <>
+      "versions drop them silently while building the bundle, so the section " <>
+      "can be present in your manifest and absent from the bundle."
+  end
+
+  defp upload_error(:plain_bundle_unsupported) do
+    "This is a RAUC bundle in the plain format. NervesHub reads verity bundles, " <>
+      "which is also the format required for the streaming installs that make " <>
+      "RAUC worth using. Rebuild with `format=verity` in the manifest's " <>
+      "[bundle] section."
+  end
+
+  # openssl said no for a reason NervesHub does not have a name for. Its own
+  # message is the only thing that explains why, and it was previously dropped
+  # on the floor — leaving an operator with "Unknown error uploading firmware"
+  # and no way to tell a corrupt bundle from a broken openssl invocation.
+  defp upload_error({:openssl_failed, status, output}) do
+    Logger.error("openssl rejected a RAUC bundle (exit #{status}): #{output}")
+
+    "NervesHub could not verify this RAUC bundle: openssl exited #{status}. " <>
+      "If the bundle is not corrupt, the server log has openssl's own message."
+  end
+
+  defp upload_error({:temp_dir_unavailable, reason}) do
+    Logger.error("could not create a temporary directory to verify a RAUC bundle: #{inspect(reason)}")
+
+    "NervesHub could not create a temporary directory to verify this bundle. " <>
+      "This is a server problem rather than something wrong with the bundle."
+  end
+
+  defp upload_error(:openssl_not_available) do
+    "NervesHub could not run `openssl`, which it needs to read a RAUC bundle's " <>
+      "signature. This is a server configuration problem rather than something " <>
+      "wrong with the bundle — openssl has to be installed and on the path."
+  end
+
   defp upload_error({:update_tool_not_allowed, tool, product}) do
     "The product #{inspect(product)} does not accept #{tool} firmware. " <>
       "An organization owner can enable it in the product's settings."
@@ -313,7 +375,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp upload_error(:unrecognised_firmware_format) do
-    "Unrecognised firmware format. Expected an fwup archive (.fw) or an ESP-IDF application image (.bin)."
+    "Unrecognised firmware format. This instance accepts #{UpdateTool.accepted_formats()}."
   end
 
   defp upload_error({:invalid_version, raw}) do

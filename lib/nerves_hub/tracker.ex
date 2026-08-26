@@ -1,7 +1,8 @@
 defmodule NervesHub.Tracker do
+  alias NervesHub.Consoles
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   @doc """
   Tell internal listeners that the device is online, via a connection change
@@ -12,13 +13,7 @@ defmodule NervesHub.Tracker do
   end
 
   def heartbeat(device_id) when is_integer(device_id) do
-    _ =
-      ChannelServer.broadcast(
-        NervesHub.PubSub,
-        "internal:device:#{device_id}",
-        "connection:heartbeat",
-        %{}
-      )
+    _ = PubSub.broadcast(device_id, "connection:heartbeat", %{})
 
     :ok
   end
@@ -51,15 +46,7 @@ defmodule NervesHub.Tracker do
   end
 
   defp publish(device_id, status) do
-    _ =
-      ChannelServer.broadcast(
-        NervesHub.PubSub,
-        "internal:device:#{device_id}",
-        "connection:change",
-        %{
-          status: status
-        }
-      )
+    _ = PubSub.broadcast(device_id, "connection:change", %{status: status})
 
     :ok
   end
@@ -89,8 +76,6 @@ defmodule NervesHub.Tracker do
 
   @doc """
   Check if a device's console channel is available.
-
-  Times out if console is unavailable.
   """
   @spec console_active?(Device.t() | non_neg_integer()) :: boolean()
   def console_active?(%Device{id: id}) do
@@ -98,19 +83,6 @@ defmodule NervesHub.Tracker do
   end
 
   def console_active?(device_id) do
-    _ =
-      Phoenix.PubSub.broadcast(
-        NervesHub.PubSub,
-        "device:console:#{device_id}",
-        {:active?, self()}
-      )
-
-    receive do
-      :active ->
-        true
-    after
-      500 ->
-        false
-    end
+    Consoles.PubSub.console_active?(device_id)
   end
 end

@@ -107,6 +107,7 @@ defmodule NervesHub.MixProject do
       {:floki, "~> 0.38.0"},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
+      {:group, "~> 0.2.0"},
       {:hackney, "~> 1.16"},
       {:hammer, "~> 7.4.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},
@@ -183,7 +184,11 @@ defmodule NervesHub.MixProject do
   defp aliases() do
     [
       setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.setup": [
+        "tailwind.install --if-missing",
+        "esbuild.install --if-missing",
+        "cmd --cd assets npm install"
+      ],
       "assets.build": ["compile", "tailwind default", "esbuild default", "esbuild stoplight"],
       "assets.deploy": [
         "tailwind default --minify",

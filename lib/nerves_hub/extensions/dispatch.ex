@@ -173,6 +173,8 @@ defmodule NervesHub.Extensions.Dispatch do
   defp translate({:scrollback_append, _data} = effect, _key, _mod), do: effect
   defp translate({:scrollback_replay, _pid} = effect, _key, _mod), do: effect
   defp translate({:scrollback_clear} = effect, _key, _mod), do: effect
+  defp translate({:group_join, _group_key} = effect, _key, _mod), do: effect
+  defp translate({:group_leave, _group_key} = effect, _key, _mod), do: effect
 
   defp put_state(extensions, key, state) do
     update_in(extensions[key], &%{&1 | state: state})
@@ -180,6 +182,23 @@ defmodule NervesHub.Extensions.Dispatch do
 
   defp put_status(extensions, key, status) do
     update_in(extensions[key], &%{&1 | status: status})
+  end
+
+  @doc """
+  The device these extensions belong to.
+
+  Every extension in the set carries the same `DeviceInfo`, so any of them
+  answers. Public so `NervesHub.DeviceLink` can record a device's extension
+  traffic without the caller having to pass the device separately.
+  """
+  @spec device_info(extensions()) :: DeviceInfo.t() | nil
+  def device_info(extensions) do
+    # An extension the device declared but this deployment does not know carries
+    # no state at all, so the answer comes from whichever entry has one.
+    Enum.find_value(extensions, fn
+      {_key, %{state: %State{device_info: device_info}}} -> device_info
+      {_key, _entry} -> nil
+    end)
   end
 
   defp device_info(extensions, key), do: extensions[key].state.device_info
