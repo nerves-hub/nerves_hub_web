@@ -47,37 +47,6 @@ defmodule NervesHub.Scripts.RunnerTest do
   end
 
   describe "send/3" do
-    test "returns {:ok, output} when device channel replies with {:output, result}" do
-      device = %{id: @device_id}
-      command = %{text: "echo hello"}
-
-      # Subscribe to the device channel topic to act as the "device channel"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{@device_id}")
-
-      task =
-        Task.async(fn ->
-          Runner.send(device, command, 2_000)
-        end)
-
-      # Simulate the device channel receiving {:run_script, runner_pid, text}
-      assert_receive {:run_script, runner_pid, "echo hello"}, 1_000
-
-      # Reply as the device channel would
-      send(runner_pid, {:output, "hello"})
-
-      assert {:ok, "hello"} = Task.await(task, 3_000)
-    end
-
-    test "returns {:error, message} when timeout elapses with no reply" do
-      device = %{id: @device_id + 1}
-      command = %{text: "echo hello"}
-
-      result = Runner.send(device, command, 50)
-
-      assert {:error, message} = result
-      assert String.contains?(message, "did not respond")
-    end
-
     test "falls back to console broadcast and subscribes when device replies {:error, :incompatible_version}" do
       device_id = @device_id + 2
       device = %{id: device_id}

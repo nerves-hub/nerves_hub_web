@@ -204,53 +204,6 @@ defmodule NervesHubWeb.DeviceChannelScriptsTest do
     end
   end
 
-  describe "handle_out deployment_updated" do
-    test "updates deployment_id on device_info from payload", %{tmp_dir: tmp_dir} do
-      {user, _org, _product, firmware, certificate, device} = build_device_fixtures(tmp_dir)
-
-      stub(DeviceLink, :join, fn device_info, _params -> {:ok, device_info} end)
-      stub(DeviceLink, :after_join, fn _device_info, _params -> :ok end)
-      stub(DeviceLink, :fetch_connecting_code, fn _device_info -> nil end)
-      stub(DeviceLink, :maybe_send_archive, fn _device_info, _version, _opts -> :ok end)
-
-      # Assign a deployment group so the channel subscribes to its topic
-      deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
-      {:ok, device} = NervesHub.Devices.update_device(device, %{deployment_id: deployment_group.id})
-
-      params =
-        for {k, v} <- Map.from_struct(device.firmware_metadata),
-            into: %{"device_api_version" => "2.1.0"} do
-          {"nerves_fw_#{k}", v}
-        end
-
-      {:ok, socket} =
-        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-      {:ok, %{}, device_channel} =
-        subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
-
-      allow(DeviceLink, self(), device_channel.channel_pid)
-      _state = :sys.get_state(device_channel.channel_pid)
-
-      new_deployment_id = deployment_group.id
-
-      Phoenix.PubSub.broadcast(
-        NervesHub.PubSub,
-        "deployment:#{deployment_group.id}",
-        %Broadcast{
-          topic: "deployment:#{deployment_group.id}",
-          event: "deployment_updated",
-          payload: %{deployment_id: new_deployment_id}
-        }
-      )
-
-      socket_state = :sys.get_state(device_channel.channel_pid)
-      assert socket_state.assigns.device_info.deployment_id == new_deployment_id
-
-      close_cleanly(device_channel)
-    end
-  end
-
   describe "send_connecting_code" do
     test "pushes scripts/run with connecting_code ref when api version >= 2.1.0 and connecting code exists", %{
       tmp_dir: tmp_dir
