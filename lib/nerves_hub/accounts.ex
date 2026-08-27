@@ -403,30 +403,35 @@ defmodule NervesHub.Accounts do
     |> Repo.one!()
   end
 
-  def get_orgs(%Scope{user: user}) do
-    products = products_subquery()
-
-    org_device_counts =
-      from p in subquery(products),
-        group_by: p.org_id,
-        select: %{
-          org_id: p.org_id,
-          connected_devices_count: sum(p.connected_devices_count),
-          disconnected_devices_count: sum(p.disconnected_devices_count)
-        }
-
+  def get_orgs_without_counts(%Scope{user: user}) do
     Org
     |> from(as: :org)
     |> Repo.exclude_deleted()
     |> join(:inner, [o], u in assoc(o, :users), on: u.id == ^user.id)
-    |> join(:left, [o], p in subquery(products), on: p.org_id == o.id)
-    |> join(:left, [o], dc in subquery(org_device_counts), on: dc.org_id == o.id)
-    |> preload([o, _u, p], products: p)
-    |> select_merge([o, _u, _p, dc], %{
-      connected_devices_count: dc.connected_devices_count,
-      disconnected_devices_count: dc.disconnected_devices_count
-    })
+    |> preload([o], :products)
     |> Repo.all()
+  end
+
+  def get_org_device_counts(%Scope{}, org_id) do
+    products = products_subquery()
+
+    rows =
+      Product
+      |> Repo.exclude_deleted()
+      |> where([p], p.org_id == ^org_id)
+      |> join(:left, [p], pc in subquery(products), on: pc.id == p.id)
+      |> select([p, pc], %{
+        product_id: p.id,
+        connected: pc.connected_devices_count,
+        disconnected: pc.disconnected_devices_count
+      })
+      |> Repo.all()
+
+    product_counts = Map.new(rows, &{&1.product_id, {&1.connected || 0, &1.disconnected || 0}})
+    connected = Enum.sum(Enum.map(rows, &(&1.connected || 0)))
+    disconnected = Enum.sum(Enum.map(rows, &(&1.disconnected || 0)))
+
+    %{org: {connected, disconnected}, products: product_counts}
   end
 
   defp products_subquery() do
