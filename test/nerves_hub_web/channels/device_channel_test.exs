@@ -256,6 +256,28 @@ defmodule NervesHubWeb.DeviceChannelTest do
     end
   end
 
+  test "the extensions request tells the device which versions it can have", %{tmp_dir: tmp_dir} do
+    # This is the only point in the handshake where the platform speaks before
+    # the device commits to a version, so what it carries is what lets a device
+    # implementing two versions of an extension pick the one both sides have.
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, device_channel} =
+      subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", %{"device_api_version" => "2.2.0"})
+
+    assert_push("extensions:get", %{"extensions" => advertised})
+
+    assert advertised == NervesHub.Extensions.advertisement()
+    assert advertised["health"] == ["0.0.1"]
+
+    close_cleanly(device_channel)
+  end
+
   test "extensions are requested from device if version is above 2.2.0", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)

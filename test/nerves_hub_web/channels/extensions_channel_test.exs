@@ -171,6 +171,35 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert "logging" in attach_list
   end
 
+  test "a device that batches its log lines is attached too", %{tmp_dir: tmp_dir} do
+    # 0.1.0 is how a device says it may put many log lines in one message, and
+    # it is served by a different module than the 0.0.1 devices alongside it.
+    # A NervesHub that has only the 0.0.1 extension matches `~> 0.0.1` and
+    # leaves logging out of the attach list rather than attaching it and
+    # dropping every batch it cannot read.
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, _device_channel} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
+
+    assert_push("extensions:get", _extensions)
+
+    assert {:ok, attach_list, _extensions_channel} =
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{"logging" => "0.1.0"}
+             )
+
+    assert "logging" in attach_list
+  end
+
   test "joining extensions channel with unknown extensions is fine", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
