@@ -43,6 +43,7 @@ defmodule NervesHub.DeviceLink.Effect do
           | {:send_self, message :: term()}
           | {:send_after, key :: term(), message :: term(), delay_ms :: non_neg_integer()}
           | {:start_timer, key :: term(), message :: term(), interval_ms :: pos_integer()}
+          | {:start_timer, key :: term(), message :: term(), first_ms :: pos_integer(), interval_ms :: pos_integer()}
           | {:cancel_timer, key :: term()}
           | {:scrollback_append, data :: binary()}
           | {:scrollback_replay, pid()}

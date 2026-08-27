@@ -48,6 +48,7 @@ defmodule NervesHub.Extensions.State do
           {:push, event :: String.t(), payload :: map()}
           | {:tick, tag :: term()}
           | {:start_timer, tag :: term(), interval_ms :: pos_integer()}
+          | {:start_timer, tag :: term(), first_ms :: pos_integer(), interval_ms :: pos_integer()}
           | {:cancel_timer, tag :: term()}
           | {:scrollback_append, data :: binary()}
           | {:scrollback_replay, pid()}

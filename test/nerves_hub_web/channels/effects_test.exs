@@ -12,6 +12,35 @@ defmodule NervesHubWeb.Channels.EffectsTest do
     end)
   end
 
+  describe "repeating timers with an offset start" do
+    test "offsets only the first delivery; the period after it is exact" do
+      # What `Extensions.Jitter` relies on: a fleet can be spread out without
+      # any one device's reporting cadence changing.
+      key = {"health", :check}
+      socket = Effects.apply_all(socket(), [{:start_timer, key, {Health, :check}, 20, 60_000}])
+
+      # Armed with the offset, but the stored period is the nominal one.
+      assert %{^key => {:interval, ref, 60_000}} = socket.assigns.link_timers
+      assert Process.read_timer(ref) <= 20
+
+      assert_receive {:timeout, _ref, _payload} = timer, 500
+      assert {:deliver, {Health, :check}, socket} = Effects.timer_fired(socket, timer)
+
+      # Re-armed from the stored period, not from the offset.
+      assert %{^key => {:interval, next, 60_000}} = socket.assigns.link_timers
+      assert Process.read_timer(next) > 50_000
+    end
+
+    test "cancelling an offset timer works the same as any other" do
+      key = {"health", :check}
+      socket = Effects.apply_all(socket(), [{:start_timer, key, {Health, :check}, 50, 60_000}])
+      socket = Effects.apply_all(socket, [{:cancel_timer, key}])
+
+      assert socket.assigns.link_timers == %{}
+      refute_receive {:timeout, _ref, _payload}, 200
+    end
+  end
+
   describe "repeating timers" do
     test "delivers in an envelope and keeps delivering once each firing is handed back" do
       socket = Effects.apply_all(socket(), [{:start_timer, {"health", :check}, {Health, :check}, 20}])

@@ -166,6 +166,8 @@ defmodule NervesHub.Extensions.Dispatch do
   # something they can key a timer by, without knowing which module is involved.
   defp translate({:tick, tag}, _key, mod), do: {:send_self, {mod, tag}}
   defp translate({:start_timer, tag, ms}, key, mod), do: {:start_timer, {key, tag}, {mod, tag}, ms}
+
+  defp translate({:start_timer, tag, first_ms, ms}, key, mod), do: {:start_timer, {key, tag}, {mod, tag}, first_ms, ms}
   defp translate({:cancel_timer, tag}, key, _mod), do: {:cancel_timer, {key, tag}}
 
   # Effects that name no extension-specific thing pass straight through.
