@@ -48,7 +48,15 @@ defmodule NervesHub.Extensions.Logging.Batched do
     {state, []}
   end
 
+  # Nothing to store, and nothing charged for it. The budget is what a device
+  # needs for the second it does have something to say, and spending it on a
+  # message that carried no lines would take rate limiting further than it is
+  # meant to go.
   @impl NervesHub.Extensions
+  def handle_in("send", %{"lines" => []}, state) do
+    {state, []}
+  end
+
   def handle_in("send", %{"lines" => lines}, state) when is_list(lines) do
     if Logging.allow?(state.device_info) do
       {kept, dropped} = Enum.split(lines, @max_lines_per_message)
@@ -56,6 +64,9 @@ defmodule NervesHub.Extensions.Logging.Batched do
       _ = LogLines.async_create_many(state.device_info, kept)
       _ = record_overflow(state.device_info, length(dropped))
 
+      # Both branches of the `if` end on an atom so that nothing complex is
+      # discarded here. Without it dialyzer reports the changeset tuple this
+      # would otherwise return as an unmatched return.
       :noop
     end
 

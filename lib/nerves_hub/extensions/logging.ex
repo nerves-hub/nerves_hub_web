@@ -58,6 +58,9 @@ defmodule NervesHub.Extensions.Logging do
     if allow?(state.device_info) do
       _ = LogLines.async_create(state.device_info, log_line)
 
+      # Both branches of the `if` end on an atom so that nothing complex is
+      # discarded here. Without it dialyzer reports the changeset tuple this
+      # would otherwise return as an unmatched return.
       :noop
     end
 

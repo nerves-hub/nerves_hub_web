@@ -89,6 +89,22 @@ defmodule NervesHub.Extensions.LoggingTest do
       assert length(messages(device)) == 60
     end
 
+    test "an empty batch is not charged for" do
+      # The limiter allows a burst of 10 messages. Ten empty batches would
+      # spend all of it, and the lines that followed would be dropped for a
+      # device that had not managed to say anything yet.
+      device = device()
+      state = state(device)
+
+      for _ <- 1..10 do
+        {_state, []} = Batched.handle_in("send", %{"lines" => []}, state)
+      end
+
+      {_state, []} = Batched.handle_in("send", %{"lines" => lines(["after the empties"])}, state)
+
+      assert messages(device) == ["after the empties"]
+    end
+
     test "a batch past the cap keeps what fits and records the gap" do
       device = device()
       over = Batched.max_lines_per_message() + 20
@@ -132,10 +148,15 @@ defmodule NervesHub.Extensions.LoggingTest do
     end
   end
 
-  # A device id nothing else in the run shares, so the rate limiter's bucket
-  # and the stored rows both belong to this test alone.
+  # A device id nothing else shares, so the rate limiter's bucket and the stored
+  # rows both belong to this test alone.
+  #
+  # Unique across runs as well as within one. ClickHouse keeps what a previous
+  # run wrote and `unique_integer/1` starts counting again each time, so an id
+  # from this run can land on rows the last one left behind -- which reads as a
+  # test asserting on lines it never sent.
   defp device() do
-    id = System.unique_integer([:positive])
+    id = System.os_time(:second) * 1_000_000_000 + System.unique_integer([:positive])
 
     %Device{id: id, product_id: id}
   end
