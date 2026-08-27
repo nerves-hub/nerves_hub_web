@@ -44,7 +44,37 @@ defmodule NervesHub.Extensions do
   @callback description() :: String.t()
   @callback enabled?() :: boolean()
 
-  @supported_extensions [:health, :geo, :local_shell, :logging, :network_identity]
+  @typedoc """
+  Every version of every extension this platform implements.
+
+  Ordered newest first per key, and the single place a version is written down:
+  `module/2` reads it to serve a device, `versions/1` and `advertisement/0` read
+  it to tell devices what is on offer. Adding a version means adding a row here
+  and nothing else.
+
+  Each row is `{advertised, requirement, module}`:
+
+  - `advertised` is the exact version a device may declare, and what goes out
+    in `extensions:get`.
+  - `requirement` is what a device's declared version is matched against, which
+    is looser than the advertised version on purpose: a device declaring
+    `0.0.5` predates the advertisement and still has to be served.
+  - `module` implements that version of the extension.
+  """
+  @type implementation() :: {String.t(), String.t(), module()}
+
+  @implementations [
+    health: [{"0.0.1", "~> 0.0.1", Health}],
+    geo: [{"0.0.1", "~> 0.0.1", Geo}],
+    local_shell: [{"0.0.1", "~> 0.0.1", LocalShell}],
+    logging: [
+      {"0.1.0", "~> 0.1.0", Logging.Batched},
+      {"0.0.1", "~> 0.0.1", Logging}
+    ],
+    network_identity: [{"0.0.1", "~> 0.0.1", NetworkIdentity}]
+  ]
+
+  @supported_extensions Keyword.keys(@implementations)
   @type extension() :: :health | :geo | :local_shell | :logging | :network_identity
 
   @doc """
@@ -52,6 +82,40 @@ defmodule NervesHub.Extensions do
   """
   @spec list() :: [:network_identity | :geo | :health | :local_shell | :logging, ...]
   def list(), do: @supported_extensions
+
+  @doc """
+  Every version of `key` this platform implements, newest first.
+  """
+  @spec versions(extension()) :: [String.t()]
+  def versions(key) do
+    for {version, _requirement, _module} <- implementations(key), do: version
+  end
+
+  @doc """
+  What to tell a device it can have, as `%{key => versions}`.
+
+  Sent in `extensions:get` so that a device implementing more than one version
+  of an extension can declare the best one both sides have, rather than naming
+  a version before it knows anything about the platform and finding out from
+  the attach list whether it guessed right.
+
+  Extensions that are switched off for this deployment are left out entirely: a
+  device that is not told about logging does not buffer log lines for a
+  platform that would throw them away.
+
+  Not narrowed to one device. Whether a *particular* device may use an
+  extension is a product and device setting, and it stays where it already is,
+  in the attach list — one authority for that, and nothing for a device to act
+  on that a later setting change would contradict.
+  """
+  @spec advertisement() :: %{String.t() => [String.t()]}
+  def advertisement() do
+    for {key, implementations} <- @implementations,
+        versions = enabled_versions(implementations),
+        versions != [],
+        into: %{},
+        do: {to_string(key), versions}
+  end
 
   @spec module(extension()) ::
           NetworkIdentity
@@ -65,53 +129,28 @@ defmodule NervesHub.Extensions do
   def module(:logging), do: Logging
   def module(:network_identity), do: NetworkIdentity
 
-  @spec module(extension(), Version.t()) :: module() | Unsupported
-  def module(:health, ver) do
-    if Version.match?(ver, "~> 0.0.1") do
-      Health
-    else
-      Unsupported
-    end
+  @doc """
+  The module that serves `key` for a device that declared `ver`.
+
+  `Unsupported` when this platform has no version matching what the device
+  asked for, which leaves the extension out of the attach list. That is the
+  answer a device can see and report; attaching it to whichever module was
+  closest would have the device sending messages nothing can read.
+  """
+  @spec module(extension(), Version.t()) :: module()
+  def module(key, ver) do
+    Enum.find_value(implementations(key), Unsupported, fn {_advertised, requirement, module} ->
+      Version.match?(ver, requirement) && module
+    end)
   end
 
-  def module(:geo, ver) do
-    if Version.match?(ver, "~> 0.0.1") do
-      Geo
-    else
-      Unsupported
-    end
-  end
+  defp implementations(key) when is_atom(key), do: Keyword.get(@implementations, key, [])
+  defp implementations(_key), do: []
 
-  def module(:local_shell, ver) do
-    if Version.match?(ver, "~> 0.0.1") do
-      LocalShell
-    else
-      Unsupported
-    end
-  end
-
-  # Two extensions, one key. 0.0.x sends one log line per message; 0.1.x puts a
-  # second's worth in one, which is what lets a device stop paying a message
-  # per line. A device gets the module for the version it declared, so both
-  # keep working and neither has to know about the other.
-  def module(:logging, ver) do
-    cond do
-      Version.match?(ver, "~> 0.0.1") -> Logging
-      Version.match?(ver, "~> 0.1.0") -> Logging.Batched
-      true -> Unsupported
-    end
-  end
-
-  def module(:network_identity, ver) do
-    if Version.match?(ver, "~> 0.0.1") do
-      NetworkIdentity
-    else
-      Unsupported
-    end
-  end
-
-  def module(_key, _ver) do
-    Unsupported
+  defp enabled_versions(implementations) do
+    for {version, _requirement, module} <- implementations,
+        Code.ensure_loaded?(module) && module.enabled?(),
+        do: version
   end
 
   def broadcast_extension_event(%Device{} = device, event, extension) do
