@@ -20,9 +20,9 @@
       </div>
       <% product_counts = Map.get(assigns, :"product_counts_#{product.id}") %>
       <% {connected, disconnected} =
-           if product_counts && product_counts.ok?,
-             do: product_counts.result,
-             else: {nil, nil} %>
+        if product_counts && product_counts.ok?,
+          do: product_counts.result,
+          else: {nil, nil} %>
       <div class="flex gap-4 text-sm font-medium">
         <div class="flex items-center gap-1.5">
           <div class="bg-status-online size-2 rounded-full"></div>
