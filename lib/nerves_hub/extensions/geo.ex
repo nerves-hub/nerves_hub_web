@@ -3,6 +3,7 @@ defmodule NervesHub.Extensions.Geo do
 
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.PubSub
+  alias NervesHub.Extensions.Jitter
 
   @impl NervesHub.Extensions
   def description() do
@@ -23,7 +24,8 @@ defmodule NervesHub.Extensions.Geo do
     effects =
       case geo_interval_minutes() do
         interval when interval > 0 ->
-          [{:tick, :location_request}, {:start_timer, :location_request, to_timeout(minute: interval)}]
+          ms = to_timeout(minute: interval)
+          [{:tick, :location_request}, {:start_timer, :location_request, Jitter.start_delay(ms), ms}]
 
         _ ->
           [{:tick, :location_request}]

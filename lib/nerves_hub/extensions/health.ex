@@ -4,6 +4,7 @@ defmodule NervesHub.Extensions.Health do
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Helpers.Logging
 
@@ -25,11 +26,11 @@ defmodule NervesHub.Extensions.Health do
 
   @impl NervesHub.Extensions
   def attach(state) do
-    interval = to_timeout(minute: health_interval_minutes())
-
     # Ask for a report immediately, then on an interval. The tick is delivered
     # before the first timer fires, which preserves the previous ordering.
-    {state, [{:tick, :check}, {:start_timer, :check, interval}]}
+    interval = to_timeout(minute: health_interval_minutes())
+
+    {state, [{:tick, :check}, {:start_timer, :check, Jitter.start_delay(interval), interval}]}
   end
 
   @impl NervesHub.Extensions

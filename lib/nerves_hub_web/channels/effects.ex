@@ -117,6 +117,16 @@ defmodule NervesHubWeb.Channels.Effects do
     put_timer(socket, key, {:interval, arm(key, message, interval_ms), interval_ms})
   end
 
+  # As above, but the first delivery is offset. `timer_fired/2` re-arms from the
+  # stored interval rather than from what was armed, so the period is exact from
+  # the first fire onward -- which is what lets a fleet be spread out without
+  # changing how often any one device reports. See `NervesHub.Extensions.Jitter`.
+  defp apply_one(socket, {:start_timer, key, message, first_ms, interval_ms}) do
+    socket = cancel(socket, key)
+
+    put_timer(socket, key, {:interval, arm(key, message, first_ms), interval_ms})
+  end
+
   defp apply_one(socket, {:cancel_timer, key}), do: cancel(socket, key)
 
   defp apply_one(socket, {:scrollback_append, data}) do
