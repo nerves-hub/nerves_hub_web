@@ -61,22 +61,25 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
       assert_broadcast("message", %{name: ^name})
     end
 
-    test "file-data/start event is relayed without crashing", %{channel: channel} do
+    # These events are forwarded to the device console channel, which the test
+    # process doesn't subscribe to. The only testable property from this side is
+    # that the channel process handles them without crashing.
+    test "file-data/start event does not crash the channel", %{channel: channel} do
       push(channel, "file-data/start", %{"filename" => "test.txt"})
       refute_receive {:error, _}, 100
     end
 
-    test "file-data event is relayed without crashing", %{channel: channel} do
+    test "file-data event does not crash the channel", %{channel: channel} do
       push(channel, "file-data", %{"chunk" => "abc"})
       refute_receive {:error, _}, 100
     end
 
-    test "file-data/stop event is relayed without crashing", %{channel: channel} do
+    test "file-data/stop event does not crash the channel", %{channel: channel} do
       push(channel, "file-data/stop", %{"filename" => "test.txt"})
       refute_receive {:error, _}, 100
     end
 
-    test "unknown events are forwarded to the console without crashing", %{channel: channel} do
+    test "unknown events do not crash the channel", %{channel: channel} do
       push(channel, "phx_ctrl_c", %{})
       refute_receive {:error, _}, 100
     end

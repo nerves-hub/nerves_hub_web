@@ -60,12 +60,14 @@ defmodule NervesHubWeb.UserLocalShellChannelTest do
       %{channel: channel}
     end
 
-    test "input event is forwarded to device", %{channel: channel} do
+    # These events are forwarded to the device; the test process has no subscription
+    # on that side, so the only testable property here is that the channel doesn't crash.
+    test "input event does not crash the channel", %{channel: channel} do
       push(channel, "input", %{"data" => "\r"})
       refute_receive {:error, _}, 100
     end
 
-    test "window_size event is forwarded to device", %{channel: channel} do
+    test "window_size event does not crash the channel", %{channel: channel} do
       push(channel, "window_size", %{"cols" => 80, "rows" => 24})
       refute_receive {:error, _}, 100
     end

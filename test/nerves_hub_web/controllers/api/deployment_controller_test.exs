@@ -367,6 +367,9 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
         )
 
       assert conn.status in [200, 422, 500]
+      # 200 is valid: resolve_archive/2 returns nil for an unknown UUID and the
+      # controller proceeds, creating a release with no archive. That's intentional
+      # — callers that pass a bad UUID get a successful update with archive cleared.
     end
 
     test "when changing the archive id, the firmware id is also required", %{
