@@ -1,6 +1,8 @@
 defmodule NervesHub.Extensions.HealthTest do
   @moduledoc """
   The pace at which a device is asked for health reports.
+  use NervesHub.DataCase, async: false
+  use Mimic
 
   Only this module asks. Everything below is about how it settles on how often,
   and about the asymmetry that makes it work: a page opening says so, a page
@@ -123,6 +125,11 @@ defmodule NervesHub.Extensions.HealthTest do
 
       assert State.get(state, :mode) == :watched
       assert {:start_timer, :check, @watched_ms} = timer(effects)
+      # =======
+      #       assert new_state == state
+      #       assert Enum.any?(effects, &match?({:tick, :check}, &1))
+      #       assert Enum.any?(effects, &match?({:start_timer, :check, _, _}, &1))
+      # >>>>>>> e8ee379e (Remove async: true from tests that can't have it)
     end
 
     test "uses a custom interval from application config" do
@@ -134,7 +141,7 @@ defmodule NervesHub.Extensions.HealthTest do
       {_new_state, effects} = Health.attach(state)
 
       expected_interval = to_timeout(minute: 5)
-      assert Enum.any?(effects, &match?({:start_timer, :check, ^expected_interval}, &1))
+      assert Enum.any?(effects, &match?({:start_timer, :check, _, ^expected_interval}, &1))
     end
   end
 

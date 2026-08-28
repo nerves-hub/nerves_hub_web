@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Plugs.FileUploadTest do
-  use NervesHubWeb.ConnCase, async: true
+  use NervesHubWeb.ConnCase, async: false
 
   alias NervesHubWeb.Plugs.FileUpload
 

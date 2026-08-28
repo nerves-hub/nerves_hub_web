@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Plugs.ConfigureUploadsTest do
-  use NervesHubWeb.ConnCase, async: true
+  use NervesHubWeb.ConnCase, async: false
 
   alias NervesHub.Firmwares.Upload.S3
   alias NervesHubWeb.Plugs.ConfigureUploads

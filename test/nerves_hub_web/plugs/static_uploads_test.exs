@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Plugs.StaticUploadsTest do
-  use NervesHubWeb.ConnCase, async: true
+  use NervesHubWeb.ConnCase, async: false
 
   alias NervesHubWeb.Plugs.StaticUploads
 
