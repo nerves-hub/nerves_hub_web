@@ -437,9 +437,11 @@ defmodule NervesHub.Accounts do
   defp products_subquery() do
     connected_devices_count =
       DeviceConnection
-      |> where([dc], dc.product_id == parent_as(:product).id)
-      |> where([dc], dc.status == :connected)
-      |> select([d], %{count: count()})
+      |> join(:inner, [dc], d in Device, on: d.id == dc.device_id)
+      |> where([dc, _d], dc.product_id == parent_as(:product).id)
+      |> where([dc, _d], dc.status == :connected)
+      |> where([_dc, d], is_nil(d.deleted_at))
+      |> select([dc], %{count: count()})
 
     # Must join from Device so devices with no connection row are counted as disconnected
     disconnected_devices_count =
