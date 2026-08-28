@@ -41,7 +41,6 @@ defmodule NervesHubWeb.Plugs.SetLocaleTest do
     end
 
     test "respects quality values, higher quality wins" do
-      # en;q=0.5 vs en;q=1.0 — the second occurrence should win if first is lower quality
       conn =
         build_conn(:get, "/")
         |> put_req_header("accept-language", "zz;q=0.9,en;q=1.0")

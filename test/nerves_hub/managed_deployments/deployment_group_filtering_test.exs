@@ -91,7 +91,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupFilteringTest do
       query = base_query()
       result = DeploymentGroupFiltering.filter(query, %{}, :name, "")
 
-      # Query object should be structurally identical
       assert result == query
     end
 

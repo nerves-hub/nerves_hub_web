@@ -61,19 +61,15 @@ defmodule NervesHub.Scripts.RunnerTest do
 
       assert_receive {:run_script, runner_pid, "echo fallback"}, 1_000
 
-      # Simulate incompatible device version
       send(runner_pid, {:error, :incompatible_version})
 
       # Give the runner time to subscribe to the console topic
       Process.sleep(50)
 
-      # Broadcast "up" events to the user console group (as the device console channel would)
       PubSub.broadcast_to_user_console(device_id, "up", %{"data" => "line1\n"})
       PubSub.broadcast_to_user_console(device_id, "up", %{"data" => "line2\n"})
       PubSub.broadcast_to_user_console(device_id, "up", %{"data" => "[NERVESHUB:END]\n"})
 
-      # The runner drops only the trailing empty string after the final newline,
-      # keeping the [NERVESHUB:END] line itself in the result
       assert {:ok, result} = Task.await(task, 3_000)
       assert String.contains?(result, "line1")
       assert String.contains?(result, "line2")
@@ -97,7 +93,6 @@ defmodule NervesHub.Scripts.RunnerTest do
 
       Process.sleep(50)
 
-      # Send partial chunks through the user console group
       PubSub.broadcast_to_user_console(device_id, "up", %{"data" => "partial out"})
       PubSub.broadcast_to_user_console(device_id, "up", %{"data" => "put\n[NERVESHUB:END]\n"})
 

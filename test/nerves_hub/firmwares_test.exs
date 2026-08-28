@@ -591,7 +591,6 @@ defmodule NervesHub.FirmwaresTest do
       expect(UploadFile, :download_file, fn ^source -> {:ok, source_url} end)
       expect(UploadFile, :download_file, fn ^target -> {:ok, target_url} end)
 
-      # Force error
       expect(UpdateToolDefault, :create_firmware_delta_file, fn {_, ^source_url}, {_, ^target_url}, _ ->
         {:error, :delta_not_created}
       end)
@@ -766,15 +765,11 @@ defmodule NervesHub.FirmwaresTest do
     } do
       target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      # Enable delta_updatable on the target firmware
       Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
 
       deployment_group =
         Fixtures.deployment_group_fixture(target, %{user: user, delta_updatable: true})
 
-      # Set device's firmware UUID to point to the source firmware.
-      # fwup_version must be >= the delta's tool_metadata["delta_fwup_version"] (1.13.0)
-      # for device_update_type/2 to return :delta.
       source_meta = %{
         uuid: source.uuid,
         architecture: source.architecture,
@@ -821,7 +816,6 @@ defmodule NervesHub.FirmwaresTest do
       {:ok, device} =
         NervesHub.Devices.update_firmware_metadata(device, source_meta, :unknown, false)
 
-      # Create a non-completed delta (processing)
       Fixtures.firmware_delta_fixture(source, target, %{status: :processing, tool: "pending"})
 
       {:ok, deployment_group} = NervesHub.ManagedDeployments.get_deployment_group(deployment_group)
@@ -843,7 +837,6 @@ defmodule NervesHub.FirmwaresTest do
       deployment_group =
         Fixtures.deployment_group_fixture(target, %{user: user, delta_updatable: true})
 
-      # Device's firmware UUID points to nothing in DB
       device = Map.update!(device, :firmware_metadata, &%{&1 | uuid: Ecto.UUID.generate()})
 
       {:ok, deployment_group} = NervesHub.ManagedDeployments.get_deployment_group(deployment_group)
@@ -906,7 +899,6 @@ defmodule NervesHub.FirmwaresTest do
         "nerves_fw_architecture" => "arm64",
         "nerves_fw_platform" => "test_host",
         "nerves_fw_product" => product.name
-        # missing version — makes changeset invalid
       }
 
       assert {:ok, nil} = Firmwares.metadata_from_device(params, product.id)
@@ -921,7 +913,6 @@ defmodule NervesHub.FirmwaresTest do
         "nerves_fw_architecture" => "arm64",
         "nerves_fw_platform" => "test_host",
         "nerves_fw_product" => product.name
-        # missing version — makes changeset invalid
       }
 
       assert {:ok, meta} = Firmwares.metadata_from_device(params, product.id)

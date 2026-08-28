@@ -44,7 +44,6 @@ defmodule NervesHubWeb.Plugs.RedirectorTest do
       uri = URI.parse(location)
       params = URI.decode_query(uri.query)
 
-      # source (conn) wins on conflict
       assert params["key"] == "new"
       assert params["other"] == "1"
     end

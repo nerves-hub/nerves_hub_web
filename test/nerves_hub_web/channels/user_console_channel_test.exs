@@ -32,7 +32,6 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
 
       other_user_token = Accounts.create_user_api_token(other_user, "test-token")
 
-      # Connect with unauthorized user's token
       {:ok, socket} = connect(APISocket, %{"token" => other_user_token})
 
       assert {:error, %{reason: _reason}} =
@@ -86,8 +85,6 @@ defmodule NervesHubWeb.UserConsoleChannelTest do
   defp device_fixture(user, device_params, tmp_dir) do
     org = Fixtures.org_fixture(user)
     {:ok, org_user} = Accounts.get_org_user(org, user)
-
-    # Use the lowest permissioned org user possible for the channel.
     {:ok, _updated_org_user} = Accounts.change_org_user_role(org_user, :manage)
 
     product = Fixtures.product_fixture(user, org)

@@ -62,7 +62,6 @@ defmodule NervesHub.TrackerTest do
     end
 
     test "returns true for a device with a connected status" do
-      # Build a fake device map with a connected latest_connection
       device = %{latest_connection: %{status: :connected}}
       assert Tracker.online?(device)
     end

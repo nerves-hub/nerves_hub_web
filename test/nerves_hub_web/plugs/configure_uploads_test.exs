@@ -30,7 +30,6 @@ defmodule NervesHubWeb.Plugs.ConfigureUploadsTest do
 
       conn = build_conn(:get, "/")
       result = ConfigureUploads.call(conn, [])
-      # The plug delegates to FileUpload + StaticUploads; result is a Plug.Conn
       assert %Plug.Conn{} = result
     end
   end

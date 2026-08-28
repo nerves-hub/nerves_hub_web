@@ -58,14 +58,12 @@ defmodule NervesHub.Accounts.UserTest do
 
   test "maybe_add_confirmed_at skips already-confirmed user" do
     user = Fixtures.user_fixture()
-    # user is already confirmed; oauth_changeset should not override confirmed_at
     google_auth = Fixtures.ueberauth_google_success_fixture()
     changeset = User.oauth_changeset(user, google_auth)
     refute Map.has_key?(changeset.changes, :confirmed_at)
   end
 
   test "valid_password?/2 calls no_user_verify when no password hash" do
-    # Should return false and not crash
     result = User.valid_password?(%User{}, "somepassword")
     assert result == false
   end

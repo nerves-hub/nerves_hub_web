@@ -4,7 +4,6 @@ defmodule NervesHub.RateLimitTest do
   alias NervesHub.RateLimit
 
   setup do
-    # Clear the ETS table between tests so each test starts with an empty bucket
     :ets.delete_all_objects(:nerves_hub_rate_limit)
     :ok
   end
@@ -28,10 +27,7 @@ defmodule NervesHub.RateLimitTest do
 
     results = for _ <- 1..limit, do: RateLimit.increment()
 
-    # All calls so far should be within the limit
     assert Enum.all?(results, & &1)
-
-    # One more call goes over
     assert RateLimit.increment() == false
   end
 end

@@ -28,7 +28,6 @@ defmodule NervesHub.Devices.DeviceCertificateTest do
     }
 
     changeset = DeviceCertificate.changeset(%DeviceCertificate{}, params)
-    # No DER required — should not have a DER error (but may have other errors)
     refute Keyword.has_key?(changeset.errors, :der)
   end
 
@@ -36,12 +35,10 @@ defmodule NervesHub.Devices.DeviceCertificateTest do
     org: org,
     device: device
   } do
-    # Create a CA cert in a different org
     user2 = Fixtures.user_fixture()
     org2 = Fixtures.org_fixture(user2)
     %{db_cert: ca_cert} = Fixtures.ca_certificate_fixture(org2)
 
-    # Try to create a device cert in org1 using AKI that points to org2's CA
     params = %{
       org_id: org.id,
       device_id: device.id,
@@ -80,7 +77,6 @@ defmodule NervesHub.Devices.DeviceCertificateTest do
     tmp_dir: tmp_dir,
     device: device
   } do
-    # Create another device in same org/product
     user2 = Fixtures.user_fixture()
     org2 = Fixtures.org_fixture(user2)
     product2 = Fixtures.product_fixture(user2, org2)
@@ -88,10 +84,8 @@ defmodule NervesHub.Devices.DeviceCertificateTest do
     firmware2 = Fixtures.firmware_fixture(org_key2, product2, %{dir: tmp_dir})
     device2 = Fixtures.device_fixture(org2, product2, firmware2)
 
-    # Create a cert for device1
     %{cert: existing_x509_cert} = Fixtures.device_certificate_fixture(device)
 
-    # Try to create a cert for device2 using the same public key (same DER)
     der = Certificate.to_der(existing_x509_cert)
     serial2 = "different-serial-same-pk"
 
