@@ -427,9 +427,9 @@ defmodule NervesHub.Accounts do
       })
       |> Repo.all()
 
-    product_counts = Map.new(rows, &{&1.product_id, {&1.connected || 0, &1.disconnected || 0}})
-    connected = Enum.sum(Enum.map(rows, &(&1.connected || 0)))
-    disconnected = Enum.sum(Enum.map(rows, &(&1.disconnected || 0)))
+    product_counts = Map.new(rows, &{&1.product_id, {&1.connected, &1.disconnected}})
+    connected = Enum.sum(Enum.map(rows, & &1.connected))
+    disconnected = Enum.sum(Enum.map(rows, & &1.disconnected))
 
     %{org: {connected, disconnected}, products: product_counts}
   end
