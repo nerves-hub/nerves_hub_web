@@ -1282,8 +1282,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       second_device = Fixtures.device_fixture(org, product, firmware)
 
-      assert device.updates_enabled
-      assert second_device.updates_enabled
+      assert device.update_mode == :automatic
+      assert second_device.update_mode == :automatic
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
@@ -1293,15 +1293,15 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> click_button("Disable")
       |> assert_has("div", text: "Disabled updates for 2 selected device(s).")
       |> tap(fn _ ->
-        refute Repo.reload(device).updates_enabled
-        refute Repo.reload(second_device).updates_enabled
+        assert Repo.reload(device).update_mode == :off
+        assert Repo.reload(second_device).update_mode == :off
       end)
       |> assert_has("div", text: "2 devices selected")
       |> click_button("Enable")
       |> assert_has("div", text: "Enabled updates for 2 selected device(s).")
       |> tap(fn _ ->
-        assert Repo.reload(device).updates_enabled
-        assert Repo.reload(second_device).updates_enabled
+        assert Repo.reload(device).update_mode == :automatic
+        assert Repo.reload(second_device).update_mode == :automatic
       end)
     end
 
@@ -1461,9 +1461,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false}) end)
+      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware, %{update_mode: :off}) end)
 
-      assert Enum.all?(devices, fn device -> not device.updates_enabled end)
+      assert Enum.all?(devices, fn device -> device.update_mode == :off end)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
@@ -1477,7 +1477,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
       |> assert_has("div", text: "Enabled updates for #{75} selected device(s).", timeout: 3_000)
 
-      assert Repo.reload(devices) |> Enum.all?(fn device -> device.updates_enabled end)
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.update_mode == :automatic end)
     end
 
     test "disable updates", %{conn: conn, fixture: fixture} do
@@ -1485,9 +1485,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware, %{updates_enabled: true}) end)
+      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware, %{update_mode: :automatic}) end)
 
-      assert Enum.all?(devices, fn device -> device.updates_enabled end)
+      assert Enum.all?(devices, fn device -> device.update_mode == :automatic end)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
@@ -1501,7 +1501,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
       |> assert_has("div", text: "Disabled updates for 75 selected device(s).", timeout: 3_000)
 
-      assert Repo.reload(devices) |> Enum.all?(fn device -> not device.updates_enabled end)
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.update_mode == :off end)
     end
 
     test "clear penalty boxes", %{conn: conn, fixture: fixture} do

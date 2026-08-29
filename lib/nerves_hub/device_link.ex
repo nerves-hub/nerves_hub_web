@@ -448,7 +448,8 @@ defmodule NervesHub.DeviceLink do
         device_identifier: device.identifier,
         deployment_id: device.deployment_id,
         firmware_metadata: device.firmware_metadata,
-        device_updates_enabled: device.updates_enabled,
+        device_update_mode: device.update_mode,
+        device_updates_enabled: Device.updates_enabled?(device),
         device_updates_blocked_until: device.updates_blocked_until,
         device_network_interface: device_connection.network_interface
     }
@@ -607,7 +608,11 @@ defmodule NervesHub.DeviceLink do
 
   def maybe_send_archive(device_info, device_api_version, opts) do
     opts = Keyword.validate!(opts, audit_log: false)
-    updates_enabled = device_info.device_updates_enabled && !Updates.device_in_penalty_box?(device_info)
+    # Archives are not firmware, so a :device_managed device still receives them —
+    # only a frozen device does not.
+    updates_enabled =
+      device_info.device_update_mode != :off && !Updates.device_in_penalty_box?(device_info)
+
     version_match = Version.match?(device_api_version, ">= 2.0.0")
 
     if updates_enabled && version_match do

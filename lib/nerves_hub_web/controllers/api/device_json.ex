@@ -30,7 +30,8 @@ defmodule NervesHubWeb.API.DeviceJSON do
       firmware_metadata: device.firmware_metadata,
       version: version(device),
       deployment_group: deployment_group(device.deployment_group),
-      updates_enabled: device.updates_enabled,
+      updates_enabled: device.update_mode != :off,
+      update_mode: device.update_mode,
       updates_blocked_until: device.updates_blocked_until,
       # do we need these?
       org_name: device.org.name,

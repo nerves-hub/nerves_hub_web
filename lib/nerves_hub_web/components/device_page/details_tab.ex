@@ -699,7 +699,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     message = [
       "Firmware updates ",
-      (updated_device.updates_enabled && "enabled") || "disabled",
+      (updated_device.update_mode != :off && "enabled") || "disabled",
       "."
     ]
 

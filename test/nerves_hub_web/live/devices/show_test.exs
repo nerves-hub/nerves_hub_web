@@ -1160,7 +1160,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       deployment_group: deployment_group,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
@@ -1194,7 +1194,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       deployment_group: deployment_group,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
@@ -1229,7 +1229,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "http://localhost:1234")
 
-      assert Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :automatic
     end
 
     test "allows a device to be sent the available update immediately, using the available Org `firmware_proxy_url` setting",
@@ -1247,7 +1247,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> where(id: ^org.id)
       |> Repo.update_all(set: [settings: %Org.Settings{firmware_proxy_url: "https://files.customer.com/download"}])
 
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
@@ -1281,7 +1281,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "https://files.customer.com/download?")
 
-      assert Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :automatic
     end
 
     test "allows a device to be sent the available delta update immediately, if a delta is available", %{
@@ -1294,7 +1294,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       deployment_group: deployment_group,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       metadata = Map.put(device.firmware_metadata, :fwup_version, "1.13.0") |> Map.from_struct()
       Devices.update_device(device, %{firmware_metadata: metadata})
@@ -1339,7 +1339,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.ends_with?(firmware_url, ".delta.fw")
 
-      assert Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :automatic
     end
   end
 
@@ -1402,7 +1402,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       fixture: %{firmware: firmware}
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       Ecto.Changeset.change(%DeviceConnection{}, %{
         device_id: device.id,
@@ -1433,7 +1433,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "http://localhost:1234")
 
-      refute Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :off
     end
 
     test "broadcasts the firmware update request, and includes the Orgs `firmware_proxy_url` setting", %{
@@ -1447,7 +1447,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> where(id: ^org.id)
       |> Repo.update_all(set: [settings: %Org.Settings{firmware_proxy_url: "https://files.customer.com/download"}])
 
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       Ecto.Changeset.change(%DeviceConnection{}, %{
         device_id: device.id,
@@ -1478,7 +1478,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "https://files.customer.com/download?firmware=")
 
-      refute Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :off
     end
 
     test "broadcasts the firmware update request using the 'send delta' option", %{
@@ -1489,7 +1489,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
@@ -1539,7 +1539,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.ends_with?(firmware_url, ".delta.fw")
 
-      refute Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :off
     end
   end
 

@@ -292,7 +292,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     message = [
       "Firmware updates ",
-      (updated_device.updates_enabled && "enabled") || "disabled",
+      (updated_device.update_mode != :off && "enabled") || "disabled",
       "."
     ]
 

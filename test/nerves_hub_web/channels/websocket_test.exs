@@ -1384,8 +1384,8 @@ defmodule NervesHubWeb.WebsocketTest do
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive
 
-      {:ok, device} = Devices.update_device(device, %{updates_enabled: false})
-      {:ok, _device} = Devices.update_device(device, %{updates_enabled: true})
+      {:ok, device} = Devices.update_device(device, %{update_mode: :off})
+      {:ok, _device} = Devices.update_device(device, %{update_mode: :automatic})
 
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive

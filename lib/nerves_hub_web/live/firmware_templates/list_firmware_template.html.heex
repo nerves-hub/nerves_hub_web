@@ -126,7 +126,7 @@
                   <div class="dropdown-divider"></div>
                   <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
                     <span>
-                      <%= if device.updates_enabled, do: "Disable Updates", else: "Enable Updates" %>
+                      <%= if device.update_mode != :off, do: "Disable Updates", else: "Enable Updates" %>
                     </span>
                   </.link>
 

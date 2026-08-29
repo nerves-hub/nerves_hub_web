@@ -37,7 +37,7 @@ defmodule NervesHub.AdvancedQueryFixtures do
     tagged = Fixtures.device_fixture(org, product, firmware, %{identifier: "tagged", tags: ["prod", "beta"]})
 
     untagged =
-      Fixtures.device_fixture(org, product, firmware, %{identifier: "untagged", tags: nil, updates_enabled: false})
+      Fixtures.device_fixture(org, product, firmware, %{identifier: "untagged", tags: nil, update_mode: :off})
 
     connected =
       Fixtures.device_fixture(org, product, firmware, %{identifier: "connected", tags: [], status: :provisioned})

@@ -6,6 +6,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
@@ -460,7 +461,7 @@ defmodule NervesHub.DevicesTest do
 
       %{ok: devices} = BulkActions.disable_updates_for_devices(devices, user)
 
-      assert Enum.all?(devices, fn device -> device.updates_enabled == false end)
+      assert Enum.all?(devices, fn device -> device.update_mode == :off end)
     end
 
     test "accepts an Ecto.Query for the first argument", %{tmp_dir: tmp_dir} do
@@ -469,9 +470,9 @@ defmodule NervesHub.DevicesTest do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
-      device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
-      device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device = Fixtures.device_fixture(org, product, firmware, %{update_mode: :off})
+      device2 = Fixtures.device_fixture(org, product, firmware, %{update_mode: :off})
+      device3 = Fixtures.device_fixture(org, product, firmware, %{update_mode: :off})
 
       devices = [device, device2, device3]
 
@@ -483,7 +484,7 @@ defmodule NervesHub.DevicesTest do
       assert count == 3
 
       assert Enum.all?(devices, fn device ->
-               Repo.reload(device).updates_enabled == false
+               Repo.reload(device).update_mode == :off
              end)
     end
   end
@@ -494,12 +495,12 @@ defmodule NervesHub.DevicesTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-    device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+    device = Fixtures.device_fixture(org, product, firmware, %{update_mode: :off})
 
     :ok = Updates.update_attempted(to_device_info(device))
     {:ok, device} = Updates.enable_updates(device, user)
 
-    assert device.updates_enabled
+    assert device.update_mode == :automatic
     assert device.update_attempts == []
   end
 
@@ -510,15 +511,15 @@ defmodule NervesHub.DevicesTest do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
-      device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
-      device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device = Fixtures.device_fixture(org, product, firmware, %{update_mode: :off})
+      device2 = Fixtures.device_fixture(org, product, firmware, %{update_mode: :off})
+      device3 = Fixtures.device_fixture(org, product, firmware, %{update_mode: :off})
 
       devices = [device, device2, device3]
 
       %{ok: devices} = BulkActions.enable_updates_for_devices(devices, user)
 
-      assert Enum.all?(devices, fn device -> device.updates_enabled == true end)
+      assert Enum.all?(devices, fn device -> device.update_mode == :automatic end)
     end
 
     test "accepts an Ecto.Query for the first argument", %{tmp_dir: tmp_dir} do
@@ -527,9 +528,9 @@ defmodule NervesHub.DevicesTest do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
-      device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
-      device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      device = Fixtures.device_fixture(org, product, firmware, %{update_mode: :off})
+      device2 = Fixtures.device_fixture(org, product, firmware, %{update_mode: :off})
+      device3 = Fixtures.device_fixture(org, product, firmware, %{update_mode: :off})
 
       devices = [device, device2, device3]
 
@@ -541,8 +542,49 @@ defmodule NervesHub.DevicesTest do
       assert count == 3
 
       assert Enum.all?(devices, fn device ->
-               Repo.reload(device).updates_enabled == true
+               Repo.reload(device).update_mode == :automatic
              end)
+    end
+  end
+
+  describe "set_update_mode/3" do
+    test "moves a device to device-managed updates", %{device: device, user: user} do
+      assert device.update_mode == :automatic
+
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, user)
+
+      assert device.update_mode == :device_managed
+      assert Repo.reload(device).update_mode == :device_managed
+    end
+
+    test "moving back to automatic clears recorded update attempts", %{device: device, user: user} do
+      {:ok, device} = Devices.update_device(device, %{update_attempts: [DateTime.utc_now()]})
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, user)
+
+      assert Enum.count(device.update_attempts) == 1
+
+      {:ok, device} = Updates.set_update_mode(device, :automatic, user)
+
+      assert device.update_attempts == []
+    end
+
+    test "attributes the change to the user who made it", %{device: device, user: user} do
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, user)
+
+      [audit_log] = AuditLogs.logs_for(device)
+
+      assert audit_log.actor_type == User
+      assert audit_log.description =~ "User #{user.name} set the update mode"
+      assert audit_log.description =~ "device_managed"
+    end
+
+    test "attributes the change to the device when the device asks", %{device: device} do
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, :device)
+
+      [audit_log] = AuditLogs.logs_for(device)
+
+      assert audit_log.actor_type == Device
+      assert audit_log.description =~ "Device #{device.identifier} set its update mode"
     end
   end
 
@@ -568,6 +610,35 @@ defmodule NervesHub.DevicesTest do
       %{ok: devices} = BulkActions.clear_penalty_box_for_devices(devices, user)
 
       assert Enum.all?(devices, fn device -> is_nil(device.updates_blocked_until) end)
+    end
+
+    test "leaves the update mode alone", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      # The penalty box is a separate mechanism, so releasing a device from it
+      # must not hand back updates the device or an operator had turned off.
+      frozen =
+        Fixtures.device_fixture(org, product, firmware, %{
+          update_mode: :off,
+          updates_blocked_until: DateTime.utc_now()
+        })
+
+      self_managed =
+        Fixtures.device_fixture(org, product, firmware, %{
+          update_mode: :device_managed,
+          updates_blocked_until: DateTime.utc_now()
+        })
+
+      %{ok: _} = BulkActions.clear_penalty_box_for_devices([frozen, self_managed], user)
+
+      assert Repo.reload(frozen).update_mode == :off
+      assert Repo.reload(self_managed).update_mode == :device_managed
+      assert is_nil(Repo.reload(frozen).updates_blocked_until)
+      assert is_nil(Repo.reload(self_managed).updates_blocked_until)
     end
 
     test "accepts an Ecto.Query for the first argument", %{tmp_dir: tmp_dir} do
@@ -626,7 +697,7 @@ defmodule NervesHub.DevicesTest do
       _on_other = Fixtures.device_fixture(org, product, other, %{deployment_id: dg.id})
 
       _disabled_on_current =
-        Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id, updates_enabled: false})
+        Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id, update_mode: :off})
 
       _no_deployment = Fixtures.device_fixture(org, product, current, %{})
 
@@ -645,7 +716,7 @@ defmodule NervesHub.DevicesTest do
       _on_other = Fixtures.device_fixture(org, product, other, %{deployment_id: dg.id})
 
       _disabled_on_other =
-        Fixtures.device_fixture(org, product, other, %{deployment_id: dg.id, updates_enabled: false})
+        Fixtures.device_fixture(org, product, other, %{deployment_id: dg.id, update_mode: :off})
 
       _no_deployment = Fixtures.device_fixture(org, product, other, %{})
 
@@ -657,13 +728,13 @@ defmodule NervesHub.DevicesTest do
       _enabled = Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id})
 
       _disabled_a =
-        Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id, updates_enabled: false})
+        Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id, update_mode: :off})
 
       _disabled_b =
-        Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id, updates_enabled: false})
+        Fixtures.device_fixture(org, product, current, %{deployment_id: dg.id, update_mode: :off})
 
       _disabled_no_deployment =
-        Fixtures.device_fixture(org, product, current, %{updates_enabled: false})
+        Fixtures.device_fixture(org, product, current, %{update_mode: :off})
 
       assert Deployments.updates_disabled_count(dg) == 2
     end
@@ -987,7 +1058,7 @@ defmodule NervesHub.DevicesTest do
 
       {:ok, device} = Updates.verify_update_eligibility(device, deployment_group)
 
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
       refute device.updates_blocked_until
     end
 
@@ -1004,7 +1075,7 @@ defmodule NervesHub.DevicesTest do
 
       {:ok, device} = Updates.verify_update_eligibility(device, deployment_group)
 
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
       refute device.updates_blocked_until
     end
 
@@ -1029,7 +1100,7 @@ defmodule NervesHub.DevicesTest do
 
       {:ok, device} = Updates.verify_update_eligibility(device, deployment_group)
 
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
       refute device.updates_blocked_until
     end
 
