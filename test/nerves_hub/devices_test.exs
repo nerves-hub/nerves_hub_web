@@ -628,6 +628,99 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "check_update/1 and device_requested_update/1" do
+    setup %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      device: device,
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      # Newer firmware on the deployment group than the device is running, so
+      # there is genuinely something waiting for it.
+      next = Fixtures.firmware_fixture(org_key, product, %{version: "9.9.9", dir: tmp_dir})
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, next, nil, user, %{})
+
+      device = Deployments.update_deployment_group(device, deployment_group)
+
+      %{device: Repo.reload(device) |> Repo.preload(:deployment_group), deployment_group: deployment_group, org: org}
+    end
+
+    test "check_update reports firmware waiting without minting a url", %{device: device} do
+      result = Updates.check_update(device)
+
+      assert result.available?
+      assert result.firmware_meta.version == "9.9.9"
+      # A signed url would expire between checking and asking, so there is none here.
+      refute Map.has_key?(result, :firmware_url)
+    end
+
+    test "check_update reports nothing for a frozen device", %{device: device, user: user} do
+      {:ok, device} = Updates.set_update_mode(device, :off, user)
+
+      refute Updates.check_update(device).available?
+    end
+
+    test "check_update still reports for a device managing its own updates", %{
+      device: device,
+      user: user
+    } do
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, user)
+
+      assert Updates.check_update(device).available?
+    end
+
+    test "check_update does not put a device in the penalty box", %{
+      device: device,
+      deployment_group: deployment_group
+    } do
+      # Asking a question must never be a way for a device to punish itself.
+      attempts = for _ <- 1..(deployment_group.device_failure_threshold + 1), do: DateTime.utc_now()
+      {:ok, device} = Devices.update_device(device, %{update_attempts: attempts})
+
+      _ = Updates.check_update(device)
+
+      assert is_nil(Repo.reload(device).updates_blocked_until)
+    end
+
+    test "device_requested_update schedules an update", %{device: device} do
+      assert :ok = DeviceEvents.device_requested_update(device)
+
+      assert [audit_log | _] = AuditLogs.logs_for(device)
+      assert audit_log.description =~ "requested firmware"
+    end
+
+    test "device_requested_update is refused once the deployment's slots are full", %{
+      device: device,
+      deployment_group: deployment_group,
+      user: user
+    } do
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1}, user)
+
+      # The first request takes the deployment's only slot.
+      assert :ok = DeviceEvents.device_requested_update(device)
+
+      # Self-scheduling devices must not walk past the pacing the deployment
+      # group exists to provide, so the next one is told to come back later.
+      assert {:error, {:busy, delay}} = DeviceEvents.device_requested_update(device)
+      assert delay > 0
+    end
+
+    test "device_requested_update is refused when there is nothing to send", %{
+      device: device,
+      user: user
+    } do
+      {:ok, device} = Updates.set_update_mode(device, :off, user)
+
+      assert {:error, :no_update} = DeviceEvents.device_requested_update(device)
+    end
+  end
+
   describe "pause_automatic_updates/2" do
     test "moves an automatic device out of rollout", %{device: device, user: user} do
       assert device.update_mode == :automatic

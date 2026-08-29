@@ -252,6 +252,37 @@ defmodule NervesHub.Devices.Updates do
     end
   end
 
+  @doc """
+  Is there firmware waiting for this device, without minting a URL for it?
+
+  Answers the device's own "anything for me?" question. Deliberately free of the
+  side effects `verify_update_eligibility/3` carries — that one clears inflight
+  updates and can put a device in the penalty box, neither of which a device
+  should be able to trigger by asking a question.
+
+  It also mints no firmware URL. Those are signed and time limited, so a device
+  that checks at 02:00 and updates at 04:00 would find a dead link; the URL is
+  fetched when it is about to be used, by `request_update`.
+  """
+  @spec check_update(Device.t()) :: %{available?: boolean(), firmware_meta: map() | nil}
+  def check_update(device, now \\ DateTime.utc_now())
+
+  def check_update(%Device{deployment_id: nil}, _now), do: %{available?: false, firmware_meta: nil}
+
+  def check_update(%Device{firmware_metadata: nil}, _now), do: %{available?: false, firmware_meta: nil}
+
+  def check_update(%Device{} = device, now) do
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
+
+    if deployment_group.is_active and not device_matches_deployment_group?(device, deployment_group) and
+         not updates_blocked?(device, now) do
+      {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.current_release.firmware)
+      %{available?: true, firmware_meta: meta}
+    else
+      %{available?: false, firmware_meta: nil}
+    end
+  end
+
   @spec failure_threshold_met?(Device.t(), DeploymentGroup.t()) :: boolean()
   def failure_threshold_met?(%Device{} = device, %DeploymentGroup{} = deployment_group) do
     Enum.count(device.update_attempts) >= deployment_group.device_failure_threshold
@@ -289,10 +320,15 @@ defmodule NervesHub.Devices.Updates do
     DateTime.after?(device.updates_blocked_until, now)
   end
 
-  # A :device_managed device is not blocked — it is simply never pushed to, which
-  # the orchestrator's available-devices query enforces. It still reaches here
-  # when it asks for an update itself, and must pass.
-  defp updates_blocked?(device, now) do
+  @doc """
+  Whether the device is barred from taking firmware right now.
+
+  A `:device_managed` device is not blocked — it is simply never pushed to, which
+  the orchestrator's available-devices query enforces. It still reaches here when
+  it asks for an update itself, and must pass.
+  """
+  @spec updates_blocked?(Device.t(), DateTime.t()) :: boolean()
+  def updates_blocked?(device, now \\ DateTime.utc_now()) do
     device.update_mode == :off || device_in_penalty_box?(device, now)
   end
 

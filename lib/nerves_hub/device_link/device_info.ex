@@ -26,6 +26,7 @@ defmodule NervesHub.DeviceLink.DeviceInfo do
     :device_updates_blocked_until,
     :device_updates_enabled,
     :firmware_metadata,
+    :managed_updates_allowed,
     :org_id,
     :product_id
   ]
@@ -36,6 +37,7 @@ defmodule NervesHub.DeviceLink.DeviceInfo do
           deployment_id: pos_integer() | nil,
           device_id: pos_integer() | nil,
           device_update_mode: :off | :automatic | :device_managed | nil,
+          managed_updates_allowed: boolean() | nil,
           device_updates_enabled: boolean() | nil,
           device_updates_blocked_until: DateTime.t() | nil,
           device_identifier: String.t() | nil,

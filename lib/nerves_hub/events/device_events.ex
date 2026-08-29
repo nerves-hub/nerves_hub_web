@@ -12,6 +12,7 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.Distributed.Orchestrator
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
 
@@ -80,18 +81,28 @@ defmodule NervesHub.DeviceEvents do
 
       device = %{device | deployment_group: deployment_group}
 
-      if opts[:user] do
-        DeviceTemplates.audit_pushed_available_update(opts[:user], device_id, deployment_group)
-      else
-        DeviceTemplates.audit_device_deployment_group_update_triggered(
-          device,
-          device.deployment_group
-        )
+      cond do
+        opts[:user] ->
+          DeviceTemplates.audit_pushed_available_update(opts[:user], device_id, deployment_group)
+
+        opts[:initiated_by] == :device ->
+          DeviceTemplates.audit_device_requested_update(device, device.deployment_group)
+
+        true ->
+          DeviceTemplates.audit_device_deployment_group_update_triggered(
+            device,
+            device.deployment_group
+          )
       end
 
       broadcast(device, "update", update_payload)
 
-      :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1}, %{
+      # A device asking for firmware and a deployment group sending it are the
+      # same delivery but not the same event, and conflating them would hide how
+      # much of a fleet is driving its own updates.
+      event = if opts[:initiated_by] == :device, do: :device_requested, else: :automatic
+
+      :telemetry.execute([:nerves_hub, :devices, :update, event], %{count: 1}, %{
         identifier: device.identifier,
         firmware_uuid: inflight_update.firmware_uuid
       })
@@ -99,6 +110,40 @@ defmodule NervesHub.DeviceEvents do
       {:ok, inflight_update}
     end)
   end
+
+  @doc """
+  A device that manages its own updates asked for one.
+
+  Answers with the deployment group's target firmware, or a reason it cannot
+  right now. Self-scheduling devices would otherwise walk straight past the
+  pacing a deployment group exists to provide — ten thousand units waking at
+  03:00 local all ask at once — so a request takes a concurrency slot exactly as
+  an orchestrator-driven update does, and is told to come back later when there
+  is none.
+  """
+  @spec device_requested_update(Device.t()) ::
+          :ok | {:error, :no_deployment_group | :no_update | {:busy, pos_integer()}}
+  def device_requested_update(%Device{deployment_id: nil}), do: {:error, :no_deployment_group}
+
+  def device_requested_update(%Device{} = device) do
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
+
+    cond do
+      not match?(%{available?: true}, Updates.check_update(device)) ->
+        {:error, :no_update}
+
+      Orchestrator.available_slots(deployment_group) <= 0 ->
+        {:error, {:busy, retry_after_minutes(deployment_group)}}
+
+      true ->
+        {:ok, _inflight} = schedule_update(device.id, deployment_group, initiated_by: :device)
+        :ok
+    end
+  end
+
+  # Long enough that a refused fleet does not come straight back, short enough
+  # that a device is not left sitting on old firmware once slots free up.
+  defp retry_after_minutes(_deployment_group), do: 5
 
   def manual_update(device, firmware, user, opts \\ []) do
     Repo.transact(fn ->
