@@ -87,8 +87,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
           <div class="text-base-50 text-base font-medium">Firmware updates</div>
         </div>
-        <div class="flex flex-col gap-4 p-4">
-          <div class="flex items-center gap-6">
+        <div class="flex flex-col gap-1 px-4 py-2">
+          <div class="flex h-16 items-center gap-6 p-2">
             <div class="bg-base-800 border-base-700 flex h-8 shrink-0 items-center rounded-full border px-2 py-1">
               <input
                 id="managed-updates-allowed"
@@ -101,7 +101,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             </div>
             <div class="flex flex-col">
               <div class="text-base-300 font-medium">Let the device choose its update mode</div>
-              <div class="text-base-300">
+              <div class="text-base-400 font-light">
                 The device may move itself between automatic and device managed.
               </div>
             </div>
@@ -135,7 +135,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                   - Extension is disabled at the product level.
                 </div>
               </div>
-              <div class="text-base-300">
+              <div class="text-base-400 font-light">
                 {description}
               </div>
             </div>
