@@ -112,6 +112,28 @@ is about to be used.
 And they carry different gates: `check_update` is allowed everywhere,
 `request_update` is refused under `off`.
 
+## Firmware too old to manage itself
+
+A `device_managed` device that connects reporting `device_api_version < 2.4.0`
+is returned to `automatic`, with an audit entry naming the device as the actor.
+
+Left alone it would be stranded: the orchestrator does not push to a
+`device_managed` device, its firmware cannot ask, and it is never sent
+`update_mode` because that is gated on the same version — so it would not even
+know. The sharp case is a firmware auto-revert, where a failed update drops a
+device back onto an image that predates the feature, exactly when being stuck
+matters most.
+
+The trade is deliberate and worth knowing about: a fleet deliberately set to
+`device_managed` that has not yet rolled out firmware supporting it will be
+moved to `automatic` as its devices connect, and will start receiving pushes.
+**Roll the firmware out first, then set the mode.**
+
+An operator can set the mode back once the device is running firmware that can
+manage itself. Nothing here reverses automatically — the mode is the operator's
+to choose, and guessing that a device wanted its old mode back would be guessing
+about a device we could not talk to at the time.
+
 ## Pacing
 
 Deployment groups pace rollouts, and a self-scheduling fleet would walk straight

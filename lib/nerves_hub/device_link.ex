@@ -31,6 +31,12 @@ defmodule NervesHub.DeviceLink do
 
   @public_key_types ["fwup_public_keys", "archive_public_keys"]
 
+  # The device API version that introduced device-managed updates. Devices below
+  # it have no handler for `update_mode` and would only log it as unknown, so it
+  # is not sent to them unasked — and they cannot ask for firmware either, which
+  # is why one arriving in that mode is put back on automatic.
+  @update_mode_api_version ">= 2.4.0"
+
   # ------------------------------------------------------------------------
   # Device channel
   #
@@ -63,6 +69,8 @@ defmodule NervesHub.DeviceLink do
 
     case join(device_info, params) do
       {:ok, device_info} ->
+        device_info = revert_update_mode_if_unsupported(device_info, params["device_api_version"])
+
         session = %Session{
           device_info: device_info,
           device_api_version: params["device_api_version"],
@@ -83,6 +91,26 @@ defmodule NervesHub.DeviceLink do
         {:error, error}
     end
   end
+
+  # A :device_managed device on firmware that predates the feature cannot ask for
+  # updates, and the orchestrator does not push to one — so it would sit on that
+  # firmware indefinitely. Returning it to automatic gets it moving again; the
+  # operator sees why in the audit log, and can set it back once the device is on
+  # firmware that can manage itself.
+  defp revert_update_mode_if_unsupported(%{device_update_mode: :device_managed} = device_info, version) do
+    if Version.match?(version, @update_mode_api_version) do
+      device_info
+    else
+      device = Devices.get_device(device_info.device_id)
+
+      case Updates.revert_unsupported_update_mode(device) do
+        {:ok, device} -> %{device_info | device_update_mode: device.update_mode}
+        _error -> device_info
+      end
+    end
+  end
+
+  defp revert_update_mode_if_unsupported(device_info, _version), do: device_info
 
   @doc """
   The device sent us something.
@@ -396,10 +424,6 @@ defmodule NervesHub.DeviceLink do
   end
 
   defp safe_to_run_scripts?(session), do: Version.match?(session.device_api_version, ">= 2.1.0")
-
-  # Devices older than this have no handler for the message and would only log it
-  # as unknown, so it is not sent to them unasked.
-  @update_mode_api_version ">= 2.4.0"
 
   # Unsolicited: on join, and whenever the mode or grant changes underneath the
   # device. Skipped for a device that would not understand it.

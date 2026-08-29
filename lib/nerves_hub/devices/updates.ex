@@ -472,6 +472,37 @@ defmodule NervesHub.Devices.Updates do
   end
 
   @doc """
+  Return a device to automatic updates because its firmware cannot ask for them.
+
+  A `:device_managed` device running firmware that predates device-managed
+  updates is stranded: the orchestrator does not push to it, and it has no way to
+  ask. Most often it arrived here by auto-reverting onto an older image after a
+  failed update, which is exactly when being stuck is least affordable.
+
+  The device is the audit actor, because its own firmware is what forced this —
+  no operator asked for it, and the log should not imply one did.
+  """
+  @spec revert_unsupported_update_mode(Device.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
+  def revert_unsupported_update_mode(%Device{} = device) do
+    description =
+      "Device #{device.identifier} was returned to automatic updates: its firmware is too old to manage its own"
+
+    case Devices.update_device_with_audit(device, %{update_mode: :automatic}, device, description) do
+      {:ok, device} = result ->
+        _ =
+          if device.deployment_id do
+            DeploymentOrchestratorEvents.device_updated(device)
+          end
+
+        result
+
+      {:error, _, _, _} = result ->
+        result
+    end
+  end
+
+  @doc """
   Stop the deployment group overwriting firmware that was just pushed by hand.
 
   Only moves a device out of `:automatic`. A device that manages its own updates

@@ -9,6 +9,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Deployments
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
@@ -791,6 +792,42 @@ defmodule NervesHubWeb.DeviceChannelTest do
       push(device_channel, "request_update", %{})
 
       assert_push("update_rejected", %{"reason" => "no_deployment_group"})
+
+      close_cleanly(device_channel)
+    end
+
+    test "a device too old to manage its own updates is put back on automatic", %{
+      device: device,
+      certificate: certificate,
+      user: user
+    } do
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, user)
+
+      device_channel = join_device(device, certificate, "2.3.0")
+
+      # It could neither be pushed to nor ask, so it would have sat on this
+      # firmware indefinitely — most likely having auto-reverted onto it.
+      assert Repo.reload(device).update_mode == :automatic
+
+      assert [audit_log | _] = AuditLogs.logs_for(Repo.reload(device))
+      assert audit_log.actor_type == Device
+      assert audit_log.description =~ "returned to automatic updates"
+      assert audit_log.description =~ "too old"
+
+      close_cleanly(device_channel)
+    end
+
+    test "a device that can manage its own updates keeps the mode", %{
+      device: device,
+      certificate: certificate,
+      user: user
+    } do
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, user)
+
+      device_channel = join_device(device, certificate, "2.4.0")
+
+      assert Repo.reload(device).update_mode == :device_managed
+      assert_push("update_mode", %{"mode" => "device_managed"})
 
       close_cleanly(device_channel)
     end
