@@ -141,6 +141,24 @@
                 ]}
               ></span>
             </button>
+          <% @device.update_mode == :device_managed -> %>
+            <svg class="stroke-base-300 mx-2 size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 3C14 5 17.5 5.16667 19 5V14C19 18 12 21 12 21C12 21 5 18 5 14V5C6.5 5.16667 10 5 12 3Z"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path d="M9.5 12H14.5" stroke-width="1.4" stroke-linecap="round" />
+            </svg>
+            <%!-- No toggle here: this device is neither on nor off, and a two-way
+                 switch could only reach one of those by discarding the mode. --%>
+            <.link
+              class="hover:text-base-50 text-base-300 mx-1 text-sm underline underline-offset-2"
+              navigate={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"}
+            >
+              Device managed
+            </.link>
           <% @device.update_mode == :off -> %>
             <svg class="stroke-alert mx-2 size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
               <path

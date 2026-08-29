@@ -699,7 +699,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     message = [
       "Firmware updates ",
-      (updated_device.update_mode != :off && "enabled") || "disabled",
+      update_mode_message(updated_device.update_mode),
       "."
     ]
 
@@ -1103,4 +1103,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp has_description?(description) do
     is_binary(description) and byte_size(description) > 0 and description != "[]"
   end
+
+  defp update_mode_message(:off), do: "disabled"
+  defp update_mode_message(:automatic), do: "enabled"
+  # Reached only if something other than the device page calls the toggle; the
+  # page shows a link to settings rather than a switch for this mode.
+  defp update_mode_message(:device_managed), do: "left as device managed"
 end

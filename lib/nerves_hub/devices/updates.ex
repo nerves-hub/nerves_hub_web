@@ -392,7 +392,17 @@ defmodule NervesHub.Devices.Updates do
   reconnect to be considered.
   """
   @spec set_update_mode(Device.t(), Device.update_mode(), User.t() | :device) ::
-          {:ok, Device.t()} | {:error, any(), any(), any()}
+          {:ok, Device.t()} | {:error, :not_permitted} | {:error, any(), any(), any()}
+  def set_update_mode(device, mode, actor)
+
+  # Two rules bound what a device may do to itself: :off is the operator's alone,
+  # so a device can neither freeze itself out of reach nor unfreeze itself; and
+  # :device_managed needs the grant, without which any device could take itself
+  # out of its deployment group's rollout unasked.
+  def set_update_mode(%Device{}, :off, :device), do: {:error, :not_permitted}
+
+  def set_update_mode(%Device{managed_updates_allowed: false}, :device_managed, :device), do: {:error, :not_permitted}
+
   def set_update_mode(%Device{} = device, mode, actor) when mode in [:off, :automatic, :device_managed] do
     description =
       case actor do
@@ -425,6 +435,45 @@ defmodule NervesHub.Devices.Updates do
     end
   end
 
+  @doc """
+  Stop the deployment group overwriting firmware that was just pushed by hand.
+
+  Only moves a device out of `:automatic`. A device that manages its own updates
+  is already not pushed to, and freezing it would silently take away a mode it
+  or an operator chose; an already-frozen device has nothing to change.
+  """
+  @spec pause_automatic_updates(Device.t(), User.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
+  def pause_automatic_updates(%Device{update_mode: :automatic} = device, user) do
+    description =
+      "User #{user.name} paused automatic updates for device #{device.identifier} to send firmware manually"
+
+    Devices.update_device_with_audit(device, %{update_mode: :off}, user, description)
+  end
+
+  def pause_automatic_updates(%Device{} = device, _user), do: {:ok, device}
+
+  @doc """
+  Allow or forbid a device putting itself into `:device_managed`.
+
+  Forbidding does not move a device that is already there — that is an operator's
+  call to make explicitly with `set_update_mode/3`, so revoking the grant cannot
+  quietly drag a fleet back into rollout.
+  """
+  @spec set_managed_updates_allowed(Device.t(), boolean(), User.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
+  def set_managed_updates_allowed(%Device{} = device, enabled, user) when is_boolean(enabled) do
+    description =
+      "User #{user.name} #{(enabled && "allowed") || "disallowed"} device-managed updates for device #{device.identifier}"
+
+    Devices.update_device_with_audit(
+      device,
+      %{managed_updates_allowed: enabled},
+      user,
+      description
+    )
+  end
+
   @spec enable_updates(Device.t() | [Device.t()], User.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def enable_updates(%Device{} = device, user) do
@@ -453,10 +502,19 @@ defmodule NervesHub.Devices.Updates do
     Devices.update_device_with_audit(device, params, user, description)
   end
 
+  @doc """
+  Flip a device between `:off` and `:automatic`.
+
+  A `:device_managed` device is returned untouched: it is neither on nor off, and
+  a two-way switch could only reach one of those by discarding the mode. The
+  device page offers a link to its settings there instead of a toggle, and the
+  three-way control lives on that page.
+  """
   def toggle_automatic_updates(device, user) do
     case device.update_mode do
       :off -> enable_updates(device, user)
-      _ -> disable_updates(device, user)
+      :automatic -> disable_updates(device, user)
+      :device_managed -> {:ok, device}
     end
   end
 

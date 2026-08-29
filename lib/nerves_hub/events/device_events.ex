@@ -121,7 +121,7 @@ defmodule NervesHub.DeviceEvents do
         |> Repo.insert()
 
       {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
-      {:ok, device} = Updates.disable_updates(device, user)
+      {:ok, device} = Updates.pause_automatic_updates(device, user)
 
       DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 

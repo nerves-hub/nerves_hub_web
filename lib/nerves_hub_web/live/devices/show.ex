@@ -292,7 +292,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     message = [
       "Firmware updates ",
-      (updated_device.update_mode != :off && "enabled") || "disabled",
+      update_mode_message(updated_device.update_mode),
       "."
     ]
 
@@ -462,4 +462,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
     <SettingsTab.render :if={@tab == :settings} {assigns} />
     """
   end
+
+  defp update_mode_message(:off), do: "disabled"
+  defp update_mode_message(:automatic), do: "enabled"
+  # Reached only if something other than the device page calls the toggle; the
+  # page shows a link to settings rather than a switch for this mode.
+  defp update_mode_message(:device_managed), do: "left as device managed"
 end

@@ -30,6 +30,7 @@ defmodule NervesHub.Devices.Device do
   @optional_params [
     :description,
     :update_mode,
+    :managed_updates_allowed,
     :tags,
     :deleted_at,
     :update_attempts,
@@ -94,6 +95,10 @@ defmodule NervesHub.Devices.Device do
       values: [:off, :automatic, :device_managed],
       default: :automatic
     )
+
+    # Whether the device may put *itself* into :device_managed. An operator setting
+    # that mode from the dashboard is always allowed; this gates the device only.
+    field(:managed_updates_allowed, :boolean, default: false)
 
     # To be removed in a migration in the next release, replaced by :update_mode
     field(:updates_enabled, :boolean, default: true)
