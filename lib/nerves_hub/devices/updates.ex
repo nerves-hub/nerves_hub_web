@@ -538,30 +538,6 @@ defmodule NervesHub.Devices.Updates do
     Devices.update_device_with_audit(device, params, user, description)
   end
 
-  @doc """
-  Flip a device between `:off` and `:automatic`.
-
-  A `:device_managed` device is returned untouched: it is neither on nor off, and
-  a two-way switch could only reach one of those by discarding the mode. The
-  device page offers a link to its settings there instead of a toggle, and the
-  three-way control lives on that page.
-  """
-  def toggle_automatic_updates(device, user) do
-    case device.update_mode do
-      :off -> enable_updates(device, user)
-      :automatic -> disable_updates(device, user)
-      :device_managed -> {:ok, device}
-    end
-  end
-
-  @doc """
-  Release a device from the penalty box.
-
-  Deliberately leaves `update_mode` alone. The penalty box is a separate
-  mechanism — `updates_blocked?/2` ORs the two together — and clearing it used
-  to re-enable updates an operator had turned off, which was never the intent of
-  the button.
-  """
   def clear_penalty_box(%Device{} = device, user) do
     description = "User #{user.name} removed device #{device.identifier} from the penalty box"
     params = %{updates_blocked_until: nil, update_attempts: []}

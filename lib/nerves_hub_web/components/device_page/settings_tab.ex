@@ -87,27 +87,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
           <div class="text-base-50 text-base font-medium">Firmware updates</div>
         </div>
-        <div class="flex flex-col gap-1 px-4 py-2">
-          <div :for={{mode, label, description} <- update_modes()} class="flex h-16 items-center gap-6 p-2">
-            <div class="bg-base-800 border-base-700 flex h-8 items-center rounded-full border px-2 py-1">
-              <input
-                id={"update-mode-#{mode}"}
-                name="update-mode"
-                type="radio"
-                phx-click="set-update-mode"
-                phx-value-mode={mode}
-                checked={@device.update_mode == mode}
-                disabled={!authorized?(:"device:toggle-updates", @current_scope)}
-              />
-            </div>
-            <div class="flex flex-col">
-              <div class="text-base-300 font-medium">{label}</div>
-              <div class="text-base-300">{description}</div>
-            </div>
-          </div>
-
-          <div class="border-base-700 flex h-16 items-center gap-6 border-t p-2">
-            <div class="bg-base-800 border-base-700 flex h-8 items-center rounded-full border px-2 py-1">
+        <div class="flex flex-col gap-4 p-4">
+          <div class="flex items-center gap-6">
+            <div class="bg-base-800 border-base-700 flex h-8 shrink-0 items-center rounded-full border px-2 py-1">
               <input
                 id="managed-updates-allowed"
                 name="managed-updates-allowed"
@@ -118,10 +100,9 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               />
             </div>
             <div class="flex flex-col">
-              <div class="text-base-300 font-medium">Let the device choose</div>
+              <div class="text-base-300 font-medium">Let the device choose its update mode</div>
               <div class="text-base-300">
-                The device may move itself between automatic and device managed. It can never freeze itself,
-                and turning this off does not move a device that is already managing its own updates.
+                The device may move itself between automatic and device managed.
               </div>
             </div>
           </div>
@@ -435,26 +416,6 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     end
   end
 
-  def hooked_event("set-update-mode", %{"mode" => mode}, socket) do
-    authorized!(:"device:toggle-updates", socket.assigns.current_scope)
-
-    %{device: device, user: user} = socket.assigns
-    mode = String.to_existing_atom(mode)
-
-    case Updates.set_update_mode(device, mode, user) do
-      {:ok, device} ->
-        socket
-        |> assign(:device, device)
-        |> put_flash(:info, "Firmware updates set to #{update_mode_label(mode)}.")
-        |> halt()
-
-      _error ->
-        socket
-        |> put_flash(:error, "We couldn't change the update mode. Please contact support if this happens again.")
-        |> halt()
-    end
-  end
-
   def hooked_event("toggle-managed-updates-allowed", params, socket) do
     authorized!(:"device:toggle-updates", socket.assigns.current_scope)
 
@@ -550,20 +511,6 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         |> put_flash(:error, "Unknown file error - #{inspect(err)}")
         |> ok()
     end
-  end
-
-  defp update_modes() do
-    [
-      {:automatic, "Automatic", "The deployment group sends firmware to this device on its own schedule."},
-      {:device_managed, "Device managed",
-       "The device asks for firmware when it wants it. Its deployment group still decides which firmware that is."},
-      {:off, "Off", "The device takes no firmware except what someone sends it by hand."}
-    ]
-  end
-
-  defp update_mode_label(mode) do
-    {_mode, label, _description} = Enum.find(update_modes(), &(elem(&1, 0) == mode))
-    label
   end
 
   defp available_extensions() do

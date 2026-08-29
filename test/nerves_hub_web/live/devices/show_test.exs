@@ -829,6 +829,80 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "update mode picker" do
+    setup %{device: device, deployment_group: deployment_group} do
+      device =
+        device
+        |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
+        |> Repo.update!()
+
+      %{device: device}
+    end
+
+    test "offers all three modes, marking the one in force", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#update-mode-menu button", text: "Automatic")
+      |> assert_has("#update-mode-menu button", text: "Device managed")
+      |> assert_has("#update-mode-menu button", text: "Off")
+      |> assert_has("#update-mode-toggle[aria-label='Firmware updates: Automatic']")
+    end
+
+    test "choosing a mode changes it and says so", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> within("#update-mode-menu", fn session -> click_button(session, "Device managed") end)
+      |> assert_has("div", text: "Firmware updates set to device managed.")
+
+      assert Repo.reload(device).update_mode == :device_managed
+    end
+
+    test "the change is audited against the user who made it", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> within("#update-mode-menu", fn session -> click_button(session, "Off") end)
+
+      assert [audit_log | _] = AuditLogs.logs_for(Repo.reload(device))
+      assert audit_log.description =~ "User #{user.name} set the update mode"
+      assert audit_log.description =~ "off"
+    end
+
+    test "a device in the penalty box shows that instead of the picker", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      device =
+        device
+        |> Ecto.Changeset.change(%{
+          updates_blocked_until: DateTime.utc_now() |> DateTime.add(3600) |> DateTime.truncate(:second)
+        })
+        |> Repo.update!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("button[aria-label='Clear the penalty box']")
+      |> refute_has("#update-mode-toggle")
+    end
+  end
+
   describe "available update" do
     test "no available update exists", %{
       conn: conn,

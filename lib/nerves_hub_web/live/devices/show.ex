@@ -27,6 +27,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.UpdateProgress
   alias NervesHubWeb.Presence
   alias Phoenix.LiveView.AsyncResult
+  alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -283,23 +284,28 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_event("toggle-deployment-firmware-updates", _params, socket) do
+  def handle_event("set-update-mode", %{"mode" => mode}, socket) do
     %{current_scope: current_scope, user: user, device: device} = socket.assigns
 
     authorized!(:"device:toggle-updates", current_scope)
 
-    {:ok, updated_device} = Updates.toggle_automatic_updates(device, user)
+    mode = String.to_existing_atom(mode)
 
-    message = [
-      "Firmware updates ",
-      update_mode_message(updated_device.update_mode),
-      "."
-    ]
+    case Updates.set_update_mode(device, mode, user) do
+      {:ok, updated_device} ->
+        socket
+        |> assign(:device, updated_device)
+        |> put_flash(:info, "Firmware updates set to #{String.downcase(update_mode_label(mode))}.")
+        |> noreply()
 
-    socket
-    |> assign(:device, updated_device)
-    |> put_flash(:info, Enum.join(message))
-    |> noreply()
+      _error ->
+        socket
+        |> put_flash(
+          :error,
+          "We couldn't change how this device receives updates. Please contact support if this happens again."
+        )
+        |> noreply()
+    end
   end
 
   def handle_event("restore", _, socket) do
@@ -463,9 +469,46 @@ defmodule NervesHubWeb.Live.Devices.Show do
     """
   end
 
-  defp update_mode_message(:off), do: "disabled"
-  defp update_mode_message(:automatic), do: "enabled"
-  # Reached only if something other than the device page calls the toggle; the
-  # page shows a link to settings rather than a switch for this mode.
-  defp update_mode_message(:device_managed), do: "left as device managed"
+  @doc false
+  def update_modes() do
+    [
+      {:automatic, "Automatic", "This device's deployment group sends it firmware on its own schedule."},
+      {:device_managed, "Device managed",
+       "The device asks for firmware when it suits it. Its deployment group still decides which firmware."},
+      {:off, "Off", "The device takes no firmware except what someone sends it by hand."}
+    ]
+  end
+
+  @doc false
+  def update_mode_icon(:automatic), do: "lucide-refresh-cw--light"
+  def update_mode_icon(:device_managed), do: "lucide-cpu--light"
+  def update_mode_icon(:off), do: "lucide-circle-slash--light"
+
+  @doc false
+  def update_mode_color(:automatic), do: "text-success"
+  def update_mode_color(:device_managed), do: "text-base-300"
+  def update_mode_color(:off), do: "text-alert"
+
+  @doc false
+  def update_mode_label(mode) do
+    {_mode, label, _description} = Enum.find(update_modes(), &(elem(&1, 0) == mode))
+    label
+  end
+
+  defp toggle_update_mode_menu(js \\ %JS{}) do
+    JS.toggle(js,
+      to: "#update-mode-menu-container",
+      in: {"ease-out duration-150", "opacity-0", "opacity-100"},
+      out: {"ease-out duration-150", "opacity-100", "opacity-0"}
+    )
+  end
+
+  # Only ever closes, so Escape and click-away cannot open it the way JS.toggle
+  # would, and are no-ops when it is already closed.
+  defp hide_update_mode_menu(js \\ %JS{}) do
+    JS.hide(js,
+      to: "#update-mode-menu-container",
+      transition: {"ease-out duration-150", "opacity-100", "opacity-0"}
+    )
+  end
 end
