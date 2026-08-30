@@ -1,6 +1,7 @@
 defmodule NervesHub.Extensions.Health do
   @behaviour NervesHub.Extensions
 
+  alias NervesHub.Devices.DeviceMessages
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
@@ -91,7 +92,9 @@ defmodule NervesHub.Extensions.Health do
   end
 
   def request_health_check(device) do
-    :ok = PubSub.broadcast_to_device(device, "health:check", %{})
+    # Recorded here rather than in the wrapper; see `NervesHub.Extensions.PubSub`.
+    :ok = DeviceMessages.record(device, :sent, :extensions, "health:check", %{})
+    :ok = PubSub.broadcast_to_device(device.id, "health:check", %{})
   end
 
   defp health_interval_minutes() do
