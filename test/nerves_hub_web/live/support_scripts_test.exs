@@ -247,8 +247,8 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/scripts/#{script.id}/edit")
-      |> assert_has("div", text: "Last edited by #{editor.name}")
-      |> refute_has("div", text: "Last edited by #{user.name}")
+      |> assert_has("div", text: "Last updated by #{editor.name}")
+      |> refute_has("div", text: "Last updated by #{user.name}")
     end
 
     test "falls back to the creator's name for a newly created script", %{
@@ -261,7 +261,7 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/scripts/#{script.id}/edit")
-      |> assert_has("div", text: "Last edited by #{user.name}")
+      |> assert_has("div", text: "Last updated by #{user.name}")
     end
   end
 end
