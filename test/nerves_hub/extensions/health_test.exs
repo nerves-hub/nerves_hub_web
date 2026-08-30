@@ -118,6 +118,18 @@ defmodule NervesHub.Extensions.HealthTest do
       assert State.get(state, :mode) == :watched
       assert {:start_timer, :check, @watched_ms} = timer(effects)
     end
+
+    test "uses a custom interval from application config" do
+      original = Application.get_env(:nerves_hub, :extension_config)
+      Application.put_env(:nerves_hub, :extension_config, health: [interval_minutes: 5])
+      on_exit(fn -> Application.put_env(:nerves_hub, :extension_config, original) end)
+
+      state = State.new(%DeviceInfo{device_id: 1, device_identifier: "x"})
+      {_new_state, effects} = Health.attach(state)
+
+      expected_interval = to_timeout(minute: 5)
+      assert Enum.any?(effects, &match?({:start_timer, :check, _, ^expected_interval}, &1))
+    end
   end
 
   defp timer(effects) do

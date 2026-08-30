@@ -303,4 +303,87 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
       refute "-B" in args, "expected no -B flag in xdelta3 args, got: #{inspect(args)}"
     end
   end
+
+  describe "perform/1 - branch coverage" do
+    test "returns :ok when delta has a non-processing status (e.g. :completed)", %{
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      source_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      target_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
+      Repo.update!(Ecto.Changeset.change(delta, status: :completed))
+
+      job = %Oban.Job{
+        id: Ecto.UUID.generate(),
+        attempt: 1,
+        args: %{"source_id" => source_firmware.id, "target_id" => target_firmware.id}
+      }
+
+      assert :ok = FirmwareDeltaBuilder.perform(job)
+    end
+
+    test "returns :ok when no delta record exists for source/target pair", %{
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      source_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      target_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      job = %Oban.Job{
+        id: Ecto.UUID.generate(),
+        attempt: 1,
+        args: %{"source_id" => source_firmware.id, "target_id" => target_firmware.id}
+      }
+
+      assert :ok = FirmwareDeltaBuilder.perform(job)
+    end
+
+    test "discards job when firmware has no delta support", %{
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      stub(Firmwares, :generate_firmware_delta, fn _delta, _source, _target ->
+        {:error, :no_delta_support_in_firmware}
+      end)
+
+      source_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      target_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+        |> Ecto.Changeset.change(delta_updatable: true)
+        |> Repo.update!()
+
+      {:ok, _delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
+
+      job = %Oban.Job{
+        id: Ecto.UUID.generate(),
+        attempt: 1,
+        args: %{"source_id" => source_firmware.id, "target_id" => target_firmware.id}
+      }
+
+      assert :discard = FirmwareDeltaBuilder.perform(job)
+    end
+  end
 end

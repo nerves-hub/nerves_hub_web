@@ -81,36 +81,40 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
       # Default time frame is 1 hour, so no charts are expected.
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("1 day")
+      |> refute_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("7 days")
+      |> refute_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       # Makes sure "3 hours" button is working
       |> click_button("3 hours")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
     end
@@ -131,27 +135,30 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("1 day")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("7 days")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
 
@@ -165,27 +172,30 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("1 day")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("7 days")
+      |> refute_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
     end
