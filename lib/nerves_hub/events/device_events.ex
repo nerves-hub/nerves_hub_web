@@ -6,6 +6,7 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceMessages
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Devices.Updates
@@ -152,6 +153,18 @@ defmodule NervesHub.DeviceEvents do
   end
 
   defp broadcast(device, event, payload) do
+    :ok = record_send(device, event, payload)
     :ok = ChannelServer.broadcast(NervesHub.PubSub, topic(device), event, payload)
+  end
+
+  # `NervesHubWeb.DeviceChannel` intercepts these two, so they stop at the
+  # channel and are turned into other messages — the device never sees them,
+  # and recording them here would claim a send that did not happen. Everything
+  # else on this topic is fastlaned straight to the device's transport, which
+  # means this broadcast is the only place it can be seen at all.
+  defp record_send(_device, event, _payload) when event in ["updated", "deployment_updated"], do: :ok
+
+  defp record_send(device, event, payload) do
+    DeviceMessages.record(device, :sent, :device, event, payload)
   end
 end

@@ -39,8 +39,11 @@ Key runtime pieces:
 - **Deployment orchestration** — one singleton `Orchestrator` process per
   deployment group, owned by ProcessHub (`NervesHub.ManagedDeployments.Distributed`).
 - **Presence/liveness** — `NervesHub.Tracker` + Phoenix Presence.
-- **Cross-node messaging** — `Phoenix.PubSub` on per-entity topics (per device,
-  per product, per firmware, …).
+- **Cross-node messaging** — two transports. `Phoenix.PubSub` for dense
+  fan-out, and the `group` library for per-entity topics whose consumers are
+  sparse (per device, per console session, per product, per firmware). See
+  [docs/cross_node_messaging.md](docs/cross_node_messaging.md) for which is
+  which and how to choose for something new.
 
 ## Repository layout
 
@@ -55,6 +58,10 @@ assets/               JS/CSS (esbuild + tailwind)
 rel/                  Release config
 docs/                 Design docs
 ```
+
+Every environment variable `config/runtime.exs` reads is documented in
+[docs/runtime_configuration.md](docs/runtime_configuration.md); keep it in step
+when adding or removing one.
 
 ### `lib/nerves_hub/` (contexts)
 
@@ -189,7 +196,7 @@ moment a consumer changed.
     tests assert with `assert_eventually`; under a loaded runner they can fail
     and pass on re-run / in isolation. Verify with a re-run before assuming a
     regression.
-  - **Firmware delta tests need `fwup` + `mtools` + `xdelta3` installed.**
+  - **Firmware delta tests need `fwup` + `mtools` + `xdelta3` + `detools` installed.** (`detools` is pinned in `mise.toml`, so `mise install` fetches it; otherwise `pip install detools`. ESP-IDF deltas use it rather than xdelta3, because that is the format `esp_delta_ota` reads on the device.)
     Without them, a couple of `NervesHub.Firmwares.UpdateToolTest` cases fail
     locally — an environment failure, not a code one.
 

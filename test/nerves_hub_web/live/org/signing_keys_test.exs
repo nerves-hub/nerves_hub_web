@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Fixtures
   alias NervesHub.Support.EspIdf
+  alias NervesHub.Support.RaucBundle
 
   describe "list" do
     test "no signing keys", %{conn: conn, user: user} do
@@ -50,6 +51,37 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_has("div", text: "Signing Key created successfully.")
       |> assert_has("h3", text: "my amazing key")
       |> assert_has("div", text: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
+    end
+  end
+
+  describe "create a RAUC signing key" do
+    test "accepts a PEM X.509 certificate", %{conn: conn, org: org} do
+      # RAUC signs bundles with CMS against a certificate chain, so the
+      # organization key is a certificate rather than a bare public key. Without
+      # the scheme in this dropdown there was no way to add one at all, and
+      # therefore no way to upload a bundle.
+      signer = RaucBundle.keypair()
+
+      conn
+      |> visit("/org/#{org.name}/settings/keys/new")
+      |> select("Scheme", option: "RAUC (X.509 certificate)")
+      |> fill_in("Name", with: "rauc release key")
+      |> fill_in("Key", with: signer.certificate)
+      |> click_button("Create Key")
+      |> assert_path("/org/#{org.name}/settings/keys")
+      |> assert_has("div", text: "Signing Key created successfully.")
+      |> assert_has("h3", text: "rauc release key")
+      |> assert_has("code", text: "x509-certificate")
+    end
+
+    test "rejects something that is not a certificate", %{conn: conn, org: org} do
+      conn
+      |> visit("/org/#{org.name}/settings/keys/new")
+      |> select("Scheme", option: "RAUC (X.509 certificate)")
+      |> fill_in("Name", with: "wrong scheme")
+      |> fill_in("Key", with: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
+      |> click_button("Create Key")
+      |> assert_has("div", text: "expected a PEM-encoded X.509 certificate")
     end
   end
 

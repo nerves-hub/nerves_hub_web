@@ -61,16 +61,24 @@ defmodule NervesHubWeb.Live.Product.Insights do
 
   defp update_information(%{assigns: %{current_scope: scope}} = socket) do
     polling_pid = Process.send_after(self(), :poll_device_counts, to_timeout(minute: 1))
+    product = scope.product
 
     socket
     |> assign(:polling_pid, polling_pid)
     |> assign(:updated_at, DateTime.utc_now())
-    |> assign(:online_count, Devices.online_count(scope.product))
-    |> assign(:offline_count, Devices.offline_count(scope.product))
-    |> assign(:not_seen_in_7_days, Devices.not_seen_in_x_days_count(scope.product, 7))
-    |> assign(:not_seen_in_14_days, Devices.not_seen_in_x_days_count(scope.product, 14))
-    |> assign(:fleet_size, Devices.total_count(scope.product))
+    |> assign(:fleet_size, Devices.total_count(product))
+    |> assign_async(:online_count, fn -> {:ok, %{online_count: Devices.online_count(product)}} end)
+    |> assign_async(:offline_count, fn -> {:ok, %{offline_count: Devices.offline_count(product)}} end)
+    |> assign_async(:not_seen_in_7_days, fn ->
+      {:ok, %{not_seen_in_7_days: Devices.not_seen_in_x_days_count(product, 7)}}
+    end)
+    |> assign_async(:not_seen_in_14_days, fn ->
+      {:ok, %{not_seen_in_14_days: Devices.not_seen_in_x_days_count(product, 14)}}
+    end)
   end
+
+  @impl Phoenix.LiveView
+  def handle_async(_name, _result, socket), do: {:noreply, socket}
 
   defp maybe_assign_device_connections_graph(socket, period \\ :fourteen_days)
 

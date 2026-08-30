@@ -10,6 +10,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareTransfer
+  alias NervesHub.Firmwares.PubSub
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Helpers.Logging
@@ -21,7 +22,6 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteFirmware
   alias NervesHub.Workers.FirmwareDeltaBuilder
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -339,15 +339,7 @@ defmodule NervesHub.Firmwares do
     )
     |> case do
       {:ok, firmware} ->
-        _ =
-          NervesHubWeb.Endpoint.broadcast_from(
-            self(),
-            "product:#{firmware.product_id}",
-            "firmware/created",
-            %{
-              firmware: firmware
-            }
-          )
+        _ = Products.PubSub.broadcast_from(firmware.product_id, "firmware/created", %{firmware: firmware})
 
         {:ok, firmware}
 
@@ -371,15 +363,7 @@ defmodule NervesHub.Firmwares do
     end)
     |> case do
       {:ok, firmware} ->
-        _ =
-          NervesHubWeb.Endpoint.broadcast_from(
-            self(),
-            "product:#{firmware.product_id}",
-            "firmware/deleted",
-            %{
-              firmware: firmware
-            }
-          )
+        _ = Products.PubSub.broadcast_from(firmware.product_id, "firmware/deleted", %{firmware: firmware})
 
         {:ok, firmware}
 
@@ -643,18 +627,18 @@ defmodule NervesHub.Firmwares do
     # checked when an update is sent. Neither answers whether the format can be
     # patched at all.
     #
-    # Without that question, a group with deltas enabled generates patches for
-    # an ESP-IDF image — which no device can apply, so `device_update_type/2`
-    # always sends the full image — and the patch is built, stored, and never
-    # used. It also shows in the UI as though deltas were working.
-    with {:ok, tool} <- UpdateTool.for_firmware(target_firmware) do
-      if tool.supports_deltas?() do
-        do_generate_firmware_delta(firmware_delta, source_firmware, target_firmware)
-      else
-        Logger.info("Skipping delta for #{target_firmware.uuid}: #{target_firmware.tool} images cannot be patched.")
+    # Every format currently shipped answers yes, so this reads as a formality.
+    # It is not: a format arrives without an applier, not with one — ESP-IDF
+    # spent two releases here answering no — and the cost of asking late is a
+    # patch built and stored that nothing can ever use. Asked here as well as in
+    # `attempt_firmware_delta/3` because a job queued before a format changed
+    # its answer arrives straight at this function.
+    if delta_capable_format?(target_firmware) do
+      do_generate_firmware_delta(firmware_delta, source_firmware, target_firmware)
+    else
+      Logger.info("Skipping delta for #{target_firmware.uuid}: #{target_firmware.tool} images cannot be patched.")
 
-        {:error, :no_delta_support_in_firmware}
-      end
+      {:error, :no_delta_support_in_firmware}
     end
   end
 
@@ -886,19 +870,11 @@ defmodule NervesHub.Firmwares do
     {:ok, firmware_delta}
   end
 
-  @spec subscribe_firmware_delta_target(target_id :: integer()) :: :ok
-  def subscribe_firmware_delta_target(target_id) do
-    _ = NervesHubWeb.Endpoint.subscribe("firmware:#{target_id}")
-    :ok
-  end
-
+  # Pipeline adapter for the delta lifecycle functions above, which all thread an
+  # `{:ok, delta} | {:error, term()}` through. The transport lives in
+  # `NervesHub.Firmwares.PubSub`.
   defp notify_firmware_delta_target({:ok, %FirmwareDelta{} = firmware_delta}) do
-    :ok =
-      ChannelServer.broadcast(NervesHub.PubSub, "firmware:#{firmware_delta.target_id}", "delta/status_update", %{
-        delta_id: firmware_delta.id,
-        source_firmware_id: firmware_delta.source_id,
-        status: firmware_delta.status
-      })
+    :ok = PubSub.broadcast_delta_status(firmware_delta)
 
     {:ok, firmware_delta}
   end
@@ -1038,9 +1014,10 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  # A product may accept unsigned ESP-IDF images, because most ESP-IDF builds
-  # are not signed. A *present but invalid* signature is still refused — the
-  # setting excuses the absence of a signature, never a bad one.
+  # A product may accept unsigned images for a format that can arrive that way:
+  # most ESP-IDF builds are not signed, and nothing but `nh-avm` signs a
+  # packbeam. A *present but invalid* signature is still refused — the setting
+  # excuses the absence of a signature, never a bad one.
   defp verify_signature(tool, filepath, org_keys, product) do
     case tool.verify_signature(filepath, org_keys) do
       {:error, :firmware_not_signed} ->
@@ -1055,8 +1032,15 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  defp unsigned_allowed?(tool, %Product{allow_unsigned_esp_idf_firmware: true}) do
-    tool.tool_name() == "esp-idf"
+  # Per format, because they are unsigned for unrelated reasons and a product
+  # may reasonably allow one and not the other. fwup is absent on purpose: an
+  # fwup archive is always verified.
+  defp unsigned_allowed?(tool, %Product{} = product) do
+    case tool.tool_name() do
+      "esp-idf" -> product.allow_unsigned_esp_idf_firmware
+      "atomvm" -> product.allow_unsigned_atomvm_firmware
+      _other -> false
+    end
   end
 
   defp unsigned_allowed?(_tool, _product), do: false

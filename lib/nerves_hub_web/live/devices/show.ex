@@ -2,16 +2,20 @@ defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :live_view
 
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.Consoles
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Pinning
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.Updates
-  alias NervesHub.Extensions.Health
+  alias NervesHub.Extensions
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Products
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
+  alias NervesHubWeb.Components.DevicePage.DataHistoryTab
   alias NervesHubWeb.Components.DevicePage.DetailsTab
   alias NervesHubWeb.Components.DevicePage.FirmwareHistoryTab
   alias NervesHubWeb.Components.DevicePage.HealthTab
@@ -29,6 +33,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   @tab_components [
     ActivityTab,
     ConsoleTab,
+    DataHistoryTab,
     DetailsTab,
     FirmwareHistoryTab,
     HealthTab,
@@ -44,11 +49,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     if connected?(socket) do
       Logger.metadata(device_id: device.id, user_id: user.id, product_id: product.id)
-      socket.endpoint.subscribe("internal:device:#{device.id}")
-      socket.endpoint.subscribe("device:console:#{device.id}:internal")
-      socket.endpoint.subscribe("device:console:#{device.id}")
-      socket.endpoint.subscribe("device:#{device.id}:extensions")
-      socket.endpoint.subscribe("product:#{product.id}")
+      PubSub.subscribe(device.id)
+      Consoles.PubSub.subscribe_console_watcher(device.id)
+      Extensions.PubSub.subscribe_reports(device.id)
+      Products.PubSub.subscribe(product.id)
     end
 
     socket
@@ -57,7 +61,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> sidebar_tab(:devices)
     |> selected_tab()
     |> general_assigns(device)
-    |> schedule_health_check_timer()
+    |> watch_health()
     |> load_inprogress_firmware_update()
     |> assign(:pinned?, Pinning.device_pinned?(user.id, device.id))
     |> setup_presence_tracking()
@@ -158,16 +162,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:firmware_update_progress, nil)
     |> assign(:firmware_update_stage, stage)
-    |> noreply()
-  end
-
-  def handle_info(:check_health_interval, socket) do
-    timer_ref = Process.send_after(self(), :check_health_interval, health_polling_seconds())
-
-    Health.request_health_check(socket.assigns.device)
-
-    socket
-    |> assign(:health_check_timer, timer_ref)
     |> noreply()
   end
 
@@ -376,15 +370,22 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  defp schedule_health_check_timer(socket) do
+  # Tells the device's extensions channel that somebody is looking, which is the
+  # whole of the page's involvement in health reporting: the pace, and the
+  # `health:check` itself, belong to `NervesHub.Extensions.Health`. Every open
+  # page used to run its own timer and ask the device directly, so two people on
+  # one device meant two extra streams of requests on top of the platform's.
+  #
+  # There is nothing to give up again: watching lasts as long as this process,
+  # and the reporting slows back down once the last page has closed.
+  defp watch_health(socket) do
     %{device: device, product: product} = socket.assigns
 
     if connected?(socket) and health_extension_enabled?(product, device) do
-      timer_ref = Process.send_after(self(), :check_health_interval, 500)
-      assign(socket, :health_check_timer, timer_ref)
-    else
-      assign(socket, :health_check_timer, nil)
+      :ok = Extensions.PubSub.watch_health(device.id)
     end
+
+    socket
   end
 
   defp health_extension_enabled?(product, device) do
@@ -438,16 +439,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     assign(socket, :tab, socket.assigns.live_action || :details)
   end
 
-  defp health_polling_seconds() do
-    Application.get_env(:nerves_hub, :extension_config, [])
-    |> get_in([:health, :ui_polling_seconds])
-    |> :timer.seconds()
-  end
-
   def render_tab(assigns) do
     ~H"""
     <ActivityTab.render :if={@tab == :activity} {assigns} />
     <ConsoleTab.render :if={@tab == :console} {assigns} />
+    <DataHistoryTab.render :if={@tab == :data_history} {assigns} />
     <DetailsTab.render :if={@tab == :details} {assigns} />
     <FirmwareHistoryTab.render :if={@tab == :firmware_history} {assigns} />
     <HealthTab.render :if={@tab == :health} {assigns} />

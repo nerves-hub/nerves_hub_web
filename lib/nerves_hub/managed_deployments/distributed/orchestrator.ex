@@ -10,6 +10,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   use GenServer
   use OpenTelemetryDecorator
 
+  alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Updates
@@ -58,8 +59,10 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   def init({deployment_group, rate_limit}) do
     :ok = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment_group.id}")
 
-    :ok =
-      PubSub.subscribe(NervesHub.PubSub, "orchestrator:deployment:#{deployment_group.id}")
+    # Join as the consumer for this deployment's orchestrator events. Device-node
+    # senders `Group.dispatch` to this key (default cluster), so events reach only
+    # this node instead of the whole cluster.
+    :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
     # trigger every two minutes, plus a jitter between 1 and 10 seconds, as a back up
     interval = to_timeout(second: 120 + :rand.uniform(20))
