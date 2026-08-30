@@ -204,7 +204,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     topic1 = "device:#{device.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic1)
 
-    deployment_group_topic = DeploymentOrchestratorEvents.topic(deployment_group)
     :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
     {:ok, _pid} =

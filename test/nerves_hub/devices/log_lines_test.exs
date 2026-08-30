@@ -106,10 +106,18 @@ defmodule NervesHub.Devices.LogLinesTest do
   end
 
   test "recent/1", %{device: device, device2: device2} do
-    for _ <- 0..30 do
-      random_log(device)
-      random_log(device2)
-    end
+    now = DateTime.utc_now()
+
+    rows =
+      for i <- 0..30, dev <- [device, device2] do
+        LogLine.create_changeset(dev.id, dev.product_id, %{
+          "timestamp" => DateTime.add(now, i, :millisecond),
+          "level" => "info",
+          "message" => random_word()
+        }).changes
+      end
+
+    AnalyticsRepo.insert_all(LogLine, rows, settings: [async_insert: 1])
 
     :ok = Buffer.flush(LogLine)
 
@@ -220,20 +228,95 @@ defmodule NervesHub.Devices.LogLinesTest do
     log_line
   end
 
-  defp random_word(n \\ 6) do
-    1..n |> Enum.map(fn _ -> Enum.random(?a..?z) end) |> to_string()
+  describe "LogLine.create_changeset/3" do
+    test "missing timestamp produces invalid changeset", %{device: device} do
+      changeset = LogLine.create_changeset(device.id, device.product_id, %{"message" => "hi", "level" => "info"})
+      refute changeset.valid?
+      assert changeset.errors[:timestamp] != nil
+    end
+
+    test "valid params produce a valid changeset", %{device: device} do
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "timestamp" => DateTime.utc_now(),
+          "level" => "info",
+          "message" => "hello"
+        })
+
+      assert changeset.valid?
+    end
+
+    test "maybe_set_timestamp - unix microsecond string in meta.time sets the timestamp", %{
+      device: device
+    } do
+      logged_at = DateTime.utc_now()
+      unix_us = logged_at |> DateTime.to_unix(:microsecond) |> to_string()
+
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "level" => "info",
+          "message" => "hello",
+          "meta" => %{"time" => unix_us}
+        })
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_change(changeset, :timestamp) == logged_at
+    end
+
+    test "maybe_set_timestamp - explicit timestamp is used as-is", %{device: device} do
+      logged_at = DateTime.utc_now()
+
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "timestamp" => logged_at,
+          "level" => "info",
+          "message" => "hello"
+        })
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_change(changeset, :timestamp) == logged_at
+    end
+
+    test "maybe_set_timestamp - missing timestamp and no meta.time makes changeset invalid", %{
+      device: device
+    } do
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "level" => "info",
+          "message" => "hello"
+        })
+
+      refute changeset.valid?
+      assert Keyword.has_key?(changeset.errors, :timestamp)
+    end
+
+    test "format_message - charlist message is converted to string", %{device: device} do
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "timestamp" => DateTime.utc_now(),
+          "level" => "info",
+          "message" => ~c"hello charlist"
+        })
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_change(changeset, :message) == "hello charlist"
+    end
+
+    test "format_message - non-string non-charlist is inspected", %{device: device} do
+      changeset =
+        LogLine.create_changeset(device.id, device.product_id, %{
+          "timestamp" => DateTime.utc_now(),
+          "level" => "info",
+          "message" => 42
+        })
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_change(changeset, :message) == "42"
+    end
   end
 
-  defp random_log(device) do
-    attrs = %{
-      "timestamp" => DateTime.utc_now(),
-      "level" => Enum.random(["error", "warning", "info", "debug"]),
-      "message" => random_word()
-    }
-
-    {:ok, log_line} = LogLines.async_create(to_device_info(device), attrs)
-
-    log_line
+  defp random_word(n \\ 6) do
+    1..n |> Enum.map(fn _ -> Enum.random(?a..?z) end) |> to_string()
   end
 
   def to_device_info(device) do
