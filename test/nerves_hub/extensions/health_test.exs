@@ -1,8 +1,6 @@
 defmodule NervesHub.Extensions.HealthTest do
   @moduledoc """
   The pace at which a device is asked for health reports.
-  use NervesHub.DataCase, async: false
-  use Mimic
 
   Only this module asks. Everything below is about how it settles on how often,
   and about the asymmetry that makes it work: a page opening says so, a page
@@ -10,14 +8,8 @@ defmodule NervesHub.Extensions.HealthTest do
   """
 
   use ExUnit.Case, async: true
-  # =======
-  #   use NervesHub.DataCase, async: true
-  #   use Mimic
-
-  #   import ExUnit.CaptureLog
 
   alias NervesHub.DeviceLink.DeviceInfo
-  alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
@@ -125,11 +117,6 @@ defmodule NervesHub.Extensions.HealthTest do
 
       assert State.get(state, :mode) == :watched
       assert {:start_timer, :check, @watched_ms} = timer(effects)
-      # =======
-      #       assert new_state == state
-      #       assert Enum.any?(effects, &match?({:tick, :check}, &1))
-      #       assert Enum.any?(effects, &match?({:start_timer, :check, _, _}, &1))
-      # >>>>>>> e8ee379e (Remove async: true from tests that can't have it)
     end
 
     test "uses a custom interval from application config" do
@@ -174,47 +161,6 @@ defmodule NervesHub.Extensions.HealthTest do
     # Membership is given up by the group noticing the exit, not by the exit
     # itself, so the read has to wait for the group rather than the process.
     wait_until(fn -> not PubSub.health_watched?(device_id) end)
-    # =======
-    #       {new_state, effects} = Health.handle_in("report", report, state)
-    #       assert new_state == state
-    #       assert effects == []
-    #     end
-
-    #     test "handles a report with no metrics key", %{state: state} do
-    #       report = %{"value" => %{"alarms" => []}}
-
-    #       {new_state, effects} = Health.handle_in("report", report, state)
-    #       assert new_state == state
-    #       assert effects == []
-    #     end
-
-    #     test "logs a warning and returns empty effects when health save fails", %{state: state} do
-    #       stub(NervesHub.Devices.Health, :save_device_health, fn _ -> {:error, :db_unavailable} end)
-
-    #       log =
-    #         capture_log(fn ->
-    #           {new_state, effects} = Health.handle_in("report", %{"value" => %{}}, state)
-    #           assert new_state == state
-    #           assert effects == []
-    #         end)
-
-    #       assert log =~ "Failed to save health check data"
-    #     end
-
-    #     test "logs a warning and returns empty effects when metrics save fails", %{state: state} do
-    #       stub(NervesHub.Devices.Health, :save_device_health, fn _ -> {:ok, :saved} end)
-    #       stub(Metrics, :save_metrics, fn _, _ -> :error end)
-
-    #       log =
-    #         capture_log(fn ->
-    #           {new_state, effects} = Health.handle_in("report", %{"value" => %{}}, state)
-    #           assert new_state == state
-    #           assert effects == []
-    #         end)
-
-    #       assert log =~ "Failed to save metrics report"
-    #     end
-    # >>>>>>> 4b72d094 (Target the last batch of meaningful coverage additions)
   end
 
   defp wait_until(fun, attempts \\ 50) do
@@ -228,105 +174,6 @@ defmodule NervesHub.Extensions.HealthTest do
       true ->
         Process.sleep(20)
         wait_until(fun, attempts - 1)
-        # =======
-        #   use NervesHub.DataCase, async: true
-
-        #   alias NervesHub.DeviceLink.DeviceInfo
-        #   alias NervesHub.Extensions.Health
-        #   alias NervesHub.Extensions.State
-        #   alias NervesHub.Fixtures
-
-        #   setup do
-        #     user = Fixtures.user_fixture()
-        #     org = Fixtures.org_fixture(user)
-        #     product = Fixtures.product_fixture(user, org)
-        #     org_key = Fixtures.org_key_fixture(org, user)
-        #     firmware = Fixtures.firmware_fixture(org_key, product)
-        #     device = Fixtures.device_fixture(org, product, firmware)
-
-        #     device_info = %DeviceInfo{
-        #       device_id: device.id,
-        #       device_identifier: device.identifier,
-        #       org_id: org.id,
-        #       product_id: product.id
-        #     }
-
-        #     state = State.new(device_info)
-        #     %{state: state, device: device}
-        #   end
-
-        #   describe "description/0" do
-        #     test "returns a non-empty string" do
-        #       assert is_binary(Health.description())
-        #       assert String.length(Health.description()) > 0
-        #     end
-        #   end
-
-        #   describe "enabled?/0" do
-        #     test "returns true" do
-        #       assert Health.enabled?() == true
-        #     end
-        #   end
-
-        #   describe "attach/1" do
-        #     test "returns state and effects including a timer start and tick" do
-        #       state = State.new(%DeviceInfo{device_id: 1, device_identifier: "x"})
-        #       {new_state, effects} = Health.attach(state)
-
-        #       assert new_state == state
-        #       assert Enum.any?(effects, &match?({:tick, :check}, &1))
-        #       assert Enum.any?(effects, &match?({:start_timer, :check, _}, &1))
-        #     end
-        #   end
-
-        #   describe "detach/1" do
-        #     test "returns state and a cancel_timer effect" do
-        #       state = State.new(%DeviceInfo{device_id: 1, device_identifier: "x"})
-        #       {new_state, effects} = Health.detach(state)
-
-        #       assert new_state == state
-        #       assert [{:cancel_timer, :check}] = effects
-        #     end
-        #   end
-
-        #   describe "handle_info/2 :check" do
-        #     test "pushes a health:check message" do
-        #       state = State.new(%DeviceInfo{device_id: 1, device_identifier: "x"})
-        #       {new_state, effects} = Health.handle_info(:check, state)
-
-        #       assert new_state == state
-        #       assert [{:push, "health:check", %{}}] = effects
-        #     end
-        #   end
-
-        #   describe "handle_in/3 report" do
-        #     test "saves health and metrics from a device report", %{state: state} do
-        #       report = %{
-        #         "value" => %{
-        #           "metrics" => %{"cpu_temp" => 42.0, "load_1min" => 0.5},
-        #           "alarms" => [],
-        #           "metadata" => %{}
-        #         }
-        #       }
-
-        #       {new_state, effects} = Health.handle_in("report", report, state)
-        #       assert new_state == state
-        #       assert effects == []
-        #     end
-
-        #     test "handles a report with no metrics key", %{state: state} do
-        #       report = %{"value" => %{"alarms" => []}}
-
-        #       {new_state, effects} = Health.handle_in("report", report, state)
-        #       assert new_state == state
-        #       assert effects == []
-        #     end
-        #   end
-
-        #   describe "request_health_check/1" do
-        #     test "broadcasts to device without raising", %{device: device} do
-        #       assert :ok = Health.request_health_check(device)
-        # >>>>>>> e631de8c (Add tests to cover the work that's been merged to main in the past week)
     end
   end
 end
