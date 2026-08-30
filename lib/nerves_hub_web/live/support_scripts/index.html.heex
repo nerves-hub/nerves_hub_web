@@ -46,6 +46,12 @@
             <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
               <Sorting.sort_icon text="Added on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
+            <th phx-click="sort" phx-value-sort="updated_at" class="cursor-pointer">
+              <Sorting.sort_icon text="Updated at" field="updated_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th phx-click="sort" phx-value-sort="last_updated_by" class="cursor-pointer">
+              <Sorting.sort_icon text="Updated by" field="last_updated_by" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
             <th>
               Tags
             </th>
@@ -60,6 +66,12 @@
             </td>
             <td>
               {Calendar.strftime(script.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}
+            </td>
+            <td>
+              {Calendar.strftime(script.updated_at, "%Y-%m-%d at %I:%M %p UTC")}
+            </td>
+            <td>
+              {script.last_editor_name}
             </td>
             <td>
               <div class="flex items-center gap-[4px] text-nowrap">

@@ -239,5 +239,29 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
 
       assert %{text: "dbg(NervesMOTD.print())"} = Scripts.get!(script.id)
     end
+
+    test "shows who last edited the script and when", %{conn: conn, org: org, product: product, user: user} do
+      editor = Fixtures.user_fixture()
+      {:ok, script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+      {:ok, _} = Scripts.update(script, editor, %{name: "MOTD v2"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/#{script.id}/edit")
+      |> assert_has("div", text: "Last edited by #{editor.name}")
+      |> refute_has("div", text: "Last edited by #{user.name}")
+    end
+
+    test "falls back to the creator's name for a newly created script", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/#{script.id}/edit")
+      |> assert_has("div", text: "Last edited by #{user.name}")
+    end
   end
 end

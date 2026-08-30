@@ -24,6 +24,9 @@
           <div class="flex w-1/2 flex-col gap-2">
             <.input field={@form[:text]} label="Script code" type="textarea" rows="10" phx-debounce="2000" />
             <div class="text-base-400 text-xs tracking-wide">Make sure this is valid Elixir and will not crash the device</div>
+            <div class="text-base-400 text-xs">
+              Last edited by {@script.last_editor_name} on {Calendar.strftime(@script.updated_at, "%Y-%m-%d at %I:%M %p UTC")}
+            </div>
           </div>
         </div>
         <div class="border-base-700 flex h-14 items-center justify-start gap-4 border-t px-4">
