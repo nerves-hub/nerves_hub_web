@@ -48,10 +48,28 @@ defmodule NervesHub.Extensions.PubSub do
   reach *every* online device in the product, so it is genuine dense fan-out
   with no targeted-dispatch win. It lives here only so that all extension
   pub/sub goes through one module.
+
+  ## Transport only, deliberately
+
+  Nothing here touches the database, and that has to stay true. The
+  device-facing half of this module -- `subscribe_device/1`,
+  `subscribe_product/1`, and the topic strings both ends compute -- runs in the
+  process holding the device's connection, and since the `NervesHub.DeviceLink`
+  contract that process is not always on a node carrying the platform stack.
+  `NervesHub.DeviceLink.Dispatcher.Remote` exists so a connection can be held
+  somewhere that reaches DeviceLink over `:erpc`, with no `Repo`, no schemas and
+  no `NervesHub.Devices.DeviceMessages`.
+
+  A schema in a function head or a context call in a body is not a soft
+  constraint there: the struct fails to expand and the call warns as undefined,
+  so the module cannot be built at all. Recording therefore belongs with
+  whatever produced the message, which is on a web node in every case -- see
+  `NervesHub.Extensions.broadcast_extension_event/3` and
+  `NervesHub.Extensions.Health.request_health_check/1`.
+
+  `NervesHub.Consoles.PubSub` is the same shape for the same reason.
   """
 
-  alias NervesHub.Devices.Device
-  alias NervesHub.Devices.DeviceMessages
   alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
@@ -69,15 +87,15 @@ defmodule NervesHub.Extensions.PubSub do
     :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic(device_id))
   end
 
-  @doc "Send a web -> device extensions event (`health:check`, `attach`, `detach`)."
-  @spec broadcast_to_device(Device.t(), String.t(), map()) :: :ok
-  def broadcast_to_device(%Device{} = device, event, payload) do
-    # Recorded here rather than in the channel that pushes it. The connection
-    # holding the device is not always this node, and a connection reached over
-    # `:erpc` has no database to write to, so this is the last point every
-    # deployment has in common. See `NervesHub.Devices.DeviceMessages`.
-    :ok = DeviceMessages.record(device, :sent, :extensions, event, payload)
-    ChannelServer.broadcast!(NervesHub.PubSub, topic(device.id), event, payload)
+  @doc """
+  Send a web -> device extensions event (`health:check`, `attach`, `detach`).
+
+  Recording the message is the caller's, because it is the caller that produces
+  it -- see the moduledoc's note on what this module does not do.
+  """
+  @spec broadcast_to_device(integer(), String.t(), map()) :: :ok
+  def broadcast_to_device(device_id, event, payload) do
+    ChannelServer.broadcast!(NervesHub.PubSub, topic(device_id), event, payload)
   end
 
   @doc "Join the calling process (a device Show LiveView) to receive device -> web reports."

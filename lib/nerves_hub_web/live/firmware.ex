@@ -43,7 +43,10 @@ defmodule NervesHubWeb.Live.Firmware do
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.current_scope))
     |> assign(:params, unsigned_params)
     |> allow_upload(:firmware,
-      accept: ~w(.fw .bin .raucb),
+      # Every format's extension, or the file picker rejects it in the browser
+      # before any of the upload code runs. See firmware_rauc_test.exs and
+      # firmware_atom_vm_test.exs, both written after that happened.
+      accept: ~w(.fw .bin .raucb .avm),
       max_entries: 1,
       auto_upload: true,
       max_file_size: max_file_size(),
