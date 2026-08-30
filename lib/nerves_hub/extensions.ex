@@ -16,6 +16,7 @@ defmodule NervesHub.Extensions do
   """
 
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceMessages
   alias NervesHub.Extensions.Geo
   alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.LocalShell
@@ -154,8 +155,15 @@ defmodule NervesHub.Extensions do
   end
 
   def broadcast_extension_event(%Device{} = device, event, extension) do
+    payload = %{"extensions" => [extension]}
+
+    # Recorded here, where the message is produced, rather than in the channel
+    # that pushes it: that channel is not always on a node with a database. See
+    # `NervesHub.Extensions.PubSub` on why the recording is not in the wrapper.
+    :ok = DeviceMessages.record(device, :sent, :extensions, event, payload)
+
     # web -> device: only the device's extensions channel consumes this.
-    PubSub.broadcast_to_device(device, event, %{"extensions" => [extension]})
+    PubSub.broadcast_to_device(device.id, event, payload)
   end
 
   def broadcast_extension_event(%Product{} = product, event, extension) do
