@@ -17,7 +17,6 @@ defmodule NervesHubWeb.DeviceMessageRecordingTest do
   alias NervesHub.Devices.DeviceMessage
   alias NervesHub.Devices.DeviceMessages
   alias NervesHub.Extensions
-  alias NervesHub.Extensions.Health
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
@@ -80,17 +79,6 @@ defmodule NervesHubWeb.DeviceMessageRecordingTest do
     # `Extensions.PubSub`, which stays free of the database so the connection
     # layer can be duplicated onto a node that has none. Which means a caller
     # can forget, and only a test would say so.
-    test "records a health check requested from the web", %{tmp_dir: tmp_dir} do
-      %{device: device, channel: channel} = join_device(tmp_dir)
-
-      :ok = Health.request_health_check(device)
-
-      assert %{direction: "sent", topic: "extensions", event: "health:check"} =
-               find(recorded(device), "health:check")
-
-      close_cleanly(channel)
-    end
-
     test "records an extension being attached and detached", %{tmp_dir: tmp_dir} do
       %{device: device, channel: channel} = join_device(tmp_dir)
 

@@ -380,6 +380,38 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert_push("health:check", _)
   end
 
+  test "a page opening asks the attached health extension for a report", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
+
+    assert_push("extensions:get", _extensions)
+
+    assert {:ok, ["health"], socket} =
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{"health" => "0.0.1"}
+             )
+
+    push(socket, "health:attached")
+    assert_push("health:check", _)
+
+    # What the device Show LiveView does on mount. The whole point of the round
+    # trip is that the device is asked by the channel, so a second page opening
+    # adds nothing to what the device is already being sent.
+    :ok = PubSub.watch_health(device.id)
+
+    assert_push("health:check", _)
+  end
+
   test "attached geo extension will receive request for location update", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
