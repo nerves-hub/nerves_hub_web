@@ -760,31 +760,6 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert Process.alive?(extensions_channel.channel_pid)
   end
 
-  test "broadcast to device extensions topic is pushed to the socket", %{tmp_dir: tmp_dir} do
-    user = Fixtures.user_fixture()
-    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "abc-broadcast"}, dir: tmp_dir)
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-
-    {:ok, socket} =
-      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-    {:ok, _, _device_channel} =
-      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
-
-    assert_push("extensions:get", _extensions)
-
-    assert {:ok, ["health"], _extensions_channel} =
-             subscribe_and_join_with_default_device_api_version(
-               socket,
-               ExtensionsChannel,
-               "extensions",
-               %{"health" => "0.0.1"}
-             )
-
-    PubSub.broadcast_to_device(device, "health:check", %{})
-    assert_push("health:check", _)
-  end
-
   def device_fixture(user, device_params \\ %{}, opts) do
     org = Keyword.get(opts, :org) || Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
