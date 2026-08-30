@@ -96,6 +96,8 @@ defmodule NervesHubWeb.Router do
 
       get("/scripts", ScriptController, :index)
       post("/scripts/:name_or_id", ScriptController, :send)
+
+      get("/logs", DeviceLogController, :index)
     end
 
     scope "/" do
@@ -172,6 +174,10 @@ defmodule NervesHubWeb.Router do
 
                   scope "/scripts", as: :device do
                     post("/:name_or_id", ScriptController, :send)
+                  end
+
+                  scope "/logs" do
+                    get("/", DeviceLogController, :index)
                   end
 
                   scope "/network_identities" do
@@ -350,6 +356,12 @@ defmodule NervesHubWeb.Router do
         "/org/:org_name/:product_name/devices/:device_identifier/logs",
         Live.Devices.Show,
         :logs
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/data_history",
+        Live.Devices.Show,
+        :data_history
       )
 
       live(

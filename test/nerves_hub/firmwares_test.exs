@@ -440,14 +440,13 @@ defmodule NervesHub.FirmwaresTest do
     } do
       target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      # An ESP-IDF image can never be patched — nothing on the device applies
-      # one — so a deployment group with deltas enabled must not have patches
-      # built for it. Downloading is what makes that expensive: two full images
-      # fetched to produce a file that is never sent.
-      {:ok, target} =
-        target
-        |> Ecto.Changeset.change(%{tool: "esp-idf"})
-        |> Repo.update()
+      # Every format shipped today can be patched, so the format that cannot is
+      # a stub. It is still worth covering: a format arrives without an applier
+      # and gains one later, and until it does, a deployment group with deltas
+      # enabled must not have patches built for it. Downloading is what makes
+      # that expensive — two full images fetched to produce a file nothing can
+      # use.
+      stub(UpdateToolDefault, :supports_deltas?, fn -> false end)
 
       reject(&UploadFile.download_file/1)
       reject(&UpdateToolDefault.create_firmware_delta_file/3)
@@ -706,11 +705,11 @@ defmodule NervesHub.FirmwaresTest do
       {:ok, :delta_already_exists} = Firmwares.attempt_firmware_delta(source.id, target.id)
     end
 
-    # An ESP-IDF image can never be patched, so there is nothing to record. A
-    # started-then-failed delta reads in the UI as "Deltas failed to generate",
-    # and -- worse -- leaves the deployment group in `:deltas_failed`, where the
-    # orchestrator refuses to send anything at all. A group of ESP32s would
-    # silently stop receiving updates because of a patch that was never possible.
+    # Nothing to record when nothing was attempted. A started-then-failed delta
+    # reads in the UI as "Deltas failed to generate", and -- worse -- leaves the
+    # deployment group in `:deltas_failed`, where the orchestrator refuses to
+    # send anything at all. A whole group would stop receiving updates because
+    # of a patch that was never possible.
     test "it records nothing for a format that cannot be patched", %{
       firmware: source,
       org_key: org_key,
@@ -719,10 +718,7 @@ defmodule NervesHub.FirmwaresTest do
     } do
       target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      {:ok, target} =
-        target
-        |> Ecto.Changeset.change(%{tool: "esp-idf"})
-        |> Repo.update()
+      stub(UpdateToolDefault, :supports_deltas?, fn -> false end)
 
       assert {:ok, :no_delta_support} = Firmwares.attempt_firmware_delta(source.id, target.id)
 

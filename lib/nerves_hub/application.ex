@@ -4,6 +4,7 @@ defmodule NervesHub.Application do
   alias NervesHub.Analytics.Buffer
   alias NervesHub.DeviceLink.Handlers
   alias NervesHub.Devices.DeviceConnectionHistory
+  alias NervesHub.Devices.DeviceMessage
   alias NervesHub.Devices.LogLine
   alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
@@ -36,17 +37,18 @@ defmodule NervesHub.Application do
         ecto_repos() ++
         [
           {Phoenix.PubSub, name: NervesHub.PubSub},
+          # Ahead of the group tree: `RateLimitPubSub` applies peer throttle
+          # increments into this storage the moment it joins its group.
+          {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
+          NervesHub.GroupSupervisor,
           {Cluster.Supervisor, [libcluster_topology()]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
-          {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
-          NervesHubWeb.RateLimitPubSub,
-          {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000}
+          {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}
         ] ++
         analytics_buffers() ++
         device_link_handlers() ++
-        cli_session_cache() ++
         deployments_orchestrator(deploy_env()) ++
         endpoints(deploy_env())
 
@@ -83,13 +85,6 @@ defmodule NervesHub.Application do
     case Application.get_env(:nerves_hub, :app) do
       "device" -> scope
       _ -> scope ++ [Handlers]
-    end
-  end
-
-  defp cli_session_cache() do
-    case Application.get_env(:nerves_hub, :app) do
-      "device" -> []
-      _ -> [NervesHub.CLISessionCache]
     end
   end
 
@@ -161,7 +156,7 @@ defmodule NervesHub.Application do
     ]
   end
 
-  # Batches the two fleet-scale analytics write paths. Only started where there
+  # Batches the fleet-scale analytics write paths. Only started where there
   # is a ClickHouse to write to - callers no-op on the same `:analytics_enabled`
   # flag.
   defp analytics_buffers() do
@@ -170,6 +165,7 @@ defmodule NervesHub.Application do
 
       [
         Buffer.child_spec([schema: DeviceConnectionHistory] ++ opts),
+        Buffer.child_spec([schema: DeviceMessage] ++ opts),
         Buffer.child_spec([schema: LogLine] ++ opts)
       ]
     else

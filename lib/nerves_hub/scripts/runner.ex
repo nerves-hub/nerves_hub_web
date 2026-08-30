@@ -14,31 +14,38 @@ defmodule NervesHub.Scripts.Runner do
 
   use GenServer
 
-  alias NervesHubWeb.Endpoint
+  alias NervesHub.Consoles.PubSub
   alias Phoenix.Socket.Broadcast
 
+  @default_timeout to_timeout(second: 30)
+
+  # The runner outlives the caller's deadline by this much, so a caller that is
+  # still waiting always ends the call on its own `GenServer.call` timeout. The
+  # deadline below is a backstop for the runner itself, not the usual path.
+  @deadline_grace to_timeout(second: 1)
+
   defmodule State do
-    defstruct [:buffer, :device_channel, :from, :receive_channel, :send_channel, :text]
+    defstruct [:buffer, :device_channel, :device_id, :from, :text, :timeout]
   end
 
-  def send(device, command, timeout \\ to_timeout(second: 30)) do
-    {:ok, pid} = start_link(device)
+  def send(device, command, timeout \\ @default_timeout) do
+    {:ok, pid} = start_link(device, timeout)
     {:ok, GenServer.call(pid, {:send, command.text}, timeout)}
   catch
     :exit, _ -> {:error, "device did not respond in #{timeout} milliseconds"}
   end
 
-  def start_link(device) do
-    GenServer.start_link(__MODULE__, device.id)
+  def start_link(device, timeout \\ @default_timeout) do
+    GenServer.start_link(__MODULE__, {device.id, timeout})
   end
 
-  def init(device_id) do
+  def init({device_id, timeout}) do
     state = %State{
       buffer: <<>>,
       from: nil,
+      timeout: timeout,
       device_channel: "device:#{device_id}",
-      receive_channel: "user:console:#{device_id}",
-      send_channel: "device:console:#{device_id}"
+      device_id: device_id
     }
 
     {:ok, state}
@@ -52,6 +59,14 @@ defmodule NervesHub.Scripts.Runner do
       {:run_script, self(), text}
     )
 
+    # Nothing is guaranteed to answer: the device may be offline, so the
+    # broadcast reaches nobody, or it may be too old to run scripts, in which
+    # case we fall back to scraping the console for output that never arrives.
+    # `send/3` catches its own call timeout, so without this the runner was left
+    # running for the life of the node -- holding a console subscription and
+    # appending every line the device printed to `buffer`.
+    _ = Process.send_after(self(), :deadline, state.timeout + @deadline_grace)
+
     {:noreply, %{state | from: from, text: text}}
   end
 
@@ -63,11 +78,11 @@ defmodule NervesHub.Scripts.Runner do
   def handle_info({:error, :incompatible_version}, state) do
     text = ~s/#{state.text}\n# [NERVESHUB:END]/
 
-    Endpoint.broadcast_from!(self(), state.send_channel, "dn", %{"data" => text})
+    PubSub.broadcast_to_console(state.device_id, "dn", %{"data" => text})
 
-    _ = Endpoint.subscribe(state.receive_channel)
+    _ = PubSub.subscribe_user_console(state.device_id)
 
-    Endpoint.broadcast_from!(self(), state.send_channel, "dn", %{"data" => "\r"})
+    PubSub.broadcast_to_console(state.device_id, "dn", %{"data" => "\r"})
 
     {:noreply, state}
   end
@@ -89,6 +104,10 @@ defmodule NervesHub.Scripts.Runner do
       {:noreply, state}
     end
   end
+
+  # The caller has already given up by now (see `@deadline_grace`), so there is
+  # nobody left to reply to.
+  def handle_info(:deadline, state), do: {:stop, :normal, state}
 
   def handle_info(_, state), do: {:noreply, state}
 end

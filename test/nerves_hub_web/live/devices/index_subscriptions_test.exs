@@ -72,8 +72,7 @@ defmodule NervesHubWeb.Live.Devices.IndexSubscriptionsTest do
   defp devices_path(org, product), do: "/org/#{org.name}/#{product.name}/devices"
 
   defp subscriptions(view_pid, device) do
-    NervesHub.PubSub
-    |> Registry.lookup("internal:device:#{device.id}")
-    |> Enum.count(fn {subscriber, _} -> subscriber == view_pid end)
+    Group.members(NervesHub.Group, "internal:device/#{device.id}")
+    |> Enum.count(fn {pid, _meta} -> pid == view_pid end)
   end
 end

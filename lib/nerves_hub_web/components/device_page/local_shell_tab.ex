@@ -1,7 +1,8 @@
 defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
   use NervesHubWeb, tab_component: :local_shell
 
-  alias NervesHub.Extensions.LocalShell
+  alias NervesHub.Consoles
+  alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
 
   def tab_params(_params, _uri, socket) do
@@ -9,12 +10,31 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
 
     enabled? = !!device.extensions.local_shell && !!product.extensions.local_shell
 
+    # Only one of the two terminal tabs is hooked at a time, so release the
+    # other's monitor rather than leaving it waking us for a tab we are not
+    # rendering.
+    :ok = Consoles.PubSub.demonitor_console(device.id)
+
+    # Monitor shell liveness before seeding so an attach/detach in the gap still
+    # arrives as an event (see Consoles.PubSub.monitor_local_shell/1). The seed is
+    # a synchronous ETS-backed read, so a stale async result can't land after and
+    # clobber an event-driven update.
+    :ok = Consoles.PubSub.monitor_local_shell(device.id)
+
     socket
     |> assign(:shell_enabled?, enabled?)
-    |> assign_async(:local_shell_active?, fn ->
-      {:ok, %{local_shell_active?: shell_active?(device)}}
-    end)
+    |> assign(:local_shell_active?, AsyncResult.ok(shell_active?(device)))
     |> cont()
+  end
+
+  # The device-side shell attached or detached; recompute availability so the tab
+  # reflects it live instead of the one-shot value read when the tab opened.
+  def hooked_info({:group, _events, _info}, socket) do
+    active? = shell_active?(socket.assigns.device)
+
+    socket
+    |> assign(:local_shell_active?, AsyncResult.ok(socket.assigns.local_shell_active?, active?))
+    |> halt()
   end
 
   def hooked_info(_event, socket), do: {:cont, socket}
@@ -86,14 +106,14 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
               </div>
             </div>
           </:failed>
-          <div id="local-shell-wrapper" class="flex size-full bg-black" phx-update="ignore" style="background-color: rgb(14, 16, 25);">
+          <div id="local-shell-wrapper" class="flex size-full bg-black" style="background-color: rgb(14, 16, 25);">
             <div
               :if={@shell_enabled? and authorized?(:"device:extensions:local_shell", @current_scope) and online?}
               id="dropzone"
               class="relative flex grow gap-6 p-12"
               style="background-color: rgb(14, 16, 25);"
             >
-              <div id="local-shell" phx-hook="LocalShell" data-user-token={@user_token} data-device-identifier={@device.identifier} class="z-10 size-full"></div>
+              <div id="local-shell" phx-hook="LocalShell" phx-update="ignore" data-user-token={@user_token} data-device-identifier={@device.identifier} class="z-10 size-full"></div>
               <div id="immersive-device" class="text-base-800 pointer-events-none absolute top-4 left-6 z-20 hidden">
                 <div class="flex items-center gap-3">
                   <svg
@@ -137,20 +157,6 @@ defmodule NervesHubWeb.Components.DevicePage.LocalShellTab do
   end
 
   defp shell_active?(device) do
-    topic = "device:#{device.id}:extensions"
-    message = {LocalShell, {:active?, self()}}
-
-    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic, message)
-
-    receive do
-      :active ->
-        true
-
-      _other ->
-        false
-    after
-      500 ->
-        false
-    end
+    Consoles.PubSub.local_shell_active?(device.id)
   end
 end

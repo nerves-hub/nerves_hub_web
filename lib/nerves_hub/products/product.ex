@@ -47,10 +47,16 @@ defmodule NervesHub.Products.Product do
     # product accepts another format only once someone opts it in.
     field(:allowed_update_tools, {:array, :string}, default: ["fwup"])
 
-    # Allows an ESP-IDF image with no Secure Boot v2 signature block. ESP-specific
-    # rather than a general `allow_unsigned_firmware`: fwup archives are always
-    # verified, and no setting changes that.
+    # Whether a format that *can* arrive unsigned is accepted that way. One field
+    # per format rather than a general `allow_unsigned_firmware`, because they
+    # are different decisions: an ESP-IDF image with no Secure Boot v2 block and
+    # a packbeam with no `nerves_hub/signature` entry are unsigned for unrelated
+    # reasons, and a product may reasonably want one and not the other.
+    #
+    # fwup is deliberately absent. An fwup archive is always verified and no
+    # setting changes that.
     field(:allow_unsigned_esp_idf_firmware, :boolean, default: false)
+    field(:allow_unsigned_atomvm_firmware, :boolean, default: false)
     embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
 
     field(:device_count, :integer, virtual: true)
@@ -72,7 +78,12 @@ defmodule NervesHub.Products.Product do
     |> cast(
       params,
       @required_params ++
-        [:require_unique_firmware_version, :allowed_update_tools, :allow_unsigned_esp_idf_firmware]
+        [
+          :require_unique_firmware_version,
+          :allowed_update_tools,
+          :allow_unsigned_esp_idf_firmware,
+          :allow_unsigned_atomvm_firmware
+        ]
     )
     |> cast_embed(:extensions)
     |> update_change(:name, &trim/1)

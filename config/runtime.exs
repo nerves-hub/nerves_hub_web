@@ -1,6 +1,7 @@
 import Config
 
 alias NervesHub.DeviceLink.PeerVerification
+alias NervesHub.Devices.DeviceMessages
 alias NervesHub.Firmwares.Upload
 alias NervesHub.Firmwares.Upload.S3
 alias NervesHub.Repo
@@ -44,6 +45,8 @@ config :nerves_hub,
   log_include_mfa: System.get_env("LOG_INCLUDE_MFA", "false") == "true",
   web_title_suffix: System.get_env("WEB_TITLE_SUFFIX", "NervesHub"),
   esp_idf_firmware_enabled: System.get_env("ESP_IDF_FIRMWARE_ENABLED", "false") == "true",
+  atomvm_firmware_enabled: System.get_env("ATOMVM_FIRMWARE_ENABLED", "false") == "true",
+  rauc_firmware_enabled: System.get_env("RAUC_FIRMWARE_ENABLED", "false") == "true",
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   email_sender: System.get_env("EMAIL_SENDER", "NervesHub"),
   support_email_platform_name: System.get_env("SUPPORT_EMAIL_PLATFORM_NAME", "NervesHub"),
@@ -52,19 +55,12 @@ config :nerves_hub,
   device_endpoint_redirect: System.get_env("DEVICE_ENDPOINT_REDIRECT", "https://docs.nerves-hub.org/"),
   device_health_days_to_retain: String.to_integer(System.get_env("HEALTH_CHECK_DAYS_TO_RETAIN", "7")),
   device_health_delete_limit: String.to_integer(System.get_env("DEVICE_HEALTH_DELETE_LIMIT", "100000")),
-  device_deployment_change_jitter_seconds:
-    String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10")),
   device_last_seen_update_interval_minutes:
     String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_MINUTES", "15")),
   device_last_seen_update_interval_jitter_seconds:
     String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_JITTER_SECONDS", "300")),
-  device_connection_max_age_days: String.to_integer(System.get_env("DEVICE_CONNECTION_MAX_AGE_DAYS", "14")),
-  device_connection_delete_limit: String.to_integer(System.get_env("DEVICE_CONNECTION_DELETE_LIMIT", "100000")),
   device_connection_update_limit: String.to_integer(System.get_env("DEVICE_CONNECTION_UPDATE_LIMIT", "100000")),
-  deployment_calculator_interval_seconds:
-    String.to_integer(System.get_env("DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS", "3600")),
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
-  dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true",
   extension_config: [
     geo: [
       # No interval, fetch geo on device connection by default
@@ -82,6 +78,10 @@ config :nerves_hub,
   devices_websocket_url:
     System.get_env("DEVICES_WEBSOCKET_HOST") || System.get_env("DEVICE_HOST") || System.get_env("WEB_HOST") ||
       System.get_env("HOST"),
+  # Some devices connect to the management host instead of the device host. When
+  # enabled, the management endpoint answers those connections with a redirect to
+  # `:devices_websocket_url` instead of serving them.
+  redirect_to_devices_websocket_url: System.get_env("REDIRECT_TO_DEVICES_WEBSOCKET_URL", "false") == "true",
   clean_up_soft_deleted_devices: System.get_env("CLEAN_UP_SOFT_DELETED_DEVICES", "false") == "true",
   default_lifo_deployment_queue: System.get_env("DEFAULT_LIFO_DEPLOYMENT_QUEUE", "false") == "true",
   featurebase_app_id: System.get_env("FEATUREBASE_APP_ID"),
@@ -308,6 +308,22 @@ if config_env() == :prod do
         http_options: [
           log_protocol_errors: false
         ],
+        # The sockets set `compress: true`, so Bandit builds a zlib deflate and
+        # inflate context per connection and holds both for as long as the
+        # device stays connected. At the default mem_level of 8 the deflate
+        # hash table alone is 128KB, and measured end to end that is 271KB per
+        # device -- around 375MB of `:erlang.memory(:system)` on a node holding
+        # 1400 devices.
+        #
+        # Device frames are small and repetitive, so the hash table buys
+        # nothing here: over a representative mix of heartbeats, progress and
+        # health reports, mem_level 4 emits byte-identical output to mem_level
+        # 8. It costs 121KB less per connection.
+        #
+        # This has to live in Bandit's server-wide `websocket_options`. Bandit
+        # reads `deflate_options` from there, not from the per-socket
+        # `websocket:` list in the endpoint.
+        websocket_options: [deflate_options: [mem_level: 4]],
         thousand_island_options: [
           transport_module: NervesHub.DeviceSSLTransport,
           transport_options: transport_options
@@ -389,6 +405,12 @@ if config_env() == :prod do
     # Required for Clickhouse Cloud (https://github.com/plausible/analytics/discussions/3497)
     # (using a default order will cause issues for the migration table)
     config :ecto_ch, default_table_engine: "MergeTree"
+
+    # Batch sizing lives in `:analytics_buffer` below, shared with the other
+    # analytics write paths. This is only the cap on how much of a single
+    # message body is kept.
+    config :nerves_hub, DeviceMessages,
+      max_payload_bytes: String.to_integer(System.get_env("DEVICE_MESSAGES_MAX_PAYLOAD_BYTES", "8192"))
 
     config :nerves_hub, NervesHub.AnalyticsRepo,
       url: clickhouse_url,

@@ -3,6 +3,7 @@ defmodule NervesHubWeb.DeviceSocket do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHub.ProductNotifications
   alias NervesHubWeb.Helpers.ClientIP
   alias Phoenix.Socket.Transport
 
@@ -56,20 +57,68 @@ defmodule NervesHubWeb.DeviceSocket do
     assign(socket, :last_heartbeat, System.monotonic_time(:second))
   end
 
-  # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
+  def connect(params, socket, connect_info) do
+    case do_connect(params, socket, connect_info) do
+      {:ok, socket} -> maybe_redirect(socket)
+      {:error, _reason} = error -> error
+    end
+  end
+
+  # Some devices are configured with the management host rather than the device
+  # host. Rather than serving them from the management endpoint, point them at
+  # the device websocket host. Only the management endpoint redirects; the device
+  # endpoint is the destination, so redirecting there would loop.
+  #
+  # This runs after authentication because the notification needs to name the
+  # product and the device, which we only know once the device has identified
+  # itself.
+  defp maybe_redirect(%{endpoint: NervesHubWeb.Endpoint, assigns: %{device_info: device_info}} = socket) do
+    case redirect_target() do
+      nil ->
+        {:ok, socket}
+
+      host ->
+        _ = ProductNotifications.create_wrong_websocket_host_notification!(device_info, host)
+
+        :telemetry.execute([:nerves_hub, :devices, :wrong_websocket_host], %{count: 1}, %{
+          device_id: device_info.device_id,
+          device_identifier: device_info.device_identifier,
+          product_id: device_info.product_id,
+          host: host
+        })
+
+        {:error, {:redirect, host}}
+    end
+  end
+
+  defp maybe_redirect(socket), do: {:ok, socket}
+
+  # Redirecting to nothing would strand the device, so an unset host means no
+  # redirect regardless of the flag.
+  defp redirect_target() do
+    with true <- Application.get_env(:nerves_hub, :redirect_to_devices_websocket_url, false),
+         host when is_binary(host) and host != "" <- Application.get_env(:nerves_hub, :devices_websocket_url) do
+      host
+    else
+      _ -> nil
+    end
+  end
+
+  # Used by Devices connecting with SSL certificates
   @decorate with_span("Channels.DeviceSocket.connect:cert_auth")
-  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}} = connect_info) when not is_nil(ssl_cert) do
+  defp do_connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}} = connect_info) when not is_nil(ssl_cert) do
     authenticate(socket, {:ssl_cert, ssl_cert}, connect_info)
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
   @decorate with_span("Channels.DeviceSocket.connect:shared_secrets")
-  def connect(_params, socket, %{x_headers: x_headers} = connect_info) when is_list(x_headers) and x_headers != [] do
+  defp do_connect(_params, socket, %{x_headers: x_headers} = connect_info)
+       when is_list(x_headers) and x_headers != [] do
     authenticate(socket, {:shared_secret, Map.new(x_headers)}, connect_info)
   end
 
-  def connect(_params, _socket, _connect_info) do
+  defp do_connect(_params, _socket, _connect_info) do
     {:error, :no_auth}
   end
 

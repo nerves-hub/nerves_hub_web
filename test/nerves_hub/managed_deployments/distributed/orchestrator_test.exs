@@ -3,6 +3,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   use Mimic
   use AssertEventually, timeout: 500, interval: 50
 
+  alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
@@ -145,8 +146,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     topic2 = "device:#{device2.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic2)
 
-    deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
+    deployment_group_topic = DeploymentOrchestratorEvents.topic(deployment_group)
+    :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
     {:ok, pid} =
       start_supervised(%{
@@ -203,8 +204,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     topic1 = "device:#{device.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic1)
 
-    deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
+    deployment_group_topic = DeploymentOrchestratorEvents.topic(deployment_group)
+    :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
     {:ok, _pid} =
       start_supervised(%{
@@ -261,8 +262,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     {:ok, {_release, deployment_group}} =
       ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
 
-    deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
+    deployment_group_topic = DeploymentOrchestratorEvents.topic(deployment_group)
+    :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
     {:ok, pid} =
       start_supervised(%{
@@ -362,8 +363,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         user
       )
 
-    deployment_group_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_group_topic)
+    deployment_group_topic = DeploymentOrchestratorEvents.topic(deployment_group)
+    :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
     {:ok, pid} =
       start_supervised(%{
@@ -400,8 +401,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
     {:ok, {_release, deployment_group}} =
       ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
 
-    deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+    deployment_topic = DeploymentOrchestratorEvents.topic(deployment_group)
+    :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
     {:ok, pid} =
       start_supervised(%{
@@ -463,8 +464,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
         user
       )
 
-    deployment_topic = "orchestrator:deployment:#{deployment_group.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+    deployment_topic = DeploymentOrchestratorEvents.topic(deployment_group)
+    :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
     # An ugly set of expectations
     # `Updates.available_for_update` should be called:

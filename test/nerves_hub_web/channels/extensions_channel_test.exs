@@ -2,9 +2,12 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   use NervesHubWeb.ChannelCase
   use DefaultMocks
 
+  alias NervesHub.Consoles
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.NetworkIdentities
+  alias NervesHub.Devices.PubSub, as: DevicesPubSub
+  alias NervesHub.Extensions.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
@@ -91,13 +94,51 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     push(extensions_channel, "health:attached")
     assert_push("health:check", _)
 
-    # the report notification is for whoever is watching in the UI, not the device
-    @endpoint.subscribe("internal:device:#{device.id}")
+    :ok = PubSub.subscribe_reports(device.id)
 
     push(extensions_channel, "health:report", %{"value" => dummy_health_report()})
     assert_receive %Broadcast{event: "health_check_report"}
 
     assert Repo.aggregate(Devices.DeviceHealth, :count) == 1
+  end
+
+  test "a device detaching the local shell it never attached does not take the channel down", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
+
+    product = Products.get_product!(device.product_id)
+    {:ok, _product} = Products.enable_extension_setting(product, "local_shell")
+    {:ok, device} = Devices.enable_extension_setting(device, "local_shell")
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _attach_list, extensions_channel} =
+      subscribe_and_join_with_default_device_api_version(
+        socket,
+        ExtensionsChannel,
+        "extensions",
+        %{"local_shell" => "0.0.1"}
+      )
+
+    ref = Process.monitor(extensions_channel.channel_pid)
+
+    # `Extensions.Dispatch` routes "detached" to `LocalShell.detach/1` on the
+    # extension being allowed alone -- it never checks that an "attached" came
+    # first, and it does not rescue the call. A device can therefore send these
+    # in any order, including a detach for a shell it never attached and a
+    # repeat detach after a real one.
+    push(extensions_channel, "local_shell:detached")
+    push(extensions_channel, "local_shell:attached")
+    push(extensions_channel, "local_shell:detached")
+    push(extensions_channel, "local_shell:detached")
+
+    refute_receive {:DOWN, ^ref, :process, _, _}, 200
+    refute Consoles.PubSub.local_shell_active?(device.id)
+
+    close_cleanly(extensions_channel)
   end
 
   test "joining extensions channel suggests attaching geo, health, and logging", %{tmp_dir: tmp_dir} do
@@ -127,6 +168,35 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
 
     assert "health" in attach_list
     assert "geo" in attach_list
+    assert "logging" in attach_list
+  end
+
+  test "a device that batches its log lines is attached too", %{tmp_dir: tmp_dir} do
+    # 0.1.0 is how a device says it may put many log lines in one message, and
+    # it is served by a different module than the 0.0.1 devices alongside it.
+    # A NervesHub that has only the 0.0.1 extension matches `~> 0.0.1` and
+    # leaves logging out of the attach list rather than attaching it and
+    # dropping every batch it cannot read.
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, _device_channel} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
+
+    assert_push("extensions:get", _extensions)
+
+    assert {:ok, attach_list, _extensions_channel} =
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{"logging" => "0.1.0"}
+             )
+
     assert "logging" in attach_list
   end
 
@@ -310,6 +380,38 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     assert_push("health:check", _)
   end
 
+  test "a page opening asks the attached health extension for a report", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device:#{device.id}")
+
+    assert_push("extensions:get", _extensions)
+
+    assert {:ok, ["health"], socket} =
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{"health" => "0.0.1"}
+             )
+
+    push(socket, "health:attached")
+    assert_push("health:check", _)
+
+    # What the device Show LiveView does on mount. The whole point of the round
+    # trip is that the device is asked by the channel, so a second page opening
+    # adds nothing to what the device is already being sent.
+    :ok = PubSub.watch_health(device.id)
+
+    assert_push("health:check", _)
+  end
+
   test "attached geo extension will receive request for location update", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, dir: tmp_dir)
@@ -457,7 +559,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       push(socket, "network_identity:attached")
       assert_push("network_identity:request", %{})
 
-      @endpoint.subscribe("internal:device:#{device.id}")
+      DevicesPubSub.subscribe(device.id)
 
       push(socket, "network_identity:report", %{
         "identities" => [
@@ -484,7 +586,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       push(socket, "network_identity:attached")
       assert_push("network_identity:request", %{})
 
-      @endpoint.subscribe("internal:device:#{device.id}")
+      DevicesPubSub.subscribe(device.id)
 
       push(socket, "network_identity:report", %{
         "identities" => [
@@ -505,7 +607,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       push(socket, "network_identity:attached")
       assert_push("network_identity:request", %{})
 
-      @endpoint.subscribe("internal:device:#{device.id}")
+      DevicesPubSub.subscribe(device.id)
 
       push(socket, "network_identity:report", %{
         "identities" => [
@@ -526,7 +628,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       push(socket, "network_identity:attached")
       assert_push("network_identity:request", %{})
 
-      @endpoint.subscribe("internal:device:#{device.id}")
+      DevicesPubSub.subscribe(device.id)
 
       push(socket, "network_identity:report", %{
         "identities" => [
@@ -549,7 +651,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       push(socket, "network_identity:report", %{"identities" => "not-a-list"})
       push(socket, "network_identity:report", %{"identities" => [%{"nonsense" => true}]})
 
-      @endpoint.subscribe("internal:device:#{device.id}")
+      DevicesPubSub.subscribe(device.id)
 
       # The channel is still serving this device: a good report after the bad
       # ones still lands.

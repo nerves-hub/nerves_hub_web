@@ -3,6 +3,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Fixtures
   alias Phoenix.Socket.Broadcast
 
@@ -48,7 +49,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
     test "transitions through connecting -> connected -> disconnected states", %{device: device} do
       topic = "internal:device:#{device.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+      PubSub.subscribe(device.id)
 
       assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
                Connections.device_connecting(device.org_id, device.product_id, device.id)
@@ -73,7 +74,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
   describe "device_heartbeat/2" do
     test "updates last_seen_at and broadcasts heartbeat event", %{device: device} do
       topic = "internal:device:#{device.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+      PubSub.subscribe(device.id)
 
       assert {:ok, %DeviceConnection{id: connection_id, last_seen_at: first_seen_at} = connection} =
                Connections.device_connecting(device.org_id, device.product_id, device.id)
@@ -91,7 +92,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
       %DeviceConnection{id: ^connection_id, last_seen_at: last_seen_at, status: :connected} =
         Repo.reload(connection)
 
-      assert last_seen_at > first_seen_at
+      assert DateTime.after?(last_seen_at, first_seen_at)
       assert %DeviceConnection{status: :connected} = Connections.get_latest_for_device(device.id)
     end
   end

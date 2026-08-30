@@ -145,6 +145,33 @@ RUN git checkout 5.3.1 && \
 
 
 ###
+### detools, which builds the deltas for ESP-IDF firmware
+###
+
+FROM ${RUNNER_IMAGE} AS detools
+
+ARG DEBIAN_FRONTEND
+
+# detools carries a C extension and publishes no wheel for the Python this
+# image ships, so pip builds it from source. That needs a compiler, which is
+# why this is a stage of its own: only the finished virtualenv is copied into
+# the runtime image, and the toolchain stays here.
+RUN apt-get update -y && \
+    apt-get upgrade -y && \
+    apt-get install -y python3 python3-venv python3-dev build-essential
+
+# Pinned, because the patch format is a contract with devices in the field. A
+# later release changing a default would change what a patch is, and a device
+# would find out by failing to apply one. The flags are pinned to match in
+# NervesHub.Firmwares.UpdateTool.EspIdf.
+RUN python3 -m venv /opt/detools && \
+    /opt/detools/bin/pip install --no-cache-dir detools==0.53.0 && \
+    rm -rf /opt/detools/lib/python*/site-packages/pip \
+           /opt/detools/lib/python*/site-packages/pip-* \
+           /opt/detools/bin/pip*
+
+
+###
 ### Last Stage - Setup the Runtime Environment
 ###
 
@@ -152,10 +179,12 @@ FROM ${RUNNER_IMAGE} AS app
 
 RUN apt-get update -y && \
     apt-get upgrade -y && \
-    apt-get install -y openssl ca-certificates locales bash xdelta3 zip unzip libsctp1 && \
+    apt-get install -y openssl ca-certificates locales bash xdelta3 zip unzip libsctp1 python3 && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
@@ -168,8 +197,25 @@ ENV LC_ALL=en_US.UTF-8
 COPY --from=jemalloc /usr/local/lib/libjemalloc.so.2 /usr/local/lib/libjemalloc.so.2
 ENV LD_PRELOAD=/usr/local/lib/libjemalloc.so.2
 
+# jemalloc was preloaded but never configured, so it ran on defaults: one arena
+# per CPU times four, each holding onto its own freed pages, and purging only
+# when allocation traffic happens to drive the decay. On a device node that
+# left ~395MB of a 1.2GB RSS as memory the BEAM had already freed.
+#
+# Fewer arenas concentrates that retention, and the shorter decay returns pages
+# sooner. `background_thread` would purge on a timer instead of on allocation
+# traffic and would help more, but this image shells out to fwup and detools,
+# and jemalloc background threads across fork have a bad history -- so it stays
+# off.
+ENV MALLOC_CONF=narenas:4,dirty_decay_ms:5000,muzzy_decay_ms:5000
+
 # Copy over the statically built fwup
 COPY --from=fwup /usr/local/bin/fwup /usr/local/bin/fwup
+
+# The virtualenv references the system python3 by absolute path, so it has to
+# land where it was built and the runtime has to have that interpreter.
+COPY --from=detools /opt/detools /opt/detools
+RUN ln -s /opt/detools/bin/detools /usr/local/bin/detools
 
 # Copy over NervesHub
 WORKDIR /app

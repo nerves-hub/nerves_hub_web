@@ -37,7 +37,15 @@ config :flop, repo: NervesHub.Repo
 config :mime, :types, %{
   "application/pem" => ["pem"],
   "application/crt" => ["crt"],
-  "application/fwup" => ["fw"]
+  "application/fwup" => ["fw"],
+  # RAUC has no registered IANA type. This exists because `allow_upload`
+  # refuses any extension it cannot resolve to one, so without it `.raucb`
+  # cannot appear in the firmware upload's accept list at all.
+  "application/rauc-bundle" => ["raucb"],
+  # Same for AtomVM packbeams, and the failure is worse than a rejected
+  # upload: an unknown extension in `accept` raises out of `allow_upload`, so
+  # the firmware page does not render at all.
+  "application/avm" => ["avm"]
 }
 
 # Devices authenticate with client certificates, so TLS terminates in the app
