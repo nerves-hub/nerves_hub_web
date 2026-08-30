@@ -19,6 +19,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Devices.Updates
+  alias NervesHub.Extensions.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.FirmwareUpdates
@@ -27,7 +28,6 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
-  alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
   setup %{fixture: %{device: device}} do
@@ -332,8 +332,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
         :ok = Connections.device_connected(connection.id)
 
-        topic = "internal:device:#{device.id}"
-        ChannelServer.broadcast!(NervesHub.PubSub, topic, "health_check_report", %{})
+        PubSub.broadcast_report(device.id, "health_check_report", %{})
 
         render(view)
       end)
@@ -655,6 +654,25 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   describe "device health" do
+    test "opening the page is the whole of its part in health reporting", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      refute PubSub.health_watched?(device.id)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+
+      # The page used to run a timer and ask the device for a report itself,
+      # once per open page, on top of the interval the platform already had.
+      # Now it says it is watching and `NervesHub.Extensions.Health` does the
+      # asking -- once, however many people are looking.
+      assert PubSub.health_watched?(device.id)
+    end
+
     test "no device health", %{conn: conn, org: org, product: product, device: device} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")

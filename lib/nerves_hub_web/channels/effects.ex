@@ -9,6 +9,15 @@ defmodule NervesHubWeb.Channels.Effects do
 
   Timers are tracked per channel process under the `:link_timers` assign, so
   `:cancel_timer` needs only the key that started it.
+
+  ## Timer deliveries
+
+  A timer armed here delivers `{:timeout, ref, {key, message}}` — the envelope
+  `:erlang.start_timer/3` produces — rather than the bare message. Channels
+  hand these to `timer_fired/2`, which re-arms intervals, retires one-shots,
+  unwraps the message, and drops deliveries from timers that no longer exist.
+  Matching on the ref keeps a timer firing distinct from any other way the
+  same message term might arrive.
   """
 
   alias NervesHub.DeviceLink.Effect
@@ -28,30 +37,33 @@ defmodule NervesHubWeb.Channels.Effects do
   def apply_all(socket, effects), do: Enum.reduce(effects, socket, &apply_one(&2, &1))
 
   @doc """
-  Re-arm a repeating timer whose message has just arrived.
+  Recognize a timer delivery, keep the timer's promise, and unwrap its message.
 
-  `:start_timer` promises delivery every `interval_ms`, and the VM's timer
-  wheel only does one-shots, so the repeat has to be re-armed somewhere. It
-  happens here, before the message is dispatched, rather than by asking the
-  extension to re-arm itself: `NervesHub.Extensions.Dispatch` swallows an
-  extension that raises, and a re-arm missed that way would stop the timer for
-  the life of the connection with nothing to show for it.
+  Channels offer this every info message before handling it themselves:
 
-  Messages that are not a live interval's are returned untouched.
+    * `{:deliver, message, socket}` — a live timer fired. An interval has been
+      re-armed, a one-shot's bookkeeping retired; dispatch `message`.
+    * `{:drop, socket}` — the timer this came from was cancelled or replaced
+      between firing and delivery. There is nothing to act on.
+    * `:not_timer` — not a timer delivery; handle the message as usual.
   """
-  @spec reschedule(Socket.t(), message :: term()) :: Socket.t()
-  def reschedule(socket, message) do
-    socket.assigns[@timers]
-    |> Kernel.||(%{})
-    |> Enum.find(fn {_key, timer} -> match?({:interval, _ref, ^message, _ms}, timer) end)
-    |> case do
-      nil ->
-        socket
+  @spec timer_fired(Socket.t(), message :: term()) ::
+          {:deliver, term(), Socket.t()} | {:drop, Socket.t()} | :not_timer
+  def timer_fired(socket, {:timeout, ref, {key, message}}) when is_reference(ref) do
+    case timers(socket)[key] do
+      {:interval, ^ref, interval_ms} ->
+        {:deliver, message, put_timer(socket, key, {:interval, arm(key, message, interval_ms), interval_ms})}
 
-      {key, {:interval, _ref, _message, interval_ms}} ->
-        put_timer(socket, key, {:interval, Process.send_after(self(), message, interval_ms), message, interval_ms})
+      {:send_after, ^ref} ->
+        # Fired and delivered — the entry is done.
+        {:deliver, message, Socket.assign(socket, @timers, Map.delete(timers(socket), key))}
+
+      _ ->
+        {:drop, socket}
     end
   end
+
+  def timer_fired(_socket, _message), do: :not_timer
 
   defp apply_one(socket, {:push, event, payload}) do
     :ok = Channel.push(socket, event, payload)
@@ -68,6 +80,22 @@ defmodule NervesHubWeb.Channels.Effects do
     socket
   end
 
+  defp apply_one(socket, {:group_join, key}) do
+    :ok = Group.join(NervesHub.Group, key, %{})
+    socket
+  end
+
+  # Leaving a group never joined is not an error here. A leave is driven by
+  # something the device said -- `local_shell:detached` is delivered without
+  # checking that an attach came first -- so surfacing `{:error, :not_in_group}`
+  # would let a device take down its own channel by detaching twice.
+  defp apply_one(socket, {:group_leave, key}) do
+    case Group.leave(NervesHub.Group, key) do
+      :ok -> socket
+      {:error, :not_in_group} -> socket
+    end
+  end
+
   defp apply_one(socket, {:send_self, message}) do
     send(self(), message)
     socket
@@ -75,21 +103,28 @@ defmodule NervesHubWeb.Channels.Effects do
 
   defp apply_one(socket, {:send_after, key, message, delay_ms}) do
     socket = cancel(socket, key)
-    ref = Process.send_after(self(), message, delay_ms)
 
-    put_timer(socket, key, {:send_after, ref})
+    put_timer(socket, key, {:send_after, arm(key, message, delay_ms)})
   end
 
-  # `:timer.send_interval/2` spawns a process per interval, and that process
-  # lives as long as the connection does. One per device for the health check
-  # alone came to 1425 processes and about 40MB on a production device node.
-  # `Process.send_after/3` uses the VM's timer wheel and costs no process at
-  # all, so the repeat is re-armed in `reschedule/2` instead.
+  # `:timer.send_interval/2` spawns a process per interval that lives as long
+  # as the connection (about 40MB across a production device node). The VM's
+  # timer wheel costs no process but only does one-shots, so `timer_fired/2`
+  # re-arms on each delivery.
   defp apply_one(socket, {:start_timer, key, message, interval_ms}) do
     socket = cancel(socket, key)
-    ref = Process.send_after(self(), message, interval_ms)
 
-    put_timer(socket, key, {:interval, ref, message, interval_ms})
+    put_timer(socket, key, {:interval, arm(key, message, interval_ms), interval_ms})
+  end
+
+  # As above, but the first delivery is offset. `timer_fired/2` re-arms from the
+  # stored interval rather than from what was armed, so the period is exact from
+  # the first fire onward -- which is what lets a fleet be spread out without
+  # changing how often any one device reports. See `NervesHub.Extensions.Jitter`.
+  defp apply_one(socket, {:start_timer, key, message, first_ms, interval_ms}) do
+    socket = cancel(socket, key)
+
+    put_timer(socket, key, {:interval, arm(key, message, first_ms), interval_ms})
   end
 
   defp apply_one(socket, {:cancel_timer, key}), do: cancel(socket, key)
@@ -107,23 +142,29 @@ defmodule NervesHubWeb.Channels.Effects do
     Socket.assign(socket, @scrollback, Scrollback.new())
   end
 
+  # `:erlang.start_timer/3` stamps the timer's ref into what it delivers,
+  # letting `timer_fired/2` recognize a firing by ref rather than by message.
+  defp arm(key, message, ms), do: :erlang.start_timer(ms, self(), {key, message})
+
   defp scrollback(socket), do: socket.assigns[@scrollback] || Scrollback.new()
 
-  defp put_timer(socket, key, ref) do
-    Socket.assign(socket, @timers, Map.put(socket.assigns[@timers] || %{}, key, ref))
+  defp timers(socket), do: socket.assigns[@timers] || %{}
+
+  defp put_timer(socket, key, timer) do
+    Socket.assign(socket, @timers, Map.put(timers(socket), key, timer))
   end
 
   defp cancel(socket, key) do
-    case Map.pop(socket.assigns[@timers] || %{}, key) do
+    case Map.pop(timers(socket), key) do
       {nil, _timers} ->
         socket
 
-      {ref, timers} ->
-        _ = cancel_ref(ref)
+      {timer, timers} ->
+        _ = cancel_ref(timer)
         Socket.assign(socket, @timers, timers)
     end
   end
 
   defp cancel_ref({:send_after, ref}), do: Process.cancel_timer(ref)
-  defp cancel_ref({:interval, ref, _message, _interval_ms}), do: Process.cancel_timer(ref)
+  defp cancel_ref({:interval, ref, _interval_ms}), do: Process.cancel_timer(ref)
 end

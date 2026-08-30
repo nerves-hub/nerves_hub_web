@@ -10,14 +10,23 @@ defmodule NervesHub.Devices.LogLines do
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.LogLine
-  alias Phoenix.Channel.Server, as: ChannelServer
+  alias NervesHub.Devices.PubSub
 
-  @type log_line_payload :: %{
-          timestamp: DateTime.t(),
-          level: String.t(),
-          message: String.t(),
-          meta: map()
-        }
+  @typedoc """
+  One log line, as a device sends it.
+
+  String keys, because that is how it arrives over the channel and how
+  `NervesHub.Devices.LogLine.create_changeset/3` casts it — a payload with atom
+  keys is not a stricter version of this, it is one `Ecto.Changeset.cast/3`
+  refuses.
+
+  `"level"` and `"message"` are required. The timestamp is either `"timestamp"`
+  or `"meta" => %{"time" => microseconds}`, which is where every client puts
+  it; a line with neither is dropped, since a line the server timestamps on
+  arrival would claim the device wrote it whenever the network got around to
+  delivering it.
+  """
+  @type log_line_payload :: %{optional(String.t()) => term()}
 
   @default_limit 25
 
@@ -123,9 +132,8 @@ defmodule NervesHub.Devices.LogLines do
         _ = Buffer.insert(LogLine, changeset)
 
         _ =
-          ChannelServer.broadcast(
-            NervesHub.PubSub,
-            "internal:device:#{device_info.device_id}",
+          PubSub.broadcast(
+            device_info.device_id,
             "logs:received",
             log_line
           )
@@ -135,5 +143,34 @@ defmodule NervesHub.Devices.LogLines do
       error ->
         error
     end
+  end
+
+  @doc """
+  Creates several log lines for a device, in the order they were sent.
+
+  One row per line, the same as `async_create/2` a line at a time: the batch is
+  how the device got them here, not how they are stored. `NervesHub.Analytics.Buffer`
+  is what turns rows into ClickHouse inserts, and it batches across devices, so
+  there is nothing to gain by keeping a device's lines together past this point.
+
+  Lines that do not validate are skipped rather than failing their neighbours.
+  A device that gets one line wrong should not lose the rest of the second.
+
+  Returns how many were stored.
+
+  ## Examples
+
+      iex> async_create_many(device_info, [%{"level" => "info", "message" => "Hello"}])
+      {:ok, 1}
+
+  """
+  @spec async_create_many(DeviceInfo.t(), [log_line_payload]) :: {:ok, non_neg_integer()}
+  def async_create_many(%DeviceInfo{} = device_info, lines) when is_list(lines) do
+    stored =
+      Enum.count(lines, fn line ->
+        match?({:ok, _log_line}, async_create(device_info, line))
+      end)
+
+    {:ok, stored}
   end
 end
