@@ -145,6 +145,80 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
       assert json_response(conn, 422)["errors"] != %{}
     end
+
+    test "renders error when cert is invalid base64", %{conn: conn, org: org} do
+      params = %{
+        cert: "this is not valid base64!!!",
+        verification_cert: "also not valid base64!!!"
+      }
+
+      conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
+
+      assert conn.status in [400, 422]
+    end
+
+    test "renders error when cert has a duplicate serial", %{conn: conn, org: org} do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+      ca_cert_pem = X509.Certificate.to_pem(ca_cert)
+
+      conn1 = get(conn, ~p"/api/orgs/#{org.name}/ca_certificates/verification_token")
+      assert %{"data" => %{"verification_token" => token}} = json_response(conn1, 200)
+
+      signing_key = X509.PrivateKey.new_rsa(2048)
+      san = Extension.subject_alt_name(uniformResourceIdentifier: ~c"urn:nerveshub:verify:#{token}")
+      signing_csr = X509.CSR.new(signing_key, "/CN=ownership-verification", extension_request: [san])
+
+      signing_san =
+        signing_csr
+        |> X509.CSR.extension_request()
+        |> Enum.find(fn ext -> elem(ext, 1) == {2, 5, 29, 17} end)
+
+      verification_cert =
+        signing_csr
+        |> X509.CSR.public_key()
+        |> X509.Certificate.new(X509.CSR.subject(signing_csr), ca_cert, ca_key,
+          extensions: [subject_alt_name: signing_san]
+        )
+
+      verification_cert_pem = X509.Certificate.to_pem(verification_cert)
+
+      params = %{
+        cert: Base.encode64(ca_cert_pem),
+        verification_cert: Base.encode64(verification_cert_pem)
+      }
+
+      # First creation succeeds
+      conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params)
+      assert json_response(conn, 201)
+
+      # Second creation with the same cert should fail with a conflict/error response
+      conn2 = get(conn, ~p"/api/orgs/#{org.name}/ca_certificates/verification_token")
+      assert %{"data" => %{"verification_token" => token2}} = json_response(conn2, 200)
+
+      san2 = Extension.subject_alt_name(uniformResourceIdentifier: ~c"urn:nerveshub:verify:#{token2}")
+      signing_csr2 = X509.CSR.new(signing_key, "/CN=ownership-verification", extension_request: [san2])
+
+      signing_san2 =
+        signing_csr2
+        |> X509.CSR.extension_request()
+        |> Enum.find(fn ext -> elem(ext, 1) == {2, 5, 29, 17} end)
+
+      verification_cert2 =
+        signing_csr2
+        |> X509.CSR.public_key()
+        |> X509.Certificate.new(X509.CSR.subject(signing_csr2), ca_cert, ca_key,
+          extensions: [subject_alt_name: signing_san2]
+        )
+
+      params2 = %{
+        cert: Base.encode64(ca_cert_pem),
+        verification_cert: Base.encode64(X509.Certificate.to_pem(verification_cert2))
+      }
+
+      conn = post(conn, ~p"/api/orgs/#{org.name}/ca_certificates", params2)
+      assert conn.status in [409, 422, 500]
+    end
   end
 
   describe "delete ca_certificate" do

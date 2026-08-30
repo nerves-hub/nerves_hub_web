@@ -111,6 +111,27 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
     end
   end
 
+  describe "create device certificate - error paths" do
+    test "returns error when cert already exists", %{
+      conn: conn,
+      org: org,
+      device: device,
+      product: product
+    } do
+      pem = Fixtures.device_certificate_pem()
+      encoded_pem = Base.encode64(pem)
+
+      path =
+        Routes.api_device_certificate_path(conn, :create, org.name, product.name, device.identifier)
+
+      conn = post(conn, path, %{"cert" => encoded_pem})
+      assert json_response(conn, 201)
+
+      conn = post(conn, path, %{"cert" => encoded_pem})
+      assert conn.status in [409, 422, 500]
+    end
+  end
+
   describe "delete device_certificate" do
     test "deletes chosen ca_certificate", %{
       conn: conn,

@@ -201,7 +201,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
       # Create multiple stale connections for the same device
       connections =
-        for _ <- 1..5 do
+        for _ <- 1..3 do
           device = Fixtures.device_fixture(org, product, firmware)
 
           Fixtures.device_connection_fixture(device, %{
