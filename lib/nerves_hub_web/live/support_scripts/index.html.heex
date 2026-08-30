@@ -43,11 +43,8 @@
             <th phx-click="sort" phx-value-sort="name" class="cursor-pointer">
               <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
-            <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
-              <Sorting.sort_icon text="Added on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
-            </th>
             <th phx-click="sort" phx-value-sort="updated_at" class="cursor-pointer">
-              <Sorting.sort_icon text="Updated at" field="updated_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+              <Sorting.sort_icon text="Last updated" field="updated_at" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
             <th phx-click="sort" phx-value-sort="last_updated_by" class="cursor-pointer">
               <Sorting.sort_icon text="Updated by" field="last_updated_by" selected_field={@current_sort} selected_direction={@sort_direction} />
@@ -63,9 +60,6 @@
               <.link class="flex size-full items-center" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/#{script}/edit"}>
                 {script.name}
               </.link>
-            </td>
-            <td>
-              {Calendar.strftime(script.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}
             </td>
             <td>
               {Calendar.strftime(script.updated_at, "%Y-%m-%d at %I:%M %p UTC")}

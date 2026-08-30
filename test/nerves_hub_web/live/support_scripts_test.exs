@@ -153,7 +153,7 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
       {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/scripts?sort=inserted_at&sort_direction=desc")
+      |> visit("/org/#{org.name}/#{product.name}/scripts?sort=updated_at&sort_direction=desc")
       |> assert_has("td", text: "MOTD")
     end
   end
