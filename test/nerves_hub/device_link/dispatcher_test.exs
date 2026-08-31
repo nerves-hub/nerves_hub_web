@@ -68,8 +68,8 @@ defmodule NervesHub.DeviceLink.DispatcherTest do
       assert Client.authenticate({:ssl_cert, "der"}) == :recorded
       assert_received {:dispatched, :authenticate, [{:ssl_cert, "der"}]}
 
-      assert Client.connect(:device_info) == :recorded
-      assert_received {:dispatched, :connect, [:device_info]}
+      assert Client.connect(:device_info, "203.0.113.7") == :recorded
+      assert_received {:dispatched, :connect, [:device_info, "203.0.113.7"]}
 
       assert Client.heartbeat("ref") == :recorded
       assert_received {:dispatched, :heartbeat, ["ref"]}

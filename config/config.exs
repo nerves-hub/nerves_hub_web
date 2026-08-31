@@ -41,8 +41,18 @@ config :mime, :types, %{
   # RAUC has no registered IANA type. This exists because `allow_upload`
   # refuses any extension it cannot resolve to one, so without it `.raucb`
   # cannot appear in the firmware upload's accept list at all.
-  "application/rauc-bundle" => ["raucb"]
+  "application/rauc-bundle" => ["raucb"],
+  # Same for AtomVM packbeams, and the failure is worse than a rejected
+  # upload: an unknown extension in `accept` raises out of `allow_upload`, so
+  # the firmware page does not render at all.
+  "application/avm" => ["avm"]
 }
+
+# Devices authenticate with client certificates, so TLS terminates in the app
+# rather than at a load balancer. Set `proxy_protocol: :v2` when something in
+# front of us passes TLS through and announces the device with a PROXY protocol
+# header. See `NervesHub.DeviceSSLTransport`.
+config :nerves_hub, NervesHub.DeviceSSLTransport, proxy_protocol: nil
 
 config :nerves_hub, NervesHub.Repo,
   queue_target: 500,
@@ -50,6 +60,11 @@ config :nerves_hub, NervesHub.Repo,
   migration_lock: :pg_advisory_lock
 
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
+  # Deliberately trusts no forwarding header, unlike the web endpoint: TLS
+  # terminates here, so nothing in front of us can reach into the stream to set
+  # one, and a forwarding header arriving on this endpoint could only have been
+  # written by the device itself.
+  forwarded_ip_header: nil,
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
     formats: [html: NervesHubWeb.ErrorDeviceHTML, json: ErrorJSON],
@@ -57,7 +72,21 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   ],
   pubsub_server: NervesHub.PubSub
 
+# Devices can also reach us through the web endpoint, where TLS is terminated
+# ahead of us and the socket's peer is whatever terminated it. This names the
+# header carrying the address that peer saw. Set it to `nil` when the endpoint is
+# exposed directly, since then the header is only whatever the device chose to
+# send. See `NervesHubWeb.Helpers.ClientIP`.
+#
+# `rate_limit_by_forwarded_ip` is separate, and off, because rate limiting acts
+# on the address rather than recording it. Reading the header is worth doing on
+# the chance it is right; bucketing a limit by it is only safe once someone has
+# confirmed something in front really does overwrite it, so the throttle stays
+# on the socket's peer until then.
 config :nerves_hub, NervesHubWeb.Endpoint,
+  forwarded_ip_header: "x-forwarded-for",
+  forwarded_ip_trailing_hops: 0,
+  rate_limit_by_forwarded_ip: false,
   adapter: Bandit.PhoenixAdapter,
   secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
   live_view: [
@@ -72,9 +101,19 @@ config :nerves_hub, NervesHubWeb.Endpoint,
 config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
 
 config :nerves_hub, Oban,
-  repo: NervesHub.Repo,
+  repo: {NervesHub.Repo, log: false},
   notifier: Oban.Notifiers.PG,
-  log: false,
+  pruner: [max_age: {1, :week}, interval: {3, :minutes}],
+  cron: [
+    crontab: [
+      {"0 * * * *", ScheduleOrgAuditLogTruncation},
+      {"*/1 * * * *", CleanStaleDeviceConnections},
+      {"* * * * *", FirmwareDeltaTimeout},
+      {"*/5 * * * *", ExpireInflightUpdates},
+      {"*/15 * * * *", DeviceHealthTruncation},
+      {"*/15 * * * *", CleanUpSoftDeletedDevices}
+    ]
+  ],
   queues: [
     default: 1,
     firmware: 5,
@@ -88,19 +127,6 @@ config :nerves_hub, Oban,
     firmware_delta_timeout: 1,
     truncate: 1,
     truncation: 1
-  ],
-  plugins: [
-    # 1 week
-    {Oban.Plugins.Pruner, max_age: 86_400, interval: 180_000},
-    {Oban.Plugins.Cron,
-     crontab: [
-       {"0 * * * *", ScheduleOrgAuditLogTruncation},
-       {"*/1 * * * *", CleanStaleDeviceConnections},
-       {"* * * * *", FirmwareDeltaTimeout},
-       {"*/5 * * * *", ExpireInflightUpdates},
-       {"*/15 * * * *", DeviceHealthTruncation},
-       {"*/15 * * * *", CleanUpSoftDeletedDevices}
-     ]}
   ]
 
 config :nerves_hub, :scopes,

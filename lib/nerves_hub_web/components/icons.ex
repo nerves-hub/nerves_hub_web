@@ -263,4 +263,40 @@ defmodule NervesHubWeb.Components.Icons do
     </svg>
     """
   end
+
+  # The three below come from Lucide and are kept on its native 24 grid rather
+  # than redrawn on the 20 grid their neighbours use. `stroke-width` is 1.5
+  # rather than Lucide's 2 so that, once `size-5` scales the icon down, the
+  # rendered weight matches the hand-drawn icons above.
+  def icon(%{name: "check"} = assigns) do
+    ~H"""
+    <svg class={["size-5", @class]} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 6 9 17l-5-5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    """
+  end
+
+  def icon(%{name: "mute"} = assigns) do
+    ~H"""
+    <svg class={["size-5", @class]} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+        <path d="M17 17H4a1 1 0 0 1-.74-1.673C4.59 13.956 6 12.499 6 8a6 6 0 0 1 .258-1.742" />
+        <path d="m2 2 20 20" />
+        <path d="M8.668 3.01A6 6 0 0 1 18 8c0 2.687.77 4.653 1.707 6.05" />
+      </g>
+    </svg>
+    """
+  end
+
+  def icon(%{name: "undo"} = assigns) do
+    ~H"""
+    <svg class={["size-5", @class]} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+      </g>
+    </svg>
+    """
+  end
 end

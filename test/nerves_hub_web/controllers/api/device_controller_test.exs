@@ -52,7 +52,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert response(conn, 201)
 
       eventually assert Repo.aggregate(Device, :count) == 5
-      assert Repo.aggregate(Notification, :count) == 1
+      eventually assert Repo.aggregate(Notification, :count) == 1
     end
 
     test "all devices are successfully imported, with tags set", %{conn: conn, org: org, product: product} do
@@ -68,7 +68,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert response(conn, 201)
 
       eventually assert Repo.aggregate(Device, :count) == 5
-      assert Repo.aggregate(Notification, :count) == 1
+      eventually assert Repo.aggregate(Notification, :count) == 1
 
       assert Repo.all(Device) |> Enum.all?(fn d -> d.tags == ["snoot-boop"] end)
     end
@@ -85,7 +85,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert response(conn, 201)
 
       eventually assert Repo.aggregate(Device, :count) == 5
-      assert Repo.aggregate(Notification, :count) == 1
+      eventually assert Repo.aggregate(Notification, :count) == 1
     end
   end
 

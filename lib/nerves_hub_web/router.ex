@@ -14,6 +14,8 @@ defmodule NervesHubWeb.Router do
   alias Live.Org.Users
   alias Live.Orgs.Index
   alias Live.Orgs.New
+  alias Live.Product.ErrorGroup
+  alias Live.Product.Errors
   alias Live.Product.Insights
   alias Live.Product.Notifications
   alias Live.SupportScripts.Edit
@@ -336,6 +338,8 @@ defmodule NervesHubWeb.Router do
       )
 
       live("/org/:org_name/:product_name/insights", Insights)
+      live("/org/:org_name/:product_name/errors", Errors)
+      live("/org/:org_name/:product_name/errors/:id", ErrorGroup)
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
       live("/org/:org_name/:product_name/devices/new", Live.Devices.New)
       live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show, :details)
@@ -356,6 +360,12 @@ defmodule NervesHubWeb.Router do
         "/org/:org_name/:product_name/devices/:device_identifier/logs",
         Live.Devices.Show,
         :logs
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/errors",
+        Live.Devices.Show,
+        :errors
       )
 
       live(

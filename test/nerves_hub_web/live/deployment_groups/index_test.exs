@@ -223,6 +223,58 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups?sort=platform&sort_direction=desc")
       |> assert_has("a", text: deployment_group.name)
     end
+
+    test "sort by a new column", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
+      |> assert_has("a", text: deployment_group.name)
+      |> unwrap(fn view ->
+        render_change(view, "sort", %{"sort" => "platform"})
+      end)
+      |> assert_has("a", text: deployment_group.name)
+    end
+
+    test "sort by the same column toggles direction", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups?sort=name&sort_direction=asc")
+      |> assert_has("a", text: deployment_group.name)
+      |> unwrap(fn view ->
+        render_change(view, "sort", %{"sort" => "name"})
+      end)
+      |> assert_has("a", text: deployment_group.name)
+    end
+  end
+
+  describe "version display" do
+    test "shows '-' when deployment group has an empty version condition", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group,
+      user: user
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(
+          deployment_group,
+          %{conditions: %{"version" => "", "tags" => []}},
+          user
+        )
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
+      |> assert_has("a", text: deployment_group.name)
+      |> assert_has("td", text: "-")
+    end
   end
 
   describe "pagination" do
@@ -234,6 +286,21 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
       |> refute_has("button", text: "25", timeout: 1000)
+    end
+
+    test "change page size", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
+      |> assert_has("a", text: deployment_group.name)
+      |> unwrap(fn view ->
+        render_change(view, "set-paginate-opts", %{"page-size" => "50"})
+      end)
+      |> assert_has("a", text: deployment_group.name)
     end
 
     test "pagination with more than 25 deployment groups", %{

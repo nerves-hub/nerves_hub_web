@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Product.InsightsTest do
-  use NervesHubWeb.ConnCase.Browser, async: true
+  use NervesHubWeb.ConnCase.Browser, async: false
 
   import Phoenix.LiveViewTest
 
@@ -75,9 +75,10 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
       # the dashboard cards are hidden when there are no devices
       refute html =~ "% of fleet"
 
+      render_async(view)
       assigns = :sys.get_state(view.pid).socket.assigns
       assert assigns.fleet_size == 0
-      assert assigns.online_count == 0
+      assert assigns.online_count.result == 0
     end
 
     test "renders when devices exist but have no health records", %{
@@ -123,15 +124,16 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
       {:ok, view, _html} = live(conn, insights_path(org, product))
 
+      render_async(view)
       assigns = :sys.get_state(view.pid).socket.assigns
 
       assert assigns.fleet_size == 5
-      assert assigns.online_count == 1
-      assert assigns.offline_count == 4
+      assert assigns.online_count.result == 1
+      assert assigns.offline_count.result == 4
       # offline_8_days, offline_15_days, never_connected
-      assert assigns.not_seen_in_7_days == 3
+      assert assigns.not_seen_in_7_days.result == 3
       # offline_15_days, never_connected
-      assert assigns.not_seen_in_14_days == 2
+      assert assigns.not_seen_in_14_days.result == 2
     end
   end
 

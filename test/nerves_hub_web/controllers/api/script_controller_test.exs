@@ -458,5 +458,43 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
 
       assert resp == %{"errors" => %{"detail" => "Resource Not Found or Authorization Insufficient"}}
     end
+
+    test "returns 403 when runner errors", %{conn: conn, device: device, product: product, user: user} do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+      path = Routes.api_script_path(conn, :send, device, script.name)
+
+      expect(Runner, :send, fn _, _, _ -> {:error, :timeout} end)
+
+      resp =
+        conn
+        |> post(path)
+        |> json_response(403)
+
+      assert resp["errors"]["detail"] =~ "device not available"
+    end
+
+    test "sends script with integer timeout param", %{conn: conn, device: device, product: product, user: user} do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+      path = Routes.api_script_path(conn, :send, device, script.name)
+
+      expect(Runner, :send, fn _, _, _ -> {:ok, "hello"} end)
+
+      conn
+      |> post(path, %{timeout: 5000})
+      |> response(200)
+    end
+
+    test "returns error when timeout param is invalid string", %{
+      conn: conn,
+      device: device,
+      product: product,
+      user: user
+    } do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+      path = Routes.api_script_path(conn, :send, device, script.name)
+
+      resp = conn |> post(path, %{timeout: "not_a_number"})
+      assert resp.status in [422, 500]
+    end
   end
 end

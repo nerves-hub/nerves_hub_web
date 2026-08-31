@@ -16,6 +16,8 @@ defmodule NervesHub.Extensions do
   """
 
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceMessages
+  alias NervesHub.Extensions.ErrorReports
   alias NervesHub.Extensions.Geo
   alias NervesHub.Extensions.Health
   alias NervesHub.Extensions.LocalShell
@@ -71,16 +73,17 @@ defmodule NervesHub.Extensions do
       {"0.1.0", "~> 0.1.0", Logging.Batched},
       {"0.0.1", "~> 0.0.1", Logging}
     ],
-    network_identity: [{"0.0.1", "~> 0.0.1", NetworkIdentity}]
+    network_identity: [{"0.0.1", "~> 0.0.1", NetworkIdentity}],
+    error_reports: [{"0.1.0", "~> 0.1.0", ErrorReports}]
   ]
 
   @supported_extensions Keyword.keys(@implementations)
-  @type extension() :: :health | :geo | :local_shell | :logging | :network_identity
+  @type extension() :: :health | :geo | :local_shell | :logging | :network_identity | :error_reports
 
   @doc """
   Get list of supported extensions as atoms with descriptive text.
   """
-  @spec list() :: [:network_identity | :geo | :health | :local_shell | :logging, ...]
+  @spec list() :: [extension(), ...]
   def list(), do: @supported_extensions
 
   @doc """
@@ -119,10 +122,12 @@ defmodule NervesHub.Extensions do
 
   @spec module(extension()) ::
           NetworkIdentity
+          | ErrorReports
           | Geo
           | Health
           | LocalShell
           | Logging
+  def module(:error_reports), do: ErrorReports
   def module(:geo), do: Geo
   def module(:health), do: Health
   def module(:local_shell), do: LocalShell
@@ -154,8 +159,15 @@ defmodule NervesHub.Extensions do
   end
 
   def broadcast_extension_event(%Device{} = device, event, extension) do
+    payload = %{"extensions" => [extension]}
+
+    # Recorded here, where the message is produced, rather than in the channel
+    # that pushes it: that channel is not always on a node with a database. See
+    # `NervesHub.Extensions.PubSub` on why the recording is not in the wrapper.
+    :ok = DeviceMessages.record(device, :sent, :extensions, event, payload)
+
     # web -> device: only the device's extensions channel consumes this.
-    PubSub.broadcast_to_device(device, event, %{"extensions" => [extension]})
+    PubSub.broadcast_to_device(device.id, event, payload)
   end
 
   def broadcast_extension_event(%Product{} = product, event, extension) do
