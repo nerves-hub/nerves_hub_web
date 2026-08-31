@@ -125,6 +125,25 @@ defmodule NervesHub.Fixtures do
     org_key
   end
 
+  # Like org_key_fixture/3 but skips the fwup key-generation subprocess — the
+  # key pair already exists on disk under `dir` with the given name. Used when
+  # caching key generation across tests (e.g. setup_all in BrowserCase).
+  # Each call is for a fresh org, so reusing the same key_name is safe.
+  def org_key_fixture_from_existing(%Accounts.Org{} = org, %Accounts.User{} = user, key_name, dir) do
+    key = Fwup.get_public_key(key_name, dir)
+
+    params = %{
+      org_id: org.id,
+      key: key,
+      name: key_name,
+      created_by_id: user.id
+    }
+
+    {:ok, org_key} = Accounts.create_org_key(params)
+
+    org_key
+  end
+
   @doc """
   Register the public key that `Support.EspIdf.signed_image/1` signs with.
 
@@ -239,6 +258,13 @@ defmodule NervesHub.Fixtures do
     org = Repo.get!(Org, org_id)
     filepath = firmware_file_fixture(org_key, product, Map.put(params, :dir, dir))
     {:ok, firmware} = Firmwares.create_firmware(org, filepath)
+    firmware
+  end
+
+  # Like firmware_fixture/3 but accepts a pre-built .fw filepath, skipping the
+  # fwup subprocess calls. Used when caching firmware generation across tests.
+  def firmware_fixture_from_file(%Accounts.Org{} = org, fw_path) do
+    {:ok, firmware} = Firmwares.create_firmware(org, fw_path)
     firmware
   end
 

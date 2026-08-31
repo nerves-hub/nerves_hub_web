@@ -32,7 +32,6 @@ defmodule NervesHubWeb.UserLocalShellChannelTest do
 
       other_user_token = Accounts.create_user_api_token(other_user, "test-token")
 
-      # Connect with unauthorized user's token
       {:ok, socket} = connect(APISocket, %{"token" => other_user_token})
 
       assert {:error, %{reason: _reason}} =
@@ -44,11 +43,39 @@ defmodule NervesHubWeb.UserLocalShellChannelTest do
     end
   end
 
+  describe "handle_in" do
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      device = device_fixture(user, %{identifier: "shell-test-device"}, tmp_dir)
+      user_token = Accounts.create_user_api_token(user, "test-token")
+      {:ok, socket} = connect(APISocket, %{"token" => user_token})
+
+      {:ok, _reply, channel} =
+        subscribe_and_join(
+          socket,
+          UserLocalShellChannel,
+          "user:local_shell:identifier-#{device.identifier}"
+        )
+
+      %{channel: channel}
+    end
+
+    # These events are forwarded to the device; the test process has no subscription
+    # on that side, so the only testable property here is that the channel doesn't crash.
+    test "input event does not crash the channel", %{channel: channel} do
+      push(channel, "input", %{"data" => "\r"})
+      refute_receive {:error, _}, 100
+    end
+
+    test "window_size event does not crash the channel", %{channel: channel} do
+      push(channel, "window_size", %{"cols" => 80, "rows" => 24})
+      refute_receive {:error, _}, 100
+    end
+  end
+
   defp device_fixture(user, device_params, tmp_dir) do
     org = Fixtures.org_fixture(user)
     {:ok, org_user} = Accounts.get_org_user(org, user)
-
-    # Use the lowest permissioned org user possible for the channel.
     {:ok, _updated_org_user} = Accounts.change_org_user_role(org_user, :manage)
 
     product = Fixtures.product_fixture(user, org)

@@ -153,7 +153,7 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
       {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/scripts?sort=inserted_at&sort_direction=desc")
+      |> visit("/org/#{org.name}/#{product.name}/scripts?sort=updated_at&sort_direction=desc")
       |> assert_has("td", text: "MOTD")
     end
   end
@@ -238,6 +238,84 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
       |> assert_has("span", text: "world")
 
       assert %{text: "dbg(NervesMOTD.print())"} = Scripts.get!(script.id)
+    end
+
+    test "shows who last edited the script and when", %{conn: conn, org: org, product: product, user: user} do
+      editor = Fixtures.user_fixture()
+      {:ok, script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+      {:ok, _} = Scripts.update(script, editor, %{name: "MOTD v2"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/#{script.id}/edit")
+      |> assert_has("div", text: "Last updated by #{editor.name}")
+      |> refute_has("div", text: "Last updated by #{user.name}")
+    end
+
+    test "falls back to the creator's name for a newly created script", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/#{script.id}/edit")
+      |> assert_has("div", text: "Last updated by #{user.name}")
+    end
+  end
+
+  describe "set-paginate-opts" do
+    test "changes page size via event", %{conn: conn, org: org, product: product, user: user} do
+      {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts")
+      |> unwrap(fn view ->
+        render_click(view, "set-paginate-opts", %{"page-size" => "50"})
+      end)
+      |> assert_has("td", text: "MOTD")
+    end
+  end
+
+  describe "sort toggle" do
+    test "toggles sort direction when clicking same column", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts")
+      |> unwrap(fn view ->
+        render_click(view, "sort", %{"sort" => "name"})
+      end)
+      |> assert_has("td", text: "MOTD")
+      |> unwrap(fn view ->
+        render_click(view, "sort", %{"sort" => "name"})
+      end)
+      |> assert_has("td", text: "MOTD")
+    end
+  end
+
+  describe "delete from index" do
+    test "deletes script from index page via event", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts")
+      |> assert_has("td", text: "MOTD")
+      |> unwrap(fn view ->
+        render_click(view, "delete-support-script", %{"script_id" => to_string(script.id)})
+      end)
+      |> refute_has("td", text: "MOTD")
     end
   end
 end

@@ -2,6 +2,7 @@ defmodule NervesHub.ProductsTest do
   use NervesHub.DataCase, async: true
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHub.Fixtures
@@ -261,6 +262,32 @@ defmodule NervesHub.ProductsTest do
       device = Fixtures.device_fixture(context.org, context.product, context.firmware)
       Fixtures.device_connection_fixture(device, %{status: status})
       device
+    end
+  end
+
+  describe "Product changesets" do
+    setup do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      %{user: user, org: org}
+    end
+
+    test "change_user_role/2 validates role is required", %{org: org} do
+      org_user = %OrgUser{org_id: org.id}
+      changeset = Product.change_user_role(org_user, %{})
+      refute changeset.valid?
+      assert changeset.errors[:role] != nil
+    end
+
+    test "change_user_role/2 is valid with a role", %{org: org} do
+      org_user = %OrgUser{org_id: org.id}
+      changeset = Product.change_user_role(org_user, %{role: :admin})
+      assert changeset.valid?
+    end
+
+    test "changeset/2 with nil name passes nil through trim fallback", %{org: org} do
+      changeset = Product.changeset(%Product{}, %{name: nil, org_id: org.id})
+      refute changeset.valid?
     end
   end
 end

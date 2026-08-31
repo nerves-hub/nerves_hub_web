@@ -22,7 +22,7 @@ defmodule NervesHubWeb.Live.Orgs.Index do
         {device.identifier, Tracker.connection_status(device)}
       end)
 
-    orgs = Accounts.get_orgs(scope)
+    orgs = Accounts.get_orgs_without_counts(scope)
 
     socket =
       socket
@@ -34,6 +34,14 @@ defmodule NervesHubWeb.Live.Orgs.Index do
       |> assign(:device_limit, @pinned_devices_limit)
       |> maybe_assign_onboarding()
       |> subscribe()
+      |> then(fn socket ->
+        Enum.reduce(orgs, socket, fn org, acc ->
+          assign_async(acc, :"org_counts_#{org.id}", fn ->
+            key = :"org_counts_#{org.id}"
+            {:ok, %{key => Accounts.get_org_device_counts(scope, org.id)}}
+          end)
+        end)
+      end)
 
     {:ok, socket}
   end
@@ -69,6 +77,9 @@ defmodule NervesHubWeb.Live.Orgs.Index do
 
   # Ignore unknown broadcasts
   def handle_info(%Broadcast{}, socket), do: {:noreply, socket}
+
+  @impl Phoenix.LiveView
+  def handle_async(_name, _result, socket), do: {:noreply, socket}
 
   def subscribe(%{assigns: %{pinned_devices: devices}} = socket) do
     if connected?(socket) do
