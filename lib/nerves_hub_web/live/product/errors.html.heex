@@ -22,7 +22,7 @@
             <span class="text-base-400 text-sm">Status :</span>
             <select name="status" class="bg-base-800 border-base-600 text-base-300 rounded border py-0.5 pr-8 pl-2 text-sm">
               <option :for={{label, value} <- NervesHubWeb.Live.Product.Errors.status_options()} value={value} selected={value == @status_filter}>
-                {label} ({Map.get(@status_counts, String.to_existing_atom(value), 0)})
+                {label} ({Map.get(@status_counts, NervesHubWeb.Live.Product.Errors.status_option(value), 0)})
               </option>
             </select>
           </label>

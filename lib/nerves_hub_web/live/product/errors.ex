@@ -128,8 +128,8 @@ defmodule NervesHubWeb.Live.Product.Errors do
   defp fetch_groups(%{assigns: assigns} = socket) do
     {groups, meta} =
       ErrorReports.groups_for_product(assigns.product,
-        status: String.to_existing_atom(assigns.status_filter),
-        sort: String.to_existing_atom(assigns.sort),
+        status: status_option(assigns.status_filter),
+        sort: sort_option(assigns.sort),
         search: assigns.search,
         page: assigns.page_number,
         page_size: assigns.page_size
@@ -188,6 +188,24 @@ defmodule NervesHubWeb.Live.Product.Errors do
 
   @doc "The statuses the filter offers, with their labels."
   def status_options(), do: [{"Unresolved", "unresolved"}, {"Resolved", "resolved"}, {"Muted", "muted"}]
+
+  @doc """
+  The atom a filter value names.
+
+  Spelled out rather than reached through `String.to_existing_atom/1`. The
+  clauses below are the only place some of these appear as literals — the
+  defaults are matched with a variable — so whether the atom exists at all
+  depends on what else the VM happens to have loaded, which is a page that
+  works on one boot and raises on the next.
+  """
+  def status_option("resolved"), do: :resolved
+  def status_option("muted"), do: :muted
+  def status_option(_unresolved), do: :unresolved
+
+  @doc "The atom a sort value names. See `status_option/1` for why it is spelled out."
+  def sort_option("count"), do: :count
+  def sort_option("first_seen"), do: :first_seen
+  def sort_option(_last_seen), do: :last_seen
 
   @doc "The orderings the page offers."
   def sort_options(), do: [{"Last seen", "last_seen"}, {"First seen", "first_seen"}, {"Occurrences", "count"}]

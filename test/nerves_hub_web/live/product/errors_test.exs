@@ -15,6 +15,7 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
   alias NervesHub.Fixtures
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+  alias NervesHubWeb.Live.Product.Errors
 
   setup context do
     :ok = Buffer.flush(ErrorReport)
@@ -114,6 +115,26 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
       |> refute_has("a", text: "still broken")
     end
 
+    # Every filter value, because reaching these atoms through
+    # `String.to_existing_atom/1` used to raise for whichever ones appeared
+    # nowhere else as a literal, and which those were depended on what the VM
+    # had loaded.
+    test "accepts every sort and status the filters offer", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      record(device, [report("boom")])
+
+      for {_label, sort} <- Errors.sort_options(),
+          {_label, status} <- Errors.status_options() do
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/errors?sort=#{sort}&status=#{status}")
+        |> assert_has("h1", text: "Errors")
+      end
+    end
+
     test "searches the reason", %{conn: conn, org: org, product: product, device: device} do
       record(device, [report("alpha failure"), report("beta failure")])
 
@@ -203,11 +224,12 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
     } do
       conn
       |> visit("/org/#{org.name}/#{product.name}/errors/#{group.id}")
-      # The heading names the section, matching the list page; the reason is
-      # the subject alongside it and the crumb in the breadcrumb above.
-      |> assert_has("h1", text: "Errors")
+      # The heading is the error itself, the way the firmware and archive show
+      # pages put the thing they are about in the heading. Getting back to the
+      # list is the breadcrumb's job.
+      |> assert_has("h1", text: "** (RuntimeError) boom")
       |> assert_has("a", text: "All Errors")
-      |> assert_has("span", text: "** (RuntimeError) boom")
+      |> assert_has("span", text: "unresolved")
       |> assert_has("div", text: "GenServer MyApp.Worker terminating")
       |> assert_has("span", text: "MyApp.Worker.run/0")
       |> assert_has("a", text: device.identifier)
