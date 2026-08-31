@@ -101,9 +101,19 @@ config :nerves_hub, NervesHubWeb.Endpoint,
 config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
 
 config :nerves_hub, Oban,
-  repo: NervesHub.Repo,
+  repo: {NervesHub.Repo, log: false},
   notifier: Oban.Notifiers.PG,
-  log: false,
+  pruner: [max_age: {1, :week}, interval: {3, :minutes}],
+  cron: [
+    crontab: [
+      {"0 * * * *", ScheduleOrgAuditLogTruncation},
+      {"*/1 * * * *", CleanStaleDeviceConnections},
+      {"* * * * *", FirmwareDeltaTimeout},
+      {"*/5 * * * *", ExpireInflightUpdates},
+      {"*/15 * * * *", DeviceHealthTruncation},
+      {"*/15 * * * *", CleanUpSoftDeletedDevices}
+    ]
+  ],
   queues: [
     default: 1,
     firmware: 5,
@@ -117,19 +127,6 @@ config :nerves_hub, Oban,
     firmware_delta_timeout: 1,
     truncate: 1,
     truncation: 1
-  ],
-  plugins: [
-    # 1 week
-    {Oban.Plugins.Pruner, max_age: 86_400, interval: 180_000},
-    {Oban.Plugins.Cron,
-     crontab: [
-       {"0 * * * *", ScheduleOrgAuditLogTruncation},
-       {"*/1 * * * *", CleanStaleDeviceConnections},
-       {"* * * * *", FirmwareDeltaTimeout},
-       {"*/5 * * * *", ExpireInflightUpdates},
-       {"*/15 * * * *", DeviceHealthTruncation},
-       {"*/15 * * * *", CleanUpSoftDeletedDevices}
-     ]}
   ]
 
 config :nerves_hub, :scopes,
