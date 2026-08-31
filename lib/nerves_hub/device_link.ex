@@ -24,6 +24,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ProductNotifications
   alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
@@ -104,8 +105,22 @@ defmodule NervesHub.DeviceLink do
       device = Devices.get_device(device_info.device_id)
 
       case Updates.revert_unsupported_update_mode(device) do
-        {:ok, device} -> %{device_info | device_update_mode: device.update_mode}
-        _error -> device_info
+        {:ok, device} ->
+          %{device_info | device_update_mode: device.update_mode}
+
+        error ->
+          # The device stays stranded, which is the thing this function exists to
+          # prevent, and it will go on connecting as if nothing were wrong. So it
+          # is raised where someone will see it rather than swallowed.
+          :telemetry.execute([:nerves_hub, :devices, :update_mode_revert_failed], %{count: 1}, %{
+            device_id: device.id,
+            identifier: device.identifier,
+            reason: inspect(error)
+          })
+
+          _ = ProductNotifications.create_update_mode_revert_failed_notification!(device)
+
+          device_info
       end
     end
   end

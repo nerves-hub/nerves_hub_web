@@ -14,6 +14,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
@@ -813,6 +814,42 @@ defmodule NervesHubWeb.DeviceChannelTest do
       assert audit_log.actor_type == Device
       assert audit_log.description =~ "returned to automatic updates"
       assert audit_log.description =~ "too old"
+
+      close_cleanly(device_channel)
+    end
+
+    test "a failed revert is raised rather than swallowed", %{
+      device: device,
+      certificate: certificate,
+      user: user
+    } do
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, user)
+
+      :ok =
+        :telemetry.attach(
+          "revert-failed-test",
+          [:nerves_hub, :devices, :update_mode_revert_failed],
+          fn _event, _measurements, metadata, pid -> send(pid, {:revert_failed, metadata}) end,
+          self()
+        )
+
+      on_exit(fn -> :telemetry.detach("revert-failed-test") end)
+
+      Mimic.stub(Updates, :revert_unsupported_update_mode, fn _device ->
+        {:error, :update_with_audit, %Ecto.Changeset{}, %{}}
+      end)
+
+      device_channel = join_device(device, certificate, "2.3.0")
+
+      # The device is still stranded, and would otherwise go on connecting as if
+      # nothing were wrong, so it has to reach someone.
+      assert_receive {:revert_failed, metadata}
+      assert metadata.identifier == device.identifier
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.product_id == device.product_id
+      assert notification.level == :error
+      assert notification.message =~ device.identifier
 
       close_cleanly(device_channel)
     end
