@@ -55,6 +55,8 @@ Prod only. Configures `NervesHubWeb.Endpoint`, and is only read when
 | `WEB_SCHEME` | `https` | Scheme used when generating URLs. |
 | `SECRET_KEY_BASE` | — (**required**) | Phoenix secret key base. Generate with `mix phx.gen.secret`. |
 | `LIVE_VIEW_SIGNING_SALT` | — (**required**) | LiveView signing salt. |
+| `WEB_FORWARDED_IP_HEADER` | `x-forwarded-for` | Header carrying the address a device connected from, for devices that reach the web endpoint rather than the device endpoint. TLS is terminated ahead of this endpoint, so the socket's peer is whatever terminated it. Must start with `x-`, because Phoenix passes a socket only those headers — Fly's `fly-client-ip` never arrives and raises at boot if named. Set to `none` when the endpoint is exposed directly, since nothing is overwriting the header there and it holds whatever the device chose to send. |
+| `WEB_FORWARDED_IP_TRAILING_HOPS` | `0` | How many entries at the end of that header were added by infrastructure rather than by the device. The address is counted from the right, so this decides which entry is read. Fly.io appends two, the address it observed and then the app's own anycast address, so it needs `1`; a proxy that appends only its own observation needs `0`. Confirm it against a real request, because the wrong count records a plausible looking address belonging to the wrong machine. |
 
 ## Device endpoint
 
@@ -62,7 +64,9 @@ Prod only. Configures `NervesHubWeb.DeviceEndpoint`, and is only read when
 `NERVES_HUB_APP` is `all` or `device`. This endpoint always serves HTTPS
 directly — it terminates mutual TLS itself and cannot sit behind a proxy that
 terminates TLS for it, because device certificates are the authentication
-mechanism (see [Device authentication](device_authentication.md)).
+mechanism (see [Device authentication](device_authentication.md)). It can sit
+behind one that passes the connection through, in which case `DEVICE_PROXY_PROTOCOL`
+is how a device's own address survives the hop.
 
 | Variable | Default | Description |
 | --- | --- | --- |
@@ -79,6 +83,7 @@ mechanism (see [Device authentication](device_authentication.md)).
 | `DEVICES_WEBSOCKET_HOST` | `DEVICE_HOST`, then `WEB_HOST`, then `HOST` | Host shown in the UI's device connection instructions. Read in every environment. |
 | `DEVICE_ENDPOINT_REDIRECT` | `https://docs.nerves-hub.org/` | Where a plain browser request to the device endpoint is redirected. |
 | `DEVICE_CONNECT_RATE_LIMIT` | `100` | Maximum device connections accepted per second. Read in every environment. |
+| `DEVICE_PROXY_PROTOCOL` | — | Set to `v2` when a load balancer passes TLS through to this endpoint and announces the device with a PROXY protocol v2 header, which is read before the TLS handshake. Only `v2` is supported; version 1 cannot be read without risking a read into the handshake that follows it, and any other value raises at boot. Turning it on is a flag day: a balancer sending the header to a listener that is not expecting it looks like a malformed ClientHello, and a listener expecting one that never arrives waits until it times out. On Fly.io keep it in `fly.toml` `[env]` beside the `proxy_proto` handler so each machine picks up the pair together — `fly secrets set` without `--stage` restarts the fleet before the handler exists. |
 
 ### Socket drainer
 
