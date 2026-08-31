@@ -77,9 +77,16 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 # header carrying the address that peer saw. Set it to `nil` when the endpoint is
 # exposed directly, since then the header is only whatever the device chose to
 # send. See `NervesHubWeb.Helpers.ClientIP`.
+#
+# `rate_limit_by_forwarded_ip` is separate, and off, because rate limiting acts
+# on the address rather than recording it. Reading the header is worth doing on
+# the chance it is right; bucketing a limit by it is only safe once someone has
+# confirmed something in front really does overwrite it, so the throttle stays
+# on the socket's peer until then.
 config :nerves_hub, NervesHubWeb.Endpoint,
   forwarded_ip_header: "x-forwarded-for",
   forwarded_ip_trailing_hops: 0,
+  rate_limit_by_forwarded_ip: false,
   adapter: Bandit.PhoenixAdapter,
   secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
   live_view: [

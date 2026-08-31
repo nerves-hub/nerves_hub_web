@@ -163,9 +163,25 @@ if config_env() == :prod do
     # the wrong count reads a plausible looking address off the wrong machine.
     forwarded_ip_trailing_hops = String.to_integer(System.get_env("WEB_FORWARDED_IP_TRAILING_HOPS", "0"))
 
+    # Whether the API rate limiter buckets by that header rather than by the
+    # socket's peer. Separate from naming the header because the two carry
+    # different risk: a forged address that is only recorded is bad data, while
+    # one the limiter believes lets a caller pick its own bucket and evade the
+    # limit entirely.
+    rate_limit_by_forwarded_ip = System.get_env("WEB_RATE_LIMIT_BY_FORWARDED_IP", "false") == "true"
+
+    if rate_limit_by_forwarded_ip and is_nil(forwarded_ip_header) do
+      raise """
+      WEB_RATE_LIMIT_BY_FORWARDED_IP is set, but WEB_FORWARDED_IP_HEADER is "none", so there is
+      no header to rate limit by. Name the header whatever is in front overwrites, or leave
+      both unset.
+      """
+    end
+
     config :nerves_hub, NervesHubWeb.Endpoint,
       forwarded_ip_header: forwarded_ip_header,
       forwarded_ip_trailing_hops: forwarded_ip_trailing_hops,
+      rate_limit_by_forwarded_ip: rate_limit_by_forwarded_ip,
       url: [
         host: host,
         scheme: System.get_env("WEB_SCHEME", "https"),
