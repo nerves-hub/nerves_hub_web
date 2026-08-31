@@ -188,6 +188,19 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
       |> assert_has("td", text: "MOTD")
     end
 
+    test "shows Elixir syntax errors as the script is entered", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/new")
+      |> fill_in("Script code", with: "if true do")
+      |> assert_has("p",
+        text: "has invalid Elixir syntax at line 1, column 9: missing terminator: end"
+      )
+    end
+
     test "add script with tags", %{conn: conn, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/scripts/new")
