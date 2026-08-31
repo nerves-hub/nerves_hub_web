@@ -18,6 +18,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.NetworkIdentities
+  alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.Updates
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Firmwares
@@ -654,6 +655,25 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   describe "device health" do
+    test "opening the page is the whole of its part in health reporting", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      refute PubSub.health_watched?(device.id)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+
+      # The page used to run a timer and ask the device for a report itself,
+      # once per open page, on top of the interval the platform already had.
+      # Now it says it is watching and `NervesHub.Extensions.Health` does the
+      # asking -- once, however many people are looking.
+      assert PubSub.health_watched?(device.id)
+    end
+
     test "no device health", %{conn: conn, org: org, product: product, device: device} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -1866,6 +1886,171 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       {:ok, _} = NetworkIdentities.report(device.id, "netbird", %{identifier: "peer-key-9000"})
 
       assert_has(session, "span", text: "peer-key-9000", timeout: 1_000)
+    end
+  end
+
+  describe "pin and unpin device" do
+    test "pin device success", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("button[aria-label='Pin device']")
+      |> unwrap(fn view ->
+        render_click(view, "pin", %{})
+      end)
+      |> assert_has("button[aria-label='Unpin device']")
+    end
+
+    test "pin device error shows flash", %{conn: conn, org: org, product: product, device: device} do
+      stub(Pinning, :pin_device, fn _user_id, _device_id ->
+        {:error, :something}
+      end)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> unwrap(fn view ->
+        render_click(view, "pin", %{})
+      end)
+      |> assert_has("div", text: "Could not pin device.")
+    end
+
+    test "unpin device success", %{conn: conn, org: org, product: product, device: device, user: user} do
+      {:ok, _} = Pinning.pin_device(user.id, device.id)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("button[aria-label='Unpin device']")
+      |> unwrap(fn view ->
+        render_click(view, "unpin", %{})
+      end)
+      |> assert_has("button[aria-label='Pin device']")
+    end
+  end
+
+  describe "device actions" do
+    test "reconnect sends flash", %{conn: conn, fixture: fixture} do
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
+      render_change(view, "reconnect", %{})
+      assert render(view) =~ "Device reconnection requested"
+    end
+
+    test "identify sends flash", %{conn: conn, fixture: fixture} do
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
+      render_change(view, "identify", %{})
+      assert render(view) =~ "Device identification requested"
+    end
+
+    test "toggle-deployment-firmware-updates sends flash", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      render_change(view, "toggle-deployment-firmware-updates", %{})
+      assert render(view) =~ "Firmware updates"
+    end
+
+    test "clear-penalty-box removes device from penalty box", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      future = DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second)
+
+      Device
+      |> NervesHub.Repo.get!(device.id)
+      |> Ecto.Changeset.change(%{updates_blocked_until: future})
+      |> NervesHub.Repo.update!()
+
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      render_click(view, "clear-penalty-box", %{})
+      assert render(view) =~ "Device removed from the penalty box"
+    end
+
+    test "restore undeletes a deleted device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, device} = NervesHub.Devices.delete_device(device)
+      refute is_nil(device.deleted_at)
+
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      render_change(view, "restore", %{})
+      assert is_nil(NervesHub.Repo.reload(device).deleted_at)
+    end
+
+    test "destroy navigates to devices list", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> unwrap(fn view ->
+        render_change(view, "destroy", %{})
+      end)
+      |> assert_has("div", text: "Device destroyed successfully.")
+    end
+  end
+
+  describe "handle_info broadcasts" do
+    test "connection:heartbeat refreshes device_connection", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      send(view.pid, %Broadcast{
+        topic: "internal:device:#{device.id}",
+        event: "connection:heartbeat",
+        payload: %{}
+      })
+
+      assert render(view)
+    end
+
+    test "location:updated reloads device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      send(view.pid, %Broadcast{
+        topic: "internal:device:#{device.id}",
+        event: "location:updated",
+        payload: %{}
+      })
+
+      assert render(view) =~ device.identifier
+    end
+
+    test "unknown message is ignored and view stays alive", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      send(view.pid, :some_unknown_message)
+      assert render(view) =~ device.identifier
     end
   end
 

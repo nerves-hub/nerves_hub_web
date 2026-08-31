@@ -109,6 +109,64 @@ defmodule NervesHub.CLISessionCacheTest do
     assert CLISessionCache.count() == 1
   end
 
+  test "get/1 returns :error when key does not exist" do
+    assert CLISessionCache.get("nonexistent-token") == :error
+  end
+
+  test "get/1 returns {:ok, session} after put/2" do
+    token = Ecto.UUID.generate()
+
+    expires_at =
+      DateTime.utc_now()
+      |> DateTime.add(5, :minute)
+      |> DateTime.to_unix()
+
+    session = %UserCLISession{token: token, status: :waiting, expires_at: expires_at}
+
+    :ok = CLISessionCache.put(token, session)
+
+    assert CLISessionCache.get(token) == {:ok, session}
+  end
+
+  test "get_and_update/2 with :noop action returns value without writing" do
+    token = Ecto.UUID.generate()
+
+    result = CLISessionCache.get_and_update(token, fn current -> {current, :noop} end)
+
+    assert result == :error
+    assert CLISessionCache.get(token) == :error
+  end
+
+  test "get_and_update/2 with {:put, new_session} action updates and returns value" do
+    token = Ecto.UUID.generate()
+
+    expires_at =
+      DateTime.utc_now()
+      |> DateTime.add(5, :minute)
+      |> DateTime.to_unix()
+
+    session = %UserCLISession{token: token, status: :waiting, expires_at: expires_at}
+    updated = %UserCLISession{token: token, status: :complete, expires_at: expires_at}
+
+    :ok = CLISessionCache.put(token, session)
+
+    result =
+      CLISessionCache.get_and_update(token, fn {:ok, _} -> {:updated, {:put, updated}} end)
+
+    assert result == :updated
+    assert CLISessionCache.get(token) == {:ok, updated}
+  end
+
+  test "get_and_update/2 when callback raises — GenServer survives" do
+    token = Ecto.UUID.generate()
+
+    assert_raise RuntimeError, "boom", fn ->
+      CLISessionCache.get_and_update(token, fn _ -> raise "boom" end)
+    end
+
+    assert is_map(:sys.get_state(CLISessionCache))
+  end
+
   defp create_cli_session(mins_ago) do
     token = Ecto.UUID.generate()
 

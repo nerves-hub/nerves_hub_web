@@ -65,6 +65,18 @@ defmodule NervesHub.Products do
     query
   end
 
+  def get_product_counts(%Scope{}, product_id) do
+    from(p in Product, as: :product, where: p.id == ^product_id)
+    |> add_connected_devices_count(true)
+    |> add_disconnected_devices_count(true)
+    |> Repo.exclude_deleted()
+    |> Repo.one()
+    |> case do
+      nil -> {0, 0}
+      product -> {product.connected_devices_count, product.disconnected_devices_count}
+    end
+  end
+
   defp add_disconnected_devices_count(query, true) do
     disconnected_devices_count =
       Device
