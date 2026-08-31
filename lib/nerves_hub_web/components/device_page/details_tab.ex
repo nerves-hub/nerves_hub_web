@@ -107,8 +107,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def render(assigns) do
-    assigns = Map.put(assigns, :auto_refresh_health, !!assigns.health_check_timer)
-
     ~H"""
     <div
       id="details-tab"
@@ -139,36 +137,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <div class="text-base-50 leading-6 font-medium">Health</div>
               <HealthStatus.render device_id={@device.id} health={@device.latest_health} tooltip_position="right" />
             </div>
-            <div class="flex items-center gap-2">
-              <div class="text-base-500 text-xs tracking-wide">
-                <span>Last updated: </span>
-                <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
-                  {Timex.from_now(@latest_metrics["timestamp"])}
-                </time>
-              </div>
-              <div class="text-base-300 text-xs tracking-wide">Auto refresh</div>
-              <div>
-                <button
-                  type="button"
-                  phx-click="toggle-health-check-auto-refresh"
-                  class={[
-                    "border-1.5 focus:ring-focus-ring relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-1 focus:ring-offset-2 focus:outline-none",
-                    (@auto_refresh_health && "bg-primary") || "bg-gray-200"
-                  ]}
-                  role="switch"
-                  aria-checked="false"
-                >
-                  <span class="sr-only">Auto refresh health information</span>
-                  <span
-                    aria-hidden="true"
-                    class={[
-                      "pointer-events-none inline-block size-3",
-                      (@auto_refresh_health && "translate-x-3") || "translate-x-0",
-                      "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                    ]}
-                  ></span>
-                </button>
-              </div>
+            <div class="text-base-500 text-xs tracking-wide">
+              <span>Last updated: </span>
+              <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
+                {Timex.from_now(@latest_metrics["timestamp"])}
+              </time>
             </div>
           </div>
           <div class="flex flex-wrap items-center justify-items-stretch gap-2 px-4 pt-2 pb-4">
@@ -313,6 +286,25 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   {NaiveDateTime.to_string(@device.latest_connection.established_at)}
                 </time>
               </span>
+            </div>
+
+            <div :if={@device.latest_connection && @device.latest_connection.ip_address} class="group/ip flex min-h-7 items-center gap-4 px-4">
+              <span class="text-base-500 text-sm">IP Address:</span>
+              <div class="flex min-w-0 items-center gap-1.5">
+                <span class="text-base-300 font-mono text-sm">{@device.latest_connection.ip_address}</span>
+                <button
+                  id="copy-ip-address"
+                  type="button"
+                  phx-hook="CopyToClipboard"
+                  data-copy-value={@device.latest_connection.ip_address}
+                  aria-label="Copy IP address"
+                  title="Copy value"
+                  class="hover:text-base-200 text-base-500 inline-flex shrink-0 cursor-pointer items-center opacity-0 transition-opacity group-hover/ip:opacity-100 focus-visible:opacity-100"
+                >
+                  <span data-icon="copy" class="lucide-copy--light size-4"></span>
+                  <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+                </button>
+              </div>
             </div>
 
             <div class="flex min-h-7 items-center gap-4 px-4">
@@ -709,20 +701,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
-  def hooked_event("toggle-health-check-auto-refresh", _value, socket) do
-    if timer_ref = socket.assigns.health_check_timer do
-      _ = Process.cancel_timer(timer_ref)
-
-      socket
-      |> assign(:health_check_timer, nil)
-      |> halt()
-    else
-      socket
-      |> schedule_health_check_timer()
-      |> halt()
-    end
-  end
-
   def hooked_event("clear-manual-location-information", _, socket) do
     {:ok, device} =
       Devices.update_device(socket.assigns.device, %{
@@ -1050,21 +1028,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> assign(:support_script_running, false)
     |> assign(:recently_run_support_script_output, output)
     |> halt()
-  end
-
-  defp schedule_health_check_timer(socket) do
-    %{device: device, product: product} = socket.assigns
-
-    if connected?(socket) and health_extension_enabled?(product, device) do
-      timer_ref = Process.send_after(self(), :check_health_interval, 500)
-      assign(socket, :health_check_timer, timer_ref)
-    else
-      assign(socket, :health_check_timer, nil)
-    end
-  end
-
-  defp health_extension_enabled?(product, device) do
-    product.extensions.health and device.extensions.health
   end
 
   # TODO: this is duplicated code, find a new way to reuse it

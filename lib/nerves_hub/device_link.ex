@@ -374,10 +374,19 @@ defmodule NervesHub.DeviceLink do
 
   Returns the device info stamped with the connection reference that the rest of
   the connection's lifecycle is keyed by.
+
+  `ip_address` is where the device reached us from, as far as the socket could
+  tell; `nil` when that couldn't be established.
   """
-  @spec connect(DeviceInfo.t()) :: {:ok, DeviceInfo.t()} | {:error, Ecto.Changeset.t()}
-  def connect(device_info) do
-    case Connections.device_connecting(device_info.org_id, device_info.product_id, device_info.device_id) do
+  @spec connect(DeviceInfo.t(), ip_address :: String.t() | nil) ::
+          {:ok, DeviceInfo.t()} | {:error, Ecto.Changeset.t()}
+  def connect(device_info, ip_address \\ nil) do
+    case Connections.device_connecting(
+           device_info.org_id,
+           device_info.product_id,
+           device_info.device_id,
+           ip_address
+         ) do
       {:ok, %DeviceConnection{id: connection_id}} ->
         {:ok, %{device_info | connection_ref: connection_id}}
 

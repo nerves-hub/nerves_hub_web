@@ -205,13 +205,11 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
     for n <- 1..26 do
       attrs = %{
         "level" => "info",
-        "timestamp" => DateTime.utc_now(),
+        "timestamp" => DateTime.utc_now() |> DateTime.add(n, :millisecond),
         "message" => "something wicked this way comes : #{n}"
       }
 
       {:ok, _} = LogLines.async_create(device_info, attrs)
-
-      Process.sleep(5)
     end
 
     :ok = Buffer.flush(LogLine)

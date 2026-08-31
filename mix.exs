@@ -1,6 +1,18 @@
 defmodule NervesHub.MixProject do
   use Mix.Project
 
+  alias Flop.Schema.NervesHub.Devices.Device
+  alias Inspect.NervesHub.Accounts.User
+  alias Jason.Encoder.OrderedCollections.SortedMap
+  alias NervesHub.Accounts.Org.Settings
+  alias NervesHub.Firmwares.Upload.S3
+  alias NervesHub.Helpers.Logging
+  alias NervesHub.ManagedDeployments.InflightDeploymentCheck
+  alias NervesHub.Release.Tasks
+  alias NervesHub.Support.EctoTelemetryHandler
+  alias NervesHub.Telemetry.FilteredSampler
+  alias NervesHubWeb.Plugs.OpenApiSpec
+
   def project() do
     [
       app: :nerves_hub,
@@ -29,7 +41,46 @@ defmodule NervesHub.MixProject do
         plt_core_path: "priv/plts",
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
       ],
-      test_coverage: [tool: ExCoveralls]
+      test_coverage: [
+        tool: ExCoveralls,
+        ignore_modules: [
+          # API support
+          NervesHubWeb.ApiSpec,
+          ~r/NervesHubWeb\.API\.Schemas\..*/,
+          ~r/NervesHubWeb\.API\.OpenAPI\..*/,
+          ~r/NervesHubWeb\.API\.UI.*/,
+          # Derived or macro-generated
+          Device,
+          User,
+          SortedMap,
+          Settings,
+          # Emails and views
+          NervesHub.EmailView,
+          NervesHubWeb.DeviceHTML,
+          NervesHubWeb.HomeView,
+          NervesHubWeb.OAuthHTML,
+          NervesHubWeb.PasswordResetHTML,
+          NervesHubWeb.ProductView,
+          # Tools
+          ~r/Mix.Tasks\..*/,
+          Tasks,
+          S3,
+          NervesHub.Debug,
+          Logging,
+          FilteredSampler,
+          EctoTelemetryHandler,
+          # Misc
+          OpenApiSpec,
+          NervesHubWeb.SentryEventFilter,
+          NervesHub.DeviceSSLTransport,
+          NervesHubWeb,
+          NervesHub.Uploads.S3,
+          NervesHubWeb.AuthDecorator,
+          NervesHubWeb.HealthCheckEndpoint,
+          # schema file with no application code
+          InflightDeploymentCheck
+        ]
+      ]
     ]
   end
 

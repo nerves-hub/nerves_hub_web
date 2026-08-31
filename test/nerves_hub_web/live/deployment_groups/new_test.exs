@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
   import Ecto.Query, only: [from: 2]
 
   alias NervesHub.AuditLogs
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -176,5 +177,108 @@ defmodule NervesHubWeb.Live.DelploymentGroups.NewTest do
 
     deployment_group = Repo.one!(from(d in DeploymentGroup, where: d.name == "Canaries"))
     assert deployment_group.notes == nil
+  end
+
+  describe "recover-form" do
+    test "restores platform and architecture from form params", %{conn: conn} do
+      conn
+      |> unwrap(fn view ->
+        render_change(view, "recover-form", %{
+          "deployment_group" => %{
+            "platform" => "platform",
+            "architecture" => "x86_64"
+          }
+        })
+      end)
+      |> assert_has("select[name='deployment_group[architecture]'] option", text: "x86_64")
+      |> assert_has("select[name='deployment_group[firmware]'] option", exact: false)
+    end
+
+    test "handles recover-form with no platform set (empty platform branch)", %{conn: conn} do
+      conn
+      |> unwrap(fn view ->
+        render_change(view, "recover-form", %{
+          "deployment_group" => %{
+            "platform" => "",
+            "architecture" => ""
+          }
+        })
+      end)
+      |> assert_has("h1", text: "Add Deployment Group")
+    end
+  end
+
+  describe "firmware_dropdown_options with invalid semver" do
+    test "page renders when a firmware has a non-semver version", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      from(f in Firmware, where: f.product_id == ^product.id)
+      |> Repo.update_all(set: [version: "not-valid-semver"])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new")
+      |> assert_has("h1", text: "Add Deployment Group")
+      |> select("Platform", option: "platform")
+      |> select("Architecture", option: "x86_64")
+      |> assert_has("select[name='deployment_group[firmware]'] option", exact: false)
+    end
+  end
+
+  describe "update-form platform and architecture events" do
+    test "selecting platform loads architecture options", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new")
+      |> unwrap(fn view ->
+        render_change(view, "update-form", %{
+          "_target" => ["deployment_group", "platform"],
+          "deployment_group" => %{"platform" => "platform"}
+        })
+      end)
+      |> assert_has("option", text: "x86_64")
+    end
+
+    test "selecting architecture loads firmware options", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new")
+      |> unwrap(fn view ->
+        render_change(view, "update-form", %{
+          "_target" => ["deployment_group", "platform"],
+          "deployment_group" => %{"platform" => "platform"}
+        })
+      end)
+      |> unwrap(fn view ->
+        render_change(view, "update-form", %{
+          "_target" => ["deployment_group", "architecture"],
+          "deployment_group" => %{"platform" => "platform", "architecture" => "x86_64"}
+        })
+      end)
+      |> assert_has("option", text: "1.0.0", exact: false)
+    end
+
+    test "update-form for other fields is a noop", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/new")
+      |> unwrap(fn view ->
+        render_change(view, "update-form", %{
+          "_target" => ["deployment_group", "name"],
+          "deployment_group" => %{"name" => "some name"}
+        })
+      end)
+      |> assert_has("h1", text: "Add Deployment Group")
+    end
   end
 end
