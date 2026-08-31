@@ -75,8 +75,12 @@ when adding or removing one.
   archive artifacts, uploads, and firmware **delta** building.
 - `products.ex` / `products/` — products and product settings.
 - `extensions.ex` / `extensions/` — the device **extension framework**
-  (`health`, `geo`, `local_shell`, `logging`, `network_identity`); extensions
-  attach per-device and exchange messages over the extensions channel.
+  (`health`, `geo`, `local_shell`, `logging`, `network_identity`,
+  `error_reports`); extensions attach per-device and exchange messages over the
+  extensions channel.
+- `error_reports.ex` / `error_reports/` — exceptions devices report, grouped
+  into issues. Split across both stores: the group in Postgres, the
+  occurrences in ClickHouse. See [docs/error_reports.md](docs/error_reports.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,

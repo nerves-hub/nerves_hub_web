@@ -17,6 +17,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
   alias NervesHubWeb.Components.DevicePage.DataHistoryTab
   alias NervesHubWeb.Components.DevicePage.DetailsTab
+  alias NervesHubWeb.Components.DevicePage.ErrorsTab
   alias NervesHubWeb.Components.DevicePage.FirmwareHistoryTab
   alias NervesHubWeb.Components.DevicePage.HealthTab
   alias NervesHubWeb.Components.DevicePage.LocalShellTab
@@ -35,6 +36,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     ConsoleTab,
     DataHistoryTab,
     DetailsTab,
+    ErrorsTab,
     FirmwareHistoryTab,
     HealthTab,
     LocalShellTab,
@@ -445,6 +447,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     <ConsoleTab.render :if={@tab == :console} {assigns} />
     <DataHistoryTab.render :if={@tab == :data_history} {assigns} />
     <DetailsTab.render :if={@tab == :details} {assigns} />
+    <ErrorsTab.render :if={@tab == :errors} {assigns} />
     <FirmwareHistoryTab.render :if={@tab == :firmware_history} {assigns} />
     <HealthTab.render :if={@tab == :health} {assigns} />
     <LocalShellTab.render :if={@tab == :local_shell} {assigns} />
