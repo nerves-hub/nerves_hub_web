@@ -16,6 +16,11 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
 
+  # How long a device told its deployment group is busy should wait before asking
+  # again. Long enough that a refused fleet does not come straight back, short
+  # enough that a device is not left sitting on old firmware once slots free up.
+  @retry_after_minutes 5
+
   def updated(device) do
     broadcast(device, "updated", %{})
   end
@@ -133,17 +138,13 @@ defmodule NervesHub.DeviceEvents do
         {:error, :no_update}
 
       Orchestrator.available_slots(deployment_group) <= 0 ->
-        {:error, {:busy, retry_after_minutes(deployment_group)}}
+        {:error, {:busy, @retry_after_minutes}}
 
       true ->
         {:ok, _inflight} = schedule_update(device.id, deployment_group, initiated_by: :device)
         :ok
     end
   end
-
-  # Long enough that a refused fleet does not come straight back, short enough
-  # that a device is not left sitting on old firmware once slots free up.
-  defp retry_after_minutes(_deployment_group), do: 5
 
   def manual_update(device, firmware, user, opts \\ []) do
     Repo.transact(fn ->
