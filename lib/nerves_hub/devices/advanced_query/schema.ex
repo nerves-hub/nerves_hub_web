@@ -215,7 +215,7 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
   def connection_type_values(_product_id), do: ["cellular", "ethernet", "wifi", "unknown"]
 
   @doc false
-  def updates_values(_product_id), do: ["enabled", "disabled", "penalty-box"]
+  def updates_values(_product_id), do: ["enabled", "disabled", "automatic", "device-managed", "penalty-box"]
 
   @doc false
   def alarm_status_values(_product_id), do: ["with", "without"]

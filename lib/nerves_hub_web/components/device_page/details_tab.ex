@@ -682,23 +682,29 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     """
   end
 
-  def hooked_event("toggle-deployment-firmware-updates", _params, socket) do
+  def hooked_event("set-update-mode", %{"mode" => mode}, socket) do
     %{current_scope: scope, device: device} = socket.assigns
 
     authorized!(:"device:toggle-updates", scope)
 
-    {:ok, updated_device} = Updates.toggle_automatic_updates(device, scope.user)
+    mode = String.to_existing_atom(mode)
 
-    message = [
-      "Firmware updates ",
-      (updated_device.updates_enabled && "enabled") || "disabled",
-      "."
-    ]
+    case Updates.set_update_mode(device, mode, scope.user) do
+      {:ok, updated_device} ->
+        socket
+        |> assign(:device, updated_device)
+        |> assign(:update_information, Updates.resolve_update(updated_device))
+        |> put_flash(:info, "Firmware updates set to #{update_mode_label(mode)}.")
+        |> halt()
 
-    socket
-    |> assign(:device, updated_device)
-    |> put_flash(:info, Enum.join(message))
-    |> halt()
+      _error ->
+        socket
+        |> put_flash(
+          :error,
+          "We couldn't change how this device receives updates. Please contact support if this happens again."
+        )
+        |> halt()
+    end
   end
 
   def hooked_event("clear-manual-location-information", _, socket) do
@@ -1066,4 +1072,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp has_description?(description) do
     is_binary(description) and byte_size(description) > 0 and description != "[]"
   end
+
+  defp update_mode_label(:automatic), do: "automatic"
+  defp update_mode_label(:device_managed), do: "device managed"
+  defp update_mode_label(:off), do: "off"
 end

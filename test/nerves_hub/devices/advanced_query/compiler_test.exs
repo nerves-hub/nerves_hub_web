@@ -214,6 +214,13 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
       assert run(product, ~s|updates != "enabled"|) == ["untagged"]
     end
 
+    test "updates matches a specific mode", %{product: product} do
+      # "enabled" spans automatic and device-managed; these narrow to one.
+      assert run(product, ~s|updates = "automatic"|) == ["connected", "never_connected", "tagged"]
+      assert run(product, ~s|updates = "device-managed"|) == []
+      assert run(product, ~s|updates != "device-managed"|) == ["connected", "never_connected", "tagged", "untagged"]
+    end
+
     test "updates penalty-box", %{product: product} do
       assert run(product, ~s|updates = "penalty-box"|) == ["never_connected"]
       # devices with no penalty timeout are not in the penalty box

@@ -12,7 +12,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
     test "renders penalty-box SVG when device is in penalty box" do
       device = %Device{
         id: 1,
-        updates_enabled: true,
+        update_mode: :automatic,
         updates_blocked_until: future(3600)
       }
 
@@ -23,7 +23,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
     test "renders enabled SVG when updates are enabled and not penalized" do
       device = %Device{
         id: 2,
-        updates_enabled: true,
+        update_mode: :automatic,
         updates_blocked_until: nil
       }
 
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
     test "renders disabled SVG when updates are disabled" do
       device = %Device{
         id: 3,
-        updates_enabled: false,
+        update_mode: :off,
         updates_blocked_until: nil
       }
 

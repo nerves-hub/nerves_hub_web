@@ -187,6 +187,22 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(deployment_group, device, description)
   end
 
+  @doc """
+  A device that manages its own updates asked for one.
+
+  The device is the actor, which is what separates this in the audit log from an
+  update its deployment group pushed.
+  """
+  @spec audit_device_requested_update(Device.t(), DeploymentGroup.t()) :: :ok
+  def audit_device_requested_update(device, deployment_group) do
+    firmware = deployment_group.current_release.firmware
+
+    description =
+      "Device #{device.identifier} requested firmware #{firmware.uuid} from deployment #{deployment_group.name}"
+
+    AuditLogs.audit!(device, device, description)
+  end
+
   @spec audit_device_deployment_group_update(User.t(), Device.t(), DeploymentGroup.t()) :: :ok
   def audit_device_deployment_group_update(user, device, deployment_group) do
     AuditLogs.audit!(

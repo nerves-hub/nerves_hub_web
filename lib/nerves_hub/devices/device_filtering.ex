@@ -228,13 +228,19 @@ defmodule NervesHub.Devices.DeviceFiltering do
   def filter(query, _filters, :updates, value) do
     case value do
       "enabled" ->
-        where(query, [d], d.updates_enabled == true)
+        where(query, [d], d.update_mode != :off)
 
       "penalty-box" ->
         where(query, [d], d.updates_blocked_until > fragment("now() at time zone 'utc'"))
 
       "disabled" ->
-        where(query, [d], d.updates_enabled == false)
+        where(query, [d], d.update_mode == :off)
+
+      "automatic" ->
+        where(query, [d], d.update_mode == :automatic)
+
+      "device-managed" ->
+        where(query, [d], d.update_mode == :device_managed)
     end
   end
 

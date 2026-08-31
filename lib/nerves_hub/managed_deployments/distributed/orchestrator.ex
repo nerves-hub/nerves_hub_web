@@ -346,16 +346,20 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
   end
 
   defp should_trigger?(payload, deployment_group) do
-    not (firmware_match?(payload, deployment_group) or updates_blocked?(payload))
+    orchestrator_may_push?(payload) and not firmware_match?(payload, deployment_group) and
+      not in_penalty_box?(payload)
   end
+
+  # Only :automatic devices are pushed to. A :device_managed device asks for its
+  # own updates, and an :off device takes none but a manual push.
+  defp orchestrator_may_push?(payload), do: payload.update_mode == :automatic
 
   defp firmware_match?(payload, deployment_group) do
     payload.firmware_uuid == deployment_group.current_release.firmware.uuid
   end
 
-  defp updates_blocked?(payload) do
-    !payload.updates_enabled and
-      !is_nil(payload.updates_blocked_until) and
+  defp in_penalty_box?(payload) do
+    not is_nil(payload.updates_blocked_until) and
       DateTime.after?(payload.updates_blocked_until, DateTime.utc_now())
   end
 end
