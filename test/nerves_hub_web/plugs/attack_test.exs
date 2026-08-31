@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Plugs.AttackTest do
   @limit 30
 
   describe "behind a trusted proxy" do
-    setup do: put_endpoint_config(behind_trusted_proxy: true, forwarded_ip_header: "x-forwarded-for")
+    setup do: put_endpoint_config(rate_limit_by_forwarded_ip: true, forwarded_ip_header: "x-forwarded-for")
 
     test "buckets by the client the proxy announced rather than the proxy" do
       # Every request arrives from the same proxy. Before this, that made one
@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Plugs.AttackTest do
     # fleet in one bucket, which is the thing being fixed.
     setup do
       put_endpoint_config(
-        behind_trusted_proxy: true,
+        rate_limit_by_forwarded_ip: true,
         forwarded_ip_header: "x-forwarded-for",
         forwarded_ip_trailing_hops: 1
       )
@@ -56,7 +56,7 @@ defmodule NervesHubWeb.Plugs.AttackTest do
   end
 
   describe "without a trusted proxy" do
-    setup do: put_endpoint_config(behind_trusted_proxy: false, forwarded_ip_header: "x-forwarded-for")
+    setup do: put_endpoint_config(rate_limit_by_forwarded_ip: false, forwarded_ip_header: "x-forwarded-for")
 
     test "ignores the header, so a caller can't pick its own bucket" do
       # The header is named -- a device's address is still recorded from it --

@@ -10,10 +10,10 @@ defmodule NervesHubWeb.Plugs.Attack do
 
   Reading the balancer's forwarded header fixes that, but only where a balancer
   is really there to write it. Nothing stops a caller sending the header itself,
-  and a caller that can choose its own bucket has no limit at all. So this reads
-  the header only once an operator has said one is in front of us:
+  and a caller that can choose its own bucket has no limit at all. So the header
+  is bucketed by only once an operator has turned it on:
 
-      config :nerves_hub, NervesHubWeb.Endpoint, behind_trusted_proxy: true
+      config :nerves_hub, NervesHubWeb.Endpoint, rate_limit_by_forwarded_ip: true
 
   Off by default, which errs towards the shared bucket: too strict for everyone
   rather than absent for whoever thinks to forge a header.
@@ -63,7 +63,7 @@ defmodule NervesHubWeb.Plugs.Attack do
   defp client_ip(conn) do
     config = Application.get_env(:nerves_hub, endpoint(conn), [])
 
-    if Keyword.get(config, :behind_trusted_proxy, false) do
+    if Keyword.get(config, :rate_limit_by_forwarded_ip, false) do
       ClientIP.remote_ip(
         conn,
         Keyword.get(config, :forwarded_ip_header),
