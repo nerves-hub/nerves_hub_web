@@ -23,6 +23,30 @@ defmodule NervesHub.Devices.ConnectionsTest do
       refute Connections.get_latest_for_device(device.id)
     end
 
+    test "records the address the device connected from", %{device: device} do
+      assert {:ok, %DeviceConnection{}} =
+               Connections.device_connecting(device.org_id, device.product_id, device.id, "203.0.113.7")
+
+      assert %DeviceConnection{ip_address: "203.0.113.7"} = Connections.get_latest_for_device(device.id)
+    end
+
+    test "records no address when the socket couldn't tell us one", %{device: device} do
+      assert {:ok, %DeviceConnection{}} =
+               Connections.device_connecting(device.org_id, device.product_id, device.id)
+
+      assert %DeviceConnection{ip_address: nil} = Connections.get_latest_for_device(device.id)
+    end
+
+    test "replaces the address when a device reconnects from somewhere else", %{device: device} do
+      {:ok, _connection} =
+        Connections.device_connecting(device.org_id, device.product_id, device.id, "203.0.113.7")
+
+      {:ok, _connection} =
+        Connections.device_connecting(device.org_id, device.product_id, device.id, "198.51.100.2")
+
+      assert %DeviceConnection{ip_address: "198.51.100.2"} = Connections.get_latest_for_device(device.id)
+    end
+
     test "transitions through connecting -> connected -> disconnected states", %{device: device} do
       topic = "internal:device:#{device.id}"
       PubSub.subscribe(device.id)

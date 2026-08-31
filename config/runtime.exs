@@ -124,7 +124,48 @@ if config_env() == :prod do
 
     port = System.get_env("HTTP_PORT") || System.get_env("PORT") || "4000"
 
+    # Devices can reach us here as well as on the device endpoint, and here TLS is
+    # terminated by whatever is in front of us -- so the socket's peer is that
+    # balancer, and the device's own address arrives in a header. `x-forwarded-for`
+    # is near enough universal among balancers to be the default, and a deployment
+    # with nothing in front of it should set this to "none": the header is then
+    # only ever whatever the device chose to send, and believing it would let a
+    # device write its own address into its connection record.
+    forwarded_ip_header =
+      System.get_env("WEB_FORWARDED_IP_HEADER", "x-forwarded-for")
+      |> String.downcase()
+      |> case do
+        disabled when disabled in ["", "none"] ->
+          nil
+
+        header ->
+          if not String.starts_with?(header, "x-") do
+            raise """
+            WEB_FORWARDED_IP_HEADER was set to #{inspect(header)}, and it has to start with "x-"
+            (or be "none", to trust no header at all).
+
+            Phoenix passes a socket only the request headers with that prefix, so any other
+            header never reaches the code that would read it and the setting would quietly do
+            nothing. Behind Fly.io keep "x-forwarded-for", which "fly-client-ip" cannot
+            replace for that reason, and set WEB_FORWARDED_IP_TRAILING_HOPS=1 so the app's
+            own anycast address at the end of it is skipped.
+            """
+          end
+
+          header
+      end
+
+    # How many entries at the end of that header were added by infrastructure
+    # rather than by the device. The address is counted from the right, so this
+    # decides which entry is read. Fly.io appends two -- the address it observed
+    # and then the app's own anycast address -- so it needs 1, while a proxy that
+    # appends only its own observation needs 0. Confirm it against a real request:
+    # the wrong count reads a plausible looking address off the wrong machine.
+    forwarded_ip_trailing_hops = String.to_integer(System.get_env("WEB_FORWARDED_IP_TRAILING_HOPS", "0"))
+
     config :nerves_hub, NervesHubWeb.Endpoint,
+      forwarded_ip_header: forwarded_ip_header,
+      forwarded_ip_trailing_hops: forwarded_ip_trailing_hops,
       url: [
         host: host,
         scheme: System.get_env("WEB_SCHEME", "https"),
@@ -216,6 +257,33 @@ if config_env() == :prod do
       else
         transport_options ++ [versions: [:"tlsv1.2"]]
       end
+
+    # When a load balancer passes TLS through to us it hides the device behind
+    # its own address, and can't add a forwarding header because it never sees
+    # inside the stream. The PROXY protocol is how it tells us who connected.
+    # Only v2 is supported; see `NervesHub.DeviceSSLTransport`.
+    proxy_protocol =
+      case System.get_env("DEVICE_PROXY_PROTOCOL") do
+        nil ->
+          nil
+
+        "" ->
+          nil
+
+        "v2" ->
+          :v2
+
+        other ->
+          raise """
+          DEVICE_PROXY_PROTOCOL was set to #{inspect(other)}, and the only supported value is "v2".
+
+          Version 1 of the PROXY protocol can't be read without risking a read into the TLS
+          handshake that follows it, so configure the load balancer to send v2 instead. On
+          Fly.io that is `proxy_proto_options = { version = "v2" }`.
+          """
+      end
+
+    config :nerves_hub, NervesHub.DeviceSSLTransport, proxy_protocol: proxy_protocol
 
     config :nerves_hub, NervesHubWeb.DeviceEndpoint,
       url: [host: host],
