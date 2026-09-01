@@ -6,7 +6,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.AdvancedQuery
-  alias NervesHub.Devices.AdvancedQuery.SidebarSync
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Device
@@ -118,7 +117,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:current_sort, sort.sort)
     |> assign(:sort_direction, sort.sort_direction)
     |> assign(:current_filters, filters)
-    |> assign(:display_filters, Map.merge(filters, SidebarSync.derive(filters.advanced_query, product.id)))
     |> assign(:advanced_query_error, advanced_query_error(filters.advanced_query, product.id))
     |> assign(:paginate_opts, pagination_opts)
     |> assign(:currently_filtering, filters != @default_filters)
@@ -192,17 +190,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  # Sidebar filters the query language can express move into the advanced
-  # query itself (see `SidebarSync`); when the current query can't be parsed,
-  # the update falls back to plain filter params rather than rewriting it.
-  def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts, current_scope: scope}} = socket) do
+  def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
-
-    params =
-      case SidebarSync.merge(params, socket.assigns.current_filters.advanced_query, scope.product.id) do
-        {:ok, query, remaining_params} -> Map.put(remaining_params, "advanced_query", query)
-        :error -> params
-      end
 
     socket
     |> assign(:selected_devices, [])
@@ -1131,7 +1120,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp maybe_assign_available_deployment_groups_for_filtered_platform(
-         %{assigns: %{current_scope: scope, display_filters: %{platform: platform}}} = socket
+         %{assigns: %{current_scope: scope, current_filters: %{platform: platform}}} = socket
        )
        when platform != "" do
     socket
