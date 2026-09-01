@@ -553,14 +553,19 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       Application.put_env(:nerves_hub, :mapbox_access_token, "abc")
     end
 
-    test "mapbox not enabled", %{conn: conn, org: org, product: product, device: device} do
+    test "the location panel is hidden entirely when the platform has no maps", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
       Application.put_env(:nerves_hub, :mapbox_access_token, nil)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("div", text: "Location")
-      |> assert_has("div", text: "Device maps haven't been enabled on your platform.")
+      |> refute_has("div", text: "Location", exact: true)
+      |> refute_has("div", text: "Device maps haven't been enabled on your platform.")
     end
 
     test "location information is empty", %{

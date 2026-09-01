@@ -68,11 +68,13 @@ defmodule NervesHub.Extensions.Components do
   end
 
   def handle_in("action:result", payload, state) do
-    relay_result(state, "components:action_result", payload)
+    {state, effects} = relay_result(state, "components:action_result", payload)
+    {state, effects ++ health_refresh(state)}
   end
 
   def handle_in("mode:result", payload, state) do
-    relay_result(state, "components:mode_result", payload)
+    {state, effects} = relay_result(state, "components:mode_result", payload)
+    {state, effects ++ health_refresh(state)}
   end
 
   def handle_in(event, payload, state) do
@@ -105,6 +107,17 @@ defmodule NervesHub.Extensions.Components do
   defp bounded_result(payload) do
     for {key, value} <- Map.take(payload, @result_keys), is_binary(value), into: %{} do
       {key, String.slice(value, 0, 8192)}
+    end
+  end
+
+  # An action or mode change usually moves the very numbers and metadata the
+  # component boxes show, and the next scheduled health report could be a
+  # minute out. Ask for one now so the page reflects what the action did.
+  defp health_refresh(state) do
+    if :health in (state.device_info.allowed_extensions || []) do
+      [{:push, "health:check", %{}}]
+    else
+      []
     end
   end
 end

@@ -3,6 +3,17 @@ defmodule NervesHubWeb.Components.DeviceLocation do
 
   alias Phoenix.LiveView.JS
 
+  @doc """
+  Whether this deployment can show maps at all.
+
+  When it can't, the Location panel is not rendered — a permanent
+  "contact your platform admin" placeholder tells the operator nothing
+  they can act on from the device page.
+  """
+  def maps_enabled?() do
+    Application.get_env(:nerves_hub, :mapbox_access_token) != nil
+  end
+
   attr(:location, :any)
   attr(:enabled_device, :any)
   attr(:enabled_product, :any)

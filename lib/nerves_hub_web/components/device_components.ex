@@ -37,7 +37,9 @@ defmodule NervesHubWeb.Components.DeviceComponents do
           {if @members_key == "peers", do: "No peers reported.", else: "No components reported."}
         </div>
 
-        <div :for={member <- members(@group, @members_key)} class="bg-surface-muted border-base-700 flex flex-col rounded border">
+        <%!-- The same indigo underglow as the featured metric tiles on the
+        details view, pooling against a primary bottom border. --%>
+        <div :for={member <- members(@group, @members_key)} class="bg-surface-muted border-b-primary border-base-700 health-neutral flex flex-col rounded border border-b">
           <div class="border-base-700 flex items-center justify-between border-b px-3 py-2">
             <span class="text-base-200 text-sm font-medium">{title(member)}</span>
             <span class="text-base-500 font-mono text-xs">{member["identifier"]}</span>
@@ -85,6 +87,47 @@ defmodule NervesHubWeb.Components.DeviceComponents do
       </div>
     </div>
     """
+  end
+
+  attr(:networks, :list, required: true)
+  attr(:latest_metrics, :map, default: %{})
+  attr(:metadata, :map, default: %{})
+  attr(:path, :string, required: true)
+
+  @doc """
+  The Details-tab summary of the device's networks: per network its stats
+  (group-level metrics and metadata) and how many peers it fronts. The peers
+  themselves live on the Networks tab this links to.
+  """
+  def networks_summary(assigns) do
+    ~H"""
+    <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
+      <div class="flex h-14 items-center justify-between pr-3 pl-4">
+        <div class="text-base-50 leading-6 font-medium">Networks</div>
+        <.link navigate={@path} class="hover:text-base-50 text-base-400 text-sm font-medium">
+          View networks
+        </.link>
+      </div>
+
+      <div class="flex flex-col gap-3 px-4 pb-4">
+        <div :for={network <- @networks} class="bg-surface-muted border-base-700 flex flex-col rounded border">
+          <div class="border-base-700 flex items-center justify-between border-b px-3 py-2">
+            <span class="text-base-200 text-sm font-medium">{title(network)}</span>
+            <span class="text-base-400 text-xs">{peer_count(network)}</span>
+          </div>
+
+          <.value_rows entries={metric_entries(network, @latest_metrics) ++ metadata_entries(network, @metadata)} />
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp peer_count(network) do
+    case length(members(network, "peers")) do
+      1 -> "1 peer"
+      count -> "#{count} peers"
+    end
   end
 
   attr(:entries, :list, required: true)

@@ -20,7 +20,10 @@ defmodule NervesHubWeb.ComponentsExtensionTest do
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     # Opt in at the product level, which is where every extension starts off.
+    # Health too: an action/mode result asks for a health refresh when the
+    # device is allowed to report health.
     {:ok, _product} = Products.enable_extension_setting(product, "components")
+    {:ok, _product} = Products.enable_extension_setting(product, "health")
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -126,6 +129,11 @@ defmodule NervesHubWeb.ComponentsExtensionTest do
     assert result["ref"] == ref
     assert result["status"] == "ok"
     assert result["output"] == "calibration complete"
+
+    # The action likely changed the values the component boxes show, so the
+    # device is asked for a fresh health report rather than waiting out the
+    # regular interval.
+    assert_push("health:check", %{})
   end
 
   test "an operator mode change reaches the device and the result comes back", %{
@@ -157,6 +165,37 @@ defmodule NervesHubWeb.ComponentsExtensionTest do
     assert_receive %Broadcast{event: "components:mode_result", payload: result}
     assert result["ref"] == ref
     assert result["status"] == "ok"
+
+    # A mode drives a metadata value, so the refresh matters even more here.
+    assert_push("health:check", %{})
+  end
+
+  test "no health refresh is requested when the device may not report health", %{
+    user: user,
+    device: device,
+    certificate: certificate
+  } do
+    product = Products.get_product!(device.product_id)
+    {:ok, _product} = Products.disable_extension_setting(product, "health")
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    socket = join_and_attach(socket)
+    assert_push("components:request", %{})
+
+    {:ok, ref} = Components.request_action(user, device, "panel", "recalibrate")
+    assert_push("components:action:run", _payload)
+
+    push(socket, "components:action:result", %{
+      "ref" => ref,
+      "component" => "panel",
+      "action" => "recalibrate",
+      "status" => "ok",
+      "output" => ""
+    })
+
+    refute_push("health:check", %{})
   end
 
   test "is not offered when the product has not enabled it", %{device: device, certificate: certificate} do

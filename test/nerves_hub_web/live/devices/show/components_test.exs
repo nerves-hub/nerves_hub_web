@@ -28,7 +28,14 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
         ]
       }
     ],
-    "networks" => []
+    "networks" => [
+      %{
+        "identifier" => "zwave",
+        "label" => "Z-Wave",
+        "metrics" => ["zwave_rssi"],
+        "peers" => [%{"identifier" => "zwave-26", "label" => "Motion sensor"}]
+      }
+    ]
   }
 
   defp seed_components(device) do
@@ -70,6 +77,48 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
     conn
     |> visit(device_path(fixture))
     |> refute_has("button", text: "Recalibrate")
+    |> refute_has("a", text: "View networks")
+  end
+
+  test "the details tab summarizes networks with their stats", %{conn: conn, fixture: fixture} do
+    :ok = seed_components(fixture.device)
+    {:ok, _} = Metrics.save_metrics(fixture.device.id, %{"zwave_rssi" => -61.0})
+
+    conn
+    |> visit(device_path(fixture))
+    |> assert_has("div", text: "Networks")
+    |> assert_has("span", text: "Z-Wave")
+    |> assert_has("span", text: "1 peer")
+    |> assert_has("span", text: "zwave_rssi")
+    |> assert_has("span", text: "-61.00")
+    |> assert_has("a", text: "View networks")
+    # The peers themselves belong to the Networks tab, not the summary.
+    |> refute_has("span", text: "Motion sensor")
+  end
+
+  test "a health report updates metadata and mode values without a reload", %{
+    conn: conn,
+    fixture: fixture
+  } do
+    %{device: device} = fixture
+    :ok = seed_components(device)
+
+    session = visit(conn, device_path(fixture))
+    assert_has(session, "option[selected]", text: "day")
+
+    {:ok, _} =
+      Health.save_device_health(%{
+        "device_id" => device.id,
+        "data" => %{"metadata" => %{"panel_firmware" => "v43", "display_mode" => "night"}},
+        "status" => :healthy,
+        "status_reasons" => nil
+      })
+
+    :ok = ExtensionsPubSub.broadcast_report(device.id, "health_check_report", %{})
+
+    session
+    |> assert_has("option[selected]", text: "night", timeout: 1_000)
+    |> assert_has("span", text: "v43")
   end
 
   test "clicking an action sends the request to the device and audits it", %{

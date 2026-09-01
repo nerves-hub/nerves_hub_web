@@ -13,6 +13,7 @@ defmodule NervesHubWeb.Components.DevicePage.NetworksTab do
   use NervesHubWeb, tab_component: :networks
 
   alias NervesHub.Devices.Components
+  alias NervesHub.Devices.Health
   alias NervesHub.Devices.Metrics
   alias NervesHubWeb.Components.DeviceComponents
   alias NervesHubWeb.Components.DevicePage.SharedComponentsHandlers
@@ -81,8 +82,12 @@ defmodule NervesHubWeb.Components.DevicePage.NetworksTab do
   end
 
   def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
+    device = %{device | latest_health: Health.get_latest_health(device.id)}
+
     socket
+    |> assign(:device, device)
     |> assign(:network_latest_metrics, Metrics.get_latest_metric_set(device.id))
+    |> assign(:network_metadata, SharedComponentsHandlers.health_metadata(device))
     |> halt()
   end
 

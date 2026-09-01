@@ -36,6 +36,22 @@ defmodule NervesHub.Devices.Health do
     |> update(set: [latest_health_id: ^health.id])
   end
 
+  @doc """
+  The most recent health report for a device, or `nil` if it never sent one.
+
+  For a page that already holds the device, this is the fresh read after a
+  `health_check_report` broadcast — the denormalized `latest_health` preload
+  it mounted with describes the report before this one.
+  """
+  @spec get_latest_health(non_neg_integer()) :: DeviceHealth.t() | nil
+  def get_latest_health(device_id) do
+    DeviceHealth
+    |> where(device_id: ^device_id)
+    |> order_by(desc: :inserted_at, desc: :id)
+    |> limit(1)
+    |> Repo.one()
+  end
+
   def truncate_device_health() do
     interval =
       Application.get_env(:nerves_hub, :device_health_days_to_retain)

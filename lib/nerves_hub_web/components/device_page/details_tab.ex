@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Health
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
@@ -588,7 +589,15 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           can_manage={@can_manage_components}
         />
 
-        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col items-start rounded border">
+        <DeviceComponents.networks_summary
+          :if={@component_topology && @component_topology["networks"] != []}
+          networks={@component_topology["networks"]}
+          latest_metrics={@latest_metrics}
+          metadata={@component_metadata}
+          path={~p"/org/#{@org}/#{@product}/devices/#{@device}/networks"}
+        />
+
+        <div :if={DeviceLocation.maps_enabled?()} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col items-start rounded border">
           <DeviceLocation.render
             enabled_product={@product.extensions.geo}
             enabled_device={@device.extensions.geo}
@@ -1043,11 +1052,16 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
-    latest_metrics = Metrics.get_latest_metric_set(device.id)
+    # The device was mounted with the report before this one denormalized on
+    # it; without the re-read, metadata (and the component modes driven by it)
+    # would stay a report behind until a full page load.
+    device = %{device | latest_health: Health.get_latest_health(device.id)}
 
     socket
-    |> assign(:latest_metrics, latest_metrics)
+    |> assign(:device, device)
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign_metadata()
+    |> assign(:component_metadata, SharedComponentsHandlers.health_metadata(device))
     |> halt()
   end
 
