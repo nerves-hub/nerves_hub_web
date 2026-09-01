@@ -113,7 +113,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
               </p>
 
               <p :if={@deployment_group.workflow_definition} class="text-base-400 w-2/3 text-sm font-semibold">
-                A Workflow Definition has been uploaded, with {length(@deployment_group.workflow_definition["steps"])} steps.
+                A Workflow Definition with {length(@deployment_group.workflow_definition["steps"])} steps has been uploaded.
               </p>
             </div>
 

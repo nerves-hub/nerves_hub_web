@@ -553,7 +553,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </span>
               </div>
               <div class="flex items-center gap-4">
-                <span class="text-base-500 w-40 text-sm">Device failure threshold:</span>
+                <span class="text-base-500 text-sm">Device failure threshold:</span>
                 <span class="text-base-300 text-sm">{@deployment_group.device_failure_threshold}</span>
               </div>
               <div class="flex items-center gap-4">
