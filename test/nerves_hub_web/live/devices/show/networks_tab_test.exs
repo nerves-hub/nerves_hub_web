@@ -23,6 +23,22 @@ defmodule NervesHubWeb.Live.Devices.Show.NetworksTabTest do
             "actions" => [%{"identifier" => "rediscover", "label" => "Rediscover"}]
           }
         ]
+      },
+      %{
+        "identifier" => "zigbee",
+        "label" => "Zigbee",
+        "peers" => [
+          %{
+            "identifier" => "leak-2878f",
+            "label" => "Leak sensor 2878f",
+            "metrics" => ["battery_pct_leak_sensor_2878f", "rssi_leak_sensor_2878f"]
+          },
+          %{
+            "identifier" => "leak-91c02",
+            "label" => "Leak sensor 91c02",
+            "metrics" => ["battery_pct_leak_sensor_91c02", "rssi_leak_sensor_91c02"]
+          }
+        ]
       }
     ]
   }
@@ -47,6 +63,31 @@ defmodule NervesHubWeb.Live.Devices.Show.NetworksTabTest do
     |> assert_has("span", text: "87.00")
     |> assert_has("button", text: "Rediscover")
     |> refute_has("span", text: "zwave_rssi")
+  end
+
+  test "trims the suffix a peer's metrics share, per peer", %{conn: conn, fixture: fixture} do
+    %{device: device} = fixture
+    {:ok, _} = Components.update_topology(device.id, @topology)
+
+    {:ok, _} =
+      Metrics.save_metrics(device.id, %{
+        "battery_pct_leak_sensor_2878f" => 91.0,
+        "rssi_leak_sensor_2878f" => -48.0,
+        "battery_pct_leak_sensor_91c02" => 77.0,
+        "rssi_leak_sensor_91c02" => -55.0,
+        "battery_pct" => 87.0
+      })
+
+    conn
+    |> visit(networks_path(fixture))
+    # Both leak sensors show the bare metric names; which device they belong
+    # to is what the peer box already says.
+    |> assert_has("span", text: "Battery pct", count: 3)
+    |> assert_has("span", text: "Rssi", count: 2)
+    |> assert_has("span", text: "91.00")
+    |> assert_has("span", text: "77.00")
+    |> refute_has("span", text: "Battery pct leak sensor 2878f")
+    |> refute_has("span", text: "Rssi leak sensor 91c02")
   end
 
   test "explains itself when the extension is not enabled", %{conn: conn, fixture: fixture} do

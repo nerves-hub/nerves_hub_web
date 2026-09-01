@@ -12,6 +12,13 @@ defmodule NervesHubWeb.Components.DeviceComponents do
   Actions and modes fire the `components-run-action` / `components-set-mode`
   LiveView events, which both the Details and Networks tabs route through
   `NervesHubWeb.Components.DevicePage.SharedComponentsHandlers`.
+
+  Names are always the human ones: labels, or humanized identifiers and
+  metric keys. For peers there is one extra praxis — a network fronting
+  several devices of one type keys their metrics per device
+  (`battery_pct_leak_sensor_2878f`), so the biggest suffix shared by a peer's
+  metrics is trimmed before display; inside that peer's box it only repeats
+  the title.
   """
 
   use NervesHubWeb, :component
@@ -59,7 +66,10 @@ defmodule NervesHubWeb.Components.DeviceComponents do
             </div>
           </div>
 
-          <.value_rows entries={metric_entries(member, @latest_metrics) ++ metadata_entries(member, @metadata)} />
+          <.value_rows entries={
+            metric_entries(member, @latest_metrics, member_metric_suffix(member, @members_key)) ++
+              metadata_entries(member, @metadata)
+          } />
 
           <div :if={member["modes"] != []} class="flex flex-wrap items-center gap-2 px-3 pt-1 pb-3">
             <form :for={mode <- member["modes"]} id={"#{select_id(member, mode)}-form"} phx-change="components-set-mode" class="flex items-center gap-1.5">
@@ -180,13 +190,51 @@ defmodule NervesHubWeb.Components.DeviceComponents do
     end
   end
 
-  defp metric_entries(entry, latest_metrics) do
+  defp metric_entries(entry, latest_metrics, trim_suffix \\ "") do
     for key <- entry["metrics"] || [],
         value = (latest_metrics || %{})[key],
         is_number(value) do
-      {humanize(key), format_metric(value)}
+      {key |> String.replace_suffix(trim_suffix, "") |> humanize(), format_metric(value)}
     end
   end
+
+  # A network fronting several devices of one type keys their metrics with a
+  # per-device suffix ("battery_pct_leak_sensor_2878f") — the metric namespace
+  # is device-wide, the peer box is not. The praxis: the biggest suffix shared
+  # by all of a peer's metrics is trimmed before display, from a `_`/`-`
+  # boundary so units and words are never cut mid-way, and only when every key
+  # keeps a name. One metric shares nothing; components keep their full keys.
+  defp member_metric_suffix(member, "peers"), do: shared_metric_suffix(member["metrics"])
+  defp member_metric_suffix(_member, _members_key), do: ""
+
+  defp shared_metric_suffix([_, _ | _] = keys) do
+    suffix = Enum.reduce(keys, &common_suffix/2)
+
+    case :binary.match(suffix, ["_", "-"]) do
+      {index, _length} ->
+        trimmed = binary_part(suffix, index, byte_size(suffix) - index)
+
+        if Enum.all?(keys, &(byte_size(&1) > byte_size(trimmed))), do: trimmed, else: ""
+
+      :nomatch ->
+        ""
+    end
+  end
+
+  defp shared_metric_suffix(_keys), do: ""
+
+  defp common_suffix(a, b) do
+    a
+    |> String.reverse()
+    |> common_prefix(String.reverse(b))
+    |> String.reverse()
+  end
+
+  defp common_prefix(<<char::utf8, rest_a::binary>>, <<char::utf8, rest_b::binary>>) do
+    <<char::utf8>> <> common_prefix(rest_a, rest_b)
+  end
+
+  defp common_prefix(_a, _b), do: ""
 
   defp metadata_entries(entry, metadata) do
     for key <- entry["metadata"] || [],
