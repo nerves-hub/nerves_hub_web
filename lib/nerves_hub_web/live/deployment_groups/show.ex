@@ -5,7 +5,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias LiveFlow.Handle
   alias LiveFlow.Node
   alias LiveFlow.State
-  alias LiveFlow.Validation.Connection
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.BulkActions
@@ -21,9 +20,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHubWeb.Components.DeploymentGroupPage.Settings, as: SettingsTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Summary, as: SummaryTab
   alias Phoenix.Socket.Broadcast
-
-  # How much of the panel to leave clear around the workflow diagram, per side.
-  @fit_padding 0.2
 
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
@@ -68,7 +64,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     end
   end
 
+  # Ignore events from LiveFlow
   @impl Phoenix.LiveView
+  def handle_event("lf:" <> _, _params, socket) do
+    {:noreply, socket}
+  end
+
   def handle_event("toggle", _params, socket) do
     authorized!(:"deployment_group:toggle", socket.assigns.current_scope)
 
@@ -180,74 +181,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> start_async(:remove_devices_from_deployment, remove_devices)
     |> put_flash(:info, "Removing devices from deployment, this may take a moment")
     |> noreply()
-  end
-
-  def handle_event("lf:node_change", %{"changes" => changes}, socket) do
-    flow =
-      Enum.reduce(changes, socket.assigns.flow, fn change, acc ->
-        apply_node_change(acc, change)
-      end)
-
-    socket
-    |> assign(:flow, flow)
-    |> maybe_refit(changes)
-    |> noreply()
-  end
-
-  def handle_event("lf:edge_change", %{"changes" => changes}, socket) do
-    flow =
-      Enum.reduce(changes, socket.assigns.flow, fn
-        %{"type" => "remove", "id" => id}, acc -> State.remove_edge(acc, id)
-        _change, acc -> acc
-      end)
-
-    {:noreply, assign(socket, flow: flow)}
-  end
-
-  def handle_event("lf:connect_end", params, socket) do
-    case Connection.validate_and_create(socket.assigns.flow, params) do
-      {:ok, edge} ->
-        flow = State.add_edge(socket.assigns.flow, edge)
-        {:noreply, assign(socket, flow: flow)}
-
-      {:error, _reason} ->
-        {:noreply, socket}
-    end
-  end
-
-  def handle_event("lf:viewport_change", params, socket) do
-    flow = State.update_viewport(socket.assigns.flow, params)
-    {:noreply, assign(socket, flow: flow)}
-  end
-
-  def handle_event("lf:selection_change", %{"nodes" => node_ids, "edges" => edge_ids}, socket) do
-    flow =
-      socket.assigns.flow
-      |> Map.put(:selected_nodes, MapSet.new(node_ids))
-      |> Map.put(:selected_edges, MapSet.new(edge_ids))
-
-    nodes =
-      Enum.reduce(flow.nodes, %{}, fn {id, node}, acc ->
-        Map.put(acc, id, %{node | selected: id in node_ids})
-      end)
-
-    edges =
-      Enum.reduce(flow.edges, %{}, fn {id, edge}, acc ->
-        Map.put(acc, id, %{edge | selected: id in edge_ids})
-      end)
-
-    flow = %{flow | nodes: nodes, edges: edges}
-    {:noreply, assign(socket, flow: flow)}
-  end
-
-  def handle_event("lf:delete_selected", _params, socket) do
-    flow = State.delete_selected(socket.assigns.flow)
-    {:noreply, assign(socket, flow: flow)}
-  end
-
-  # Catch-all for other lf: events (connect_start, connect_move, connect_cancel, etc.)
-  def handle_event("lf:" <> _event, _params, socket) do
-    {:noreply, socket}
   end
 
   @impl Phoenix.LiveView
@@ -457,6 +390,17 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     {:noreply, socket}
   end
 
+  # The diagram's hook is inside LiveFlow's own live_component and pushes its
+  # events there, not here, so measurements reach us through the component's
+  # `on_nodes_change` callback rather than a `handle_event`.
+  def handle_info({:workflow_nodes_changed, changes}, socket) do
+    flow = Enum.reduce(changes, socket.assigns.flow, &apply_node_change(&2, &1))
+
+    socket
+    |> assign(:flow, flow)
+    |> noreply()
+  end
+
   @impl Phoenix.LiveView
   def handle_info(:refresh_device_count, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
@@ -478,19 +422,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   defp selected_tab(socket) do
     assign(socket, :tab, socket.assigns.live_action || :details)
-  end
-
-  # LiveFlow fits the view on init with a padding of 0.1, which it does not let
-  # you configure, and a workflow wide enough for its width to be what limits the
-  # fit then spans 80% of the panel however big its nodes are. Re-fit with our own
-  # padding once the nodes have been measured, which is the point their sizes stop
-  # moving. The browser only reports a size when it changes, so this runs once.
-  defp maybe_refit(socket, changes) do
-    if Enum.any?(changes, &(&1["type"] == "dimensions")) do
-      push_event(socket, "lf:fit_view", %{padding: @fit_padding, duration: 0})
-    else
-      socket
-    end
   end
 
   # A new release carries its own steps, broadcast on its own topic. Move the

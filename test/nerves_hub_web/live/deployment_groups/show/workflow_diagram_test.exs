@@ -32,6 +32,20 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
 
   # Every edge is drawn as `M <x>,<y> C ...`. Endpoints sharing a y means the
   # arrows run level; a step's own x tells us which side of the node it left from.
+  # LiveFlow's hook sits on its own live_component and is bound with phx-target, so
+  # node changes go there rather than to this LiveView. Driving the element keeps
+  # the test on the path a browser actually takes, callback included.
+  defp measure_nodes(view, changes) do
+    _ =
+      view
+      |> element("#deployment-workflow")
+      |> render_hook("lf:node_change", %{"changes" => changes})
+
+    # The component hands the changes on by message, so the render that the hook
+    # call returns still predates our re-centring.
+    render(view)
+  end
+
   defp edge_endpoints(html) do
     ~r/ d="M (\d+(?:\.\d+)?),(\d+(?:\.\d+)?) C [^"]*?(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)"/
     |> Regex.scan(html)
@@ -41,9 +55,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
     |> Enum.uniq()
   end
 
-  # Fitting the view scales up as readily as down, so a short workflow in a wide
-  # panel would be magnified past its natural size.
-  test "the diagram is never scaled up past natural size", %{
+  # The fit scales the diagram to fill its panel, which is wanted of a long
+  # workflow. The cap only stops a two-step one being blown up to fill the same
+  # room.
+  test "scaling up to fill the panel is allowed, but bounded", %{
     conn: conn,
     org: org,
     product: product,
@@ -51,41 +66,27 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
   } do
     {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
-    assert html =~ ~s(data-max-zoom="1.0")
+    assert [[_, max_zoom]] = Regex.scan(~r/data-max-zoom="([0-9.]+)"/, html)
+
+    max_zoom = String.to_float(max_zoom)
+
+    assert max_zoom > 1.0, "the diagram should be able to grow into the space it has"
+    assert max_zoom <= 2.0, "a short workflow should not be magnified without limit"
   end
 
-  # LiveFlow's own fit-on-init pads by 0.1 and cannot be configured, which leaves a
-  # width-limited workflow spanning 80% of the panel. We re-fit with our own
-  # padding once the nodes report their size.
-  test "the diagram is re-fitted with room around it once the nodes are measured", %{
+  # LiveFlow's fit pads by a fixed 0.1 and animates over 200ms rather than setting
+  # the viewport, so having it and ours both run showed the diagram being sized
+  # twice. Exactly one thing fits it.
+  test "the diagram is fitted once, by our hook rather than LiveFlow", %{
     conn: conn,
     org: org,
     product: product,
     deployment_group: deployment_group
   } do
-    {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
-    changes = [%{"type" => "dimensions", "id" => "step-1", "width" => 230, "height" => 96}]
-
-    _ = render_hook(view, "lf:node_change", %{"changes" => changes})
-
-    assert_push_event(view, "lf:fit_view", %{padding: padding})
-    assert padding > 0.1
-  end
-
-  test "a change that is not a measurement does not re-fit", %{
-    conn: conn,
-    org: org,
-    product: product,
-    deployment_group: deployment_group
-  } do
-    {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
-
-    changes = [%{"type" => "position", "id" => "step-1", "position" => %{"x" => 10, "y" => 10}}]
-
-    _ = render_hook(view, "lf:node_change", %{"changes" => changes})
-
-    refute_push_event(view, "lf:fit_view", %{})
+    assert html =~ ~s(phx-hook="WorkflowDiagramFit")
+    refute html =~ "data-fit-view-on-init"
   end
 
   test "arrows run level and leave each node on its right", %{
@@ -125,7 +126,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
       %{"type" => "dimensions", "id" => "step-4", "width" => 230, "height" => 58}
     ]
 
-    html = render_hook(view, "lf:node_change", %{"changes" => changes})
+    html = measure_nodes(view, changes)
 
     endpoints = edge_endpoints(html)
 

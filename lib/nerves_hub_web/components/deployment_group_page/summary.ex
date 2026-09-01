@@ -252,7 +252,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     ~H"""
     <div class="flex w-full flex-col items-start gap-4 p-6">
       <div :if={@flow} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border">
-        <div class="h-[200px]">
+        <div id="deployment-workflow-fit" phx-hook="WorkflowDiagramFit" class="h-[200px]">
           <.live_component
             module={LiveFlow.Components.Flow}
             id="deployment-workflow"
@@ -260,16 +260,22 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             opts={
               %{
                 background: :dots,
-                fit_view_on_init: true,
-                # Fitting the view scales up as readily as down, and a short
-                # workflow in a wide panel ends up magnified. Cap it at natural
-                # size: shrink a long workflow to fit, never blow a short one up.
-                max_zoom: 1.0,
+                # Deliberately not `fit_view_on_init`. LiveFlow's fit pads by a
+                # fixed 0.1 and animates over 200ms, so having it and ours both
+                # run showed the diagram being sized twice. The WorkflowDiagramFit
+                # hook does it once instead, and without animating.
+                # See assets/js/hooks/workflowDiagramFit.js.
+                # The fit scales the diagram to fill the panel, which is what we
+                # want of a workflow long enough to need it. The cap is only here
+                # so a two-step workflow in a wide panel is not blown up to fill
+                # the same room.
+                max_zoom: 1.5,
                 pan_on_drag: "false",
                 zoom_on_scroll: "false"
               }
             }
             node_types={@flow_nodes}
+            on_nodes_change={fn changes -> send(self(), {:workflow_nodes_changed, changes}) end}
           />
         </div>
       </div>
