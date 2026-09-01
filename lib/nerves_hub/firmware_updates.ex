@@ -67,16 +67,18 @@ defmodule NervesHub.FirmwareUpdates do
       "ignored",
       %{reason: info["reason"]},
       fn device ->
+        deployment_group = deployment_group(device)
+
         _ =
-          if device.inflight_update.deployment_group do
-            blocked_for_mins = device.inflight_update.deployment_group.penalty_timeout_minutes
+          if deployment_group do
+            blocked_for_mins = deployment_group.penalty_timeout_minutes
 
             blocked_until = DateTime.utc_now(:second) |> DateTime.add(blocked_for_mins, :minute)
 
             {:ok, _device} = Devices.update_device(device, %{updates_blocked_until: blocked_until})
           end
 
-        DeviceTemplates.audit_firmware_upgrade_ignored(device, device.inflight_update.deployment_group, info["reason"])
+        DeviceTemplates.audit_firmware_upgrade_ignored(device, deployment_group, info["reason"])
 
         clear_inflight_update(device_id)
       end,
@@ -97,7 +99,7 @@ defmodule NervesHub.FirmwareUpdates do
         info["reason"]
       )
 
-      if device.inflight_update.deployment_group do
+      if deployment_group(device) do
         {:ok, _device} = Devices.update_device(device, %{updates_blocked_until: blocked_until})
       end
     end
@@ -113,8 +115,8 @@ defmodule NervesHub.FirmwareUpdates do
       fn device ->
         clear_inflight_update(device_id)
 
-        if device.inflight_update.deployment_group do
-          blocked_for_mins = device.inflight_update.deployment_group.penalty_timeout_minutes
+        if deployment_group = deployment_group(device) do
+          blocked_for_mins = deployment_group.penalty_timeout_minutes
 
           blocked_until = DateTime.utc_now(:second) |> DateTime.add(blocked_for_mins, :minute)
 
@@ -124,7 +126,7 @@ defmodule NervesHub.FirmwareUpdates do
 
           {:ok, _device} = Devices.update_device(device, %{updates_blocked_until: blocked_until})
         else
-          DeviceTemplates.audit_firmware_upgrade_failed(device, nil, info["reason"])
+          DeviceTemplates.audit_firmware_upgrade_failed(device, info["reason"])
         end
       end,
       preload: :deployment
@@ -292,6 +294,9 @@ defmodule NervesHub.FirmwareUpdates do
         inflight_update =
           InflightUpdate.empty_requested_changeset(device.id)
           |> Repo.insert!()
+          # the record was built here rather than by the query above, so the
+          # association is unloaded. It has no deployment_id, so nil is correct.
+          |> Map.put(:deployment_group, nil)
 
         Map.put(device, :inflight_update, inflight_update)
 
@@ -299,6 +304,13 @@ defmodule NervesHub.FirmwareUpdates do
         device
     end
   end
+
+  # Guards against an unloaded association being mistaken for a deployment
+  # group, which is truthy and blows up on the first field access.
+  defp deployment_group(%{inflight_update: %{deployment_group: %DeploymentGroup{} = deployment_group}}),
+    do: deployment_group
+
+  defp deployment_group(_device), do: nil
 
   defp should_persist?(ifu) do
     some_secs_ago = NaiveDateTime.utc_now() |> NaiveDateTime.add(-15, :second)
