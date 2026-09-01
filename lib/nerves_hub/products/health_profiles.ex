@@ -9,12 +9,12 @@ defmodule NervesHub.Products.HealthProfiles do
   platform, so hardware differences can carry different thresholds.
 
   A profile holds any number of metrics, each with a warning and an alert
-  level: a level engages when the metric's average over that level's
-  measurement period reaches the level's threshold. Most metrics read the
-  values devices report to `device_metrics`; a metric flagged `built_in` is a
-  virtual one evaluated with its own query (e.g. "disconnects" counts
-  connectivity events). Evaluation happens as reports arrive, in
-  `NervesHub.Devices.HealthEvaluation`.
+  level: a level engages when the metric's median over that level's
+  measurement period (a minute to an hour) reaches the level's threshold.
+  Most metrics read the values devices report to `device_metrics`; a metric
+  flagged `built_in` is a virtual one evaluated with its own query (e.g.
+  "disconnects" counts connectivity events). Evaluation happens as reports
+  arrive, in `NervesHub.Devices.HealthEvaluation`.
 
   A metric can also be flagged `featured`, which is about display rather than
   status: featured metrics are the ones surfaced at the top of the device
@@ -50,8 +50,8 @@ defmodule NervesHub.Products.HealthProfiles do
   The metrics a brand-new default profile starts with.
 
   Thresholds match the previously hardcoded defaults in
-  `NervesHub.Devices.HealthStatus.default_thresholds/0`, averaged over an hour
-  (one idle-paced report) so behaviour stays close to the old
+  `NervesHub.Devices.HealthStatus.default_thresholds/0`, measured over an
+  hour (one idle-paced report) so behaviour stays close to the old
   latest-value check.
   """
   @spec default_metric_attrs() :: [map()]

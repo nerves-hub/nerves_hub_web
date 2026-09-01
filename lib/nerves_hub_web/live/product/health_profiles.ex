@@ -6,22 +6,6 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   alias NervesHub.Products
   alias NervesHub.Products.HealthProfiles
 
-  # Offered for the measurement period selects. An existing metric with a
-  # period outside this list (set via API or an older release) still renders:
-  # its own value is added to the select so the form round-trips it unchanged.
-  @period_options [
-    {"5 minutes", 5},
-    {"15 minutes", 15},
-    {"30 minutes", 30},
-    {"1 hour", 60},
-    {"3 hours", 180},
-    {"6 hours", 360},
-    {"12 hours", 720},
-    {"1 day", 1440},
-    {"3 days", 4320},
-    {"7 days", 10_080}
-  ]
-
   def mount(_params, _session, socket) do
     product = socket.assigns.current_scope.product
 
@@ -79,7 +63,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
 
     profile = HealthProfiles.get_profile!(socket.assigns.product, profile_id)
 
-    case HealthProfiles.add_metric(profile, attrs) do
+    case HealthProfiles.add_metric(profile, normalize_periods(attrs)) do
       {:ok, metric} ->
         socket
         |> assign_profiles()
@@ -99,7 +83,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     profile = HealthProfiles.get_profile!(socket.assigns.product, profile_id)
     metric = HealthProfiles.get_metric!(profile, metric_id)
 
-    case HealthProfiles.update_metric(metric, attrs) do
+    case HealthProfiles.update_metric(metric, normalize_periods(attrs)) do
       {:ok, metric} ->
         socket
         |> assign_profiles()
@@ -175,13 +159,99 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     end
   end
 
-  defp period_options(selected \\ nil) do
-    if selected && !Enum.any?(@period_options, fn {_label, value} -> value == selected end) do
-      Enum.sort_by(@period_options ++ [{"#{selected} minutes", selected}], &elem(&1, 1))
-    else
-      @period_options
-    end
+  # One bordered section per level, warning and alert each with their own
+  # threshold and measurement period. Sections sit side by side when there is
+  # room and stack on narrow screens (half-width windows, tablets).
+  attr(:level, :string, required: true, values: ["warning", "alert"])
+  attr(:threshold, :any, default: nil)
+  attr(:period_minutes, :integer, required: true)
+  attr(:disabled, :boolean, default: false)
+
+  defp level_fields(assigns) do
+    ~H"""
+    <div class={[
+      "border-base-700 flex min-w-56 grow basis-56 flex-col gap-2 rounded border border-l-2 p-3",
+      @level == "warning" && "border-l-warning",
+      @level == "alert" && "border-l-alert"
+    ]}>
+      <div class={[
+        "text-xs font-semibold tracking-wide uppercase",
+        @level == "warning" && "text-warning",
+        @level == "alert" && "text-alert"
+      ]}>
+        {@level}
+      </div>
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="text-base-400 flex flex-col gap-1 text-xs">
+          Threshold
+          <input
+            type="number"
+            step="any"
+            required
+            name={"metric[#{@level}_threshold]"}
+            value={@threshold}
+            disabled={@disabled}
+            class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-28 rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+          />
+        </label>
+        <label class="text-base-400 flex flex-col gap-1 text-xs">
+          Median over
+          <div class="flex gap-2">
+            <input
+              type="number"
+              min="1"
+              step="1"
+              required
+              name={"metric[#{@level}_period_value]"}
+              value={period_value(@period_minutes)}
+              disabled={@disabled}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-20 rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            />
+            <select
+              name={"metric[#{@level}_period_unit]"}
+              disabled={@disabled}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            >
+              {Phoenix.HTML.Form.options_for_select([{"minutes", "minutes"}, {"hours", "hours"}], period_unit(@period_minutes))}
+            </select>
+          </div>
+        </label>
+      </div>
+    </div>
+    """
   end
+
+  # The form takes each period as a value plus a unit (so people aren't locked
+  # into a preset list); the schema stores minutes. An unparseable value is
+  # passed through untouched so the changeset reports it instead of a crash.
+  defp normalize_periods(attrs) do
+    attrs
+    |> normalize_period("warning")
+    |> normalize_period("alert")
+  end
+
+  defp normalize_period(attrs, level) do
+    value = attrs["#{level}_period_value"]
+    unit = attrs["#{level}_period_unit"]
+
+    minutes =
+      case Integer.parse(to_string(value)) do
+        {n, ""} -> if unit == "hours", do: n * 60, else: n
+        _unparseable -> value
+      end
+
+    attrs
+    |> Map.put("#{level}_period_minutes", minutes)
+    |> Map.drop(["#{level}_period_value", "#{level}_period_unit"])
+  end
+
+  # Stored minutes rendered back into the value + unit pair, preferring the
+  # larger unit when it divides evenly (60 minutes shows as 1 hour).
+  defp period_value(minutes) when is_integer(minutes) and rem(minutes, 60) == 0, do: div(minutes, 60)
+  defp period_value(minutes), do: minutes
+
+  defp period_unit(minutes) when is_integer(minutes) and rem(minutes, 60) == 0, do: "hours"
+  defp period_unit(_minutes), do: "minutes"
 
   defp first_error(changeset) do
     changeset

@@ -54,7 +54,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, %{})
     end
 
-    test "a warning-level average engages warning, with the period in the reason", %{
+    test "a warning-level median engages warning, with the window in the reason", %{
       device: device,
       device_info: device_info
     } do
@@ -62,10 +62,13 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
 
       assert {:warning, reasons} = HealthEvaluation.evaluate(device_info, %{})
       assert reasons.unhealthy == %{}
-      assert reasons.warning == %{"cpu_usage_percent" => %{value: 85.0, threshold: 80.0, period_minutes: 60}}
+
+      assert reasons.warning == %{
+               "cpu_usage_percent" => %{value: 85.0, threshold: 80.0, period_minutes: 60, aggregation: :median}
+             }
     end
 
-    test "an alert-level average beats a warning elsewhere", %{device: device, device_info: device_info} do
+    test "an alert-level median beats a warning elsewhere", %{device: device, device_info: device_info} do
       insert_metric(device, "cpu_usage_percent", 85.0)
       insert_metric(device, "mem_used_percent", 95.0)
 
@@ -74,10 +77,21 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       assert %{"cpu_usage_percent" => _} = reasons.warning
     end
 
-    test "a single spike is averaged away rather than tripping the level", %{device: device, device_info: device_info} do
+    test "a single spike cannot trip the level: the median ignores it", %{device: device, device_info: device_info} do
       insert_metric(device, "cpu_usage_percent", 100.0, 10)
       insert_metric(device, "cpu_usage_percent", 10.0, 5)
       insert_metric(device, "cpu_usage_percent", 10.0)
+
+      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, %{})
+    end
+
+    test "one absurd glitch reading doesn't poison the window", %{device: device, device_info: device_info} do
+      # A cheap temperature sensor catching interference: a mean over this
+      # window would sit in the thousands for as long as the reading stays in
+      # it; the median never moves.
+      insert_metric(device, "cpu_usage_percent", 30.0, 10)
+      insert_metric(device, "cpu_usage_percent", 17_000.0, 5)
+      insert_metric(device, "cpu_usage_percent", 31.0)
 
       assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, %{})
     end
@@ -168,7 +182,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       insert_disconnects(device, 4)
 
       assert {:warning, reasons} = HealthEvaluation.evaluate(device_info, %{})
-      assert reasons.warning == %{"disconnects" => %{value: 4, threshold: 3.0, period_minutes: 60}}
+      assert reasons.warning == %{"disconnects" => %{value: 4, threshold: 3.0, period_minutes: 60, aggregation: :count}}
 
       insert_disconnects(device, 2, 10)
 

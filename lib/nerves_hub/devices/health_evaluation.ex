@@ -4,15 +4,18 @@ defmodule NervesHub.Devices.HealthEvaluation do
 
   Runs as each health report arrives (after the report's metrics are saved, so
   the window includes them): the profile is resolved for the device's product
-  and platform, and each profile metric's average over its measurement period
-  is compared to its thresholds. A level engages at average >= threshold;
-  alert (stored as `:unhealthy`) takes precedence over warning. Averaging over
-  the period rather than judging the latest sample means a single spike only
-  trips a level when it is large enough to pull the whole window over.
+  and platform, and each profile metric's median over its measurement period
+  is compared to its thresholds. A level engages at median >= threshold;
+  alert (stored as `:unhealthy`) takes precedence over warning. The median,
+  not the mean: embedded sensors glitch, and one absurd reading (a cheap
+  temperature sensor catching interference and reporting 17000) would drag a
+  mean over any threshold for as long as it stays in the window, while the
+  median never moves for it. It also means a short spike only engages a level
+  once it holds for more than half the window.
 
-  Built-in profile metrics are not averaged from `device_metrics`; each has
-  its own query. "disconnects" counts connectivity events in the period, and
-  evaluates to no opinion when analytics is disabled.
+  Built-in profile metrics don't read `device_metrics`; each has its own
+  query, with its own aggregation. "disconnects" counts connectivity events
+  in the period, and evaluates to no opinion when analytics is disabled.
 
   A device whose product has no profile (backfill not run) falls back to the
   legacy instantaneous check against the report itself, in
@@ -46,14 +49,15 @@ defmodule NervesHub.Devices.HealthEvaluation do
   defp evaluate_profile(device_info, profile) do
     {built_ins, regular} = Enum.split_with(profile.metrics, & &1.built_in)
 
-    averages = averages(device_info.device_id, regular)
+    medians = medians(device_info.device_id, regular)
 
     regular
     |> Enum.map(fn metric ->
       judge(
         metric,
-        averages[{metric.key, metric.warning_period_minutes}],
-        averages[{metric.key, metric.alert_period_minutes}]
+        medians[{metric.key, metric.warning_period_minutes}],
+        medians[{metric.key, metric.alert_period_minutes}],
+        :median
       )
     end)
     |> Enum.concat(Enum.map(built_ins, &judge_built_in(&1, device_info)))
@@ -63,27 +67,28 @@ defmodule NervesHub.Devices.HealthEvaluation do
   # One query per distinct measurement period covers every metric window: a
   # metric's warning and alert periods usually coincide, and periods repeat
   # across metrics.
-  defp averages(device_id, metrics) do
+  defp medians(device_id, metrics) do
     metrics
     |> Enum.flat_map(&[{&1.key, &1.warning_period_minutes}, {&1.key, &1.alert_period_minutes}])
     |> Enum.group_by(fn {_key, period} -> period end, fn {key, _period} -> key end)
     |> Enum.flat_map(fn {period, keys} ->
       device_id
-      |> Metrics.average_values(Enum.uniq(keys), period)
-      |> Enum.map(fn {key, avg} -> {{key, period}, avg} end)
+      |> Metrics.median_values(Enum.uniq(keys), period)
+      |> Enum.map(fn {key, median} -> {{key, period}, median} end)
     end)
     |> Map.new()
   end
 
-  defp judge(metric, warning_avg, alert_avg) do
+  defp judge(metric, warning_value, alert_value, aggregation) do
     cond do
-      is_number(alert_avg) and alert_avg >= metric.alert_threshold ->
-        {:unhealthy, metric.key, reason(alert_avg, metric.alert_threshold, metric.alert_period_minutes)}
+      is_number(alert_value) and alert_value >= metric.alert_threshold ->
+        {:unhealthy, metric.key, reason(alert_value, metric.alert_threshold, metric.alert_period_minutes, aggregation)}
 
-      is_number(warning_avg) and warning_avg >= metric.warning_threshold ->
-        {:warning, metric.key, reason(warning_avg, metric.warning_threshold, metric.warning_period_minutes)}
+      is_number(warning_value) and warning_value >= metric.warning_threshold ->
+        {:warning, metric.key,
+         reason(warning_value, metric.warning_threshold, metric.warning_period_minutes, aggregation)}
 
-      is_number(warning_avg) or is_number(alert_avg) ->
+      is_number(warning_value) or is_number(alert_value) ->
         :healthy
 
       true ->
@@ -102,7 +107,7 @@ defmodule NervesHub.Devices.HealthEvaluation do
         )
       end
 
-      judge(metric, count.(metric.warning_period_minutes), count.(metric.alert_period_minutes))
+      judge(metric, count.(metric.warning_period_minutes), count.(metric.alert_period_minutes), :count)
     else
       :unknown
     end
@@ -112,8 +117,10 @@ defmodule NervesHub.Devices.HealthEvaluation do
   # newer node during a rolling deploy. No opinion beats a wrong one.
   defp judge_built_in(_metric, _device_info), do: :unknown
 
-  defp reason(value, threshold, period_minutes) do
-    %{value: round_value(value), threshold: threshold, period_minutes: period_minutes}
+  # `aggregation` says what `value` is (:median of the reported samples, or a
+  # :count of events) so the UI can phrase the reason accordingly.
+  defp reason(value, threshold, period_minutes, aggregation) do
+    %{value: round_value(value), threshold: threshold, period_minutes: period_minutes, aggregation: aggregation}
   end
 
   defp round_value(value) when is_float(value), do: Float.round(value, 2)

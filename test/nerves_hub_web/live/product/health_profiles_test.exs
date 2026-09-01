@@ -42,9 +42,11 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
         "metric" => %{
           "key" => "cpu_temp",
           "warning_threshold" => "70",
-          "warning_period_minutes" => "60",
+          "warning_period_value" => "1",
+          "warning_period_unit" => "hours",
           "alert_threshold" => "85",
-          "alert_period_minutes" => "60",
+          "alert_period_value" => "30",
+          "alert_period_unit" => "minutes",
           "featured" => "true"
         }
       })
@@ -59,7 +61,9 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
       |> Enum.find(&(&1.key == "cpu_temp"))
 
     assert metric.warning_threshold == 70.0
+    assert metric.warning_period_minutes == 60
     assert metric.alert_threshold == 85.0
+    assert metric.alert_period_minutes == 30
     assert metric.featured == true
   end
 
@@ -75,9 +79,11 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
         "metric" => %{
           "key" => "disconnects",
           "warning_threshold" => "3",
-          "warning_period_minutes" => "60",
+          "warning_period_value" => "1",
+          "warning_period_unit" => "hours",
           "alert_threshold" => "6",
-          "alert_period_minutes" => "60",
+          "alert_period_value" => "1",
+          "alert_period_unit" => "hours",
           "featured" => "false"
         }
       })
@@ -108,9 +114,11 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
         "metric_id" => to_string(metric.id),
         "metric" => %{
           "warning_threshold" => "60",
-          "warning_period_minutes" => "180",
+          "warning_period_value" => "30",
+          "warning_period_unit" => "minutes",
           "alert_threshold" => "75",
-          "alert_period_minutes" => "60",
+          "alert_period_value" => "1",
+          "alert_period_unit" => "hours",
           "featured" => "false"
         }
       })
@@ -120,7 +128,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
 
     metric = NervesHub.Repo.reload(metric)
     assert metric.warning_threshold == 60.0
-    assert metric.warning_period_minutes == 180
+    assert metric.warning_period_minutes == 30
     assert metric.featured == false
   end
 
@@ -137,9 +145,11 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
         "metric_id" => to_string(metric.id),
         "metric" => %{
           "warning_threshold" => "80",
-          "warning_period_minutes" => "60",
+          "warning_period_value" => "1",
+          "warning_period_unit" => "hours",
           "alert_threshold" => "70",
-          "alert_period_minutes" => "60",
+          "alert_period_value" => "1",
+          "alert_period_unit" => "hours",
           "featured" => "true"
         }
       })

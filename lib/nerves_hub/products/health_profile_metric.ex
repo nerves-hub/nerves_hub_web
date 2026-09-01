@@ -16,10 +16,10 @@ defmodule NervesHub.Products.HealthProfileMetric do
     :alert_period_minutes
   ]
 
-  # Reports older than the retention window (`HEALTH_CHECK_DAYS_TO_RETAIN`,
-  # 7 days by default) are truncated, so a longer measurement period would
-  # silently average over less data than it claims.
-  @max_period_minutes 7 * 24 * 60
+  # A measurement period is a short window over recent samples, capped at an
+  # hour — long enough to ride out noise, short enough that a device's status
+  # still reflects its present state.
+  @max_period_minutes 60
 
   schema "health_profile_metrics" do
     belongs_to(:health_profile, HealthProfile)
@@ -53,8 +53,16 @@ defmodule NervesHub.Products.HealthProfileMetric do
     |> validate_required(@required)
     |> update_change(:key, &String.trim/1)
     |> validate_length(:key, min: 1, max: 255)
-    |> validate_number(:warning_period_minutes, greater_than: 0, less_than_or_equal_to: @max_period_minutes)
-    |> validate_number(:alert_period_minutes, greater_than: 0, less_than_or_equal_to: @max_period_minutes)
+    |> validate_number(:warning_period_minutes,
+      greater_than: 0,
+      less_than_or_equal_to: @max_period_minutes,
+      message: "must be between 1 minute and 1 hour"
+    )
+    |> validate_number(:alert_period_minutes,
+      greater_than: 0,
+      less_than_or_equal_to: @max_period_minutes,
+      message: "must be between 1 minute and 1 hour"
+    )
     |> validate_alert_not_below_warning()
     |> foreign_key_constraint(:health_profile_id)
     |> unique_constraint(:key,

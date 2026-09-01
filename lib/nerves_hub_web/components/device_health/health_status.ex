@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Components.HealthStatus do
             {key_parts, ""}
           end
 
-        "#{Enum.join(key_parts, " ")}: #{reasons["value"]}#{delimiter}#{averaging(reasons)} (threshold is #{reasons["threshold"]}#{delimiter})"
+        "#{Enum.join(key_parts, " ")}: #{reasons["value"]}#{delimiter}#{window_phrase(reasons)} (threshold is #{reasons["threshold"]}#{delimiter})"
       end)
 
     if Enum.any?(reasons) do
@@ -55,13 +55,19 @@ defmodule NervesHubWeb.Components.HealthStatus do
     end
   end
 
-  # A reason judged by a health profile carries the measurement period it was
-  # averaged over; one from the legacy instantaneous check does not.
-  defp averaging(%{"period_minutes" => minutes}) when is_integer(minutes) do
-    " avg over #{format_period(minutes)}"
+  # A reason judged by a health profile carries the measurement period and
+  # what kind of value engaged the level (the median of reported samples, or
+  # a count of events); one from the legacy instantaneous check carries
+  # neither.
+  defp window_phrase(%{"aggregation" => "count", "period_minutes" => minutes}) when is_integer(minutes) do
+    " in #{format_period(minutes)}"
   end
 
-  defp averaging(_reasons), do: ""
+  defp window_phrase(%{"period_minutes" => minutes}) when is_integer(minutes) do
+    " median over #{format_period(minutes)}"
+  end
+
+  defp window_phrase(_reasons), do: ""
 
   defp format_period(minutes) when minutes < 60, do: "#{minutes}m"
   defp format_period(minutes) when rem(minutes, 1440) == 0, do: "#{div(minutes, 1440)}d"

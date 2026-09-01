@@ -8,7 +8,8 @@
       <div class="flex w-full flex-col gap-1">
         <p class="w-2/3 text-sm">
           Health profiles decide when a device counts as unhealthy. Each metric engages its warning (orange) or alert (red) level when
-          the metric's average over the measurement period reaches the level's threshold.
+          the metric's median over the measurement period (between a minute and an hour) reaches the level's threshold. The median, so
+          one glitched sensor reading can't trip a level on its own.
         </p>
         <p class="w-2/3 text-sm">
           The default profile applies to every device. A platform profile overrides it for devices running firmware built for that
@@ -41,161 +42,111 @@
           </.button>
         </div>
 
-        <div class="flex flex-col gap-2 p-6">
+        <div class="flex flex-col gap-3 p-6">
           <div :if={profile.metrics == []} class="text-base-400 text-sm">
             This profile has no metrics, so its devices always report an unknown health status.
-          </div>
-
-          <div :if={profile.metrics != []} class="text-base-400 grid grid-cols-[1fr_8rem_10rem_8rem_10rem_6rem_5rem] items-center gap-x-4 px-2 text-xs font-medium">
-            <div>Metric</div>
-            <div>Warning at</div>
-            <div>averaged over</div>
-            <div>Alert at</div>
-            <div>averaged over</div>
-            <div>Featured</div>
-            <div></div>
           </div>
 
           <form
             :for={metric <- profile.metrics}
             id={"metric-#{metric.id}"}
             phx-submit="update-metric"
-            class="border-base-700 grid grid-cols-[1fr_8rem_10rem_8rem_10rem_6rem_5rem] items-center gap-x-4 rounded border p-2"
+            class="border-base-700 flex flex-col gap-3 rounded border p-3"
           >
             <input type="hidden" name="profile_id" value={profile.id} />
             <input type="hidden" name="metric_id" value={metric.id} />
-            <div class="flex flex-col">
-              <span class="text-base-300 text-sm font-medium">{metric_label(assigns, metric.key)}</span>
-              <span :if={metric.built_in} class="text-base-500 text-xs">built-in</span>
-              <span :if={!metric.built_in && metric_label(assigns, metric.key) != metric.key} class="text-base-500 text-xs">{metric.key}</span>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-col">
+                <span class="text-base-300 text-sm font-medium">{metric_label(assigns, metric.key)}</span>
+                <span :if={metric.built_in} class="text-base-500 text-xs">built-in</span>
+                <span :if={!metric.built_in && metric_label(assigns, metric.key) != metric.key} class="text-base-500 text-xs">{metric.key}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <label class="text-base-400 flex items-center gap-2 text-xs" title="Featured metrics are shown at the top of the device details page">
+                  <input type="hidden" name="metric[featured]" value="false" />
+                  <input
+                    type="checkbox"
+                    name="metric[featured]"
+                    value="true"
+                    checked={metric.featured}
+                    disabled={!authorized?(:"product:update", @current_scope)}
+                    class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
+                  /> Featured
+                </label>
+                <button
+                  type="submit"
+                  title="Save changes"
+                  disabled={!authorized?(:"product:update", @current_scope)}
+                  class="hover:bg-base-700 rounded p-1.5 hover:cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <span class="lucide-save--light text-base-400 size-4"></span>
+                </button>
+                <button
+                  type="button"
+                  title="Remove metric"
+                  phx-click="delete-metric"
+                  phx-value-profile_id={profile.id}
+                  phx-value-metric_id={metric.id}
+                  data-confirm={"Remove #{metric.key} from this profile?"}
+                  disabled={!authorized?(:"product:update", @current_scope)}
+                  class="hover:bg-base-700 rounded p-1.5 hover:cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <span class="lucide-trash-2--light text-alert size-4"></span>
+                </button>
+              </div>
             </div>
-            <input
-              type="number"
-              step="any"
-              required
-              name="metric[warning_threshold]"
-              value={metric.warning_threshold}
-              disabled={!authorized?(:"product:update", @current_scope)}
-              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
-            />
-            <select
-              name="metric[warning_period_minutes]"
-              disabled={!authorized?(:"product:update", @current_scope)}
-              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
-            >
-              {Phoenix.HTML.Form.options_for_select(period_options(metric.warning_period_minutes), metric.warning_period_minutes)}
-            </select>
-            <input
-              type="number"
-              step="any"
-              required
-              name="metric[alert_threshold]"
-              value={metric.alert_threshold}
-              disabled={!authorized?(:"product:update", @current_scope)}
-              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
-            />
-            <select
-              name="metric[alert_period_minutes]"
-              disabled={!authorized?(:"product:update", @current_scope)}
-              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
-            >
-              {Phoenix.HTML.Form.options_for_select(period_options(metric.alert_period_minutes), metric.alert_period_minutes)}
-            </select>
-            <div class="flex justify-center" title="Featured metrics are shown at the top of the device details page">
-              <input type="hidden" name="metric[featured]" value="false" />
-              <input
-                type="checkbox"
-                name="metric[featured]"
-                value="true"
-                checked={metric.featured}
+            <div class="flex flex-wrap gap-3">
+              <.level_fields
+                level="warning"
+                threshold={metric.warning_threshold}
+                period_minutes={metric.warning_period_minutes}
                 disabled={!authorized?(:"product:update", @current_scope)}
-                class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
               />
-            </div>
-            <div class="flex items-center gap-2">
-              <button
-                type="submit"
-                title="Save changes"
+              <.level_fields
+                level="alert"
+                threshold={metric.alert_threshold}
+                period_minutes={metric.alert_period_minutes}
                 disabled={!authorized?(:"product:update", @current_scope)}
-                class="hover:bg-base-700 rounded p-1.5 hover:cursor-pointer disabled:cursor-not-allowed"
-              >
-                <span class="lucide-save--light text-base-400 size-4"></span>
-              </button>
-              <button
-                type="button"
-                title="Remove metric"
-                phx-click="delete-metric"
-                phx-value-profile_id={profile.id}
-                phx-value-metric_id={metric.id}
-                data-confirm={"Remove #{metric.key} from this profile?"}
-                disabled={!authorized?(:"product:update", @current_scope)}
-                class="hover:bg-base-700 rounded p-1.5 hover:cursor-pointer disabled:cursor-not-allowed"
-              >
-                <span class="lucide-trash-2--light text-alert size-4"></span>
-              </button>
+              />
             </div>
           </form>
 
           <form
             id={"add-metric-#{profile.id}"}
             phx-submit="add-metric"
-            class="border-base-700 mt-2 grid grid-cols-[1fr_8rem_10rem_8rem_10rem_6rem_5rem] items-center gap-x-4 rounded border border-dashed p-2"
+            class="border-base-700 mt-2 flex flex-col gap-3 rounded border border-dashed p-3"
           >
             <input type="hidden" name="profile_id" value={profile.id} />
-            <select
-              name="metric[key]"
-              required
-              disabled={!authorized?(:"product:update", @current_scope)}
-              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
-            >
-              <option value="">Add a metric...</option>
-              {Phoenix.HTML.Form.options_for_select(metric_options(assigns, profile), nil)}
-            </select>
-            <input
-              type="number"
-              step="any"
-              required
-              placeholder="Warning"
-              name="metric[warning_threshold]"
-              disabled={!authorized?(:"product:update", @current_scope)}
-              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
-            />
-            <select
-              name="metric[warning_period_minutes]"
-              disabled={!authorized?(:"product:update", @current_scope)}
-              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
-            >
-              {Phoenix.HTML.Form.options_for_select(period_options(), 60)}
-            </select>
-            <input
-              type="number"
-              step="any"
-              required
-              placeholder="Alert"
-              name="metric[alert_threshold]"
-              disabled={!authorized?(:"product:update", @current_scope)}
-              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
-            />
-            <select
-              name="metric[alert_period_minutes]"
-              disabled={!authorized?(:"product:update", @current_scope)}
-              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
-            >
-              {Phoenix.HTML.Form.options_for_select(period_options(), 60)}
-            </select>
-            <div class="flex justify-center" title="Featured metrics are shown at the top of the device details page">
-              <input type="hidden" name="metric[featured]" value="false" />
-              <input
-                type="checkbox"
-                name="metric[featured]"
-                value="true"
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <select
+                name="metric[key]"
+                required
                 disabled={!authorized?(:"product:update", @current_scope)}
-                class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
-              />
+                class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-64 rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+              >
+                <option value="">Add a metric...</option>
+                {Phoenix.HTML.Form.options_for_select(metric_options(assigns, profile), nil)}
+              </select>
+              <div class="flex items-center gap-3">
+                <label class="text-base-400 flex items-center gap-2 text-xs" title="Featured metrics are shown at the top of the device details page">
+                  <input type="hidden" name="metric[featured]" value="false" />
+                  <input
+                    type="checkbox"
+                    name="metric[featured]"
+                    value="true"
+                    disabled={!authorized?(:"product:update", @current_scope)}
+                    class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
+                  /> Featured
+                </label>
+                <.button style="secondary" type="submit" disabled={!authorized?(:"product:update", @current_scope)}>
+                  Add
+                </.button>
+              </div>
             </div>
-            <.button style="secondary" type="submit" disabled={!authorized?(:"product:update", @current_scope)}>
-              Add
-            </.button>
+            <div class="flex flex-wrap gap-3">
+              <.level_fields level="warning" period_minutes={60} disabled={!authorized?(:"product:update", @current_scope)} />
+              <.level_fields level="alert" period_minutes={60} disabled={!authorized?(:"product:update", @current_scope)} />
+            </div>
           </form>
         </div>
       </div>
