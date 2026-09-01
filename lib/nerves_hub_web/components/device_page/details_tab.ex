@@ -44,9 +44,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> assign_support_scripts()
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:update_information, Updates.resolve_update(device))
-    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
-    |> assign(:custom_labels, Products.custom_health_metrics_labels(device.product))
-    |> assign(:featured_keys, featured_keys(device))
+    |> assign_health_display(device)
     |> assign(:alarms, Alarms.current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, device.product))
     |> assign(:delta_available?, false)
@@ -58,6 +56,24 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def cleanup(), do: @keys_to_cleanup
+
+  # The health card only renders when the extension is enabled for both the
+  # product and the device, so nothing health-shaped is read otherwise — no
+  # metrics, no labels, no profile resolution. An install that leaves the
+  # health extension off pays none of its query load on this page.
+  defp assign_health_display(socket, device) do
+    if device.product.extensions.health && device.extensions.health do
+      socket
+      |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
+      |> assign(:custom_labels, Products.custom_health_metrics_labels(device.product))
+      |> assign(:featured_keys, featured_keys(device))
+    else
+      socket
+      |> assign(:latest_metrics, %{})
+      |> assign(:custom_labels, %{})
+      |> assign(:featured_keys, nil)
+    end
+  end
 
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
     metadata =
