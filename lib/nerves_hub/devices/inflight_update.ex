@@ -39,6 +39,22 @@ defmodule NervesHub.Devices.InflightUpdate do
     timestamps()
   end
 
+  # The statuses in which a device is actually mid-update. Everything else is an
+  # outcome: `:completed` and `:failed` speak for themselves, `:expired` is the
+  # update timing out, `:ignored` is the device declining it, and `:rescheduled`
+  # is the device asking for it later — the last two put it in the penalty box.
+  #
+  # Today a row only exists while it is active, because reaching an outcome
+  # deletes it. Saying so explicitly means the queries no longer depend on that
+  # being true, which is what a history of updates would change.
+  @active_statuses [:requested, :received, :started, :downloading, :updating]
+
+  @doc """
+  The statuses in which a device is mid-update.
+  """
+  @spec active_statuses() :: [:requested | :received | :started | :downloading | :updating, ...]
+  def active_statuses(), do: @active_statuses
+
   def empty_requested_changeset(device_id) do
     %InflightUpdate{}
     |> change(%{device_id: device_id})

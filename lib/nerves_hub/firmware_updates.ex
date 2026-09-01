@@ -223,6 +223,15 @@ defmodule NervesHub.FirmwareUpdates do
     counts
   end
 
+  @doc """
+  The device's update, including one that has just finished.
+
+  Deliberately not filtered to the active statuses: the device page shows the
+  outcome of an update from this — "complete, waiting for device to restart" is
+  read off a `:completed` row in the moment before it is cleared. Were updates
+  kept as history rather than deleted, this would need to become the most recent
+  row rather than the only one.
+  """
   def inflight_update_for(%Device{id: device_id}) when not is_nil(device_id) do
     InflightUpdate
     |> where([iu], iu.device_id == ^device_id)
@@ -231,6 +240,7 @@ defmodule NervesHub.FirmwareUpdates do
 
   def inflight_updates_for(%DeploymentGroup{} = deployment_group) do
     InflightUpdate
+    |> active()
     |> where([iu], iu.deployment_id == ^deployment_group.id)
     |> preload([:device])
     |> Repo.all()
@@ -242,6 +252,7 @@ defmodule NervesHub.FirmwareUpdates do
   """
   def count_inflight_updates_for(%DeploymentGroup{} = deployment_group) do
     InflightUpdate
+    |> active()
     |> where([iu], iu.deployment_id == ^deployment_group.id)
     |> where([iu], iu.priority_queue == false)
     |> Repo.aggregate(:count)
@@ -256,6 +267,7 @@ defmodule NervesHub.FirmwareUpdates do
   @spec count_inflight_updates_for_workflow_step(DeploymentWorkflowStep.t()) :: non_neg_integer()
   def count_inflight_updates_for_workflow_step(%DeploymentWorkflowStep{id: step_id}) do
     InflightUpdate
+    |> active()
     |> join(:inner, [iu], sd in "deployment_workflow_steps_devices",
       on: sd.device_id == iu.device_id and sd.deployment_workflow_step_id == ^step_id
     )
@@ -268,9 +280,17 @@ defmodule NervesHub.FirmwareUpdates do
   @spec count_inflight_priority_updates_for(DeploymentGroup.t()) :: non_neg_integer()
   def count_inflight_priority_updates_for(%DeploymentGroup{} = deployment_group) do
     InflightUpdate
+    |> active()
     |> where([iu], iu.deployment_id == ^deployment_group.id)
     |> where([iu], iu.priority_queue == true)
     |> Repo.aggregate(:count)
+  end
+
+  # An update is only "inflight" while it is still going. Rows that have reached
+  # an outcome are deleted today, so this matches exactly what it did before —
+  # but the queries no longer rely on that.
+  defp active(query) do
+    where(query, [iu], iu.status in ^InflightUpdate.active_statuses())
   end
 
   defp broadcast_firmware_update_status!(device_id, status, extra_info) do

@@ -119,7 +119,10 @@ defmodule NervesHub.Devices.Updates do
     |> from(as: :device)
     |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:inner, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
-    |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
+    |> join(:left, [d], ifu in InflightUpdate,
+      on: d.id == ifu.device_id and ifu.status in ^InflightUpdate.active_statuses(),
+      as: :inflight_update
+    )
     |> ManagedDeployments.join_current_release()
     |> join_firmware()
     |> join_firmware_deltas()
