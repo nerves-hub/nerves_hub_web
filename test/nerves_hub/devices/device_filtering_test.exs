@@ -114,8 +114,8 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
 
   describe "filter/4 :updates" do
     test "filters by updates enabled", %{org: org, product: product, firmware: firmware} do
-      enabled = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: true})
-      disabled = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+      enabled = Fixtures.device_fixture(org, product, firmware, %{update_mode: :automatic})
+      disabled = Fixtures.device_fixture(org, product, firmware, %{update_mode: :off})
 
       query = base_query(product)
 

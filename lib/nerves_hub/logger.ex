@@ -35,6 +35,7 @@ defmodule NervesHub.Logger do
         [:nerves_hub, :devices, :duplicate_connection],
         [:nerves_hub, :devices, :network_interface_mismatch],
         [:nerves_hub, :devices, :wrong_websocket_host],
+        [:nerves_hub, :devices, :update_mode_revert_failed],
         [:nerves_hub, :devices, :downloader_network_interface_nil],
         [:nerves_hub, :devices, :update, :automatic],
         [:nerves_hub, :devices, :update, :successful],
@@ -96,6 +97,17 @@ defmodule NervesHub.Logger do
       identifier: metadata[:identifier],
       firmware_uuid: metadata[:firmware_uuid]
     )
+  end
+
+  def log_event([:nerves_hub, :devices, :update_mode_revert_failed], _, metadata, _) do
+    Logger.error("Could not return a device to automatic updates, it will receive no firmware",
+      event: "nerves_hub.devices.update_mode_revert_failed",
+      device_id: metadata[:device_id],
+      identifier: metadata[:identifier],
+      reason: metadata[:reason]
+    )
+
+    :ok
   end
 
   def log_event([:nerves_hub, :devices, :wrong_websocket_host], _, metadata, _) do

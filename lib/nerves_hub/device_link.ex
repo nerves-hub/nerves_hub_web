@@ -7,6 +7,7 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Consoles
+  alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.Authentication
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.DeviceLink.Effect
@@ -23,12 +24,19 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ProductNotifications
   alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
   require Logger
 
   @public_key_types ["fwup_public_keys", "archive_public_keys"]
+
+  # The device API version that introduced device-managed updates. Devices below
+  # it have no handler for `update_mode` and would only log it as unknown, so it
+  # is not sent to them unasked — and they cannot ask for firmware either, which
+  # is why one arriving in that mode is put back on automatic.
+  @update_mode_api_version ">= 2.4.0"
 
   # ------------------------------------------------------------------------
   # Device channel
@@ -62,6 +70,8 @@ defmodule NervesHub.DeviceLink do
 
     case join(device_info, params) do
       {:ok, device_info} ->
+        device_info = revert_update_mode_if_unsupported(device_info, params["device_api_version"])
+
         session = %Session{
           device_info: device_info,
           device_api_version: params["device_api_version"],
@@ -82,6 +92,40 @@ defmodule NervesHub.DeviceLink do
         {:error, error}
     end
   end
+
+  # A :device_managed device on firmware that predates the feature cannot ask for
+  # updates, and the orchestrator does not push to one — so it would sit on that
+  # firmware indefinitely. Returning it to automatic gets it moving again; the
+  # operator sees why in the audit log, and can set it back once the device is on
+  # firmware that can manage itself.
+  defp revert_update_mode_if_unsupported(%{device_update_mode: :device_managed} = device_info, version) do
+    if Version.match?(version, @update_mode_api_version) do
+      device_info
+    else
+      device = Devices.get_device(device_info.device_id)
+
+      case Updates.revert_unsupported_update_mode(device) do
+        {:ok, device} ->
+          %{device_info | device_update_mode: device.update_mode}
+
+        error ->
+          # The device stays stranded, which is the thing this function exists to
+          # prevent, and it will go on connecting as if nothing were wrong. So it
+          # is raised where someone will see it rather than swallowed.
+          :telemetry.execute([:nerves_hub, :devices, :update_mode_revert_failed], %{count: 1}, %{
+            device_id: device.id,
+            identifier: device.identifier,
+            reason: inspect(error)
+          })
+
+          _ = ProductNotifications.create_update_mode_revert_failed_notification!(device)
+
+          device_info
+      end
+    end
+  end
+
+  defp revert_update_mode_if_unsupported(device_info, _version), do: device_info
 
   @doc """
   The device sent us something.
@@ -128,6 +172,61 @@ defmodule NervesHub.DeviceLink do
   defp do_device_message(session, "status_update", params) do
     :ok = status_update(session.device_info, params)
     {session, []}
+  end
+
+  # A device asking whether there is firmware waiting for it. Read-only, allowed
+  # in every update mode — a frozen device can still tell its user that an update
+  # exists and an administrator needs to act.
+  defp do_device_message(session, "check_update", _payload) do
+    device = Devices.get_device(session.device_info.device_id)
+    result = Updates.check_update(device)
+
+    {session,
+     [
+       {:push, "update_available", %{"available" => result.available?, "firmware_meta" => result.firmware_meta}}
+     ]}
+  end
+
+  # A device asking for the firmware itself. On success the update is broadcast on
+  # the device's own topic and fastlaned to it, so there is nothing to push here.
+  defp do_device_message(session, "request_update", _payload) do
+    device = Devices.get_device(session.device_info.device_id)
+
+    case DeviceEvents.device_requested_update(device) do
+      :ok ->
+        {session, []}
+
+      {:error, {:busy, delay_for}} ->
+        {session, [{:push, "update_rejected", %{"reason" => "busy", "delay_for" => delay_for}}]}
+
+      {:error, reason} ->
+        {session, [{:push, "update_rejected", %{"reason" => to_string(reason)}}]}
+    end
+  end
+
+  # A device moving itself between automatic and device-managed updates. Whether
+  # it may is decided in `Updates.set_update_mode/3`; either way it is told the
+  # mode it actually has now, so a refusal cannot leave the two disagreeing.
+  defp do_device_message(session, "set_update_mode", %{"mode" => mode}) do
+    device = Devices.get_device(session.device_info.device_id)
+
+    case parse_update_mode(mode) do
+      {:ok, mode} ->
+        case Updates.set_update_mode(device, mode, :device) do
+          {:ok, device} ->
+            session = put_in(session.device_info.device_update_mode, device.update_mode)
+            {session, update_mode_reply(device)}
+
+          {:error, :not_permitted} ->
+            {session, update_mode_reply(device, "not_permitted")}
+
+          _error ->
+            {session, update_mode_reply(device, "error")}
+        end
+
+      :error ->
+        {session, update_mode_reply(device, "unknown_mode")}
+    end
   end
 
   defp do_device_message(session, "rebooting", _payload), do: {session, []}
@@ -218,7 +317,7 @@ defmodule NervesHub.DeviceLink do
       |> fetch_connecting_code()
       |> connecting_code_effects(session)
 
-    {session, effects}
+    {session, effects ++ current_update_mode_effects(session)}
   end
 
   # we can ignore this message
@@ -273,10 +372,22 @@ defmodule NervesHub.DeviceLink do
   end
 
   defp do_device_broadcast(session, "updated", _payload) do
-    device_info = refresh_device_info(session.device_info)
+    previous = session.device_info
+    device_info = refresh_device_info(previous)
     :ok = maybe_send_archive(device_info, session.device_api_version, audit_log: true)
 
-    follow_deployment_group(%{session | device_info: device_info})
+    {session, effects} = follow_deployment_group(%{session | device_info: device_info})
+
+    # An operator can change the mode or the grant at any time, and a device that
+    # only learned either at join would show a stale switch until it reconnected.
+    mode_effects =
+      if update_mode_changed?(previous, device_info) do
+        current_update_mode_effects(session)
+      else
+        []
+      end
+
+    {session, effects ++ mode_effects}
   end
 
   defp do_device_broadcast(session, "deployment_updated", payload) do
@@ -328,6 +439,48 @@ defmodule NervesHub.DeviceLink do
   end
 
   defp safe_to_run_scripts?(session), do: Version.match?(session.device_api_version, ">= 2.1.0")
+
+  # Unsolicited: on join, and whenever the mode or grant changes underneath the
+  # device. Skipped for a device that would not understand it.
+  defp update_mode_effects(session, mode, allowed) do
+    if Version.match?(session.device_api_version, @update_mode_api_version) do
+      [{:push, "update_mode", update_mode_payload(mode, allowed, nil)}]
+    else
+      []
+    end
+  end
+
+  # The answer to `set_update_mode`, and never gated. A device that sent the
+  # message understands the reply whatever version it declared, and acting on a
+  # request without answering it is how the two end up disagreeing about whether
+  # the device is being pushed to.
+  defp update_mode_reply(%Device{} = device, error \\ nil) do
+    [{:push, "update_mode", update_mode_payload(device.update_mode, device.managed_updates_allowed, error)}]
+  end
+
+  defp update_mode_payload(mode, allowed, error) do
+    payload = %{"mode" => to_string(mode), "managed_updates_allowed" => allowed == true}
+
+    if error, do: Map.put(payload, "error", error), else: payload
+  end
+
+  defp update_mode_changed?(previous, current) do
+    previous.device_update_mode != current.device_update_mode or
+      previous.managed_updates_allowed != current.managed_updates_allowed
+  end
+
+  defp current_update_mode_effects(session) do
+    update_mode_effects(
+      session,
+      session.device_info.device_update_mode,
+      session.device_info.managed_updates_allowed
+    )
+  end
+
+  defp parse_update_mode("automatic"), do: {:ok, :automatic}
+  defp parse_update_mode("device_managed"), do: {:ok, :device_managed}
+  defp parse_update_mode("off"), do: {:ok, :off}
+  defp parse_update_mode(_), do: :error
 
   defp sanitize_device_api_version(%{"device_api_version" => version} = params) do
     case Version.parse(version) do
@@ -457,7 +610,9 @@ defmodule NervesHub.DeviceLink do
         device_identifier: device.identifier,
         deployment_id: device.deployment_id,
         firmware_metadata: device.firmware_metadata,
-        device_updates_enabled: device.updates_enabled,
+        device_update_mode: device.update_mode,
+        managed_updates_allowed: device.managed_updates_allowed,
+        device_updates_enabled: Device.updates_enabled?(device),
         device_updates_blocked_until: device.updates_blocked_until,
         device_network_interface: device_connection.network_interface
     }
@@ -616,7 +771,11 @@ defmodule NervesHub.DeviceLink do
 
   def maybe_send_archive(device_info, device_api_version, opts) do
     opts = Keyword.validate!(opts, audit_log: false)
-    updates_enabled = device_info.device_updates_enabled && !Updates.device_in_penalty_box?(device_info)
+    # Archives are not firmware, so a :device_managed device still receives them —
+    # only a frozen device does not.
+    updates_enabled =
+      device_info.device_update_mode != :off && !Updates.device_in_penalty_box?(device_info)
+
     version_match = Version.match?(device_api_version, ">= 2.0.0")
 
     if updates_enabled && version_match do

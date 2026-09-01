@@ -38,7 +38,7 @@ defmodule NervesHub.Devices.UpdatesTest do
       device: device,
       deployment_group: deployment_group
     } do
-      device = %{device | updates_enabled: false}
+      device = %{device | update_mode: :off}
 
       assert {:error, :updates_blocked, ^device} =
                Updates.verify_update_eligibility(device, deployment_group)
@@ -163,24 +163,30 @@ defmodule NervesHub.Devices.UpdatesTest do
       {:ok, cleared_device} = Updates.clear_penalty_box(device, user)
 
       assert is_nil(cleared_device.updates_blocked_until)
-      assert cleared_device.updates_enabled
       assert cleared_device.update_attempts == []
+      # The penalty box is a separate mechanism, so clearing it leaves the mode be.
+      assert cleared_device.update_mode == device.update_mode
     end
   end
 
-  describe "toggle_automatic_updates/2" do
-    test "disables updates when currently enabled", %{device: device, user: user} do
-      {:ok, device} = Devices.update_device(device, %{updates_enabled: true})
+  describe "set_update_mode/3" do
+    test "turns updates off when they were automatic", %{device: device, user: user} do
+      {:ok, device} = Devices.update_device(device, %{update_mode: :automatic})
 
-      {:ok, updated} = Updates.toggle_automatic_updates(device, user)
-      refute updated.updates_enabled
+      {:ok, updated} = Updates.set_update_mode(device, :off, user)
+      assert updated.update_mode == :off
     end
 
-    test "enables updates when currently disabled", %{device: device, user: user} do
-      {:ok, device} = Devices.update_device(device, %{updates_enabled: false})
+    test "turns updates back on when they were off", %{device: device, user: user} do
+      {:ok, device} = Devices.update_device(device, %{update_mode: :off})
 
-      {:ok, updated} = Updates.toggle_automatic_updates(device, user)
-      assert updated.updates_enabled
+      {:ok, updated} = Updates.set_update_mode(device, :automatic, user)
+      assert updated.update_mode == :automatic
+    end
+
+    test "hands a device to itself when an operator allows it", %{device: device, user: user} do
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, user)
+      assert device.update_mode == :device_managed
     end
   end
 

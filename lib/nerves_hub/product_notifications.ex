@@ -157,6 +157,26 @@ defmodule NervesHub.ProductNotifications do
     |> insert_and_notify!()
   end
 
+  @doc """
+  A device could not be moved off an update mode its firmware cannot support.
+
+  The device is stranded until someone acts: its deployment group will not push
+  to it, and its firmware has no way to ask. Raised to the operator because
+  nothing else will notice — the device goes on connecting perfectly happily.
+  """
+  def create_update_mode_revert_failed_notification!(device) do
+    %Product{id: device.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device could not be returned to automatic updates.",
+      message:
+        "The device with the identifier '#{device.identifier}' is set to manage its own updates, but is running firmware too old to do so. NervesHub tried to return it to automatic updates and could not, so it will receive no firmware at all until this is resolved. Set its update mode manually, or send it firmware by hand.",
+      level: :error,
+      metadata: %{identifier: device.identifier},
+      event_key: "update_mode_revert_failed-#{device.identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
   defp insert_and_notify!(changeset) do
     conflict_query =
       Notification

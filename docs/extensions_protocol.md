@@ -100,6 +100,25 @@ shape.
 Old and new versions run side by side indefinitely. Devices in the field do not
 upgrade in step with the platform, and some never upgrade at all.
 
+## The extensions
+
+The handshake above is shared by all of them. What an extension *says* once
+attached is its own, scoped `<key>:<event>` in both directions.
+
+| Key | What it carries | Contract |
+| --- | --- | --- |
+| `health` | Metrics, metadata and alarms, on a pace the platform sets | `NervesHub.Extensions.Health` |
+| `geo` | Device location | `NervesHub.Extensions.Geo` |
+| `logging` | Log lines; batched from 0.1.0 | `NervesHub.Extensions.Logging` |
+| `local_shell` | A shell on the device | `NervesHub.Extensions.LocalShell` |
+| `network_identity` | Identities the device holds on networks NervesHub doesn't run | `NervesHub.Extensions.NetworkIdentity` |
+| `error_reports` | Exceptions and explicit error reports, grouped into issues | [error_reports.md](error_reports.md) |
+
+Most are documented by the module implementing them, which is enough while
+`nerves_hub_link` is the only client that speaks them. An extension meant for
+more than one client needs something a client author can work from without
+reading Elixir. `error_reports` is the first of those.
+
 ## Failure modes worth knowing
 
 **A device declares a version the platform does not implement.** It resolves to

@@ -20,7 +20,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         identifier: identifier,
         description: "test device",
         tags: ["test"],
-        updates_enabled: true
+        update_mode: :automatic
       }
 
       conn = post(conn, Routes.api_device_path(conn, :create, org.name, product.name), device)
@@ -126,6 +126,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                    "org_name" => "AllTheBoops",
                    "product_name" => "auto_boops",
                    "tags" => ["beta", "beta-edge"],
+                   "update_mode" => "automatic",
                    "updates_blocked_until" => nil,
                    "updates_enabled" => true,
                    "version" => "1.0.0"

@@ -300,6 +300,54 @@ defmodule NervesHub.Devices.BulkActions do
     stream_processing(devices_query, {Updates, :disable_updates, [user]})
   end
 
+  @doc """
+  Put many devices into one update mode.
+
+  The general form of `enable_updates_for_devices/2` and
+  `disable_updates_for_devices/2`, which remain as the two-state shortcuts the
+  existing bulk buttons use.
+  """
+  @spec set_update_mode_for_devices([Device.t()] | Ecto.Query.t(), Device.update_mode(), User.t()) ::
+          %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
+          | %{ok: non_neg_integer(), error: non_neg_integer()}
+  def set_update_mode_for_devices(devices, mode, user) when is_list(devices) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, Updates, :set_update_mode, [&1, mode, user]))
+    |> Task.await_many(20_000)
+    |> Enum.reduce(%{ok: [], error: []}, fn
+      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
+      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
+    end)
+  end
+
+  def set_update_mode_for_devices(%Ecto.Query{} = devices_query, mode, user) do
+    stream_processing(devices_query, {Updates, :set_update_mode, [mode, user]})
+  end
+
+  @doc """
+  Allow or forbid many devices putting themselves into `:device_managed`.
+
+  Because the grant defaults to off, this is how a fleet is opted into managing
+  its own updates without visiting every device.
+  """
+  @spec set_managed_updates_allowed_for_devices([Device.t()] | Ecto.Query.t(), boolean(), User.t()) ::
+          %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
+          | %{ok: non_neg_integer(), error: non_neg_integer()}
+  def set_managed_updates_allowed_for_devices(devices, enabled, user) when is_list(devices) do
+    Enum.map(
+      devices,
+      &Task.Supervisor.async(Tasks, Updates, :set_managed_updates_allowed, [&1, enabled, user])
+    )
+    |> Task.await_many(20_000)
+    |> Enum.reduce(%{ok: [], error: []}, fn
+      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
+      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
+    end)
+  end
+
+  def set_managed_updates_allowed_for_devices(%Ecto.Query{} = devices_query, enabled, user) do
+    stream_processing(devices_query, {Updates, :set_managed_updates_allowed, [enabled, user]})
+  end
+
   @spec clear_penalty_box_for_devices([Device.t()] | Ecto.Query.t(), User.t()) ::
           %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
           | %{ok: non_neg_integer(), error: non_neg_integer()}

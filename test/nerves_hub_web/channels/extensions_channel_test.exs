@@ -681,6 +681,78 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     end
   end
 
+  describe "the error reports extension" do
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "err-1"}, dir: tmp_dir)
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      # Opt in at the product level, which is where every extension starts off.
+      product = Products.get_product!(device.product_id)
+      {:ok, _product} = Products.enable_extension_setting(product, "error_reports")
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      %{device: device, socket: socket, certificate: certificate}
+    end
+
+    defp join_error_reports(socket, version \\ "0.1.0") do
+      assert {:ok, attach_list, socket} =
+               subscribe_and_join(socket, ExtensionsChannel, "extensions", %{
+                 "device_api_version" => "2.2.0",
+                 "error_reports" => version
+               })
+
+      {attach_list, socket}
+    end
+
+    test "is offered to a device that supports it", %{socket: socket} do
+      {attach_list, _socket} = join_error_reports(socket)
+
+      assert "error_reports" in attach_list
+    end
+
+    # There is no single-report version of this extension, so a device claiming
+    # one is a device the platform cannot serve.
+    test "a device declaring a version we do not implement gets nothing", %{socket: socket} do
+      {attach_list, _socket} = join_error_reports(socket, "0.0.1")
+
+      refute "error_reports" in attach_list
+    end
+
+    test "is not offered to a device whose product has it switched off", %{
+      device: device,
+      certificate: certificate
+    } do
+      product = Products.get_product!(device.product_id)
+      {:ok, _product} = Products.disable_extension_setting(product, "error_reports")
+
+      # The allowed set is worked out when the device authenticates, so this
+      # needs a fresh connection rather than the one opened during setup.
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {attach_list, _socket} = join_error_reports(socket)
+
+      refute "error_reports" in attach_list
+    end
+
+    test "is not offered to a device that has it switched off", %{
+      device: device,
+      certificate: certificate
+    } do
+      {:ok, _device} = Devices.disable_extension_setting(device, "error_reports")
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {attach_list, _socket} = join_error_reports(socket)
+
+      refute "error_reports" in attach_list
+    end
+  end
+
   test "unknown extension event returns detach error reply", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "abc-unknown"}, dir: tmp_dir)

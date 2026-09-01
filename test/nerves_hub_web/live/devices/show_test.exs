@@ -849,6 +849,80 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "update mode picker" do
+    setup %{device: device, deployment_group: deployment_group} do
+      device =
+        device
+        |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
+        |> Repo.update!()
+
+      %{device: device}
+    end
+
+    test "offers all three modes, marking the one in force", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#update-mode-menu button", text: "Automatic")
+      |> assert_has("#update-mode-menu button", text: "Device managed")
+      |> assert_has("#update-mode-menu button", text: "Off")
+      |> assert_has("#update-mode-toggle[aria-label='Firmware updates: Automatic']")
+    end
+
+    test "choosing a mode changes it and says so", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> within("#update-mode-menu", fn session -> click_button(session, "Device managed") end)
+      |> assert_has("div", text: "Firmware updates set to device managed.")
+
+      assert Repo.reload(device).update_mode == :device_managed
+    end
+
+    test "the change is audited against the user who made it", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> within("#update-mode-menu", fn session -> click_button(session, "Off") end)
+
+      assert [audit_log | _] = AuditLogs.logs_for(Repo.reload(device))
+      assert audit_log.description =~ "User #{user.name} set the update mode"
+      assert audit_log.description =~ "off"
+    end
+
+    test "a device in the penalty box shows that instead of the picker", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      device =
+        device
+        |> Ecto.Changeset.change(%{
+          updates_blocked_until: DateTime.utc_now() |> DateTime.add(3600) |> DateTime.truncate(:second)
+        })
+        |> Repo.update!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("button[aria-label='Clear the penalty box']")
+      |> refute_has("#update-mode-toggle")
+    end
+  end
+
   describe "available update" do
     test "no available update exists", %{
       conn: conn,
@@ -1180,7 +1254,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       deployment_group: deployment_group,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
@@ -1214,7 +1288,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       deployment_group: deployment_group,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
@@ -1249,7 +1323,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "http://localhost:1234")
 
-      assert Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :automatic
     end
 
     test "allows a device to be sent the available update immediately, using the available Org `firmware_proxy_url` setting",
@@ -1267,7 +1341,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> where(id: ^org.id)
       |> Repo.update_all(set: [settings: %Org.Settings{firmware_proxy_url: "https://files.customer.com/download"}])
 
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
@@ -1301,7 +1375,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "https://files.customer.com/download?")
 
-      assert Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :automatic
     end
 
     test "allows a device to be sent the available delta update immediately, if a delta is available", %{
@@ -1314,7 +1388,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       deployment_group: deployment_group,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       metadata = Map.put(device.firmware_metadata, :fwup_version, "1.13.0") |> Map.from_struct()
       Devices.update_device(device, %{firmware_metadata: metadata})
@@ -1359,7 +1433,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.ends_with?(firmware_url, ".delta.fw")
 
-      assert Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :automatic
     end
   end
 
@@ -1422,7 +1496,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       fixture: %{firmware: firmware}
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       Ecto.Changeset.change(%DeviceConnection{}, %{
         device_id: device.id,
@@ -1453,7 +1527,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "http://localhost:1234")
 
-      refute Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :off
     end
 
     test "broadcasts the firmware update request, and includes the Orgs `firmware_proxy_url` setting", %{
@@ -1467,7 +1541,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> where(id: ^org.id)
       |> Repo.update_all(set: [settings: %Org.Settings{firmware_proxy_url: "https://files.customer.com/download"}])
 
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       Ecto.Changeset.change(%DeviceConnection{}, %{
         device_id: device.id,
@@ -1498,7 +1572,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "https://files.customer.com/download?firmware=")
 
-      refute Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :off
     end
 
     test "broadcasts the firmware update request using the 'send delta' option", %{
@@ -1509,7 +1583,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
@@ -1559,7 +1633,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.ends_with?(firmware_url, ".delta.fw")
 
-      refute Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :off
     end
   end
 
@@ -1939,7 +2013,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert render(view) =~ "Device identification requested"
     end
 
-    test "toggle-deployment-firmware-updates sends flash", %{
+    test "set-update-mode sends flash", %{
       conn: conn,
       org: org,
       product: product,
@@ -1948,8 +2022,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       {:ok, view, _html} =
         live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
 
-      render_change(view, "toggle-deployment-firmware-updates", %{})
-      assert render(view) =~ "Firmware updates"
+      render_change(view, "set-update-mode", %{"mode" => "off"})
+      assert render(view) =~ "Firmware updates set to off"
     end
 
     test "clear-penalty-box removes device from penalty box", %{

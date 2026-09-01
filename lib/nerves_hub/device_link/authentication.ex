@@ -16,6 +16,7 @@ defmodule NervesHub.DeviceLink.Authentication do
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Certificates
+  alias NervesHub.Devices.Device
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
   alias Plug.Crypto
@@ -139,7 +140,9 @@ defmodule NervesHub.DeviceLink.Authentication do
       device_identifier: device.identifier,
       deployment_id: device.deployment_id,
       firmware_metadata: device.firmware_metadata,
-      device_updates_enabled: device.updates_enabled,
+      device_update_mode: device.update_mode,
+      managed_updates_allowed: device.managed_updates_allowed,
+      device_updates_enabled: Device.updates_enabled?(device),
       device_updates_blocked_until: device.updates_blocked_until,
       allowed_extensions: calculate_allowed_extensions(device)
     }

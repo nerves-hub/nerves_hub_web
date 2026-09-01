@@ -657,7 +657,14 @@ defmodule NervesHub.Devices do
     tag_device(device, user, new_tags)
   end
 
-  @spec update_device_with_audit(Device.t(), map(), User.t(), String.t()) ::
+  @doc """
+  Update a device and record who did it.
+
+  The actor is usually a user, but a device is one too: a device that sets its
+  own update mode, or that is moved off a mode its firmware cannot support, is
+  the actor for that change, and the log should not imply an operator asked.
+  """
+  @spec update_device_with_audit(Device.t(), map(), User.t() | Device.t(), String.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def update_device_with_audit(device, params, user, description) do
     Multi.new()

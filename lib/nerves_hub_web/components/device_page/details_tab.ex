@@ -32,7 +32,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     :alarms,
     :extension_overrides,
     :deployment_groups,
-    :available_tags
+    :addable_tags
   ]
 
   def tab_params(_params, _uri, %{assigns: %{device: device}} = socket) do
@@ -45,7 +45,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> assign(:extension_overrides, extension_overrides(device, device.product))
     |> assign(:delta_available?, false)
     |> assign(:selected_firmware, "")
-    |> assign_available_tags()
+    |> assign_addable_tags()
     |> assign_metadata()
     |> assign_deployment_groups()
     |> cont()
@@ -91,9 +91,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   # Tags already on the device are excluded so the "add tag" suggestions only
   # offer tags that can actually be added.
-  defp assign_available_tags(%{assigns: %{product: product, device: device}} = socket) do
-    available_tags = Devices.distinct_tags_for_product(product) -- (device.tags || [])
-    assign(socket, :available_tags, available_tags)
+  defp assign_addable_tags(%{assigns: %{product: product, device: device}} = socket) do
+    addable_tags = Devices.distinct_tags_for_product(product) -- (device.tags || [])
+    assign(socket, :addable_tags, addable_tags)
   end
 
   defp assign_deployment_groups(%{assigns: %{device: %{status: :provisioned} = device}} = socket) do
@@ -376,7 +376,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                     class="relative"
                     phx-hook="TagAutocomplete"
                     data-single
-                    data-available-tags={Jason.encode!(@available_tags)}
+                    data-available-tags={Jason.encode!(@addable_tags)}
                   >
                     <input
                       type="text"
@@ -682,23 +682,29 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     """
   end
 
-  def hooked_event("toggle-deployment-firmware-updates", _params, socket) do
+  def hooked_event("set-update-mode", %{"mode" => mode}, socket) do
     %{current_scope: scope, device: device} = socket.assigns
 
     authorized!(:"device:toggle-updates", scope)
 
-    {:ok, updated_device} = Updates.toggle_automatic_updates(device, scope.user)
+    mode = String.to_existing_atom(mode)
 
-    message = [
-      "Firmware updates ",
-      (updated_device.updates_enabled && "enabled") || "disabled",
-      "."
-    ]
+    case Updates.set_update_mode(device, mode, scope.user) do
+      {:ok, updated_device} ->
+        socket
+        |> assign(:device, updated_device)
+        |> assign(:update_information, Updates.resolve_update(updated_device))
+        |> put_flash(:info, "Firmware updates set to #{update_mode_label(mode)}.")
+        |> halt()
 
-    socket
-    |> assign(:device, updated_device)
-    |> put_flash(:info, Enum.join(message))
-    |> halt()
+      _error ->
+        socket
+        |> put_flash(
+          :error,
+          "We couldn't change how this device receives updates. Please contact support if this happens again."
+        )
+        |> halt()
+    end
   end
 
   def hooked_event("clear-manual-location-information", _, socket) do
@@ -935,7 +941,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       {:ok, device} ->
         socket
         |> assign(:device, device)
-        |> assign_available_tags()
+        |> assign_addable_tags()
         |> put_flash(:info, "Tag \"#{tag}\" added successfully.")
         |> halt()
 
@@ -952,7 +958,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       {:ok, device} ->
         socket
         |> assign(:device, device)
-        |> assign_available_tags()
+        |> assign_addable_tags()
         |> put_flash(:info, "Tag \"#{tag}\" removed successfully.")
         |> halt()
 
@@ -1066,4 +1072,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp has_description?(description) do
     is_binary(description) and byte_size(description) > 0 and description != "[]"
   end
+
+  defp update_mode_label(:automatic), do: "automatic"
+  defp update_mode_label(:device_managed), do: "device managed"
+  defp update_mode_label(:off), do: "off"
 end
