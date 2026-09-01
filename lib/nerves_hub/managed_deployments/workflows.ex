@@ -76,6 +76,20 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   end
 
   @doc """
+  The step whose failure has stopped the workflow, if one has.
+  """
+  @spec failed_step(integer() | nil) :: DeploymentWorkflowStep.t() | nil
+  def failed_step(nil), do: nil
+
+  def failed_step(deployment_release_id) do
+    DeploymentWorkflowStep
+    |> where([s], s.deployment_release_id == ^deployment_release_id and s.status == :error)
+    |> order_by([s], asc: s.number)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @doc """
   Assign matching devices to a step, up to its match limit.
 
   Returns the number of devices newly claimed. Safe to call repeatedly: a step

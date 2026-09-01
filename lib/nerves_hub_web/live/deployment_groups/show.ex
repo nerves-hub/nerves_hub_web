@@ -121,6 +121,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     end
   end
 
+  def handle_event("workflow-step-retry", %{"number" => number}, socket) do
+    workflow_step_action(socket, :retry, number)
+  end
+
+  def handle_event("workflow-step-skip", %{"number" => number}, socket) do
+    workflow_step_action(socket, :skip, number)
+  end
+
   def handle_event("delete", _params, socket) do
     authorized!(:"deployment_group:delete", socket.assigns.current_scope)
 
@@ -391,28 +399,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     {:noreply, socket}
   end
 
-  # The controls live on the step nodes, which are components of LiveFlow's own
-  # component, so what they ask for arrives here as a message.
-  def handle_info({:workflow_step_action, action, number}, socket) do
-    authorized!(:"deployment_group:update", socket.assigns.current_scope)
-
-    %{deployment_group: deployment_group} = socket.assigns
-
-    deployment_group.current_deployment_release_id
-    |> Workflows.release_steps()
-    |> Enum.find(&(&1.number == number))
-    |> case do
-      nil ->
-        noreply(socket)
-
-      step ->
-        socket
-        |> apply_step_action(action, step)
-        |> assign_workflow(deployment_group)
-        |> noreply()
-    end
-  end
-
   # The diagram's hook is inside LiveFlow's own live_component and pushes its
   # events there, not here, so measurements reach us through the component's
   # `on_nodes_change` callback rather than a `handle_event`.
@@ -461,6 +447,27 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     socket
     |> assign(:flow, parse_workflow(updated.current_release.steps))
     |> assign_awaiting_approval(updated)
+  end
+
+  defp workflow_step_action(socket, action, number) do
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+
+    %{deployment_group: deployment_group} = socket.assigns
+    number = String.to_integer(number)
+
+    deployment_group.current_deployment_release_id
+    |> Workflows.release_steps()
+    |> Enum.find(&(&1.number == number))
+    |> case do
+      nil ->
+        noreply(socket)
+
+      step ->
+        socket
+        |> apply_step_action(action, step)
+        |> assign_workflow(deployment_group)
+        |> noreply()
+    end
   end
 
   defp apply_step_action(socket, :skip, step) do
@@ -515,8 +522,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> assign_awaiting_approval(deployment_group)
   end
 
+  # What the workflow is stopped on, if anything: a step waiting to be approved,
+  # or one that failed and is waiting to be retried or skipped.
   defp assign_awaiting_approval(socket, deployment_group) do
-    assign(socket, :awaiting_approval, Workflows.awaiting_approval(deployment_group.current_deployment_release_id))
+    release_id = deployment_group.current_deployment_release_id
+
+    socket
+    |> assign(:awaiting_approval, Workflows.awaiting_approval(release_id))
+    |> assign(:failed_step, Workflows.failed_step(release_id))
   end
 
   # A deployment group with no workflow has no flow to update.
@@ -565,17 +578,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   @node_padding_x 32
 
   defp create_node(step, total_count) do
-    step_data =
-      %{
-        content_width: @node_width - @node_padding_x,
-        detail: step.description,
-        label: DeploymentWorkflowStep.label(step),
-        number: step.number,
-        retryable?: Workflows.retryable?(step),
-        skippable?: Workflows.skippable?(step),
-        status: step.status
-      }
-      |> Map.reject(fn {_key, value} -> is_nil(value) end)
+    step_data = WorkflowStepNode.node_data(step, @node_width - @node_padding_x)
 
     height = estimated_height(step)
 
@@ -626,9 +629,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     )
   end
 
-  defp node_types() do
-    %{status: WorkflowStepNode}
-  end
+  defp node_types(), do: WorkflowStepNode.node_types()
 
   # Private helper for applying node changes
   defp apply_node_change(flow, %{"type" => "position", "id" => id, "position" => pos} = change) do

@@ -50,8 +50,18 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
     render(view)
   end
 
-  describe "the controls on a step" do
-    test "a running step offers skip, and the trailing catch_all does not", %{
+  describe "the bar shown when a workflow has stopped" do
+    setup %{deployment_group: deployment_group} do
+      [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
+
+      canary
+      |> Workflows.start_step()
+      |> Workflows.fail_step()
+
+      :ok
+    end
+
+    test "names the step and offers retry and skip", %{
       conn: conn,
       org: org,
       product: product,
@@ -59,12 +69,47 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
     } do
       {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
-      assert html =~ "Skip step: Canary"
-      refute html =~ "Skip step: Remaining devices"
-      refute html =~ "Retry step:"
+      assert html =~ "Stopped at: Canary"
+      assert html =~ "Retry the stopped step: Canary"
+      assert html =~ "Skip the stopped step: Canary"
     end
 
-    test "skipping a step from its node hands its devices on", %{
+    # Acting on a step is done from the bar, so the diagram itself is only a
+    # picture. Two controls doing the same thing is one too many.
+    test "the step nodes carry no controls of their own", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+      refute html =~ ~s(aria-label="Retry step: Canary")
+      refute html =~ ~s(aria-label="Skip step: Canary")
+    end
+
+    test "retrying from the bar restarts the step", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+      html =
+        view
+        |> element("[aria-label='Retry the stopped step: Canary']")
+        |> render_click()
+
+      assert html =~ "Step restarted"
+      refute html =~ "Stopped at:"
+
+      [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
+
+      assert canary.status == :in_progress
+    end
+
+    test "skipping from the bar skips the step", %{
       conn: conn,
       org: org,
       product: product,
@@ -73,50 +118,17 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
     } do
       {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
-      [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
-      _ = Workflows.start_step(canary)
-
-      _ =
+      html =
         view
-        |> element("[aria-label='Skip step: Canary']")
+        |> element("[aria-label='Skip the stopped step: Canary']")
         |> render_click()
 
-      # The node component asks the LiveView by message, so the click's own render
-      # still predates the work being done.
-      assert render(view) =~ "Step skipped"
+      assert html =~ "Step skipped"
 
       [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
 
       assert canary.status == :skipped
       assert canary.skipped_by_id == user.id
-    end
-
-    test "a failed step offers retry", %{
-      conn: conn,
-      org: org,
-      product: product,
-      deployment_group: deployment_group
-    } do
-      [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
-
-      canary
-      |> Workflows.start_step()
-      |> Workflows.fail_step()
-
-      {:ok, view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
-
-      assert html =~ "Retry step: Canary"
-
-      _ =
-        view
-        |> element("[aria-label='Retry step: Canary']")
-        |> render_click()
-
-      assert render(view) =~ "Step restarted"
-
-      [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
-
-      assert canary.status == :in_progress
     end
   end
 

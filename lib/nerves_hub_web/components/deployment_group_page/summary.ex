@@ -281,6 +281,45 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
       </div>
 
       <div
+        :if={@failed_step}
+        class="bg-surface-raised border-alert shadow-device-details-content flex w-full flex-col gap-3 rounded border p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div class="flex flex-col gap-1">
+          <div class="text-base-50 text-base font-medium">
+            Stopped at: {DeploymentWorkflowStep.label(@failed_step)}
+          </div>
+          <div :if={@failed_step.description} class="text-base-400 text-sm">
+            {@failed_step.description}
+          </div>
+          <div class="text-base-400 text-sm">
+            Too many of this step's devices failed to update. No further devices will be updated until it is retried or skipped.
+          </div>
+        </div>
+
+        <div class="flex w-fit shrink-0 gap-2">
+          <.button
+            style="primary"
+            phx-click="workflow-step-retry"
+            phx-value-number={@failed_step.number}
+            aria-label={"Retry the stopped step: #{DeploymentWorkflowStep.label(@failed_step)}"}
+            data-confirm="Offer this step's devices the update again?"
+          >
+            Retry step
+          </.button>
+
+          <.button
+            style="secondary"
+            phx-click="workflow-step-skip"
+            phx-value-number={@failed_step.number}
+            aria-label={"Skip the stopped step: #{DeploymentWorkflowStep.label(@failed_step)}"}
+            data-confirm="Skip this step? Its devices will be picked up by a later step."
+          >
+            Skip step
+          </.button>
+        </div>
+      </div>
+
+      <div
         :if={@awaiting_approval}
         class="bg-surface-raised border-warning shadow-device-details-content flex w-full flex-col gap-3 rounded border p-4 sm:flex-row sm:items-center sm:justify-between"
       >
