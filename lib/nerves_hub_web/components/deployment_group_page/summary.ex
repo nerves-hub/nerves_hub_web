@@ -4,16 +4,27 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   import NervesHubWeb.LayoutView,
     only: [humanize_size: 1]
 
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
+  alias NimbleCSV.RFC4180, as: CSV
   alias Phoenix.Naming
 
   @impl Phoenix.LiveComponent
   def mount(socket) do
-    {:ok, assign(socket, :delta_target_firmware_id, nil)}
+    {:ok,
+     socket
+     |> assign(:delta_target_firmware_id, nil)
+     |> allow_upload(:device_csv,
+       accept: ~w(.csv),
+       max_entries: 1,
+       auto_upload: true,
+       progress: &handle_progress/3
+     )}
   end
 
   @impl Phoenix.LiveComponent
@@ -147,6 +158,91 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
     socket
     |> put_flash(:info, "Generating firmware deltas")
+    |> noreply()
+  end
+
+  def handle_event("validate-csv", _params, socket), do: {:noreply, socket}
+
+  def handle_progress(:device_csv, %{done?: true} = entry, socket) do
+    %{deployment_group: deployment_group, current_scope: %{product: product, user: user}} =
+      socket.assigns
+
+    result =
+      consume_uploaded_entry(socket, entry, fn %{path: path} ->
+        {:ok, parse_identifiers_from_csv(path)}
+      end)
+
+    socket =
+      case result do
+        {:error, :invalid_csv} ->
+          send_flash(socket, :error, "CSV must have a single 'identifier' column header")
+
+        {:ok, []} ->
+          send_flash(socket, :error, "CSV contained no identifier values")
+
+        {:ok, identifiers} ->
+          socket
+          |> start_async(:import_devices_from_csv, fn ->
+            BulkActions.move_many_to_deployment_group_by_identifiers(
+              product,
+              identifiers,
+              deployment_group,
+              user
+            )
+          end)
+          |> send_flash(:info, "Importing devices from CSV, this may take a moment")
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_progress(:device_csv, _entry, socket), do: {:noreply, socket}
+
+  @impl Phoenix.LiveComponent
+  def handle_async(:import_devices_from_csv, {:ok, %{ok: updated, error: 0}}, socket) do
+    send(self(), :refresh_device_count)
+
+    socket
+    |> assign_matched_devices_count()
+    |> send_flash(:info, "#{updated} devices imported from CSV into #{socket.assigns.deployment_group.name}")
+    |> noreply()
+  end
+
+  def handle_async(:import_devices_from_csv, {:ok, %{ok: updated, error: ignored}}, socket) do
+    %{deployment_group: deployment_group} = socket.assigns
+
+    send(self(), :refresh_device_count)
+
+    :ok =
+      Logging.log_to_sentry(
+        deployment_group,
+        "There was an issue importing devices from CSV into a deployment group.",
+        %{
+          updated_count: updated,
+          ignored_count: ignored,
+          deployment_group_id: deployment_group.id
+        }
+      )
+
+    socket
+    |> assign_matched_devices_count()
+    |> send_flash(
+      :error,
+      "#{updated} devices imported into #{deployment_group.name}. However, we couldn't import #{ignored} devices. We've been notified and are looking into it."
+    )
+    |> noreply()
+  end
+
+  def handle_async(:import_devices_from_csv, {:exit, reason}, socket) do
+    %{deployment_group: deployment_group} = socket.assigns
+    :ok = Logging.log_to_sentry(deployment_group, reason)
+
+    socket
+    |> assign_matched_devices_count()
+    |> send_flash(
+      :error,
+      "There was an issue importing devices from CSV into #{deployment_group.name}. We've been notified and are looking into it."
+    )
     |> noreply()
   end
 
@@ -534,6 +630,18 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
               </div>
             </div>
+            <div class="border-base-700 flex items-center justify-between border-t pt-3">
+              <span class="text-base-500 text-sm">Import devices by identifier</span>
+              <form id="import-devices-csv-form" phx-change="validate-csv" phx-target={@myself}>
+                <label
+                  for={@uploads.device_csv.ref}
+                  class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 flex cursor-pointer items-center gap-1.5 rounded border px-3 py-1.5 text-sm"
+                >
+                  <.icon name="add" class="stroke-base-400" /> Import from CSV
+                </label>
+                <.live_file_input upload={@uploads.device_csv} class="hidden" />
+              </form>
+            </div>
           </div>
 
           <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col gap-2 rounded border p-4">
@@ -634,6 +742,31 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
         :ok = Firmwares.PubSub.subscribe_delta_target(firmware_id)
 
         assign(socket, :delta_target_firmware_id, firmware_id)
+    end
+  end
+
+  defp send_flash(socket, type, message) do
+    send(self(), {:flash, type, message})
+    socket
+  end
+
+  defp parse_identifiers_from_csv(path) do
+    path
+    |> File.stream!()
+    |> CSV.parse_stream(skip_headers: false)
+    |> Enum.reduce({nil, []}, fn
+      [header], {nil, []} ->
+        if String.trim(header) == "identifier", do: {:ok, []}, else: {:error, :bad_header}
+
+      [id], {:ok, acc} ->
+        {:ok, [String.trim(id) | acc]}
+
+      _, {:error, _} = err ->
+        err
+    end)
+    |> case do
+      {:ok, ids} -> {:ok, Enum.reverse(ids)}
+      _ -> {:error, :invalid_csv}
     end
   end
 end
