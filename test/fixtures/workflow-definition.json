@@ -31,7 +31,9 @@
       "concurrent_updates": 25
     },
     {
-      "type": "approval_required"
+      "type": "approval_required",
+      "name": "Product sign-off",
+      "description": "Someone confirms the canaries are healthy"
     }
   ]
 }

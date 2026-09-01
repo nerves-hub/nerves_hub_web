@@ -269,6 +269,33 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
         </div>
       </div>
 
+      <div
+        :if={@awaiting_approval}
+        class="bg-surface-raised border-warning shadow-device-details-content flex w-full flex-col gap-3 rounded border p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div class="flex flex-col gap-1">
+          <div class="text-base-50 text-base font-medium">
+            Waiting on you: {@awaiting_approval.name}
+          </div>
+          <div :if={@awaiting_approval.description} class="text-base-400 text-sm">
+            {@awaiting_approval.description}
+          </div>
+          <div class="text-base-400 text-sm">
+            No further devices will be updated until this step is approved.
+          </div>
+        </div>
+
+        <.button
+          style="primary"
+          phx-click="approve-workflow-step"
+          aria-label={"Approve workflow step #{@awaiting_approval.name}"}
+          data-confirm={"Approve \"#{@awaiting_approval.name}\" and let the deployment carry on?"}
+          class="w-fit shrink-0"
+        >
+          Approve and continue
+        </.button>
+      </div>
+
       <div :if={@waiting_for_update_count == 0 && is_nil(@flow)} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border p-4">
         <div class="text-base-50 flex h-10 items-center justify-center text-xl/6 font-medium">
           {if @updates_disabled_count > 0, do: "All eligible devices are up to date!", else: "All devices are up to date!"}

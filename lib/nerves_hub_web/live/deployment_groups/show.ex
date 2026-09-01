@@ -6,12 +6,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias LiveFlow.Node
   alias LiveFlow.State
   alias LiveFlow.Validation.Connection
+  alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Products
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Releases, as: ReleasesTab
@@ -37,6 +39,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     socket
     |> assign(%{org: org, product: product, user: user})
     |> assign(:flow, parse_workflow(deployment_group.current_release.steps))
+    |> assign_awaiting_approval(deployment_group)
     |> page_title("Deployment Group - #{deployment_group.name} - #{product.name}")
     |> sidebar_tab(:deployments)
     |> selected_tab()
@@ -79,6 +82,37 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> put_flash(:info, "Deployment #{(value && "resumed") || "paused"}")
     |> assign(:deployment_group, deployment_group)
     |> noreply()
+  end
+
+  def handle_event("approve-workflow-step", _params, socket) do
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+
+    %{deployment_group: deployment_group, user: user, awaiting_approval: step} = socket.assigns
+
+    case step do
+      nil ->
+        # Somebody else approved it between the page rendering and the click.
+        socket |> assign(:awaiting_approval, nil) |> noreply()
+
+      step ->
+        step = Workflows.approve_step(step, user)
+
+        AuditLogs.audit!(
+          user,
+          deployment_group,
+          "User #{user.name} approved workflow step #{step.number} (#{step.name}) for deployment group #{deployment_group.name}"
+        )
+
+        # Approving only clears the block. The orchestrator is what completes the
+        # step and starts the next one, so nudge it rather than leaving the page
+        # looking unchanged until its next periodic run.
+        :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
+
+        socket
+        |> assign(:awaiting_approval, nil)
+        |> put_flash(:info, "Step approved. The deployment will carry on with the next step.")
+        |> noreply()
+    end
   end
 
   def handle_event("delete", _params, socket) do
@@ -401,7 +435,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
         },
         socket
       ) do
-    {:noreply, assign(socket, :flow, update_step_status(socket.assigns.flow, number, status))}
+    socket
+    |> assign(:flow, update_step_status(socket.assigns.flow, number, status))
+    |> assign_awaiting_approval(socket.assigns.deployment_group)
+    |> noreply()
   end
 
   # Ignore other broadcasts
@@ -447,7 +484,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       :ok = socket.endpoint.subscribe("deployment_release:#{updated_id}")
     end
 
-    assign(socket, :flow, parse_workflow(updated.current_release.steps))
+    socket
+    |> assign(:flow, parse_workflow(updated.current_release.steps))
+    |> assign_awaiting_approval(updated)
+  end
+
+  defp assign_awaiting_approval(socket, deployment_group) do
+    assign(socket, :awaiting_approval, Workflows.awaiting_approval(deployment_group.current_deployment_release_id))
   end
 
   # A deployment group with no workflow has no flow to update.

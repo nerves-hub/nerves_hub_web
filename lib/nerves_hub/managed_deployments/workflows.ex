@@ -57,6 +57,23 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   end
 
   @doc """
+  The step currently holding the workflow open for someone to approve, if any.
+
+  Only a started step counts. An approval step further down the list has not been
+  reached yet, and asking about it early would be asking about a decision that may
+  never need making.
+  """
+  @spec awaiting_approval(integer()) :: DeploymentWorkflowStep.t() | nil
+  def awaiting_approval(nil), do: nil
+
+  def awaiting_approval(deployment_release_id) do
+    DeploymentWorkflowStep
+    |> where([s], s.deployment_release_id == ^deployment_release_id)
+    |> where([s], s.type == :approval_required and s.status == :in_progress and is_nil(s.approved_at))
+    |> Repo.one()
+  end
+
+  @doc """
   Assign matching devices to a step, up to its match limit.
 
   Returns the number of devices newly claimed. Safe to call repeatedly: a step

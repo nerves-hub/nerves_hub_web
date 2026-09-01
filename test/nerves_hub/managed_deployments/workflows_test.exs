@@ -75,7 +75,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
     test "a definition ending in an explicit catch_all does not gain a second one", context do
       definition = %{
         "version" => 1,
-        "steps" => [%{"name" => "Canary"}, %{"type" => "catch_all"}]
+        "steps" => [%{"name" => "Canary"}, %{"name" => "Everyone else", "type" => "catch_all"}]
       }
 
       %{release: release} = with_workflow(context, definition)

@@ -156,7 +156,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
     test "an approval_required step claims nothing", context do
       _device = add_device(context, %{tags: ["canary"]})
 
-      definition = %{"version" => 1, "steps" => [%{"type" => "approval_required"}]}
+      definition = %{"version" => 1, "steps" => [%{"name" => "Sign-off", "type" => "approval_required"}]}
 
       %{release: release, deployment_group: deployment_group} = release_with(context, definition)
       [approval | _] = steps(release)
@@ -221,7 +221,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
 
     test "an approval_required step is complete once approved", context do
       %{user: user} = context
-      definition = %{"version" => 1, "steps" => [%{"type" => "approval_required"}]}
+      definition = %{"version" => 1, "steps" => [%{"name" => "Sign-off", "type" => "approval_required"}]}
 
       %{release: release, deployment_group: deployment_group} = release_with(context, definition)
       [approval | _] = steps(release)

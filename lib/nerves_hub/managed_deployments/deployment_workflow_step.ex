@@ -54,18 +54,26 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStep do
     change(%__MODULE__{}, %{type: :catch_all, number: number})
   end
 
+  # A catch_all covers whatever earlier steps left, so it has no conditions of
+  # its own to carry across.
   def new_changeset(%{"type" => "catch_all"} = step_definition, number) do
     %__MODULE__{}
     |> change()
     |> put_change(:type, :catch_all)
+    |> maybe_put_change(:name, step_definition["name"])
+    |> maybe_put_change(:description, step_definition["description"])
     |> maybe_put_change(:concurrency, step_definition["concurrent_updates"])
     |> put_change(:number, number)
   end
 
-  def new_changeset(%{"type" => "approval_required"}, number) do
+  # An approval step covers no devices at all — it only holds the workflow until
+  # somebody says to carry on.
+  def new_changeset(%{"type" => "approval_required"} = step_definition, number) do
     %__MODULE__{}
     |> change()
     |> put_change(:type, :approval_required)
+    |> maybe_put_change(:name, step_definition["name"])
+    |> maybe_put_change(:description, step_definition["description"])
     |> put_change(:number, number)
   end
 

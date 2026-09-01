@@ -350,43 +350,64 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     if entry.done? do
       authorized!(:"deployment_group:update", socket.assigns.current_scope)
 
-      [workflow_definition] =
+      [contents] =
         consume_uploaded_entries(socket, :workflow_definition, fn %{path: path}, _entry ->
           {:ok, File.read!(path)}
         end)
 
-      workflow_definition = JSON.decode!(workflow_definition)
+      # The file is whatever someone picked, so a decode failure is an ordinary
+      # outcome to report rather than something to crash the page over.
+      case JSON.decode(contents) do
+        {:ok, workflow_definition} ->
+          save_workflow_definition(socket, workflow_definition, deployment_group, user, org, product)
 
-      case ManagedDeployments.update_deployment_group(
-             deployment_group,
-             %{workflow_definition: workflow_definition},
-             user
-           ) do
-        {:ok, updated} ->
-          # Use original deployment so changes will get
-          # marked in audit log
-          AuditLogs.audit!(
-            user,
-            updated,
-            "User #{user.name} uploaded a new Workflow definition to the deployment group #{updated.name}"
-          )
-
+        {:error, _reason} ->
           socket
-          |> put_flash(:info, "Workflow definition uploaded successfully. This will be used with the next release.")
-          |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{updated}")
-          |> noreply()
-
-        {:error, changeset} ->
-          socket
-          |> put_flash(
-            :error,
-            "An error occurred while uploading the Workflow definition. Please check if the JSON definition is valid."
-          )
-          |> assign(:form, to_form(changeset))
+          |> put_flash(:error, "That file could not be read as JSON. Check it for a stray comma or bracket.")
           |> noreply()
       end
     else
       {:noreply, socket}
+    end
+  end
+
+  defp save_workflow_definition(socket, workflow_definition, deployment_group, user, org, product) do
+    case ManagedDeployments.update_deployment_group(
+           deployment_group,
+           %{workflow_definition: workflow_definition},
+           user
+         ) do
+      {:ok, updated} ->
+        # Use original deployment so changes will get
+        # marked in audit log
+        AuditLogs.audit!(
+          user,
+          updated,
+          "User #{user.name} uploaded a new Workflow definition to the deployment group #{updated.name}"
+        )
+
+        socket
+        |> put_flash(:info, "Workflow definition uploaded successfully. This will be used with the next release.")
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{updated}")
+        |> noreply()
+
+      {:error, changeset} ->
+        socket
+        |> put_flash(:error, workflow_definition_error_message(changeset))
+        |> assign(:form, to_form(changeset))
+        |> noreply()
+    end
+  end
+
+  # The validator says exactly what is wrong and where, so pass that on instead
+  # of asking someone to go and look for it themselves.
+  defp workflow_definition_error_message(changeset) do
+    changeset.errors
+    |> Keyword.get_values(:workflow_definition)
+    |> Enum.map(fn {message, _opts} -> message end)
+    |> case do
+      [] -> "An error occurred while uploading the Workflow definition."
+      problems -> "That workflow definition is not valid: " <> Enum.join(problems, "; ")
     end
   end
 
