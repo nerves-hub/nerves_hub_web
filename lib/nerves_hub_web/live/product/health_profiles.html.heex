@@ -61,6 +61,9 @@
                 <span class="text-base-300 text-sm font-medium">{metric_label(assigns, metric.key)}</span>
                 <span :if={metric.built_in} class="text-base-500 text-xs">built-in</span>
                 <span :if={!metric.built_in && metric_label(assigns, metric.key) != metric.key} class="text-base-500 text-xs">{metric.key}</span>
+                <span :if={seen_range(@observed_ranges, metric.key)} class="text-base-500 text-xs" title="Lowest and highest value reported across this product's devices, over the retention window">
+                  {seen_range(@observed_ranges, metric.key)}
+                </span>
               </div>
               <div class="flex items-center gap-3">
                 <label class="text-base-400 flex items-center gap-2 text-xs" title="Featured metrics are shown at the top of the device details page">

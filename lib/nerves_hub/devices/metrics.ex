@@ -138,6 +138,22 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   @doc """
+  The lowest and highest value observed per metric key across the product's
+  devices, as `%{key => {min, max}}`. Spans ClickHouse's retention (30 days);
+  what the health profiles page shows so thresholds get picked against real
+  units rather than guesses. Callers are expected to check that analytics is
+  enabled first.
+  """
+  def observed_ranges(product_id) do
+    DeviceMetric
+    |> where([dm], dm.product_id == ^product_id)
+    |> group_by([dm], dm.key)
+    |> select([dm], {dm.key, {min(dm.value), max(dm.value)}})
+    |> AnalyticsRepo.all()
+    |> Map.new()
+  end
+
+  @doc """
   The device's raw readings for `keys` over the trailing window, as
   `[{key, timestamp, value}]` — what health evaluation judges. ClickHouse:
   callers are expected to check that analytics is enabled first.

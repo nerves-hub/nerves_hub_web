@@ -24,6 +24,24 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
     |> assert_has("span", text: "disk_used_percentage")
   end
 
+  test "shows the observed value range beside metrics the fleet has reported", %{
+    conn: conn,
+    org: org,
+    product: product,
+    firmware: firmware
+  } do
+    device = Fixtures.device_fixture(NervesHub.Repo.get!(Org, product.org_id), product, firmware)
+    {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 10.0, "fps" => 24.0})
+    {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 40.5, "fps" => 61.0})
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/settings/health")
+    # Beside the configured metric's name...
+    |> assert_has("span", text: "seen 10 – 40.5")
+    # ...and in the picker for a metric not yet configured.
+    |> assert_has("option", text: "Fps — seen 24 – 61")
+  end
+
   test "is linked from the product settings page", %{conn: conn, org: org, product: product} do
     conn
     |> visit("/org/#{org.name}/#{product.name}/settings")

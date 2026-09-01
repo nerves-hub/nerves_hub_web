@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   alias NervesHub.Products
   alias NervesHub.Products.HealthProfiles
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
+  alias NervesHubWeb.Components.Utils
 
   def mount(_params, _session, socket) do
     product = socket.assigns.current_scope.product
@@ -15,7 +16,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     |> sidebar_tab(:settings)
     |> assign(:product, product)
     |> assign(:custom_labels, Products.custom_health_metrics_labels(product))
-    |> assign(:reported_keys, reported_keys(product))
+    |> assign_observed(product)
     |> assign_profiles()
     |> ok()
   end
@@ -138,13 +139,33 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     |> assign(:pending_operators, %{})
   end
 
-  # Keys offered in the metric picker: everything devices of this product have
-  # reported, padded with the well-known nerves_hub_health defaults so a fresh
-  # product isn't looking at an empty list.
-  defp reported_keys(product) do
-    (Metrics.default_metrics() ++ Metrics.distinct_keys(product.id))
-    |> Enum.uniq()
-    |> Enum.sort()
+  # One pass over the product's stored metrics feeds both the picker (its
+  # keys, padded with the well-known nerves_hub_health defaults so a fresh
+  # product isn't looking at an empty list) and the observed value ranges
+  # shown beside each metric — thresholds get picked against real units.
+  defp assign_observed(socket, product) do
+    observed_ranges = Metrics.observed_ranges(product.id)
+
+    reported_keys =
+      (Metrics.default_metrics() ++ Map.keys(observed_ranges))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    socket
+    |> assign(:observed_ranges, observed_ranges)
+    |> assign(:reported_keys, reported_keys)
+  end
+
+  # What the fleet has actually reported for this key, over the retention
+  # window; nil when nothing has (built-ins, defaults never reported).
+  defp seen_range(observed_ranges, key) do
+    case observed_ranges do
+      %{^key => {min, max}} ->
+        "seen #{Utils.format_number(min)} – #{Utils.format_number(max)}"
+
+      _ ->
+        nil
+    end
   end
 
   defp metric_options(assigns, profile) do
@@ -157,8 +178,12 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
 
     regular =
       for key <- assigns.reported_keys,
-          not MapSet.member?(taken, key),
-          do: {metric_label(assigns, key), key}
+          not MapSet.member?(taken, key) do
+        case seen_range(assigns.observed_ranges, key) do
+          nil -> {metric_label(assigns, key), key}
+          seen -> {"#{metric_label(assigns, key)} — #{seen}", key}
+        end
+      end
 
     [{"Built-in", built_in}, {"Health metrics", regular}]
   end
