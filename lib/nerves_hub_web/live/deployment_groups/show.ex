@@ -22,6 +22,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHubWeb.Components.DeploymentGroupPage.Summary, as: SummaryTab
   alias Phoenix.Socket.Broadcast
 
+  # How much of the panel to leave clear around the workflow diagram, per side.
+  @fit_padding 0.2
+
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     %{"name" => name} = params
@@ -185,7 +188,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
         apply_node_change(acc, change)
       end)
 
-    {:noreply, assign(socket, flow: flow)}
+    socket
+    |> assign(:flow, flow)
+    |> maybe_refit(changes)
+    |> noreply()
   end
 
   def handle_event("lf:edge_change", %{"changes" => changes}, socket) do
@@ -472,6 +478,19 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   defp selected_tab(socket) do
     assign(socket, :tab, socket.assigns.live_action || :details)
+  end
+
+  # LiveFlow fits the view on init with a padding of 0.1, which it does not let
+  # you configure, and a workflow wide enough for its width to be what limits the
+  # fit then spans 80% of the panel however big its nodes are. Re-fit with our own
+  # padding once the nodes have been measured, which is the point their sizes stop
+  # moving. The browser only reports a size when it changes, so this runs once.
+  defp maybe_refit(socket, changes) do
+    if Enum.any?(changes, &(&1["type"] == "dimensions")) do
+      push_event(socket, "lf:fit_view", %{padding: @fit_padding, duration: 0})
+    else
+      socket
+    end
   end
 
   # A new release carries its own steps, broadcast on its own topic. Move the

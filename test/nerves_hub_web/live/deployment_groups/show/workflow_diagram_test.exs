@@ -54,6 +54,40 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
     assert html =~ ~s(data-max-zoom="1.0")
   end
 
+  # LiveFlow's own fit-on-init pads by 0.1 and cannot be configured, which leaves a
+  # width-limited workflow spanning 80% of the panel. We re-fit with our own
+  # padding once the nodes report their size.
+  test "the diagram is re-fitted with room around it once the nodes are measured", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+    changes = [%{"type" => "dimensions", "id" => "step-1", "width" => 230, "height" => 96}]
+
+    _ = render_hook(view, "lf:node_change", %{"changes" => changes})
+
+    assert_push_event(view, "lf:fit_view", %{padding: padding})
+    assert padding > 0.1
+  end
+
+  test "a change that is not a measurement does not re-fit", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+    changes = [%{"type" => "position", "id" => "step-1", "position" => %{"x" => 10, "y" => 10}}]
+
+    _ = render_hook(view, "lf:node_change", %{"changes" => changes})
+
+    refute_push_event(view, "lf:fit_view", %{})
+  end
+
   test "arrows run level and leave each node on its right", %{
     conn: conn,
     org: org,

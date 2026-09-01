@@ -252,7 +252,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     ~H"""
     <div class="flex w-full flex-col items-start gap-4 p-6">
       <div :if={@flow} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border">
-        <div class="h-[150px]">
+        <div class="h-[200px]">
           <.live_component
             module={LiveFlow.Components.Flow}
             id="deployment-workflow"
