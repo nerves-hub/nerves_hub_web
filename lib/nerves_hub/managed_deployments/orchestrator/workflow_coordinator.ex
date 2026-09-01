@@ -18,14 +18,20 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
   is the point of a canary stage — declaring it good because its devices could
   not be reached would defeat it — but it does mean a canary that never comes
   back holds the workflow where it is until somebody skips the step.
+
+  A step that cannot update enough of its devices fails outright rather than
+  waiting, and the workflow stops there until somebody retries or skips it. How
+  many failures it takes is the step's own `failure_tolerance`.
   """
 
   use NervesHub.ManagedDeployments.Orchestrator.Coordinator
 
+  alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.Updates
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Orchestrator.Coordinator
   alias NervesHub.ManagedDeployments.Workflows
+  alias NervesHub.ProductNotifications
 
   require Logger
 
@@ -33,12 +39,18 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
   def schedule_updates(deployment_group) do
     # The orchestrator holds a deployment group for the life of the release, so
     # the steps preloaded on it are a snapshot from before any of this ran.
-    deployment_group.current_deployment_release_id
-    |> Workflows.release_steps()
-    |> active_step()
-    |> case do
-      nil -> false
-      step -> run_step(deployment_group, step)
+    steps = Workflows.release_steps(deployment_group.current_deployment_release_id)
+
+    # A failed step holds the workflow where it is. `active_step/1` looks for one
+    # running or waiting, and a failed step is neither, so without this the
+    # workflow would step straight over the stage that just went wrong.
+    if Enum.any?(steps, &(&1.status == :error)) do
+      false
+    else
+      case active_step(steps) do
+        nil -> false
+        step -> run_step(deployment_group, step)
+      end
     end
   end
 
@@ -46,6 +58,17 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
   # on the pass after somebody approves it, and the orchestrator's periodic
   # trigger is what brings us back to notice.
   defp run_step(deployment_group, %DeploymentWorkflowStep{type: :approval_required} = step) do
+    # Only on the pass that reaches the step; afterwards it is already running and
+    # there is nothing new to say.
+    if step.status == :in_progress and is_nil(step.approved_at) and just_started?(step) do
+      Logger.info("Workflow waiting for approval",
+        deployment_id: deployment_group.id,
+        step_number: step.number
+      )
+
+      announce_halt(deployment_group, step, :awaiting_approval)
+    end
+
     complete_if_done(deployment_group, step, false)
   end
 
@@ -60,7 +83,64 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
       )
     end
 
-    complete_if_done(deployment_group, step, schedule_step_devices(deployment_group, step))
+    if Workflows.step_failed?(deployment_group, step) do
+      failed_count = Workflows.failed_device_count(deployment_group, step)
+
+      _ = Workflows.fail_step(step)
+
+      Logger.warning("Workflow step failed",
+        deployment_id: deployment_group.id,
+        step_number: step.number,
+        failed_devices: failed_count,
+        tolerance: Workflows.failure_limit(step, Workflows.claimed_device_count(step))
+      )
+
+      announce_halt(deployment_group, step, {:failed, failed_count})
+
+      false
+    else
+      complete_if_done(deployment_group, step, schedule_step_devices(deployment_group, step))
+    end
+  end
+
+  # A halted workflow is quiet: devices go on connecting, the deployment group
+  # still says it is active, and the only sign is a diagram nobody is looking at.
+  # So it is said four ways — measured, logged, recorded against the deployment
+  # group, and raised to whoever looks after the product.
+  defp announce_halt(deployment_group, step, reason) do
+    :telemetry.execute(
+      [:nerves_hub, :deployments, :workflow, :halted],
+      %{count: 1},
+      %{
+        deployment_id: deployment_group.id,
+        step_number: step.number,
+        step_type: step.type,
+        reason: halt_reason(reason)
+      }
+    )
+
+    case reason do
+      {:failed, failed_count} ->
+        DeploymentGroupTemplates.audit_workflow_step_failed(deployment_group, step, failed_count)
+
+      :awaiting_approval ->
+        DeploymentGroupTemplates.audit_workflow_awaiting_approval(deployment_group, step)
+    end
+
+    _ = ProductNotifications.create_workflow_halted_notification!(deployment_group, step, reason)
+
+    :ok
+  end
+
+  defp halt_reason({:failed, _count}), do: :failed
+  defp halt_reason(reason), do: reason
+
+  # `start_step/1` stamps `started_at` as it goes, so a step reached on this pass
+  # is one whose start is not yet a moment old.
+  defp just_started?(%DeploymentWorkflowStep{started_at: nil}), do: false
+
+  defp just_started?(%DeploymentWorkflowStep{started_at: started_at}) do
+    NaiveDateTime.diff(NaiveDateTime.utc_now(), started_at, :second) <= 1
   end
 
   defp schedule_step_devices(deployment_group, step) do

@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
 
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.Workflows
 
   @definition %{
     "version" => 1,
@@ -27,6 +28,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
     {:ok, {_release, _}} =
       ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{}, broadcast: false)
 
+    # Reload so the group points at the release that carries the steps.
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(deployment_group.id)
+
     %{deployment_group: deployment_group}
   end
 
@@ -44,6 +48,76 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
     # The component hands the changes on by message, so the render that the hook
     # call returns still predates our re-centring.
     render(view)
+  end
+
+  describe "the controls on a step" do
+    test "a running step offers skip, and the trailing catch_all does not", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+      assert html =~ "Skip step: Canary"
+      refute html =~ "Skip step: Remaining devices"
+      refute html =~ "Retry step:"
+    end
+
+    test "skipping a step from its node hands its devices on", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user,
+      deployment_group: deployment_group
+    } do
+      {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+      [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
+      _ = Workflows.start_step(canary)
+
+      _ =
+        view
+        |> element("[aria-label='Skip step: Canary']")
+        |> render_click()
+
+      # The node component asks the LiveView by message, so the click's own render
+      # still predates the work being done.
+      assert render(view) =~ "Step skipped"
+
+      [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
+
+      assert canary.status == :skipped
+      assert canary.skipped_by_id == user.id
+    end
+
+    test "a failed step offers retry", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
+
+      canary
+      |> Workflows.start_step()
+      |> Workflows.fail_step()
+
+      {:ok, view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+      assert html =~ "Retry step: Canary"
+
+      _ =
+        view
+        |> element("[aria-label='Retry step: Canary']")
+        |> render_click()
+
+      assert render(view) =~ "Step restarted"
+
+      [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
+
+      assert canary.status == :in_progress
+    end
   end
 
   defp edge_endpoints(html) do

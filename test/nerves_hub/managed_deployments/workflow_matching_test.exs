@@ -245,7 +245,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
       assert Workflows.claim_devices(deployment_group, canary_step) == 1
       assert Workflows.claim_devices(deployment_group, catch_all) == 0
 
-      skipped = Workflows.skip_step(canary_step, context.user)
+      {:ok, skipped} = Workflows.skip_step(canary_step, context.user)
 
       assert skipped.status == :skipped
       assert claimed_device_ids(canary_step) == []

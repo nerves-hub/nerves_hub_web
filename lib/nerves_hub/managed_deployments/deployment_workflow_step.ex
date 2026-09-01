@@ -44,6 +44,15 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStep do
 
     field(:concurrency, :integer, default: 10)
 
+    # How many of the step's devices may fail before the step itself is failed.
+    # Exactly one of the two is set; nil means the step never fails on device
+    # failures, which is what a catch_all wants — it is the release's steady
+    # state and there is nothing after it to hold back.
+    embeds_one :failure_tolerance, __MODULE__.FailureTolerance, primary_key: false, on_replace: :update do
+      field(:devices, :integer)
+      field(:percent, :integer)
+    end
+
     field(:approved_at, :naive_datetime)
     field(:started_at, :naive_datetime)
     field(:skipped_at, :naive_datetime)
@@ -98,6 +107,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStep do
     |> maybe_put_change(:type, step_type(step_definition["type"]))
     |> maybe_put_change(:concurrency, step_definition["concurrent_updates"])
     |> maybe_put_embed(:matching_conditions, matching_conditions(step_definition["matching_conditions"]))
+    |> put_embed(:failure_tolerance, failure_tolerance(step_definition["failure_tolerance"]))
     |> put_change(:number, number)
   end
 
@@ -120,6 +130,23 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStep do
   defp step_type("approval_required"), do: :approval_required
   defp step_type("catch_all"), do: :catch_all
   defp step_type(_other), do: nil
+
+  # A step that updates devices is meant to stop the rollout when they fail, so
+  # the useful default is the strictest one. Saying nothing gets you a step that
+  # halts on the first device it cannot update.
+  @default_failure_tolerance %{devices: 1}
+
+  defp failure_tolerance(nil), do: cast_failure_tolerance(@default_failure_tolerance)
+
+  defp failure_tolerance(tolerance) when is_map(tolerance) do
+    cast_failure_tolerance(Map.take(tolerance, ["devices", "percent"]))
+  end
+
+  defp failure_tolerance(_other), do: cast_failure_tolerance(@default_failure_tolerance)
+
+  defp cast_failure_tolerance(params) do
+    cast(%__MODULE__.FailureTolerance{}, params, [:devices, :percent])
+  end
 
   defp matching_conditions(nil), do: nil
 

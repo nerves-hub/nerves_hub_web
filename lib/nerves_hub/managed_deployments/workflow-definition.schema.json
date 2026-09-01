@@ -57,6 +57,19 @@
             "description": "How many of this step's devices update at once",
             "type": "integer",
             "exclusiveMinimum": 0
+          },
+          "failure_tolerance": {
+            "description": "How many of this step's devices may fail before the step itself is failed. Give either a count or a percentage, not both. Defaults to one device; a catch_all step never fails.",
+            "type": "object",
+            "additionalProperties": false,
+            "oneOf": [
+              { "required": ["devices"] },
+              { "required": ["percent"] }
+            ],
+            "properties": {
+              "devices": { "type": "integer", "exclusiveMinimum": 0 },
+              "percent": { "type": "integer", "exclusiveMinimum": 0, "maximum": 100 }
+            }
           }
         },
         "required": ["name"]

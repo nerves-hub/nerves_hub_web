@@ -39,6 +39,8 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
 
+  require Logger
+
   @join_table "deployment_workflow_steps_devices"
 
   @doc """
@@ -125,6 +127,75 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   def outstanding_device_count(deployment_group, step) do
     firmware_uuid = deployment_group.current_release.firmware.uuid
 
+    deployment_group
+    |> step_devices_query(step)
+    |> where(
+      [device: d],
+      is_nil(d.firmware_metadata) or fragment("? #>> '{\"uuid\"}'", d.firmware_metadata) != ^firmware_uuid
+    )
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  How many of a step's devices have failed to take the update.
+
+  A device counts as failed once it is in the penalty box, which is where
+  `NervesHub.Devices.Updates` puts it after `device_failure_threshold` attempts.
+  Its own retries have already been spent by that point.
+  """
+  @spec failed_device_count(DeploymentGroup.t(), DeploymentWorkflowStep.t()) :: non_neg_integer()
+  def failed_device_count(deployment_group, step) do
+    now = DateTime.utc_now()
+
+    deployment_group
+    |> step_devices_query(step)
+    |> where([device: d], not is_nil(d.updates_blocked_until) and d.updates_blocked_until > ^now)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Whether enough of a step's devices have failed to fail the step.
+
+  A step with no tolerance never fails: that is the trailing `catch_all`, which
+  has nothing after it to hold back, and an `approval_required` step, which has
+  no devices of its own.
+  """
+  @spec step_failed?(DeploymentGroup.t(), DeploymentWorkflowStep.t()) :: boolean()
+  def step_failed?(deployment_group, step) do
+    case failure_limit(step, claimed_device_count(step)) do
+      :never -> false
+      limit -> failed_device_count(deployment_group, step) >= limit
+    end
+  end
+
+  @doc """
+  How many device failures this step tolerates before it is failed.
+
+  A percentage is of the devices the step claimed, and never rounds down to
+  nothing — "5% of 10 devices" means one, not zero.
+  """
+  @spec failure_limit(DeploymentWorkflowStep.t(), non_neg_integer()) :: pos_integer() | :never
+  def failure_limit(%DeploymentWorkflowStep{failure_tolerance: nil}, _claimed), do: :never
+
+  def failure_limit(%DeploymentWorkflowStep{failure_tolerance: %{devices: devices}}, _claimed) when is_integer(devices),
+    do: max(devices, 1)
+
+  def failure_limit(%DeploymentWorkflowStep{failure_tolerance: %{percent: percent}}, claimed)
+      when is_integer(percent) do
+    claimed
+    |> Kernel.*(percent)
+    |> Kernel./(100)
+    |> Float.ceil()
+    |> trunc()
+    |> max(1)
+  end
+
+  def failure_limit(_step, _claimed), do: :never
+
+  # The devices a step claimed that are still part of the deployment group. One
+  # that has been moved elsewhere, or deleted, is no longer this step's business
+  # and would otherwise hold it open indefinitely.
+  defp step_devices_query(deployment_group, step) do
     Device
     |> from(as: :device)
     |> join(:inner, [device: d], sd in ^@join_table,
@@ -132,11 +203,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
       as: :step_device
     )
     |> Repo.exclude_deleted()
-    |> where(
-      [device: d],
-      is_nil(d.firmware_metadata) or fragment("? #>> '{\"uuid\"}'", d.firmware_metadata) != ^firmware_uuid
-    )
-    |> Repo.aggregate(:count)
+    |> where([device: d], d.deployment_id == ^deployment_group.id)
   end
 
   @doc """
@@ -198,17 +265,81 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   end
 
   @doc """
+  Fail a step, stopping the workflow where it stands.
+
+  Nothing further is scheduled until somebody retries or skips it. That is the
+  point of a staged rollout: the stage that went wrong should not hand on to the
+  next one.
+  """
+  @spec fail_step(DeploymentWorkflowStep.t()) :: DeploymentWorkflowStep.t()
+  def fail_step(step) do
+    transition(step, status: :error, finished_at: now())
+  end
+
+  @doc """
+  Whether a step can be skipped.
+
+  The trailing `catch_all` cannot: nothing follows it to pick its devices up, so
+  skipping it would quietly end the release rather than move it along. A step
+  that has already finished has nothing to skip.
+  """
+  @spec skippable?(DeploymentWorkflowStep.t()) :: boolean()
+  def skippable?(%DeploymentWorkflowStep{type: :catch_all}), do: false
+  def skippable?(%DeploymentWorkflowStep{status: status}), do: status in [:waiting, :in_progress, :error]
+
+  @doc """
+  Whether a step can be retried. Only a failed one has anything to retry.
+  """
+  @spec retryable?(DeploymentWorkflowStep.t()) :: boolean()
+  def retryable?(%DeploymentWorkflowStep{status: status}), do: status == :error
+
+  @doc """
   Skip a step.
 
   Its claim on its devices is released, so a later step — usually the trailing
   `catch_all` — picks them up rather than leaving them stranded on old firmware.
   This is the way out of a stage held open by a device that will not come back.
   """
-  @spec skip_step(DeploymentWorkflowStep.t(), User.t()) :: DeploymentWorkflowStep.t()
+  @spec skip_step(DeploymentWorkflowStep.t(), User.t()) :: {:ok, DeploymentWorkflowStep.t()} | {:error, :not_skippable}
   def skip_step(step, user) do
-    _ = release_claimed_devices(step)
+    if skippable?(step) do
+      _ = release_claimed_devices(step)
 
-    transition(step, status: :skipped, skipped_at: now(), skipped_by_id: user.id)
+      {:ok, transition(step, status: :skipped, skipped_at: now(), skipped_by_id: user.id)}
+    else
+      {:error, :not_skippable}
+    end
+  end
+
+  @doc """
+  Retry a failed step.
+
+  The devices that failed are let out of the penalty box and their attempts
+  cleared, because leaving them there would mean the retry failed again
+  immediately on the same evidence. The step goes back to running and is
+  scheduled again on the orchestrator's next pass.
+  """
+  @spec retry_step(DeploymentGroup.t(), DeploymentWorkflowStep.t(), User.t()) ::
+          {:ok, DeploymentWorkflowStep.t()} | {:error, :not_retryable}
+  def retry_step(deployment_group, step, user) do
+    if retryable?(step) do
+      {released, _} =
+        deployment_group
+        |> step_devices_query(step)
+        |> exclude(:order_by)
+        |> Repo.update_all(set: [updates_blocked_until: nil, update_attempts: []])
+
+      Logger.info("Workflow step retried",
+        deployment_id: deployment_group.id,
+        step_number: step.number,
+        user_id: user.id,
+        devices_released: released
+      )
+
+      {:ok, transition(step, status: :in_progress, finished_at: nil, started_at: now())}
+    else
+      {:error, :not_retryable}
+    end
   end
 
   defp release_claimed_devices(step) do

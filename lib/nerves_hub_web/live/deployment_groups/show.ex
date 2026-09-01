@@ -19,6 +19,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHubWeb.Components.DeploymentGroupPage.Releases, as: ReleasesTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Settings, as: SettingsTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Summary, as: SummaryTab
+  alias NervesHubWeb.Components.DeploymentGroupPage.WorkflowStepNode
   alias Phoenix.Socket.Broadcast
 
   @impl Phoenix.LiveView
@@ -390,6 +391,28 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     {:noreply, socket}
   end
 
+  # The controls live on the step nodes, which are components of LiveFlow's own
+  # component, so what they ask for arrives here as a message.
+  def handle_info({:workflow_step_action, action, number}, socket) do
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+
+    %{deployment_group: deployment_group} = socket.assigns
+
+    deployment_group.current_deployment_release_id
+    |> Workflows.release_steps()
+    |> Enum.find(&(&1.number == number))
+    |> case do
+      nil ->
+        noreply(socket)
+
+      step ->
+        socket
+        |> apply_step_action(action, step)
+        |> assign_workflow(deployment_group)
+        |> noreply()
+    end
+  end
+
   # The diagram's hook is inside LiveFlow's own live_component and pushes its
   # events there, not here, so measurements reach us through the component's
   # `on_nodes_change` callback rather than a `handle_event`.
@@ -438,6 +461,58 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     socket
     |> assign(:flow, parse_workflow(updated.current_release.steps))
     |> assign_awaiting_approval(updated)
+  end
+
+  defp apply_step_action(socket, :skip, step) do
+    %{deployment_group: deployment_group, user: user} = socket.assigns
+
+    case Workflows.skip_step(step, user) do
+      {:ok, skipped} ->
+        AuditLogs.audit!(
+          user,
+          deployment_group,
+          "User #{user.name} skipped workflow step #{skipped.number} (#{DeploymentWorkflowStep.label(skipped)}) for deployment group #{deployment_group.name}"
+        )
+
+        # Skipping only clears the way; the orchestrator is what moves the
+        # workflow on to the next step.
+        :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
+
+        put_flash(socket, :info, "Step skipped. Its devices will be picked up by a later step.")
+
+      {:error, :not_skippable} ->
+        put_flash(socket, :error, "That step can no longer be skipped.")
+    end
+  end
+
+  defp apply_step_action(socket, :retry, step) do
+    %{deployment_group: deployment_group, user: user} = socket.assigns
+
+    case Workflows.retry_step(deployment_group, step, user) do
+      {:ok, retried} ->
+        AuditLogs.audit!(
+          user,
+          deployment_group,
+          "User #{user.name} retried workflow step #{retried.number} (#{DeploymentWorkflowStep.label(retried)}) for deployment group #{deployment_group.name}"
+        )
+
+        :ok = ManagedDeployments.broadcast(deployment_group, "deployments/update")
+
+        put_flash(socket, :info, "Step restarted. Its devices will be offered the update again.")
+
+      {:error, :not_retryable} ->
+        put_flash(socket, :error, "Only a failed step can be retried.")
+    end
+  end
+
+  # The diagram is built from the steps as they stand, so any change to one is
+  # picked up by rebuilding it.
+  defp assign_workflow(socket, deployment_group) do
+    steps = Workflows.release_steps(deployment_group.current_deployment_release_id)
+
+    socket
+    |> assign(:flow, parse_workflow(steps))
+    |> assign_awaiting_approval(deployment_group)
   end
 
   defp assign_awaiting_approval(socket, deployment_group) do
@@ -491,7 +566,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   defp create_node(step, total_count) do
     step_data =
-      %{detail: step.description, label: DeploymentWorkflowStep.label(step), status: step.status}
+      %{
+        content_width: @node_width - @node_padding_x,
+        detail: step.description,
+        label: DeploymentWorkflowStep.label(step),
+        number: step.number,
+        retryable?: Workflows.retryable?(step),
+        skippable?: Workflows.skippable?(step),
+        status: step.status
+      }
       |> Map.reject(fn {_key, value} -> is_nil(value) end)
 
     height = estimated_height(step)
@@ -544,55 +627,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   defp node_types() do
-    %{status: &status_node/1}
-  end
-
-  defp status_node(assigns) do
-    label = Map.get(assigns.node.data, :label, "Status")
-    status = Map.get(assigns.node.data, :status, :waiting)
-    detail = Map.get(assigns.node.data, :detail, "")
-
-    {status_color, status_label} =
-      case status do
-        :waiting -> {"#f59e0b", "Waiting"}
-        :in_progress -> {"#615fff", "In Progress"}
-        :completed -> {"#22c55e", "Completed"}
-        :skipped -> {"#a1a1aa", "Skipped"}
-        :error -> {"#ef4444", "Error"}
-        _unknown -> {"#a1a1aa", "Unknown"}
-      end
-
-    assigns =
-      assigns
-      |> assign(:label, label)
-      |> assign(:status_color, status_color)
-      |> assign(:status_label, status_label)
-      |> assign(:detail, detail)
-      |> assign(:content_width, @node_width - @node_padding_x)
-
-    ~H"""
-    <div style={"width: #{@content_width}px"}>
-      <div style="display: flex; align-items: center; gap: 8px">
-        <div style={"width: 10px; height: 10px; border-radius: 50%; background: #{@status_color}; box-shadow: 0 0 6px #{@status_color}80;#{@node.data.status == :in_progress && " animation: pulse 2s infinite;"}"}>
-        </div>
-        <div>
-          <div style="font-weight: 600; font-size: 13px; color: var(--lf-text-primary)">
-            {@label}
-          </div>
-          <div style={"font-size: 11px; font-weight: 500; color: #{@status_color}"}>
-            {@status_label}
-          </div>
-        </div>
-      </div>
-      <div
-        :if={@detail != ""}
-        style="font-size: 11px; color: var(--lf-text-muted); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--lf-border-secondary, #ddd); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden"
-        title={@detail}
-      >
-        {@detail}
-      </div>
-    </div>
-    """
+    %{status: WorkflowStepNode}
   end
 
   # Private helper for applying node changes

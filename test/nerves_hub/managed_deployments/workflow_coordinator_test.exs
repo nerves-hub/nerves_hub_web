@@ -6,6 +6,9 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
   use NervesHub.DataCase, async: false
 
+  import Ecto.Query
+
+  alias NervesHub.AuditLogs
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
@@ -13,10 +16,13 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep.FailureTolerance
   alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.ManagedDeployments.Orchestrator.DefaultCoordinator
   alias NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator
   alias NervesHub.ManagedDeployments.Workflows
+  alias NervesHub.Products.Notification
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
@@ -74,6 +80,12 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
   end
 
   defp steps(release), do: Workflows.release_steps(release.id)
+
+  defp product_notifications(product) do
+    Notification
+    |> where([n], n.product_id == ^product.id)
+    |> Repo.all()
+  end
 
   defp step(release, number), do: release |> steps() |> Enum.find(&(&1.number == number))
 
@@ -361,7 +373,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert canary.status == :in_progress
       refute Workflows.step_complete?(deployment_group, canary)
 
-      _ = Workflows.skip_step(canary, context.user)
+      {:ok, _} = Workflows.skip_step(canary, context.user)
 
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
 
@@ -374,6 +386,300 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
+    end
+  end
+
+  describe "failing a step" do
+    @strict %{
+      "version" => 1,
+      "steps" => [
+        %{
+          "name" => "Canary",
+          "matching_conditions" => %{"tags" => ["canary"]},
+          "failure_tolerance" => %{"devices" => 2}
+        }
+      ]
+    }
+
+    # A device counts as failed once it is in the penalty box, which is where
+    # repeated failed update attempts put it.
+    defp fail_device(device) do
+      device
+      |> Ecto.Changeset.change(%{updates_blocked_until: DateTime.utc_now(:second) |> DateTime.add(3600, :second)})
+      |> Repo.update!()
+    end
+
+    test "a step fails once its tolerance is used up, and holds the workflow there", context do
+      first = add_device(context, %{tags: ["canary"]})
+      second = add_device(context, %{tags: ["canary"]})
+      later = add_device(context, %{tags: []})
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, @strict)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      canary = step(release, 1)
+      assert canary.status == :in_progress
+
+      # One failure is within tolerance.
+      _ = fail_device(first)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      assert step(release, 1).status == :in_progress
+
+      # The second uses it up.
+      _ = fail_device(second)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      failed = step(release, 1)
+      assert failed.status == :error
+      assert failed.finished_at
+
+      # The workflow stops there rather than stepping over it.
+      later_topic = "device:#{later.id}"
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, later_topic)
+
+      refute WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 2).status == :waiting
+      refute_receive %Broadcast{topic: ^later_topic, event: "update"}, 200
+    end
+
+    test "a percentage tolerance is of the devices the step claimed", context do
+      devices = for _ <- 1..4, do: add_device(context, %{tags: ["canary"]})
+
+      definition = %{
+        "version" => 1,
+        "steps" => [
+          %{
+            "name" => "Canary",
+            "matching_conditions" => %{"tags" => ["canary"]},
+            "failure_tolerance" => %{"percent" => 50}
+          }
+        ]
+      }
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, definition)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      canary = step(release, 1)
+      assert Workflows.claimed_device_count(canary) == 4
+      assert Workflows.failure_limit(canary, 4) == 2
+
+      [first, second | _] = devices
+
+      _ = fail_device(first)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      assert step(release, 1).status == :in_progress
+
+      _ = fail_device(second)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      assert step(release, 1).status == :error
+    end
+
+    # Rounding down would turn a small percentage into "no failures allowed",
+    # which is not what asking for a percentage means.
+    test "a percentage never rounds down to nothing", context do
+      %{release: release} = release_with(context, @strict)
+      canary = step(release, 1)
+
+      tolerance = %FailureTolerance{percent: 5}
+
+      assert Workflows.failure_limit(%{canary | failure_tolerance: tolerance}, 10) == 1
+      assert Workflows.failure_limit(%{canary | failure_tolerance: tolerance}, 100) == 5
+    end
+
+    test "a catch_all never fails, however many of its devices do", context do
+      device = add_device(context, %{tags: []})
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, @strict)
+
+      # Get past the canary step, which has no devices.
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      catch_all = step(release, 2)
+      assert catch_all.status == :in_progress
+      assert Workflows.failure_limit(catch_all, 1) == :never
+
+      _ = fail_device(device)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 2).status == :in_progress
+      refute Workflows.step_failed?(deployment_group, catch_all)
+    end
+
+    test "an update_devices step defaults to failing on the first device", context do
+      %{release: release} = release_with(context, @canary_then_rest)
+
+      assert Workflows.failure_limit(step(release, 1), 10) == 1
+    end
+  end
+
+  describe "announcing that a workflow has stopped" do
+    test "a failed step is measured, recorded, and raised to the product", context do
+      canary_device = add_device(context, %{tags: ["canary"]})
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+
+      :telemetry_test.attach_event_handlers(self(), [[:nerves_hub, :deployments, :workflow, :halted]])
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = fail_device(canary_device)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 1).status == :error
+
+      assert_receive {[:nerves_hub, :deployments, :workflow, :halted], _ref, %{count: 1},
+                      %{reason: :failed, step_number: 1}}
+
+      assert Enum.any?(
+               AuditLogs.logs_for(deployment_group),
+               &(&1.description =~ "failed for deployment group" and &1.actor_type == DeploymentGroup)
+             )
+
+      assert [notification] = product_notifications(context.product)
+      assert notification.level == :error
+      assert notification.title =~ "stopped after devices failed"
+      assert notification.message =~ deployment_group.name
+    end
+
+    test "reaching an approval step is announced too", context do
+      definition = %{
+        "version" => 1,
+        "steps" => [%{"name" => "Sign-off", "type" => "approval_required"}]
+      }
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, definition)
+
+      :telemetry_test.attach_event_handlers(self(), [[:nerves_hub, :deployments, :workflow, :halted]])
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 1).status == :in_progress
+
+      assert_receive {[:nerves_hub, :deployments, :workflow, :halted], _ref, %{count: 1}, %{reason: :awaiting_approval}}
+
+      assert [notification] = product_notifications(context.product)
+      assert notification.level == :info
+      assert notification.title =~ "waiting for approval"
+    end
+
+    # The orchestrator runs every few seconds while a workflow is stopped; saying
+    # so once per pass would bury everything else.
+    test "a workflow that stays stopped is not announced over and over", context do
+      canary_device = add_device(context, %{tags: ["canary"]})
+
+      %{deployment_group: deployment_group} = release_with(context, @canary_then_rest)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = fail_device(canary_device)
+
+      for _ <- 1..4, do: WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert [notification] = product_notifications(context.product)
+      assert notification.occurrence_count == 1
+    end
+  end
+
+  describe "retrying a failed step" do
+    test "lets its devices out of the penalty box and starts it again", context do
+      canary_device = add_device(context, %{tags: ["canary"]})
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      canary_device
+      |> Ecto.Changeset.change(%{
+        updates_blocked_until: DateTime.utc_now(:second) |> DateTime.add(3600, :second),
+        update_attempts: [DateTime.utc_now(:second)]
+      })
+      |> Repo.update!()
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      assert step(release, 1).status == :error
+
+      assert {:ok, retried} = Workflows.retry_step(deployment_group, step(release, 1), context.user)
+
+      assert retried.status == :in_progress
+      refute retried.finished_at
+
+      released = Repo.reload(canary_device)
+      refute released.updates_blocked_until
+      assert released.update_attempts == []
+
+      # It still holds its devices, so the workflow carries on where it stopped.
+      assert Workflows.claimed_device_count(step(release, 1)) == 1
+    end
+
+    test "a step that has not failed cannot be retried", context do
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+
+      assert {:error, :not_retryable} = Workflows.retry_step(deployment_group, step(release, 1), context.user)
+    end
+  end
+
+  describe "skipping" do
+    test "the trailing catch_all cannot be skipped", context do
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      catch_all = step(release, 2)
+      assert catch_all.status == :in_progress
+
+      refute Workflows.skippable?(catch_all)
+      assert {:error, :not_skippable} = Workflows.skip_step(catch_all, context.user)
+    end
+
+    test "a failed step can be skipped, and the workflow moves on", context do
+      canary_device = add_device(context, %{tags: ["canary"]})
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = fail_device(canary_device)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 1).status == :error
+
+      assert {:ok, _} = Workflows.skip_step(step(release, 1), context.user)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 2).status == :in_progress
+      assert Workflows.claimed_device_count(step(release, 2)) == 1
+    end
+
+    test "a completed step has nothing to skip", context do
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 1).status == :completed
+      refute Workflows.skippable?(step(release, 1))
+    end
+  end
+
+  describe "a device that leaves the deployment group" do
+    # It is no longer this step's business, and counting it would hold the step
+    # open for a device that is never going to take this release.
+    test "stops holding its step open", context do
+      canary_device = add_device(context, %{tags: ["canary"]})
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+      canary = step(release, 1)
+
+      assert Workflows.claim_devices(deployment_group, canary) == 1
+      refute Workflows.step_complete?(deployment_group, canary)
+
+      canary_device
+      |> Ecto.Changeset.change(%{deployment_id: nil})
+      |> Repo.update!()
+
+      assert Workflows.step_complete?(deployment_group, canary)
     end
   end
 
