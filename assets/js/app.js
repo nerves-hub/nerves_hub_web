@@ -18,6 +18,7 @@ import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
 import Flash from "./hooks/flash.js"
 import HighlightCode from "./hooks/highlightCode.js"
+import { LiveFlowHook } from "live_flow"
 import LocalShell from "./hooks/localShell.js"
 import LocalTime from "./hooks/localTime.js"
 import LogLineLocalTime from "./hooks/logLineLocalTime.js"
@@ -68,6 +69,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     DeviceLocationMapWithGeocoder,
     Flash,
     HighlightCode,
+    LiveFlow: LiveFlowHook,
     LocalShell,
     LocalTime,
     LogLineLocalTime,

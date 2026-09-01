@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "$id": "https://nerveshub.org/deployment-group-workflow.schema.json",
+  "title": "Deployment Workflow Definition",
+  "description": "A complete Deployment workflow definition.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "description": "The version of the schema",
+      "type": "integer",
+      "exclusiveMinimum": 0
+    },
+    "steps": {
+      "description": "Workflow steps",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "description": "A Workflow step",
+        "properties": {
+          "type": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "matching_conditions": {
+            "type": "object",
+            "properties": {
+              "tags": { "type": "array" },
+              "network_interfaces": { "type": "array" },
+              "match_limit": { "type": "integer" }
+            }
+          },
+          "concurrent_updates": { "type": "number" }
+        },
+        "required": ["name"]
+      },
+      "minItems": 1,
+      "maxItems": 6
+    }
+  },
+  "required": ["version", "steps"]
+}

@@ -1,0 +1,2 @@
+defmodule NervesHub.ManagedDeployments.WorkflowValidator do
+end

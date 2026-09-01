@@ -9,12 +9,16 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   alias NervesHub.Archives.Archive
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Repo
 
   @type t :: %__MODULE__{}
 
   schema "deployment_releases" do
     belongs_to(:deployment_group, DeploymentGroup)
+
+    has_many(:steps, DeploymentWorkflowStep, preload_order: [asc: :number])
+
     belongs_to(:firmware, Firmware)
     belongs_to(:archive, Archive)
     belongs_to(:created_by, User)
@@ -33,6 +37,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     |> put_assoc(:firmware, firmware)
     |> put_assoc(:archive, archive)
     |> put_assoc(:created_by, user)
+    |> generate_workflow_steps(deployment_group.workflow_definition)
     |> put_change(:number, 1)
     |> validate_length(:description, max: 100)
     |> validate_length(:notes, max: 1_000)
@@ -70,5 +75,29 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
         []
       end
     end)
+  end
+
+  defp generate_workflow_steps(changeset, nil), do: changeset
+
+  defp generate_workflow_steps(changeset, workflow_definition) do
+    {steps, _} =
+      Enum.map_reduce(workflow_definition["steps"], 1, fn step, count ->
+        {DeploymentWorkflowStep.new_changeset(step, count), count + 1}
+      end)
+
+    steps = maybe_add_catch_all(steps)
+
+    put_assoc(changeset, :steps, steps)
+  end
+
+  defp maybe_add_catch_all(steps) do
+    last = List.last(steps)
+
+    if get_field(last, :type) == :catch_all do
+      steps
+    else
+      number = get_field(last, :number) + 1
+      steps ++ [DeploymentWorkflowStep.new_catch_all(number)]
+    end
   end
 end

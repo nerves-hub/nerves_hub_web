@@ -14,7 +14,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
-  alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
+  alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
@@ -171,15 +171,17 @@ defmodule NervesHub.ManagedDeployments do
   def join_current_release(query, preload_firmware \\ false) do
     query
     |> join(:inner, [deployment_group: dg], dr in assoc(dg, :current_release), as: :current_release)
+    |> join(:left, [current_release: cr], s in assoc(cr, :steps), as: :steps)
     |> then(fn query ->
       if preload_firmware do
         query
         |> join(:left, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
         |> join(:left, [current_release: cr], a in assoc(cr, :archive), as: :archive)
-        |> preload([current_release: cr, firmware: f, archive: a],
-          current_release: {cr, firmware: f, archive: a}
+        |> preload([current_release: cr, firmware: f, archive: a, steps: s],
+          current_release: {cr, firmware: f, archive: a, steps: s}
         )
       else
+        # preload(query, [current_release: cr, steps: s], current_release: {cr, steps: s})
         query
       end
     end)
@@ -795,14 +797,14 @@ defmodule NervesHub.ManagedDeployments do
 
   @spec deployment_created_event(DeploymentGroup.t()) :: :ok
   defp deployment_created_event(deployment_group) do
-    _ = DistributedOrchestrator.start_orchestrator(deployment_group)
+    _ = Orchestrator.start_orchestrator(deployment_group)
 
     :ok
   end
 
   @spec deployment_activated_event(DeploymentGroup.t()) :: :ok
   defp deployment_activated_event(deployment_group) do
-    _ = DistributedOrchestrator.start_orchestrator(deployment_group)
+    _ = Orchestrator.start_orchestrator(deployment_group)
 
     :ok
   end

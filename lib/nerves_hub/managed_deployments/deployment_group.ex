@@ -53,6 +53,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:platform, :string, writable: :insert)
     field(:architecture, :string, writable: :insert)
 
+    field(:workflow_definition, :map)
+
     field(:device_failure_threshold, :integer, default: 3)
     field(:device_failure_rate_seconds, :integer, default: 180)
     field(:device_failure_rate_amount, :integer, default: 5)
@@ -233,7 +235,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       :priority_queue_enabled,
       :priority_queue_firmware_version_threshold,
       :release_network_interfaces,
-      :release_tags
+      :release_tags,
+      :workflow_definition
     ])
     |> cast_and_validate_numeric_fields(params)
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)

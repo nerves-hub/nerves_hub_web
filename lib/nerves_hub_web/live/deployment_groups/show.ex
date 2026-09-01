@@ -1,6 +1,11 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   use NervesHubWeb, :live_view
 
+  alias LiveFlow.Edge
+  alias LiveFlow.Handle
+  alias LiveFlow.Node
+  alias LiveFlow.State
+  alias LiveFlow.Validation.Connection
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
@@ -26,10 +31,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     if connected?(socket) do
       :ok = Products.PubSub.subscribe(product.id)
       :ok = socket.endpoint.subscribe("deployment:#{deployment_group.id}")
+      :ok = socket.endpoint.subscribe("deployment_release:#{deployment_group.current_deployment_release_id}")
     end
 
     socket
     |> assign(%{org: org, product: product, user: user})
+    |> assign(:flow, parse_workflow(deployment_group.current_release.steps))
     |> page_title("Deployment Group - #{deployment_group.name} - #{product.name}")
     |> sidebar_tab(:deployments)
     |> selected_tab()
@@ -135,6 +142,71 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> start_async(:remove_devices_from_deployment, remove_devices)
     |> put_flash(:info, "Removing devices from deployment, this may take a moment")
     |> noreply()
+  end
+
+  def handle_event("lf:node_change", %{"changes" => changes}, socket) do
+    flow =
+      Enum.reduce(changes, socket.assigns.flow, fn change, acc ->
+        apply_node_change(acc, change)
+      end)
+
+    {:noreply, assign(socket, flow: flow)}
+  end
+
+  def handle_event("lf:edge_change", %{"changes" => changes}, socket) do
+    flow =
+      Enum.reduce(changes, socket.assigns.flow, fn
+        %{"type" => "remove", "id" => id}, acc -> State.remove_edge(acc, id)
+        _change, acc -> acc
+      end)
+
+    {:noreply, assign(socket, flow: flow)}
+  end
+
+  def handle_event("lf:connect_end", params, socket) do
+    case Connection.validate_and_create(socket.assigns.flow, params) do
+      {:ok, edge} ->
+        flow = State.add_edge(socket.assigns.flow, edge)
+        {:noreply, assign(socket, flow: flow)}
+
+      {:error, _reason} ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("lf:viewport_change", params, socket) do
+    flow = State.update_viewport(socket.assigns.flow, params)
+    {:noreply, assign(socket, flow: flow)}
+  end
+
+  def handle_event("lf:selection_change", %{"nodes" => node_ids, "edges" => edge_ids}, socket) do
+    flow =
+      socket.assigns.flow
+      |> Map.put(:selected_nodes, MapSet.new(node_ids))
+      |> Map.put(:selected_edges, MapSet.new(edge_ids))
+
+    nodes =
+      Enum.reduce(flow.nodes, %{}, fn {id, node}, acc ->
+        Map.put(acc, id, %{node | selected: id in node_ids})
+      end)
+
+    edges =
+      Enum.reduce(flow.edges, %{}, fn {id, edge}, acc ->
+        Map.put(acc, id, %{edge | selected: id in edge_ids})
+      end)
+
+    flow = %{flow | nodes: nodes, edges: edges}
+    {:noreply, assign(socket, flow: flow)}
+  end
+
+  def handle_event("lf:delete_selected", _params, socket) do
+    flow = State.delete_selected(socket.assigns.flow)
+    {:noreply, assign(socket, flow: flow)}
+  end
+
+  # Catch-all for other lf: events (connect_start, connect_move, connect_cancel, etc.)
+  def handle_event("lf:" <> _event, _params, socket) do
+    {:noreply, socket}
   end
 
   @impl Phoenix.LiveView
@@ -320,8 +392,54 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     {:noreply, socket}
   end
 
+  def handle_info(%Broadcast{topic: "deployment_release:" <> _, event: "step/started", payload: %{id: id}}, socket) do
+    flow = socket.assigns.flow.nodes
+
+    flow =
+      case Map.get(flow, "step-#{id}") do
+        nil ->
+          flow
+
+        node ->
+          data = %{node.data | status: :in_progress}
+          %{flow | nodes: Map.put(flow, id, %{node | data: data})}
+      end
+
+    {:noreply, assign(socket, flow: flow)}
+  end
+
+  def handle_info(
+        %Broadcast{
+          topic: "deployment_release:" <> _,
+          event: "step/updated",
+          payload: %{number: number, status: status}
+        },
+        socket
+      ) do
+    flow = socket.assigns.flow
+
+    dbg(flow.nodes)
+
+    flow =
+      case Map.get(flow.nodes, "step-#{number}") do
+        nil ->
+          flow
+
+        node ->
+          data = %{node.data | status: status}
+          dbg(data)
+          %{flow | nodes: Map.put(flow.nodes, "step-#{number}", %{node | data: data})}
+      end
+
+    {:noreply, assign(socket, flow: flow)}
+  end
+
   # Ignore other broadcasts
   def handle_info(%Broadcast{}, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_info({:lf_node_click, _}, socket) do
     {:noreply, socket}
   end
 
@@ -347,4 +465,141 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   defp selected_tab(socket) do
     assign(socket, :tab, socket.assigns.live_action || :details)
   end
+
+  defp parse_workflow([]), do: nil
+
+  defp parse_workflow(steps) do
+    total_count = length(steps)
+
+    nodes = Enum.map(steps, &create_node(&1, total_count))
+    edges = Enum.map(steps, &create_edge(&1, total_count)) |> Enum.reject(&is_nil/1)
+
+    State.new(nodes: nodes, edges: edges)
+  end
+
+  defp create_node(step, total_count) do
+    step_data =
+      %{detail: step.description, label: node_label(step), status: step.status}
+      |> Map.reject(fn {_key, value} -> is_nil(value) end)
+
+    Node.new(
+      "step-#{step.number}",
+      calculate_positioning(step),
+      step_data,
+      type: :status,
+      draggable: "false",
+      deletable: false,
+      handles: create_handles(step, total_count)
+    )
+  end
+
+  defp node_label(%{type: :approval_required}), do: "Approval Required"
+  defp node_label(%{type: :catch_all}), do: "Remaining devices"
+  defp node_label(step), do: step.name
+
+  defp calculate_positioning(%{number: number, type: type}) do
+    y = if(type == :update_devices, do: 1, else: 16)
+
+    %{x: 250 * (number - 1) + 1, y: y}
+  end
+
+  defp create_handles(%{number: 1}, _) do
+    [Handle.source(:right, connectable: false)]
+  end
+
+  defp create_handles(%{number: num}, total_count) when num == total_count do
+    [Handle.source(:left, connectable: false)]
+  end
+
+  defp create_handles(_step, _total_count) do
+    [Handle.source(:left, connectable: false), Handle.source(:right, connectable: false)]
+  end
+
+  defp create_edge(%{number: num}, total_count) when num == total_count, do: nil
+
+  defp create_edge(%{number: num}, _total_count) do
+    Edge.new("e#{num}", "step-#{num}", "step-#{num + 1}",
+      selectable: false,
+      deletable: false,
+      marker_end: %{type: :arrow_closed, height: 8, width: 8, stroke_width: 0.5}
+    )
+  end
+
+  defp node_types() do
+    %{status: &status_node/1}
+  end
+
+  defp status_node(assigns) do
+    label = Map.get(assigns.node.data, :label, "Status")
+    status = Map.get(assigns.node.data, :status, :waiting)
+    detail = Map.get(assigns.node.data, :detail, "")
+
+    {status_color, status_label} =
+      case status do
+        :waiting -> {"#f59e0b", "Waiting"}
+        :completed -> {"#22c55e", "Completed"}
+        :in_progress -> {"#615fff", "In Progress"}
+        :approval_required -> {"#f59e0b", "Approval Required"}
+        :error -> {"#ef4444", "Error"}
+      end
+
+    assigns =
+      assigns
+      |> assign(:label, label)
+      |> assign(:status_color, status_color)
+      |> assign(:status_label, status_label)
+      |> assign(:detail, detail)
+
+    ~H"""
+    <div style="min-width: 150px">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <div style={"width: 10px; height: 10px; border-radius: 50%; background: #{@status_color}; box-shadow: 0 0 6px #{@status_color}80;#{@node.data.status == :in_progress && " animation: pulse 2s infinite;"}"}>
+        </div>
+        <div>
+          <div style="font-weight: 600; font-size: 13px; color: var(--lf-text-primary)">
+            {@label}
+          </div>
+          <div style={"font-size: 11px; font-weight: 500; color: #{@status_color}"}>
+            {@status_label}
+          </div>
+        </div>
+      </div>
+      <div
+        :if={@detail != ""}
+        style="font-size: 11px; color: var(--lf-text-muted); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--lf-border-secondary, #ddd)"
+      >
+        {@detail}
+      </div>
+    </div>
+    """
+  end
+
+  # Private helper for applying node changes
+  defp apply_node_change(flow, %{"type" => "position", "id" => id, "position" => pos} = change) do
+    case Map.get(flow.nodes, id) do
+      nil ->
+        flow
+
+      node ->
+        updated = %{node | position: %{x: pos["x"] / 1, y: pos["y"] / 1}, dragging: Map.get(change, "dragging", false)}
+        %{flow | nodes: Map.put(flow.nodes, id, updated)}
+    end
+  end
+
+  defp apply_node_change(flow, %{"type" => "dimensions", "id" => id} = change) do
+    case Map.get(flow.nodes, id) do
+      nil ->
+        flow
+
+      node ->
+        updated = %{node | width: Map.get(change, "width"), height: Map.get(change, "height"), measured: true}
+        %{flow | nodes: Map.put(flow.nodes, id, updated)}
+    end
+  end
+
+  defp apply_node_change(flow, %{"type" => "remove", "id" => id}) do
+    State.remove_node(flow, id)
+  end
+
+  defp apply_node_change(flow, _change), do: flow
 end

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "name": "Canary",
+      "description": "lan and wlan canary devices",
+      "matching_conditions": {
+        "tags": ["canary"],
+        "network_interfaces": ["lan", "wlan"],
+        "match_limit": 20
+      },
+      "concurrent_updates": 10
+    },
+    {
+      "name": "Canary - LTE",
+      "description": "LTE connected canaries",
+      "matching_conditions": {
+        "tags": ["canary"],
+        "network_interfaces": ["wwlan"],
+        "match_limit": 10
+      },
+      "concurrent_updates": 10
+    },
+    {
+      "name": "Phoenix based",
+      "description": "Locally servicable devices",
+      "matching_conditions": {
+        "tags": ["city:phoenix"],
+        "match_limit": 100
+      },
+      "concurrent_updates": 25
+    },
+    {
+      "type": "approval_required"
+    }
+  ]
+}

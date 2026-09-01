@@ -250,7 +250,26 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def render(assigns) do
     ~H"""
     <div class="flex w-full flex-col items-start gap-4 p-6">
-      <div :if={@waiting_for_update_count == 0} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border p-4">
+      <div :if={@flow} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border">
+        <div class="h-[150px]">
+          <.live_component
+            module={LiveFlow.Components.Flow}
+            id="deployment-workflow"
+            flow={@flow}
+            opts={
+              %{
+                background: :dots,
+                fit_view_on_init: true,
+                pan_on_drag: "false",
+                zoom_on_scroll: "false"
+              }
+            }
+            node_types={@flow_nodes}
+          />
+        </div>
+      </div>
+
+      <div :if={@waiting_for_update_count == 0 && is_nil(@flow)} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border p-4">
         <div class="text-base-50 flex h-10 items-center justify-center text-xl/6 font-medium">
           {if @updates_disabled_count > 0, do: "All eligible devices are up to date!", else: "All devices are up to date!"}
         </div>

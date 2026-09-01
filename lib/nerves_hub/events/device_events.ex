@@ -12,7 +12,7 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.Distributed.Orchestrator
+  alias NervesHub.ManagedDeployments.Orchestrator.DefaultCoordinator
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
 
@@ -137,7 +137,7 @@ defmodule NervesHub.DeviceEvents do
       not match?(%{available?: true}, Updates.check_update(device)) ->
         {:error, :no_update}
 
-      Orchestrator.available_slots(deployment_group) <= 0 ->
+      DefaultCoordinator.available_slots(deployment_group) <= 0 ->
         {:error, {:busy, @retry_after_minutes}}
 
       true ->
