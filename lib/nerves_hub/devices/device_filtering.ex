@@ -341,11 +341,6 @@ defmodule NervesHub.Devices.DeviceFiltering do
     end
   end
 
-  # Routed through the advanced-query compiler so both filter paths share the
-  # same semantics: compare each device's most recent value for the key. The
-  # previous join compared against the single most recent timestamp for the
-  # key across the whole table, which matches almost no devices once they
-  # report at independent times.
   defp filter_on_metric(query, %{metrics_key: key, metrics_operator: operator, metrics_value: value})
        when key != "" and value != "" do
     comparison = {:comparison, Schema.metric_prefix() <> key, metric_operator(operator), value}
