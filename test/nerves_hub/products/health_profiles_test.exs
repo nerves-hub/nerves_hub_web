@@ -24,6 +24,7 @@ defmodule NervesHub.Products.HealthProfilesTest do
       assert Enum.map(profile.metrics, &{&1.key, &1.warning_threshold, &1.alert_threshold}) == [
                {"cpu_usage_percent", 80.0, 90.0},
                {"disk_used_percentage", 80.0, 90.0},
+               {"load_15min", 8.0, 10.0},
                {"mem_used_percent", 70.0, 80.0}
              ]
 
@@ -127,7 +128,7 @@ defmodule NervesHub.Products.HealthProfilesTest do
 
       # featured_keys reports the featured, non-built-in keys of the resolved profile
       assert HealthProfiles.featured_keys(product.id, nil) |> Enum.sort() ==
-               ["cpu_usage_percent", "disk_used_percentage", "mem_used_percent"]
+               ["cpu_usage_percent", "disk_used_percentage", "load_15min", "mem_used_percent"]
     end
 
     test "a built-in key is flagged from the registry, not the caller", %{profile: profile} do

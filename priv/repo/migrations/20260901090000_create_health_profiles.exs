@@ -9,6 +9,7 @@ defmodule NervesHub.Repo.Migrations.CreateHealthProfiles do
   @default_metrics [
     {"cpu_usage_percent", 80.0, 90.0},
     {"disk_used_percentage", 80.0, 90.0},
+    {"load_15min", 8.0, 10.0},
     {"mem_used_percent", 70.0, 80.0}
   ]
   @default_period_seconds 3600
@@ -52,12 +53,10 @@ defmodule NervesHub.Repo.Migrations.CreateHealthProfiles do
     flush()
 
     # Every existing product gets a default profile carrying the previously
-    # hardcoded thresholds, with each metric featured. Note the deliberate
-    # display change this brings to existing device-details pages: the old
-    # fixed tiles were CPU / Memory / Load, the featured defaults render as
-    # CPU / Disk / Memory — Load has no defensible universal thresholds, so
-    # it is not in the default profile, and disk (which always had one) is.
-    # Feature a load metric on the profile to bring that tile back.
+    # hardcoded thresholds plus a 15-minute load average at 8/10, with each
+    # metric featured. The one display change this brings to existing
+    # device-details pages: they gain a Disk tile alongside the old
+    # CPU / Memory / Load trio, since disk always had default thresholds.
     now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
 
     product_ids = repo().all(from(p in "products", where: is_nil(p.deleted_at), select: p.id))
