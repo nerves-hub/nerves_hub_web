@@ -14,8 +14,8 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
     "steps" => [
       %{
         "name" => "Canary",
-        "description" => "lan and wlan canary devices",
-        "matching_conditions" => %{"tags" => ["canary"], "network_interfaces" => ["lan"], "match_limit" => 20},
+        "description" => "wired canary devices",
+        "matching_conditions" => %{"tags" => ["canary"], "network_interfaces" => ["ethernet"], "match_limit" => 20},
         "concurrent_updates" => 10
       },
       %{"name" => "Everyone else", "concurrent_updates" => 25}

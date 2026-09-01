@@ -3,20 +3,20 @@
   "steps": [
     {
       "name": "Canary",
-      "description": "lan and wlan canary devices",
+      "description": "wifi and ethernet canary devices",
       "matching_conditions": {
         "tags": ["canary"],
-        "network_interfaces": ["lan", "wlan"],
+        "network_interfaces": ["wifi", "ethernet"],
         "match_limit": 20
       },
       "concurrent_updates": 10
     },
     {
       "name": "Canary - LTE",
-      "description": "LTE connected canaries",
+      "description": "Cellular connected canaries",
       "matching_conditions": {
         "tags": ["canary"],
-        "network_interfaces": ["wwlan"],
+        "network_interfaces": ["cellular"],
         "match_limit": 10
       },
       "concurrent_updates": 10

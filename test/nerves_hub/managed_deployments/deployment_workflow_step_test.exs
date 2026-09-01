@@ -37,7 +37,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStepTest do
         "name" => "Canary",
         "matching_conditions" => %{
           "tags" => ["canary"],
-          "network_interfaces" => ["lan", "wlan"],
+          "network_interfaces" => ["ethernet", "wifi"],
           "match_limit" => 20
         }
       }
@@ -45,7 +45,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStepTest do
       conditions = Changeset.get_field(DeploymentWorkflowStep.new_changeset(step, 1), :matching_conditions)
 
       assert conditions.tags == ["canary"]
-      assert conditions.network_interfaces == ["lan", "wlan"]
+      assert conditions.network_interfaces == [:ethernet, :wifi]
       assert conditions.match_limit == 20
     end
 
@@ -56,6 +56,20 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStepTest do
 
       assert conditions.tags == ["canary"]
       refute Map.has_key?(conditions, :nonsense)
+    end
+
+    # An interface value that is not one of the humanised names would dump into the
+    # database fine and then raise on every read of the step, orchestrator
+    # included. It has to fail here instead.
+    test "an unrecognised network interface is rejected rather than stored" do
+      step = %{"name" => "Canary", "matching_conditions" => %{"network_interfaces" => ["lan"]}}
+
+      changeset = DeploymentWorkflowStep.new_changeset(step, 1)
+
+      refute changeset.valid?
+
+      assert %{matching_conditions: %{network_interfaces: ["is invalid"]}} =
+               Changeset.traverse_errors(changeset, fn {message, _opts} -> message end)
     end
 
     # Definitions are uploaded, so an unrecognised type must not reach String.to_atom/1.

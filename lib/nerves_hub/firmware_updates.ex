@@ -13,6 +13,7 @@ defmodule NervesHub.FirmwareUpdates do
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Repo
 
   @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
@@ -243,6 +244,21 @@ defmodule NervesHub.FirmwareUpdates do
     InflightUpdate
     |> where([iu], iu.deployment_id == ^deployment_group.id)
     |> where([iu], iu.priority_queue == false)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Count inflight updates for the devices a workflow step has claimed.
+
+  A workflow step paces its own devices, so the deployment group's concurrency is
+  not what limits it.
+  """
+  @spec count_inflight_updates_for_workflow_step(DeploymentWorkflowStep.t()) :: non_neg_integer()
+  def count_inflight_updates_for_workflow_step(%DeploymentWorkflowStep{id: step_id}) do
+    InflightUpdate
+    |> join(:inner, [iu], sd in "deployment_workflow_steps_devices",
+      on: sd.device_id == iu.device_id and sd.deployment_workflow_step_id == ^step_id
+    )
     |> Repo.aggregate(:count)
   end
 

@@ -17,15 +17,24 @@
         "type": "object",
         "description": "A Workflow step",
         "properties": {
-          "type": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["update_devices", "approval_required", "catch_all"]
+          },
           "name": { "type": "string" },
           "description": { "type": "string" },
           "matching_conditions": {
             "type": "object",
             "properties": {
-              "tags": { "type": "array" },
-              "network_interfaces": { "type": "array" },
-              "match_limit": { "type": "integer" }
+              "tags": { "type": "array", "items": { "type": "string" } },
+              "network_interfaces": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["wifi", "ethernet", "cellular", "unknown"]
+                }
+              },
+              "match_limit": { "type": "integer", "exclusiveMinimum": 0 }
             }
           },
           "concurrent_updates": { "type": "number" }

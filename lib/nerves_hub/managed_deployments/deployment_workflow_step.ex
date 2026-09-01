@@ -27,9 +27,18 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStep do
 
     field(:status, Ecto.Enum, values: [:waiting, :in_progress, :completed, :skipped, :error], default: :waiting)
 
+    # Network interfaces are the humanised names the rest of the system stores
+    # (see `Devices.DeviceConnection.humanized_network_interface_name/1`), not the
+    # raw `wlan0`/`eth0` a device reports. Kept identical to a deployment group's
+    # `release_network_interfaces` so a step filters the same way a release does.
     embeds_one :matching_conditions, __MODULE__.Conditions, primary_key: false, on_replace: :update do
       field(:tags, Tag, default: [])
-      field(:network_interfaces, {:array, :string}, default: [])
+
+      field(:network_interfaces, {:array, Ecto.Enum},
+        values: [:wifi, :ethernet, :cellular, :unknown],
+        default: []
+      )
+
       field(:match_limit, :integer, default: 10)
     end
 
@@ -67,7 +76,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStep do
     |> maybe_put_change(:description, step_definition["description"])
     |> maybe_put_change(:type, step_type(step_definition["type"]))
     |> maybe_put_change(:concurrency, step_definition["concurrent_updates"])
-    |> maybe_put_change(:matching_conditions, matching_conditions(step_definition["matching_conditions"]))
+    |> maybe_put_embed(:matching_conditions, matching_conditions(step_definition["matching_conditions"]))
     |> put_change(:number, number)
   end
 
@@ -75,6 +84,12 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStep do
 
   defp maybe_put_change(changeset, field, value) do
     put_change(changeset, field, value)
+  end
+
+  defp maybe_put_embed(changeset, _field, nil), do: changeset
+
+  defp maybe_put_embed(changeset, field, value) do
+    put_embed(changeset, field, value)
   end
 
   # Definitions are uploaded by users, so the strings are mapped rather than
@@ -87,15 +102,17 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStep do
 
   defp matching_conditions(nil), do: nil
 
+  # Cast rather than put the raw map: an unrecognised network interface has to
+  # fail here, where it becomes a changeset error the upload can report. Written
+  # through unchecked it would dump fine and then raise on every read of the
+  # step, including inside the orchestrator.
   defp matching_conditions(conditions) when is_map(conditions) do
-    %{}
-    |> maybe_put(:tags, conditions["tags"])
-    |> maybe_put(:network_interfaces, conditions["network_interfaces"])
-    |> maybe_put(:match_limit, conditions["match_limit"])
+    cast(
+      %__MODULE__.Conditions{},
+      Map.take(conditions, ["tags", "network_interfaces", "match_limit"]),
+      [:tags, :network_interfaces, :match_limit]
+    )
   end
 
   defp matching_conditions(_other), do: nil
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

@@ -28,6 +28,7 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Repo
 
   require Logger
@@ -91,12 +92,28 @@ defmodule NervesHub.Devices.Updates do
     |> Repo.all()
   end
 
+  @doc """
+  Get devices eligible for an update that belong to a workflow step.
+
+  The same eligibility rules as `available_for_update/2`, narrowed to the devices
+  claimed by the step. Which devices a step covers is decided once, when the step
+  claims them (see `NervesHub.ManagedDeployments.Workflows.claim_devices/2`);
+  this only answers which of them can be sent an update right now.
+  """
+  @spec available_for_workflow_step(DeploymentGroup.t(), DeploymentWorkflowStep.t(), non_neg_integer()) :: [Device.t()]
+  def available_for_workflow_step(deployment_group, step, count) do
+    build_available_devices_query(deployment_group, count, workflow_step: step)
+    |> Repo.all()
+  end
+
   # Builds the query for finding available devices for updates
   # Options:
   #   - :version_threshold - Optional firmware version threshold for priority queue filtering
+  #   - :workflow_step - Optional workflow step to restrict the devices to
   defp build_available_devices_query(deployment_group, count, opts) do
     now = DateTime.utc_now(:second)
     version_threshold = Keyword.get(opts, :version_threshold)
+    workflow_step = Keyword.get(opts, :workflow_step)
 
     Device
     |> from(as: :device)
@@ -127,8 +144,18 @@ defmodule NervesHub.Devices.Updates do
     |> maybe_version_threshold(version_threshold)
     |> maybe_filter_by_network_interfaces(deployment_group.release_network_interfaces)
     |> maybe_release_tags(deployment_group.release_tags)
+    |> maybe_limit_to_workflow_step(workflow_step)
     |> order_by_queue_management(deployment_group.queue_management)
     |> limit(^count)
+  end
+
+  defp maybe_limit_to_workflow_step(query, nil), do: query
+
+  defp maybe_limit_to_workflow_step(query, %DeploymentWorkflowStep{id: step_id}) do
+    join(query, :inner, [device: d], sd in "deployment_workflow_steps_devices",
+      on: sd.device_id == d.id and sd.deployment_workflow_step_id == ^step_id,
+      as: :workflow_step_device
+    )
   end
 
   defp join_firmware(query) do
