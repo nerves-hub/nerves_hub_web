@@ -305,6 +305,12 @@ defmodule NervesHub.Devices do
     |> preload([network_identities: ei], network_identities: ei)
   end
 
+  defp join_and_preload(query, :component_topology) do
+    query
+    |> join(:left, [d], ct in assoc(d, :component_topology), as: :component_topology)
+    |> preload([component_topology: ct], component_topology: ct)
+  end
+
   defp join_and_preload(query, :latest_connection) do
     query
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
