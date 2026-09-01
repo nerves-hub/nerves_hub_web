@@ -81,6 +81,14 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
   defp steps(release), do: Workflows.release_steps(release.id)
 
+  defp covered_device_ids(deployment_group, step) do
+    deployment_group
+    |> Workflows.step_devices_query(step)
+    |> select([device: d], d.id)
+    |> Repo.all()
+    |> Enum.sort()
+  end
+
   defp product_notifications(product) do
     Notification
     |> where([n], n.product_id == ^product.id)
@@ -107,7 +115,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       # The group allows far more than the step does.
       assert deployment_group.concurrent_updates > 2
-      assert Workflows.available_slots(canary) == 2
+      assert Workflows.available_slots(deployment_group, canary) == 2
     end
 
     test "shrinks as the step's own devices go inflight", context do
@@ -118,13 +126,13 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       canary = step(release, 1)
 
       assert Workflows.claim_devices(deployment_group, canary) == 2
-      assert Workflows.available_slots(canary) == 2
+      assert Workflows.available_slots(deployment_group, canary) == 2
 
       {:ok, _} = DeviceEvents.schedule_update(first.id, deployment_group, priority_queue: false)
-      assert Workflows.available_slots(canary) == 1
+      assert Workflows.available_slots(deployment_group, canary) == 1
 
       {:ok, _} = DeviceEvents.schedule_update(second.id, deployment_group, priority_queue: false)
-      assert Workflows.available_slots(canary) == 0
+      assert Workflows.available_slots(deployment_group, canary) == 0
     end
 
     # Each step paces itself. A device updating under one step must not eat into
@@ -138,12 +146,13 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       catch_all = step(release, 2)
 
       assert Workflows.claim_devices(deployment_group, canary) == 1
-      assert Workflows.claim_devices(deployment_group, catch_all) == 1
 
       {:ok, _} = DeviceEvents.schedule_update(canary_device.id, deployment_group, priority_queue: false)
 
-      assert Workflows.available_slots(canary) == 1
-      assert Workflows.available_slots(catch_all) == catch_all.concurrency
+      # The canary's own slot is spent, but a step that counts its claims is not
+      # charged for a device belonging to another.
+      assert Workflows.available_slots(deployment_group, canary) == 1
+      refute Workflows.claimed_device_count(catch_all) == 1
     end
 
     test "never goes below zero", context do
@@ -157,7 +166,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       end
 
       assert FirmwareUpdates.count_inflight_updates_for_workflow_step(canary) > canary.concurrency
-      assert Workflows.available_slots(canary) == 0
+      assert Workflows.available_slots(deployment_group, canary) == 0
     end
   end
 
@@ -301,6 +310,39 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
     end
   end
 
+  describe "what a release records" do
+    # The reason a catch_all derives its devices rather than claiming them: on a
+    # deployment of 400k devices, recording "everyone else" would be 400k rows per
+    # release to write, keep, and later migrate — to say something the other
+    # steps' claims already say.
+    test "only the staged devices are recorded, not every device", context do
+      canary = add_device(context, %{tags: ["canary"]})
+      others = for _ <- 1..4, do: add_device(context, %{tags: []})
+
+      %{deployment_group: deployment_group, release: release, next_firmware: next_firmware} =
+        release_with(context, @canary_then_rest)
+
+      # Walk the whole workflow: canary, then the catch_all.
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      FirmwareUpdates.clear_inflight_update(canary)
+      _ = mark_updated(canary, next_firmware)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 2).status == :in_progress
+
+      recorded =
+        "deployment_workflow_steps_devices"
+        |> select([sd], sd.device_id)
+        |> Repo.all()
+
+      assert recorded == [canary.id]
+
+      # The others are covered and scheduled all the same.
+      assert covered_device_ids(deployment_group, step(release, 2)) == others |> Enum.map(& &1.id) |> Enum.sort()
+    end
+  end
+
   describe "an approval step" do
     @needs_approval %{
       "version" => 1,
@@ -379,8 +421,8 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       catch_all = step(release, 2)
       assert catch_all.status == :in_progress
-      assert Workflows.claimed_device_count(catch_all) == 1
       assert Workflows.claimed_device_count(step(release, 1)) == 0
+      assert covered_device_ids(deployment_group, catch_all) == [canary_device.id]
 
       topic = "device:#{canary_device.id}"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
@@ -650,7 +692,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
 
       assert step(release, 2).status == :in_progress
-      assert Workflows.claimed_device_count(step(release, 2)) == 1
+      assert covered_device_ids(deployment_group, step(release, 2)) == [canary_device.id]
     end
 
     test "a completed step has nothing to skip", context do

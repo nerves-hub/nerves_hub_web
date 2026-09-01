@@ -29,6 +29,7 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
+  alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Repo
 
   require Logger
@@ -153,6 +154,16 @@ defmodule NervesHub.Devices.Updates do
   end
 
   defp maybe_limit_to_workflow_step(query, nil), do: query
+
+  # A catch_all covers whatever the release's other steps have not claimed, so it
+  # is defined by their claims rather than by any of its own.
+  defp maybe_limit_to_workflow_step(query, %DeploymentWorkflowStep{type: :catch_all} = step) do
+    where(
+      query,
+      [device: d],
+      d.id not in subquery(Workflows.claimed_device_ids_query(step.deployment_release_id))
+    )
+  end
 
   defp maybe_limit_to_workflow_step(query, %DeploymentWorkflowStep{id: step_id}) do
     join(query, :inner, [device: d], sd in "deployment_workflow_steps_devices",

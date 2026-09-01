@@ -85,6 +85,12 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   @spec claim_devices(DeploymentGroup.t(), DeploymentWorkflowStep.t()) :: non_neg_integer()
   def claim_devices(_deployment_group, %DeploymentWorkflowStep{type: :approval_required}), do: 0
 
+  # A catch_all covers whatever the other steps left, which is a question that can
+  # be asked of the other steps' claims. Recording it as well would mean a row per
+  # device per release — at 400k devices that is 400k rows to write, keep and
+  # migrate, to record something already known.
+  def claim_devices(_deployment_group, %DeploymentWorkflowStep{type: :catch_all}), do: 0
+
   def claim_devices(deployment_group, step) do
     case remaining_match_limit(step) do
       0 ->
@@ -108,9 +114,15 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   end
 
   @doc """
-  How many devices a step has claimed.
+  How many devices a step has recorded a claim on.
+
+  A `catch_all` records none — its devices are whatever the other steps did not
+  take — so this is zero for one. `step_devices_query/2` is what answers "which
+  devices does this step cover" for either kind.
   """
   @spec claimed_device_count(DeploymentWorkflowStep.t()) :: non_neg_integer()
+  def claimed_device_count(%DeploymentWorkflowStep{type: :catch_all}), do: 0
+
   def claimed_device_count(step) do
     @join_table
     |> from(as: :step_device)
@@ -192,10 +204,24 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
   def failure_limit(_step, _claimed), do: :never
 
-  # The devices a step claimed that are still part of the deployment group. One
-  # that has been moved elsewhere, or deleted, is no longer this step's business
-  # and would otherwise hold it open indefinitely.
-  defp step_devices_query(deployment_group, step) do
+  @doc """
+  The devices a step covers that are still part of the deployment group.
+
+  One that has been moved elsewhere, or deleted, is no longer this step's
+  business and would otherwise hold it open indefinitely.
+
+  A `catch_all` covers everything the release's other steps have not claimed,
+  which is why it needs no claims of its own.
+  """
+  @spec step_devices_query(DeploymentGroup.t(), DeploymentWorkflowStep.t()) :: Ecto.Query.t()
+  def step_devices_query(deployment_group, %DeploymentWorkflowStep{type: :catch_all} = step) do
+    deployment_group
+    |> deployment_group_devices_query()
+    |> exclude(:order_by)
+    |> where([device: d], d.id not in subquery(claimed_device_ids_query(step.deployment_release_id)))
+  end
+
+  def step_devices_query(deployment_group, step) do
     Device
     |> from(as: :device)
     |> join(:inner, [device: d], sd in ^@join_table,
@@ -209,11 +235,22 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   @doc """
   How many more devices a step may have updating at once.
   """
-  @spec available_slots(DeploymentWorkflowStep.t()) :: non_neg_integer()
-  def available_slots(step) do
-    (step.concurrency - FirmwareUpdates.count_inflight_updates_for_workflow_step(step))
+  @spec available_slots(DeploymentGroup.t(), DeploymentWorkflowStep.t()) :: non_neg_integer()
+  def available_slots(deployment_group, step) do
+    (step.concurrency - inflight_for_step(deployment_group, step))
     |> max(0)
     |> round()
+  end
+
+  # A catch_all has no claims to count against, and by the time it is running it
+  # is the only step scheduling anything, so everything updating for the
+  # deployment group is its doing.
+  defp inflight_for_step(deployment_group, %DeploymentWorkflowStep{type: :catch_all}) do
+    FirmwareUpdates.count_inflight_updates_for(deployment_group)
+  end
+
+  defp inflight_for_step(_deployment_group, step) do
+    FirmwareUpdates.count_inflight_updates_for_workflow_step(step)
   end
 
   @doc """
@@ -357,10 +394,6 @@ defmodule NervesHub.ManagedDeployments.Workflows do
     |> where([device: d], d.id not in subquery(claimed_device_ids_query(step.deployment_release_id)))
   end
 
-  defp matching_devices_query(deployment_group, %DeploymentWorkflowStep{type: :catch_all}) do
-    deployment_group_devices_query(deployment_group)
-  end
-
   defp matching_devices_query(deployment_group, %DeploymentWorkflowStep{matching_conditions: nil}) do
     deployment_group_devices_query(deployment_group)
   end
@@ -400,7 +433,11 @@ defmodule NervesHub.ManagedDeployments.Workflows do
     |> where([latest_connection: lc], lc.network_interface in ^interfaces)
   end
 
-  defp claimed_device_ids_query(deployment_release_id) do
+  @doc """
+  The devices already claimed by one of a release's steps.
+  """
+  @spec claimed_device_ids_query(integer()) :: Ecto.Query.t()
+  def claimed_device_ids_query(deployment_release_id) do
     @join_table
     |> from(as: :step_device)
     |> join(:inner, [step_device: sd], s in DeploymentWorkflowStep,
@@ -411,8 +448,6 @@ defmodule NervesHub.ManagedDeployments.Workflows do
     |> select([step_device: sd], sd.device_id)
   end
 
-  # A catch_all takes everyone left, so it has no limit to run out of.
-  defp remaining_match_limit(%DeploymentWorkflowStep{type: :catch_all}), do: :unlimited
   defp remaining_match_limit(%DeploymentWorkflowStep{matching_conditions: nil}), do: :unlimited
 
   defp remaining_match_limit(%DeploymentWorkflowStep{matching_conditions: %{match_limit: nil}}), do: :unlimited

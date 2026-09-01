@@ -1,6 +1,8 @@
 defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
   use NervesHub.DataCase, async: false
 
+  import Ecto.Query
+
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
@@ -133,7 +135,10 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
       assert claimed_device_ids(step) == Enum.sort([first.id, second.id])
     end
 
-    test "the catch_all takes what earlier steps left, and is not capped", context do
+    # The catch_all covers whatever is left rather than recording a claim on it,
+    # so that a 400k-device deployment does not write 400k rows to say "everyone
+    # else".
+    test "the catch_all covers what earlier steps left, without claiming it", context do
       canary = add_device(context, %{tags: ["canary"]})
       other_one = add_device(context, %{tags: []})
       other_two = add_device(context, %{tags: []})
@@ -147,10 +152,12 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
       [canary_step, catch_all] = steps(release)
 
       assert Workflows.claim_devices(deployment_group, canary_step) == 1
-      assert Workflows.claim_devices(deployment_group, catch_all) == 2
+      assert Workflows.claim_devices(deployment_group, catch_all) == 0
 
       assert claimed_device_ids(canary_step) == [canary.id]
-      assert claimed_device_ids(catch_all) == Enum.sort([other_one.id, other_two.id])
+      assert claimed_device_ids(catch_all) == []
+
+      assert covered_device_ids(deployment_group, catch_all) == Enum.sort([other_one.id, other_two.id])
     end
 
     test "an approval_required step claims nothing", context do
@@ -243,14 +250,15 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
       [canary_step, catch_all] = steps(release)
 
       assert Workflows.claim_devices(deployment_group, canary_step) == 1
-      assert Workflows.claim_devices(deployment_group, catch_all) == 0
+
+      # While the canary step holds it, the catch_all does not cover it.
+      assert covered_device_ids(deployment_group, catch_all) == []
 
       {:ok, skipped} = Workflows.skip_step(canary_step, context.user)
 
       assert skipped.status == :skipped
       assert claimed_device_ids(canary_step) == []
-      assert Workflows.claim_devices(deployment_group, catch_all) == 1
-      assert claimed_device_ids(catch_all) == [canary.id]
+      assert covered_device_ids(deployment_group, catch_all) == [canary.id]
     end
   end
 
@@ -313,6 +321,14 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
 
       assert catch_all.status == :in_progress
     end
+  end
+
+  defp covered_device_ids(deployment_group, step) do
+    deployment_group
+    |> Workflows.step_devices_query(step)
+    |> select([device: d], d.id)
+    |> Repo.all()
+    |> Enum.sort()
   end
 
   defp claimed_device_ids(step) do

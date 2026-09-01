@@ -144,7 +144,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
   end
 
   defp schedule_step_devices(deployment_group, step) do
-    slots = Workflows.available_slots(step)
+    slots = Workflows.available_slots(deployment_group, step)
 
     if slots > 0 do
       available = Updates.available_for_workflow_step(deployment_group, step, slots)
