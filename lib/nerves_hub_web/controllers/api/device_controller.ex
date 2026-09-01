@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Accounts
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
+  alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.DeviceCertificate
@@ -38,6 +39,12 @@ defmodule NervesHubWeb.API.DeviceController do
   def index(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     filters = Map.get(params, "filters", %{}) |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)
 
+    with :ok <- validate_advanced_query(filters, product.id) do
+      list_devices(conn, org, product, params, filters)
+    end
+  end
+
+  defp list_devices(conn, org, product, params, filters) do
     opts = %{
       pagination: PaginationHelpers.atomize_pagination_params(Map.get(params, "pagination", %{})),
       filters: filters
@@ -59,6 +66,25 @@ defmodule NervesHubWeb.API.DeviceController do
     |> assign(:pagination, PaginationHelpers.format_pagination_meta(page))
     |> render(:index)
   end
+
+  # An invalid advanced query is a 422 with the parse error, rather than the
+  # UI's silent "apply nothing" behavior - API callers should hear about typos.
+  # Free-text input (anything that doesn't look like a query expression) is
+  # still accepted and searched as text, the same as the UI search box.
+  defp validate_advanced_query(%{advanced_query: query}, product_id) when is_binary(query) do
+    case String.trim(query) == "" || AdvancedQuery.interpret(query, product_id) do
+      true ->
+        :ok
+
+      {:ok, _canonical_query, _ast} ->
+        :ok
+
+      {:error, message, position} ->
+        {:error, {:advanced_query, "invalid advanced query: #{message} (at character #{position})"}}
+    end
+  end
+
+  defp validate_advanced_query(_filters, _product_id), do: :ok
 
   def create(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     params =

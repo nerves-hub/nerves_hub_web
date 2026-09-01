@@ -11,6 +11,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
+  alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceFiltering
@@ -88,7 +89,13 @@ defmodule NervesHub.Devices do
       |> Map.merge(Map.get(opts, :pagination, %{}))
 
     sorting = Map.get(opts, :sort, {:asc, :identifier})
-    filters = Map.get(opts, :filters, %{})
+    {advanced_query, filters} = Map.pop(Map.get(opts, :filters, %{}), :advanced_query)
+
+    # When the advanced query checks the `deleted` column, let it control whether
+    # soft-deleted devices appear instead of the default exclusion and the
+    # `display_deleted` filter (matching `NervesHub.Filtering` for the UI list).
+    query_controls_deleted = AdvancedQuery.references_column?(advanced_query, product_id, "deleted")
+    filters = if query_controls_deleted, do: Map.delete(filters, :display_deleted), else: filters
 
     flop = %Flop{page: pagination[:page], page_size: pagination[:page_size]}
 
@@ -102,9 +109,11 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p, dg, cr], f in assoc(cr, :firmware))
     |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, o, p, dg, cr, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
-    |> Repo.exclude_deleted()
+    |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)
+    |> then(&if(query_controls_deleted, do: &1, else: Repo.exclude_deleted(&1)))
     |> DeviceFiltering.sort(sorting)
     |> DeviceFiltering.build_filters(filters)
+    |> AdvancedQuery.apply_to_query(advanced_query, product_id)
     |> preload([d, o, p, dg, cr, f, latest_connection: lc, latest_health: lh],
       org: o,
       product: p,
