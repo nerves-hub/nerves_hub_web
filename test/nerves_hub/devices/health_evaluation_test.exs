@@ -64,7 +64,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       assert reasons.unhealthy == %{}
 
       assert reasons.warning == %{
-               "cpu_usage_percent" => %{value: 85.0, threshold: 80.0, period_minutes: 60, aggregation: :median}
+               "cpu_usage_percent" => %{value: 85.0, threshold: 80.0, period_seconds: 3600, aggregation: :median}
              }
     end
 
@@ -145,9 +145,9 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
         HealthProfiles.add_metric(profile, %{
           "key" => "disconnects",
           "warning_threshold" => "3",
-          "warning_period_minutes" => "60",
+          "warning_period_seconds" => "3600",
           "alert_threshold" => "5",
-          "alert_period_minutes" => "60"
+          "alert_period_seconds" => "3600"
         })
 
       :ok
@@ -182,7 +182,10 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       insert_disconnects(device, 4)
 
       assert {:warning, reasons} = HealthEvaluation.evaluate(device_info, %{})
-      assert reasons.warning == %{"disconnects" => %{value: 4, threshold: 3.0, period_minutes: 60, aggregation: :count}}
+
+      assert reasons.warning == %{
+               "disconnects" => %{value: 4, threshold: 3.0, period_seconds: 3600, aggregation: :count}
+             }
 
       insert_disconnects(device, 2, 10)
 
@@ -208,9 +211,9 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
         key: "some_future_built_in",
         built_in: true,
         warning_threshold: 1.0,
-        warning_period_minutes: 60,
+        warning_period_seconds: 3600,
         alert_threshold: 2.0,
-        alert_period_minutes: 60
+        alert_period_seconds: 3600
       })
       |> Repo.insert!()
 

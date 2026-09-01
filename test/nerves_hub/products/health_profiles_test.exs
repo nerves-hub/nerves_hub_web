@@ -27,7 +27,7 @@ defmodule NervesHub.Products.HealthProfilesTest do
                {"mem_used_percent", 70.0, 80.0}
              ]
 
-      assert Enum.all?(profile.metrics, &(&1.warning_period_minutes == 60 and &1.alert_period_minutes == 60))
+      assert Enum.all?(profile.metrics, &(&1.warning_period_seconds == 3600 and &1.alert_period_seconds == 3600))
       refute Enum.any?(profile.metrics, & &1.built_in)
 
       # The starting metrics are the ones the device details page features.
@@ -104,16 +104,16 @@ defmodule NervesHub.Products.HealthProfilesTest do
       attrs = %{
         "key" => "cpu_temp",
         "warning_threshold" => "70",
-        "warning_period_minutes" => "30",
+        "warning_period_seconds" => "1800",
         "alert_threshold" => "85",
-        "alert_period_minutes" => "5"
+        "alert_period_seconds" => "300"
       }
 
       assert {:ok, metric} = HealthProfiles.add_metric(profile, attrs)
       assert metric.built_in == false
       assert metric.featured == false
       assert metric.warning_threshold == 70.0
-      assert metric.alert_period_minutes == 5
+      assert metric.alert_period_seconds == 300
     end
 
     test "a metric can be added as featured, and toggled later", %{profile: profile, product: product} do
@@ -136,9 +136,9 @@ defmodule NervesHub.Products.HealthProfilesTest do
         # A caller cannot un-flag a built-in.
         "built_in" => "false",
         "warning_threshold" => "5",
-        "warning_period_minutes" => "60",
+        "warning_period_seconds" => "3600",
         "alert_threshold" => "10",
-        "alert_period_minutes" => "60"
+        "alert_period_seconds" => "3600"
       }
 
       assert {:ok, metric} = HealthProfiles.add_metric(profile, attrs)
@@ -161,11 +161,16 @@ defmodule NervesHub.Products.HealthProfilesTest do
       assert error =~ "warning threshold"
     end
 
-    test "measurement periods stay within the metric retention window", %{profile: profile} do
-      attrs = Map.put(valid_metric_attrs("cpu_temp"), "alert_period_minutes", "20000")
+    test "measurement periods stay between 1 minute and 24 hours", %{profile: profile} do
+      over = Map.put(valid_metric_attrs("cpu_temp"), "alert_period_seconds", "#{25 * 3600}")
 
-      assert {:error, changeset} = HealthProfiles.add_metric(profile, attrs)
-      assert %{alert_period_minutes: [_error]} = errors_on(changeset)
+      assert {:error, changeset} = HealthProfiles.add_metric(profile, over)
+      assert %{alert_period_seconds: ["must be between 1 minute and 24 hours"]} = errors_on(changeset)
+
+      under = Map.put(valid_metric_attrs("cpu_temp"), "warning_period_seconds", "30")
+
+      assert {:error, changeset} = HealthProfiles.add_metric(profile, under)
+      assert %{warning_period_seconds: ["must be between 1 minute and 24 hours"]} = errors_on(changeset)
     end
 
     test "updating cannot change the key", %{profile: profile} do
@@ -209,9 +214,9 @@ defmodule NervesHub.Products.HealthProfilesTest do
     %{
       "key" => key,
       "warning_threshold" => "70",
-      "warning_period_minutes" => "60",
+      "warning_period_seconds" => "3600",
       "alert_threshold" => "85",
-      "alert_period_minutes" => "60"
+      "alert_period_seconds" => "3600"
     }
   end
 end

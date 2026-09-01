@@ -61,9 +61,9 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
       |> Enum.find(&(&1.key == "cpu_temp"))
 
     assert metric.warning_threshold == 70.0
-    assert metric.warning_period_minutes == 60
+    assert metric.warning_period_seconds == 3600
     assert metric.alert_threshold == 85.0
-    assert metric.alert_period_minutes == 30
+    assert metric.alert_period_seconds == 1800
     assert metric.featured == true
   end
 
@@ -128,7 +128,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
 
     metric = NervesHub.Repo.reload(metric)
     assert metric.warning_threshold == 60.0
-    assert metric.warning_period_minutes == 30
+    assert metric.warning_period_seconds == 1800
     assert metric.featured == false
   end
 

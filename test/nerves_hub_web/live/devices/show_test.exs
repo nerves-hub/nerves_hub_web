@@ -2155,9 +2155,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "key" => "load_1min",
         "featured" => "true",
         "warning_threshold" => "5",
-        "warning_period_minutes" => "60",
+        "warning_period_seconds" => "3600",
         "alert_threshold" => "10",
-        "alert_period_minutes" => "60"
+        "alert_period_seconds" => "3600"
       })
   end
 end

@@ -1,6 +1,18 @@
 defmodule NervesHub.Repo.Migrations.CreateHealthProfiles do
   use Ecto.Migration
 
+  import Ecto.Query
+
+  # The thresholds that were hardcoded in NervesHub.Devices.HealthStatus until
+  # now, measured over an hour (one idle-paced report). Duplicated here rather
+  # than read from the module so the migration stays frozen.
+  @default_metrics [
+    {"cpu_usage_percent", 80.0, 90.0},
+    {"disk_used_percentage", 80.0, 90.0},
+    {"mem_used_percent", 70.0, 80.0}
+  ]
+  @default_period_seconds 3600
+
   def up() do
     create table(:health_profiles) do
       add(:product_id, references(:products, on_delete: :delete_all), null: false)
@@ -24,40 +36,50 @@ defmodule NervesHub.Repo.Migrations.CreateHealthProfiles do
       add(:built_in, :boolean, null: false, default: false)
       add(:featured, :boolean, null: false, default: false)
       add(:warning_threshold, :float, null: false)
-      add(:warning_period_minutes, :integer, null: false)
+      add(:warning_period_seconds, :integer, null: false)
       add(:alert_threshold, :float, null: false)
-      add(:alert_period_minutes, :integer, null: false)
+      add(:alert_period_seconds, :integer, null: false)
 
       timestamps()
     end
 
     create(unique_index(:health_profile_metrics, [:health_profile_id, :key]))
 
-    # Every existing product gets a default profile carrying the thresholds
-    # that were hardcoded in NervesHub.Devices.HealthStatus until now, averaged
-    # over an hour (one idle-paced report). Values are duplicated here rather
-    # than read from the module so the migration stays frozen.
-    execute("""
-    INSERT INTO health_profiles (product_id, platform, inserted_at, updated_at)
-    SELECT id, NULL, now(), now()
-    FROM products
-    WHERE deleted_at IS NULL
-    """)
+    flush()
 
-    execute("""
-    INSERT INTO health_profile_metrics
-      (health_profile_id, key, built_in, featured, warning_threshold, warning_period_minutes,
-       alert_threshold, alert_period_minutes, inserted_at, updated_at)
-    SELECT hp.id, defaults.key, false, true, defaults.warning, 60, defaults.alert, 60, now(), now()
-    FROM health_profiles hp
-    CROSS JOIN (
-      VALUES
-        ('cpu_usage_percent', 80.0, 90.0),
-        ('mem_used_percent', 70.0, 80.0),
-        ('disk_used_percentage', 80.0, 90.0)
-    ) AS defaults(key, warning, alert)
-    WHERE hp.platform IS NULL
-    """)
+    # Every existing product gets a default profile carrying the previously
+    # hardcoded thresholds, with each metric featured — matching what the
+    # device details page showed before profiles existed.
+    now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
+
+    product_ids = repo().all(from(p in "products", where: is_nil(p.deleted_at), select: p.id))
+
+    profiles =
+      Enum.map(product_ids, fn product_id ->
+        %{product_id: product_id, platform: nil, inserted_at: now, updated_at: now}
+      end)
+
+    if profiles != [] do
+      {_count, profile_rows} = repo().insert_all("health_profiles", profiles, returning: [:id])
+
+      metrics =
+        for %{id: profile_id} <- profile_rows, {key, warning, alert} <- @default_metrics do
+          %{
+            health_profile_id: profile_id,
+            key: key,
+            built_in: false,
+            featured: true,
+            warning_threshold: warning,
+            warning_period_seconds: @default_period_seconds,
+            alert_threshold: alert,
+            alert_period_seconds: @default_period_seconds,
+            inserted_at: now,
+            updated_at: now
+          }
+        end
+
+      repo().insert_all("health_profile_metrics", metrics)
+    end
   end
 
   def down() do

@@ -10,7 +10,7 @@ defmodule NervesHub.Products.HealthProfiles do
 
   A profile holds any number of metrics, each with a warning and an alert
   level: a level engages when the metric's median over that level's
-  measurement period (a minute to an hour) reaches the level's threshold.
+  measurement period (a minute to 24 hours) reaches the level's threshold.
   Most metrics read the values devices report to `device_metrics`; a metric
   flagged `built_in` is a virtual one evaluated with its own query (e.g.
   "disconnects" counts connectivity events). Evaluation happens as reports
@@ -30,7 +30,7 @@ defmodule NervesHub.Products.HealthProfiles do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
-  @default_period_minutes 60
+  @default_period_seconds 3600
 
   @built_in_metrics %{
     "disconnects" => %{
@@ -63,9 +63,9 @@ defmodule NervesHub.Products.HealthProfiles do
         built_in: false,
         featured: true,
         warning_threshold: warning / 1,
-        warning_period_minutes: @default_period_minutes,
+        warning_period_seconds: @default_period_seconds,
         alert_threshold: alert / 1,
-        alert_period_minutes: @default_period_minutes
+        alert_period_seconds: @default_period_seconds
       }
     end)
     |> Enum.sort_by(& &1.key)
@@ -162,9 +162,9 @@ defmodule NervesHub.Products.HealthProfiles do
               :built_in,
               :featured,
               :warning_threshold,
-              :warning_period_minutes,
+              :warning_period_seconds,
               :alert_threshold,
-              :alert_period_minutes
+              :alert_period_seconds
             ])
           )
       end

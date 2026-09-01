@@ -59,18 +59,19 @@ defmodule NervesHubWeb.Components.HealthStatus do
   # what kind of value engaged the level (the median of reported samples, or
   # a count of events); one from the legacy instantaneous check carries
   # neither.
-  defp window_phrase(%{"aggregation" => "count", "period_minutes" => minutes}) when is_integer(minutes) do
-    " in #{format_period(minutes)}"
+  defp window_phrase(%{"aggregation" => "count", "period_seconds" => seconds}) when is_integer(seconds) do
+    " in #{format_period(seconds)}"
   end
 
-  defp window_phrase(%{"period_minutes" => minutes}) when is_integer(minutes) do
-    " median over #{format_period(minutes)}"
+  defp window_phrase(%{"period_seconds" => seconds}) when is_integer(seconds) do
+    " median over #{format_period(seconds)}"
   end
 
   defp window_phrase(_reasons), do: ""
 
-  defp format_period(minutes) when minutes < 60, do: "#{minutes}m"
-  defp format_period(minutes) when rem(minutes, 1440) == 0, do: "#{div(minutes, 1440)}d"
-  defp format_period(minutes) when rem(minutes, 60) == 0, do: "#{div(minutes, 60)}h"
-  defp format_period(minutes), do: "#{div(minutes, 60)}h #{rem(minutes, 60)}m"
+  defp format_period(seconds) when seconds < 60, do: "#{seconds}s"
+  defp format_period(seconds) when rem(seconds, 86_400) == 0, do: "#{div(seconds, 86_400)}d"
+  defp format_period(seconds) when rem(seconds, 3600) == 0, do: "#{div(seconds, 3600)}h"
+  defp format_period(seconds) when rem(seconds, 60) == 0, do: "#{div(seconds, 60)}m"
+  defp format_period(seconds), do: "#{div(seconds, 60)}m #{rem(seconds, 60)}s"
 end

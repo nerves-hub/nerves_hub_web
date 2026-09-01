@@ -8,7 +8,7 @@
       <div class="flex w-full flex-col gap-1">
         <p class="w-2/3 text-sm">
           Health profiles decide when a device counts as unhealthy. Each metric engages its warning (orange) or alert (red) level when
-          the metric's median over the measurement period (between a minute and an hour) reaches the level's threshold. The median, so
+          the metric's median over the measurement period (between a minute and 24 hours) reaches the level's threshold. The median, so
           one glitched sensor reading can't trip a level on its own.
         </p>
         <p class="w-2/3 text-sm">
@@ -99,13 +99,13 @@
               <.level_fields
                 level="warning"
                 threshold={metric.warning_threshold}
-                period_minutes={metric.warning_period_minutes}
+                period_seconds={metric.warning_period_seconds}
                 disabled={!authorized?(:"product:update", @current_scope)}
               />
               <.level_fields
                 level="alert"
                 threshold={metric.alert_threshold}
-                period_minutes={metric.alert_period_minutes}
+                period_seconds={metric.alert_period_seconds}
                 disabled={!authorized?(:"product:update", @current_scope)}
               />
             </div>
@@ -144,8 +144,8 @@
               </div>
             </div>
             <div class="flex flex-wrap gap-3">
-              <.level_fields level="warning" period_minutes={60} disabled={!authorized?(:"product:update", @current_scope)} />
-              <.level_fields level="alert" period_minutes={60} disabled={!authorized?(:"product:update", @current_scope)} />
+              <.level_fields level="warning" period_seconds={3600} disabled={!authorized?(:"product:update", @current_scope)} />
+              <.level_fields level="alert" period_seconds={3600} disabled={!authorized?(:"product:update", @current_scope)} />
             </div>
           </form>
         </div>

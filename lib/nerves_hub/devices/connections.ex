@@ -418,8 +418,8 @@ defmodule NervesHub.Devices.Connections do
   to check that analytics is enabled first.
   """
   @spec disconnection_count(pos_integer(), pos_integer(), pos_integer(), pos_integer()) :: non_neg_integer()
-  def disconnection_count(org_id, product_id, device_id, minutes) do
-    cutoff = DateTime.shift(DateTime.utc_now(), minute: -minutes)
+  def disconnection_count(org_id, product_id, device_id, seconds) do
+    cutoff = DateTime.shift(DateTime.utc_now(), second: -seconds)
 
     DeviceConnectionHistory
     |> where([dc], dc.org_id == ^org_id and dc.product_id == ^product_id and dc.device_id == ^device_id)

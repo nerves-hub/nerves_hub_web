@@ -55,8 +55,8 @@ defmodule NervesHub.Devices.HealthEvaluation do
     |> Enum.map(fn metric ->
       judge(
         metric,
-        medians[{metric.key, metric.warning_period_minutes}],
-        medians[{metric.key, metric.alert_period_minutes}],
+        medians[{metric.key, metric.warning_period_seconds}],
+        medians[{metric.key, metric.alert_period_seconds}],
         :median
       )
     end)
@@ -69,7 +69,7 @@ defmodule NervesHub.Devices.HealthEvaluation do
   # across metrics.
   defp medians(device_id, metrics) do
     metrics
-    |> Enum.flat_map(&[{&1.key, &1.warning_period_minutes}, {&1.key, &1.alert_period_minutes}])
+    |> Enum.flat_map(&[{&1.key, &1.warning_period_seconds}, {&1.key, &1.alert_period_seconds}])
     |> Enum.group_by(fn {_key, period} -> period end, fn {key, _period} -> key end)
     |> Enum.flat_map(fn {period, keys} ->
       device_id
@@ -82,11 +82,11 @@ defmodule NervesHub.Devices.HealthEvaluation do
   defp judge(metric, warning_value, alert_value, aggregation) do
     cond do
       is_number(alert_value) and alert_value >= metric.alert_threshold ->
-        {:unhealthy, metric.key, reason(alert_value, metric.alert_threshold, metric.alert_period_minutes, aggregation)}
+        {:unhealthy, metric.key, reason(alert_value, metric.alert_threshold, metric.alert_period_seconds, aggregation)}
 
       is_number(warning_value) and warning_value >= metric.warning_threshold ->
         {:warning, metric.key,
-         reason(warning_value, metric.warning_threshold, metric.warning_period_minutes, aggregation)}
+         reason(warning_value, metric.warning_threshold, metric.warning_period_seconds, aggregation)}
 
       is_number(warning_value) or is_number(alert_value) ->
         :healthy
@@ -98,16 +98,16 @@ defmodule NervesHub.Devices.HealthEvaluation do
 
   defp judge_built_in(%{key: "disconnects"} = metric, device_info) do
     if Application.get_env(:nerves_hub, :analytics_enabled) do
-      count = fn minutes ->
+      count = fn seconds ->
         Connections.disconnection_count(
           device_info.org_id,
           device_info.product_id,
           device_info.device_id,
-          minutes
+          seconds
         )
       end
 
-      judge(metric, count.(metric.warning_period_minutes), count.(metric.alert_period_minutes), :count)
+      judge(metric, count.(metric.warning_period_seconds), count.(metric.alert_period_seconds), :count)
     else
       :unknown
     end
@@ -119,8 +119,8 @@ defmodule NervesHub.Devices.HealthEvaluation do
 
   # `aggregation` says what `value` is (:median of the reported samples, or a
   # :count of events) so the UI can phrase the reason accordingly.
-  defp reason(value, threshold, period_minutes, aggregation) do
-    %{value: round_value(value), threshold: threshold, period_minutes: period_minutes, aggregation: aggregation}
+  defp reason(value, threshold, period_seconds, aggregation) do
+    %{value: round_value(value), threshold: threshold, period_seconds: period_seconds, aggregation: aggregation}
   end
 
   defp round_value(value) when is_float(value), do: Float.round(value, 2)

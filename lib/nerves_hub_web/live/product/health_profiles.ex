@@ -169,7 +169,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   # tablets).
   attr(:level, :string, required: true, values: ["warning", "alert"])
   attr(:threshold, :any, default: nil)
-  attr(:period_minutes, :integer, required: true)
+  attr(:period_seconds, :integer, required: true)
   attr(:disabled, :boolean, default: false)
 
   defp level_fields(assigns) do
@@ -208,7 +208,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
               step="1"
               required
               name={"metric[#{@level}_period_value]"}
-              value={period_value(@period_minutes)}
+              value={period_value(@period_seconds)}
               disabled={@disabled}
               class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-20 rounded border px-2 py-1 focus:ring-0 sm:text-sm"
             />
@@ -217,7 +217,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
               disabled={@disabled}
               class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block rounded border px-2 py-1 focus:ring-0 sm:text-sm"
             >
-              {Phoenix.HTML.Form.options_for_select([{"minutes", "minutes"}, {"hours", "hours"}], period_unit(@period_minutes))}
+              {Phoenix.HTML.Form.options_for_select([{"minutes", "minutes"}, {"hours", "hours"}], period_unit(@period_seconds))}
             </select>
           </div>
         </label>
@@ -226,8 +226,10 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     """
   end
 
+  @period_units %{"minutes" => 60, "hours" => 3600}
+
   # The form takes each period as a value plus a unit (so people aren't locked
-  # into a preset list); the schema stores minutes. An unparseable value is
+  # into a preset list); the schema stores seconds. An unparseable value is
   # passed through untouched so the changeset reports it instead of a crash.
   defp normalize_periods(attrs) do
     attrs
@@ -239,24 +241,28 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     value = attrs["#{level}_period_value"]
     unit = attrs["#{level}_period_unit"]
 
-    minutes =
+    seconds =
       case Integer.parse(to_string(value)) do
-        {n, ""} -> if unit == "hours", do: n * 60, else: n
+        {n, ""} -> n * Map.get(@period_units, unit, 60)
         _unparseable -> value
       end
 
     attrs
-    |> Map.put("#{level}_period_minutes", minutes)
+    |> Map.put("#{level}_period_seconds", seconds)
     |> Map.drop(["#{level}_period_value", "#{level}_period_unit"])
   end
 
-  # Stored minutes rendered back into the value + unit pair, preferring the
-  # larger unit when it divides evenly (60 minutes shows as 1 hour).
-  defp period_value(minutes) when is_integer(minutes) and rem(minutes, 60) == 0, do: div(minutes, 60)
-  defp period_value(minutes), do: minutes
+  # Stored seconds rendered back into the value + unit pair, preferring the
+  # largest unit that divides evenly (3600 seconds shows as 1 hour). The form
+  # only offers minutes and hours, so a stored sub-minute remainder (possible
+  # if the granularity ever changes) floors to minutes rather than lying in a
+  # unit the select doesn't have.
+  defp period_value(seconds) when is_integer(seconds) and rem(seconds, 3600) == 0, do: div(seconds, 3600)
+  defp period_value(seconds) when is_integer(seconds), do: div(seconds, 60)
+  defp period_value(seconds), do: seconds
 
-  defp period_unit(minutes) when is_integer(minutes) and rem(minutes, 60) == 0, do: "hours"
-  defp period_unit(_minutes), do: "minutes"
+  defp period_unit(seconds) when is_integer(seconds) and rem(seconds, 3600) == 0, do: "hours"
+  defp period_unit(_seconds), do: "minutes"
 
   defp first_error(changeset) do
     changeset
