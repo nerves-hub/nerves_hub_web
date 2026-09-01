@@ -1094,7 +1094,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   # hand-designed composite tiles cover collapse into their tile — featuring
   # cpu_usage_percent or cpu_temp gives the CPU tile — and any other featured
   # key gets a plain value tile, unless it is already pinned in the engaged
-  # row above. With no profile, the pre-profile fixed trio.
+  # row above. An engaged key belonging to a composite shows in both places
+  # on purpose: the engaged tile carries the reason, the composite keeps its
+  # companion readings (CPU keeps its temperature). With no profile, the
+  # pre-profile fixed trio.
   defp featured_tiles(nil, _engaged_keys), do: [:cpu, :memory, :load]
 
   defp featured_tiles(featured_keys, engaged_keys) do
@@ -1157,16 +1160,19 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   defp engaged_detail(%{"aggregation" => "count"} = reason) do
-    "threshold #{reason["threshold"]} in #{Utils.format_period(reason["period_seconds"])}"
+    "threshold #{num(reason["threshold"])} in #{Utils.format_period(reason["period_seconds"])}"
   end
 
   defp engaged_detail(%{"aggregation" => "share"} = reason) do
     direction = if reason["operator"] == "lte", do: "at or under", else: "at or over"
 
-    "#{direction} #{reason["threshold"]} for #{reason["value"]}% of #{Utils.format_period(reason["period_seconds"])}"
+    "#{direction} #{num(reason["threshold"])} for #{reason["value"]}% of #{Utils.format_period(reason["period_seconds"])}"
   end
 
-  defp engaged_detail(reason), do: "threshold #{reason["threshold"]}"
+  defp engaged_detail(reason), do: "threshold #{num(reason["threshold"])}"
+
+  defp num(value) when is_number(value), do: Utils.format_number(value)
+  defp num(value), do: value
 
   defp featured_tile(%{tile: :cpu} = assigns) do
     ~H"""
@@ -1248,6 +1254,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     """
   end
 
-  defp nice_round(val) when is_float(val), do: Float.round(val, 1)
+  defp nice_round(val) when is_float(val), do: Utils.format_number(Float.round(val, 1))
+  defp nice_round(val) when is_integer(val), do: Utils.format_number(val)
   defp nice_round(val), do: val
 end

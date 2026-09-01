@@ -53,7 +53,9 @@ defmodule NervesHub.Products.HealthProfiles do
   Thresholds match the previously hardcoded defaults in
   `NervesHub.Devices.HealthStatus.default_thresholds/0`, measured over an
   hour (one idle-paced report) so behaviour stays close to the old
-  latest-value check.
+  latest-value check. Featuring these defaults deliberately changes the
+  device-details tiles from the old fixed CPU / Memory / Load trio to
+  CPU / Disk / Memory — load has no defensible universal thresholds.
   """
   @spec default_metric_attrs() :: [map()]
   def default_metric_attrs() do

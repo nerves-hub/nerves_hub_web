@@ -193,8 +193,22 @@ defmodule NervesHub.Products do
     end)
     |> Repo.transact()
     |> case do
-      {:ok, %{product: product}} -> {:ok, product}
-      {:error, _step, changeset, _} -> {:error, changeset}
+      {:ok, %{product: product}} ->
+        {:ok, product}
+
+      {:error, :product, changeset, _} ->
+        {:error, changeset}
+
+      {:error, _profile_step, _profile_changeset, _} ->
+        # Callers render this changeset's errors on the product form, so a
+        # failure from the profile seeding must not leak a changeset of the
+        # wrong schema.
+        changeset =
+          %Product{}
+          |> Product.changeset(params)
+          |> Ecto.Changeset.add_error(:base, "could not create the default health profile")
+
+        {:error, changeset}
     end
   end
 

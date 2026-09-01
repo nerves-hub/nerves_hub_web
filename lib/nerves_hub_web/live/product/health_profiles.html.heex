@@ -9,8 +9,8 @@
         <p class="w-2/3 text-sm">
           Health profiles decide when a device counts as unhealthy. Each metric engages its warning (orange) or alert (red) level when
           the metric's median over the measurement period (between a minute and 24 hours) crosses the level's threshold — above or
-          below it, per the metric's operator, since a frame rate goes bad low while a temperature goes bad high. The median, so one
-          glitched sensor reading can't trip a level on its own.
+          below it, per the metric's operator, since a frame rate goes bad low while a temperature goes bad high. The median, so a
+          glitched sensor reading among real ones can't trip a level — though a window holding only a single reading is that reading.
         </p>
         <p class="w-2/3 text-sm">
           The default profile applies to every device. A platform profile overrides it for devices running firmware built for that

@@ -240,7 +240,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
             step="any"
             required
             name={"metric[#{@level}_threshold]"}
-            value={@threshold}
+            value={@threshold && NervesHubWeb.Components.Utils.format_number(@threshold)}
             disabled={@disabled}
             class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-28 rounded border px-2 py-1 focus:ring-0 sm:text-sm"
           />
@@ -287,10 +287,13 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     value = attrs["#{level}_period_value"]
     unit = attrs["#{level}_period_unit"]
 
+    # A forged unit must fail validation, not be quietly reinterpreted.
     seconds =
-      case Integer.parse(to_string(value)) do
-        {n, ""} -> n * Map.get(@period_units, unit, 60)
-        _unparseable -> value
+      with {n, ""} <- Integer.parse(to_string(value)),
+           {:ok, multiplier} <- Map.fetch(@period_units, unit) do
+        n * multiplier
+      else
+        _unparseable_or_unknown_unit -> "invalid period"
       end
 
     attrs
@@ -300,9 +303,9 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
 
   # Stored seconds rendered back into the value + unit pair, preferring the
   # largest unit that divides evenly (3600 seconds shows as 1 hour). The form
-  # only offers minutes and hours, so a stored sub-minute remainder (possible
-  # if the granularity ever changes) floors to minutes rather than lying in a
-  # unit the select doesn't have.
+  # only offers minutes and hours, so a stored sub-minute remainder (only
+  # reachable via console/API today) floors to minutes — re-saving such a
+  # row rewrites 90s to 60s.
   defp period_value(seconds) when is_integer(seconds) and rem(seconds, 3600) == 0, do: div(seconds, 3600)
   defp period_value(seconds) when is_integer(seconds), do: div(seconds, 60)
   defp period_value(seconds), do: seconds

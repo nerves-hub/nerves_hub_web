@@ -22,7 +22,8 @@ defmodule NervesHub.Repo.Migrations.CreateHealthProfiles do
     end
 
     # One profile per platform, and `nulls_distinct: false` makes the NULL
-    # platform (the product default) unique per product too.
+    # platform (the product default) unique per product too. Requires
+    # PostgreSQL 15+ (the README recommends 18).
     create(
       unique_index(:health_profiles, [:product_id, :platform],
         name: :health_profiles_product_id_platform_index,
@@ -51,8 +52,12 @@ defmodule NervesHub.Repo.Migrations.CreateHealthProfiles do
     flush()
 
     # Every existing product gets a default profile carrying the previously
-    # hardcoded thresholds, with each metric featured — matching what the
-    # device details page showed before profiles existed.
+    # hardcoded thresholds, with each metric featured. Note the deliberate
+    # display change this brings to existing device-details pages: the old
+    # fixed tiles were CPU / Memory / Load, the featured defaults render as
+    # CPU / Disk / Memory — Load has no defensible universal thresholds, so
+    # it is not in the default profile, and disk (which always had one) is.
+    # Feature a load metric on the profile to bring that tile back.
     now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
 
     product_ids = repo().all(from(p in "products", where: is_nil(p.deleted_at), select: p.id))

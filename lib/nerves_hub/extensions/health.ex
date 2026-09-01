@@ -91,11 +91,13 @@ defmodule NervesHub.Extensions.Health do
     # arrived.
     {:ok, _stored} = Metrics.record(device_info, metrics)
 
-    # The product's health evaluator judges from in-memory windows — no
-    # aggregate queries. If it cannot be reached, fall back to judging the
-    # same way from the stored samples.
+    # The product's health evaluator judges from in-memory windows; any
+    # database work a judgement needs (a cold device's window rebuild, the
+    # built-ins' queries) runs here in the channel process, not in the
+    # evaluator. If it cannot be reached, fall back to judging the same way
+    # from the stored samples.
     {status, reasons} =
-      case HealthEvaluator.evaluate_report(device_info, metrics) do
+      case HealthEvaluator.judge_report(device_info, metrics) do
         {:ok, status, reasons} -> {status, reasons}
         {:error, :unavailable} -> HealthEvaluation.evaluate(device_info, metrics)
       end

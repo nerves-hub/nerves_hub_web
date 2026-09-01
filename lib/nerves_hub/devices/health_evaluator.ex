@@ -8,25 +8,36 @@ defmodule NervesHub.Devices.HealthEvaluator do
   One evaluator runs per product *per node*, started on demand and looked up
   through a local `Registry`. That is safe without cluster-wide coordination
   because a device's reports all arrive over its one connection, so one
-  node's evaluator sees that device's full stream; when the connection
-  closes, the extension tells the evaluator to forget the device, and
-  wherever the device reconnects warms it up again from the stored metrics.
+  node's evaluator sees that device's full stream. Tracking follows the
+  connection: the device socket's terminate tells the evaluator to forget
+  the device (covering abrupt disconnects — power loss, crashed channels —
+  that the extension's own detach message never announces), and the tick
+  drops any entry silent for longer than the profile's longest window as a
+  backstop for terminates that never ran. A dropped or disconnected device
+  keeps its last written status — deliberately: offline is what the
+  connection status is for, and a health opinion from when it last reported
+  stays true of that moment. Wherever it reconnects warms it up again from
+  the stored metrics.
 
-  The counters live in `NervesHub.Devices.HealthEvaluator.Windows`. Costs:
+  The GenServer itself never queries. Everything that reads a database runs
+  in the calling channel process, where it parallelizes across devices and
+  is throttled by the pool instead of one mailbox:
 
-    * a report — pure counter updates, no queries (built-in metrics such as
-      disconnect counts still ask ClickHouse, as they did before);
-    * the minute tick — pure pruning and re-judging; a database write only
-      when a device's status actually changed;
-    * first sighting of a device — one indexed query over its stored
-      samples to rebuild the windows.
+    * `judge_report/2` (the client-side orchestrator) fetches the cached
+      profile, judges built-in metrics (ClickHouse) caller-side, and for a
+      device the evaluator doesn't know yet, rebuilds the windows from
+      storage caller-side and hands them over to adopt. A reconnect storm
+      costs N parallel pool-limited queries, not a serialized queue.
+    * the tick is pure pruning and re-judging; a database write only when a
+      device's status actually changed.
 
   Status semantics are the counting form of the median test: a level
-  engages when at least half of the window's samples are at or over the
-  threshold. A profile edit is broadcast by `NervesHub.Products.HealthProfiles`;
-  the evaluator reloads and drops its windows, since counters made against
-  old thresholds cannot be reinterpreted, and devices warm up again on
-  their next report.
+  engages when at least half of the window's samples breach the threshold
+  in the metric's unhealthy direction. Profile edits are broadcast by
+  `NervesHub.Products.HealthProfiles`; the evaluator debounces the burst a
+  page of per-metric Save buttons produces, reloads once, and only drops
+  its windows when something evaluation-relevant actually changed — a
+  featured-only edit keeps every counter.
 
   If the evaluator cannot be reached, callers fall back to
   `NervesHub.Devices.HealthEvaluation`, which judges the same way from the
@@ -44,26 +55,40 @@ defmodule NervesHub.Devices.HealthEvaluator do
   require Logger
 
   @tick_ms to_timeout(minute: 1)
+  @reload_debounce_ms to_timeout(second: 2)
+  @call_timeout_ms to_timeout(second: 1)
 
   # ---------------------------------------------------------------- client
 
   @doc """
-  Judge a report for the device, starting the product's evaluator if this
-  node doesn't have one yet. The report's metrics must already be saved (a
-  cold device warms up from the database, and its windows must include this
-  report).
+  Judge a report for the device. Runs in the calling process: the cached
+  profile comes from the evaluator, but built-in judgements (ClickHouse)
+  and, for a device the evaluator doesn't track yet, the window rebuild
+  from stored samples (Postgres) all execute here. The report's metrics
+  must already be saved — a rebuild must include them.
 
-  `{:error, :unavailable}` when the evaluator cannot be reached — the
-  caller falls back to the query-based evaluation.
+  `{:error, :unavailable}` when the evaluator cannot be reached or the
+  product has no profile — the caller falls back to the query-based
+  evaluation (or the legacy check).
   """
-  @spec evaluate_report(struct() | map(), map()) ::
+  @spec judge_report(struct() | map(), map()) ::
           {:ok, :unknown | :healthy | :warning | :unhealthy, map() | nil} | {:error, :unavailable}
-  def evaluate_report(device_info, report_metrics) do
-    with {:ok, pid} <- start_or_lookup(device_info.product_id) do
-      GenServer.call(pid, {:report, device_info, report_metrics})
+  def judge_report(device_info, report_metrics) do
+    with {:ok, pid} <- start_or_lookup(device_info.product_id),
+         {:ok, profile} <- call(pid, {:profile, device_info}) do
+      built_ins = HealthEvaluation.built_in_judgements(profile, device_info)
+
+      case call(pid, {:report, device_info, report_metrics, built_ins}) do
+        {:error, :cold} ->
+          minute = Windows.minute(DateTime.utc_now())
+          windows = HealthEvaluation.windows_from_storage(device_info, profile, minute)
+
+          call(pid, {:adopt, device_info, windows, built_ins})
+
+        reply ->
+          reply
+      end
     end
-  catch
-    :exit, _reason -> {:error, :unavailable}
   end
 
   @doc "The device's connection closed; stop tracking (and ticking for) it."
@@ -77,6 +102,12 @@ defmodule NervesHub.Devices.HealthEvaluator do
 
   def start_link(product_id) do
     GenServer.start_link(__MODULE__, product_id, name: {:via, Registry, {__MODULE__.Registry, product_id}})
+  end
+
+  defp call(pid, message) do
+    GenServer.call(pid, message, @call_timeout_ms)
+  catch
+    :exit, _reason -> {:error, :unavailable}
   end
 
   defp start_or_lookup(product_id) do
@@ -100,43 +131,65 @@ defmodule NervesHub.Devices.HealthEvaluator do
     :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, HealthProfiles.topic(product_id))
     _ = Process.send_after(self(), :tick, @tick_ms)
 
-    {:ok, %{product_id: product_id, profiles: HealthProfiles.profiles_by_platform(product_id), devices: %{}}}
+    {:ok,
+     %{
+       product_id: product_id,
+       profiles: HealthProfiles.profiles_by_platform(product_id),
+       devices: %{},
+       reload_pending?: false
+     }}
   end
 
   @impl GenServer
-  def handle_call({:report, device_info, report_metrics}, _from, state) do
-    now = DateTime.utc_now()
-    minute = Windows.minute(now)
+  def handle_call({:profile, device_info}, _from, state) do
+    case profile_for(state, device_info) do
+      nil -> {:reply, {:error, :unavailable}, state}
+      profile -> {:reply, {:ok, profile}, state}
+    end
+  end
+
+  def handle_call({:report, device_info, report_metrics, built_ins}, _from, state) do
+    minute = Windows.minute(DateTime.utc_now())
+
+    with profile when not is_nil(profile) <- profile_for(state, device_info),
+         %{} = device <- state.devices[device_info.device_id] do
+      windows = Windows.record(device.windows, profile, report_metrics, minute)
+
+      judge_and_store(state, device_info, device, profile, windows, built_ins, minute)
+    else
+      nil ->
+        reply = if profile_for(state, device_info), do: {:error, :cold}, else: {:error, :unavailable}
+
+        {:reply, reply, state}
+    end
+  end
+
+  def handle_call({:adopt, device_info, windows, built_ins}, _from, state) do
+    minute = Windows.minute(DateTime.utc_now())
 
     case profile_for(state, device_info) do
       nil ->
         {:reply, {:error, :unavailable}, state}
 
       profile ->
-        judge_report(state, device_info, report_metrics, profile, minute)
-    end
-  rescue
-    # Warm-up and built-ins read the database and ClickHouse; when either is
-    # unreachable the caller has a query-based fallback of its own, and a
-    # crash here would take every device of the product down with it.
-    error ->
-      Logger.warning("[HealthEvaluator] evaluation failed: #{inspect(error)}")
+        # The adopted windows were rebuilt from storage by the caller and
+        # already contain the report that triggered this; nothing to record.
+        # Last write wins if two rebuilds race — both came from the same
+        # storage, and a device's reports serialize on its one connection.
+        device = %{
+          windows: Windows.new(),
+          status: nil,
+          reasons: nil,
+          built_ins: [],
+          platform: platform(device_info),
+          last_report_minute: minute
+        }
 
-      {:reply, {:error, :unavailable}, state}
+        judge_and_store(state, device_info, device, profile, windows, built_ins, minute)
+    end
   end
 
-  defp judge_report(state, device_info, report_metrics, profile, minute) do
-    device = state.devices[device_info.device_id] || warm_up(device_info, profile, minute)
-
-    windows =
-      if device.warmed_this_call? do
-        device.windows
-      else
-        Windows.record(device.windows, profile, report_metrics, minute)
-      end
-
-    built_ins = HealthEvaluation.built_in_judgements(profile, device_info)
-
+  defp judge_and_store(state, device_info, device, profile, windows, built_ins, minute) do
     {status, reasons} =
       windows
       |> Windows.judge(profile, minute)
@@ -149,7 +202,7 @@ defmodule NervesHub.Devices.HealthEvaluator do
         status: status,
         reasons: reasons,
         built_ins: built_ins,
-        warmed_this_call?: false
+        last_report_minute: minute
     }
 
     {:reply, {:ok, status, reasons}, put_in(state.devices[device_info.device_id], device)}
@@ -161,14 +214,14 @@ defmodule NervesHub.Devices.HealthEvaluator do
   end
 
   @impl GenServer
-  def handle_info(:tick, %{devices: devices} = state) when devices == %{} do
+  def handle_info(:tick, %{devices: devices, reload_pending?: false} = state) when devices == %{} do
     # Nothing to track and nothing scheduled to change: stop rather than
     # tick forever for a product with no connected devices on this node.
     {:stop, :normal, state}
   end
 
   def handle_info(:tick, state) do
-    Process.send_after(self(), :tick, @tick_ms)
+    _ = Process.send_after(self(), :tick, @tick_ms)
 
     {:noreply, run_tick(state, DateTime.utc_now())}
   end
@@ -179,10 +232,32 @@ defmodule NervesHub.Devices.HealthEvaluator do
     {:noreply, run_tick(state, now)}
   end
 
+  # A page of per-metric Save buttons produces a burst of these; one
+  # debounced reload absorbs it (and redundant broadcasts from other nodes).
+  def handle_info({:health_profiles_changed, _product_id}, %{reload_pending?: true} = state) do
+    {:noreply, state}
+  end
+
   def handle_info({:health_profiles_changed, _product_id}, state) do
-    # Counters were made against the old thresholds and cannot be
-    # reinterpreted; drop them and let devices warm up on their next report.
-    {:noreply, %{state | profiles: HealthProfiles.profiles_by_platform(state.product_id), devices: %{}}}
+    _ = Process.send_after(self(), :apply_profile_reload, @reload_debounce_ms)
+
+    {:noreply, %{state | reload_pending?: true}}
+  end
+
+  def handle_info(:apply_profile_reload, state) do
+    profiles = HealthProfiles.profiles_by_platform(state.product_id)
+
+    # Counters are made against thresholds and directions, so they only
+    # have to go when one of those changed. A display-only edit — toggling
+    # featured — keeps every window; devices re-warm lazily otherwise.
+    devices =
+      if evaluation_fingerprint(profiles) == evaluation_fingerprint(state.profiles) do
+        state.devices
+      else
+        %{}
+      end
+
+    {:noreply, %{state | profiles: profiles, devices: devices, reload_pending?: false}}
   end
 
   # ------------------------------------------------------------- internals
@@ -191,23 +266,53 @@ defmodule NervesHub.Devices.HealthEvaluator do
     minute = Windows.minute(now)
 
     devices =
-      state.devices
-      |> Map.new(fn {device_id, device} -> {device_id, advance(state, device_id, device, minute)} end)
+      for {device_id, device} <- state.devices,
+          advanced = advance(state, device_id, device, minute),
+          advanced != :drop,
+          into: %{},
+          do: {device_id, advanced}
 
     %{state | devices: devices}
   end
 
   defp advance(state, device_id, device, minute) do
-    with profile when not is_nil(profile) <- profile_for(state, device),
-         windows = Windows.prune(device.windows, profile, minute),
-         {status, reasons} =
-           windows |> Windows.judge(profile, minute) |> Enum.concat(device.built_ins) |> Windows.summarize(),
-         false <- status == device.status do
-      record_transition(device_id, status, reasons)
+    profile = profile_for(state, device)
 
-      %{device | windows: windows, status: status, reasons: reasons}
-    else
-      _no_profile_or_no_change -> device
+    cond do
+      is_nil(profile) ->
+        :drop
+
+      minute - device.last_report_minute > longest_span(profile) ->
+        # Silent past every window: the backstop for a socket terminate
+        # that never ran (brutal kills). Dropped without a transition
+        # write, so a node holding a stale copy of a device that
+        # reconnected elsewhere stops writing over the live node.
+        :drop
+
+      true ->
+        # Built-in judgements are report-driven (their queries run in the
+        # caller); on the tick they are carried until their own windows
+        # have fully elapsed since the last report, then dropped — an
+        # engaged disconnects level shouldn't outlive its window.
+        built_ins =
+          if minute - device.last_report_minute >= built_in_span(profile) do
+            []
+          else
+            device.built_ins
+          end
+
+        windows = Windows.prune(device.windows, profile, minute)
+
+        {status, reasons} =
+          windows |> Windows.judge(profile, minute) |> Enum.concat(built_ins) |> Windows.summarize()
+
+        # TODO: no hysteresis — a device oscillating around a threshold can
+        # flip status (one row + broadcast) every minute.
+        if status != device.status do
+          record_transition(device_id, status, reasons)
+        end
+
+        %{device | windows: windows, status: status, reasons: reasons, built_ins: built_ins}
     end
   end
 
@@ -229,16 +334,41 @@ defmodule NervesHub.Devices.HealthEvaluator do
     error -> Logger.warning("[HealthEvaluator] failed to record transition: #{inspect(error)}")
   end
 
-  defp warm_up(device_info, profile, minute) do
-    %{
-      windows: HealthEvaluation.windows_from_storage(device_info, profile, minute),
-      status: nil,
-      reasons: nil,
-      built_ins: [],
-      platform: platform(device_info),
-      warmed_this_call?: true
-    }
+  # Everything about the profiles that counters depend on; `featured` and
+  # labels deliberately absent.
+  defp evaluation_fingerprint(profiles) do
+    profiles
+    |> Enum.map(fn {platform, profile} ->
+      metrics =
+        profile.metrics
+        |> Enum.map(
+          &{&1.key, &1.built_in, &1.operator, &1.warning_threshold, &1.warning_period_seconds, &1.alert_threshold,
+           &1.alert_period_seconds}
+        )
+        |> Enum.sort()
+
+      {platform, metrics}
+    end)
+    |> Enum.sort()
+    |> :erlang.phash2()
   end
+
+  defp longest_span(profile) do
+    profile.metrics
+    |> Enum.flat_map(&[&1.warning_period_seconds, &1.alert_period_seconds])
+    |> Enum.max(fn -> 0 end)
+    |> seconds_to_span()
+  end
+
+  defp built_in_span(profile) do
+    profile.metrics
+    |> Enum.filter(& &1.built_in)
+    |> Enum.flat_map(&[&1.warning_period_seconds, &1.alert_period_seconds])
+    |> Enum.max(fn -> 0 end)
+    |> seconds_to_span()
+  end
+
+  defp seconds_to_span(seconds), do: div(seconds + 59, 60)
 
   defp profile_for(state, device_info_or_device) do
     platform = platform(device_info_or_device)

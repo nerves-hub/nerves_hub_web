@@ -84,12 +84,13 @@ defmodule NervesHub.Devices.HealthEvaluation do
 
   defp judge_built_in(%{key: "disconnects"} = metric, device_info) do
     if Application.get_env(:nerves_hub, :analytics_enabled) do
-      count = fn seconds ->
-        Connections.disconnection_count(device_info.org_id, device_info.product_id, device_info.device_id, seconds)
-      end
-
-      alert_count = count.(metric.alert_period_seconds)
-      warning_count = count.(metric.warning_period_seconds)
+      {warning_count, alert_count} =
+        Connections.disconnection_counts(
+          device_info.org_id,
+          device_info.product_id,
+          device_info.device_id,
+          {metric.warning_period_seconds, metric.alert_period_seconds}
+        )
 
       cond do
         alert_count >= metric.alert_threshold ->

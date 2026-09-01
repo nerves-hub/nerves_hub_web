@@ -3,6 +3,7 @@ defmodule NervesHubWeb.DeviceSocket do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHub.Devices.HealthEvaluator
   alias NervesHub.ProductNotifications
   alias NervesHubWeb.Helpers.ClientIP
   alias Phoenix.Socket.Transport
@@ -204,12 +205,15 @@ defmodule NervesHubWeb.DeviceSocket do
     |> update_last_heartbeat()
   end
 
-  defp on_disconnect(_reason, %{assigns: %{disconnection_handled?: true} = socket}) do
+  # Public for tests: the disconnect side effects must be provable for a
+  # socket that dies without the device announcing anything.
+  @doc false
+  def on_disconnect(_reason, %{assigns: %{disconnection_handled?: true} = socket}) do
     socket
   end
 
   @decorate with_span("Channels.DeviceSocket.on_disconnect")
-  defp on_disconnect(reason, socket) do
+  def on_disconnect(reason, socket) do
     %{assigns: %{device_info: device_info}} = socket
 
     if reason == {:error, {:shutdown, :disconnected}} do
@@ -229,6 +233,15 @@ defmodule NervesHubWeb.DeviceSocket do
     # its possible that this is a stale connection and the device has already reconnected,
     # which means the following call might return :error, but we can ignore it
     _ = DeviceLink.disconnect(device_info.connection_ref)
+
+    # The health evaluator only tracks connected devices, and the extension's
+    # own detach only runs when the device *announces* it — an abrupt
+    # disconnect (power loss, network drop, crashed channel) never does. The
+    # transport's terminate runs for all of those, so this is where the
+    # evaluator is told. A local Registry lookup plus a cast: safe here. If
+    # the device already reconnected to this node, the forget merely costs
+    # one re-warm-up on its next report.
+    :ok = HealthEvaluator.forget(device_info.product_id, device_info.device_id)
 
     assign(socket, :disconnection_handled?, true)
   end
