@@ -3,7 +3,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   alias NervesHub.Devices.Metrics
   alias NervesHub.Products
+  alias NervesHub.Products.HealthProfiles
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
+  alias NervesHubWeb.Components.Utils
   alias Phoenix.LiveView.AsyncResult
 
   @time_frame_opts [
@@ -43,6 +45,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     # the charts say why they are empty.
     |> assign(:analytics_enabled, analytics_enabled?())
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(socket.assigns.device.id))
+    |> assign(:threshold_specs, threshold_specs(socket.assigns.device))
     |> assign(:custom_health_labels, Products.custom_health_metrics_labels(socket.assigns.product))
     |> assign(:editing_label_key, nil)
     |> assign(:chart_data, %{})
@@ -347,6 +350,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                   phx-update="ignore"
                   data-key={key}
                   data-metrics={Jason.encode!(chart_data)}
+                  data-thresholds={Jason.encode!(@threshold_specs[key])}
                   data-title=""
                   data-max={suggested_max(key)}
                   data-mintime={Jason.encode!(@charts_from_timestamp)}
@@ -535,11 +539,34 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   defp get_time_unit({"day", 1}), do: "hour"
   defp get_time_unit({"day", _}), do: "day"
 
+  # The thresholds the device's resolved profile holds for each regular
+  # metric, handed to the chart hook so it can color the dots that breach
+  # them. Dots are judged instantaneously — a colored dot is a sample beyond
+  # a threshold, whether or not the windowed median engaged the level.
+  defp threshold_specs(device) do
+    platform =
+      case device.firmware_metadata do
+        %{platform: platform} -> platform
+        _ -> nil
+      end
+
+    case HealthProfiles.resolve(device.product_id, platform) do
+      nil ->
+        %{}
+
+      profile ->
+        for metric <- profile.metrics, !metric.built_in, into: %{} do
+          {metric.key, %{operator: metric.operator, warning: metric.warning_threshold, alert: metric.alert_threshold}}
+        end
+    end
+  end
+
   defp custom_metrics(metrics) do
     Enum.reject(metrics, &(elem(&1, 0) in @manual_metrics))
   end
 
-  defp nice_round(val) when is_float(val), do: Float.round(val, 1)
+  defp nice_round(val) when is_float(val), do: Utils.format_number(Float.round(val, 1))
+  defp nice_round(val) when is_integer(val), do: Utils.format_number(val)
   defp nice_round(val), do: val
 
   # Charts are keyed by metric name, and metric names come from the device --

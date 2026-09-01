@@ -20,15 +20,41 @@ export default {
       max = this.el.dataset.max
     }
 
+    // The device's health profile thresholds for this metric, when it has
+    // any: dots breaching them are colored by the level they breach. Judged
+    // per dot (instantaneous), independent of the windowed median that
+    // decides the device's status.
+    let thresholds = null
+    if (this.el.dataset.thresholds && this.el.dataset.thresholds !== "null") {
+      thresholds = JSON.parse(this.el.dataset.thresholds)
+    }
+
+    const breachLevel = (y) => {
+      if (!thresholds || y == null) return null
+      const breaches = (t) => (thresholds.operator === "lte" ? y <= t : y >= t)
+      if (breaches(thresholds.alert)) return "alert"
+      if (breaches(thresholds.warning)) return "warning"
+      return null
+    }
+
+    const pointColor = (ctx) => {
+      const level = breachLevel(ctx.raw && ctx.raw.y)
+      if (level === "alert") return "rgb(239, 68, 68)"
+      if (level === "warning") return "rgb(245, 158, 11)"
+      return "rgb(97, 95, 255)"
+    }
+
+    const pointRadius = (ctx) => (breachLevel(ctx.raw && ctx.raw.y) ? 3 : 2)
+
     const areaChartDataset = {
       type: "scatter",
       data: {
         datasets: [
           {
-            radius: 2,
+            radius: pointRadius,
             data: metrics,
-            pointBackgroundColor: "rgb(97, 95, 255)",
-            pointBorderColor: "rgb(97, 95, 255)",
+            pointBackgroundColor: pointColor,
+            pointBorderColor: pointColor,
             parsing: false,
           },
         ],
