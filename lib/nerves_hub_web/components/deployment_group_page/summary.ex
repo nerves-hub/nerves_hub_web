@@ -261,6 +261,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               %{
                 background: :dots,
                 fit_view_on_init: true,
+                # Fitting the view scales up as readily as down, and a short
+                # workflow in a wide panel ends up magnified. Cap it at natural
+                # size: shrink a long workflow to fit, never blow a short one up.
+                max_zoom: 1.0,
                 pan_on_drag: "false",
                 zoom_on_scroll: "false"
               }

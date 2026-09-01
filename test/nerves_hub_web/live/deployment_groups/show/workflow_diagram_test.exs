@@ -41,6 +41,19 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
     |> Enum.uniq()
   end
 
+  # Fitting the view scales up as readily as down, so a short workflow in a wide
+  # panel would be magnified past its natural size.
+  test "the diagram is never scaled up past natural size", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+    assert html =~ ~s(data-max-zoom="1.0")
+  end
+
   test "arrows run level and leave each node on its right", %{
     conn: conn,
     org: org,
