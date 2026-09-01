@@ -637,6 +637,26 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> refute_has("div a", text: device.identifier)
     end
 
+    test "by custom metrics", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{})
+
+      Repo.insert!(DeviceMetric.save(%{device_id: device2.id, key: "goats_per_second", value: 42}))
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> select("Metrics", option: "goats_per_second")
+      |> assert_has("label", text: "Operator", timeout: 1000)
+      |> select("Metrics Operator", option: "Greater Than")
+      |> assert_has("label", text: "Metrics Value", timeout: 1000)
+      |> fill_in("Metrics Value", with: "37")
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: device2.identifier)
+      |> refute_has("div a", text: device.identifier)
+    end
+
     test "by several tags", %{conn: conn, fixture: fixture} do
       %{device: device, firmware: firmware, org: org, product: product} = fixture
 
