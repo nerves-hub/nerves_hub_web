@@ -6,7 +6,6 @@ defmodule NervesHubWeb.Live.Product.Insights do
   alias NervesHub.Devices.Health
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
-  alias NervesHub.Products.HealthProfiles
 
   @graph_periods ~w(twenty_four_hours fourteen_days four_weeks)
 
@@ -143,21 +142,10 @@ defmodule NervesHubWeb.Live.Product.Insights do
 
   defp maybe_assign_flapping_connections(%{assigns: %{current_scope: scope}} = socket) do
     if Application.get_env(:nerves_hub, :analytics_enabled) do
-      # The "disconnects" built-in on the default health profile, when
-      # configured, decides what counts as flapping; the historical
-      # "more than 10 in the last hour" otherwise.
-      {at_least, window_seconds} =
-        case HealthProfiles.disconnects_settings(scope.product.id) do
-          nil -> {11, 3600}
-          %{threshold: threshold, period_seconds: period_seconds} -> {max(round(threshold), 1), period_seconds}
-        end
-
-      connections = Connections.flapping_connections(scope.product, at_least, window_seconds)
+      connections = Connections.flapping_connections(scope.product)
 
       socket
       |> assign(:flapping_connections, connections)
-      |> assign(:flapping_at_least, at_least)
-      |> assign(:flapping_window_seconds, window_seconds)
       |> assign(:flapping_connections_enabled, true)
     else
       assign(socket, :flapping_connections_enabled, false)

@@ -429,23 +429,13 @@ defmodule NervesHub.Devices.Connections do
     |> AnalyticsRepo.one(settings: [final: 1])
   end
 
-  @doc """
-  Devices that connected at least `at_least` times in the trailing window.
-
-  The defaults preserve the panel's original hardcoded rule (more than 10 in
-  the last hour); a product that configures the "disconnects" built-in on
-  its default health profile drives these from that metric instead — see
-  `NervesHub.Products.HealthProfiles.disconnects_settings/1`.
-  """
-  def flapping_connections(%Product{} = product, at_least \\ 11, window_seconds \\ 3600) do
-    cutoff = DateTime.shift(DateTime.utc_now(), second: -window_seconds)
-
+  def flapping_connections(%Product{} = product) do
     DeviceConnectionHistory
     |> where([dc], dc.org_id == ^product.org_id and dc.product_id == ^product.id)
-    |> where([dc], dc.established_at >= ^cutoff)
+    |> where([dc], dc.established_at >= fragment("now() - INTERVAL 1 HOUR"))
     |> select([dc], %{device_id: dc.device_id, count: fragment("count() as count")})
     |> group_by([dc], dc.device_id)
-    |> having([dc], fragment("count >= ?", ^at_least))
+    |> having([dc], fragment("count > 10"))
     |> order_by(desc: fragment("count"))
     |> AnalyticsRepo.all(settings: [final: 1])
     |> case do

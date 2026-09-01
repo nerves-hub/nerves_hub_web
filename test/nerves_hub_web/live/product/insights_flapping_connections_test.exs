@@ -9,7 +9,6 @@ defmodule NervesHubWeb.Live.Product.InsightsFlappingConnectionsTest do
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Fixtures
-  alias NervesHub.Products.HealthProfiles
 
   setup %{user: user, org: org, org_key: org_key, tmp_dir: tmp_dir} do
     product = Fixtures.product_fixture(user, org, %{name: "Conn Stability"})
@@ -56,34 +55,6 @@ defmodule NervesHubWeb.Live.Product.InsightsFlappingConnectionsTest do
   end
 
   describe "when analytics is enabled" do
-    test "the disconnects built-in on the default profile drives the rule", %{
-      conn: conn,
-      org: org,
-      product: product,
-      device: device
-    } do
-      {:ok, _} =
-        product.id
-        |> HealthProfiles.resolve(nil)
-        |> HealthProfiles.add_metric(%{
-          "key" => "disconnects",
-          "warning_threshold" => "3",
-          "warning_period_seconds" => "1800",
-          "alert_threshold" => "6",
-          "alert_period_seconds" => "1800"
-        })
-
-      # 4 reconnections: under the default more-than-10 rule, over the
-      # configured at-least-3.
-      insert_connections(device, 4)
-
-      conn
-      |> visit(insights_path(org, product))
-      |> assert_has("div", text: "reconnected 3 times or more in the last 30m")
-      |> assert_has("span", text: device.identifier)
-      |> assert_has("span", text: "4 / 30m")
-    end
-
     test "lists flapping devices with their hourly reconnection count", %{
       conn: conn,
       org: org,
@@ -96,7 +67,7 @@ defmodule NervesHubWeb.Live.Product.InsightsFlappingConnectionsTest do
 
       assert html =~ "Flapping Connections"
       assert html =~ device.identifier
-      assert html =~ "11 / 1h"
+      assert html =~ "11 p/hour"
 
       assigns = :sys.get_state(view.pid).socket.assigns
       assert assigns.flapping_connections_enabled
@@ -130,7 +101,7 @@ defmodule NervesHubWeb.Live.Product.InsightsFlappingConnectionsTest do
 
       assert html =~ "Flapping Connections"
       assert html =~ "No flapping connections detected"
-      refute html =~ device.identifier
+      refute html =~ "p/hour"
 
       assert :sys.get_state(view.pid).socket.assigns.flapping_connections == []
     end

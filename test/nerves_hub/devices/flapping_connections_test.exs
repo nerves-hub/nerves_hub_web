@@ -96,21 +96,6 @@ defmodule NervesHub.Devices.FlappingConnectionsTest do
       assert count == 11
     end
 
-    test "a configured threshold and window replace the defaults", %{
-      product: product,
-      device: device
-    } do
-      # 4 reconnections 5 minutes ago: within a 10-minute window, over an
-      # at-least-3 threshold - and far below the default rule.
-      insert_connections(device, 4)
-
-      assert [{_device, 4}] = Connections.flapping_connections(product, 3, 600)
-      assert Connections.flapping_connections(product) == []
-
-      # The same connections fall outside a 3-minute window.
-      assert Connections.flapping_connections(product, 3, 180) == []
-    end
-
     test "only includes devices belonging to the given product", %{
       user: user,
       org: org,
