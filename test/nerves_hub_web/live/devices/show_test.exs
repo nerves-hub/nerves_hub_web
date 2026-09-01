@@ -27,6 +27,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
+  alias NervesHub.Products.HealthProfiles
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
   alias Phoenix.Socket.Broadcast
@@ -746,6 +747,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert {:ok, 7} = Metrics.record(to_device_info(device), metrics)
 
+      # The Load tile shows when a load metric is featured in the health profile.
+      feature_load_metric(product)
+
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
@@ -775,6 +779,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       }
 
       assert {:ok, 6} = Metrics.record(to_device_info(device), metrics)
+
+      feature_load_metric(product)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -2139,5 +2145,19 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       org_id: device.org_id,
       product_id: device.product_id
     }
+  end
+
+  defp feature_load_metric(product) do
+    {:ok, _} =
+      product.id
+      |> HealthProfiles.resolve(nil)
+      |> HealthProfiles.add_metric(%{
+        "key" => "load_1min",
+        "featured" => "true",
+        "warning_threshold" => "5",
+        "warning_period_minutes" => "60",
+        "alert_threshold" => "10",
+        "alert_period_minutes" => "60"
+      })
   end
 end

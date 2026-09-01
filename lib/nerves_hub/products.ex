@@ -5,6 +5,7 @@ defmodule NervesHub.Products do
 
   import Ecto.Query, warn: false
 
+  alias Ecto.Multi
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
@@ -12,6 +13,7 @@ defmodule NervesHub.Products do
   alias NervesHub.Devices.Device
   alias NervesHub.Extensions
   alias NervesHub.Products.CustomHealthMetricsLabel
+  alias NervesHub.Products.HealthProfiles
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
   alias NervesHub.Repo
@@ -180,12 +182,20 @@ defmodule NervesHub.Products do
   end
 
   @doc """
-  Creates a product.
+  Creates a product, along with its default health profile.
   """
   @spec create_product(map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def create_product(params) do
-    Product.changeset(%Product{}, params)
-    |> Repo.insert()
+    Multi.new()
+    |> Multi.insert(:product, Product.changeset(%Product{}, params))
+    |> Multi.run(:health_profile, fn _repo, %{product: product} ->
+      HealthProfiles.create_default_profile(product.id)
+    end)
+    |> Repo.transact()
+    |> case do
+      {:ok, %{product: product}} -> {:ok, product}
+      {:error, _step, changeset, _} -> {:error, changeset}
+    end
   end
 
   @doc """

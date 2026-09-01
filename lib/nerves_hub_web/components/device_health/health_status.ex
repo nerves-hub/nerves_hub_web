@@ -47,11 +47,24 @@ defmodule NervesHubWeb.Components.HealthStatus do
             {key_parts, ""}
           end
 
-        "#{Enum.join(key_parts, " ")}: #{reasons["value"]}#{delimiter} (threshold is #{reasons["threshold"]}#{delimiter})"
+        "#{Enum.join(key_parts, " ")}: #{reasons["value"]}#{delimiter}#{averaging(reasons)} (threshold is #{reasons["threshold"]}#{delimiter})"
       end)
 
     if Enum.any?(reasons) do
       "#{String.capitalize(status)}:  #{key_strings}"
     end
   end
+
+  # A reason judged by a health profile carries the measurement period it was
+  # averaged over; one from the legacy instantaneous check does not.
+  defp averaging(%{"period_minutes" => minutes}) when is_integer(minutes) do
+    " avg over #{format_period(minutes)}"
+  end
+
+  defp averaging(_reasons), do: ""
+
+  defp format_period(minutes) when minutes < 60, do: "#{minutes}m"
+  defp format_period(minutes) when rem(minutes, 1440) == 0, do: "#{div(minutes, 1440)}d"
+  defp format_period(minutes) when rem(minutes, 60) == 0, do: "#{div(minutes, 60)}h"
+  defp format_period(minutes), do: "#{div(minutes, 60)}h #{rem(minutes, 60)}m"
 end

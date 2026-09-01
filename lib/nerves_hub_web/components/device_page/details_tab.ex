@@ -13,6 +13,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Products
+  alias NervesHub.Products.HealthProfiles
   alias NervesHub.Scripts
   alias NervesHubWeb.Components.DeviceLocation
   alias NervesHubWeb.Components.DeviceNetworkIdentities
@@ -41,6 +43,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:update_information, Updates.resolve_update(device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
+    |> assign(:custom_labels, Products.custom_health_metrics_labels(device.product))
+    |> assign(:featured_keys, featured_keys(device))
     |> assign(:alarms, Alarms.current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, device.product))
     |> assign(:delta_available?, false)
@@ -145,53 +149,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             </div>
           </div>
           <div class="flex flex-wrap items-center justify-items-stretch gap-2 px-4 pt-2 pb-4">
-            <div class="border-success health-good flex h-16 grow flex-col rounded border-b px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">CPU</span>
-              <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}%</span>
-                <span class="text-success text-base">{round(@latest_metrics["cpu_temp"])}°</span>
-              </div>
-              <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]}>
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}</span>
-                <span class="text-base-50 text-lg leading-[30px]">%</span>
-              </div>
-              <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_temp"])}°</span>
-              </div>
-              <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-base-500 text-xl leading-[30px]">NA</span>
-            </div>
-            <div class="border-warning health-warning flex h-16 grow flex-col rounded border-b px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">Memory used</span>
-              <div :if={@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
-                <div>
-                  <span class="text-base-50 text-xl leading-[30px]">{number_to_delimited(@latest_metrics["mem_used_mb"], precision: 0)}</span>
-                  <span class="text-base-50 text-sm leading-[30px]">MB</span>
-                </div>
-                <div>
-                  <span class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}</span>
-                  <span class="text-warning text-sm">%</span>
-                </div>
-              </div>
-              <div :if={!@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
-                <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
-              </div>
-            </div>
-            <div class="border-notice health-neutral flex h-16 grow flex-col rounded border-b px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">Load avg</span>
-              <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex items-center justify-between">
-                <span :if={@latest_metrics["load_1min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_1min"]}</span>
-                <span :if={!@latest_metrics["load_1min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
-                <span class="bg-base-700 h-4 w-px"></span>
-                <span :if={@latest_metrics["load_5min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_5min"]}</span>
-                <span :if={!@latest_metrics["load_5min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
-                <span class="bg-base-700 h-4 w-px"></span>
-                <span :if={@latest_metrics["load_15min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_15min"]}</span>
-                <span :if={!@latest_metrics["load_15min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
-              </div>
-              <div :if={!@latest_metrics["load_1min"] && !@latest_metrics["load_5min"] && !@latest_metrics["load_15min"]} class="flex items-center">
-                <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
-              </div>
-            </div>
+            <.featured_tile :for={tile <- featured_tiles(@featured_keys)} tile={tile} latest_metrics={@latest_metrics} custom_labels={@custom_labels} />
           </div>
           <div class="text-base-400 px-4 pb-4 text-xs font-normal">
             Learn more about
@@ -1076,4 +1034,111 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp update_mode_label(:automatic), do: "automatic"
   defp update_mode_label(:device_managed), do: "device managed"
   defp update_mode_label(:off), do: "off"
+
+  defp featured_keys(device) do
+    HealthProfiles.featured_keys(device.product_id, device_platform(device))
+  end
+
+  defp device_platform(%{firmware_metadata: %{platform: platform}}), do: platform
+  defp device_platform(_device), do: nil
+
+  # A tile per featured metric of the device's health profile. Keys the
+  # hand-designed composite tiles cover collapse into their tile — featuring
+  # cpu_usage_percent or cpu_temp gives the CPU tile — and any other featured
+  # key gets a plain value tile. With no profile, the pre-profile fixed trio.
+  defp featured_tiles(nil), do: [:cpu, :memory, :load]
+
+  defp featured_tiles(featured_keys) do
+    featured_keys
+    |> Enum.map(fn
+      key when key in ["cpu_usage_percent", "cpu_temp"] -> :cpu
+      key when key in ["mem_used_percent", "mem_used_mb", "mem_size_mb"] -> :memory
+      "load_" <> _rest -> :load
+      key -> {:metric, key}
+    end)
+    |> Enum.uniq()
+  end
+
+  defp featured_tile(%{tile: :cpu} = assigns) do
+    ~H"""
+    <div class="border-success health-good flex h-16 grow flex-col rounded border-b px-3 py-2">
+      <span class="text-base-400 text-xs tracking-wide">CPU</span>
+      <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
+        <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}%</span>
+        <span class="text-success text-base">{round(@latest_metrics["cpu_temp"])}°</span>
+      </div>
+      <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]}>
+        <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}</span>
+        <span class="text-base-50 text-lg leading-[30px]">%</span>
+      </div>
+      <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
+        <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_temp"])}°</span>
+      </div>
+      <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-base-500 text-xl leading-[30px]">NA</span>
+    </div>
+    """
+  end
+
+  defp featured_tile(%{tile: :memory} = assigns) do
+    ~H"""
+    <div class="border-warning health-warning flex h-16 grow flex-col rounded border-b px-3 py-2">
+      <span class="text-base-400 text-xs tracking-wide">Memory used</span>
+      <div :if={@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
+        <div>
+          <span class="text-base-50 text-xl leading-[30px]">{number_to_delimited(@latest_metrics["mem_used_mb"], precision: 0)}</span>
+          <span class="text-base-50 text-sm leading-[30px]">MB</span>
+        </div>
+        <div>
+          <span class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}</span>
+          <span class="text-warning text-sm">%</span>
+        </div>
+      </div>
+      <div :if={!@latest_metrics["mem_used_mb"] && @latest_metrics["mem_used_percent"]} class="flex items-end justify-between">
+        <div>
+          <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["mem_used_percent"])}</span>
+          <span class="text-base-50 text-sm leading-[30px]">%</span>
+        </div>
+      </div>
+      <div :if={!@latest_metrics["mem_used_mb"] && !@latest_metrics["mem_used_percent"]} class="flex items-end justify-between">
+        <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
+      </div>
+    </div>
+    """
+  end
+
+  defp featured_tile(%{tile: :load} = assigns) do
+    ~H"""
+    <div class="border-notice health-neutral flex h-16 grow flex-col rounded border-b px-3 py-2">
+      <span class="text-base-400 text-xs tracking-wide">Load avg</span>
+      <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex items-center justify-between">
+        <span :if={@latest_metrics["load_1min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_1min"]}</span>
+        <span :if={!@latest_metrics["load_1min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
+        <span class="bg-base-700 h-4 w-px"></span>
+        <span :if={@latest_metrics["load_5min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_5min"]}</span>
+        <span :if={!@latest_metrics["load_5min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
+        <span class="bg-base-700 h-4 w-px"></span>
+        <span :if={@latest_metrics["load_15min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_15min"]}</span>
+        <span :if={!@latest_metrics["load_15min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
+      </div>
+      <div :if={!@latest_metrics["load_1min"] && !@latest_metrics["load_5min"] && !@latest_metrics["load_15min"]} class="flex items-center">
+        <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
+      </div>
+    </div>
+    """
+  end
+
+  defp featured_tile(%{tile: {:metric, key}} = assigns) do
+    assigns = assign(assigns, :key, key)
+
+    ~H"""
+    <div class="health-plain flex h-16 grow flex-col rounded border-b border-neutral-500 px-3 py-2">
+      <span class="text-base-400 text-xs tracking-wide">{Map.get(@custom_labels, @key, @key)}</span>
+      <span :if={@latest_metrics[@key]} class="text-base-50 text-xl leading-[30px]">{nice_round(@latest_metrics[@key])}</span>
+      <span :if={!@latest_metrics[@key]} class="text-base-500 text-xl leading-[30px]">Not reported</span>
+    </div>
+    """
+  end
+
+  defp nice_round(val) when is_float(val), do: Float.round(val, 1)
+  defp nice_round(val), do: val
 end

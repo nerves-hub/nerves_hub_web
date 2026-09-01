@@ -27,7 +27,7 @@ defmodule NervesHub.Extensions.Health do
   @behaviour NervesHub.Extensions
 
   alias NervesHub.Devices.Health
-  alias NervesHub.Devices.HealthStatus
+  alias NervesHub.Devices.HealthEvaluation
   alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
@@ -76,15 +76,17 @@ defmodule NervesHub.Extensions.Health do
   def handle_in("report", %{"value" => device_report}, state) do
     device_info = state.device_info
 
-    # Get metrics from health report to store in metrics table and calculate status
     metrics = device_report["metrics"] || %{}
 
-    # Get device status together with reasons, if any.
-    {status, reasons} =
-      case HealthStatus.calculate_metrics_status(metrics) do
-        {status, reasons} -> {status, reasons}
-        status -> {status, nil}
-      end
+    # Metrics first, and not inside the health report's failure handling:
+    # `Metrics.record/3` buffers rather than writing, so there is no failure
+    # here to report, and a health row that will not save is no reason to
+    # throw away readings that would. Recorded before the status is judged,
+    # so the profile's measurement windows include the values that just
+    # arrived.
+    {:ok, _stored} = Metrics.record(device_info, metrics)
+
+    {status, reasons} = HealthEvaluation.evaluate(device_info, metrics)
 
     device_health = %{
       "device_id" => device_info.device_id,
@@ -92,12 +94,6 @@ defmodule NervesHub.Extensions.Health do
       "status" => status,
       "status_reasons" => reasons
     }
-
-    # Metrics first, and not inside the health report's failure handling:
-    # `Metrics.record/3` buffers rather than writing, so there is no failure
-    # here to report, and a health row that will not save is no reason to throw
-    # away readings that would.
-    {:ok, _stored} = Metrics.record(device_info, metrics)
 
     case Health.save_device_health(device_health) do
       {:ok, _health} ->

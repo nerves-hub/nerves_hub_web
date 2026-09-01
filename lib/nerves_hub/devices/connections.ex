@@ -411,6 +411,24 @@ defmodule NervesHub.Devices.Connections do
     :ok
   end
 
+  @doc """
+  How many times the device disconnected during the trailing window.
+
+  Backs the "disconnects" built-in health profile metric; callers are expected
+  to check that analytics is enabled first.
+  """
+  @spec disconnection_count(pos_integer(), pos_integer(), pos_integer(), pos_integer()) :: non_neg_integer()
+  def disconnection_count(org_id, product_id, device_id, minutes) do
+    cutoff = DateTime.shift(DateTime.utc_now(), minute: -minutes)
+
+    DeviceConnectionHistory
+    |> where([dc], dc.org_id == ^org_id and dc.product_id == ^product_id and dc.device_id == ^device_id)
+    |> where([dc], not is_nil(dc.disconnected_at))
+    |> where([dc], dc.disconnected_at >= ^cutoff)
+    |> select([dc], count())
+    |> AnalyticsRepo.one(settings: [final: 1])
+  end
+
   def flapping_connections(%Product{} = product) do
     DeviceConnectionHistory
     |> where([dc], dc.org_id == ^product.org_id and dc.product_id == ^product.id)

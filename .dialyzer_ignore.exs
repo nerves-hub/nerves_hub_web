@@ -11,6 +11,8 @@
   {"lib/nerves_hub/devices/network_identities.ex", :call_without_opaque},
   {"lib/nerves_hub/devices/health.ex", :call_without_opaque},
   {"lib/nerves_hub/devices/updates.ex", :call_without_opaque},
+  {"lib/nerves_hub/products.ex", :call_without_opaque},
+  {"lib/nerves_hub/products/health_profiles.ex", :call_without_opaque},
   {"lib/nerves_hub_web/components/layouts.ex", :call},
   {"lib/nerves_hub_web/components/layouts.ex", :no_return}
 ]

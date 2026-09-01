@@ -63,6 +63,21 @@
 
       <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
         <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+          <div class="text-base-50 text-base font-medium">Device Health</div>
+          <.button type="link" style="secondary" navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings/health"}>
+            Manage health profiles
+          </.button>
+        </div>
+        <div class="flex flex-col gap-3 p-6">
+          <p class="w-2/3 text-sm">
+            Health profiles set the thresholds that decide when a device counts as unhealthy — per product, or per platform when
+            hardware differences call for different values.
+          </p>
+        </div>
+      </div>
+
+      <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
+        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
           <div class="text-base-50 text-base font-medium">Firmware</div>
         </div>
 

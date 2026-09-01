@@ -1,0 +1,233 @@
+<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
+  <:header>
+    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Health Profiles</h1>
+  </:header>
+
+  <div class="h-0 flex-1 overflow-y-auto">
+    <div class="flex flex-col items-start justify-between gap-4 p-6">
+      <div class="flex w-full flex-col gap-1">
+        <p class="w-2/3 text-sm">
+          Health profiles decide when a device counts as unhealthy. Each metric engages its warning (orange) or alert (red) level when
+          the metric's average over the measurement period reaches the level's threshold.
+        </p>
+        <p class="w-2/3 text-sm">
+          The default profile applies to every device. A platform profile overrides it for devices running firmware built for that
+          platform, so hardware differences can carry their own thresholds.
+        </p>
+        <p class="w-2/3 text-sm">
+          Featured metrics are the ones shown at the top of the device details page.
+        </p>
+      </div>
+
+      <div :for={profile <- @profiles} class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
+        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+          <div class="text-base-50 text-base font-medium">
+            <%= if profile.platform do %>
+              Platform: {profile.platform}
+            <% else %>
+              Default profile
+            <% end %>
+          </div>
+          <.button
+            :if={profile.platform}
+            style="danger"
+            type="button"
+            phx-click="delete-profile"
+            phx-value-profile_id={profile.id}
+            data-confirm={"Delete the #{profile.platform} profile? Its devices will use the default profile."}
+            disabled={!authorized?(:"product:update", @current_scope)}
+          >
+            Delete profile
+          </.button>
+        </div>
+
+        <div class="flex flex-col gap-2 p-6">
+          <div :if={profile.metrics == []} class="text-base-400 text-sm">
+            This profile has no metrics, so its devices always report an unknown health status.
+          </div>
+
+          <div :if={profile.metrics != []} class="text-base-400 grid grid-cols-[1fr_8rem_10rem_8rem_10rem_6rem_5rem] items-center gap-x-4 px-2 text-xs font-medium">
+            <div>Metric</div>
+            <div>Warning at</div>
+            <div>averaged over</div>
+            <div>Alert at</div>
+            <div>averaged over</div>
+            <div>Featured</div>
+            <div></div>
+          </div>
+
+          <form
+            :for={metric <- profile.metrics}
+            id={"metric-#{metric.id}"}
+            phx-submit="update-metric"
+            class="border-base-700 grid grid-cols-[1fr_8rem_10rem_8rem_10rem_6rem_5rem] items-center gap-x-4 rounded border p-2"
+          >
+            <input type="hidden" name="profile_id" value={profile.id} />
+            <input type="hidden" name="metric_id" value={metric.id} />
+            <div class="flex flex-col">
+              <span class="text-base-300 text-sm font-medium">{metric_label(assigns, metric.key)}</span>
+              <span :if={metric.built_in} class="text-base-500 text-xs">built-in</span>
+              <span :if={!metric.built_in && metric_label(assigns, metric.key) != metric.key} class="text-base-500 text-xs">{metric.key}</span>
+            </div>
+            <input
+              type="number"
+              step="any"
+              required
+              name="metric[warning_threshold]"
+              value={metric.warning_threshold}
+              disabled={!authorized?(:"product:update", @current_scope)}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            />
+            <select
+              name="metric[warning_period_minutes]"
+              disabled={!authorized?(:"product:update", @current_scope)}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            >
+              {Phoenix.HTML.Form.options_for_select(period_options(metric.warning_period_minutes), metric.warning_period_minutes)}
+            </select>
+            <input
+              type="number"
+              step="any"
+              required
+              name="metric[alert_threshold]"
+              value={metric.alert_threshold}
+              disabled={!authorized?(:"product:update", @current_scope)}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            />
+            <select
+              name="metric[alert_period_minutes]"
+              disabled={!authorized?(:"product:update", @current_scope)}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            >
+              {Phoenix.HTML.Form.options_for_select(period_options(metric.alert_period_minutes), metric.alert_period_minutes)}
+            </select>
+            <div class="flex justify-center" title="Featured metrics are shown at the top of the device details page">
+              <input type="hidden" name="metric[featured]" value="false" />
+              <input
+                type="checkbox"
+                name="metric[featured]"
+                value="true"
+                checked={metric.featured}
+                disabled={!authorized?(:"product:update", @current_scope)}
+                class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
+              />
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                type="submit"
+                title="Save changes"
+                disabled={!authorized?(:"product:update", @current_scope)}
+                class="hover:bg-base-700 rounded p-1.5 hover:cursor-pointer disabled:cursor-not-allowed"
+              >
+                <span class="lucide-save--light text-base-400 size-4"></span>
+              </button>
+              <button
+                type="button"
+                title="Remove metric"
+                phx-click="delete-metric"
+                phx-value-profile_id={profile.id}
+                phx-value-metric_id={metric.id}
+                data-confirm={"Remove #{metric.key} from this profile?"}
+                disabled={!authorized?(:"product:update", @current_scope)}
+                class="hover:bg-base-700 rounded p-1.5 hover:cursor-pointer disabled:cursor-not-allowed"
+              >
+                <span class="lucide-trash-2--light text-alert size-4"></span>
+              </button>
+            </div>
+          </form>
+
+          <form
+            id={"add-metric-#{profile.id}"}
+            phx-submit="add-metric"
+            class="border-base-700 mt-2 grid grid-cols-[1fr_8rem_10rem_8rem_10rem_6rem_5rem] items-center gap-x-4 rounded border border-dashed p-2"
+          >
+            <input type="hidden" name="profile_id" value={profile.id} />
+            <select
+              name="metric[key]"
+              required
+              disabled={!authorized?(:"product:update", @current_scope)}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            >
+              <option value="">Add a metric...</option>
+              {Phoenix.HTML.Form.options_for_select(metric_options(assigns, profile), nil)}
+            </select>
+            <input
+              type="number"
+              step="any"
+              required
+              placeholder="Warning"
+              name="metric[warning_threshold]"
+              disabled={!authorized?(:"product:update", @current_scope)}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            />
+            <select
+              name="metric[warning_period_minutes]"
+              disabled={!authorized?(:"product:update", @current_scope)}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            >
+              {Phoenix.HTML.Form.options_for_select(period_options(), 60)}
+            </select>
+            <input
+              type="number"
+              step="any"
+              required
+              placeholder="Alert"
+              name="metric[alert_threshold]"
+              disabled={!authorized?(:"product:update", @current_scope)}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            />
+            <select
+              name="metric[alert_period_minutes]"
+              disabled={!authorized?(:"product:update", @current_scope)}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-full rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            >
+              {Phoenix.HTML.Form.options_for_select(period_options(), 60)}
+            </select>
+            <div class="flex justify-center" title="Featured metrics are shown at the top of the device details page">
+              <input type="hidden" name="metric[featured]" value="false" />
+              <input
+                type="checkbox"
+                name="metric[featured]"
+                value="true"
+                disabled={!authorized?(:"product:update", @current_scope)}
+                class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
+              />
+            </div>
+            <.button style="secondary" type="submit" disabled={!authorized?(:"product:update", @current_scope)}>
+              Add
+            </.button>
+          </form>
+        </div>
+      </div>
+
+      <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
+        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+          <div class="text-base-50 text-base font-medium">Add a platform profile</div>
+        </div>
+        <div class="flex flex-col gap-3 p-6">
+          <p class="w-2/3 text-sm">
+            A platform profile starts as a copy of the default profile and overrides it for devices on that platform. Platforms are
+            taken from the firmware uploaded to this product.
+          </p>
+          <form :if={@available_platforms != []} phx-submit="create-platform-profile" class="flex items-center gap-3">
+            <select
+              name="platform"
+              required
+              disabled={!authorized?(:"product:update", @current_scope)}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-64 rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            >
+              <option value="">Choose a platform...</option>
+              {Phoenix.HTML.Form.options_for_select(@available_platforms, nil)}
+            </select>
+            <.button style="secondary" type="submit" disabled={!authorized?(:"product:update", @current_scope)}>
+              Create profile
+            </.button>
+          </form>
+          <p :if={@available_platforms == []} class="text-base-400 text-sm">
+            Every platform seen in this product's firmware already has a profile, or no firmware has been uploaded yet.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</NervesHubWeb.Layouts.sidebar>
