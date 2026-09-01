@@ -155,13 +155,15 @@ defmodule NervesHub.Devices.Updates do
 
   defp maybe_limit_to_workflow_step(query, nil), do: query
 
-  # A catch_all covers whatever the release's other steps have not claimed, so it
-  # is defined by their claims rather than by any of its own.
+  # A catch_all covers whatever the release's unfinished steps are not holding, so
+  # it is defined by their claims rather than by any of its own. A finished step
+  # holds nothing, which is what lets the catch_all update a device that reverts
+  # long after its own stage passed.
   defp maybe_limit_to_workflow_step(query, %DeploymentWorkflowStep{type: :catch_all} = step) do
     where(
       query,
       [device: d],
-      d.id not in subquery(Workflows.claimed_device_ids_query(step.deployment_release_id))
+      d.id not in subquery(Workflows.actively_claimed_device_ids_query(step.deployment_release_id))
     )
   end
 

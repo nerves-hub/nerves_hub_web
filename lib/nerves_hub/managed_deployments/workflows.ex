@@ -218,7 +218,10 @@ defmodule NervesHub.ManagedDeployments.Workflows do
     deployment_group
     |> deployment_group_devices_query()
     |> exclude(:order_by)
-    |> where([device: d], d.id not in subquery(claimed_device_ids_query(step.deployment_release_id)))
+    |> where(
+      [device: d],
+      d.id not in subquery(actively_claimed_device_ids_query(step.deployment_release_id))
+    )
   end
 
   def step_devices_query(deployment_group, step) do
@@ -434,7 +437,26 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   end
 
   @doc """
-  The devices already claimed by one of a release's steps.
+  The devices a release's unfinished steps are holding.
+
+  A step that has finished is not holding anything: its devices go back to being
+  the catch_all's business, which is how a canary that reverts long after its
+  stage passed gets updated again. Only a step still working, or stopped and
+  waiting on a person, keeps its devices to itself.
+  """
+  @spec actively_claimed_device_ids_query(integer()) :: Ecto.Query.t()
+  def actively_claimed_device_ids_query(deployment_release_id) do
+    deployment_release_id
+    |> claimed_device_ids_query()
+    |> where([step: s], s.status in [:waiting, :in_progress, :error])
+  end
+
+  @doc """
+  The devices already claimed by one of a release's steps, whatever its state.
+
+  Claiming uses this rather than `actively_claimed_device_ids_query/1`: a device
+  belongs to one step of a release, so a later stage should not spend its
+  `match_limit` on devices an earlier stage already saw to.
   """
   @spec claimed_device_ids_query(integer()) :: Ecto.Query.t()
   def claimed_device_ids_query(deployment_release_id) do

@@ -338,8 +338,61 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert recorded == [canary.id]
 
-      # The others are covered and scheduled all the same.
-      assert covered_device_ids(deployment_group, step(release, 2)) == others |> Enum.map(& &1.id) |> Enum.sort()
+      # Coverage is complete even though the recording is not: with the canary
+      # step finished, the catch_all covers every device in the group, the canary
+      # included, and it has written nothing to say so.
+      everyone = [canary | others] |> Enum.map(& &1.id) |> Enum.sort()
+
+      assert covered_device_ids(deployment_group, step(release, 2)) == everyone
+    end
+  end
+
+  describe "a device that reverts after its step finished" do
+    # A deployment group is never done — a device that falls back to old firmware
+    # needs updating again, whichever stage originally saw to it. A finished step
+    # keeps no hold on its devices, so the catch_all picks them back up.
+    test "is picked up by the catch_all", context do
+      canary = add_device(context, %{tags: ["canary"]})
+
+      %{deployment_group: deployment_group, release: release, next_firmware: next_firmware} =
+        release_with(context, @canary_then_rest)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      FirmwareUpdates.clear_inflight_update(canary)
+      canary = mark_updated(canary, next_firmware)
+
+      # The canary step finishes and hands over.
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 1).status == :completed
+      catch_all = step(release, 2)
+      assert catch_all.status == :in_progress
+
+      # Long afterwards it falls back to the firmware it came from.
+      _ = mark_updated(canary, context.firmware)
+
+      assert covered_device_ids(deployment_group, catch_all) == [canary.id]
+
+      topic = "device:#{canary.id}"
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert_receive %Broadcast{topic: ^topic, event: "update"}, 1_000
+    end
+
+    # While a stage is still working, its devices are its own business.
+    test "is not taken from a step that is still running", context do
+      canary = add_device(context, %{tags: ["canary"]})
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert step(release, 1).status == :in_progress
+      assert covered_device_ids(deployment_group, step(release, 2)) == []
+      refute canary.id in covered_device_ids(deployment_group, step(release, 2))
     end
   end
 
