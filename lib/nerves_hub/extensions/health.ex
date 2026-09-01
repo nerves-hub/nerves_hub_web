@@ -28,7 +28,6 @@ defmodule NervesHub.Extensions.Health do
 
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthEvaluation
-  alias NervesHub.Devices.HealthEvaluation.Screen
   alias NervesHub.Devices.HealthEvaluator
   alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.Jitter
@@ -93,18 +92,12 @@ defmodule NervesHub.Extensions.Health do
     {:ok, _stored} = Metrics.record(device_info, metrics)
 
     # The product's health evaluator judges from in-memory windows — no
-    # aggregate queries. If it cannot be reached, fall back to the screened
-    # query-based evaluation; the screen lives in this connection's assigns
-    # and lets steady-state all-clear reports skip the window queries too.
-    {status, reasons, state} =
+    # aggregate queries. If it cannot be reached, fall back to judging the
+    # same way from the stored samples.
+    {status, reasons} =
       case HealthEvaluator.evaluate_report(device_info, metrics) do
-        {:ok, status, reasons} ->
-          {status, reasons, state}
-
-        {:error, :unavailable} ->
-          screen = State.get(state, :screen) || Screen.new()
-          {status, reasons, screen} = HealthEvaluation.evaluate(device_info, metrics, screen)
-          {status, reasons, State.assign(state, :screen, screen)}
+        {:ok, status, reasons} -> {status, reasons}
+        {:error, :unavailable} -> HealthEvaluation.evaluate(device_info, metrics)
       end
 
     device_health = %{

@@ -1,21 +1,16 @@
 defmodule NervesHub.Devices.HealthEvaluation do
   @moduledoc """
-  Evaluates a device's health against its product's health profile.
+  Query-backed health evaluation: fetch the device's stored samples and judge
+  them with the same sliding-window counting core the per-product evaluator
+  uses in memory (`NervesHub.Devices.HealthEvaluator.Windows`) — one
+  semantic, two ways of getting at the samples.
 
-  Runs as each health report arrives (after the report's metrics are saved, so
-  the window includes them): the profile is resolved for the device's product
-  and platform, and each profile metric's median over its measurement period
-  is compared to its thresholds. A level engages at median >= threshold;
-  alert (stored as `:unhealthy`) takes precedence over warning. The median,
-  not the mean: embedded sensors glitch, and one absurd reading (a cheap
-  temperature sensor catching interference and reporting 17000) would drag a
-  mean over any threshold for as long as it stays in the window, while the
-  median never moves for it. It also means a short spike only engages a level
-  once it holds for more than half the window.
-
-  Built-in profile metrics don't read `device_metrics`; each has its own
-  query, with its own aggregation. "disconnects" counts connectivity events
-  in the period, and evaluates to no opinion when analytics is disabled.
+  This is the fallback path. In the steady state
+  `NervesHub.Devices.HealthEvaluator` judges reports from its in-memory
+  windows; this module is what the extension uses when that process cannot
+  be reached, and it also hosts the built-in metric judgements both paths
+  share ("disconnects" counts connectivity events in ClickHouse, and
+  evaluates to no opinion when analytics is disabled).
 
   A device whose product has no profile (backfill not run) falls back to the
   legacy instantaneous check against the report itself, in
@@ -23,9 +18,10 @@ defmodule NervesHub.Devices.HealthEvaluation do
   """
 
   alias NervesHub.Devices.Connections
-  alias NervesHub.Devices.HealthEvaluation.Screen
+  alias NervesHub.Devices.HealthEvaluator.Windows
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Products.HealthProfile
   alias NervesHub.Products.HealthProfiles
 
   @type status() :: :unknown | :healthy | :warning | :unhealthy
@@ -33,8 +29,10 @@ defmodule NervesHub.Devices.HealthEvaluation do
 
   @doc """
   Health status and reasons for the device described by `device_info` (a
-  `NervesHub.DeviceLink.DeviceInfo`), given the metrics map of the report that
-  just arrived (used only by the legacy fallback).
+  `NervesHub.DeviceLink.DeviceInfo`), given the metrics map of the report
+  that just arrived. The report's metrics must already be saved — the
+  windows are rebuilt from storage, and must include them. The report map
+  itself is only judged directly on the legacy no-profile path.
   """
   @spec evaluate(struct() | map(), map()) :: {status(), reasons()}
   def evaluate(device_info, report_metrics) do
@@ -43,102 +41,66 @@ defmodule NervesHub.Devices.HealthEvaluation do
         legacy(report_metrics)
 
       profile ->
-        evaluate_profile(device_info, profile)
+        minute = Windows.minute(DateTime.utc_now())
+
+        device_info
+        |> windows_from_storage(profile, minute)
+        |> Windows.judge(profile, minute)
+        |> Enum.concat(built_in_judgements(profile, device_info))
+        |> Windows.summarize()
     end
   end
 
   @doc """
-  Like `evaluate/2`, but screened: when the `Screen` proves this report
-  cannot change the status — the device has reported nothing but all-clear
-  values for longer than the profile's longest measurement window — the
-  windowed aggregate queries are skipped and the previous status carried
-  forward. Returns the advanced screen along with the status, for the caller
-  to hold onto between reports.
+  Rebuild a device's windows from its stored samples — one indexed query
+  over the profile's longest window. Also how `HealthEvaluator` warms up a
+  device it has not seen yet.
   """
-  @spec evaluate(struct() | map(), map(), Screen.t()) :: {status(), reasons(), Screen.t()}
-  def evaluate(device_info, report_metrics, %Screen{} = screen) do
-    profile = HealthProfiles.resolve(device_info.product_id, platform(device_info))
-    now = DateTime.utc_now()
+  @spec windows_from_storage(struct() | map(), HealthProfile.t(), integer()) :: Windows.t()
+  def windows_from_storage(device_info, %HealthProfile{} = profile, minute) do
+    regular = Enum.reject(profile.metrics, & &1.built_in)
+    keys = Enum.map(regular, & &1.key)
 
-    {status, reasons} =
-      cond do
-        is_nil(profile) ->
-          legacy(report_metrics)
+    longest =
+      regular
+      |> Enum.flat_map(&[&1.warning_period_seconds, &1.alert_period_seconds])
+      |> Enum.max(fn -> 0 end)
 
-        Screen.skip?(screen, profile, report_metrics, now) ->
-          # The skip requires last_status == :healthy, so this carries forward
-          # a healthy verdict, never an engaged one.
-          {:healthy, screen.last_reasons}
+    samples = Metrics.samples_since(device_info.device_id, keys, longest)
 
-        true ->
-          evaluate_profile(device_info, profile)
-      end
-
-    {status, reasons, Screen.observe(screen, profile, report_metrics, status, reasons, now)}
+    Windows.from_samples(profile, samples, minute)
   end
 
-  defp evaluate_profile(device_info, profile) do
-    {built_ins, regular} = Enum.split_with(profile.metrics, & &1.built_in)
-
-    medians = medians(device_info.device_id, regular)
-
-    regular
-    |> Enum.map(fn metric ->
-      judge(
-        metric,
-        medians[{metric.key, metric.warning_period_seconds}],
-        medians[{metric.key, metric.alert_period_seconds}],
-        :median
-      )
-    end)
-    |> Enum.concat(Enum.map(built_ins, &judge_built_in(&1, device_info)))
-    |> summarize()
-  end
-
-  # One query per distinct measurement period covers every metric window: a
-  # metric's warning and alert periods usually coincide, and periods repeat
-  # across metrics.
-  defp medians(device_id, metrics) do
-    metrics
-    |> Enum.flat_map(&[{&1.key, &1.warning_period_seconds}, {&1.key, &1.alert_period_seconds}])
-    |> Enum.group_by(fn {_key, period} -> period end, fn {key, _period} -> key end)
-    |> Enum.flat_map(fn {period, keys} ->
-      device_id
-      |> Metrics.median_values(Enum.uniq(keys), period)
-      |> Enum.map(fn {key, median} -> {{key, period}, median} end)
-    end)
-    |> Map.new()
-  end
-
-  defp judge(metric, warning_value, alert_value, aggregation) do
-    cond do
-      is_number(alert_value) and alert_value >= metric.alert_threshold ->
-        {:unhealthy, metric.key, reason(alert_value, metric.alert_threshold, metric.alert_period_seconds, aggregation)}
-
-      is_number(warning_value) and warning_value >= metric.warning_threshold ->
-        {:warning, metric.key,
-         reason(warning_value, metric.warning_threshold, metric.warning_period_seconds, aggregation)}
-
-      is_number(warning_value) or is_number(alert_value) ->
-        :healthy
-
-      true ->
-        :unknown
+  @doc """
+  Judge the profile's built-in metrics. Built-ins move independently of what
+  the device reports — each has its own query.
+  """
+  @spec built_in_judgements(HealthProfile.t(), struct() | map()) :: [Windows.judgement()]
+  def built_in_judgements(%HealthProfile{} = profile, device_info) do
+    for metric <- profile.metrics, metric.built_in do
+      judge_built_in(metric, device_info)
     end
   end
 
   defp judge_built_in(%{key: "disconnects"} = metric, device_info) do
     if Application.get_env(:nerves_hub, :analytics_enabled) do
       count = fn seconds ->
-        Connections.disconnection_count(
-          device_info.org_id,
-          device_info.product_id,
-          device_info.device_id,
-          seconds
-        )
+        Connections.disconnection_count(device_info.org_id, device_info.product_id, device_info.device_id, seconds)
       end
 
-      judge(metric, count.(metric.warning_period_seconds), count.(metric.alert_period_seconds), :count)
+      alert_count = count.(metric.alert_period_seconds)
+      warning_count = count.(metric.warning_period_seconds)
+
+      cond do
+        alert_count >= metric.alert_threshold ->
+          {:unhealthy, metric.key, count_reason(alert_count, metric.alert_threshold, metric.alert_period_seconds)}
+
+        warning_count >= metric.warning_threshold ->
+          {:warning, metric.key, count_reason(warning_count, metric.warning_threshold, metric.warning_period_seconds)}
+
+        true ->
+          :healthy
+      end
     else
       :unknown
     end
@@ -148,28 +110,8 @@ defmodule NervesHub.Devices.HealthEvaluation do
   # newer node during a rolling deploy. No opinion beats a wrong one.
   defp judge_built_in(_metric, _device_info), do: :unknown
 
-  # `aggregation` says what `value` is (:median of the reported samples, or a
-  # :count of events) so the UI can phrase the reason accordingly.
-  defp reason(value, threshold, period_seconds, aggregation) do
-    %{value: round_value(value), threshold: threshold, period_seconds: period_seconds, aggregation: aggregation}
-  end
-
-  defp round_value(value) when is_float(value), do: Float.round(value, 2)
-  defp round_value(value), do: value
-
-  defp summarize(judgements) do
-    reasons =
-      Enum.reduce(judgements, %{warning: %{}, unhealthy: %{}}, fn
-        {level, key, reason}, acc -> put_in(acc, [level, key], reason)
-        _healthy_or_unknown, acc -> acc
-      end)
-
-    cond do
-      reasons.unhealthy != %{} -> {:unhealthy, reasons}
-      reasons.warning != %{} -> {:warning, reasons}
-      Enum.any?(judgements, &(&1 == :healthy)) -> {:healthy, nil}
-      true -> {:unknown, nil}
-    end
+  defp count_reason(count, threshold, period_seconds) do
+    %{value: count, threshold: threshold, period_seconds: period_seconds, aggregation: :count}
   end
 
   defp legacy(report_metrics) do

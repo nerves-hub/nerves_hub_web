@@ -29,15 +29,15 @@ defmodule NervesHub.Devices.HealthEvaluator do
   their next report.
 
   If the evaluator cannot be reached, callers fall back to
-  `NervesHub.Devices.HealthEvaluation` — the screened, query-based path.
+  `NervesHub.Devices.HealthEvaluation`, which judges the same way from the
+  stored samples.
   """
 
   use GenServer, restart: :temporary
 
-  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Health
+  alias NervesHub.Devices.HealthEvaluation
   alias NervesHub.Devices.HealthEvaluator.Windows
-  alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.PubSub, as: ExtensionsPubSub
   alias NervesHub.Products.HealthProfiles
 
@@ -135,7 +135,7 @@ defmodule NervesHub.Devices.HealthEvaluator do
         Windows.record(device.windows, profile, report_metrics, minute)
       end
 
-    built_ins = judge_built_ins(profile, device_info)
+    built_ins = HealthEvaluation.built_in_judgements(profile, device_info)
 
     {status, reasons} =
       windows
@@ -230,60 +230,14 @@ defmodule NervesHub.Devices.HealthEvaluator do
   end
 
   defp warm_up(device_info, profile, minute) do
-    keys = for metric <- profile.metrics, !metric.built_in, do: metric.key
-
-    longest =
-      profile.metrics
-      |> Enum.reject(& &1.built_in)
-      |> Enum.flat_map(&[&1.warning_period_seconds, &1.alert_period_seconds])
-      |> Enum.max(fn -> 0 end)
-
-    samples = Metrics.samples_since(device_info.device_id, keys, longest)
-
     %{
-      windows: Windows.from_samples(profile, samples, minute),
+      windows: HealthEvaluation.windows_from_storage(device_info, profile, minute),
       status: nil,
       reasons: nil,
       built_ins: [],
       platform: platform(device_info),
       warmed_this_call?: true
     }
-  end
-
-  defp judge_built_ins(profile, device_info) do
-    for metric <- profile.metrics, metric.built_in do
-      judge_built_in(metric, device_info)
-    end
-  end
-
-  defp judge_built_in(%{key: "disconnects"} = metric, device_info) do
-    if Application.get_env(:nerves_hub, :analytics_enabled) do
-      count = fn seconds ->
-        Connections.disconnection_count(device_info.org_id, device_info.product_id, device_info.device_id, seconds)
-      end
-
-      alert_count = count.(metric.alert_period_seconds)
-      warning_count = count.(metric.warning_period_seconds)
-
-      cond do
-        alert_count >= metric.alert_threshold ->
-          {:unhealthy, metric.key, count_reason(alert_count, metric.alert_threshold, metric.alert_period_seconds)}
-
-        warning_count >= metric.warning_threshold ->
-          {:warning, metric.key, count_reason(warning_count, metric.warning_threshold, metric.warning_period_seconds)}
-
-        true ->
-          :healthy
-      end
-    else
-      :unknown
-    end
-  end
-
-  defp judge_built_in(_unknown_future_built_in, _device_info), do: :unknown
-
-  defp count_reason(count, threshold, period_seconds) do
-    %{value: count, threshold: threshold, period_seconds: period_seconds, aggregation: :count}
   end
 
   defp profile_for(state, device_info_or_device) do

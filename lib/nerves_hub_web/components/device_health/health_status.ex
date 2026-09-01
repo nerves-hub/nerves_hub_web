@@ -66,16 +66,11 @@ defmodule NervesHubWeb.Components.HealthStatus do
     end
   end
 
-  # A reason judged by a health profile carries the measurement period and
-  # what kind of value engaged the level (the median of reported samples, or
-  # a count of events); one from the legacy instantaneous check carries
-  # neither.
+  # A reason judged by a health profile carries the measurement period (a
+  # count reason names the window it counted over); one from the legacy
+  # instantaneous check carries neither.
   defp window_phrase(%{"aggregation" => "count", "period_seconds" => seconds}) when is_integer(seconds) do
     " in #{format_period(seconds)}"
-  end
-
-  defp window_phrase(%{"period_seconds" => seconds}) when is_integer(seconds) do
-    " median over #{format_period(seconds)}"
   end
 
   defp window_phrase(_reasons), do: ""
