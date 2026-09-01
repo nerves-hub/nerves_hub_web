@@ -16,6 +16,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Products
   alias NervesHub.Products.HealthProfiles
   alias NervesHub.Scripts
+  alias NervesHubWeb.Components.DeviceHealth.MetricLabels
   alias NervesHubWeb.Components.DeviceLocation
   alias NervesHubWeb.Components.DeviceNetworkIdentities
   alias NervesHubWeb.Components.HealthStatus
@@ -1132,7 +1133,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     ~H"""
     <div class="health-plain flex h-16 grow flex-col rounded border-b border-neutral-500 px-3 py-2">
-      <span class="text-base-400 text-xs tracking-wide">{Map.get(@custom_labels, @key, @key)}</span>
+      <span class="text-base-400 text-xs tracking-wide">{MetricLabels.label(@key, @custom_labels)}</span>
       <span :if={@latest_metrics[@key]} class="text-base-50 text-xl leading-[30px]">{nice_round(@latest_metrics[@key])}</span>
       <span :if={!@latest_metrics[@key]} class="text-base-500 text-xl leading-[30px]">Not reported</span>
     </div>

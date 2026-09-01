@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   alias NervesHub.Devices.Metrics
   alias NervesHub.Products
+  alias NervesHubWeb.Components.DeviceHealth.MetricLabels
   alias Phoenix.LiveView.AsyncResult
 
   @time_frame_opts [
@@ -11,19 +12,6 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     {"day", 7}
   ]
   @default_time_frame {"hour", 3}
-
-  # Metric types with belonging titles to display as default.
-  # Also sets order of charts.
-  @default_metrics [
-    {"load_1min", "Load Average 1 Min"},
-    {"load_5min", "Load Average 5 Min"},
-    {"load_15min", "Load Average 15 Min"},
-    {"mem_used_mb", "Memory Usage (MB)"},
-    {"mem_used_percent", "Memory Usage (%)"},
-    {"disk_used_percentage", "Disk Usage (%)"},
-    {"cpu_usage_percent", "CPU Usage (%)"},
-    {"cpu_temp", "CPU Temperature (°C)"}
-  ]
 
   @manual_metrics [
     "cpu_temp",
@@ -268,7 +256,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
               </div>
             </div>
             <div :for={{key, value} <- custom_metrics(@latest_metrics)} class="health-plain flex h-16 grow flex-col rounded border-b border-neutral-500 px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">{key_label(key)}</span>
+              <span class="text-base-400 text-xs tracking-wide">{label_for(key, @custom_health_labels)}</span>
               <span class="text-base-50 text-xl leading-[30px]">{nice_round(value)}</span>
             </div>
           </div>
@@ -502,10 +490,6 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     end)
   end
 
-  defp chart_title(key) do
-    String.replace(key, ~r/mb$/, "MB")
-  end
-
   defp metrics_to_chart(latest_metrics) do
     latest_metrics
     |> Map.keys()
@@ -513,8 +497,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       k == "timestamp" or String.downcase(k) in @no_chart_metrics
     end)
     |> Enum.sort_by(fn key ->
-      # Sorts list by @default_metrics order
-      Enum.find_index(@default_metrics, fn {default_type, _} ->
+      # Sorts list by the well-known chart order
+      Enum.find_index(MetricLabels.default_titles(), fn {default_type, _} ->
         default_type == key
       end)
     end)
@@ -529,26 +513,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     end
   end
 
-  # The custom label set on the product takes precedence over the default title.
-  defp label_for(key, custom_labels) do
-    case Map.get(custom_labels || %{}, key) do
-      nil -> title(key)
-      label -> label
-    end
-  end
-
-  defp title(type) do
-    case Enum.find(@default_metrics, fn {default_type, _} -> default_type == type end) do
-      {_, title} ->
-        title
-
-      nil ->
-        type
-        |> String.replace("_", " ")
-        |> String.capitalize()
-    end
-    |> chart_title()
-  end
+  defp label_for(key, custom_labels), do: MetricLabels.label(key, custom_labels)
 
   # `tab_params/3` runs from a `:handle_params` hook, so it fires again every
   # time the user navigates back onto this tab. A tick left over from an earlier
@@ -576,12 +541,6 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   defp nice_round(val) when is_float(val), do: Float.round(val, 1)
   defp nice_round(val), do: val
-
-  defp key_label(key) do
-    key
-    |> String.replace("_", " ")
-    |> String.capitalize()
-  end
 
   # Charts are keyed by metric name, and metric names come from the device --
   # `Extensions.Health` stores whatever keys a report carries. Deriving an

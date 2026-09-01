@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHub.Products.HealthProfiles
+  alias NervesHubWeb.Components.DeviceHealth.MetricLabels
 
   def mount(_params, _session, socket) do
     product = socket.assigns.current_scope.product
@@ -152,16 +153,20 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     [{"Built-in", built_in}, {"Health metrics", regular}]
   end
 
+  # Built-ins carry their own label; everything else derives its label the
+  # same way the device health page does.
   defp metric_label(assigns, key) do
     case HealthProfiles.built_in_metrics() do
       %{^key => %{label: label}} -> label
-      _ -> Map.get(assigns.custom_labels, key, key)
+      _ -> MetricLabels.label(key, assigns.custom_labels)
     end
   end
 
-  # One bordered section per level, warning and alert each with their own
-  # threshold and measurement period. Sections sit side by side when there is
-  # room and stack on narrow screens (half-width windows, tablets).
+  # One section per level, warning and alert each with their own threshold
+  # and measurement period, styled like the health tiles on device details:
+  # a colored bottom border with a matching tint. Sections sit side by side
+  # when there is room and stack on narrow screens (half-width windows,
+  # tablets).
   attr(:level, :string, required: true, values: ["warning", "alert"])
   attr(:threshold, :any, default: nil)
   attr(:period_minutes, :integer, required: true)
@@ -170,9 +175,9 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   defp level_fields(assigns) do
     ~H"""
     <div class={[
-      "border-base-700 flex min-w-56 grow basis-56 flex-col gap-2 rounded border border-l-2 p-3",
-      @level == "warning" && "border-l-warning",
-      @level == "alert" && "border-l-alert"
+      "flex min-w-56 grow basis-56 flex-col gap-2 rounded border-b p-3",
+      @level == "warning" && "border-warning health-warning",
+      @level == "alert" && "border-alert health-alert"
     ]}>
       <div class={[
         "text-xs font-semibold tracking-wide uppercase",
