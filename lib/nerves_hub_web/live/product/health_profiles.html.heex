@@ -5,22 +5,6 @@
 
   <div class="h-0 flex-1 overflow-y-auto">
     <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <div class="flex w-full flex-col gap-1">
-        <p class="w-2/3 text-sm">
-          Health profiles decide when a device counts as unhealthy. Each metric engages its warning (orange) or alert (red) level when
-          the metric's median over the measurement period (between a minute and 24 hours) crosses the level's threshold — above or
-          below it, per the metric's operator, since a frame rate goes bad low while a temperature goes bad high. The median, so a
-          glitched sensor reading among real ones can't trip a level — though a window holding only a single reading is that reading.
-        </p>
-        <p class="w-2/3 text-sm">
-          The default profile applies to every device. A platform profile overrides it for devices running firmware built for that
-          platform, so hardware differences can carry their own thresholds.
-        </p>
-        <p class="w-2/3 text-sm">
-          Featured metrics are the ones shown at the top of the device details page.
-        </p>
-      </div>
-
       <div :for={profile <- @profiles} class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
         <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
           <div class="text-base-50 text-base font-medium">
@@ -44,6 +28,11 @@
         </div>
 
         <div class="flex flex-col gap-3 p-6">
+          <p :if={is_nil(profile.platform)} class="text-base-400 w-2/3 text-sm">
+            A metric engages its warning (orange) or alert (red) level when its median over the measurement period crosses the
+            threshold in the direction the operator points. This profile applies to every device without a platform profile.
+            Featured metrics are shown at the top of the device details page.
+          </p>
           <div :if={profile.metrics == []} class="text-base-400 text-sm">
             This profile has no metrics, so its devices always report an unknown health status.
           </div>
