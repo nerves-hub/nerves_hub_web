@@ -76,8 +76,10 @@ when adding or removing one.
 - `products.ex` / `products/` — products and product settings, including
   **health profiles** (`products/health_profiles.ex`): per-product, optionally
   per-platform thresholds that decide device health status; each profile metric
-  takes the median over a measurement period, and reports are judged against
-  the resolved profile in `devices/health_evaluation.ex` as they arrive.
+  takes the median over a measurement period. Reports are judged as they arrive
+  by `devices/health_evaluator.ex` (a per-product process holding sliding-window
+  counters in memory, ticking each minute so statuses also change as samples
+  age out), falling back to the query-based `devices/health_evaluation.ex`.
 - `extensions.ex` / `extensions/` — the device **extension framework**
   (`health`, `geo`, `local_shell`, `logging`, `network_identity`,
   `error_reports`); extensions attach per-device and exchange messages over the

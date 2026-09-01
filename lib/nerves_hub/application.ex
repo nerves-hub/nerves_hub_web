@@ -50,6 +50,10 @@ defmodule NervesHub.Application do
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
+          # Per-product health evaluators, started on demand where device
+          # connections land; see NervesHub.Devices.HealthEvaluator.
+          {Registry, keys: :unique, name: NervesHub.Devices.HealthEvaluator.Registry},
+          {DynamicSupervisor, name: NervesHub.Devices.HealthEvaluator.Supervisor, strategy: :one_for_one},
           {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
           {ErrorReportLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
           {MetricsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}

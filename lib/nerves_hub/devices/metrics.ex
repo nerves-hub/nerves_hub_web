@@ -138,6 +138,22 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   @doc """
+  The device's raw readings for `keys` over the trailing window, as
+  `[{key, timestamp, value}]` — what health evaluation judges. ClickHouse:
+  callers are expected to check that analytics is enabled first.
+  """
+  def samples_since(device_id, keys, seconds) do
+    cutoff = DateTime.shift(DateTime.utc_now(), second: -seconds)
+
+    DeviceMetric
+    |> where([dm], dm.device_id == ^device_id)
+    |> where([dm], dm.key in ^keys)
+    |> where([dm], dm.timestamp > ^cutoff)
+    |> select([dm], {dm.key, dm.timestamp, dm.value})
+    |> AnalyticsRepo.all()
+  end
+
+  @doc """
   The longest metric name that will be stored, in bytes.
   """
   def max_key_bytes(), do: @max_key_bytes

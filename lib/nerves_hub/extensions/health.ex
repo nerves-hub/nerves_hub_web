@@ -29,6 +29,7 @@ defmodule NervesHub.Extensions.Health do
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthEvaluation
   alias NervesHub.Devices.HealthEvaluation.Screen
+  alias NervesHub.Devices.HealthEvaluator
   alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
@@ -69,6 +70,10 @@ defmodule NervesHub.Extensions.Health do
 
   @impl NervesHub.Extensions
   def detach(state) do
+    # The evaluator only tracks connected devices; wherever this device
+    # reconnects warms it up again from the stored metrics.
+    :ok = HealthEvaluator.forget(state.device_info.product_id, device_id(state))
+
     {State.assign(state, :mode, nil),
      [{:cancel_timer, :check}, {:group_leave, PubSub.watch_key(device_id(state), :health)}]}
   end
@@ -87,15 +92,20 @@ defmodule NervesHub.Extensions.Health do
     # arrived.
     {:ok, _stored} = Metrics.record(device_info, metrics)
 
-    # The screen lives in this connection's assigns: it remembers the status
-    # this connection last computed and how long the device has reported
-    # nothing but all-clear values, which lets steady-state reports skip the
-    # windowed aggregate queries entirely.
-    screen = State.get(state, :screen) || Screen.new()
+    # The product's health evaluator judges from in-memory windows — no
+    # aggregate queries. If it cannot be reached, fall back to the screened
+    # query-based evaluation; the screen lives in this connection's assigns
+    # and lets steady-state all-clear reports skip the window queries too.
+    {status, reasons, state} =
+      case HealthEvaluator.evaluate_report(device_info, metrics) do
+        {:ok, status, reasons} ->
+          {status, reasons, state}
 
-    {status, reasons, screen} = HealthEvaluation.evaluate(device_info, metrics, screen)
-
-    state = State.assign(state, :screen, screen)
+        {:error, :unavailable} ->
+          screen = State.get(state, :screen) || Screen.new()
+          {status, reasons, screen} = HealthEvaluation.evaluate(device_info, metrics, screen)
+          {status, reasons, State.assign(state, :screen, screen)}
+      end
 
     device_health = %{
       "device_id" => device_info.device_id,

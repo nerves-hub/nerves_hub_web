@@ -65,6 +65,21 @@ defmodule NervesHub.Devices.Health do
     end
   end
 
+  @doc """
+  The report payload (`data`) of the device's latest health row, or an empty
+  map. Used when a status transition happens with no report to ride on —
+  the row recording it carries the last reported alarms and metadata
+  forward rather than blanking what the UI shows.
+  """
+  @spec latest_report_data(pos_integer()) :: map()
+  def latest_report_data(device_id) do
+    Device
+    |> join(:inner, [d], lh in assoc(d, :latest_health))
+    |> where([d], d.id == ^device_id)
+    |> select([_, lh], lh.data)
+    |> Repo.one() || %{}
+  end
+
   def health_status_count(product, status) do
     Device
     |> join(:inner, [d], lh in assoc(d, :latest_health))

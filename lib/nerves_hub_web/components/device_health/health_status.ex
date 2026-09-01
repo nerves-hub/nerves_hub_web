@@ -47,7 +47,18 @@ defmodule NervesHubWeb.Components.HealthStatus do
             {key_parts, ""}
           end
 
-        "#{Enum.join(key_parts, " ")}: #{reasons["value"]}#{delimiter}#{window_phrase(reasons)} (threshold is #{reasons["threshold"]}#{delimiter})"
+        name = Enum.join(key_parts, " ")
+
+        # A share reason's value is how much of the window was at or over
+        # the threshold, not a reading of the metric itself, so it gets its
+        # own sentence shape.
+        case reasons do
+          %{"aggregation" => "share"} ->
+            "#{name}: at or over #{reasons["threshold"]}#{delimiter} for #{reasons["value"]}% of #{format_period(reasons["period_seconds"])}"
+
+          _ ->
+            "#{name}: #{reasons["value"]}#{delimiter}#{window_phrase(reasons)} (threshold is #{reasons["threshold"]}#{delimiter})"
+        end
       end)
 
     if Enum.any?(reasons) do
