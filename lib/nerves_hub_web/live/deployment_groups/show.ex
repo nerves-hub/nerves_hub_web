@@ -519,38 +519,68 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     State.new(nodes: nodes, edges: edges)
   end
 
+  # LiveFlow hangs a handle halfway down a node (`position.y + height / 2`) and
+  # positions nodes from their top-left, so nodes of different heights would be
+  # joined by sloping arrows. Rather than pad every node out to a common height,
+  # each one is placed so that its own middle sits on a shared centre line: a step
+  # with no description stays short, and the arrows still run level.
+  #
+  # Only the browser knows how tall a node ended up, so the heights below are a
+  # starting guess and `apply_node_change/2` re-centres each node once it reports
+  # what it measured.
+  @node_width 230
+  @node_gap 60
+  @node_centre_y 60
+
+  @estimated_height_with_description 92
+  @estimated_height 58
+
+  # `.lf-node-content` pads by 15px either side and `.lf-node` draws a 1px border.
+  # The width is pinned so the columns line up; the height is left to the content.
+  @node_padding_x 32
+
   defp create_node(step, total_count) do
     step_data =
       %{detail: step.description, label: DeploymentWorkflowStep.label(step), status: step.status}
       |> Map.reject(fn {_key, value} -> is_nil(value) end)
 
-    Node.new(
-      "step-#{step.number}",
-      calculate_positioning(step),
-      step_data,
-      type: :status,
-      draggable: "false",
-      deletable: false,
-      handles: create_handles(step, total_count)
-    )
+    height = estimated_height(step)
+
+    node =
+      Node.new(
+        "step-#{step.number}",
+        %{x: (@node_width + @node_gap) * (step.number - 1), y: centre_offset(height)},
+        step_data,
+        type: :status,
+        draggable: "false",
+        deletable: false,
+        handles: create_handles(step, total_count)
+      )
+
+    %{node | width: @node_width, height: height}
   end
 
-  defp calculate_positioning(%{number: number, type: type}) do
-    y = if(type == :update_devices, do: 1, else: 16)
+  defp estimated_height(%{description: description}) when description in [nil, ""], do: @estimated_height
+  defp estimated_height(_step), do: @estimated_height_with_description
 
-    %{x: 250 * (number - 1) + 1, y: y}
-  end
+  defp centre_offset(nil), do: @node_centre_y
+  defp centre_offset(height), do: @node_centre_y - height / 2
 
-  defp create_handles(%{number: 1}, _) do
+  # An edge runs from a source handle to a target handle, so a step needs one of
+  # each: the arrow leaves on the right and arrives on the left. Handles are
+  # looked up by type, and the first match wins, so making them all sources put
+  # every outgoing edge on the node's left-hand side and left every arrowhead
+  # with no target to aim at.
+  defp create_handles(%{number: 1}, _total_count) do
     [Handle.source(:right, connectable: false)]
   end
 
   defp create_handles(%{number: num}, total_count) when num == total_count do
-    [Handle.source(:left, connectable: false)]
+    [Handle.target(:left, connectable: false)]
   end
 
   defp create_handles(_step, _total_count) do
-    [Handle.source(:left, connectable: false), Handle.source(:right, connectable: false)]
+    [Handle.target(:left, connectable: false), Handle.source(:right, connectable: false)]
   end
 
   defp create_edge(%{number: num}, total_count) when num == total_count, do: nil
@@ -588,9 +618,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       |> assign(:status_color, status_color)
       |> assign(:status_label, status_label)
       |> assign(:detail, detail)
+      |> assign(:content_width, @node_width - @node_padding_x)
 
     ~H"""
-    <div style="min-width: 150px">
+    <div style={"width: #{@content_width}px"}>
       <div style="display: flex; align-items: center; gap: 8px">
         <div style={"width: 10px; height: 10px; border-radius: 50%; background: #{@status_color}; box-shadow: 0 0 6px #{@status_color}80;#{@node.data.status == :in_progress && " animation: pulse 2s infinite;"}"}>
         </div>
@@ -605,7 +636,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       </div>
       <div
         :if={@detail != ""}
-        style="font-size: 11px; color: var(--lf-text-muted); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--lf-border-secondary, #ddd)"
+        style="font-size: 11px; color: var(--lf-text-muted); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--lf-border-secondary, #ddd); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden"
+        title={@detail}
       >
         {@detail}
       </div>
@@ -625,13 +657,24 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     end
   end
 
+  # Re-centre on the measured height. The browser reports a size only when it
+  # actually changes, so moving a node in response does not start a loop.
   defp apply_node_change(flow, %{"type" => "dimensions", "id" => id} = change) do
     case Map.get(flow.nodes, id) do
       nil ->
         flow
 
       node ->
-        updated = %{node | width: Map.get(change, "width"), height: Map.get(change, "height"), measured: true}
+        height = Map.get(change, "height")
+
+        updated = %{
+          node
+          | width: Map.get(change, "width"),
+            height: height,
+            measured: true,
+            position: %{node.position | y: centre_offset(height)}
+        }
+
         %{flow | nodes: Map.put(flow.nodes, id, updated)}
     end
   end

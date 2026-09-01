@@ -150,7 +150,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
 
-        <div class="bg-base-900 border-base-700 flex w-2/3 flex-col rounded border">
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Device queue settings</div>
           </div>
