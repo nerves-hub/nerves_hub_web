@@ -592,8 +592,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         <DeviceComponents.networks_summary
           :if={@component_topology && @component_topology["networks"] != []}
           networks={@component_topology["networks"]}
-          latest_metrics={@latest_metrics}
-          metadata={@component_metadata}
           path={~p"/org/#{@org}/#{@product}/devices/#{@device}/networks"}
         />
 

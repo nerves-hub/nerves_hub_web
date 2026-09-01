@@ -98,14 +98,12 @@ defmodule NervesHubWeb.Components.DeviceComponents do
   end
 
   attr(:networks, :list, required: true)
-  attr(:latest_metrics, :map, default: %{})
-  attr(:metadata, :map, default: %{})
   attr(:path, :string, required: true)
 
   @doc """
-  The Details-tab summary of the device's networks: per network its stats
-  (group-level metrics and metadata) and how many peers it fronts. The peers
-  themselves live on the Networks tab this links to.
+  The Details-tab summary of the device's networks: each network and how many
+  peers it fronts, nothing more. The detail — peers, stats, controls — lives
+  on the Networks tab this links to.
   """
   def networks_summary(assigns) do
     ~H"""
@@ -117,14 +115,10 @@ defmodule NervesHubWeb.Components.DeviceComponents do
         </.link>
       </div>
 
-      <div class="flex flex-col gap-3 px-4 pb-4">
-        <div :for={network <- @networks} class="bg-surface-muted border-base-700 flex flex-col rounded border">
-          <div class="border-base-700 flex items-center justify-between border-b px-3 py-2">
-            <span class="text-base-200 text-sm font-medium">{title(network)}</span>
-            <span class="text-base-400 text-xs">{peer_count(network)}</span>
-          </div>
-
-          <.value_rows entries={metric_entries(network, @latest_metrics) ++ metadata_entries(network, @metadata)} />
+      <div class="flex flex-col gap-1 px-4 pb-4">
+        <div :for={network <- @networks} class="flex items-center justify-between gap-4">
+          <span class="text-base-400 truncate text-sm">{title(network)}</span>
+          <span class="text-base-200 text-sm">{peer_count(network)}</span>
         </div>
       </div>
     </div>

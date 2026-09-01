@@ -93,7 +93,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
     |> refute_has("a", text: "View networks")
   end
 
-  test "the details tab summarizes networks with their stats", %{conn: conn, fixture: fixture} do
+  test "the details tab summarizes networks as counts only", %{conn: conn, fixture: fixture} do
     :ok = seed_components(fixture.device)
     {:ok, _} = Metrics.save_metrics(fixture.device.id, %{"zwave_rssi" => -61.0})
 
@@ -102,11 +102,11 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
     |> assert_has("div", text: "Networks")
     |> assert_has("span", text: "Z-Wave")
     |> assert_has("span", text: "1 peer")
-    |> assert_has("span", text: "Zwave rssi")
-    |> assert_has("span", text: "-61.00")
     |> assert_has("a", text: "View networks")
-    # The peers themselves belong to the Networks tab, not the summary.
+    # Everything else — peers, stats, controls — belongs to the Networks tab.
     |> refute_has("span", text: "Motion sensor")
+    |> refute_has("span", text: "Zwave rssi")
+    |> refute_has("span", text: "-61.00")
   end
 
   test "a health report updates metadata and mode values without a reload", %{
