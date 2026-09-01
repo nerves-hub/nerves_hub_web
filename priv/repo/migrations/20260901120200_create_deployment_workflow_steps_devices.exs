@@ -1,4 +1,4 @@
-defmodule NervesHub.Repo.Migrations.CreateDeploymentWorkflowStepsAndDevices do
+defmodule NervesHub.Repo.Migrations.CreateDeploymentWorkflowStepsDevices do
   use Ecto.Migration
 
   def change() do
@@ -23,5 +23,9 @@ defmodule NervesHub.Repo.Migrations.CreateDeploymentWorkflowStepsAndDevices do
         name: "deployment_workflow_steps_devices_index"
       )
     )
+
+    # The join table cascades on device deletion, which needs this to avoid a
+    # sequential scan per deleted device.
+    create(index(:deployment_workflow_steps_devices, [:device_id]))
   end
 end
