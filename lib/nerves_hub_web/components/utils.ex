@@ -10,6 +10,16 @@ defmodule NervesHubWeb.Components.Utils do
         do: {String.capitalize(value), key}
   end
 
+  @doc """
+  A measurement period in seconds as a compact human string: "90s", "30m",
+  "6h", "1d".
+  """
+  def format_period(seconds) when seconds < 60, do: "#{seconds}s"
+  def format_period(seconds) when rem(seconds, 86_400) == 0, do: "#{div(seconds, 86_400)}d"
+  def format_period(seconds) when rem(seconds, 3600) == 0, do: "#{div(seconds, 3600)}h"
+  def format_period(seconds) when rem(seconds, 60) == 0, do: "#{div(seconds, 60)}m"
+  def format_period(seconds), do: "#{div(seconds, 60)}m #{rem(seconds, 60)}s"
+
   def format_serial(big_long_integer) when is_integer(big_long_integer) do
     big_long_integer
     |> Integer.to_string(16)

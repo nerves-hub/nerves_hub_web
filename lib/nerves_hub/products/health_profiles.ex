@@ -136,6 +136,22 @@ defmodule NervesHub.Products.HealthProfiles do
   @spec topic(pos_integer()) :: String.t()
   def topic(product_id), do: "product:#{product_id}:health_profiles"
 
+  @doc """
+  The warning-level settings of the default profile's "disconnects" built-in,
+  when the product has configured one; `nil` otherwise. What makes the
+  Insights flapping-connections panel configurable.
+  """
+  @spec disconnects_settings(pos_integer()) :: %{threshold: float(), period_seconds: pos_integer()} | nil
+  def disconnects_settings(product_id) do
+    with %HealthProfile{} = profile <- resolve(product_id, nil),
+         %HealthProfileMetric{} = metric <-
+           Enum.find(profile.metrics, &(&1.built_in and &1.key == "disconnects")) do
+      %{threshold: metric.warning_threshold, period_seconds: metric.warning_period_seconds}
+    else
+      _ -> nil
+    end
+  end
+
   defp broadcast_change(product_id) do
     _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic(product_id), {:health_profiles_changed, product_id})
     :ok

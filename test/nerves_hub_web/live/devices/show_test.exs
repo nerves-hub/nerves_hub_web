@@ -798,6 +798,37 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "engaged health metrics" do
+    test "are pinned above the featured tiles with their reason, colored by level", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 93.0, "mem_used_percent" => 85.0})
+
+      # Reasons as the evaluator writes them; they come back string-keyed.
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device.id,
+          "data" => %{},
+          "status" => :unhealthy,
+          "status_reasons" => %{
+            warning: %{"mem_used_percent" => %{value: 60, threshold: 70.0, period_seconds: 3600, aggregation: :share}},
+            unhealthy: %{
+              "cpu_usage_percent" => %{value: 80, threshold: 90.0, period_seconds: 3600, aggregation: :share}
+            }
+          }
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div.border-alert span", text: "at or over 90.0 for 80% of 1h")
+      |> assert_has("div.border-warning span", text: "at or over 70.0 for 60% of 1h")
+    end
+  end
+
   describe "firmware selection" do
     test "updates when new firmware is available", %{
       conn: conn,

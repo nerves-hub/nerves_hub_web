@@ -20,6 +20,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHubWeb.Components.DeviceLocation
   alias NervesHubWeb.Components.DeviceNetworkIdentities
   alias NervesHubWeb.Components.HealthStatus
+  alias NervesHubWeb.Components.Utils
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -149,8 +150,23 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </time>
             </div>
           </div>
+          <div :if={engaged_reasons(@device.latest_health) != []} class="flex flex-wrap items-center justify-items-stretch gap-2 px-4 pt-2">
+            <.engaged_tile
+              :for={{level, key, reason} <- engaged_reasons(@device.latest_health)}
+              level={level}
+              metric_key={key}
+              reason={reason}
+              latest_metrics={@latest_metrics}
+              custom_labels={@custom_labels}
+            />
+          </div>
           <div class="flex flex-wrap items-center justify-items-stretch gap-2 px-4 pt-2 pb-4">
-            <.featured_tile :for={tile <- featured_tiles(@featured_keys)} tile={tile} latest_metrics={@latest_metrics} custom_labels={@custom_labels} />
+            <.featured_tile
+              :for={tile <- featured_tiles(@featured_keys, engaged_keys(@device.latest_health))}
+              tile={tile}
+              latest_metrics={@latest_metrics}
+              custom_labels={@custom_labels}
+            />
           </div>
           <div class="text-base-400 px-4 pb-4 text-xs font-normal">
             Learn more about
@@ -1043,13 +1059,29 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp device_platform(%{firmware_metadata: %{platform: platform}}), do: platform
   defp device_platform(_device), do: nil
 
+  # The engaged metrics of the latest evaluation — the row pinned above the
+  # featured tiles, alert level first. Reasons come back from jsonb with
+  # string keys.
+  defp engaged_reasons(%{status_reasons: %{} = reasons}) do
+    for level <- ["unhealthy", "warning"],
+        {key, reason} <- Enum.sort(Map.get(reasons, level) || %{}),
+        do: {level, key, reason}
+  end
+
+  defp engaged_reasons(_no_health_or_reasons), do: []
+
+  defp engaged_keys(latest_health) do
+    MapSet.new(engaged_reasons(latest_health), fn {_level, key, _reason} -> key end)
+  end
+
   # A tile per featured metric of the device's health profile. Keys the
   # hand-designed composite tiles cover collapse into their tile — featuring
   # cpu_usage_percent or cpu_temp gives the CPU tile — and any other featured
-  # key gets a plain value tile. With no profile, the pre-profile fixed trio.
-  defp featured_tiles(nil), do: [:cpu, :memory, :load]
+  # key gets a plain value tile, unless it is already pinned in the engaged
+  # row above. With no profile, the pre-profile fixed trio.
+  defp featured_tiles(nil, _engaged_keys), do: [:cpu, :memory, :load]
 
-  defp featured_tiles(featured_keys) do
+  defp featured_tiles(featured_keys, engaged_keys) do
     featured_keys
     |> Enum.map(fn
       key when key in ["cpu_usage_percent", "cpu_temp"] -> :cpu
@@ -1057,8 +1089,66 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       "load_" <> _rest -> :load
       key -> {:metric, key}
     end)
+    |> Enum.reject(fn
+      {:metric, key} -> MapSet.member?(engaged_keys, key)
+      _composite -> false
+    end)
     |> Enum.uniq()
   end
+
+  # An engaged metric's tile: the level's tile treatment (colored bottom
+  # border and tint), the current value, and how the level engaged.
+  attr(:level, :string, required: true, values: ["warning", "unhealthy"])
+  attr(:metric_key, :string, required: true)
+  attr(:reason, :map, required: true)
+  attr(:latest_metrics, :map, required: true)
+  attr(:custom_labels, :map, required: true)
+
+  defp engaged_tile(assigns) do
+    ~H"""
+    <div class={[
+      "flex h-16 grow flex-col rounded border-b px-3 py-2",
+      @level == "unhealthy" && "border-alert health-alert",
+      @level == "warning" && "border-warning health-warning"
+    ]}>
+      <span class="text-base-400 text-xs tracking-wide">{engaged_label(@metric_key, @custom_labels)}</span>
+      <div class="flex items-end justify-between gap-3">
+        <span class="text-base-50 text-xl leading-[30px]">{engaged_value(@metric_key, @reason, @latest_metrics)}</span>
+        <span class={["pb-1 text-xs", @level == "unhealthy" && "text-alert", @level == "warning" && "text-warning"]}>
+          {engaged_detail(@reason)}
+        </span>
+      </div>
+    </div>
+    """
+  end
+
+  defp engaged_label(key, custom_labels) do
+    case HealthProfiles.built_in_metrics() do
+      %{^key => %{label: label}} -> label
+      _ -> MetricLabels.label(key, custom_labels)
+    end
+  end
+
+  # A count reason's value is the observation itself; a share reason's main
+  # number is the metric's latest reading.
+  defp engaged_value(_key, %{"aggregation" => "count", "value" => count}, _latest_metrics), do: count
+
+  defp engaged_value(key, _reason, latest_metrics) do
+    case latest_metrics[key] do
+      value when is_number(value) -> nice_round(value)
+      _ -> "NA"
+    end
+  end
+
+  defp engaged_detail(%{"aggregation" => "count"} = reason) do
+    "threshold #{reason["threshold"]} in #{Utils.format_period(reason["period_seconds"])}"
+  end
+
+  defp engaged_detail(%{"aggregation" => "share"} = reason) do
+    "at or over #{reason["threshold"]} for #{reason["value"]}% of #{Utils.format_period(reason["period_seconds"])}"
+  end
+
+  defp engaged_detail(reason), do: "threshold #{reason["threshold"]}"
 
   defp featured_tile(%{tile: :cpu} = assigns) do
     ~H"""

@@ -213,7 +213,9 @@
             <div class="relative z-20 ml-4" id="flapping-connections-tooltip" phx-hook="ToolTip" data-placement="top">
               <span class="lucide-info--light size-4" />
               <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border px-2 py-1.5 text-xs">
-                <p class="pb-2">Devices that have reconnected 10 times or more in the last hour.</p>
+                <p class="pb-2">
+                  Devices that have reconnected {@flapping_at_least} times or more in the last {NervesHubWeb.Components.Utils.format_period(@flapping_window_seconds)}. Configure via the "Disconnects" metric on the default health profile.
+                </p>
                 <p>
                   These devices might have issues with connection stability, <br />or underlying errors which are causing the devices to crash.
                 </p>
@@ -229,7 +231,9 @@
             >
               <div class="group flex items-center gap-3 py-3">
                 <span class="text-content-body flex-1 font-mono text-sm group-hover:underline">{device.identifier}</span>
-                <span class="text-content-strong text-right font-mono text-sm">{connection_count} p/hour</span>
+                <span class="text-content-strong text-right font-mono text-sm">
+                  {connection_count} / {NervesHubWeb.Components.Utils.format_period(@flapping_window_seconds)}
+                </span>
               </div>
             </.link>
             <div :if={Enum.empty?(@flapping_connections)} class="inline-flex h-20 items-center justify-center">

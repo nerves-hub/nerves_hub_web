@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Components.HealthStatus do
   use NervesHubWeb, :component
 
+  alias NervesHubWeb.Components.Utils
+
   attr(:device_id, :integer)
   attr(:health, :map, default: %{status: :unknown, status_reasons: nil})
   attr(:tooltip_position, :string, default: "bottom")
@@ -75,9 +77,5 @@ defmodule NervesHubWeb.Components.HealthStatus do
 
   defp window_phrase(_reasons), do: ""
 
-  defp format_period(seconds) when seconds < 60, do: "#{seconds}s"
-  defp format_period(seconds) when rem(seconds, 86_400) == 0, do: "#{div(seconds, 86_400)}d"
-  defp format_period(seconds) when rem(seconds, 3600) == 0, do: "#{div(seconds, 3600)}h"
-  defp format_period(seconds) when rem(seconds, 60) == 0, do: "#{div(seconds, 60)}m"
-  defp format_period(seconds), do: "#{div(seconds, 60)}m #{rem(seconds, 60)}s"
+  defp format_period(seconds), do: Utils.format_period(seconds)
 end
