@@ -25,9 +25,8 @@ defmodule NervesHubWeb.Components.DeviceComponents do
   def group_box(assigns) do
     ~H"""
     <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
-      <div class="flex h-14 items-center justify-between px-4">
+      <div class="flex h-14 items-center px-4">
         <div class="text-base-50 leading-6 font-medium">{title(@group)}</div>
-        <span class="text-base-500 font-mono text-xs">{@group["identifier"]}</span>
       </div>
 
       <.value_rows entries={metric_entries(@group, @latest_metrics) ++ metadata_entries(@group, @metadata)} />
@@ -40,30 +39,29 @@ defmodule NervesHubWeb.Components.DeviceComponents do
         <%!-- The same indigo underglow as the featured metric tiles on the
         details view, pooling against a primary bottom border. --%>
         <div :for={member <- members(@group, @members_key)} class="bg-surface-muted border-b-primary border-base-700 health-neutral flex flex-col rounded border border-b">
-          <div class="border-base-700 flex items-center justify-between border-b px-3 py-2">
-            <span class="text-base-200 text-sm font-medium">{title(member)}</span>
-            <span class="text-base-500 font-mono text-xs">{member["identifier"]}</span>
+          <div class="border-base-700 flex items-center justify-between gap-2 border-b px-3 py-2">
+            <span class="text-base-200 truncate text-sm font-medium">{title(member)}</span>
+
+            <div :if={member["actions"] != []} class="flex flex-wrap items-center justify-end gap-1.5">
+              <button
+                :for={action <- member["actions"]}
+                type="button"
+                phx-click="components-run-action"
+                phx-value-component={member["identifier"]}
+                phx-value-action={action["identifier"]}
+                data-confirm={action["confirm"] && ~s(Run "#{title(action)}" on "#{title(member)}"?)}
+                disabled={!@can_manage}
+                aria-label={"Run #{title(action)} on #{title(member)}"}
+                class="active:bg-primary bg-base-800 border-base-600 disabled:text-base-500 hover:bg-base-700 hover:text-base-50 text-base-300 rounded border px-2 py-0.5 text-xs font-medium hover:cursor-pointer disabled:cursor-not-allowed"
+              >
+                {title(action)}
+              </button>
+            </div>
           </div>
 
           <.value_rows entries={metric_entries(member, @latest_metrics) ++ metadata_entries(member, @metadata)} />
 
-          <div
-            :if={member["actions"] != [] or member["modes"] != []}
-            class="flex flex-wrap items-center gap-2 px-3 pt-1 pb-3"
-          >
-            <.button
-              :for={action <- member["actions"]}
-              type="button"
-              style="secondary"
-              phx-click="components-run-action"
-              phx-value-component={member["identifier"]}
-              phx-value-action={action["identifier"]}
-              disabled={!@can_manage}
-              aria-label={"Run #{title(action)} on #{title(member)}"}
-            >
-              {title(action)}
-            </.button>
-
+          <div :if={member["modes"] != []} class="flex flex-wrap items-center gap-2 px-3 pt-1 pb-3">
             <form :for={mode <- member["modes"]} id={"#{select_id(member, mode)}-form"} phx-change="components-set-mode" class="flex items-center gap-1.5">
               <input type="hidden" name="component" value={member["identifier"]} />
               <input type="hidden" name="mode" value={mode["identifier"]} />
@@ -149,17 +147,20 @@ defmodule NervesHubWeb.Components.DeviceComponents do
 
   @doc """
   The display name of any topology entry: its label, or its identifier
-  turned into a title when no label was reported.
+  humanized when no label was reported. The raw identifier is never shown —
+  it is machine addressing, and anyone who needs it has the topology.
   """
   def title(%{"label" => label}) when is_binary(label) and label != "", do: label
+  def title(%{"identifier" => identifier}), do: humanize(identifier)
+  def title(_entry), do: ""
 
-  def title(%{"identifier" => identifier}) when is_binary(identifier) do
-    identifier
+  defp humanize(key) when is_binary(key) do
+    key
     |> String.replace(["_", "-"], " ")
     |> String.capitalize()
   end
 
-  def title(_entry), do: ""
+  defp humanize(_key), do: ""
 
   @doc """
   The mode's current value, read from the health metadata entry the mode
@@ -183,7 +184,7 @@ defmodule NervesHubWeb.Components.DeviceComponents do
     for key <- entry["metrics"] || [],
         value = (latest_metrics || %{})[key],
         is_number(value) do
-      {key, format_metric(value)}
+      {humanize(key), format_metric(value)}
     end
   end
 
@@ -191,7 +192,7 @@ defmodule NervesHubWeb.Components.DeviceComponents do
     for key <- entry["metadata"] || [],
         value = (metadata || %{})[key],
         is_binary(value) and value != "" do
-      {key, value}
+      {humanize(key), value}
     end
   end
 

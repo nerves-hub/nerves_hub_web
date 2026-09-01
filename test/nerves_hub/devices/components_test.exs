@@ -31,7 +31,10 @@ defmodule NervesHub.Devices.ComponentsTest do
             "label" => "Panel",
             "metrics" => ["display_fps"],
             "metadata" => ["panel_firmware"],
-            "actions" => [%{"identifier" => "recalibrate", "label" => "Recalibrate"}],
+            "actions" => [
+              %{"identifier" => "recalibrate", "label" => "Recalibrate"},
+              %{"identifier" => "reset", "label" => "Factory reset", "confirm" => true}
+            ],
             "modes" => [
               %{"identifier" => "display_mode", "values" => ["day", "night"]}
             ]
@@ -59,7 +62,9 @@ defmodule NervesHub.Devices.ComponentsTest do
       assert assembly["identifier"] == "display"
       assert [component] = assembly["components"]
       assert component["identifier"] == "panel"
-      assert [%{"identifier" => "recalibrate", "label" => "Recalibrate"}] = component["actions"]
+      assert [recalibrate, reset] = component["actions"]
+      assert recalibrate == %{"identifier" => "recalibrate", "label" => "Recalibrate", "confirm" => false}
+      assert reset == %{"identifier" => "reset", "label" => "Factory reset", "confirm" => true}
       assert [mode] = component["modes"]
       assert mode["metadata_key"] == "display_mode"
       assert [network] = stored.topology["networks"]

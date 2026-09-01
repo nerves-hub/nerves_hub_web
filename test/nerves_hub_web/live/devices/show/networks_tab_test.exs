@@ -41,11 +41,12 @@ defmodule NervesHubWeb.Live.Devices.Show.NetworksTabTest do
     |> visit(networks_path(fixture))
     |> assert_has("div", text: "Z-Wave")
     |> assert_has("span", text: "Motion sensor")
-    |> assert_has("span", text: "zwave_rssi")
+    |> assert_has("span", text: "Zwave rssi")
     |> assert_has("span", text: "-61.00")
-    |> assert_has("span", text: "battery_pct")
+    |> assert_has("span", text: "Battery pct")
     |> assert_has("span", text: "87.00")
     |> assert_has("button", text: "Rediscover")
+    |> refute_has("span", text: "zwave_rssi")
   end
 
   test "explains itself when the extension is not enabled", %{conn: conn, fixture: fixture} do

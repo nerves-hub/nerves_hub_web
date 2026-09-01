@@ -20,7 +20,10 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
             "label" => "Panel",
             "metrics" => ["display_fps"],
             "metadata" => ["panel_firmware"],
-            "actions" => [%{"identifier" => "recalibrate", "label" => "Recalibrate"}],
+            "actions" => [
+              %{"identifier" => "recalibrate", "label" => "Recalibrate"},
+              %{"identifier" => "reset", "label" => "Factory reset", "confirm" => true}
+            ],
             "modes" => [
               %{"identifier" => "display_mode", "label" => "Display mode", "values" => ["day", "night"]}
             ]
@@ -64,13 +67,18 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
     conn
     |> visit(device_path(fixture))
     |> assert_has("div", text: "Display")
-    |> assert_has("span", text: "panel")
-    |> assert_has("span", text: "display_fps")
+    |> assert_has("span", text: "Panel")
+    |> assert_has("span", text: "Display fps")
     |> assert_has("span", text: "59.90")
-    |> assert_has("span", text: "panel_firmware")
+    |> assert_has("span", text: "Panel firmware")
     |> assert_has("span", text: "v42")
     |> assert_has("button", text: "Recalibrate")
     |> assert_has("option[selected]", text: "day")
+    # Only the human name is shown; the identifier stays machine addressing.
+    |> refute_has("span", text: "display_fps")
+    # An action reported with confirm gets a confirmation dialog.
+    |> assert_has(~s(button[data-confirm='Run "Factory reset" on "Panel"?']), text: "Factory reset")
+    |> refute_has("button[data-confirm]", text: "Recalibrate")
   end
 
   test "a device without a topology shows no component boxes", %{conn: conn, fixture: fixture} do
@@ -89,7 +97,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
     |> assert_has("div", text: "Networks")
     |> assert_has("span", text: "Z-Wave")
     |> assert_has("span", text: "1 peer")
-    |> assert_has("span", text: "zwave_rssi")
+    |> assert_has("span", text: "Zwave rssi")
     |> assert_has("span", text: "-61.00")
     |> assert_has("a", text: "View networks")
     # The peers themselves belong to the Networks tab, not the summary.

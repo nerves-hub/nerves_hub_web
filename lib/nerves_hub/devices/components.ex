@@ -208,8 +208,17 @@ defmodule NervesHub.Devices.Components do
     |> Enum.flat_map(fn
       %{} = action ->
         case string(action["identifier"]) do
-          nil -> []
-          identifier -> [%{"identifier" => identifier, "label" => string(action["label"])}]
+          nil ->
+            []
+
+          identifier ->
+            [
+              %{
+                "identifier" => identifier,
+                "label" => string(action["label"]),
+                "confirm" => action["confirm"] == true
+              }
+            ]
         end
 
       _ ->
