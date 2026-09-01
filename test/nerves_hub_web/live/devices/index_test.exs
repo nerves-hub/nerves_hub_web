@@ -657,6 +657,44 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> refute_has("div a", text: device.identifier)
     end
 
+    test "sidebar filters round trip through the advanced query", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{})
+
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device2.id,
+          "data" => %{"metrics" => %{"cpu_temp" => 41.2}},
+          "status" => :healthy
+        })
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      # a sidebar selection lands in the advanced query, not its own param
+      |> select("Health Status", option: "Healthy")
+      |> assert_path(device_index_path(fixture), query_params: %{advanced_query: ~s|health_status = "healthy"|})
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> assert_has("div a", text: device2.identifier)
+      # changing the control replaces its comparison instead of stacking
+      |> select("Health Status", option: "Unknown")
+      |> assert_path(device_index_path(fixture), query_params: %{advanced_query: ~s|health_status = "unknown"|})
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> assert_has("div a", text: device.identifier)
+      # another control merges into the same query
+      |> select("Untagged", option: "Only untagged")
+      |> assert_path(device_index_path(fixture),
+        query_params: %{advanced_query: ~s|health_status = "unknown" and tags contains ":not_set"|}
+      )
+    end
+
+    test "sidebar controls display state stored in the advanced query", %{conn: conn, fixture: fixture} do
+      conn
+      |> visit(device_index_path(fixture) <> "?advanced_query=" <> URI.encode_www_form(~s|connection = "connected"|))
+      |> assert_has("#input_connection option[selected]", text: "Connected", timeout: 1000)
+    end
+
     test "by metrics compares each device's latest value", %{conn: conn, fixture: fixture} do
       %{device: device, firmware: firmware, org: org, product: product} = fixture
 
@@ -814,7 +852,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device2.identifier)
       # the show filters button is shown using JS, so no `click_button` is needed
       |> select("Alarm", option: alarm)
-      |> assert_path(device_index_path(fixture), query_params: %{alarm: alarm})
+      |> assert_path(device_index_path(fixture), query_params: %{advanced_query: ~s|alarm contains "#{alarm}"|})
       |> assert_has("#device-count", text: "1", timeout: 1000)
       |> assert_has("div a", text: device.identifier)
       |> refute_has("div a", text: device2.identifier)
