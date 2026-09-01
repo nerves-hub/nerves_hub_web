@@ -23,6 +23,7 @@ defmodule NervesHub.Devices.HealthEvaluation do
   """
 
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.HealthEvaluation.Screen
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
   alias NervesHub.Products.HealthProfiles
@@ -44,6 +45,36 @@ defmodule NervesHub.Devices.HealthEvaluation do
       profile ->
         evaluate_profile(device_info, profile)
     end
+  end
+
+  @doc """
+  Like `evaluate/2`, but screened: when the `Screen` proves this report
+  cannot change the status — the device has reported nothing but all-clear
+  values for longer than the profile's longest measurement window — the
+  windowed aggregate queries are skipped and the previous status carried
+  forward. Returns the advanced screen along with the status, for the caller
+  to hold onto between reports.
+  """
+  @spec evaluate(struct() | map(), map(), Screen.t()) :: {status(), reasons(), Screen.t()}
+  def evaluate(device_info, report_metrics, %Screen{} = screen) do
+    profile = HealthProfiles.resolve(device_info.product_id, platform(device_info))
+    now = DateTime.utc_now()
+
+    {status, reasons} =
+      cond do
+        is_nil(profile) ->
+          legacy(report_metrics)
+
+        Screen.skip?(screen, profile, report_metrics, now) ->
+          # The skip requires last_status == :healthy, so this carries forward
+          # a healthy verdict, never an engaged one.
+          {:healthy, screen.last_reasons}
+
+        true ->
+          evaluate_profile(device_info, profile)
+      end
+
+    {status, reasons, Screen.observe(screen, profile, report_metrics, status, reasons, now)}
   end
 
   defp evaluate_profile(device_info, profile) do

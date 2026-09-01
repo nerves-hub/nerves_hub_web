@@ -28,6 +28,7 @@ defmodule NervesHub.Extensions.Health do
 
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthEvaluation
+  alias NervesHub.Devices.HealthEvaluation.Screen
   alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
@@ -86,7 +87,15 @@ defmodule NervesHub.Extensions.Health do
     # arrived.
     {:ok, _stored} = Metrics.record(device_info, metrics)
 
-    {status, reasons} = HealthEvaluation.evaluate(device_info, metrics)
+    # The screen lives in this connection's assigns: it remembers the status
+    # this connection last computed and how long the device has reported
+    # nothing but all-clear values, which lets steady-state reports skip the
+    # windowed aggregate queries entirely.
+    screen = State.get(state, :screen) || Screen.new()
+
+    {status, reasons, screen} = HealthEvaluation.evaluate(device_info, metrics, screen)
+
+    state = State.assign(state, :screen, screen)
 
     device_health = %{
       "device_id" => device_info.device_id,

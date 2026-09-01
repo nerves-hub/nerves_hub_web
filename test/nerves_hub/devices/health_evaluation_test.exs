@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
   alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.HealthEvaluation
+  alias NervesHub.Devices.HealthEvaluation.Screen
   alias NervesHub.Fixtures
   alias NervesHub.Products.HealthProfile
   alias NervesHub.Products.HealthProfileMetric
@@ -220,6 +221,144 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       # The unknown built-in contributes nothing; the disconnects metric from
       # the setup still evaluates (zero disconnects -> healthy).
       assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, %{})
+    end
+  end
+
+  # A screen claiming an established all-clear streak. Tests pair it with
+  # contradictory samples in the database — impossible with a truthfully
+  # tracked streak — so a :healthy result proves the queries were skipped
+  # and a :warning result proves they ran.
+  defp established_screen(product, streak_seconds) do
+    profile = HealthProfiles.resolve(product.id, nil)
+
+    %Screen{
+      last_status: :healthy,
+      last_reasons: nil,
+      all_clear_since: DateTime.add(DateTime.utc_now(), -streak_seconds, :second),
+      profile_fingerprint: Screen.fingerprint(profile)
+    }
+  end
+
+  describe "screened evaluation" do
+    test "a fresh screen always evaluates", %{device: device, device_info: device_info} do
+      insert_metric(device, "cpu_usage_percent", 85.0)
+
+      assert {:warning, _, %Screen{last_status: :warning}} =
+               HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 20.0}, Screen.new())
+    end
+
+    test "an established all-clear streak skips the window queries", %{
+      product: product,
+      device: device,
+      device_info: device_info
+    } do
+      insert_metric(device, "cpu_usage_percent", 95.0)
+      screen = established_screen(product, 2 * 3600)
+
+      assert {:healthy, nil, updated} = HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 20.0}, screen)
+
+      # The streak keeps its original start rather than restarting.
+      assert updated.all_clear_since == screen.all_clear_since
+    end
+
+    test "a streak shorter than the longest window still evaluates", %{
+      product: product,
+      device: device,
+      device_info: device_info
+    } do
+      insert_metric(device, "cpu_usage_percent", 95.0)
+      screen = established_screen(product, 600)
+
+      assert {:unhealthy, _, _} = HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 20.0}, screen)
+    end
+
+    test "a value at the warning threshold is not clearance", %{
+      product: product,
+      device: device,
+      device_info: device_info
+    } do
+      insert_metric(device, "cpu_usage_percent", 95.0)
+      screen = established_screen(product, 2 * 3600)
+
+      assert {:unhealthy, _, updated} = HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 80.0}, screen)
+
+      # And it breaks the streak.
+      assert updated.all_clear_since == nil
+    end
+
+    test "a report with no profile metrics does not skip", %{
+      product: product,
+      device: device,
+      device_info: device_info
+    } do
+      insert_metric(device, "cpu_usage_percent", 95.0)
+      screen = established_screen(product, 2 * 3600)
+
+      assert {:unhealthy, _, _} = HealthEvaluation.evaluate(device_info, %{"some_custom_metric" => 1.0}, screen)
+    end
+
+    test "a profile with a built-in metric never skips", %{
+      product: product,
+      device: device,
+      device_info: device_info
+    } do
+      insert_metric(device, "cpu_usage_percent", 95.0)
+      screen = established_screen(product, 2 * 3600)
+
+      {:ok, _} =
+        product.id
+        |> HealthProfiles.resolve(nil)
+        |> HealthProfiles.add_metric(%{
+          "key" => "disconnects",
+          "warning_threshold" => "3",
+          "warning_period_seconds" => "3600",
+          "alert_threshold" => "6",
+          "alert_period_seconds" => "3600"
+        })
+
+      # The screen's fingerprint is stale now too, but built-in presence alone
+      # must already refuse the skip. Not asserting the exact level: the
+      # disconnects count comes from ClickHouse, which other suites share.
+      assert {status, _, _} = HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 20.0}, screen)
+      assert status != :healthy
+    end
+
+    test "a profile edit invalidates the streak", %{product: product, device: device, device_info: device_info} do
+      insert_metric(device, "cpu_usage_percent", 95.0)
+      screen = established_screen(product, 2 * 3600)
+
+      profile = HealthProfiles.resolve(product.id, nil)
+      cpu = Enum.find(profile.metrics, &(&1.key == "cpu_usage_percent"))
+      {:ok, _} = HealthProfiles.update_metric(cpu, %{"warning_threshold" => "10", "alert_threshold" => "20"})
+
+      assert {:unhealthy, _, updated} = HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 5.0}, screen)
+
+      # The clear report opens a new streak against the new thresholds.
+      assert updated.all_clear_since != nil
+      assert updated.all_clear_since != screen.all_clear_since
+      assert updated.profile_fingerprint == Screen.fingerprint(HealthProfiles.resolve(product.id, nil))
+    end
+
+    test "consecutive clear reports share one streak start", %{device: device, device_info: device_info} do
+      insert_metric(device, "cpu_usage_percent", 20.0)
+
+      {:healthy, nil, screen} = HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 20.0}, Screen.new())
+      first_start = screen.all_clear_since
+      assert first_start != nil
+
+      {:healthy, nil, screen} = HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 21.0}, screen)
+      assert screen.all_clear_since == first_start
+    end
+
+    test "a product without a profile falls back to legacy and never skips", %{device_info: device_info} do
+      Repo.delete_all(HealthProfile)
+
+      assert {:unhealthy, _, screen} =
+               HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 95}, Screen.new())
+
+      assert screen.last_status == :unhealthy
+      assert screen.profile_fingerprint == nil
+      assert screen.all_clear_since == nil
     end
   end
 end
