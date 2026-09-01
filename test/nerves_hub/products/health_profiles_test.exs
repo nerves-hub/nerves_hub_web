@@ -145,6 +145,45 @@ defmodule NervesHub.Products.HealthProfilesTest do
       assert metric.built_in == true
     end
 
+    test "a low-is-unhealthy metric flips the threshold ordering rule", %{profile: profile} do
+      lte = %{
+        "key" => "fps",
+        "operator" => "lte",
+        "warning_threshold" => "25",
+        "warning_period_seconds" => "3600",
+        "alert_threshold" => "15",
+        "alert_period_seconds" => "3600"
+      }
+
+      assert {:ok, metric} = HealthProfiles.add_metric(profile, lte)
+      assert metric.operator == :lte
+
+      # With low unhealthy, an alert above the warning would engage last.
+      inverted = Map.merge(lte, %{"key" => "fps2", "alert_threshold" => "30"})
+
+      assert {:error, changeset} = HealthProfiles.add_metric(profile, inverted)
+
+      assert %{alert_threshold: ["must be at or below the warning threshold when low is unhealthy"]} =
+               errors_on(changeset)
+    end
+
+    test "a built-in's operator is not the caller's to choose", %{profile: profile} do
+      attrs = %{
+        "key" => "disconnects",
+        "operator" => "lte",
+        "warning_threshold" => "3",
+        "warning_period_seconds" => "3600",
+        "alert_threshold" => "5",
+        "alert_period_seconds" => "3600"
+      }
+
+      assert {:ok, metric} = HealthProfiles.add_metric(profile, attrs)
+      assert metric.operator == :gte
+
+      assert {:ok, metric} = HealthProfiles.update_metric(metric, %{"operator" => "lte"})
+      assert metric.operator == :gte
+    end
+
     test "a key can only appear once per profile", %{profile: profile} do
       attrs = valid_metric_attrs("cpu_temp")
 

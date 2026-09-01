@@ -1161,7 +1161,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   defp engaged_detail(%{"aggregation" => "share"} = reason) do
-    "at or over #{reason["threshold"]} for #{reason["value"]}% of #{Utils.format_period(reason["period_seconds"])}"
+    direction = if reason["operator"] == "lte", do: "at or under", else: "at or over"
+
+    "#{direction} #{reason["threshold"]} for #{reason["value"]}% of #{Utils.format_period(reason["period_seconds"])}"
   end
 
   defp engaged_detail(reason), do: "threshold #{reason["threshold"]}"

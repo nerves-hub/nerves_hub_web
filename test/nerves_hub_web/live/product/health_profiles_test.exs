@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
   alias NervesHub.Products.HealthProfiles
 
@@ -65,6 +67,53 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
     assert metric.alert_threshold == 85.0
     assert metric.alert_period_seconds == 1800
     assert metric.featured == true
+  end
+
+  test "adds a low-is-unhealthy metric with the operator select", %{
+    conn: conn,
+    org: org,
+    product: product,
+    firmware: firmware
+  } do
+    # The key picker offers reported keys; report an fps sample first.
+    device = Fixtures.device_fixture(NervesHub.Repo.get!(Org, product.org_id), product, firmware)
+    {:ok, _} = Metrics.save_metrics(device.id, %{"fps" => 60.0})
+
+    profile = HealthProfiles.resolve(product.id, nil)
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/settings/health")
+    |> unwrap(fn view ->
+      # Flip the add-form's operator to at-or-below, then submit; the flip is
+      # page state carried by the hidden input.
+      _ =
+        Phoenix.LiveViewTest.render_click(view, "flip-operator", %{"target" => "new-#{profile.id}", "operator" => "gte"})
+
+      view
+      |> Phoenix.LiveViewTest.form("#add-metric-#{profile.id}", %{
+        "profile_id" => to_string(profile.id),
+        "metric" => %{
+          "key" => "fps",
+          "warning_threshold" => "25",
+          "warning_period_value" => "1",
+          "warning_period_unit" => "hours",
+          "alert_threshold" => "15",
+          "alert_period_value" => "1",
+          "alert_period_unit" => "hours",
+          "featured" => "false"
+        }
+      })
+      |> Phoenix.LiveViewTest.render_submit()
+    end)
+    |> assert_has("div", text: "fps was added to the profile.")
+
+    metric =
+      product.id
+      |> HealthProfiles.resolve(nil)
+      |> Map.fetch!(:metrics)
+      |> Enum.find(&(&1.key == "fps"))
+
+    assert metric.operator == :lte
   end
 
   test "adding the disconnects built-in flags it", %{conn: conn, org: org, product: product} do

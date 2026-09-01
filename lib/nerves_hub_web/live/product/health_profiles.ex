@@ -20,6 +20,15 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     |> ok()
   end
 
+  # Flipping the operator is page state until the row is saved: the flipped
+  # thresholds usually need adjusting before they validate, so nothing is
+  # persisted on the click itself.
+  def handle_event("flip-operator", %{"target" => target, "operator" => current}, socket) do
+    flipped = if current == "gte", do: "lte", else: "gte"
+
+    {:noreply, update(socket, :pending_operators, &Map.put(&1, target, flipped))}
+  end
+
   def handle_event("create-platform-profile", %{"platform" => platform}, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
 
@@ -126,6 +135,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     socket
     |> assign(:profiles, profiles)
     |> assign(:available_platforms, platforms)
+    |> assign(:pending_operators, %{})
   end
 
   # Keys offered in the metric picker: everything devices of this product have
@@ -160,6 +170,42 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       %{^key => %{label: label}} -> label
       _ -> MetricLabels.label(key, assigns.custom_labels)
     end
+  end
+
+  # The operator sits between the metric and its thresholds and flips on
+  # click: `>=` when high is unhealthy, `<=` when low is (a frame rate goes
+  # bad low).
+  attr(:target, :string, required: true)
+  attr(:operator, :any, required: true)
+  attr(:disabled, :boolean, default: false)
+
+  defp operator_flip(assigns) do
+    ~H"""
+    <input type="hidden" name="metric[operator]" value={to_string(@operator)} />
+    <button
+      type="button"
+      phx-click="flip-operator"
+      phx-value-target={@target}
+      phx-value-operator={to_string(@operator)}
+      title={operator_title(@operator)}
+      disabled={@disabled}
+      class="bg-base-900 border-base-600 hover:border-base-400 text-base-50 flex size-9 shrink-0 items-center justify-center rounded border font-mono text-lg hover:cursor-pointer disabled:cursor-not-allowed"
+    >
+      {operator_glyph(@operator)}
+    </button>
+    """
+  end
+
+  defp operator_glyph(operator) when operator in [:gte, "gte"], do: "≥"
+  defp operator_glyph(_lte), do: "≤"
+
+  defp operator_title(operator) when operator in [:gte, "gte"],
+    do: "Unhealthy at or above the thresholds — click to flip"
+
+  defp operator_title(_lte), do: "Unhealthy at or below the thresholds — click to flip"
+
+  defp shown_operator(pending_operators, target, fallback) do
+    Map.get(pending_operators, target) || fallback
   end
 
   # One section per level, warning and alert each with their own threshold

@@ -8,8 +8,9 @@
       <div class="flex w-full flex-col gap-1">
         <p class="w-2/3 text-sm">
           Health profiles decide when a device counts as unhealthy. Each metric engages its warning (orange) or alert (red) level when
-          the metric's median over the measurement period (between a minute and 24 hours) reaches the level's threshold. The median, so
-          one glitched sensor reading can't trip a level on its own.
+          the metric's median over the measurement period (between a minute and 24 hours) crosses the level's threshold — above or
+          below it, per the metric's operator, since a frame rate goes bad low while a temperature goes bad high. The median, so one
+          glitched sensor reading can't trip a level on its own.
         </p>
         <p class="w-2/3 text-sm">
           The default profile applies to every device. A platform profile overrides it for devices running firmware built for that
@@ -95,7 +96,20 @@
                 </button>
               </div>
             </div>
-            <div class="flex flex-wrap gap-3">
+            <div class="flex flex-wrap items-center gap-3">
+              <span
+                :if={metric.built_in}
+                title="A count only goes bad high"
+                class="text-base-500 flex size-9 shrink-0 items-center justify-center font-mono text-lg"
+              >
+                ≥
+              </span>
+              <.operator_flip
+                :if={!metric.built_in}
+                target={"metric-#{metric.id}"}
+                operator={shown_operator(@pending_operators, "metric-#{metric.id}", metric.operator)}
+                disabled={!authorized?(:"product:update", @current_scope)}
+              />
               <.level_fields
                 level="warning"
                 threshold={metric.warning_threshold}
@@ -143,7 +157,12 @@
                 </.button>
               </div>
             </div>
-            <div class="flex flex-wrap gap-3">
+            <div class="flex flex-wrap items-center gap-3">
+              <.operator_flip
+                target={"new-#{profile.id}"}
+                operator={shown_operator(@pending_operators, "new-#{profile.id}", :gte)}
+                disabled={!authorized?(:"product:update", @current_scope)}
+              />
               <.level_fields level="warning" period_seconds={3600} disabled={!authorized?(:"product:update", @current_scope)} />
               <.level_fields level="alert" period_seconds={3600} disabled={!authorized?(:"product:update", @current_scope)} />
             </div>

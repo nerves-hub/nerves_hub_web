@@ -106,10 +106,12 @@ defmodule NervesHub.Devices.HealthEvaluator.Windows do
 
       cond do
         engaged?(n_alert, k_alert) ->
-          {:unhealthy, metric.key, reason(k_alert, n_alert, metric.alert_threshold, metric.alert_period_seconds)}
+          {:unhealthy, metric.key,
+           reason(k_alert, n_alert, metric, metric.alert_threshold, metric.alert_period_seconds)}
 
         engaged?(n_warning, k_warning) ->
-          {:warning, metric.key, reason(k_warning, n_warning, metric.warning_threshold, metric.warning_period_seconds)}
+          {:warning, metric.key,
+           reason(k_warning, n_warning, metric, metric.warning_threshold, metric.warning_period_seconds)}
 
         n_warning > 0 or n_alert > 0 ->
           :healthy
@@ -141,22 +143,29 @@ defmodule NervesHub.Devices.HealthEvaluator.Windows do
     end
   end
 
-  # At least one sample, and at least half of them at or over the threshold:
-  # the counting form of "the (discrete) median reaches the threshold".
+  # At least one sample, and at least half of them breaching the threshold in
+  # the metric's unhealthy direction: the counting form of "the (discrete)
+  # median reaches the threshold".
   defp engaged?(n, k), do: n > 0 and 2 * k >= n
 
-  defp reason(k, n, threshold, period_seconds) do
+  # Which side of the threshold is unhealthy. `nil` (structs built before the
+  # column existed) reads as :gte, the historical behavior.
+  defp breaches?(value, threshold, :lte), do: value <= threshold
+  defp breaches?(value, threshold, _gte_or_nil), do: value >= threshold
+
+  defp reason(k, n, metric, threshold, period_seconds) do
     %{
       value: round(100 * k / n),
       threshold: threshold,
+      operator: metric.operator || :gte,
       period_seconds: period_seconds,
       aggregation: :share
     }
   end
 
   defp record_sample(windows, metric, value, minute) do
-    over_warning = boolint(value >= metric.warning_threshold)
-    over_alert = boolint(value >= metric.alert_threshold)
+    over_warning = boolint(breaches?(value, metric.warning_threshold, metric.operator))
+    over_alert = boolint(breaches?(value, metric.alert_threshold, metric.operator))
 
     windows
     |> Map.put_new(metric.key, %{})

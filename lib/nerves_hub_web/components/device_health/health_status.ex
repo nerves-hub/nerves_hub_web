@@ -51,12 +51,12 @@ defmodule NervesHubWeb.Components.HealthStatus do
 
         name = Enum.join(key_parts, " ")
 
-        # A share reason's value is how much of the window was at or over
-        # the threshold, not a reading of the metric itself, so it gets its
-        # own sentence shape.
+        # A share reason's value is how much of the window breached the
+        # threshold, not a reading of the metric itself, so it gets its own
+        # sentence shape.
         case reasons do
           %{"aggregation" => "share"} ->
-            "#{name}: at or over #{reasons["threshold"]}#{delimiter} for #{reasons["value"]}% of #{format_period(reasons["period_seconds"])}"
+            "#{name}: #{direction_word(reasons)} #{reasons["threshold"]}#{delimiter} for #{reasons["value"]}% of #{format_period(reasons["period_seconds"])}"
 
           _ ->
             "#{name}: #{reasons["value"]}#{delimiter}#{window_phrase(reasons)} (threshold is #{reasons["threshold"]}#{delimiter})"
@@ -76,6 +76,11 @@ defmodule NervesHubWeb.Components.HealthStatus do
   end
 
   defp window_phrase(_reasons), do: ""
+
+  # Which side of the threshold the metric breached; reasons written before
+  # operators existed read as the historical at-or-over.
+  defp direction_word(%{"operator" => "lte"}), do: "at or under"
+  defp direction_word(_reasons), do: "at or over"
 
   defp format_period(seconds), do: Utils.format_period(seconds)
 end

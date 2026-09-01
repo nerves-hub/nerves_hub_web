@@ -35,6 +35,9 @@ defmodule NervesHub.Repo.Migrations.CreateHealthProfiles do
       add(:key, :string, null: false)
       add(:built_in, :boolean, null: false, default: false)
       add(:featured, :boolean, null: false, default: false)
+      # Which direction is unhealthy: "gte" engages at or above the
+      # thresholds, "lte" at or below (frame rates go bad low).
+      add(:operator, :string, null: false, default: "gte")
       add(:warning_threshold, :float, null: false)
       add(:warning_period_seconds, :integer, null: false)
       add(:alert_threshold, :float, null: false)
@@ -69,6 +72,7 @@ defmodule NervesHub.Repo.Migrations.CreateHealthProfiles do
             key: key,
             built_in: false,
             featured: true,
+            operator: "gte",
             warning_threshold: warning,
             warning_period_seconds: @default_period_seconds,
             alert_threshold: alert,

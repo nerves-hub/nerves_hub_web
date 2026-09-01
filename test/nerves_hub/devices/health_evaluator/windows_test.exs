@@ -40,7 +40,10 @@ defmodule NervesHub.Devices.HealthEvaluator.WindowsTest do
       windows = Windows.record(Windows.new(), profile(), %{"cpu" => 80.0}, @now)
 
       assert {:warning, reasons} = judge(windows, profile(), @now)
-      assert reasons.warning == %{"cpu" => %{value: 100, threshold: 80.0, period_seconds: 3600, aggregation: :share}}
+
+      assert reasons.warning == %{
+               "cpu" => %{value: 100, threshold: 80.0, operator: :gte, period_seconds: 3600, aggregation: :share}
+             }
     end
 
     test "half the samples at or over the threshold engages, less does not" do
@@ -87,6 +90,47 @@ defmodule NervesHub.Devices.HealthEvaluator.WindowsTest do
       windows = Windows.record(Windows.new(), p, %{"other" => 100.0, "cpu" => "hot"}, @now)
 
       assert windows == %{}
+    end
+  end
+
+  # A frame rate: warning at or under 25 over an hour, alert at or under 15
+  # over 10 minutes.
+  defp fps_profile() do
+    profile(%{key: "fps", operator: :lte, warning_threshold: 25.0, alert_threshold: 15.0})
+  end
+
+  describe "a low-is-unhealthy metric (operator :lte)" do
+    test "engages as the value drops, with the direction in the reason" do
+      p = fps_profile()
+
+      assert {:healthy, nil} = judge(Windows.record(Windows.new(), p, %{"fps" => 30.0}, @now), p, @now)
+
+      assert {:warning, reasons} = judge(Windows.record(Windows.new(), p, %{"fps" => 20.0}, @now), p, @now)
+
+      assert reasons.warning == %{
+               "fps" => %{value: 100, threshold: 25.0, operator: :lte, period_seconds: 3600, aggregation: :share}
+             }
+
+      assert {:unhealthy, %{unhealthy: %{"fps" => %{threshold: 15.0, operator: :lte}}}} =
+               judge(Windows.record(Windows.new(), p, %{"fps" => 10.0}, @now), p, @now)
+    end
+
+    test "one glitched zero reading is one vote, not a trip" do
+      p = fps_profile()
+
+      windows =
+        Enum.reduce([60.0, 0.0, 59.0], Windows.new(), &Windows.record(&2, p, %{"fps" => &1}, @now))
+
+      assert {:healthy, nil} = judge(windows, p, @now)
+    end
+
+    test "half the samples at or under the threshold engages" do
+      p = fps_profile()
+
+      windows =
+        Enum.reduce([20.0, 60.0, 20.0, 60.0], Windows.new(), &Windows.record(&2, p, %{"fps" => &1}, @now))
+
+      assert {:warning, %{warning: %{"fps" => %{value: 50}}}} = judge(windows, p, @now)
     end
   end
 

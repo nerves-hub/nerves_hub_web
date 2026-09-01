@@ -64,7 +64,13 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       assert reasons.unhealthy == %{}
 
       assert reasons.warning == %{
-               "cpu_usage_percent" => %{value: 100, threshold: 80.0, period_seconds: 3600, aggregation: :share}
+               "cpu_usage_percent" => %{
+                 value: 100,
+                 threshold: 80.0,
+                 operator: :gte,
+                 period_seconds: 3600,
+                 aggregation: :share
+               }
              }
     end
 
@@ -107,6 +113,27 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       insert_metric(device, "my_custom_metric", 1_000_000.0)
 
       assert {:unknown, nil} = HealthEvaluation.evaluate(device_info, %{})
+    end
+  end
+
+  describe "a low-is-unhealthy metric" do
+    test "a dropping frame rate engages", %{product: product, device: device, device_info: device_info} do
+      {:ok, _} =
+        product.id
+        |> HealthProfiles.resolve(nil)
+        |> HealthProfiles.add_metric(%{
+          "key" => "fps",
+          "operator" => "lte",
+          "warning_threshold" => "25",
+          "warning_period_seconds" => "3600",
+          "alert_threshold" => "15",
+          "alert_period_seconds" => "3600"
+        })
+
+      insert_metric(device, "fps", 12.0)
+
+      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, %{})
+      assert %{"fps" => %{threshold: 15.0, operator: :lte}} = reasons.unhealthy
     end
   end
 

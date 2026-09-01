@@ -39,6 +39,11 @@ defmodule NervesHub.Products.HealthProfileMetric do
     # page; the rest still count toward health but only show on the health tab.
     field(:featured, :boolean, default: false)
 
+    # Which direction is unhealthy: `:gte` engages at or above the thresholds
+    # (temperatures, usage), `:lte` at or below (frame rates, readings per
+    # interval — values that going low is the problem).
+    field(:operator, Ecto.Enum, values: [:gte, :lte], default: :gte)
+
     field(:warning_threshold, :float)
     field(:warning_period_seconds, :integer)
     field(:alert_threshold, :float)
@@ -51,7 +56,7 @@ defmodule NervesHub.Products.HealthProfileMetric do
 
   def changeset(struct, params) do
     struct
-    |> cast(params, @required ++ [:built_in, :featured])
+    |> cast(params, @required ++ [:built_in, :featured, :operator])
     |> validate_required(@required)
     |> update_change(:key, &String.trim/1)
     |> validate_length(:key, min: 1, max: 255)
@@ -65,7 +70,7 @@ defmodule NervesHub.Products.HealthProfileMetric do
       less_than_or_equal_to: @max_period_seconds,
       message: "must be between 1 minute and 24 hours"
     )
-    |> validate_alert_not_below_warning()
+    |> validate_alert_beyond_warning()
     |> foreign_key_constraint(:health_profile_id)
     |> unique_constraint(:key,
       name: :health_profile_metrics_health_profile_id_key_index,
@@ -73,16 +78,26 @@ defmodule NervesHub.Products.HealthProfileMetric do
     )
   end
 
-  # Levels engage at value >= threshold, so an alert threshold below the
-  # warning threshold would make the warning level unreachable.
-  defp validate_alert_not_below_warning(changeset) do
+  # The alert threshold must sit at or beyond the warning threshold in the
+  # unhealthy direction — an alert the median reaches before the warning
+  # would make the warning level unreachable.
+  defp validate_alert_beyond_warning(changeset) do
     warning = get_field(changeset, :warning_threshold)
     alert = get_field(changeset, :alert_threshold)
+    operator = get_field(changeset, :operator) || :gte
 
-    if is_number(warning) and is_number(alert) and alert < warning do
-      add_error(changeset, :alert_threshold, "must be greater than or equal to the warning threshold")
-    else
-      changeset
+    cond do
+      !(is_number(warning) and is_number(alert)) ->
+        changeset
+
+      operator == :gte and alert < warning ->
+        add_error(changeset, :alert_threshold, "must be at or above the warning threshold when high is unhealthy")
+
+      operator == :lte and alert > warning ->
+        add_error(changeset, :alert_threshold, "must be at or below the warning threshold when low is unhealthy")
+
+      true ->
+        changeset
     end
   end
 end

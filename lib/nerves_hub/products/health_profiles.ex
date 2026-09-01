@@ -63,6 +63,7 @@ defmodule NervesHub.Products.HealthProfiles do
         key: key,
         built_in: false,
         featured: true,
+        operator: :gte,
         warning_threshold: warning / 1,
         warning_period_seconds: @default_period_seconds,
         alert_threshold: alert / 1,
@@ -136,22 +137,6 @@ defmodule NervesHub.Products.HealthProfiles do
   @spec topic(pos_integer()) :: String.t()
   def topic(product_id), do: "product:#{product_id}:health_profiles"
 
-  @doc """
-  The warning-level settings of the default profile's "disconnects" built-in,
-  when the product has configured one; `nil` otherwise. What makes the
-  Insights flapping-connections panel configurable.
-  """
-  @spec disconnects_settings(pos_integer()) :: %{threshold: float(), period_seconds: pos_integer()} | nil
-  def disconnects_settings(product_id) do
-    with %HealthProfile{} = profile <- resolve(product_id, nil),
-         %HealthProfileMetric{} = metric <-
-           Enum.find(profile.metrics, &(&1.built_in and &1.key == "disconnects")) do
-      %{threshold: metric.warning_threshold, period_seconds: metric.warning_period_seconds}
-    else
-      _ -> nil
-    end
-  end
-
   defp broadcast_change(product_id) do
     _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic(product_id), {:health_profiles_changed, product_id})
     :ok
@@ -205,6 +190,7 @@ defmodule NervesHub.Products.HealthProfiles do
               :key,
               :built_in,
               :featured,
+              :operator,
               :warning_threshold,
               :warning_period_seconds,
               :alert_threshold,
@@ -261,10 +247,16 @@ defmodule NervesHub.Products.HealthProfiles do
   @spec add_metric(HealthProfile.t(), map()) ::
           {:ok, HealthProfileMetric.t()} | {:error, Ecto.Changeset.t()}
   def add_metric(%HealthProfile{id: profile_id} = profile, attrs) do
+    built_in? = Map.has_key?(@built_in_metrics, String.trim(attrs["key"] || ""))
+
     attrs =
       attrs
       |> Map.put("health_profile_id", profile_id)
-      |> Map.put("built_in", Map.has_key?(@built_in_metrics, String.trim(attrs["key"] || "")))
+      |> Map.put("built_in", built_in?)
+
+    # A built-in defines its own unhealthy direction (a disconnect count only
+    # goes bad high), so the operator is not the caller's to choose.
+    attrs = if built_in?, do: Map.put(attrs, "operator", "gte"), else: attrs
 
     %HealthProfileMetric{}
     |> HealthProfileMetric.changeset(attrs)
@@ -282,8 +274,13 @@ defmodule NervesHub.Products.HealthProfiles do
   @spec update_metric(HealthProfileMetric.t(), map()) ::
           {:ok, HealthProfileMetric.t()} | {:error, Ecto.Changeset.t()}
   def update_metric(%HealthProfileMetric{} = metric, attrs) do
+    fixed =
+      if metric.built_in,
+        do: ["key", "built_in", "health_profile_id", "operator"],
+        else: ["key", "built_in", "health_profile_id"]
+
     metric
-    |> HealthProfileMetric.changeset(Map.drop(attrs, ["key", "built_in", "health_profile_id"]))
+    |> HealthProfileMetric.changeset(Map.drop(attrs, fixed))
     |> Repo.update()
     |> tap(fn
       {:ok, _} -> broadcast_change(product_id_of(metric))
