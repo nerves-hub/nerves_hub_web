@@ -13,6 +13,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Products
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
@@ -520,7 +521,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   defp create_node(step, total_count) do
     step_data =
-      %{detail: step.description, label: node_label(step), status: step.status}
+      %{detail: step.description, label: DeploymentWorkflowStep.label(step), status: step.status}
       |> Map.reject(fn {_key, value} -> is_nil(value) end)
 
     Node.new(
@@ -533,10 +534,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       handles: create_handles(step, total_count)
     )
   end
-
-  defp node_label(%{type: :approval_required}), do: "Approval Required"
-  defp node_label(%{type: :catch_all}), do: "Remaining devices"
-  defp node_label(step), do: step.name
 
   defp calculate_positioning(%{number: number, type: type}) do
     y = if(type == :update_devices, do: 1, else: 16)

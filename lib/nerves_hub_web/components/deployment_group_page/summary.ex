@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NimbleCSV.RFC4180, as: CSV
   alias Phoenix.Naming
 
@@ -275,7 +276,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
       >
         <div class="flex flex-col gap-1">
           <div class="text-base-50 text-base font-medium">
-            Waiting on you: {@awaiting_approval.name}
+            Waiting on you: {DeploymentWorkflowStep.label(@awaiting_approval)}
           </div>
           <div :if={@awaiting_approval.description} class="text-base-400 text-sm">
             {@awaiting_approval.description}
@@ -288,8 +289,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
         <.button
           style="primary"
           phx-click="approve-workflow-step"
-          aria-label={"Approve workflow step #{@awaiting_approval.name}"}
-          data-confirm={"Approve \"#{@awaiting_approval.name}\" and let the deployment carry on?"}
+          aria-label={"Approve workflow step: #{DeploymentWorkflowStep.label(@awaiting_approval)}"}
+          data-confirm="Approve this step and let the deployment carry on?"
           class="w-fit shrink-0"
         >
           Approve and continue

@@ -50,6 +50,19 @@ defmodule NervesHub.ManagedDeployments.DeploymentWorkflowStep do
     field(:finished_at, :naive_datetime)
   end
 
+  @doc """
+  What to call a step on screen.
+
+  A name is required of an uploaded definition, but not every step comes from
+  one: the trailing catch_all is generated, and steps stored before names were
+  required still have none. Falling back on the type keeps those readable.
+  """
+  @spec label(t()) :: String.t()
+  def label(%__MODULE__{name: name}) when is_binary(name) and name != "", do: name
+  def label(%__MODULE__{type: :approval_required}), do: "Approval required"
+  def label(%__MODULE__{type: :catch_all}), do: "Remaining devices"
+  def label(%__MODULE__{number: number}), do: "Step #{number}"
+
   def new_catch_all(number) do
     change(%__MODULE__{}, %{type: :catch_all, number: number})
   end

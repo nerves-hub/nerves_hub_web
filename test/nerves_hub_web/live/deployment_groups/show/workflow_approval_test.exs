@@ -62,6 +62,29 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowApprovalTest do
     |> assert_has("button", text: "Approve and continue")
   end
 
+  # Steps stored before names were required still have none, and the generated
+  # catch_all never does. The banner has to read sensibly for those rather than
+  # showing a gap where the name would be.
+  test "a step with no name falls back to its type", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group,
+    release: release
+  } do
+    [step, _catch_all] = Workflows.release_steps(release.id)
+
+    step
+    |> Ecto.Changeset.change(%{name: nil})
+    |> Repo.update!()
+    |> Workflows.start_step()
+
+    conn
+    |> visit_group(org, product, deployment_group)
+    |> assert_has("div", text: "Waiting on you: Approval required")
+    |> assert_has("button", text: "Approve and continue")
+  end
+
   test "approving records who approved it and clears the banner", %{
     conn: conn,
     org: org,
