@@ -56,10 +56,10 @@ defmodule NervesHubWeb.Components.HealthStatus do
         # sentence shape.
         case reasons do
           %{"aggregation" => "share"} ->
-            "#{name}: #{direction_word(reasons)} #{reasons["threshold"]}#{delimiter} for #{reasons["value"]}% of #{format_period(reasons["period_seconds"])}"
+            "#{name}: #{direction_word(reasons)} #{num(reasons["threshold"])}#{delimiter} for #{reasons["value"]}% of #{format_period(reasons["period_seconds"])}"
 
           _ ->
-            "#{name}: #{reasons["value"]}#{delimiter}#{window_phrase(reasons)} (threshold is #{reasons["threshold"]}#{delimiter})"
+            "#{name}: #{num(reasons["value"])}#{delimiter}#{window_phrase(reasons)} (threshold is #{num(reasons["threshold"])}#{delimiter})"
         end
       end)
 
@@ -76,6 +76,9 @@ defmodule NervesHubWeb.Components.HealthStatus do
   end
 
   defp window_phrase(_reasons), do: ""
+
+  defp num(value) when is_number(value), do: Utils.format_number(value)
+  defp num(value), do: value
 
   # Which side of the threshold the metric breached; reasons written before
   # operators existed read as the historical at-or-over.

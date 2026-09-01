@@ -11,6 +11,25 @@ defmodule NervesHubWeb.Components.Utils do
   end
 
   @doc """
+  A number for display. Elixir's default float rendering flips to scientific
+  notation at 10^4 (9000.0 prints as "9.0e3"), which is wrong everywhere a
+  threshold or metric value faces a person. Whole floats print as integers,
+  fractions keep up to four decimals.
+  """
+  def format_number(number) when is_integer(number), do: Integer.to_string(number)
+
+  def format_number(number) when is_float(number) do
+    if number == trunc(number) do
+      number |> trunc() |> Integer.to_string()
+    else
+      number
+      |> :erlang.float_to_binary(decimals: 4)
+      |> String.trim_trailing("0")
+      |> String.trim_trailing(".")
+    end
+  end
+
+  @doc """
   A measurement period in seconds as a compact human string: "90s", "30m",
   "6h", "1d".
   """

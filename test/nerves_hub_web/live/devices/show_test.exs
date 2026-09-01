@@ -824,8 +824,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("div.border-alert span", text: "at or over 90.0 for 80% of 1h")
-      |> assert_has("div.border-warning span", text: "at or over 70.0 for 60% of 1h")
+      |> assert_has("div.border-alert span", text: "at or over 90 for 80% of 1h")
+      |> assert_has("div.border-warning span", text: "at or over 70 for 60% of 1h")
     end
   end
 
