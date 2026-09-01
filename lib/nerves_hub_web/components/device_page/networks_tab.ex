@@ -19,7 +19,7 @@ defmodule NervesHubWeb.Components.DevicePage.NetworksTab do
   alias NervesHubWeb.Components.DevicePage.SharedComponentsHandlers
   alias Phoenix.Socket.Broadcast
 
-  def tab_params(_params, _uri, %{assigns: %{device: device}} = socket) do
+  def tab_params(_params, _uri, %{assigns: %{device: device, product: product}} = socket) do
     topology =
       case device.component_topology do
         %{topology: topology} -> topology
@@ -32,7 +32,7 @@ defmodule NervesHubWeb.Components.DevicePage.NetworksTab do
     |> assign(:network_latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign(
       :can_manage_network_components,
-      SharedComponentsHandlers.can_manage_components?(socket.assigns.current_scope)
+      SharedComponentsHandlers.can_manage_components?(socket.assigns.current_scope, product, device)
     )
     |> cont()
   end
@@ -94,9 +94,14 @@ defmodule NervesHubWeb.Components.DevicePage.NetworksTab do
   def hooked_info(_event, socket), do: {:cont, socket}
 
   def render(assigns) do
-    enabled = assigns.product.extensions.components && assigns.device.extensions.components
-
-    assigns = Map.put(assigns, :components_enabled?, enabled)
+    # `assign/3` rather than `Map.put/3`, so LiveView's change tracking sees
+    # the value move when an extension toggle changes mid-session.
+    assigns =
+      assign(
+        assigns,
+        :components_enabled?,
+        SharedComponentsHandlers.components_enabled?(assigns.product, assigns.device)
+      )
 
     ~H"""
     <div

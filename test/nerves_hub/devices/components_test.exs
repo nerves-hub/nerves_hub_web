@@ -140,6 +140,7 @@ defmodule NervesHub.Devices.ComponentsTest do
 
   describe "request_action/4" do
     test "audits, records and broadcasts to the device", %{user: user, device: device} do
+      {:ok, _} = Components.update_topology(device.id, @report)
       :ok = ExtensionsPubSub.subscribe_device(device.id)
 
       assert {:ok, ref} = Components.request_action(user, device, "panel", "recalibrate")
@@ -152,10 +153,26 @@ defmodule NervesHub.Devices.ComponentsTest do
       assert [log] = AuditLogs.logs_for(device)
       assert log.description =~ ~s(run action "recalibrate" on component "panel")
     end
+
+    test "rejects what the device never reported, without auditing", %{user: user, device: device} do
+      {:ok, _} = Components.update_topology(device.id, @report)
+      :ok = ExtensionsPubSub.subscribe_device(device.id)
+
+      assert {:error, :unknown_action} = Components.request_action(user, device, "panel", "self-destruct")
+      assert {:error, :unknown_component} = Components.request_action(user, device, "mainframe", "reboot")
+
+      refute_receive %Broadcast{event: "components:action:run"}
+      assert AuditLogs.logs_for(device) == []
+    end
+
+    test "rejects everything when the device has no topology", %{user: user, device: device} do
+      assert {:error, :unknown_component} = Components.request_action(user, device, "panel", "recalibrate")
+    end
   end
 
   describe "request_mode_change/5" do
     test "audits, records and broadcasts to the device", %{user: user, device: device} do
+      {:ok, _} = Components.update_topology(device.id, @report)
       :ok = ExtensionsPubSub.subscribe_device(device.id)
 
       assert {:ok, ref} = Components.request_mode_change(user, device, "panel", "display_mode", "night")
@@ -166,6 +183,17 @@ defmodule NervesHub.Devices.ComponentsTest do
 
       assert [log] = AuditLogs.logs_for(device)
       assert log.description =~ ~s(set mode "display_mode" to "night" on component "panel")
+    end
+
+    test "rejects a value outside the reported list", %{user: user, device: device} do
+      {:ok, _} = Components.update_topology(device.id, @report)
+      :ok = ExtensionsPubSub.subscribe_device(device.id)
+
+      assert {:error, :invalid_value} = Components.request_mode_change(user, device, "panel", "display_mode", "disco")
+      assert {:error, :unknown_mode} = Components.request_mode_change(user, device, "panel", "volume", "11")
+
+      refute_receive %Broadcast{event: "components:mode:set"}
+      assert AuditLogs.logs_for(device) == []
     end
   end
 end

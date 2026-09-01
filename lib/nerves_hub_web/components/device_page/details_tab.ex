@@ -85,12 +85,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   # values that already fit don't get a redundant tooltip.
   defp long_value?(value), do: String.length(value) > 32
 
-  defp assign_components(socket) do
+  defp assign_components(%{assigns: %{product: product, device: device}} = socket) do
     socket
     |> SharedComponentsHandlers.assign_topology()
     |> assign(
       :can_manage_components,
-      SharedComponentsHandlers.can_manage_components?(socket.assigns.current_scope)
+      SharedComponentsHandlers.can_manage_components?(socket.assigns.current_scope, product, device)
     )
   end
 

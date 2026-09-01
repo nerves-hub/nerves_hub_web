@@ -55,16 +55,23 @@ defmodule NervesHubWeb.Components.DevicePage.SharedComponentsHandlers do
   """
   def run_action(socket, %{"component" => component, "action" => action})
       when is_binary(component) and is_binary(action) do
-    %{device: device, user: user} = socket.assigns
+    %{device: device, product: product, user: user} = socket.assigns
 
     authorized!(:"device:components:run-action", socket.assigns.current_scope)
 
-    case Components.request_action(user, device, component, action) do
-      {:ok, _ref} ->
-        put_flash(socket, :info, ~s(Requested action "#{action}" on "#{component}".))
+    if components_enabled?(product, device) do
+      case Components.request_action(user, device, component, action) do
+        {:ok, _ref} ->
+          put_flash(socket, :info, ~s(Requested action "#{action}" on "#{component}".))
 
-      {:error, _reason} ->
-        put_flash(socket, :error, "Failed to send the action request.")
+        {:error, reason} when reason in [:unknown_component, :unknown_action] ->
+          put_flash(socket, :error, "The device no longer reports that action.")
+
+        {:error, _reason} ->
+          put_flash(socket, :error, "Failed to send the action request.")
+      end
+    else
+      put_flash(socket, :error, "The components extension is not enabled for this device.")
     end
   end
 
@@ -76,16 +83,23 @@ defmodule NervesHubWeb.Components.DevicePage.SharedComponentsHandlers do
   """
   def set_mode(socket, %{"component" => component, "mode" => mode, "value" => value})
       when is_binary(component) and is_binary(mode) and is_binary(value) and value != "" do
-    %{device: device, user: user} = socket.assigns
+    %{device: device, product: product, user: user} = socket.assigns
 
     authorized!(:"device:components:set-mode", socket.assigns.current_scope)
 
-    case Components.request_mode_change(user, device, component, mode, value) do
-      {:ok, _ref} ->
-        put_flash(socket, :info, ~s(Requested mode "#{mode}" be set to "#{value}" on "#{component}".))
+    if components_enabled?(product, device) do
+      case Components.request_mode_change(user, device, component, mode, value) do
+        {:ok, _ref} ->
+          put_flash(socket, :info, ~s(Requested mode "#{mode}" be set to "#{value}" on "#{component}".))
 
-      {:error, _reason} ->
-        put_flash(socket, :error, "Failed to send the mode change request.")
+        {:error, reason} when reason in [:unknown_component, :unknown_mode, :invalid_value] ->
+          put_flash(socket, :error, "The device no longer reports that mode or value.")
+
+        {:error, _reason} ->
+          put_flash(socket, :error, "Failed to send the mode change request.")
+      end
+    else
+      put_flash(socket, :error, "The components extension is not enabled for this device.")
     end
   end
 
@@ -123,14 +137,23 @@ defmodule NervesHubWeb.Components.DevicePage.SharedComponentsHandlers do
   end
 
   @doc """
-  Whether the current scope may invoke actions and set modes.
+  Whether the current scope may invoke actions and set modes on this device.
 
   One capability on purpose: both are "make the device do something",
   identically audited, so splitting the buttons from the dropdowns would be a
-  distinction without a difference.
+  distinction without a difference. The extension being switched off disables
+  the controls the same way a viewer role does — a stored topology is still
+  worth showing, but a request into the void is not worth offering.
   """
-  def can_manage_components?(scope) do
-    authorized?(:"device:components:run-action", scope)
+  def can_manage_components?(scope, product, device) do
+    components_enabled?(product, device) and authorized?(:"device:components:run-action", scope)
+  end
+
+  @doc """
+  Whether the components extension is enabled for this product and device.
+  """
+  def components_enabled?(product, device) do
+    !!(product.extensions.components && device.extensions.components)
   end
 
   @doc """

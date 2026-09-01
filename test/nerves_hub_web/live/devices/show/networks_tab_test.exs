@@ -107,8 +107,9 @@ defmodule NervesHubWeb.Live.Devices.Show.NetworksTabTest do
   end
 
   test "a peer action reaches the device", %{conn: conn, fixture: fixture} do
-    %{device: device} = fixture
+    %{device: device, product: product} = fixture
     {:ok, _} = Components.update_topology(device.id, @topology)
+    {:ok, _} = Products.enable_extension_setting(product, "components")
     :ok = ExtensionsPubSub.subscribe_device(device.id)
 
     conn

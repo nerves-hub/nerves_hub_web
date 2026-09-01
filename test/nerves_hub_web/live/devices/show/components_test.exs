@@ -41,6 +41,11 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
     ]
   }
 
+  defp enable_components(product) do
+    {:ok, _product} = NervesHub.Products.enable_extension_setting(product, "components")
+    :ok
+  end
+
   defp seed_components(device) do
     {:ok, _} = Components.update_topology(device.id, @topology)
     {:ok, _} = Metrics.save_metrics(device.id, %{"display_fps" => 59.9})
@@ -133,8 +138,9 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
     conn: conn,
     fixture: fixture
   } do
-    %{device: device, user: user} = fixture
+    %{device: device, user: user, product: product} = fixture
     :ok = seed_components(device)
+    :ok = enable_components(product)
     :ok = ExtensionsPubSub.subscribe_device(device.id)
 
     before_count = device |> AuditLogs.logs_for() |> length()
@@ -155,8 +161,9 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
   end
 
   test "changing a mode sends the request to the device", %{conn: conn, fixture: fixture} do
-    %{device: device} = fixture
+    %{device: device, product: product} = fixture
     :ok = seed_components(device)
+    :ok = enable_components(product)
     :ok = ExtensionsPubSub.subscribe_device(device.id)
 
     conn
@@ -187,9 +194,24 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
     assert_has(session, "div", text: ~s(Action "recalibrate" on "panel" completed: calibration complete))
   end
 
+  test "controls are disabled when the extension is not enabled", %{conn: conn, fixture: fixture} do
+    # Topology stored, but the extension has since been switched off (or was
+    # never on): the boxes stay — the topology is still true — but a request
+    # into the void is not worth offering.
+    :ok = seed_components(fixture.device)
+
+    conn
+    |> visit(device_path(fixture))
+    |> assert_has("span", text: "Panel")
+    |> assert_has("button[disabled]", text: "Recalibrate")
+    |> assert_has("select[disabled]")
+  end
+
   test "a viewer cannot invoke actions", %{conn: conn, fixture: fixture} do
-    %{device: device, org: org, user: user} = fixture
+    %{device: device, org: org, user: user, product: product} = fixture
     :ok = seed_components(device)
+    # Enabled, so the disabled state below is the role's doing.
+    :ok = enable_components(product)
 
     {:ok, org_user} = Accounts.get_org_user(org, user)
     {:ok, _} = Accounts.change_org_user_role(org_user, :view)

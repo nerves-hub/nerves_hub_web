@@ -107,6 +107,10 @@ defmodule NervesHubWeb.ComponentsExtensionTest do
     socket = join_and_attach(socket)
     assert_push("components:request", %{})
 
+    # A request is validated against the stored topology, so report it first.
+    push(socket, "components:report", @report)
+    assert wait_until(fn -> Components.get_topology(device.id) end)
+
     {:ok, ref} = Components.request_action(user, device, "panel", "recalibrate")
 
     assert_push("components:action:run", payload)
@@ -143,6 +147,9 @@ defmodule NervesHubWeb.ComponentsExtensionTest do
   } do
     socket = join_and_attach(socket)
     assert_push("components:request", %{})
+
+    push(socket, "components:report", @report)
+    assert wait_until(fn -> Components.get_topology(device.id) end)
 
     {:ok, ref} = Components.request_mode_change(user, device, "panel", "display_mode", "night")
 
@@ -183,6 +190,9 @@ defmodule NervesHubWeb.ComponentsExtensionTest do
 
     socket = join_and_attach(socket)
     assert_push("components:request", %{})
+
+    push(socket, "components:report", @report)
+    assert wait_until(fn -> Components.get_topology(device.id) end)
 
     {:ok, ref} = Components.request_action(user, device, "panel", "recalibrate")
     assert_push("components:action:run", _payload)

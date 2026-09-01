@@ -84,15 +84,18 @@ defmodule NervesHub.Devices.Components do
   `components:action_result` report the device answers with.
   """
   @spec request_action(User.t(), Device.t(), String.t(), String.t()) ::
-          {:ok, String.t()} | {:error, term()}
+          {:ok, String.t()}
+          | {:error, :unknown_component | :unknown_action | term()}
   def request_action(user, device, component, action) do
-    ref = Ecto.UUID.generate()
-    payload = %{"ref" => ref, "component" => component, "action" => action}
+    with :ok <- validate_action(device.id, component, action) do
+      ref = Ecto.UUID.generate()
+      payload = %{"ref" => ref, "component" => component, "action" => action}
 
-    description =
-      ~s(run action "#{action}" on component "#{component}")
+      description =
+        ~s(run action "#{action}" on component "#{component}")
 
-    send_request(user, device, "components:action:run", payload, description, ref)
+      send_request(user, device, "components:action:run", payload, description, ref)
+    end
   end
 
   @doc """
@@ -102,26 +105,77 @@ defmodule NervesHub.Devices.Components do
   message. The returned ref correlates the `components:mode_result` report.
   """
   @spec request_mode_change(User.t(), Device.t(), String.t(), String.t(), String.t()) ::
-          {:ok, String.t()} | {:error, term()}
+          {:ok, String.t()}
+          | {:error, :unknown_component | :unknown_mode | :invalid_value | term()}
   def request_mode_change(user, device, component, mode, value) do
-    ref = Ecto.UUID.generate()
+    with :ok <- validate_mode(device.id, component, mode, value) do
+      ref = Ecto.UUID.generate()
 
-    payload = %{"ref" => ref, "component" => component, "mode" => mode, "value" => value}
+      payload = %{"ref" => ref, "component" => component, "mode" => mode, "value" => value}
 
-    description =
-      ~s(set mode "#{mode}" to "#{value}" on component "#{component}")
+      description =
+        ~s(set mode "#{mode}" to "#{value}" on component "#{component}")
 
-    send_request(user, device, "components:mode:set", payload, description, ref)
+      send_request(user, device, "components:mode:set", payload, description, ref)
+    end
   end
 
   defp send_request(user, device, event, payload, description, ref) do
-    Repo.transact(fn ->
-      :ok = DeviceTemplates.audit_request_action(user, device, description)
-      :ok = DeviceMessages.record(device, :sent, :extensions, event, payload)
-      :ok = ExtensionsPubSub.broadcast_to_device(device.id, event, payload)
+    result =
+      Repo.transact(fn ->
+        :ok = DeviceTemplates.audit_request_action(user, device, description)
+        :ok = DeviceMessages.record(device, :sent, :extensions, event, payload)
 
+        {:ok, ref}
+      end)
+
+    # Broadcast after commit: the device should never hear about a request
+    # whose audit trail did not make it to disk.
+    with {:ok, ref} <- result do
+      :ok = ExtensionsPubSub.broadcast_to_device(device.id, event, payload)
       {:ok, ref}
-    end)
+    end
+  end
+
+  # A request is checked against what the device last reported, so a stale
+  # page or a hand-crafted event gets an immediate error instead of a device
+  # round-trip. The device still validates on its own end — this is
+  # defense-in-depth, not the authority.
+  defp validate_action(device_id, component, action) do
+    with {:ok, member} <- find_member(device_id, component) do
+      if Enum.any?(member["actions"] || [], &(&1["identifier"] == action)) do
+        :ok
+      else
+        {:error, :unknown_action}
+      end
+    end
+  end
+
+  defp validate_mode(device_id, component, mode, value) do
+    with {:ok, member} <- find_member(device_id, component) do
+      case Enum.find(member["modes"] || [], &(&1["identifier"] == mode)) do
+        nil -> {:error, :unknown_mode}
+        %{"values" => values} when is_list(values) -> if(value in values, do: :ok, else: {:error, :invalid_value})
+        _mode -> {:error, :invalid_value}
+      end
+    end
+  end
+
+  defp find_member(device_id, component) do
+    case get_topology(device_id) do
+      %ComponentTopology{topology: topology} ->
+        members =
+          Enum.flat_map(topology["assemblies"] || [], &(&1["components"] || [])) ++
+            Enum.flat_map(topology["networks"] || [], &(&1["peers"] || []))
+
+        case Enum.find(members, &(&1["identifier"] == component)) do
+          nil -> {:error, :unknown_component}
+          member -> {:ok, member}
+        end
+
+      nil ->
+        {:error, :unknown_component}
+    end
   end
 
   @doc """
@@ -148,6 +202,7 @@ defmodule NervesHub.Devices.Components do
         sanitized -> [sanitized]
       end
     end)
+    |> Enum.uniq_by(& &1["identifier"])
   end
 
   defp sanitize_groups(_groups, _members_key), do: []
@@ -170,6 +225,8 @@ defmodule NervesHub.Devices.Components do
 
   defp sanitize_group(_group, _members_key), do: nil
 
+  # Deduplicated by identifier (first wins) at every level: identifiers are
+  # addressing, and ambiguous addressing helps nobody.
   defp sanitize_members(members) when is_list(members) do
     members
     |> Enum.take(@max_members)
@@ -179,6 +236,7 @@ defmodule NervesHub.Devices.Components do
         sanitized -> [sanitized]
       end
     end)
+    |> Enum.uniq_by(& &1["identifier"])
   end
 
   defp sanitize_members(_members), do: []
@@ -224,6 +282,7 @@ defmodule NervesHub.Devices.Components do
       _ ->
         []
     end)
+    |> Enum.uniq_by(& &1["identifier"])
   end
 
   defp sanitize_actions(_actions), do: []
@@ -233,24 +292,27 @@ defmodule NervesHub.Devices.Components do
     |> Enum.take(@max_operations)
     |> Enum.flat_map(fn
       %{} = mode ->
-        case string(mode["identifier"]) do
-          nil ->
-            []
-
-          identifier ->
-            [
-              %{
-                "identifier" => identifier,
-                "label" => string(mode["label"]),
-                "metadata_key" => string(mode["metadata_key"]) || identifier,
-                "values" => string_list(mode["values"], @max_operations)
-              }
-            ]
+        # A mode without values would render as an empty dropdown and accept
+        # anything — the link side drops them too, but the wire is not to be
+        # trusted.
+        with identifier when is_binary(identifier) <- string(mode["identifier"]),
+             [_ | _] = values <- string_list(mode["values"], @max_operations) do
+          [
+            %{
+              "identifier" => identifier,
+              "label" => string(mode["label"]),
+              "metadata_key" => string(mode["metadata_key"]) || identifier,
+              "values" => values
+            }
+          ]
+        else
+          _ -> []
         end
 
       _ ->
         []
     end)
+    |> Enum.uniq_by(& &1["identifier"])
   end
 
   defp sanitize_modes(_modes), do: []
