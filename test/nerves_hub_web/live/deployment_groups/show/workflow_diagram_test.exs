@@ -74,9 +74,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
       assert html =~ "Skip the stopped step: Canary"
     end
 
-    # Acting on a step is done from the bar, so the diagram itself is only a
-    # picture. Two controls doing the same thing is one too many.
-    test "the step nodes carry no controls of their own", %{
+    # Retrying only makes sense for the step that failed, and the bar already
+    # names it, so the node does not offer it a second time.
+    test "the step nodes do not offer retry", %{
       conn: conn,
       org: org,
       product: product,
@@ -85,7 +85,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
       {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
 
       refute html =~ ~s(aria-label="Retry step: Canary")
-      refute html =~ ~s(aria-label="Skip step: Canary")
     end
 
     test "retrying from the bar restarts the step", %{
@@ -124,6 +123,50 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.WorkflowDiagramTest do
         |> render_click()
 
       assert html =~ "Step skipped"
+
+      [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
+
+      assert canary.status == :skipped
+      assert canary.skipped_by_id == user.id
+    end
+  end
+
+  describe "skipping from a step node" do
+    # Skipping applies to any step, wherever the workflow has got to, so it stays
+    # on the node. Only a failed step gets a bar, and a stalled one would
+    # otherwise have no way out of the browser.
+    test "is offered on a step that has not finished", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+      assert html =~ ~s(aria-label="Skip step: Canary")
+      refute html =~ ~s(aria-label="Skip step: Remaining devices")
+    end
+
+    test "skips the step", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user,
+      deployment_group: deployment_group
+    } do
+      {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+
+      [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
+      _ = Workflows.start_step(canary)
+
+      _ =
+        view
+        |> element(~s([aria-label="Skip step: Canary"]))
+        |> render_click()
+
+      # The node asks the LiveView by message, so the click's own render still
+      # predates the work being done.
+      assert render(view) =~ "Step skipped"
 
       [canary | _] = Workflows.release_steps(deployment_group.current_deployment_release_id)
 

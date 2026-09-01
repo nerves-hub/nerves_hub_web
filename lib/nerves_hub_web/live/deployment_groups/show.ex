@@ -399,6 +399,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     {:noreply, socket}
   end
 
+  # The skip control is on the step nodes, which are components of LiveFlow's own
+  # component, so what it asks for arrives here as a message rather than an event.
+  def handle_info({:workflow_step_action, action, number}, socket) do
+    workflow_step_action(socket, action, number)
+  end
+
   # The diagram's hook is inside LiveFlow's own live_component and pushes its
   # events there, not here, so measurements reach us through the component's
   # `on_nodes_change` callback rather than a `handle_event`.
@@ -449,11 +455,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> assign_awaiting_approval(updated)
   end
 
+  defp workflow_step_action(socket, action, number) when is_binary(number) do
+    workflow_step_action(socket, action, String.to_integer(number))
+  end
+
   defp workflow_step_action(socket, action, number) do
     authorized!(:"deployment_group:update", socket.assigns.current_scope)
 
     %{deployment_group: deployment_group} = socket.assigns
-    number = String.to_integer(number)
 
     deployment_group.current_deployment_release_id
     |> Workflows.release_steps()
