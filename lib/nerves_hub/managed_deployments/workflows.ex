@@ -1,36 +1,47 @@
 defmodule NervesHub.ManagedDeployments.Workflows do
-  import Ecto.Query
+  @moduledoc """
+  Reading and advancing the workflow steps attached to a deployment release.
+
+  Steps are generated when a release is created (see
+  `NervesHub.ManagedDeployments.DeploymentRelease`) and are walked in `number`
+  order by `NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator`.
+
+  Every transition broadcasts `step/updated` on `deployment_release:<id>` so an
+  open deployment group page can move the step along without polling.
+  """
 
   alias Ecto.Changeset
-  alias NervesHub.Accounts.User
-  alias NervesHub.AuditLogs.DeploymentGroupTemplates
-  alias NervesHub.AuditLogs.DeviceTemplates
-  alias NervesHub.Devices
-  alias NervesHub.Devices.Device
-  alias NervesHub.Filtering, as: CommonFiltering
-  alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.Firmware
-  alias NervesHub.Firmwares.FirmwareDelta
-  alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
-  alias NervesHub.ManagedDeployments.Orchestrator
-  alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
 
+  @doc """
+  Mark a waiting step as in progress.
+  """
+  @spec start_step(DeploymentWorkflowStep.t()) :: DeploymentWorkflowStep.t()
   def start_step(step) do
-    started_at = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    transition(step, status: :in_progress, started_at: now())
+  end
 
-    changeset = Changeset.change(step, status: :in_progress, started_at: started_at)
+  @doc """
+  Mark an in-progress step as finished.
+  """
+  @spec complete_step(DeploymentWorkflowStep.t()) :: DeploymentWorkflowStep.t()
+  def complete_step(step) do
+    transition(step, status: :completed, finished_at: now())
+  end
 
-    step = Repo.update!(changeset)
+  defp transition(step, changes) do
+    step = Repo.update!(Changeset.change(step, Map.new(changes)))
 
-    broadcast(step, "step/updated", %{id: step.id, number: step.number, status: step.status})
+    :ok = broadcast(step, "step/updated", %{id: step.id, number: step.number, status: step.status})
 
     step
   end
 
+  defp now(), do: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+  @spec broadcast(DeploymentWorkflowStep.t(), String.t(), map()) :: :ok | {:error, term()}
   defp broadcast(%DeploymentWorkflowStep{deployment_release_id: release_id}, event, payload) do
     PhoenixChannelServer.broadcast(
       NervesHub.PubSub,

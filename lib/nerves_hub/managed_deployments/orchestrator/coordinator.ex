@@ -1,4 +1,18 @@
 defmodule NervesHub.ManagedDeployments.Orchestrator.Coordinator do
+  @moduledoc """
+  How an orchestrator decides which devices update next.
+
+  A deployment group without a workflow uses `DefaultCoordinator`, which fills the
+  group's concurrency slots from one undifferentiated pool. A group whose current
+  release carries workflow steps uses `WorkflowCoordinator`, which works one step
+  at a time.
+
+  `schedule_updates/1` returns whether the orchestrator should trigger again
+  immediately — true when devices were passed over and slots may still be free.
+  """
+
+  alias NervesHub.ManagedDeployments.DeploymentGroup
+
   @callback schedule_updates(DeploymentGroup.t()) :: boolean()
 
   defmacro __using__(_opts) do

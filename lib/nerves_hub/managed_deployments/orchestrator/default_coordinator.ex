@@ -1,10 +1,18 @@
 defmodule NervesHub.ManagedDeployments.Orchestrator.DefaultCoordinator do
+  @moduledoc """
+  The scheduling a deployment group gets when it has no workflow: fill the
+  priority queue first if it is enabled, then the normal queue, up to the group's
+  concurrency limits.
+  """
+
   use NervesHub.ManagedDeployments.Orchestrator.Coordinator
 
   alias NervesHub.Devices.Updates
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.Orchestrator.Coordinator
 
+  @impl Coordinator
   def schedule_updates(deployment_group) do
     # Process priority queue first, if enabled
     skipped_priority_updates = maybe_do_priority_update(deployment_group)
@@ -16,11 +24,9 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.DefaultCoordinator do
       available = Updates.available_for_update(deployment_group, slots)
       updated_count = schedule_devices!(available, deployment_group, false)
 
-      if length(available) != updated_count or skipped_priority_updates > 0 do
-        true
-      else
-        false
-      end
+      length(available) != updated_count or skipped_priority_updates > 0
+    else
+      false
     end
   end
 

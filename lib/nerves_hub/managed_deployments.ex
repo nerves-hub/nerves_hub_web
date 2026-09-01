@@ -168,20 +168,24 @@ defmodule NervesHub.ManagedDeployments do
     |> preload([product: p], product: p)
   end
 
+  # The `steps` join is only added alongside its preload. `steps` is a has_many, so
+  # the left join multiplies the parent rows; Ecto collapses them again when the
+  # preload is expressed through the join, but a caller that only joins for
+  # filtering (see `Devices.Updates.available_for_update/2`) would get one row per
+  # step for every device.
   def join_current_release(query, preload_firmware \\ false) do
     query
     |> join(:inner, [deployment_group: dg], dr in assoc(dg, :current_release), as: :current_release)
-    |> join(:left, [current_release: cr], s in assoc(cr, :steps), as: :steps)
     |> then(fn query ->
       if preload_firmware do
         query
         |> join(:left, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
         |> join(:left, [current_release: cr], a in assoc(cr, :archive), as: :archive)
+        |> join(:left, [current_release: cr], s in assoc(cr, :steps), as: :steps)
         |> preload([current_release: cr, firmware: f, archive: a, steps: s],
           current_release: {cr, firmware: f, archive: a, steps: s}
         )
       else
-        # preload(query, [current_release: cr, steps: s], current_release: {cr, steps: s})
         query
       end
     end)
@@ -287,7 +291,7 @@ defmodule NervesHub.ManagedDeployments do
 
   def load_current_release(deployment_group, opts \\ []) do
     force = Keyword.get(opts, :force, false)
-    Repo.preload(deployment_group, [current_release: [:firmware, :archive]], force: force)
+    Repo.preload(deployment_group, [current_release: [:firmware, :archive, :steps]], force: force)
   end
 
   def create_deployment_release(deployment_group, firmware, archive, user, params, opts \\ []) do

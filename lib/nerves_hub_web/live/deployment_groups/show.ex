@@ -345,6 +345,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     send_update(SummaryTab, id: "deployment_group_summary", updated_deployment: updated_deployment)
 
     socket
+    |> follow_release_steps(deployment_group, updated_deployment)
     |> assign(:deployment_group, updated_deployment)
     |> assign(:firmware, updated_deployment.current_release.firmware)
     |> noreply()
@@ -392,22 +393,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     {:noreply, socket}
   end
 
-  def handle_info(%Broadcast{topic: "deployment_release:" <> _, event: "step/started", payload: %{id: id}}, socket) do
-    flow = socket.assigns.flow.nodes
-
-    flow =
-      case Map.get(flow, "step-#{id}") do
-        nil ->
-          flow
-
-        node ->
-          data = %{node.data | status: :in_progress}
-          %{flow | nodes: Map.put(flow, id, %{node | data: data})}
-      end
-
-    {:noreply, assign(socket, flow: flow)}
-  end
-
   def handle_info(
         %Broadcast{
           topic: "deployment_release:" <> _,
@@ -416,22 +401,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
         },
         socket
       ) do
-    flow = socket.assigns.flow
-
-    dbg(flow.nodes)
-
-    flow =
-      case Map.get(flow.nodes, "step-#{number}") do
-        nil ->
-          flow
-
-        node ->
-          data = %{node.data | status: status}
-          dbg(data)
-          %{flow | nodes: Map.put(flow.nodes, "step-#{number}", %{node | data: data})}
-      end
-
-    {:noreply, assign(socket, flow: flow)}
+    {:noreply, assign(socket, :flow, update_step_status(socket.assigns.flow, number, status))}
   end
 
   # Ignore other broadcasts
@@ -464,6 +434,34 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
   defp selected_tab(socket) do
     assign(socket, :tab, socket.assigns.live_action || :details)
+  end
+
+  # A new release carries its own steps, broadcast on its own topic. Move the
+  # subscription across and rebuild the diagram from the new steps.
+  defp follow_release_steps(socket, previous, updated) do
+    previous_id = previous.current_deployment_release_id
+    updated_id = updated.current_deployment_release_id
+
+    if connected?(socket) and previous_id != updated_id do
+      :ok = socket.endpoint.unsubscribe("deployment_release:#{previous_id}")
+      :ok = socket.endpoint.subscribe("deployment_release:#{updated_id}")
+    end
+
+    assign(socket, :flow, parse_workflow(updated.current_release.steps))
+  end
+
+  # A deployment group with no workflow has no flow to update.
+  defp update_step_status(nil, _number, _status), do: nil
+
+  defp update_step_status(flow, number, status) do
+    case Map.get(flow.nodes, "step-#{number}") do
+      nil ->
+        flow
+
+      node ->
+        node = %{node | data: %{node.data | status: status}}
+        %{flow | nodes: Map.put(flow.nodes, "step-#{number}", node)}
+    end
   end
 
   defp parse_workflow([]), do: nil
@@ -537,10 +535,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     {status_color, status_label} =
       case status do
         :waiting -> {"#f59e0b", "Waiting"}
-        :completed -> {"#22c55e", "Completed"}
         :in_progress -> {"#615fff", "In Progress"}
-        :approval_required -> {"#f59e0b", "Approval Required"}
+        :completed -> {"#22c55e", "Completed"}
+        :skipped -> {"#a1a1aa", "Skipped"}
         :error -> {"#ef4444", "Error"}
+        _unknown -> {"#a1a1aa", "Unknown"}
       end
 
     assigns =

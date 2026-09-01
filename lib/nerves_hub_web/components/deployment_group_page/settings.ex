@@ -105,7 +105,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           <div class="flex flex-col gap-6 p-6">
             <div class="flex flex-col gap-3">
               <p class="text-base-400 w-2/3 text-sm">
-                Use continous deployment workflows for updating devices. These workflows are defined in JSON, similar to how GitHub Actions and CircleCI configs are defined in YML.
+                Use continuous deployment workflows for updating devices. These workflows are defined in JSON, similar to how GitHub Actions and CircleCI configs are defined in YML.
               </p>
 
               <p class="text-base-400 w-2/3 text-sm">
@@ -113,7 +113,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
               </p>
 
               <p :if={@deployment_group.workflow_definition} class="text-base-400 w-2/3 text-sm font-semibold">
-                A Workflow Definition has been upload which includes {length(@deployment_group.workflow_definition["steps"])} steps.
+                A Workflow Definition has been uploaded, with {length(@deployment_group.workflow_definition["steps"])} steps.
               </p>
             </div>
 
