@@ -232,6 +232,38 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     end)
   end
 
+  test "charts are updating when a metrics-extension report arrives", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    # A device reporting numbers through the metrics extension announces them
+    # as "metrics_report", and the tab treats that exactly as a health report's
+    # numbers — metadata excepted, which only health carries.
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+    |> assert_has("div", text: "No health metrics have been received from the device")
+    |> unwrap(fn view ->
+      assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
+
+      send(view.pid, %Broadcast{
+        topic: "internal:device:#{device.id}",
+        event: "metrics_report",
+        payload: %{}
+      })
+
+      render(view)
+    end)
+    |> then(fn socket ->
+      @metrics
+      |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+      |> Enum.reduce(socket, fn {key, _}, socket ->
+        refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+      end)
+    end)
+  end
+
   test "metrics data is correctly structured for js graphs", %{
     conn: conn,
     org: org,

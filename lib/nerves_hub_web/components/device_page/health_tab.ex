@@ -167,7 +167,36 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
-  def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
+  def hooked_info(%Broadcast{event: "health_check_report"}, socket) do
+    socket
+    |> refresh_metric_charts()
+    |> assign_metadata()
+    |> halt()
+  end
+
+  # A device reporting through the metrics extension announces its numbers
+  # separately, and they are only numbers — the metadata this tab also shows
+  # stays health's and only moves on a health report.
+  def hooked_info(%Broadcast{event: "metrics_report"}, socket) do
+    socket
+    |> refresh_metric_charts()
+    |> halt()
+  end
+
+  def hooked_info(:tick, socket) do
+    socket
+    |> schedule_tick()
+    |> update_from_and_until_timestamps()
+    |> then(fn socket ->
+      {from, until} = fetch_from_and_until(socket)
+      push_event(socket, "update-time-frame", %{from: from, until: until})
+    end)
+    |> halt()
+  end
+
+  def hooked_info(_event, socket), do: {:cont, socket}
+
+  defp refresh_metric_charts(%{assigns: %{device: device}} = socket) do
     latest_metrics = Metrics.get_latest_metric_set(device.id)
 
     chart_keys = metrics_to_chart(socket.assigns.latest_metrics)
@@ -176,7 +205,6 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       socket
       |> update_from_and_until_timestamps()
       |> assign(:latest_metrics, latest_metrics)
-      |> assign_metadata()
 
     {from, until} = fetch_from_and_until(socket)
 
@@ -197,21 +225,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         |> put_has_chart_data(key, true)
       end)
     end
-    |> halt()
   end
-
-  def hooked_info(:tick, socket) do
-    socket
-    |> schedule_tick()
-    |> update_from_and_until_timestamps()
-    |> then(fn socket ->
-      {from, until} = fetch_from_and_until(socket)
-      push_event(socket, "update-time-frame", %{from: from, until: until})
-    end)
-    |> halt()
-  end
-
-  def hooked_info(_event, socket), do: {:cont, socket}
 
   def render(assigns) do
     health_enabled = assigns.product.extensions.health && assigns.device.extensions.health
