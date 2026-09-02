@@ -41,10 +41,10 @@ defmodule NervesHub.Devices.PinnedDevicesTest do
 
   test "Constraint on device and user", %{device: device, user: user} do
     assert {:error, _changeset} =
-             Pinning.pin_device(user.id, 17)
+             Pinning.pin_device(user.id, 999_999_999)
 
     assert {:error, _changeset} =
-             Pinning.pin_device(2, device.id)
+             Pinning.pin_device(999_999_999, device.id)
   end
 
   test "Get pinned devices for user", %{user: user, device: device} do
