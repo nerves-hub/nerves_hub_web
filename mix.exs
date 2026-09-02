@@ -163,7 +163,7 @@ defmodule NervesHub.MixProject do
       {:hammer, "~> 7.4.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},
       {:hlclock, "~> 1.0"},
-      {:process_hub, "~> 0.6.0"},
+      {:process_hub, "~> 0.7.0"},
       {:jason, "~> 1.2", override: true},
       {:joken, "~> 2.6"},
       {:lazy_html, ">= 0.0.0", only: :test},
