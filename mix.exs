@@ -1,6 +1,18 @@
 defmodule NervesHub.MixProject do
   use Mix.Project
 
+  alias Flop.Schema.NervesHub.Devices.Device
+  alias Inspect.NervesHub.Accounts.User
+  alias Jason.Encoder.OrderedCollections.SortedMap
+  alias NervesHub.Accounts.Org.Settings
+  alias NervesHub.Firmwares.Upload.S3
+  alias NervesHub.Helpers.Logging
+  alias NervesHub.ManagedDeployments.InflightDeploymentCheck
+  alias NervesHub.Release.Tasks
+  alias NervesHub.Support.EctoTelemetryHandler
+  alias NervesHub.Telemetry.FilteredSampler
+  alias NervesHubWeb.Plugs.OpenApiSpec
+
   def project() do
     [
       app: :nerves_hub,
@@ -29,7 +41,46 @@ defmodule NervesHub.MixProject do
         plt_core_path: "priv/plts",
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
       ],
-      test_coverage: [tool: ExCoveralls]
+      test_coverage: [
+        tool: ExCoveralls,
+        ignore_modules: [
+          # API support
+          NervesHubWeb.ApiSpec,
+          ~r/NervesHubWeb\.API\.Schemas\..*/,
+          ~r/NervesHubWeb\.API\.OpenAPI\..*/,
+          ~r/NervesHubWeb\.API\.UI.*/,
+          # Derived or macro-generated
+          Device,
+          User,
+          SortedMap,
+          Settings,
+          # Emails and views
+          NervesHub.EmailView,
+          NervesHubWeb.DeviceHTML,
+          NervesHubWeb.HomeView,
+          NervesHubWeb.OAuthHTML,
+          NervesHubWeb.PasswordResetHTML,
+          NervesHubWeb.ProductView,
+          # Tools
+          ~r/Mix.Tasks\..*/,
+          Tasks,
+          S3,
+          NervesHub.Debug,
+          Logging,
+          FilteredSampler,
+          EctoTelemetryHandler,
+          # Misc
+          OpenApiSpec,
+          NervesHubWeb.SentryEventFilter,
+          NervesHub.DeviceSSLTransport,
+          NervesHubWeb,
+          NervesHub.Uploads.S3,
+          NervesHubWeb.AuthDecorator,
+          NervesHubWeb.HealthCheckEndpoint,
+          # schema file with no application code
+          InflightDeploymentCheck
+        ]
+      ]
     ]
   end
 
@@ -107,6 +158,7 @@ defmodule NervesHub.MixProject do
       {:floki, "~> 0.38.0"},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
+      {:group, "~> 0.2.0"},
       {:hackney, "~> 1.16"},
       {:hammer, "~> 7.4.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},
@@ -119,7 +171,7 @@ defmodule NervesHub.MixProject do
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.31.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.37.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
@@ -170,7 +222,7 @@ defmodule NervesHub.MixProject do
       {:unzip, "~> 0.12"},
       {:uuidv7, "~> 1.0"},
       {:x509, "~> 0.5.1 or ~> 0.6"},
-      {:flop, "~> 0.27.0"}
+      {:flop, "~> 0.28.0"}
     ]
   end
 
@@ -183,7 +235,11 @@ defmodule NervesHub.MixProject do
   defp aliases() do
     [
       setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.setup": [
+        "tailwind.install --if-missing",
+        "esbuild.install --if-missing",
+        "cmd --cd assets npm install"
+      ],
       "assets.build": ["compile", "tailwind default", "esbuild default", "esbuild stoplight"],
       "assets.deploy": [
         "tailwind default --minify",

@@ -2,26 +2,32 @@ defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :live_view
 
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.Consoles
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Pinning
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.Updates
-  alias NervesHub.Extensions.Health
+  alias NervesHub.Extensions
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Products
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.DevicePage.ActivityTab
   alias NervesHubWeb.Components.DevicePage.ConsoleTab
+  alias NervesHubWeb.Components.DevicePage.DataHistoryTab
   alias NervesHubWeb.Components.DevicePage.DetailsTab
+  alias NervesHubWeb.Components.DevicePage.ErrorsTab
   alias NervesHubWeb.Components.DevicePage.FirmwareHistoryTab
   alias NervesHubWeb.Components.DevicePage.HealthTab
   alias NervesHubWeb.Components.DevicePage.LocalShellTab
   alias NervesHubWeb.Components.DevicePage.LogsTab
   alias NervesHubWeb.Components.DevicePage.SettingsTab
   alias NervesHubWeb.Components.DeviceUpdateStatus
-  alias NervesHubWeb.Components.FwupProgress
+  alias NervesHubWeb.Components.UpdateProgress
   alias NervesHubWeb.Presence
   alias Phoenix.LiveView.AsyncResult
+  alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -29,7 +35,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   @tab_components [
     ActivityTab,
     ConsoleTab,
+    DataHistoryTab,
     DetailsTab,
+    ErrorsTab,
     FirmwareHistoryTab,
     HealthTab,
     LocalShellTab,
@@ -44,11 +52,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     if connected?(socket) do
       Logger.metadata(device_id: device.id, user_id: user.id, product_id: product.id)
-      socket.endpoint.subscribe("internal:device:#{device.id}")
-      socket.endpoint.subscribe("device:console:#{device.id}:internal")
-      socket.endpoint.subscribe("device:console:#{device.id}")
-      socket.endpoint.subscribe("device:#{device.id}:extensions")
-      socket.endpoint.subscribe("product:#{product.id}")
+      PubSub.subscribe(device.id)
+      Consoles.PubSub.subscribe_console_watcher(device.id)
+      Extensions.PubSub.subscribe_reports(device.id)
+      Products.PubSub.subscribe(product.id)
     end
 
     socket
@@ -57,7 +64,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> sidebar_tab(:devices)
     |> selected_tab()
     |> general_assigns(device)
-    |> schedule_health_check_timer()
+    |> watch_health()
     |> load_inprogress_firmware_update()
     |> assign(:pinned?, Pinning.device_pinned?(user.id, device.id))
     |> setup_presence_tracking()
@@ -161,17 +168,15 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_info(:check_health_interval, socket) do
-    timer_ref = Process.send_after(self(), :check_health_interval, health_polling_seconds())
+  def handle_info(%Broadcast{event: "location:updated"}, socket) do
+    %{device: device, current_scope: scope} = socket.assigns
 
-    Health.request_health_check(socket.assigns.device)
+    device = load_device(scope, device.identifier)
 
-    socket
-    |> assign(:health_check_timer, timer_ref)
-    |> noreply()
+    {:noreply, assign(socket, :device, device)}
   end
 
-  def handle_info(%Broadcast{event: "location:updated"}, socket) do
+  def handle_info(%Broadcast{event: "network_identities:updated"}, socket) do
     %{device: device, current_scope: scope} = socket.assigns
 
     device = load_device(scope, device.identifier)
@@ -270,23 +275,28 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_event("toggle-deployment-firmware-updates", _params, socket) do
+  def handle_event("set-update-mode", %{"mode" => mode}, socket) do
     %{current_scope: current_scope, user: user, device: device} = socket.assigns
 
     authorized!(:"device:toggle-updates", current_scope)
 
-    {:ok, updated_device} = Updates.toggle_automatic_updates(device, user)
+    mode = String.to_existing_atom(mode)
 
-    message = [
-      "Firmware updates ",
-      (updated_device.updates_enabled && "enabled") || "disabled",
-      "."
-    ]
+    case Updates.set_update_mode(device, mode, user) do
+      {:ok, updated_device} ->
+        socket
+        |> assign(:device, updated_device)
+        |> put_flash(:info, "Firmware updates set to #{String.downcase(update_mode_label(mode))}.")
+        |> noreply()
 
-    socket
-    |> assign(:device, updated_device)
-    |> put_flash(:info, Enum.join(message))
-    |> noreply()
+      _error ->
+        socket
+        |> put_flash(
+          :error,
+          "We couldn't change how this device receives updates. Please contact support if this happens again."
+        )
+        |> noreply()
+    end
   end
 
   def handle_event("restore", _, socket) do
@@ -333,7 +343,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     Devices.get_by_identifier!(scope, identifier, [
       :product,
       :latest_connection,
-      :latest_health
+      :latest_health,
+      :network_identities
     ])
   end
 
@@ -367,15 +378,22 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  defp schedule_health_check_timer(socket) do
+  # Tells the device's extensions channel that somebody is looking, which is the
+  # whole of the page's involvement in health reporting: the pace, and the
+  # `health:check` itself, belong to `NervesHub.Extensions.Health`. Every open
+  # page used to run its own timer and ask the device directly, so two people on
+  # one device meant two extra streams of requests on top of the platform's.
+  #
+  # There is nothing to give up again: watching lasts as long as this process,
+  # and the reporting slows back down once the last page has closed.
+  defp watch_health(socket) do
     %{device: device, product: product} = socket.assigns
 
     if connected?(socket) and health_extension_enabled?(product, device) do
-      timer_ref = Process.send_after(self(), :check_health_interval, 500)
-      assign(socket, :health_check_timer, timer_ref)
-    else
-      assign(socket, :health_check_timer, nil)
+      :ok = Extensions.PubSub.watch_health(device.id)
     end
+
+    socket
   end
 
   defp health_extension_enabled?(product, device) do
@@ -429,22 +447,61 @@ defmodule NervesHubWeb.Live.Devices.Show do
     assign(socket, :tab, socket.assigns.live_action || :details)
   end
 
-  defp health_polling_seconds() do
-    Application.get_env(:nerves_hub, :extension_config, [])
-    |> get_in([:health, :ui_polling_seconds])
-    |> :timer.seconds()
-  end
-
   def render_tab(assigns) do
     ~H"""
     <ActivityTab.render :if={@tab == :activity} {assigns} />
     <ConsoleTab.render :if={@tab == :console} {assigns} />
+    <DataHistoryTab.render :if={@tab == :data_history} {assigns} />
     <DetailsTab.render :if={@tab == :details} {assigns} />
+    <ErrorsTab.render :if={@tab == :errors} {assigns} />
     <FirmwareHistoryTab.render :if={@tab == :firmware_history} {assigns} />
     <HealthTab.render :if={@tab == :health} {assigns} />
     <LocalShellTab.render :if={@tab == :local_shell} {assigns} />
     <LogsTab.render :if={@tab == :logs} {assigns} />
     <SettingsTab.render :if={@tab == :settings} {assigns} />
     """
+  end
+
+  @doc false
+  def update_modes() do
+    [
+      {:automatic, "Automatic", "This device's deployment group sends it firmware on its own schedule."},
+      {:device_managed, "Device managed",
+       "The device asks for firmware when it suits it. Its deployment group still decides which firmware."},
+      {:off, "Off", "The device takes no firmware except what someone sends it by hand."}
+    ]
+  end
+
+  @doc false
+  def update_mode_icon(:automatic), do: "lucide-refresh-cw--light"
+  def update_mode_icon(:device_managed), do: "lucide-cpu--light"
+  def update_mode_icon(:off), do: "lucide-circle-slash--light"
+
+  @doc false
+  def update_mode_color(:automatic), do: "text-success"
+  def update_mode_color(:device_managed), do: "text-base-300"
+  def update_mode_color(:off), do: "text-alert"
+
+  @doc false
+  def update_mode_label(mode) do
+    {_mode, label, _description} = Enum.find(update_modes(), &(elem(&1, 0) == mode))
+    label
+  end
+
+  defp toggle_update_mode_menu(js \\ %JS{}) do
+    JS.toggle(js,
+      to: "#update-mode-menu-container",
+      in: {"ease-out duration-150", "opacity-0", "opacity-100"},
+      out: {"ease-out duration-150", "opacity-100", "opacity-0"}
+    )
+  end
+
+  # Only ever closes, so Escape and click-away cannot open it the way JS.toggle
+  # would, and are no-ops when it is already closed.
+  defp hide_update_mode_menu(js \\ %JS{}) do
+    JS.hide(js,
+      to: "#update-mode-menu-container",
+      transition: {"ease-out duration-150", "opacity-100", "opacity-0"}
+    )
   end
 end

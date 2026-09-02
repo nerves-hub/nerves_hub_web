@@ -19,6 +19,7 @@ defmodule NervesHub.Scripts.Script do
     field(:name, :string)
     field(:text, :string)
     field(:tags, Tag)
+    field(:last_editor_name, :string, virtual: true)
 
     timestamps()
   end

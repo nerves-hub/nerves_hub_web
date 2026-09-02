@@ -2,6 +2,7 @@ defmodule NervesHubWeb.API.DeviceController do
   use NervesHubWeb, :api_controller
 
   alias NervesHub.Accounts
+  alias NervesHub.Consoles
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.AdvancedQuery
@@ -52,8 +53,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
     opts =
       if sort_field = Map.get(params, "sort") do
-        sort_direction = Map.get(params, "sort_direction", "asc")
-        Map.put(opts, :sort, {String.to_atom(sort_direction), String.to_existing_atom(sort_field)})
+        Map.put(opts, :sort, {sort_direction(params), String.to_existing_atom(sort_field)})
       else
         opts
       end
@@ -179,12 +179,10 @@ defmodule NervesHubWeb.API.DeviceController do
     code
     |> String.graphemes()
     |> Enum.each(fn character ->
-      Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{
-        "data" => character
-      })
+      Consoles.PubSub.broadcast_to_console(device.id, "dn", %{"data" => character})
     end)
 
-    Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{"data" => "\r"})
+    Consoles.PubSub.broadcast_to_console(device.id, "dn", %{"data" => "\r"})
 
     send_resp(conn, :no_content, "")
   end
@@ -242,6 +240,19 @@ defmodule NervesHubWeb.API.DeviceController do
           # fallback controller will render this
           {:error, changeset}
       end
+    end
+  end
+
+  # `sort_direction` arrives as a raw query param — the OpenAPI spec types it as
+  # a free-form string and nothing casts it before we get here. Running it
+  # through `String.to_atom/1` minted a permanent atom per distinct value, so
+  # anyone with `org: :view` could grow the atom table until the node hit the
+  # limit and aborted. Only two directions mean anything; everything else is
+  # the default.
+  defp sort_direction(params) do
+    case Map.get(params, "sort_direction") do
+      "desc" -> :desc
+      _ -> :asc
     end
   end
 end

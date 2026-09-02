@@ -3,6 +3,8 @@ defmodule NervesHubWeb.DeviceSocket do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHub.ProductNotifications
+  alias NervesHubWeb.Helpers.ClientIP
   alias Phoenix.Socket.Transport
 
   channel("console", NervesHubWeb.ConsoleChannel)
@@ -28,37 +30,7 @@ defmodule NervesHubWeb.DeviceSocket do
   @impl Transport
   def handle_in(msg, {state, socket}) do
     socket = heartbeat(socket)
-    {msg, state_and_socket} = maybe_fix_join_ref(msg, {state, socket})
-    super(msg, state_and_socket)
-  end
-
-  # Due to Slipstream not sending `join_ref`s with every message (CuatroElixir/slipstream#84),
-  # and Phoenix tightening up their Channel implementation (phoenixframework/phoenix@c73bbfc),
-  # and we aren't able to force devices to upgrade to the most recent Slipstream version,
-  # we need to add the `join_ref` to Channel messages (a bandaid) or be stuck on Phoenix 1.8.2
-  defp maybe_fix_join_ref(msg, {state, socket}) when state.channels == [] do
-    {msg, {state, socket}}
-  end
-
-  defp maybe_fix_join_ref(msg, {state, socket}) do
-    {payload, opts} = msg
-    message = socket.serializer.decode!(payload, opts)
-
-    channel_info =
-      state.channels_inverse
-      |> Enum.find(fn {_pid, {topic, _join_ref}} -> message.topic == topic end)
-
-    with {_pid, {_topic, join_ref}} <- channel_info,
-         true <- is_nil(message.join_ref) do
-      message = put_in(message.join_ref, join_ref)
-      data = [message.join_ref, message.ref, message.topic, message.event, message.payload]
-      encoded = Phoenix.json_library().encode_to_iodata!(data)
-
-      {{encoded, opts}, {state, socket}}
-    else
-      _ ->
-        {msg, {state, socket}}
-    end
+    super(msg, {state, socket})
   end
 
   @decorate with_span("Channels.DeviceSocket.heartbeat")
@@ -85,20 +57,68 @@ defmodule NervesHubWeb.DeviceSocket do
     assign(socket, :last_heartbeat, System.monotonic_time(:second))
   end
 
-  # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
+  def connect(params, socket, connect_info) do
+    case do_connect(params, socket, connect_info) do
+      {:ok, socket} -> maybe_redirect(socket)
+      {:error, _reason} = error -> error
+    end
+  end
+
+  # Some devices are configured with the management host rather than the device
+  # host. Rather than serving them from the management endpoint, point them at
+  # the device websocket host. Only the management endpoint redirects; the device
+  # endpoint is the destination, so redirecting there would loop.
+  #
+  # This runs after authentication because the notification needs to name the
+  # product and the device, which we only know once the device has identified
+  # itself.
+  defp maybe_redirect(%{endpoint: NervesHubWeb.Endpoint, assigns: %{device_info: device_info}} = socket) do
+    case redirect_target() do
+      nil ->
+        {:ok, socket}
+
+      host ->
+        _ = ProductNotifications.create_wrong_websocket_host_notification!(device_info, host)
+
+        :telemetry.execute([:nerves_hub, :devices, :wrong_websocket_host], %{count: 1}, %{
+          device_id: device_info.device_id,
+          device_identifier: device_info.device_identifier,
+          product_id: device_info.product_id,
+          host: host
+        })
+
+        {:error, {:redirect, host}}
+    end
+  end
+
+  defp maybe_redirect(socket), do: {:ok, socket}
+
+  # Redirecting to nothing would strand the device, so an unset host means no
+  # redirect regardless of the flag.
+  defp redirect_target() do
+    with true <- Application.get_env(:nerves_hub, :redirect_to_devices_websocket_url, false),
+         host when is_binary(host) and host != "" <- Application.get_env(:nerves_hub, :devices_websocket_url) do
+      host
+    else
+      _ -> nil
+    end
+  end
+
+  # Used by Devices connecting with SSL certificates
   @decorate with_span("Channels.DeviceSocket.connect:cert_auth")
-  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
-    authenticate(socket, {:ssl_cert, ssl_cert})
+  defp do_connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}} = connect_info) when not is_nil(ssl_cert) do
+    authenticate(socket, {:ssl_cert, ssl_cert}, connect_info)
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
   @decorate with_span("Channels.DeviceSocket.connect:shared_secrets")
-  def connect(_params, socket, %{x_headers: x_headers}) when is_list(x_headers) and x_headers != [] do
-    authenticate(socket, {:shared_secret, Map.new(x_headers)})
+  defp do_connect(_params, socket, %{x_headers: x_headers} = connect_info)
+       when is_list(x_headers) and x_headers != [] do
+    authenticate(socket, {:shared_secret, Map.new(x_headers)}, connect_info)
   end
 
-  def connect(_params, _socket, _connect_info) do
+  defp do_connect(_params, _socket, _connect_info) do
     {:error, :no_auth}
   end
 
@@ -120,9 +140,9 @@ defmodule NervesHubWeb.DeviceSocket do
   # may be unreachable -- during a deploy, a partition, or before this node has
   # finished joining the cluster. Refusing is correct; raising is not, because it
   # answers the device with a 500 and buries the reason in a rendered error page.
-  defp authenticate(socket, credentials) do
+  defp authenticate(socket, credentials, connect_info) do
     case DeviceLink.authenticate(credentials) do
-      {:ok, device_info} -> socket_and_assigns(socket, device_info)
+      {:ok, device_info} -> socket_and_assigns(socket, device_info, ip_address(socket, connect_info))
       {:error, reason} -> {:error, reason}
     end
   catch
@@ -135,17 +155,35 @@ defmodule NervesHubWeb.DeviceSocket do
       {:error, :platform_unavailable}
   end
 
-  defp socket_and_assigns(socket, device_info) do
+  defp socket_and_assigns(socket, device_info, ip_address) do
     # disconnect devices using the same identifier
     _ = socket.endpoint.broadcast_from(self(), "device_socket:#{device_info.device_id}", "disconnect", %{})
 
-    {:ok, assign(socket, :device_info, device_info)}
+    socket =
+      socket
+      |> assign(:device_info, device_info)
+      |> assign(:ip_address, ip_address)
+
+    {:ok, socket}
+  end
+
+  # The address the device reached us from. How that is established differs
+  # between the two endpoints serving devices, so the endpoint reached decides
+  # which header, if any, may be believed -- see `NervesHubWeb.Helpers.ClientIP`.
+  defp ip_address(socket, connect_info) do
+    config = Application.get_env(:nerves_hub, socket.endpoint, [])
+
+    ClientIP.resolve(
+      connect_info,
+      Keyword.get(config, :forwarded_ip_header),
+      Keyword.get(config, :forwarded_ip_trailing_hops, 0)
+    )
   end
 
   @decorate with_span("Channels.DeviceSocket.on_connect")
   defp on_connect(%{assigns: %{device_info: device_info}} = socket) do
     # Report connection and use connection id as reference
-    {:ok, device_info} = DeviceLink.connect(device_info)
+    {:ok, device_info} = DeviceLink.connect(device_info, socket.assigns[:ip_address])
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: device_info.connection_ref,

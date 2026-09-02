@@ -4,6 +4,7 @@ defmodule NervesHub.Devices.Connections do
   """
   import Ecto.Query
 
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
@@ -25,9 +26,9 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Creates a device connection, reported from device socket
   """
-  @spec device_connecting(pos_integer(), pos_integer(), pos_integer()) ::
+  @spec device_connecting(pos_integer(), pos_integer(), pos_integer(), String.t() | nil) ::
           {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
-  def device_connecting(org_id, product_id, device_id) do
+  def device_connecting(org_id, product_id, device_id, ip_address \\ nil) do
     conflict_query =
       DeviceConnection
       |> update([ldc],
@@ -43,11 +44,12 @@ defmodule NervesHub.Devices.Connections do
           status: fragment("EXCLUDED.status"),
           lib: fragment("EXCLUDED.lib"),
           lib_version: fragment("EXCLUDED.lib_version"),
-          network_interface: fragment("EXCLUDED.network_interface")
+          network_interface: fragment("EXCLUDED.network_interface"),
+          ip_address: fragment("EXCLUDED.ip_address")
         ]
       )
 
-    DeviceConnection.connecting_changeset(org_id, product_id, device_id)
+    DeviceConnection.connecting_changeset(org_id, product_id, device_id, ip_address)
     |> Repo.insert(on_conflict: conflict_query, conflict_target: [:device_id])
     |> case do
       {:ok, device_connection} ->
@@ -151,13 +153,7 @@ defmodule NervesHub.Devices.Connections do
   end
 
   defp async_device_connection_history_insert(device_connections) when is_list(device_connections) do
-    if Application.get_env(:nerves_hub, :analytics_enabled) do
-      Enum.each(device_connections, fn device_connection ->
-        async_device_connection_history_insert(device_connection)
-      end)
-    end
-
-    :ok
+    Enum.each(device_connections, &async_device_connection_history_insert/1)
   end
 
   defp async_device_connection_history_insert(%DeviceConnection{} = device_connection) do
@@ -166,19 +162,16 @@ defmodule NervesHub.Devices.Connections do
     |> async_device_connection_history_insert()
   end
 
+  # Every connection event for every device lands here, so the write is batched
+  # rather than sent as its own INSERT. The `ReplacingMergeTree` collapses a
+  # connection's rows by `version`, not by arrival order, so it does not matter
+  # which batch each one rides in.
   defp async_device_connection_history_insert(%Ecto.Changeset{data: %DeviceConnectionHistory{}} = device_connection) do
-    _ =
-      if Application.get_env(:nerves_hub, :analytics_enabled) do
-        Task.Supervisor.start_child(
-          {:via, PartitionSupervisor, {NervesHub.AnalyticsEventsProcessing, self()}},
-          fn ->
-            {:ok, _} =
-              NervesHub.AnalyticsRepo.insert(device_connection)
-          end
-        )
-      end
-
-    :ok
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      Buffer.insert(DeviceConnectionHistory, device_connection)
+    else
+      :ok
+    end
   end
 
   @spec update_network_interface(binary(), atom()) :: {:ok, DeviceConnection.t()} | :error

@@ -2,18 +2,17 @@ defmodule NervesHub.ProductNotifications do
   import Ecto.Query
 
   alias NervesHub.Accounts.Scope
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Products
   alias NervesHub.Products.Notification
   alias NervesHub.Products.Product
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server
-  alias Phoenix.PubSub
+  alias Phoenix.Socket.Broadcast
 
   @spec subscribe(pos_integer()) :: :ok
   def subscribe(product_id) do
-    _ = PubSub.subscribe(NervesHub.PubSub, "product_notifications:#{product_id}")
-    :ok
+    :ok = Group.join(NervesHub.Group, key(product_id), %{})
   end
 
   @spec paginated_list(Product.t(), integer(), integer()) :: {[Notification.t()], Flop.Meta.t()}
@@ -34,12 +33,11 @@ defmodule NervesHub.ProductNotifications do
       |> Repo.delete_all()
 
     _ =
-      Server.broadcast(
-        NervesHub.PubSub,
-        "product_notifications:#{product.id}",
-        "dismissed",
-        %{dismissed_by: %{id: user.id, name: user.name}}
-      )
+      Group.dispatch(NervesHub.Group, key(product.id), %Broadcast{
+        topic: topic(product.id),
+        event: "dismissed",
+        payload: %{dismissed_by: %{id: user.id, name: user.name}}
+      })
 
     :ok
   end
@@ -117,6 +115,21 @@ defmodule NervesHub.ProductNotifications do
     |> insert_and_notify!()
   end
 
+  @spec create_wrong_websocket_host_notification!(device_info :: DeviceInfo.t(), host :: String.t()) ::
+          Notification.t()
+  def create_wrong_websocket_host_notification!(device_info, host) do
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device connected to the wrong host.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' connected to the management host instead of '#{host}', and was redirected. Please update the device's configuration.",
+      level: :warning,
+      metadata: %{identifier: device_info.device_identifier, host: host},
+      event_key: "wrong_websocket_host-#{device_info.device_identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
   @spec create_soft_deleted_device_removed!(device :: Device.t()) :: Notification.t()
   def create_soft_deleted_device_removed!(device) do
     %Product{id: device.product_id}
@@ -144,6 +157,26 @@ defmodule NervesHub.ProductNotifications do
     |> insert_and_notify!()
   end
 
+  @doc """
+  A device could not be moved off an update mode its firmware cannot support.
+
+  The device is stranded until someone acts: its deployment group will not push
+  to it, and its firmware has no way to ask. Raised to the operator because
+  nothing else will notice — the device goes on connecting perfectly happily.
+  """
+  def create_update_mode_revert_failed_notification!(device) do
+    %Product{id: device.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device could not be returned to automatic updates.",
+      message:
+        "The device with the identifier '#{device.identifier}' is set to manage its own updates, but is running firmware too old to do so. NervesHub tried to return it to automatic updates and could not, so it will receive no firmware at all until this is resolved. Set its update mode manually, or send it firmware by hand.",
+      level: :error,
+      metadata: %{identifier: device.identifier},
+      event_key: "update_mode_revert_failed-#{device.identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
   defp insert_and_notify!(changeset) do
     conflict_query =
       Notification
@@ -161,15 +194,21 @@ defmodule NervesHub.ProductNotifications do
       )
 
     _ =
-      Server.broadcast(
-        NervesHub.PubSub,
-        "product_notifications:#{notification.product_id}",
-        "created",
-        %{}
-      )
+      Group.dispatch(NervesHub.Group, key(notification.product_id), %Broadcast{
+        topic: topic(notification.product_id),
+        event: "created",
+        payload: %{}
+      })
 
     notification
   end
+
+  # Group key. "/" is Group's hierarchy separator, matching the other pub/sub
+  # wrappers.
+  defp key(product_id), do: "product_notifications/#{product_id}"
+
+  # Preserved as the previous `Phoenix.PubSub` topic string.
+  defp topic(product_id), do: "product_notifications:#{product_id}"
 
   def count(product) do
     Notification

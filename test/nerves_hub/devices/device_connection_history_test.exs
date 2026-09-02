@@ -71,13 +71,15 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
         last_seen_at: ~U[2020-01-01 00:05:00.000000Z]
       }
 
-      before = DateTime.utc_now() |> DateTime.to_unix(:microsecond)
+      one_second = 1_000_000
+      before = System.system_time(:microsecond)
       changes = DeviceConnectionHistory.from_device_connection_changeset(connection).changes
-      later = DateTime.utc_now() |> DateTime.to_unix(:microsecond)
 
-      # version tracks the current time at insert, independent of last_seen_at
+      # version tracks the current time at insert, independent of last_seen_at -
+      # it can sit a hair past the clock when a tie has to be broken, so the
+      # upper bound is loose
       assert changes.version >= before
-      assert changes.version <= later
+      assert changes.version <= before + one_second
     end
 
     test "successive rows for the same connection get strictly increasing versions" do
@@ -126,14 +128,31 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
     end
 
     test "mark_as_stale_and_disconnected_changeset bumps the version past the row it carries forward" do
+      ref = UUIDv7.generate()
+
+      # version the carried forward row the way the writer would have, so the
+      # bump has to beat it even when both land in the same microsecond
+      carried_forward_version =
+        %DeviceConnection{
+          id: ref,
+          org_id: 1,
+          product_id: 2,
+          device_id: 3,
+          established_at: ~U[2026-06-20 10:00:00.000000Z],
+          last_seen_at: ~U[2026-06-20 10:05:00.000000Z]
+        }
+        |> DeviceConnectionHistory.from_device_connection_changeset()
+        |> Map.fetch!(:changes)
+        |> Map.fetch!(:version)
+
       history = %DeviceConnectionHistory{
         org_id: 1,
         product_id: 2,
         device_id: 3,
-        ref: UUIDv7.generate(),
+        ref: ref,
         established_at: ~U[2026-06-20 10:00:00.000000Z],
         last_seen_at: ~U[2026-06-20 10:05:00.000000Z],
-        version: DateTime.utc_now() |> DateTime.to_unix(:microsecond)
+        version: carried_forward_version
       }
 
       changes = DeviceConnectionHistory.mark_as_stale_and_disconnected_changeset(history).changes

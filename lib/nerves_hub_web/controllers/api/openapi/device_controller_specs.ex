@@ -74,7 +74,11 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         platform: %OpenApiSpex.Schema{type: :string, required: false, example: "rpi4"},
         search: %OpenApiSpex.Schema{type: :string, required: false, example: "sn123"},
         tags: %OpenApiSpex.Schema{type: :string, required: false, example: "prod,staging"},
-        updates: %OpenApiSpex.Schema{type: :string, required: false, enum: ["enabled", "disabled", "penalty-box"]}
+        updates: %OpenApiSpex.Schema{
+          type: :string,
+          required: false,
+          enum: ["enabled", "disabled", "automatic", "device-managed", "penalty-box"]
+        }
       }
     }
   }

@@ -13,8 +13,8 @@ defmodule NervesHubWeb.ExtensionsChannel do
   use OpenTelemetryDecorator
 
   alias NervesHub.DeviceLink.Client, as: DeviceLink
+  alias NervesHub.Extensions
   alias NervesHubWeb.Channels.Effects
-  alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
   @impl Phoenix.Channel
@@ -36,8 +36,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
     # additionally, this topic isn't needed or used, so we can unsubscribe from it
     :ok = socket.endpoint.unsubscribe("extensions")
 
-    topic = "device:#{device_info.device_id}:extensions"
-    :ok = socket.endpoint.subscribe(topic)
+    :ok = Extensions.PubSub.subscribe_device(device_info.device_id)
 
     {:ok, attach_list, socket}
   end
@@ -59,8 +58,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   @impl Phoenix.Channel
   def handle_info(:init_extensions, socket) do
-    topic = "product:#{socket.assigns.device_info.product_id}:extensions"
-    :ok = PubSub.subscribe(NervesHub.PubSub, topic)
+    :ok = Extensions.PubSub.subscribe_product(socket.assigns.device_info.product_id)
 
     {:noreply, socket}
   end
@@ -71,16 +69,30 @@ defmodule NervesHubWeb.ExtensionsChannel do
     {:noreply, socket}
   end
 
-  @decorate with_span("Channels.ExtensionsChannel.handle_info[Broadcast]")
+  # A timer armed through `Effects` delivering; `timer_fired/2` re-arms it.
+  @decorate with_span("Channels.ExtensionsChannel.handle_info[timer]")
+  def handle_info({:timeout, _ref, _payload} = timer, socket) do
+    case Effects.timer_fired(socket, timer) do
+      {:deliver, {mod, msg}, socket} -> extension_info(socket, mod, msg)
+      {:drop, socket} -> {:noreply, socket}
+      :not_timer -> {:noreply, socket}
+    end
+  end
+
+  @decorate with_span("Channels.ExtensionsChannel.handle_info[extension]")
   def handle_info({mod, msg}, socket) do
+    extension_info(socket, mod, msg)
+  end
+
+  def handle_info(_msg, socket), do: {:noreply, socket}
+
+  defp extension_info(socket, mod, msg) do
     {:ok, extensions, effects} = DeviceLink.extension_info(socket.assigns.extensions, mod, msg)
 
     socket
     |> assign(:extensions, extensions)
     |> apply_effects(effects)
   end
-
-  def handle_info(_msg, socket), do: {:noreply, socket}
 
   defp apply_effects(socket, effects), do: {:noreply, Effects.apply_all(socket, effects)}
 end

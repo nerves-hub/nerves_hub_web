@@ -6,8 +6,11 @@ defmodule NervesHubWeb.API.FallbackController do
   """
   use NervesHubWeb, :api_controller
 
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHubWeb.API.ChangesetJSON
   alias NervesHubWeb.API.ErrorJSON
+
+  require Logger
 
   def call(conn, {:error, %Ecto.Changeset{} = changeset}) do
     conn
@@ -22,6 +25,130 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_view(ErrorJSON)
     |> render(:"422", %{
       reason: "This firmware is built for the product #{inspect(declared)}, but was uploaded to #{inspect(expected)}."
+    })
+  end
+
+  def call(conn, {:error, {:update_tool_not_allowed, tool, product}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "The product #{inspect(product)} does not accept #{tool} firmware. " <>
+          "An organization owner can enable it in the product's settings."
+    })
+  end
+
+  def call(conn, {:error, {:unsettable_product_params, params}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "These fields cannot be set on a product: #{Enum.map_join(params, ", ", &inspect/1)}. " <>
+          "A product cannot be renamed; its name identifies it in every URL."
+    })
+  end
+
+  def call(conn, {:error, :firmware_not_signed}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "This ESP-IDF image is not signed. Sign it with `espsecure.py sign_data --version 2` and register the matching public key against your organization, or allow unsigned images in this product's settings."
+    })
+  end
+
+  def call(conn, {:error, :esp_idf_ecdsa_signatures_not_supported}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "This ESP-IDF image is signed with ECDSA. NervesHub can only verify RSA-3072 Secure Boot v2 signatures at present."
+    })
+  end
+
+  def call(conn, {:error, :unknown_signature_block_version}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "This ESP-IDF image carries a signature block NervesHub does not recognise."})
+  end
+
+  def call(conn, {:error, :signature_block_corrupt}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "The signature block on this ESP-IDF image failed its checksum — the file is likely damaged in transit."
+    })
+  end
+
+  def call(conn, {:error, {:openssl_failed, status, output}}) do
+    # openssl's own message is the only thing that explains this one, and it is
+    # not something to hand to an API caller — so it goes to the log and the
+    # response says where to look.
+    Logger.error("openssl rejected a RAUC bundle (exit #{status}): #{output}")
+
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "NervesHub could not verify this RAUC bundle: openssl exited #{status}. " <>
+          "If the bundle is not corrupt, the server log has openssl's own message."
+    })
+  end
+
+  def call(conn, {:error, {:temp_dir_unavailable, reason}}) do
+    Logger.error("could not create a temporary directory to verify a RAUC bundle: #{inspect(reason)}")
+
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "NervesHub could not create a temporary directory to verify this bundle. " <>
+          "This is a server problem rather than something wrong with the bundle."
+    })
+  end
+
+  def call(conn, {:error, :unrecognised_firmware_format}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason: "Unrecognised firmware format. This instance accepts #{UpdateTool.accepted_formats()}."
+    })
+  end
+
+  def call(conn, {:error, {:invalid_version, raw}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "Firmware version #{inspect(raw)} is not a valid semantic version. For ESP-IDF, set PROJECT_VER in your CMakeLists.txt to something like \"1.2.3\"."
+    })
+  end
+
+  def call(conn, {:error, {:invalid_query_param, reason}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: reason})
+  end
+
+  def call(conn, {:error, :analytics_not_enabled}) do
+    conn
+    |> put_status(:not_implemented)
+    |> put_view(ErrorJSON)
+    |> render(:"501", %{
+      reason:
+        "This platform has no analytics database configured, so device logs are not stored. " <>
+          "Contact your Ops team for more information."
     })
   end
 
@@ -55,6 +182,41 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:"422", %{
       reason: "A user with that email address already exists, please use the add user api endpoint."
     })
+  end
+
+  def call(conn, {:error, :claimed_elsewhere}) do
+    # Deliberately does not say where. Whether another organization holds a key
+    # is that organization's business, and this must not become a way to probe
+    # for which keys are in use.
+    conn
+    |> put_status(:conflict)
+    |> put_view(ErrorJSON)
+    |> render(:"409", %{
+      reason:
+        "That endpoint id is already registered. If it belongs to one of your devices, " <>
+          "it will be claimed the next time that device connects."
+    })
+  end
+
+  def call(conn, {:error, :invalid_member}) do
+    conn
+    |> put_status(422)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "That email address does not belong to a member of this organization."})
+  end
+
+  def call(conn, {:error, :unknown_owner}) do
+    conn
+    |> put_status(422)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "owner must be one of: device, user, none."})
+  end
+
+  def call(conn, {:error, :unsupported_service}) do
+    conn
+    |> put_status(422)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: "That is not a service this NervesHub knows about."})
   end
 
   def call(conn, {:error, :authentication_failed}) do

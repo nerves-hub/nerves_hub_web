@@ -21,7 +21,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         identifier: identifier,
         description: "test device",
         tags: ["test"],
-        updates_enabled: true
+        update_mode: :automatic
       }
 
       conn = post(conn, Routes.api_device_path(conn, :create, org.name, product.name), device)
@@ -53,7 +53,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert response(conn, 201)
 
       eventually assert Repo.aggregate(Device, :count) == 5
-      assert Repo.aggregate(Notification, :count) == 1
+      eventually assert Repo.aggregate(Notification, :count) == 1
     end
 
     test "all devices are successfully imported, with tags set", %{conn: conn, org: org, product: product} do
@@ -69,7 +69,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert response(conn, 201)
 
       eventually assert Repo.aggregate(Device, :count) == 5
-      assert Repo.aggregate(Notification, :count) == 1
+      eventually assert Repo.aggregate(Notification, :count) == 1
 
       assert Repo.all(Device) |> Enum.all?(fn d -> d.tags == ["snoot-boop"] end)
     end
@@ -86,7 +86,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert response(conn, 201)
 
       eventually assert Repo.aggregate(Device, :count) == 5
-      assert Repo.aggregate(Notification, :count) == 1
+      eventually assert Repo.aggregate(Notification, :count) == 1
     end
   end
 
@@ -127,6 +127,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
                    "org_name" => "AllTheBoops",
                    "product_name" => "auto_boops",
                    "tags" => ["beta", "beta-edge"],
+                   "update_mode" => "automatic",
                    "updates_blocked_until" => nil,
                    "updates_enabled" => true,
                    "version" => "1.0.0"

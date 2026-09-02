@@ -31,10 +31,12 @@ defmodule NervesHub.Devices.DeviceConnection do
     field(:lib, :string)
     field(:lib_version, :string)
 
+    field(:ip_address, :string)
+
     field(:network_interface, Ecto.Enum, values: [:wifi, :ethernet, :cellular, :unknown])
   end
 
-  def connecting_changeset(org_id, product_id, device_id) do
+  def connecting_changeset(org_id, product_id, device_id, ip_address \\ nil) do
     now = DateTime.utc_now()
 
     %__MODULE__{}
@@ -45,6 +47,7 @@ defmodule NervesHub.Devices.DeviceConnection do
     |> put_change(:established_at, now)
     |> put_change(:last_seen_at, now)
     |> put_change(:status, :connecting)
+    |> put_change(:ip_address, ip_address)
   end
 
   @spec humanized_network_interface_name(any()) :: :wifi | :ethernet | :cellular | :unknown

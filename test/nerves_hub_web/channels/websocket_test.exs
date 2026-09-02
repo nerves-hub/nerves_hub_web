@@ -127,6 +127,23 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
+    test "records the address a device connected from", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(@socket_config))
+      SocketClient.join_and_wait(socket)
+
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{ip_address: "127.0.0.1"} = Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
     test "Can connect and authenticate to channel using client ssl certificate with TLS 1.3", %{
       user: user,
       tmp_dir: tmp_dir
@@ -443,6 +460,86 @@ defmodule NervesHubWeb.WebsocketTest do
       close_socket_cleanly(socket)
     end
 
+    test "records the address a trusted balancer announced", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      # A device claiming to be somewhere else, with what the balancer saw
+      # appended after it.
+      headers =
+        Utils.nh1_key_secret_headers(auth, device.identifier) ++
+          [{"x-forwarded-for", "198.51.100.2, 203.0.113.7"}]
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: headers
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{ip_address: "203.0.113.7"} = Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
+    test "ignores a forwarded header when no balancer is trusted", %{user: user, tmp_dir: tmp_dir} do
+      forwarded_ip_header(nil)
+
+      {device, _firmware} = device_fixture(tmp_dir, user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      headers =
+        Utils.nh1_key_secret_headers(auth, device.identifier) ++
+          [{"x-forwarded-for", "203.0.113.7"}]
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: headers
+      ]
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(with_serializer(opts))
+      SocketClient.join_and_wait(socket, shared_secret_params(device))
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      assert %DeviceConnection{ip_address: "127.0.0.1"} = Connections.get_latest_for_device(device.id)
+
+      close_socket_cleanly(socket)
+    end
+
+    defp forwarded_ip_header(header) do
+      config = Application.get_env(:nerves_hub, NervesHubWeb.Endpoint)
+
+      Application.put_env(
+        :nerves_hub,
+        NervesHubWeb.Endpoint,
+        Keyword.put(config, :forwarded_ip_header, header)
+      )
+
+      on_exit(fn -> Application.put_env(:nerves_hub, NervesHubWeb.Endpoint, config) end)
+    end
+
+    defp shared_secret_params(device) do
+      %{
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => device.product.name,
+        "nerves_fw_architecture" => "arm64",
+        "nerves_fw_version" => "0.0.0",
+        "nerves_fw_platform" => "test_host"
+      }
+    end
+
     test "rejects device key/secret with mismatched identifier", %{user: user, tmp_dir: tmp_dir} do
       {device, _firmware} = device_fixture(tmp_dir, user)
       assert {:ok, auth} = Devices.create_shared_secret_auth(device)
@@ -592,6 +689,45 @@ defmodule NervesHubWeb.WebsocketTest do
     end
   end
 
+  describe "clients which omit the join_ref" do
+    @tag :tmp_dir
+    test "messages from a legacy Slipstream client are still handled", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
+      %{db_cert: _certificate} = Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} =
+        SocketClient.start_link(with_legacy_join_ref_serializer(@socket_config))
+
+      SocketClient.join_and_wait(socket, %{"device_api_version" => "2.2.0"})
+
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      # Older Slipstream releases send this with a `nil` join_ref. Phoenix used
+      # to discard it as stale, which is why `DeviceSocket` had to patch the
+      # join_ref back in before handing the message to the channel.
+      SocketClient.push(socket, "device", "connection_types", %{
+        "values" => ["ethernet", "wifi"]
+      })
+
+      eventually(
+        assert(
+          Connections.get_latest_for_device(device.id).metadata["connection_types"] == [
+            "ethernet",
+            "wifi"
+          ]
+        )
+      )
+
+      close_socket_cleanly(socket)
+    end
+  end
+
   describe "connection status is tracked" do
     test "set connection status upon connection and disconnection", %{user: user} do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
@@ -637,6 +773,7 @@ defmodule NervesHubWeb.WebsocketTest do
       assert recent_datetime(device_connection.established_at)
       assert recent_datetime(device_connection.last_seen_at)
       assert device_connection.disconnected_at == nil
+      assert device_connection.ip_address == "127.0.0.1"
 
       _ = SocketClient.clean_close(socket)
       :timer.sleep(10)
@@ -1106,7 +1243,7 @@ defmodule NervesHubWeb.WebsocketTest do
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
       not_before = DateTime.utc_now() |> Timex.shift(days: -1)
-      not_after = DateTime.utc_now() |> Timex.shift(seconds: 1)
+      not_after = DateTime.utc_now() |> Timex.shift(seconds: -1)
 
       template =
         Template.new(:root_ca,
@@ -1146,8 +1283,6 @@ defmodule NervesHubWeb.WebsocketTest do
           ]
         ]
       ]
-
-      :timer.sleep(2_000)
 
       subscribe_for_updates(device)
 
@@ -1345,8 +1480,8 @@ defmodule NervesHubWeb.WebsocketTest do
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive
 
-      {:ok, device} = Devices.update_device(device, %{updates_enabled: false})
-      {:ok, _device} = Devices.update_device(device, %{updates_enabled: true})
+      {:ok, device} = Devices.update_device(device, %{update_mode: :off})
+      {:ok, _device} = Devices.update_device(device, %{update_mode: :automatic})
 
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive
@@ -1431,6 +1566,23 @@ defmodule NervesHubWeb.WebsocketTest do
 
       _ ->
         config
+    end
+  end
+
+  # As `with_serializer/1`, but selects the serializer variant which omits the
+  # `join_ref` on every message after `phx_join`, the way older Slipstream
+  # releases did.
+  defp with_legacy_join_ref_serializer(config) do
+    case Process.get(:websocket_serializer) do
+      :msgpack ->
+        uri = Keyword.fetch!(config, :uri) <> "?vsn=3.0.0"
+
+        config
+        |> Keyword.put(:uri, uri)
+        |> Keyword.put(:serializer, SocketClient.LegacyJoinRefMsgpackSerializer)
+
+      _ ->
+        Keyword.put(config, :serializer, SocketClient.LegacyJoinRefSerializer)
     end
   end
 end

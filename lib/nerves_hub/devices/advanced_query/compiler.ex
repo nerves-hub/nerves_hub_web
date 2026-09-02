@@ -240,14 +240,22 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     dynamic([latest_connection: lc], is_nil(lc.network_interface) or lc.network_interface != ^interface)
   end
 
-  defp comparison_dynamic("updates", "=", "enabled"), do: dynamic([d], d.updates_enabled == true)
-  defp comparison_dynamic("updates", "=", "disabled"), do: dynamic([d], d.updates_enabled == false)
+  # "enabled" keeps meaning "not frozen", so it still matches a device that manages
+  # its own updates. The two mode-specific terms tell them apart.
+  defp comparison_dynamic("updates", "=", "enabled"), do: dynamic([d], d.update_mode != :off)
+  defp comparison_dynamic("updates", "=", "disabled"), do: dynamic([d], d.update_mode == :off)
+  defp comparison_dynamic("updates", "=", "automatic"), do: dynamic([d], d.update_mode == :automatic)
+
+  defp comparison_dynamic("updates", "=", "device-managed"), do: dynamic([d], d.update_mode == :device_managed)
 
   defp comparison_dynamic("updates", "=", "penalty-box"),
     do: dynamic([d], d.updates_blocked_until > fragment("now() at time zone 'utc'"))
 
-  defp comparison_dynamic("updates", "!=", "enabled"), do: dynamic([d], d.updates_enabled == false)
-  defp comparison_dynamic("updates", "!=", "disabled"), do: dynamic([d], d.updates_enabled == true)
+  defp comparison_dynamic("updates", "!=", "enabled"), do: dynamic([d], d.update_mode == :off)
+  defp comparison_dynamic("updates", "!=", "disabled"), do: dynamic([d], d.update_mode != :off)
+  defp comparison_dynamic("updates", "!=", "automatic"), do: dynamic([d], d.update_mode != :automatic)
+
+  defp comparison_dynamic("updates", "!=", "device-managed"), do: dynamic([d], d.update_mode != :device_managed)
 
   # Devices with no penalty-box timeout (the common case) are "not penalty-box".
   defp comparison_dynamic("updates", "!=", "penalty-box"),

@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.Navigation do
   use NervesHubWeb, :component
 
   alias NervesHub.Accounts.Scope
+  alias NervesHub.ErrorReports
   alias NervesHub.ProductNotifications
 
   attr(:scope, Scope, required: false)
@@ -15,7 +16,19 @@ defmodule NervesHubWeb.Components.Navigation do
         n -> n
       end
 
-    assigns = assign(assigns, :notifications_count, count)
+    unresolved_errors =
+      if product.extensions.error_reports do
+        case ErrorReports.status_counts(product) do
+          %{unresolved: 0} -> nil
+          %{unresolved: n} -> n
+        end
+      end
+
+    assigns =
+      assigns
+      |> assign(:notifications_count, count)
+      |> assign(:error_reports_enabled, product.extensions.error_reports)
+      |> assign(:unresolved_errors_count, unresolved_errors)
 
     ~H"""
     <ul role="list">
@@ -56,6 +69,14 @@ defmodule NervesHubWeb.Components.Navigation do
         icon="data-[selected=false]:lucide-file-code-corner--light data-[selected=true]:lucide-file-code-corner"
       />
       <.nav_link
+        :if={@error_reports_enabled}
+        label="Errors"
+        badge={@unresolved_errors_count}
+        path={~p"/org/#{@scope.org}/#{@scope.product}/errors"}
+        selected={:errors == @selected_tab}
+        icon="data-[selected=false]:lucide-circle-alert--light data-[selected=true]:lucide-circle-alert"
+      />
+      <.nav_link
         label="Notifications"
         badge={@notifications_count}
         path={~p"/org/#{@scope.org}/#{@scope.product}/notifications"}
@@ -83,6 +104,13 @@ defmodule NervesHubWeb.Components.Navigation do
         icon="data-[selected=false]:lucide-key-round--light data-[selected=true]:lucide-key-round"
       />
       <.nav_link label="Users" path={~p"/org/#{@scope.org}/settings/users"} selected={:users == @selected_tab} icon="data-[selected=false]:lucide-users--light data-[selected=true]:lucide-users" />
+      <.nav_link
+        :if={org_iroh_endpoints_ui_enabled?()}
+        label="Iroh Endpoints"
+        path={~p"/org/#{@scope.org}/settings/iroh-endpoints"}
+        selected={:iroh_endpoints == @selected_tab}
+        icon="data-[selected=false]:lucide-waypoints--light data-[selected=true]:lucide-waypoints"
+      />
       <.nav_link
         label="Certificates"
         path={~p"/org/#{@scope.org}/settings/certificates"}

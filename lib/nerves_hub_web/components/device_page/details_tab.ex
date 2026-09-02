@@ -15,6 +15,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Scripts
   alias NervesHubWeb.Components.DeviceLocation
+  alias NervesHubWeb.Components.DeviceNetworkIdentities
   alias NervesHubWeb.Components.HealthStatus
   alias Phoenix.Socket.Broadcast
 
@@ -31,7 +32,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     :alarms,
     :extension_overrides,
     :deployment_groups,
-    :available_tags
+    :addable_tags
   ]
 
   def tab_params(_params, _uri, %{assigns: %{device: device}} = socket) do
@@ -44,7 +45,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> assign(:extension_overrides, extension_overrides(device, device.product))
     |> assign(:delta_available?, false)
     |> assign(:selected_firmware, "")
-    |> assign_available_tags()
+    |> assign_addable_tags()
     |> assign_metadata()
     |> assign_deployment_groups()
     |> cont()
@@ -90,9 +91,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   # Tags already on the device are excluded so the "add tag" suggestions only
   # offer tags that can actually be added.
-  defp assign_available_tags(%{assigns: %{product: product, device: device}} = socket) do
-    available_tags = Devices.distinct_tags_for_product(product) -- (device.tags || [])
-    assign(socket, :available_tags, available_tags)
+  defp assign_addable_tags(%{assigns: %{product: product, device: device}} = socket) do
+    addable_tags = Devices.distinct_tags_for_product(product) -- (device.tags || [])
+    assign(socket, :addable_tags, addable_tags)
   end
 
   defp assign_deployment_groups(%{assigns: %{device: %{status: :provisioned} = device}} = socket) do
@@ -106,8 +107,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def render(assigns) do
-    assigns = Map.put(assigns, :auto_refresh_health, !!assigns.health_check_timer)
-
     ~H"""
     <div
       id="details-tab"
@@ -138,36 +137,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <div class="text-base-50 leading-6 font-medium">Health</div>
               <HealthStatus.render device_id={@device.id} health={@device.latest_health} tooltip_position="right" />
             </div>
-            <div class="flex items-center gap-2">
-              <div class="text-base-500 text-xs tracking-wide">
-                <span>Last updated: </span>
-                <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
-                  {Timex.from_now(@latest_metrics["timestamp"])}
-                </time>
-              </div>
-              <div class="text-base-300 text-xs tracking-wide">Auto refresh</div>
-              <div>
-                <button
-                  type="button"
-                  phx-click="toggle-health-check-auto-refresh"
-                  class={[
-                    "border-1.5 focus:ring-focus-ring relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-1 focus:ring-offset-2 focus:outline-none",
-                    (@auto_refresh_health && "bg-primary") || "bg-gray-200"
-                  ]}
-                  role="switch"
-                  aria-checked="false"
-                >
-                  <span class="sr-only">Auto refresh health information</span>
-                  <span
-                    aria-hidden="true"
-                    class={[
-                      "pointer-events-none inline-block size-3",
-                      (@auto_refresh_health && "translate-x-3") || "translate-x-0",
-                      "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                    ]}
-                  ></span>
-                </button>
-              </div>
+            <div class="text-base-500 text-xs tracking-wide">
+              <span>Last updated: </span>
+              <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
+                {Timex.from_now(@latest_metrics["timestamp"])}
+              </time>
             </div>
           </div>
           <div class="flex flex-wrap items-center justify-items-stretch gap-2 px-4 pt-2 pb-4">
@@ -314,6 +288,25 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </span>
             </div>
 
+            <div :if={@device.latest_connection && @device.latest_connection.ip_address} class="group/ip flex min-h-7 items-center gap-4 px-4">
+              <span class="text-base-500 text-sm">IP Address:</span>
+              <div class="flex min-w-0 items-center gap-1.5">
+                <span class="text-base-300 font-mono text-sm">{@device.latest_connection.ip_address}</span>
+                <button
+                  id="copy-ip-address"
+                  type="button"
+                  phx-hook="CopyToClipboard"
+                  data-copy-value={@device.latest_connection.ip_address}
+                  aria-label="Copy IP address"
+                  title="Copy value"
+                  class="hover:text-base-200 text-base-500 inline-flex shrink-0 cursor-pointer items-center opacity-0 transition-opacity group-hover/ip:opacity-100 focus-visible:opacity-100"
+                >
+                  <span data-icon="copy" class="lucide-copy--light size-4"></span>
+                  <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+                </button>
+              </div>
+            </div>
+
             <div class="flex min-h-7 items-center gap-4 px-4">
               <span class="text-base-500 text-sm">Added:</span>
               <span class="text-base-300 text-sm">{@device.inserted_at |> NaiveDateTime.to_date() |> Date.to_string()}</span>
@@ -383,7 +376,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                     class="relative"
                     phx-hook="TagAutocomplete"
                     data-single
-                    data-available-tags={Jason.encode!(@available_tags)}
+                    data-available-tags={Jason.encode!(@addable_tags)}
                   >
                     <input
                       type="text"
@@ -433,7 +426,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                     data-copy-value={value}
                     aria-label={"Copy #{key} value"}
                     title="Copy value"
-                    class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/meta:opacity-100 focus:opacity-100"
+                    class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/meta:opacity-100 focus-visible:opacity-100"
                   >
                     <span data-icon="copy" class="lucide-copy--light size-4"></span>
                     <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
@@ -581,6 +574,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         </div>
 
         <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
+          <DeviceNetworkIdentities.render
+            enabled_product={@product.extensions.network_identity}
+            enabled_device={@device.extensions.network_identity}
+            identities={@device.network_identities}
+          />
+        </div>
+
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
             Support Scripts
           </div>
@@ -681,36 +682,28 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     """
   end
 
-  def hooked_event("toggle-deployment-firmware-updates", _params, socket) do
+  def hooked_event("set-update-mode", %{"mode" => mode}, socket) do
     %{current_scope: scope, device: device} = socket.assigns
 
     authorized!(:"device:toggle-updates", scope)
 
-    {:ok, updated_device} = Updates.toggle_automatic_updates(device, scope.user)
+    mode = String.to_existing_atom(mode)
 
-    message = [
-      "Firmware updates ",
-      (updated_device.updates_enabled && "enabled") || "disabled",
-      "."
-    ]
+    case Updates.set_update_mode(device, mode, scope.user) do
+      {:ok, updated_device} ->
+        socket
+        |> assign(:device, updated_device)
+        |> assign(:update_information, Updates.resolve_update(updated_device))
+        |> put_flash(:info, "Firmware updates set to #{update_mode_label(mode)}.")
+        |> halt()
 
-    socket
-    |> assign(:device, updated_device)
-    |> put_flash(:info, Enum.join(message))
-    |> halt()
-  end
-
-  def hooked_event("toggle-health-check-auto-refresh", _value, socket) do
-    if timer_ref = socket.assigns.health_check_timer do
-      _ = Process.cancel_timer(timer_ref)
-
-      socket
-      |> assign(:health_check_timer, nil)
-      |> halt()
-    else
-      socket
-      |> schedule_health_check_timer()
-      |> halt()
+      _error ->
+        socket
+        |> put_flash(
+          :error,
+          "We couldn't change how this device receives updates. Please contact support if this happens again."
+        )
+        |> halt()
     end
   end
 
@@ -948,7 +941,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       {:ok, device} ->
         socket
         |> assign(:device, device)
-        |> assign_available_tags()
+        |> assign_addable_tags()
         |> put_flash(:info, "Tag \"#{tag}\" added successfully.")
         |> halt()
 
@@ -965,7 +958,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       {:ok, device} ->
         socket
         |> assign(:device, device)
-        |> assign_available_tags()
+        |> assign_addable_tags()
         |> put_flash(:info, "Tag \"#{tag}\" removed successfully.")
         |> halt()
 
@@ -1043,21 +1036,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
-  defp schedule_health_check_timer(socket) do
-    %{device: device, product: product} = socket.assigns
-
-    if connected?(socket) and health_extension_enabled?(product, device) do
-      timer_ref = Process.send_after(self(), :check_health_interval, 500)
-      assign(socket, :health_check_timer, timer_ref)
-    else
-      assign(socket, :health_check_timer, nil)
-    end
-  end
-
-  defp health_extension_enabled?(product, device) do
-    product.extensions.health and device.extensions.health
-  end
-
   # TODO: this is duplicated code, find a new way to reuse it
   defp disconnected?(connection) do
     is_nil(connection) || connection.status != :connected
@@ -1094,4 +1072,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp has_description?(description) do
     is_binary(description) and byte_size(description) > 0 and description != "[]"
   end
+
+  defp update_mode_label(:automatic), do: "automatic"
+  defp update_mode_label(:device_managed), do: "device managed"
+  defp update_mode_label(:off), do: "off"
 end

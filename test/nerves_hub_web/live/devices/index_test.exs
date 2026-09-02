@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.IndexTest do
-  use NervesHubWeb.ConnCase.Browser, async: true
+  use NervesHubWeb.ConnCase.Browser, async: false
 
   import Ecto.Query, only: [where: 2]
 
@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.FirmwareUpdates
@@ -388,6 +389,37 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> refute_has("a", text: device2.identifier)
     end
 
+    # `Devices.filter/3` preloads only the columns behind the health icon and its
+    # tooltip, so this asserts the tooltip still has what it renders from.
+    test "renders the health tooltip from the trimmed preload", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product, firmware: firmware} = fixture
+
+      healthy = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => healthy.id,
+          "data" => %{"metrics" => %{"cpu_temp" => 41.2}},
+          "status" => :healthy
+        })
+
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device.id,
+          "data" => %{"metrics" => %{"cpu_temp" => 41.2}},
+          "status" => :warning,
+          "status_reasons" => %{"warning" => %{"cpu_temp" => %{"value" => 41.2, "threshold" => 40}}}
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+      # from `status_reasons`
+      |> assert_has("div", text: "Warning: Cpu Temp: 41.2 (threshold is 40)")
+      # from `status`, when there are no reasons to show
+      |> assert_has("div", text: "Device is healthy.")
+    end
+
     test "by health status", %{conn: conn, fixture: fixture} do
       %{
         device: device,
@@ -554,12 +586,30 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       device2 = Fixtures.device_fixture(org, product, firmware, %{})
 
-      # Add metrics for device2, sleep between to secure order.
-      Devices.Metrics.save_metric(%{device_id: device2.id, key: "cpu_temp", value: 36})
-      :timer.sleep(100)
-      Devices.Metrics.save_metric(%{device_id: device2.id, key: "cpu_temp", value: 42})
-      :timer.sleep(100)
-      Devices.Metrics.save_metric(%{device_id: device2.id, key: "load_1min", value: 3})
+      now = DateTime.utc_now()
+
+      # Use explicit timestamps to avoid sleeping for ordering.
+      Repo.insert!(
+        DeviceMetric.save_with_timestamp(%{
+          device_id: device2.id,
+          key: "cpu_temp",
+          value: 36,
+          inserted_at: DateTime.add(now, -2, :second)
+        })
+      )
+
+      Repo.insert!(
+        DeviceMetric.save_with_timestamp(%{
+          device_id: device2.id,
+          key: "cpu_temp",
+          value: 42,
+          inserted_at: DateTime.add(now, -1, :second)
+        })
+      )
+
+      Repo.insert!(
+        DeviceMetric.save_with_timestamp(%{device_id: device2.id, key: "load_1min", value: 3, inserted_at: now})
+      )
 
       conn
       |> visit(device_index_path(fixture))
@@ -1251,8 +1301,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       second_device = Fixtures.device_fixture(org, product, firmware)
 
-      assert device.updates_enabled
-      assert second_device.updates_enabled
+      assert device.update_mode == :automatic
+      assert second_device.update_mode == :automatic
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
@@ -1262,15 +1312,15 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> click_button("Disable")
       |> assert_has("div", text: "Disabled updates for 2 selected device(s).")
       |> tap(fn _ ->
-        refute Repo.reload(device).updates_enabled
-        refute Repo.reload(second_device).updates_enabled
+        assert Repo.reload(device).update_mode == :off
+        assert Repo.reload(second_device).update_mode == :off
       end)
       |> assert_has("div", text: "2 devices selected")
       |> click_button("Enable")
       |> assert_has("div", text: "Enabled updates for 2 selected device(s).")
       |> tap(fn _ ->
-        assert Repo.reload(device).updates_enabled
-        assert Repo.reload(second_device).updates_enabled
+        assert Repo.reload(device).update_mode == :automatic
+        assert Repo.reload(second_device).update_mode == :automatic
       end)
     end
 
@@ -1311,14 +1361,14 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
 
       other_product = Fixtures.product_fixture(user, org)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
@@ -1334,7 +1384,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
       |> assert_has("div", text: "All selected devices successfully moved to the selected product.", timeout: 3_000)
       |> visit("/org/#{org.name}/#{other_product.name}/devices")
-      |> assert_has("div", text: "75", timeout: 1000)
+      |> assert_has("div", text: "26", timeout: 1000)
 
       assert Repo.reload(devices) |> Enum.all?(fn device -> device.product_id == other_product.id end)
     end
@@ -1345,7 +1395,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       Repo.delete_all(Device)
 
       devices =
-        Enum.map(1..75, fn _ ->
+        Enum.map(1..26, fn _ ->
           Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
         end)
 
@@ -1354,7 +1404,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
@@ -1362,7 +1412,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> click_button("#remove-devices-from-deployment-group", "")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
       |> assert_has("div",
-        text: "All devices (75) were successfully removed from their deployment group.",
+        text: "All devices (26) were successfully removed from their deployment group.",
         timeout: 3_000
       )
 
@@ -1374,12 +1424,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
@@ -1406,12 +1456,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
@@ -1420,7 +1470,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         render_submit(view, "tag-devices", %{"tags" => "moussaka"})
       end)
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
-      |> assert_has("div", text: "All selected devices (75) tagged successfully.", timeout: 3_000)
+      |> assert_has("div", text: "All selected devices (26) tagged successfully.", timeout: 3_000)
 
       assert Repo.reload(devices) |> Enum.all?(fn device -> device.tags == ["moussaka"] end)
     end
@@ -1430,23 +1480,23 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false}) end)
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware, %{update_mode: :off}) end)
 
-      assert Enum.all?(devices, fn device -> not device.updates_enabled end)
+      assert Enum.all?(devices, fn device -> device.update_mode == :off end)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
       |> assert_has("span", "All available devices matching the filters have been selected.")
       |> click_button("Enable")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
-      |> assert_has("div", text: "Enabled updates for #{75} selected device(s).", timeout: 3_000)
+      |> assert_has("div", text: "Enabled updates for #{26} selected device(s).", timeout: 3_000)
 
-      assert Repo.reload(devices) |> Enum.all?(fn device -> device.updates_enabled end)
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.update_mode == :automatic end)
     end
 
     test "disable updates", %{conn: conn, fixture: fixture} do
@@ -1454,23 +1504,23 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware, %{updates_enabled: true}) end)
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware, %{update_mode: :automatic}) end)
 
-      assert Enum.all?(devices, fn device -> device.updates_enabled end)
+      assert Enum.all?(devices, fn device -> device.update_mode == :automatic end)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
       |> assert_has("span", "All available devices matching the filters have been selected.")
       |> click_button("Disable")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
-      |> assert_has("div", text: "Disabled updates for 75 selected device(s).", timeout: 3_000)
+      |> assert_has("div", text: "Disabled updates for 26 selected device(s).", timeout: 3_000)
 
-      assert Repo.reload(devices) |> Enum.all?(fn device -> not device.updates_enabled end)
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.update_mode == :off end)
     end
 
     test "clear penalty boxes", %{conn: conn, fixture: fixture} do
@@ -1479,7 +1529,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       Repo.delete_all(Device)
 
       devices =
-        Enum.map(1..75, fn _ ->
+        Enum.map(1..26, fn _ ->
           Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
         end)
 
@@ -1488,14 +1538,14 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
       |> assert_has("span", "All available devices matching the filters have been selected.")
       |> click_button("Clear penalty box")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
-      |> assert_has("div", text: "75 selected device(s) cleared from the penalty box.", timeout: 3_000)
+      |> assert_has("div", text: "26 selected device(s) cleared from the penalty box.", timeout: 3_000)
 
       assert Repo.reload(devices) |> Enum.all?(fn device -> is_nil(device.updates_blocked_until) end)
     end

@@ -12,6 +12,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
@@ -19,6 +20,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Repo
   alias NervesHub.Scripts
   alias NervesHub.Support
+  alias NervesHub.Support.EspIdf
   alias NervesHub.Support.Fwup
   alias Ueberauth.Auth.Credentials
   alias Ueberauth.Auth.Extra
@@ -123,6 +125,45 @@ defmodule NervesHub.Fixtures do
     org_key
   end
 
+  # Like org_key_fixture/3 but skips the fwup key-generation subprocess — the
+  # key pair already exists on disk under `dir` with the given name. Used when
+  # caching key generation across tests (e.g. setup_all in BrowserCase).
+  # Each call is for a fresh org, so reusing the same key_name is safe.
+  def org_key_fixture_from_existing(%Accounts.Org{} = org, %Accounts.User{} = user, key_name, dir) do
+    key = Fwup.get_public_key(key_name, dir)
+
+    params = %{
+      org_id: org.id,
+      key: key,
+      name: key_name,
+      created_by_id: user.id
+    }
+
+    {:ok, org_key} = Accounts.create_org_key(params)
+
+    org_key
+  end
+
+  @doc """
+  Register the public key that `Support.EspIdf.signed_image/1` signs with.
+
+  ESP-IDF images must be signed, so an org uploading one needs this the way it
+  needs an fwup key for a `.fw`.
+  """
+  def esp_idf_key_fixture(%Accounts.Org{} = org, %Accounts.User{} = user) do
+    params = %{
+      org_id: org.id,
+      created_by_id: user.id,
+      name: "esp-idf-key-#{counter()}",
+      key: EspIdf.signing_public_key(),
+      scheme: :secure_boot_v2_rsa
+    }
+
+    {:ok, org_key} = Accounts.create_org_key(params)
+
+    org_key
+  end
+
   def ca_certificate_fixture(%Accounts.Org{} = org, opts \\ []) do
     opts = Keyword.merge([template: :root_ca], opts)
     ca_key = X509.PrivateKey.new_ec(:secp256r1)
@@ -157,6 +198,36 @@ defmodule NervesHub.Fixtures do
     user
   end
 
+  @doc """
+  A product that accepts ESP-IDF images as well as fwup archives.
+
+  Products only take fwup by default, so anything uploading a `.bin` needs this
+  rather than `product_fixture/3`.
+  """
+  def esp_idf_product_fixture(user, org, params \\ %{}) do
+    params
+    |> Enum.into(%{allowed_update_tools: ["fwup", "esp-idf"]})
+    |> then(&product_fixture(user, org, &1))
+  end
+
+  @doc """
+  A product that accepts AtomVM packbeam archives.
+
+  Products only take fwup by default, so anything uploading an `.avm` needs this
+  rather than `product_fixture/3`.
+  """
+  def atomvm_product_fixture(user, org, params \\ %{}) do
+    params
+    |> Enum.into(%{
+      allowed_update_tools: ["fwup", "atomvm"],
+      # Signing is covered by its own tests. Everything else that uploads a
+      # packbeam would otherwise have to carry a keypair to say nothing about
+      # signing.
+      allow_unsigned_atomvm_firmware: true
+    })
+    |> then(&product_fixture(user, org, &1))
+  end
+
   def product_fixture(_user, _org, params \\ %{})
 
   def product_fixture(%Accounts.User{}, %Accounts.Org{} = org, params) do
@@ -187,6 +258,13 @@ defmodule NervesHub.Fixtures do
     org = Repo.get!(Org, org_id)
     filepath = firmware_file_fixture(org_key, product, Map.put(params, :dir, dir))
     {:ok, firmware} = Firmwares.create_firmware(org, filepath)
+    firmware
+  end
+
+  # Like firmware_fixture/3 but accepts a pre-built .fw filepath, skipping the
+  # fwup subprocess calls. Used when caching firmware generation across tests.
+  def firmware_fixture_from_file(%Accounts.Org{} = org, fw_path) do
+    {:ok, firmware} = Firmwares.create_firmware(org, fw_path)
     firmware
   end
 
@@ -481,6 +559,28 @@ defmodule NervesHub.Fixtures do
           established_at: now,
           last_seen_at: now,
           status: :connected
+        },
+        params
+      )
+    )
+    |> Repo.insert!()
+  end
+
+  def network_identity_fixture(%Devices.Device{} = device, params \\ %{}) do
+    %NetworkIdentity{}
+    |> NetworkIdentity.changeset(
+      Map.merge(
+        %{
+          # Identities name an organisation of their own; for a device-owned one
+          # it must agree with the device, which is what Devices.move/3 keeps true.
+          org_id: device.org_id,
+          device_id: device.id,
+          service: :iroh,
+          instance: NetworkIdentity.default_instance(),
+          identifier: "endpoint-#{counter()}",
+          details: %{},
+          source: :device_reported,
+          last_reported_at: DateTime.truncate(DateTime.utc_now(), :second)
         },
         params
       )

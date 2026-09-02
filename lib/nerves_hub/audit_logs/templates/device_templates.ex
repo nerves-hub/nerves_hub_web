@@ -12,6 +12,8 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
+  @reason_max_length 200
+
   ## General
 
   @spec audit_reboot(User.t(), Device.t()) :: :ok
@@ -78,21 +80,25 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   end
 
   @spec audit_firmware_upgrade_ignored(Device.t(), DeploymentGroup.t() | nil, String.t() | nil) :: :ok
-  def audit_firmware_upgrade_ignored(device, nil, reason) do
-    description = """
-    Device #{device.identifier} ignored the manual firmware upgrade request#{reason && " because of \"#{reason}\""}.
-    """
+  def audit_firmware_upgrade_ignored(device, %DeploymentGroup{} = deployment_group, reason) do
+    reason = truncate_reason(reason)
 
-    AuditLogs.audit!(device, device, description)
-  end
-
-  def audit_firmware_upgrade_ignored(device, deployment_group, reason) do
     description = """
     Device #{device.identifier} ignored the scheduled firmware upgrade request#{reason && " because of \"#{reason}\""}.
     Firmware upgrades are blocked for #{deployment_group.penalty_timeout_minutes} minutes.
     """
 
     AuditLogs.audit!(deployment_group, device, description)
+  end
+
+  def audit_firmware_upgrade_ignored(device, _deployment_group, reason) do
+    reason = truncate_reason(reason)
+
+    description = """
+    Device #{device.identifier} ignored the manual firmware upgrade request#{reason && " because of \"#{reason}\""}.
+    """
+
+    AuditLogs.audit!(device, device, description)
   end
 
   @spec audit_firmware_upgrade_blocked(DeploymentGroup.t(), Device.t()) :: :ok
@@ -107,11 +113,22 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
 
   @spec audit_firmware_upgrade_rescheduled(Device.t(), NaiveDateTime.t(), String.t() | nil) :: :ok
   def audit_firmware_upgrade_rescheduled(
-        %{inflight_update: %{deployment_group: deployment_group}} = device,
+        %{inflight_update: %{deployment_group: %DeploymentGroup{} = deployment_group}} = device,
         blocked_until,
         reason
-      )
-      when is_nil(deployment_group) do
+      ) do
+    reason = truncate_reason(reason)
+
+    description = """
+    During an update request from \"#{deployment_group.name}\", device #{device.identifier} requested firmware upgrades be rescheduled #{Timex.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
+    """
+
+    AuditLogs.audit!(deployment_group, device, description)
+  end
+
+  def audit_firmware_upgrade_rescheduled(device, blocked_until, reason) do
+    reason = truncate_reason(reason)
+
     description = """
     During a manual firmware update request, device #{device.identifier} requested firmware upgrades be rescheduled #{Timex.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
     The update will not be automatically retried.
@@ -120,36 +137,31 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(device, device, description)
   end
 
-  def audit_firmware_upgrade_rescheduled(
-        %{inflight_update: %{deployment_group: deployment_group}} = device,
-        blocked_until,
-        reason
-      ) do
-    description = """
-    During an update request from \"#{deployment_group.name}\", device #{device.identifier} requested firmware upgrades be rescheduled #{Timex.from_now(blocked_until)} time #{reason && "because \"#{reason}\""}.
-    """
-
-    AuditLogs.audit!(deployment_group, device, description)
-  end
-
   @spec audit_firmware_upgrade_failed(Device.t(), String.t() | nil, Keyword.t()) :: :ok
   def audit_firmware_upgrade_failed(device, reason, opts \\ [])
 
-  def audit_firmware_upgrade_failed(%{inflight_update: %{deployment_group: deployment_group}} = device, reason, _)
-      when is_nil(deployment_group) do
-    description = """
-    Device #{device.identifier} reported an error #{reason && "(\"#{reason}\") "}while trying to update its firmware.
-    """
+  def audit_firmware_upgrade_failed(
+        %{inflight_update: %{deployment_group: %DeploymentGroup{} = deployment_group}} = device,
+        reason,
+        opts
+      ) do
+    reason = truncate_reason(reason)
 
-    AuditLogs.audit!(device, device, description)
-  end
-
-  def audit_firmware_upgrade_failed(%{inflight_update: %{deployment_group: deployment_group}} = device, reason, opts) do
     description = """
     Device #{device.identifier} reported an error #{reason && "(\"#{reason}\") "}while trying to update its firmware during a deployment release. Updates will be blocked for #{opts[:penalty_timeout_minutes]} minutes.
     """
 
     AuditLogs.audit!(deployment_group, device, description)
+  end
+
+  def audit_firmware_upgrade_failed(device, reason, _opts) do
+    reason = truncate_reason(reason)
+
+    description = """
+    Device #{device.identifier} reported an error #{reason && "(\"#{reason}\") "}while trying to update its firmware.
+    """
+
+    AuditLogs.audit!(device, device, description)
   end
 
   @spec audit_firmware_updated(Device.t()) :: :ok
@@ -171,6 +183,22 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
       "Deployment #{deployment_group.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
 
     AuditLogs.audit!(deployment_group, device, description)
+  end
+
+  @doc """
+  A device that manages its own updates asked for one.
+
+  The device is the actor, which is what separates this in the audit log from an
+  update its deployment group pushed.
+  """
+  @spec audit_device_requested_update(Device.t(), DeploymentGroup.t()) :: :ok
+  def audit_device_requested_update(device, deployment_group) do
+    firmware = deployment_group.current_release.firmware
+
+    description =
+      "Device #{device.identifier} requested firmware #{firmware.uuid} from deployment #{deployment_group.name}"
+
+    AuditLogs.audit!(device, device, description)
   end
 
   @spec audit_device_deployment_group_update(User.t(), Device.t(), DeploymentGroup.t()) :: :ok
@@ -207,5 +235,18 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit_with_ref!(device, device, description, reference_id)
 
     :ok
+  end
+
+  # Failure reasons come straight off the device socket payload, so they are
+  # unbounded. Cap them before they reach a description, and keep `nil` as
+  # `nil` so the templates can omit the reason clause entirely.
+  defp truncate_reason(nil), do: nil
+
+  defp truncate_reason(reason) when is_binary(reason) do
+    if String.length(reason) > @reason_max_length do
+      String.slice(reason, 0, @reason_max_length - 1) <> "…"
+    else
+      reason
+    end
   end
 end

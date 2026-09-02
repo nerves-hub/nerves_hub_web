@@ -17,15 +17,18 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.NetworkIdentities
+  alias NervesHub.Devices.Pinning
   alias NervesHub.Devices.Updates
+  alias NervesHub.Extensions.PubSub
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
-  alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
   setup %{fixture: %{device: device}} do
@@ -55,6 +58,66 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: "no-firmware-device")
+    end
+
+    test "with a button for copying the identifier", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has(
+        ~s(button#copy-device-identifier[phx-hook="CopyToClipboard"][data-copy-value="#{device.identifier}"])
+      )
+    end
+
+    test "with a button for copying each metadata value", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device.id,
+          "data" => %{"metadata" => %{"serial_number" => "SN-1234"}},
+          "status" => :healthy,
+          "status_reasons" => %{}
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has(~s(button#copy-metadata-serial_number[phx-hook="CopyToClipboard"][data-copy-value="SN-1234"]))
+    end
+  end
+
+  describe "the copy buttons" do
+    test "reveal on keyboard focus, but not after a mouse click", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device.id,
+          "data" => %{"metadata" => %{"serial_number" => "SN-1234"}},
+          "status" => :healthy,
+          "status_reasons" => %{}
+        })
+
+      session = visit(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      # A click leaves the button focused, so `focus:` would keep it visible
+      # after the pointer moves away. `focus-visible:` only matches keyboard
+      # focus, which is what we want here.
+      for id <- ["copy-device-identifier", "copy-metadata-serial_number"] do
+        session
+        |> assert_has(~s(button##{id}[class*="focus-visible:opacity-100"]))
+        |> refute_has(~s(button##{id}[class*="focus:opacity-100"]))
+      end
     end
   end
 
@@ -270,8 +333,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
         :ok = Connections.device_connected(connection.id)
 
-        topic = "internal:device:#{device.id}"
-        ChannelServer.broadcast!(NervesHub.PubSub, topic, "health_check_report", %{})
+        PubSub.broadcast_report(device.id, "health_check_report", %{})
 
         render(view)
       end)
@@ -593,6 +655,25 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   describe "device health" do
+    test "opening the page is the whole of its part in health reporting", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      refute PubSub.health_watched?(device.id)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+
+      # The page used to run a timer and ask the device for a report itself,
+      # once per open page, on top of the interval the platform already had.
+      # Now it says it is watching and `NervesHub.Extensions.Health` does the
+      # asking -- once, however many people are looking.
+      assert PubSub.health_watched?(device.id)
+    end
+
     test "no device health", %{conn: conn, org: org, product: product, device: device} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -765,6 +846,80 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         text:
           "Firmware #{firmware_1.version} (#{String.slice(firmware_1.uuid, 0..7)}) has been deleted by another user."
       )
+    end
+  end
+
+  describe "update mode picker" do
+    setup %{device: device, deployment_group: deployment_group} do
+      device =
+        device
+        |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
+        |> Repo.update!()
+
+      %{device: device}
+    end
+
+    test "offers all three modes, marking the one in force", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#update-mode-menu button", text: "Automatic")
+      |> assert_has("#update-mode-menu button", text: "Device managed")
+      |> assert_has("#update-mode-menu button", text: "Off")
+      |> assert_has("#update-mode-toggle[aria-label='Firmware updates: Automatic']")
+    end
+
+    test "choosing a mode changes it and says so", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> within("#update-mode-menu", fn session -> click_button(session, "Device managed") end)
+      |> assert_has("div", text: "Firmware updates set to device managed.")
+
+      assert Repo.reload(device).update_mode == :device_managed
+    end
+
+    test "the change is audited against the user who made it", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> within("#update-mode-menu", fn session -> click_button(session, "Off") end)
+
+      assert [audit_log | _] = AuditLogs.logs_for(Repo.reload(device))
+      assert audit_log.description =~ "User #{user.name} set the update mode"
+      assert audit_log.description =~ "off"
+    end
+
+    test "a device in the penalty box shows that instead of the picker", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      device =
+        device
+        |> Ecto.Changeset.change(%{
+          updates_blocked_until: DateTime.utc_now() |> DateTime.add(3600) |> DateTime.truncate(:second)
+        })
+        |> Repo.update!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("button[aria-label='Clear the penalty box']")
+      |> refute_has("#update-mode-toggle")
     end
   end
 
@@ -1099,7 +1254,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       deployment_group: deployment_group,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
@@ -1133,7 +1288,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       deployment_group: deployment_group,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
@@ -1168,7 +1323,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "http://localhost:1234")
 
-      assert Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :automatic
     end
 
     test "allows a device to be sent the available update immediately, using the available Org `firmware_proxy_url` setting",
@@ -1186,7 +1341,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> where(id: ^org.id)
       |> Repo.update_all(set: [settings: %Org.Settings{firmware_proxy_url: "https://files.customer.com/download"}])
 
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       device = Deployments.update_deployment_group(device, deployment_group)
       {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
@@ -1220,7 +1375,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "https://files.customer.com/download?")
 
-      assert Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :automatic
     end
 
     test "allows a device to be sent the available delta update immediately, if a delta is available", %{
@@ -1233,7 +1388,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       deployment_group: deployment_group,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       metadata = Map.put(device.firmware_metadata, :fwup_version, "1.13.0") |> Map.from_struct()
       Devices.update_device(device, %{firmware_metadata: metadata})
@@ -1278,7 +1433,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.ends_with?(firmware_url, ".delta.fw")
 
-      assert Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :automatic
     end
   end
 
@@ -1341,7 +1496,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       fixture: %{firmware: firmware}
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       Ecto.Changeset.change(%DeviceConnection{}, %{
         device_id: device.id,
@@ -1372,7 +1527,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "http://localhost:1234")
 
-      refute Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :off
     end
 
     test "broadcasts the firmware update request, and includes the Orgs `firmware_proxy_url` setting", %{
@@ -1386,7 +1541,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> where(id: ^org.id)
       |> Repo.update_all(set: [settings: %Org.Settings{firmware_proxy_url: "https://files.customer.com/download"}])
 
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       Ecto.Changeset.change(%DeviceConnection{}, %{
         device_id: device.id,
@@ -1417,7 +1572,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.starts_with?(firmware_url, "https://files.customer.com/download?firmware=")
 
-      refute Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :off
     end
 
     test "broadcasts the firmware update request using the 'send delta' option", %{
@@ -1428,7 +1583,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       tmp_dir: tmp_dir
     } do
-      assert device.updates_enabled
+      assert device.update_mode == :automatic
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
@@ -1478,7 +1633,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert String.ends_with?(firmware_url, ".delta.fw")
 
-      refute Repo.reload(device) |> Map.get(:updates_enabled)
+      assert Repo.reload(device).update_mode == :off
     end
   end
 
@@ -1645,6 +1800,331 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> fill_in("Add tag", with: "beta")
       |> click_button("Add")
       |> assert_has("div", text: "Tag \"beta\" already exists on this device.", timeout: 1_000)
+    end
+  end
+
+  describe "network identities" do
+    test "explains an empty panel when the product hasn't enabled reporting", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Network Identities")
+      |> assert_has("div", text: "External identity reporting is not enabled for your product.")
+    end
+
+    test "says nothing has been reported once the product opts in", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _product} = Products.enable_extension_setting(product, "network_identity")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "This device hasn't reported any network identities.")
+    end
+
+    test "shows a reported identity with its service and label", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} =
+        NetworkIdentities.report(device.id, "iroh", %{
+          identifier: "e13b8a4c9f2d",
+          details: %{"relay_url" => "https://iroh.nervescloud.com"}
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "iroh")
+      |> assert_has("span", text: "Endpoint id")
+      |> assert_has("span", text: "e13b8a4c9f2d")
+      |> assert_has("span", text: "Relay URL")
+      |> assert_has("span", text: "https://iroh.nervescloud.com")
+    end
+
+    test "labels a key correctly for a service that isn't iroh", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} = NetworkIdentities.report(device.id, "tailscale", %{identifier: "nodekey-abc"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "Tailscale")
+      |> assert_has("span", text: "Public key")
+    end
+
+    test "the copy button carries the full untruncated value", %{conn: conn, org: org, product: product, device: device} do
+      # The value is truncated in the page, so what matters is that the button
+      # holds the whole thing — an iroh ticket exists to be pasted elsewhere.
+      ticket = String.duplicate("a", 170)
+
+      {:ok, identity} =
+        NetworkIdentities.report(device.id, "iroh", %{
+          identifier: "short-id",
+          details: %{"ticket" => ticket}
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has(~s(button#copy-external-identity-#{identity.id}-ticket[data-copy-value="#{ticket}"]))
+    end
+
+    test "identities still show after the extension is switched off", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      # Turning reporting off stops new reports; it doesn't make what was already
+      # recorded untrue, and hiding it would just look like data loss.
+      {:ok, _} = NetworkIdentities.report(device.id, "iroh", %{identifier: "recorded-earlier"})
+      {:ok, _product} = Products.disable_extension_setting(product, "network_identity")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "recorded-earlier")
+    end
+
+    test "shows both endpoints when a device runs two of one service", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} =
+        NetworkIdentities.report(device.id, "iroh", %{
+          instance: "iroh_console",
+          identifier: "console-endpoint-key"
+        })
+
+      {:ok, _} =
+        NetworkIdentities.report(device.id, "iroh", %{
+          instance: "kiosk_sync",
+          identifier: "sync-endpoint-key"
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "iroh_console")
+      |> assert_has("span", text: "kiosk_sync")
+      |> assert_has("span", text: "console-endpoint-key")
+      |> assert_has("span", text: "sync-endpoint-key")
+    end
+
+    test "doesn't label the instance when a service has only one endpoint", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      # Saying "default" on every row would be noise.
+      {:ok, _} = NetworkIdentities.report(device.id, "netbird", %{identifier: "the-only-one"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "the-only-one")
+      |> refute_has("span", text: "default")
+    end
+
+    test "marks an operator-recorded identity as such", %{conn: conn, org: org, product: product, device: device} do
+      _identity =
+        Fixtures.network_identity_fixture(device, %{
+          identifier: "operator-set",
+          source: :operator
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "set by operator")
+    end
+
+    test "updates live when a device reports a new identity", %{conn: conn, org: org, product: product, device: device} do
+      {:ok, _product} = Products.enable_extension_setting(product, "network_identity")
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+        |> assert_has("div", text: "This device hasn't reported any network identities.")
+
+      {:ok, _} = NetworkIdentities.report(device.id, "netbird", %{identifier: "peer-key-9000"})
+
+      assert_has(session, "span", text: "peer-key-9000", timeout: 1_000)
+    end
+  end
+
+  describe "pin and unpin device" do
+    test "pin device success", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("button[aria-label='Pin device']")
+      |> unwrap(fn view ->
+        render_click(view, "pin", %{})
+      end)
+      |> assert_has("button[aria-label='Unpin device']")
+    end
+
+    test "pin device error shows flash", %{conn: conn, org: org, product: product, device: device} do
+      stub(Pinning, :pin_device, fn _user_id, _device_id ->
+        {:error, :something}
+      end)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> unwrap(fn view ->
+        render_click(view, "pin", %{})
+      end)
+      |> assert_has("div", text: "Could not pin device.")
+    end
+
+    test "unpin device success", %{conn: conn, org: org, product: product, device: device, user: user} do
+      {:ok, _} = Pinning.pin_device(user.id, device.id)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("button[aria-label='Unpin device']")
+      |> unwrap(fn view ->
+        render_click(view, "unpin", %{})
+      end)
+      |> assert_has("button[aria-label='Pin device']")
+    end
+  end
+
+  describe "device actions" do
+    test "reconnect sends flash", %{conn: conn, fixture: fixture} do
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
+      render_change(view, "reconnect", %{})
+      assert render(view) =~ "Device reconnection requested"
+    end
+
+    test "identify sends flash", %{conn: conn, fixture: fixture} do
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
+      render_change(view, "identify", %{})
+      assert render(view) =~ "Device identification requested"
+    end
+
+    test "set-update-mode sends flash", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      render_change(view, "set-update-mode", %{"mode" => "off"})
+      assert render(view) =~ "Firmware updates set to off"
+    end
+
+    test "clear-penalty-box removes device from penalty box", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      future = DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second)
+
+      Device
+      |> NervesHub.Repo.get!(device.id)
+      |> Ecto.Changeset.change(%{updates_blocked_until: future})
+      |> NervesHub.Repo.update!()
+
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      render_click(view, "clear-penalty-box", %{})
+      assert render(view) =~ "Device removed from the penalty box"
+    end
+
+    test "restore undeletes a deleted device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, device} = NervesHub.Devices.delete_device(device)
+      refute is_nil(device.deleted_at)
+
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      render_change(view, "restore", %{})
+      assert is_nil(NervesHub.Repo.reload(device).deleted_at)
+    end
+
+    test "destroy navigates to devices list", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> unwrap(fn view ->
+        render_change(view, "destroy", %{})
+      end)
+      |> assert_has("div", text: "Device destroyed successfully.")
+    end
+  end
+
+  describe "handle_info broadcasts" do
+    test "connection:heartbeat refreshes device_connection", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      send(view.pid, %Broadcast{
+        topic: "internal:device:#{device.id}",
+        event: "connection:heartbeat",
+        payload: %{}
+      })
+
+      assert render(view)
+    end
+
+    test "location:updated reloads device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      send(view.pid, %Broadcast{
+        topic: "internal:device:#{device.id}",
+        event: "location:updated",
+        payload: %{}
+      })
+
+      assert render(view) =~ device.identifier
+    end
+
+    test "unknown message is ignored and view stays alive", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, view, _html} =
+        live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+
+      send(view.pid, :some_unknown_message)
+      assert render(view) =~ device.identifier
     end
   end
 

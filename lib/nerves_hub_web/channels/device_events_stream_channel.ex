@@ -10,6 +10,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
 
   alias NervesHub.Accounts
   alias NervesHub.Devices
+  alias NervesHub.Devices.PubSub
   alias NervesHubWeb.Helpers.Authorization
   alias Phoenix.Socket.Broadcast
 
@@ -20,7 +21,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     # Socket already has authenticated user, just validate device access
     if authorized?(socket.assigns.user, device_identifier) do
       device = Devices.get_by_identifier!(device_identifier)
-      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "internal:device:#{device.id}")
+      :ok = PubSub.subscribe(device.id)
 
       {:ok, socket}
     else
@@ -28,10 +29,14 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     end
   end
 
+  # `NervesHub.FirmwareUpdates` broadcasts `firmware_update_progress` with string
+  # keys. This previously matched on `fwup_progress` with a `:percent` atom key —
+  # neither of which is ever broadcast — so nothing was forwarded to external
+  # subscribers.
   @impl Phoenix.Channel
-  def handle_info(%Broadcast{event: "fwup_progress", payload: %{percent: percent}}, socket) do
+  def handle_info(%Broadcast{event: "firmware_update_progress", payload: payload}, socket) do
     # Forward the firmware update progress to the connected client
-    push(socket, "firmware_update", %{percent: percent})
+    push(socket, "firmware_update", %{percent: payload["progress"], stage: payload["stage"]})
 
     {:noreply, socket}
   end

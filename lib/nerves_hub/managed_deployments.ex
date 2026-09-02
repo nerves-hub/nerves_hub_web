@@ -5,6 +5,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
@@ -446,7 +447,7 @@ defmodule NervesHub.ManagedDeployments do
   defp maybe_trigger_delta_generation(_deployment_group, _changeset), do: {:ok, :no_deltas_started}
 
   @spec trigger_delta_generation_for_deployment_group(DeploymentGroup.t()) ::
-          {:ok, :deltas_started | :deltas_already_generated | :some_deltas_started}
+          {:ok, :deltas_started | :deltas_already_generated | :some_deltas_started | :no_delta_support}
           | {:error, :deltas_not_enabled | :delta_generation_failed}
   def trigger_delta_generation_for_deployment_group(%{delta_updatable: false}) do
     {:error, :deltas_not_enabled}
@@ -460,6 +461,7 @@ defmodule NervesHub.ManagedDeployments do
     |> then(fn results ->
       cond do
         Enum.any?(results, &match?({:error, _}, &1)) -> {:error, :delta_generation_failed}
+        Enum.all?(results, &match?({:ok, :no_delta_support}, &1)) -> {:ok, :no_delta_support}
         Enum.all?(results, &match?({:ok, :delta_already_exists}, &1)) -> {:ok, :deltas_already_generated}
         not Enum.any?(results, &match?({:ok, :delta_already_exists}, &1)) -> {:ok, :deltas_started}
         true -> {:ok, :some_deltas_started}
@@ -807,15 +809,9 @@ defmodule NervesHub.ManagedDeployments do
 
   @spec deployment_deactivated_event(DeploymentGroup.t()) :: :ok
   def deployment_deactivated_event(deployment_group) do
-    _ =
-      PhoenixChannelServer.broadcast(
-        NervesHub.PubSub,
-        "orchestrator:deployment:#{deployment_group.id}",
-        "deactivated",
-        %{}
-      )
-
-    :ok
+    # Routed through the orchestrator-events module, which dispatches to the
+    # single orchestrator via `:group` (see DeploymentOrchestratorEvents).
+    DeploymentOrchestratorEvents.deployment_group_deactivated(deployment_group)
   end
 
   @spec deployment_deleted_event(DeploymentGroup.t()) :: :ok

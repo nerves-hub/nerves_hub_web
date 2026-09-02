@@ -7,6 +7,12 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
 
   @type t :: %__MODULE__{}
 
+  @version_counter {__MODULE__, :version}
+
+  # Creating the counter as the module loads means it exists before any process
+  # can call the module, so no two writers can race to create one each.
+  @on_load :init_version_counter
+
   @primary_key false
   schema "device_connection_history" do
     field(:ref, Ch, type: "UUID")
@@ -26,6 +32,8 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
 
     field(:network_interface, Ch, type: "LowCardinality(String)")
 
+    field(:ip_address, Ch, type: "String")
+
     field(:version, Ch, type: "UInt64")
   end
 
@@ -39,10 +47,13 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
     |> put_change(:last_seen_at, connection.last_seen_at)
     |> put_change(:disconnected_at, connection.disconnected_at)
     |> put_change(:ref, connection.id)
-    |> put_change(:disconnected_reason, connection.disconnected_reason)
-    |> put_change(:lib, connection.lib)
-    |> put_change(:lib_version, connection.lib_version)
+    # `disconnected_at` is the only Nullable column on the table; the String
+    # columns below are not, so an unset one has to become "" rather than nil.
+    |> put_change(:disconnected_reason, to_string(connection.disconnected_reason))
+    |> put_change(:lib, to_string(connection.lib))
+    |> put_change(:lib_version, to_string(connection.lib_version))
     |> put_change(:network_interface, to_string(connection.network_interface))
+    |> put_change(:ip_address, connection.ip_address || "")
     |> put_change(:version, current_version())
   end
 
@@ -52,9 +63,28 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
   # connected, heartbeats, disconnected) are usually written within the same
   # second, so a second-resolution version leaves them tied and ClickHouse picks
   # between them arbitrarily - the merged view could report an already
-  # disconnected connection as still open. Microseconds keep the writes strictly
-  # ordered, so the most recent one always wins.
-  defp current_version(), do: DateTime.to_unix(DateTime.utc_now(), :microsecond)
+  # disconnected connection as still open.
+  #
+  # Microsecond resolution narrows that window but doesn't close it: two rows
+  # can still land in the same microsecond, and a wall clock read can step
+  # backwards when the host's clock is adjusted, which would put a disconnect
+  # *behind* the heartbeat it follows. `System.system_time/1` reads the BEAM's
+  # corrected clock, which never steps backwards, and the high water mark below
+  # turns it into a strictly increasing sequence, so each row a node writes for
+  # a connection beats the one before it.
+  defp current_version() do
+    next_version(:persistent_term.get(@version_counter), System.system_time(:microsecond))
+  end
+
+  defp next_version(counter, now) do
+    previous = :atomics.get(counter, 1)
+    version = max(now, previous + 1)
+
+    case :atomics.compare_exchange(counter, 1, previous, version) do
+      :ok -> version
+      _bumped_concurrently -> next_version(counter, now)
+    end
+  end
 
   @doc """
   Builds a new history row from an existing one.
@@ -65,12 +95,19 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
   collapses to this disconnected state.
   """
   def mark_as_stale_and_disconnected_changeset(%__MODULE__{} = connection) do
-    now = DateTime.utc_now()
-
     connection
     |> change()
-    |> put_change(:disconnected_at, now)
+    |> put_change(:disconnected_at, DateTime.utc_now())
     |> put_change(:disconnected_reason, "Stale connection")
-    |> put_change(:version, DateTime.to_unix(now, :microsecond))
+    |> put_change(:version, current_version())
+  end
+
+  # Keeps the counter across a code reload so the high water mark isn't reset
+  # back behind the versions already handed out.
+  defp init_version_counter() do
+    case :persistent_term.get(@version_counter, nil) do
+      nil -> :persistent_term.put(@version_counter, :atomics.new(1, signed: false))
+      _counter -> :ok
+    end
   end
 end
