@@ -213,7 +213,7 @@ defmodule NervesHub.Extensions.MetricsTest do
     end
 
     test "one device's budget is its own", %{state: state, device: device} do
-      other = %{device_info(state) | device_id: device.id + 1}
+      other = %{device_info(state) | device_id: device.id + 999_999_999}
 
       for _ <- 1..6, do: Metrics.allow?(state.device_info)
 
