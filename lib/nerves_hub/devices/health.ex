@@ -80,6 +80,27 @@ defmodule NervesHub.Devices.Health do
     |> Repo.one() || %{}
   end
 
+  @doc """
+  The alarms and checks of every health report the device sent in the
+  trailing window, oldest first, as
+  `[{inserted_at, %{"alarms" => ..., "checks" => ...}}]` — what the "alarms"
+  and "failed_checks" health built-ins judge. Only those two parts of each
+  report leave the database; either is `nil` when the report had none.
+  """
+  @spec reports_since(pos_integer(), pos_integer()) :: [{DateTime.t(), map()}]
+  def reports_since(device_id, seconds) do
+    cutoff = DateTime.shift(DateTime.utc_now(), second: -seconds)
+
+    DeviceHealth
+    |> where([dh], dh.device_id == ^device_id and dh.inserted_at > ^cutoff)
+    |> order_by([dh], asc: dh.inserted_at)
+    |> select(
+      [dh],
+      {dh.inserted_at, %{"alarms" => fragment("?->'alarms'", dh.data), "checks" => fragment("?->'checks'", dh.data)}}
+    )
+    |> Repo.all()
+  end
+
   def health_status_count(product, status) do
     Device
     |> join(:inner, [d], lh in assoc(d, :latest_health))

@@ -33,16 +33,34 @@ defmodule NervesHub.Devices.HealthEvaluation do
   timestamps and are bucketed where they belong, so a device reporting late
   lands its catch-up data in the right minutes.
 
+  ## Built-ins
+
+  A profile's built-in metrics read what the platform already keeps about
+  the device — nothing here writes, and nothing asks the device for more:
+
+    * "disconnects" counts connectivity events (ClickHouse).
+    * "error_reports" counts error reports (ClickHouse); a device without
+      the extension gets no opinion rather than a clean bill.
+    * "update_attempts" counts firmware updates sent since the device last
+      updated successfully (the device row).
+    * "alarms" and "failed_checks" reduce each stored health report — and
+      the one in hand, when the readings came with one — to a number, then
+      judge it through the same counting semantic as a reported metric: the
+      level engages when at least half the reports in the window reach the
+      threshold.
+
   Without ClickHouse there is no history to window, so evaluation falls
   back to the legacy instantaneous check against the report itself, in
   `NervesHub.Devices.HealthStatus` — as does a device whose product has no
   profile (backfill not run).
   """
 
+  alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
+  alias NervesHub.ErrorReports
   alias NervesHub.Extensions.PubSub, as: ExtensionsPubSub
   alias NervesHub.Helpers.Logging
   alias NervesHub.Products.HealthProfile
@@ -71,12 +89,18 @@ defmodule NervesHub.Devices.HealthEvaluation do
   Health status and reasons for the device described by `device_info` (a
   `NervesHub.DeviceLink.DeviceInfo`), judging the stored history plus the
   `in_hand_samples` that just arrived and are still in the write buffer.
+
+  `report` is the health report the readings came in, when they came in
+  one: the built-ins that judge reports count it alongside the stored ones,
+  since it is not stored until after judging. `nil` when the readings
+  arrived on their own (the metrics extension).
   """
-  @spec evaluate(struct() | map(), [sample()]) :: {status(), reasons()}
-  def evaluate(device_info, in_hand_samples) do
+  @spec evaluate(struct() | map(), [sample()], map() | nil) :: {status(), reasons()}
+  def evaluate(device_info, in_hand_samples, report \\ nil) do
     with true <- Application.get_env(:nerves_hub, :analytics_enabled, false),
          %HealthProfile{} = profile <- HealthProfiles.resolve(device_info) do
-      now_minute = minute(DateTime.utc_now())
+      now = DateTime.utc_now()
+      now_minute = minute(now)
       regular = Enum.reject(profile.metrics, & &1.built_in)
 
       counts =
@@ -87,7 +111,7 @@ defmodule NervesHub.Devices.HealthEvaluation do
 
       regular
       |> judge_metrics(counts)
-      |> Enum.concat(built_in_judgements(profile, device_info))
+      |> Enum.concat(built_in_judgements(profile, device_info, report, now))
       |> summarize()
     else
       _no_clickhouse_or_no_profile -> legacy(in_hand_samples)
@@ -103,7 +127,7 @@ defmodule NervesHub.Devices.HealthEvaluation do
   """
   @spec evaluate_and_save(struct() | map(), [sample()], map() | nil) :: :ok | :error
   def evaluate_and_save(device_info, in_hand_samples, report_data \\ nil) do
-    {status, reasons} = evaluate(device_info, in_hand_samples)
+    {status, reasons} = evaluate(device_info, in_hand_samples, report_data)
 
     device_health = %{
       "device_id" => device_info.device_id,
@@ -255,24 +279,60 @@ defmodule NervesHub.Devices.HealthEvaluation do
   defp boolint(false), do: 0
 
   # Built-ins move independently of what the device reports — each has its
-  # own query.
-  defp built_in_judgements(%HealthProfile{} = profile, device_info) do
+  # own read.
+  defp built_in_judgements(%HealthProfile{} = profile, device_info, report, now) do
     for metric <- profile.metrics, metric.built_in do
-      judge_built_in(metric, device_info)
+      judge_built_in(metric, device_info, report, now)
     end
   end
 
-  # Only reached with analytics enabled: `evaluate/2` gates on it before
+  # Only reached with analytics enabled: `evaluate/3` gates on it before
   # anything is judged.
-  defp judge_built_in(%{key: "disconnects"} = metric, device_info) do
+  defp judge_built_in(%{key: "disconnects"} = metric, device_info, _report, _now) do
     {warning_count, alert_count} =
       Connections.disconnection_counts(
         device_info.org_id,
         device_info.product_id,
         device_info.device_id,
-        {metric.warning_period_seconds, metric.alert_period_seconds}
+        periods(metric)
       )
 
+    judge_counts(metric, warning_count, alert_count)
+  end
+
+  # Zero reports from a device that cannot send any is silence, not health.
+  defp judge_built_in(%{key: "error_reports"} = metric, device_info, _report, _now) do
+    if extension_allowed?(device_info, :error_reports) do
+      {warning_count, alert_count} = ErrorReports.counts_for_device(device_info, periods(metric))
+      judge_counts(metric, warning_count, alert_count)
+    else
+      :unknown
+    end
+  end
+
+  defp judge_built_in(%{key: "update_attempts"} = metric, device_info, _report, now) do
+    attempts = Devices.update_attempts(device_info.device_id)
+
+    judge_counts(
+      metric,
+      Enum.count(attempts, &within?(&1, now, metric.warning_period_seconds)),
+      Enum.count(attempts, &within?(&1, now, metric.alert_period_seconds))
+    )
+  end
+
+  defp judge_built_in(%{key: "alarms"} = metric, device_info, report, now) do
+    judge_reports(metric, device_info, report, now, &alarm_count/1)
+  end
+
+  defp judge_built_in(%{key: "failed_checks"} = metric, device_info, report, now) do
+    judge_reports(metric, device_info, report, now, &failed_check_count/1)
+  end
+
+  # A built-in this release doesn't know how to evaluate: rows written by a
+  # newer node during a rolling deploy. No opinion beats a wrong one.
+  defp judge_built_in(_metric, _device_info, _report, _now), do: :unknown
+
+  defp judge_counts(metric, warning_count, alert_count) do
     cond do
       alert_count >= metric.alert_threshold ->
         {:unhealthy, metric.key, count_reason(alert_count, metric.alert_threshold, metric.alert_period_seconds)}
@@ -285,12 +345,51 @@ defmodule NervesHub.Devices.HealthEvaluation do
     end
   end
 
-  # A built-in this release doesn't know how to evaluate: rows written by a
-  # newer node during a rolling deploy. No opinion beats a wrong one.
-  defp judge_built_in(_metric, _device_info), do: :unknown
-
   defp count_reason(count, threshold, period_seconds) do
     %{value: count, threshold: threshold, period_seconds: period_seconds, aggregation: :count}
+  end
+
+  # The stored reports in the window plus the one in hand, each reduced to
+  # one number by `count`, then counted and judged exactly like readings of
+  # a metric: same buckets, same majority rule, same reason shape. A report
+  # `count` has no number for (nil) says nothing, and is left out.
+  defp judge_reports(metric, device_info, report, now, count) do
+    stored =
+      Health.reports_since(device_info.device_id, max(metric.warning_period_seconds, metric.alert_period_seconds))
+
+    in_hand = if is_map(report), do: [{now, report}], else: []
+
+    samples =
+      for {at, data} <- in_hand ++ stored,
+          value = count.(data),
+          is_integer(value),
+          do: {metric.key, at, value}
+
+    [judgement] = judge_metrics([metric], count_samples([metric], samples, minute(now)))
+
+    judgement
+  end
+
+  defp alarm_count(%{"alarms" => alarms}) when is_map(alarms), do: map_size(alarms)
+  defp alarm_count(_report), do: 0
+
+  # A report without checks has no opinion on them: checks are configured
+  # per product, and most devices never send any.
+  defp failed_check_count(%{"checks" => checks}) when is_map(checks) and map_size(checks) > 0 do
+    Enum.count(checks, fn
+      {_name, %{"pass" => true}} -> false
+      _failed_or_malformed -> true
+    end)
+  end
+
+  defp failed_check_count(_report), do: nil
+
+  defp periods(metric), do: {metric.warning_period_seconds, metric.alert_period_seconds}
+
+  defp within?(%DateTime{} = at, now, seconds), do: DateTime.diff(now, at, :second) <= seconds
+
+  defp extension_allowed?(device_info, extension) do
+    extension in (Map.get(device_info, :allowed_extensions) || [])
   end
 
   # The latest in-hand value per key, judged instantaneously — all the

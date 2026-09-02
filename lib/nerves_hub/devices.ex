@@ -28,6 +28,19 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
+  @doc """
+  When firmware updates were sent to the device since it last updated
+  successfully — the list is cleared on success — oldest first. What the
+  "update_attempts" health built-in counts.
+  """
+  @spec update_attempts(pos_integer()) :: [DateTime.t()]
+  def update_attempts(device_id) do
+    Device
+    |> where(id: ^device_id)
+    |> select([d], d.update_attempts)
+    |> Repo.one() || []
+  end
+
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
   end

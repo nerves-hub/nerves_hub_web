@@ -12,9 +12,11 @@ defmodule NervesHub.Products.HealthProfiles do
   level: a level engages when the metric's median over that level's
   measurement period (a minute to 24 hours) reaches the level's threshold.
   Most metrics read the values devices report; a metric flagged `built_in`
-  is a virtual one evaluated with its own query (e.g. "disconnects" counts
-  connectivity events). Evaluation happens as reports arrive, in
-  `NervesHub.Devices.HealthEvaluation`.
+  is a virtual one evaluated with its own query over data the platform already
+  keeps: "disconnects" counts connectivity events, "error_reports" counts error
+  reports, "update_attempts" counts firmware updates sent, and "alarms" and
+  "failed_checks" read the stored health reports. Evaluation happens as
+  reports arrive, in `NervesHub.Devices.HealthEvaluation`.
 
   A metric can also be flagged `featured`, which is about display rather than
   status: featured metrics are the ones surfaced at the top of the device
@@ -32,10 +34,36 @@ defmodule NervesHub.Products.HealthProfiles do
 
   @default_period_seconds 3600
 
+  # Every built-in is judged from data the platform already keeps: none of
+  # them asks the device for anything, and none changes what is stored.
   @built_in_metrics %{
     "disconnects" => %{
       label: "Disconnects",
       description: "How many times the device disconnected during the measurement period."
+    },
+    "error_reports" => %{
+      label: "Error reports",
+      description:
+        "How many error reports the device sent during the measurement period. " <>
+          "Needs the error reports extension; without it there is no opinion."
+    },
+    "update_attempts" => %{
+      label: "Update attempts",
+      description:
+        "How many firmware updates were sent to the device during the measurement period. " <>
+          "A healthy device needs one per release; one that keeps being sent another is stuck."
+    },
+    "alarms" => %{
+      label: "Alarms",
+      description:
+        "How many alarms the device had raised, judged like a reported metric: the level engages " <>
+          "when at least half the health reports in the measurement period carry that many."
+    },
+    "failed_checks" => %{
+      label: "Failed checks",
+      description:
+        "How many of the device's own health checks were failing, judged like a reported metric " <>
+          "over the health reports in the measurement period. No opinion until the device reports checks."
     }
   }
 

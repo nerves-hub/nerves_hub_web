@@ -138,6 +138,31 @@ defmodule NervesHub.ErrorReports do
   # --------------------------------------------------------- product read path
 
   @doc """
+  How many error reports the device sent in each of two trailing windows, as
+  `{first, second}` — what the "error_reports" health built-in judges. One
+  ClickHouse read over the wider window. The table is ordered by fingerprint
+  rather than device, so this scans the product's reports in the window;
+  callers check that analytics is enabled first.
+  """
+  @spec counts_for_device(DeviceInfo.t() | map(), {pos_integer(), pos_integer()}) ::
+          {non_neg_integer(), non_neg_integer()}
+  def counts_for_device(device_info, {first_seconds, second_seconds}) do
+    now = DateTime.utc_now()
+    first_cutoff = DateTime.shift(now, second: -first_seconds)
+    second_cutoff = DateTime.shift(now, second: -second_seconds)
+    widest = if DateTime.before?(first_cutoff, second_cutoff), do: first_cutoff, else: second_cutoff
+
+    ErrorReport
+    |> where([r], r.org_id == ^device_info.org_id and r.product_id == ^device_info.product_id)
+    |> where([r], r.device_id == ^device_info.device_id and r.timestamp >= ^widest)
+    |> select(
+      [r],
+      {fragment("countIf(timestamp >= ?)", ^first_cutoff), fragment("countIf(timestamp >= ?)", ^second_cutoff)}
+    )
+    |> AnalyticsRepo.one()
+  end
+
+  @doc """
   A product's issues, paginated.
 
   ## Options
