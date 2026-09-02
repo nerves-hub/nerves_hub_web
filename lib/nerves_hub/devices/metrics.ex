@@ -183,8 +183,9 @@ defmodule NervesHub.Devices.Metrics do
   membership is judged on minute buckets (`unix time div 60`), matching the
   evaluation granularity, with `now_minute` the current bucket.
 
-  One query per evaluation: a pair of `countIf`s per metric level over one
-  scan of the device's rows in the longest window, pruned by the table's
+  One query per evaluation, built entirely from Ecto dynamics — a pair of
+  `countIf`s per metric level in an interpolated select map — over one scan
+  of the device's rows in the longest window, pruned by the table's
   `(product_id, device_id, key, timestamp)` sort key. ClickHouse: callers
   are expected to check that analytics is enabled first.
   """
@@ -198,61 +199,58 @@ defmodule NervesHub.Devices.Metrics do
   def health_breach_counts(_device_info, [] = _metrics, _now_minute), do: %{}
 
   def health_breach_counts(device_info, metrics, now_minute) do
-    {selects, params} =
+    selects =
       metrics
-      |> Enum.with_index()
-      |> Enum.map_reduce(%{}, fn {metric, i}, params ->
-        # The comparison direction comes from a validated Ecto.Enum, never
-        # from user input.
-        op = if metric.operator == :lte, do: "<=", else: ">="
+      |> Enum.flat_map(fn metric ->
+        for {level, threshold, period_seconds} <- [
+              {"warning", metric.warning_threshold, metric.warning_period_seconds},
+              {"alert", metric.alert_threshold, metric.alert_period_seconds}
+            ] do
+          cutoff = now_minute - minute_span(period_seconds)
 
-        selects =
-          for level <- ["w", "a"] do
-            in_window = "key = {k#{i}:String} AND intDiv(toUnixTimestamp(timestamp), 60) > {c#{level}#{i}:Int64}"
-            "countIf(#{in_window}), countIf(#{in_window} AND value #{op} {t#{level}#{i}:Float64})"
-          end
+          in_window =
+            dynamic(
+              [dm],
+              dm.key == ^metric.key and fragment("intDiv(toUnixTimestamp(?), 60)", dm.timestamp) > ^cutoff
+            )
 
-        params =
-          Map.merge(params, %{
-            "k#{i}" => metric.key,
-            "cw#{i}" => now_minute - minute_span(metric.warning_period_seconds),
-            "tw#{i}" => metric.warning_threshold,
-            "ca#{i}" => now_minute - minute_span(metric.alert_period_seconds),
-            "ta#{i}" => metric.alert_threshold
-          })
+          breach = breach_condition(metric.operator, threshold)
 
-        {selects, params}
+          [
+            {"#{metric.key}:#{level}:n", dynamic([dm], fragment("countIf(?)", ^in_window))},
+            {"#{metric.key}:#{level}:k", dynamic([dm], fragment("countIf(? AND ?)", ^in_window, ^breach))}
+          ]
+        end
       end)
+      |> List.flatten()
+      |> Map.new()
 
     longest_period = metrics |> Enum.flat_map(&[&1.warning_period_seconds, &1.alert_period_seconds]) |> Enum.max()
+    # Scan pruning only; the per-metric bucket conditions above decide
+    # membership. The oldest reachable bucket starts at this instant.
+    oldest = DateTime.from_unix!((now_minute - minute_span(longest_period)) * 60)
 
-    params =
-      Map.merge(params, %{
-        "product_id" => device_info.product_id,
-        "device_id" => device_info.device_id,
-        "keys" => Enum.map(metrics, & &1.key),
-        # Scan pruning only; the per-metric bucket filters above decide
-        # membership. The oldest reachable bucket starts at this instant.
-        "oldest" => DateTime.from_unix!((now_minute - minute_span(longest_period)) * 60)
-      })
+    row =
+      DeviceMetric
+      |> where([dm], dm.product_id == ^device_info.product_id and dm.device_id == ^device_info.device_id)
+      |> where([dm], dm.key in ^Enum.map(metrics, & &1.key))
+      |> where([dm], dm.timestamp >= ^oldest)
+      |> select([dm], ^selects)
+      |> AnalyticsRepo.one()
 
-    sql = """
-    SELECT #{selects |> List.flatten() |> Enum.join(",\n  ")}
-    FROM device_metrics
-    WHERE product_id = {product_id:UInt64}
-      AND device_id = {device_id:UInt64}
-      AND key IN {keys:Array(String)}
-      AND timestamp >= {oldest:DateTime}
-    """
-
-    %{rows: [counts]} = AnalyticsRepo.query!(sql, params)
-
-    metrics
-    |> Enum.zip(Enum.chunk_every(counts, 4))
-    |> Map.new(fn {metric, [n_w, k_w, n_a, k_a]} ->
-      {metric.key, %{warning: {n_w, k_w}, alert: {n_a, k_a}}}
+    Map.new(metrics, fn metric ->
+      {metric.key,
+       %{
+         warning: {row["#{metric.key}:warning:n"], row["#{metric.key}:warning:k"]},
+         alert: {row["#{metric.key}:alert:n"], row["#{metric.key}:alert:k"]}
+       }}
     end)
   end
+
+  # Which side of the threshold is unhealthy. `nil` (rows from before the
+  # operator column existed) reads as :gte, the historical behavior.
+  defp breach_condition(:lte, threshold), do: dynamic([dm], dm.value <= ^threshold)
+  defp breach_condition(_gte_or_nil, threshold), do: dynamic([dm], dm.value >= ^threshold)
 
   # Periods are stored in seconds; evaluation granularity is a minute.
   defp minute_span(period_seconds), do: div(period_seconds + 59, 60)
