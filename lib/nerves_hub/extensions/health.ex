@@ -20,7 +20,7 @@ defmodule NervesHub.Extensions.Health do
 
   Both transitions come from `NervesHub.Extensions.PubSub`, and they are not
   symmetric: opening a page announces itself, closing one cannot. See
-  `NervesHub.Extensions.PubSub.watch_health/1` for why each direction works the
+  `NervesHub.Extensions.PubSub.watch/2` for why each direction works the
   way it does.
   """
 
@@ -63,12 +63,13 @@ defmodule NervesHub.Extensions.Health do
     mode = current_mode(state)
 
     {State.assign(state, :mode, mode),
-     [{:group_join, PubSub.health_key(device_id(state))}, {:tick, :check}, timer(mode)]}
+     [{:group_join, PubSub.watch_key(device_id(state), :health)}, {:tick, :check}, timer(mode)]}
   end
 
   @impl NervesHub.Extensions
   def detach(state) do
-    {State.assign(state, :mode, nil), [{:cancel_timer, :check}, {:group_leave, PubSub.health_key(device_id(state))}]}
+    {State.assign(state, :mode, nil),
+     [{:cancel_timer, :check}, {:group_leave, PubSub.watch_key(device_id(state), :health)}]}
   end
 
   @impl NervesHub.Extensions
@@ -92,26 +93,22 @@ defmodule NervesHub.Extensions.Health do
       "status_reasons" => reasons
     }
 
-    with {:health_report, {:ok, _}} <-
-           {:health_report, Health.save_device_health(device_health)},
-         {:metrics_report, {:ok, _}} <-
-           {:metrics_report, Metrics.save_metrics(device_info.device_id, metrics)} do
-      :ok = PubSub.broadcast_report(device_info.device_id, "health_check_report", %{})
-    else
-      {:health_report, {:error, err}} ->
+    # Metrics first, and not inside the health report's failure handling:
+    # `Metrics.record/3` buffers rather than writing, so there is no failure
+    # here to report, and a health row that will not save is no reason to throw
+    # away readings that would.
+    {:ok, _stored} = Metrics.record(device_info, metrics)
+
+    case Health.save_device_health(device_health) do
+      {:ok, _health} ->
+        :ok = PubSub.broadcast_report(device_info.device_id, "health_check_report", %{})
+
+      {:error, err} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
 
         Logging.log_to_sentry(
           device_info,
           "[DeviceChannel] Failed to save health check data."
-        )
-
-      {:metrics_report, :error} ->
-        Logger.warning("Failed to save metrics report")
-
-        Logging.log_to_sentry(
-          device_info,
-          "[DeviceChannel] Failed to save metrics report."
         )
     end
 
@@ -134,7 +131,7 @@ defmodule NervesHub.Extensions.Health do
   # A device Show LiveView has opened on this device. Announced rather than
   # discovered so that speeding up does not wait on the join replicating to
   # whichever node this is running on; see
-  # `NervesHub.Extensions.PubSub.watch_health/1`.
+  # `NervesHub.Extensions.PubSub.watch/2`.
   def handle_info(:watching, state) do
     if State.get(state, :mode) == :watched do
       {state, []}
@@ -156,7 +153,7 @@ defmodule NervesHub.Extensions.Health do
   end
 
   defp current_mode(state) do
-    if PubSub.health_watched?(device_id(state)), do: :watched, else: :idle
+    if PubSub.watched?(device_id(state), :health), do: :watched, else: :idle
   end
 
   # Replaces whatever is armed under `:check`; see `NervesHubWeb.Channels.Effects`.

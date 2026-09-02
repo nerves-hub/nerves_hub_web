@@ -5,6 +5,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
   import Phoenix.ChannelTest
 
+  alias NervesHub.AdvancedQueryFixtures
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
@@ -289,6 +290,113 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
 
       assert json_response(conn, 200)["data"] == []
+    end
+  end
+
+  describe "index: advanced query" do
+    setup %{conn: conn, user: user, tmp_dir: tmp_dir} do
+      org = Fixtures.org_fixture(user, %{name: "AdvancedQueryOrg"})
+      product = Fixtures.product_fixture(user, org, %{name: "advanced_query_product"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      hot = Fixtures.device_fixture(org, product, firmware, %{identifier: "aq-hot", tags: ["prod"]})
+      cool = Fixtures.device_fixture(org, product, firmware, %{identifier: "aq-cool", tags: ["staging"]})
+
+      %{conn: conn, org: org, product: product, firmware: firmware, hot: hot, cool: cool}
+    end
+
+    defp index_identifiers(conn, org, product, query) do
+      conn =
+        get(
+          conn,
+          Routes.api_device_path(conn, :index, org.name, product.name, %{filters: %{advanced_query: query}})
+        )
+
+      json_response(conn, 200)["data"] |> Enum.map(& &1["identifier"]) |> Enum.sort()
+    end
+
+    test "filters on each device's latest custom health metric value", %{
+      conn: conn,
+      org: org,
+      product: product,
+      hot: hot,
+      cool: cool
+    } do
+      # Only the latest reading per device counts: "cool" once ran hot, but its
+      # latest reading is below the threshold.
+      AdvancedQueryFixtures.save_metric(hot, "cpu_temp", 80.0, 10)
+      AdvancedQueryFixtures.save_metric(hot, "cpu_temp", 40.0, 100)
+      AdvancedQueryFixtures.save_metric(cool, "cpu_temp", 30.0, 10)
+      AdvancedQueryFixtures.save_metric(cool, "cpu_temp", 90.0, 100)
+
+      assert index_identifiers(conn, org, product, ~s|metric:cpu_temp > 50|) == ["aq-hot"]
+      assert index_identifiers(conn, org, product, ~s|metric:cpu_temp <= 50|) == ["aq-cool"]
+    end
+
+    test "supports boolean expressions combining metrics and other columns", %{
+      conn: conn,
+      org: org,
+      product: product,
+      hot: hot,
+      cool: cool
+    } do
+      AdvancedQueryFixtures.save_metric(hot, "battery_soc", 15.0, 10)
+      AdvancedQueryFixtures.save_metric(cool, "battery_soc", 80.0, 10)
+
+      assert index_identifiers(
+               conn,
+               org,
+               product,
+               ~s|metric:battery_soc < 20 and tags contains "prod"|
+             ) == ["aq-hot"]
+
+      assert index_identifiers(
+               conn,
+               org,
+               product,
+               ~s|metric:battery_soc < 20 or tags contains "staging"|
+             ) == ["aq-cool", "aq-hot"]
+    end
+
+    test "exercises columns that need the extra joins", %{conn: conn, org: org, product: product} do
+      # update_status compiles against the inflight_update binding; neither
+      # device has an inflight update.
+      assert index_identifiers(conn, org, product, ~s|update_status is "not updating"|) == ["aq-cool", "aq-hot"]
+      assert index_identifiers(conn, org, product, ~s|update_status is "updating"|) == []
+    end
+
+    test "treats non-query input as a free-text search", %{conn: conn, org: org, product: product} do
+      assert index_identifiers(conn, org, product, "aq-ho") == ["aq-hot"]
+    end
+
+    test "lets `deleted` in the query control soft-deleted visibility", %{
+      conn: conn,
+      org: org,
+      product: product,
+      cool: cool
+    } do
+      {:ok, _} = Devices.update_device(cool, %{deleted_at: DateTime.utc_now()})
+
+      assert index_identifiers(conn, org, product, ~s|deleted = "true"|) == ["aq-cool"]
+      assert index_identifiers(conn, org, product, ~s|deleted = "false"|) == ["aq-hot"]
+      # without the query, the default exclusion still applies
+      conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
+      assert json_response(conn, 200)["data"] |> Enum.map(& &1["identifier"]) == ["aq-hot"]
+    end
+
+    test "rejects an invalid query expression with the parse error", %{conn: conn, org: org, product: product} do
+      conn =
+        get(
+          conn,
+          Routes.api_device_path(conn, :index, org.name, product.name, %{
+            filters: %{advanced_query: ~s|bogus_column = "x"|}
+          })
+        )
+
+      assert %{"errors" => %{"detail" => detail}} = json_response(conn, 422)
+      assert detail =~ "invalid advanced query"
+      assert detail =~ "bogus_column"
     end
   end
 

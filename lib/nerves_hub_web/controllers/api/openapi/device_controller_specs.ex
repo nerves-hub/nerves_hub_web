@@ -37,6 +37,26 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     schema: %OpenApiSpex.Schema{
       type: :object,
       properties: %{
+        advanced_query: %OpenApiSpex.Schema{
+          type: :string,
+          required: false,
+          description: """
+          A query in the device list's advanced query language, the same one the
+          web UI's search bar uses. Values are quoted; expressions combine with
+          `and`/`or`/`not` and parentheses. Custom health metrics are queried as
+          `metric:<key>` with numeric comparisons against each device's latest
+          reading. Input that doesn't look like a query expression is treated as
+          a free-text search across the device's textual fields; an invalid
+          query expression is rejected with a 422 and the parse error.
+
+          Examples:
+          * `metric:cpu_temp > 70`
+          * `connection = "connected" and tags contains "prod"`
+          * `health_status != "healthy" or alarm_status = "with"`
+          * `metric:battery_soc < 20 and updates = "enabled"`
+          """,
+          example: ~s|metric:cpu_temp > 70 and connection = "connected"|
+        },
         alarm: %OpenApiSpex.Schema{type: :string, required: false, example: "SomeAlarm"},
         alarm_status: %OpenApiSpex.Schema{type: :string, required: false, enum: ["with", "without"]},
         connection: %OpenApiSpex.Schema{type: :string, required: false, enum: ["connected", "disconnected", "not_seen"]},

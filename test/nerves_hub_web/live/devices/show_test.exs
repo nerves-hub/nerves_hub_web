@@ -328,7 +328,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         device = Deployments.update_deployment_group(device, deployment_group)
 
-        {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 22})
+        {:ok, _} = Metrics.record(to_device_info(device), %{"cpu_usage_percent" => 22})
 
         {:ok, connection} = Connections.device_connecting(device.org_id, device.product_id, device.id)
         :ok = Connections.device_connected(connection.id)
@@ -666,7 +666,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      refute PubSub.health_watched?(device.id)
+      refute PubSub.watched?(device.id, :health)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -676,7 +676,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       # once per open page, on top of the interval the platform already had.
       # Now it says it is watching and `NervesHub.Extensions.Health` does the
       # asking -- once, however many people are looking.
-      assert PubSub.health_watched?(device.id)
+      assert PubSub.watched?(device.id, :health)
     end
 
     test "no device health", %{conn: conn, org: org, product: product, device: device} do
@@ -749,7 +749,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "mem_used_percent" => 60
       }
 
-      assert {:ok, 7} = Metrics.save_metrics(device.id, metrics)
+      assert {:ok, 7} = Metrics.record(to_device_info(device), metrics)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -779,7 +779,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "mem_used_percent" => 60
       }
 
-      assert {:ok, 6} = Metrics.save_metrics(device.id, metrics)
+      assert {:ok, 6} = Metrics.record(to_device_info(device), metrics)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
