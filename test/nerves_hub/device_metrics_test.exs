@@ -253,11 +253,21 @@ defmodule NervesHub.DeviceMetricsTest do
       device_info: device_info,
       product: product
     } do
-      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 42})
-      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 43})
-      {:ok, 1} = Metrics.record(device_info, %{"mem_used_percent" => 30})
+      {:ok, 2} = Metrics.record(device_info, %{"mem_used_percent" => 30, "cpu_temp" => 42})
 
       assert Metrics.distinct_keys(product.id) == ["cpu_temp", "mem_used_percent"]
+    end
+
+    test "reflects what devices report now, not everything they ever reported", %{
+      device_info: device_info,
+      product: product
+    } do
+      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 42})
+      {:ok, 1} = Metrics.record(device_info, %{"mem_used_percent" => 30})
+
+      # A report replaces the device's latest set, so a metric the firmware has
+      # stopped collecting stops being offered in the autosuggest list.
+      assert Metrics.distinct_keys(product.id) == ["mem_used_percent"]
     end
 
     test "excludes keys from devices in other products", %{device_info2: device_info2, product: product} do

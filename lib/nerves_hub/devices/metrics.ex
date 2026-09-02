@@ -36,6 +36,7 @@ defmodule NervesHub.Devices.Metrics do
 
   alias NervesHub.Analytics.Buffer
   alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.Devices.DeviceLatestMetrics
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.DeviceMetricLegacy
   alias NervesHub.ProductNotifications
@@ -114,15 +115,19 @@ defmodule NervesHub.Devices.Metrics do
 
   @doc """
   Distinct metric keys reported by devices in the product, sorted.
+
+  Taken from the latest row per device rather than from the history: it feeds
+  the advanced-query autosuggest list, which wants the names a product currently
+  reports, and one row per device is a small fraction of one row per reading.
   """
+  @spec distinct_keys(pos_integer()) :: [String.t()]
   def distinct_keys(product_id) do
-    DeviceMetricLegacy
-    |> join(:inner, [dm], d in assoc(dm, :device))
-    |> where([_, d], d.product_id == ^product_id)
+    DeviceLatestMetrics
+    |> where(product_id: ^product_id)
+    |> select([m], fragment("jsonb_object_keys(?)", m.metrics))
     |> distinct(true)
-    |> order_by([dm], asc: dm.key)
-    |> select([dm], dm.key)
     |> Repo.all()
+    |> Enum.sort()
   end
 
   def get_product_metrics_by_key(product_id, key) do
@@ -171,30 +176,18 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   @doc """
-  Retrieves the latest metric set, together with the timestamp, for a given device.
+  The device's most recent readings, keyed by metric name, plus a `"timestamp"`.
 
-  Uses a subquery to filter the `DeviceMetricLegacy` table on the most recent `inserted_at` timestamp.
+  Reads the denormalised `device_latest_metrics` row rather than the history, so
+  it costs one primary-key lookup and works whether or not this deployment has a
+  ClickHouse. An empty map when the device has never reported.
   """
+  @spec get_latest_metric_set(pos_integer()) :: map()
   def get_latest_metric_set(device_id) do
-    DeviceMetricLegacy
-    |> where([dm], dm.device_id == ^device_id)
-    |> where(
-      [dm],
-      dm.inserted_at ==
-        subquery(
-          DeviceMetricLegacy
-          |> select([:inserted_at])
-          |> where(device_id: ^device_id)
-          |> order_by(desc: :inserted_at)
-          |> limit(1)
-        )
-    )
-    |> Repo.all()
-    |> Enum.reduce(%{}, fn item, acc ->
-      acc
-      |> Map.put(item.key, item.value)
-      |> Map.put_new("timestamp", item.inserted_at)
-    end)
+    case Repo.get(DeviceLatestMetrics, device_id) do
+      nil -> %{}
+      %DeviceLatestMetrics{metrics: metrics, reported_at: reported_at} -> Map.put(metrics, "timestamp", reported_at)
+    end
   end
 
   @doc """
@@ -228,6 +221,8 @@ defmodule NervesHub.Devices.Metrics do
   def record(%DeviceInfo{}, metrics, _timestamp) when map_size(metrics) == 0, do: {:ok, 0}
 
   def record(%DeviceInfo{} = device_info, metrics, %DateTime{} = timestamp) do
+    timestamp = with_microsecond_precision(timestamp)
+
     readings =
       metrics
       |> Enum.flat_map(&normalize/1)
@@ -235,9 +230,20 @@ defmodule NervesHub.Devices.Metrics do
       |> cap_key_count(device_info)
 
     :ok = write_analytics(device_info, readings, timestamp)
+    :ok = write_latest(device_info, readings, timestamp)
     :ok = write_legacy(device_info, readings, timestamp)
 
     {:ok, length(readings)}
+  end
+
+  # Both PostgreSQL columns are `:utc_datetime_usec`, and the rows are written
+  # with `insert_all`/`insert!`, which dump straight to the database rather than
+  # casting -- so a `DateTime` carrying anything less than microsecond precision
+  # is rejected. Devices and callers hand over whatever precision they happen to
+  # have, so it is padded here, once, and the same value goes to all three
+  # stores.
+  defp with_microsecond_precision(%DateTime{microsecond: {value, _precision}} = timestamp) do
+    %{timestamp | microsecond: {value, 6}}
   end
 
   # `{key, value}` as the device sent it, into `{key, float}` or nothing.
@@ -344,6 +350,37 @@ defmodule NervesHub.Devices.Metrics do
         )
       end)
     end
+
+    :ok
+  end
+
+  defp write_latest(_device_info, [], _timestamp), do: :ok
+
+  # Replaces the device's row outright rather than merging into it: the latest
+  # set is what one report said, and a key the device has stopped reporting
+  # should stop being shown rather than linger at whatever it last was.
+  #
+  # The `WHERE` on the upsert is what makes an out-of-order report harmless. A
+  # batched report can carry readings older than ones already stored -- a device
+  # that buffered across a disconnect sends them on reconnect -- and without
+  # this the last message to arrive would win rather than the latest reading.
+  defp write_latest(device_info, readings, timestamp) do
+    changeset =
+      DeviceLatestMetrics.changeset(%{
+        device_id: device_info.device_id,
+        product_id: device_info.product_id,
+        metrics: Map.new(readings),
+        reported_at: timestamp
+      })
+
+    on_conflict =
+      DeviceLatestMetrics
+      |> update([m],
+        set: [metrics: fragment("EXCLUDED.metrics"), reported_at: fragment("EXCLUDED.reported_at")]
+      )
+      |> where([m], fragment("EXCLUDED.reported_at") >= m.reported_at)
+
+    _ = Repo.insert!(changeset, on_conflict: on_conflict, conflict_target: :device_id)
 
     :ok
   end
