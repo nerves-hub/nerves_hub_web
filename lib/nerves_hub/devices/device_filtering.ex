@@ -5,7 +5,8 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   import Ecto.Query
 
-  alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.AdvancedQuery.Compiler
+  alias NervesHub.Devices.AdvancedQuery.Schema
   alias NervesHub.Types.Tag
 
   @default_filters %{
@@ -342,23 +343,13 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   defp filter_on_metric(query, %{metrics_key: key, metrics_operator: operator, metrics_value: value})
        when key != "" and value != "" do
-    {value_as_float, _} = Float.parse(value)
+    comparison = {:comparison, Schema.metric_prefix() <> key, metric_operator(operator), value}
 
-    query
-    |> join(:inner, [d], m in DeviceMetric, on: d.id == m.device_id, as: :device_metric)
-    |> where([device_metric: dm], dm.inserted_at == subquery(latest_metric_for_key(key)))
-    |> where([device_metric: dm], dm.key == ^key)
-    |> gt_or_lt(value_as_float, operator)
+    where(query, ^Compiler.to_dynamic(comparison))
   end
 
   defp filter_on_metric(query, _), do: query
 
-  defp latest_metric_for_key(key) do
-    DeviceMetric
-    |> select([dm], max(dm.inserted_at))
-    |> where([dm], dm.key == ^key)
-  end
-
-  defp gt_or_lt(query, value, "gt"), do: where(query, [device_metric: dm], dm.value > ^value)
-  defp gt_or_lt(query, value, "lt"), do: where(query, [device_metric: dm], dm.value < ^value)
+  defp metric_operator("lt"), do: "<"
+  defp metric_operator(_), do: ">"
 end
