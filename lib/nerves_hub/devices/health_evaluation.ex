@@ -1,24 +1,22 @@
 defmodule NervesHub.Devices.HealthEvaluation do
   @moduledoc """
-  Query-backed health evaluation: fetch the device's stored samples and judge
-  them with the same sliding-window counting core the per-product evaluator
-  uses in memory (`NervesHub.Devices.HealthEvaluator.Windows`) — one
-  semantic, two ways of getting at the samples.
+  Judges a device's health against its product's profile, as each report
+  arrives: fetch the profile's windows of readings from the metric history
+  in ClickHouse, count them with the pure core in
+  `NervesHub.Devices.HealthEvaluation.Windows`, merge the built-in
+  judgements ("disconnects" counts connectivity events), summarize. One
+  windowed read per report, run in the channel process; ClickHouse is
+  built for exactly this shape, so there is no cache, no process, and no
+  state anywhere.
 
-  This is the fallback path. In the steady state
-  `NervesHub.Devices.HealthEvaluator` judges reports from its in-memory
-  windows; this module is what the extension uses when that process cannot
-  be reached, and it also hosts the built-in metric judgements both paths
-  share ("disconnects" counts connectivity events in ClickHouse, and
-  evaluates to no opinion when analytics is disabled).
-
-  A device whose product has no profile (backfill not run) falls back to the
-  legacy instantaneous check against the report itself, in
-  `NervesHub.Devices.HealthStatus`.
+  Without ClickHouse there is no history to window, so evaluation falls
+  back to the legacy instantaneous check against the report itself, in
+  `NervesHub.Devices.HealthStatus` — as does a device whose product has no
+  profile (backfill not run).
   """
 
   alias NervesHub.Devices.Connections
-  alias NervesHub.Devices.HealthEvaluator.Windows
+  alias NervesHub.Devices.HealthEvaluation.Windows
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
   alias NervesHub.Products.HealthProfile
@@ -36,28 +34,23 @@ defmodule NervesHub.Devices.HealthEvaluation do
   """
   @spec evaluate(struct() | map(), map()) :: {status(), reasons()}
   def evaluate(device_info, report_metrics) do
-    case HealthProfiles.resolve(device_info.product_id, platform(device_info)) do
-      nil ->
-        legacy(report_metrics)
+    with true <- Application.get_env(:nerves_hub, :analytics_enabled, false),
+         %HealthProfile{} = profile <- HealthProfiles.resolve(device_info.product_id, platform(device_info)) do
+      minute = Windows.minute(DateTime.utc_now())
 
-      profile ->
-        minute = Windows.minute(DateTime.utc_now())
-
-        device_info
-        |> windows_from_storage(profile, minute)
-        |> Windows.judge(profile, minute)
-        |> Enum.concat(built_in_judgements(profile, device_info))
-        |> Windows.summarize()
+      device_info
+      |> windows_from_storage(profile, minute)
+      |> Windows.judge(profile, minute)
+      |> Enum.concat(built_in_judgements(profile, device_info))
+      |> Windows.summarize()
+    else
+      _no_clickhouse_or_no_profile -> legacy(report_metrics)
     end
   end
 
-  @doc """
-  Rebuild a device's windows from its stored samples — one indexed query
-  over the profile's longest window. Also how `HealthEvaluator` warms up a
-  device it has not seen yet.
-  """
-  @spec windows_from_storage(struct() | map(), HealthProfile.t(), integer()) :: Windows.t()
-  def windows_from_storage(device_info, %HealthProfile{} = profile, minute) do
+  # One windowed read over the profile's longest period covers every
+  # metric's windows.
+  defp windows_from_storage(device_info, %HealthProfile{} = profile, minute) do
     regular = Enum.reject(profile.metrics, & &1.built_in)
     keys = Enum.map(regular, & &1.key)
 
@@ -71,12 +64,9 @@ defmodule NervesHub.Devices.HealthEvaluation do
     Windows.from_samples(profile, samples, minute)
   end
 
-  @doc """
-  Judge the profile's built-in metrics. Built-ins move independently of what
-  the device reports — each has its own query.
-  """
-  @spec built_in_judgements(HealthProfile.t(), struct() | map()) :: [Windows.judgement()]
-  def built_in_judgements(%HealthProfile{} = profile, device_info) do
+  # Built-ins move independently of what the device reports — each has its
+  # own query.
+  defp built_in_judgements(%HealthProfile{} = profile, device_info) do
     for metric <- profile.metrics, metric.built_in do
       judge_built_in(metric, device_info)
     end

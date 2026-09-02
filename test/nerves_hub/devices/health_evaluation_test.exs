@@ -2,17 +2,23 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
   # Not async: the disconnects tests read/write the AnalyticsRepo (ClickHouse).
   use NervesHub.DataCase, async: false
 
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.HealthEvaluation
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
   alias NervesHub.Products.HealthProfile
   alias NervesHub.Products.HealthProfileMetric
   alias NervesHub.Products.HealthProfiles
 
   setup %{tmp_dir: tmp_dir} do
+    AnalyticsRepo.query!("TRUNCATE TABLE device_metrics")
+    on_exit(fn -> AnalyticsRepo.query!("TRUNCATE TABLE device_metrics") end)
+
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
@@ -30,16 +36,18 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
     {:ok, %{user: user, org: org, product: product, firmware: firmware, device: device, device_info: device_info}}
   end
 
+  # Readings land in ClickHouse the way production writes them: through
+  # `Metrics.record/3`, flushed so the assertions don't race the buffer.
   defp insert_metric(device, key, value, minutes_ago \\ 0) do
-    {:ok, _} =
-      %{
-        device_id: device.id,
-        key: key,
-        value: value,
-        inserted_at: DateTime.add(DateTime.utc_now(), -minutes_ago, :minute)
-      }
-      |> DeviceMetric.save_with_timestamp()
-      |> Repo.insert()
+    device_info = %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
+
+    {:ok, 1} = Metrics.record(device_info, %{key => value}, DateTime.add(DateTime.utc_now(), -minutes_ago, :minute))
+    :ok = Buffer.flush(DeviceMetric)
   end
 
   describe "against the default profile" do
@@ -151,6 +159,21 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
 
       assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, %{})
       assert %{"cpu_usage_percent" => %{threshold: 15.0}} = reasons.unhealthy
+    end
+
+    test "without ClickHouse there is no history to window: legacy check on the report", %{
+      device: device,
+      device_info: device_info
+    } do
+      insert_metric(device, "cpu_usage_percent", 20.0)
+
+      original = Application.get_env(:nerves_hub, :analytics_enabled)
+      Application.put_env(:nerves_hub, :analytics_enabled, false)
+      on_exit(fn -> Application.put_env(:nerves_hub, :analytics_enabled, original) end)
+
+      # The stored low readings are invisible; only the report is judged.
+      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 95})
+      assert %{"cpu_usage_percent" => %{value: 95, threshold: 90}} = reasons.unhealthy
     end
 
     test "a product without any profile falls back to the legacy instantaneous check", %{device_info: device_info} do

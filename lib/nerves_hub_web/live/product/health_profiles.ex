@@ -144,7 +144,12 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
   # product isn't looking at an empty list) and the observed value ranges
   # shown beside each metric — thresholds get picked against real units.
   defp assign_observed(socket, product) do
-    observed_ranges = Metrics.observed_ranges(product.id)
+    observed_ranges =
+      if Application.get_env(:nerves_hub, :analytics_enabled, false) do
+        Metrics.observed_ranges(product.id)
+      else
+        %{}
+      end
 
     reported_keys =
       (Metrics.default_metrics() ++ Map.keys(observed_ranges))

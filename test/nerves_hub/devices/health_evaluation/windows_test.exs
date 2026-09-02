@@ -1,7 +1,7 @@
-defmodule NervesHub.Devices.HealthEvaluator.WindowsTest do
+defmodule NervesHub.Devices.HealthEvaluation.WindowsTest do
   use ExUnit.Case, async: true
 
-  alias NervesHub.Devices.HealthEvaluator.Windows
+  alias NervesHub.Devices.HealthEvaluation.Windows
   alias NervesHub.Products.HealthProfile
   alias NervesHub.Products.HealthProfileMetric
 

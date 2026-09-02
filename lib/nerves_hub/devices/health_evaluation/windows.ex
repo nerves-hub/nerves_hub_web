@@ -1,7 +1,7 @@
-defmodule NervesHub.Devices.HealthEvaluator.Windows do
+defmodule NervesHub.Devices.HealthEvaluation.Windows do
   @moduledoc """
   Sliding-window majority counters for one device's health metrics — the pure
-  core of `NervesHub.Devices.HealthEvaluator`.
+  core of `NervesHub.Devices.HealthEvaluation`.
 
   The insight that makes this cheap: status never needs the median's value,
   only which side of a fixed threshold it sits, and "median >= T" is "at

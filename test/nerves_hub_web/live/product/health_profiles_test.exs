@@ -2,6 +2,9 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Accounts.Org
+  alias NervesHub.Analytics.Buffer
+  alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
   alias NervesHub.Products.HealthProfiles
@@ -31,8 +34,9 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
     firmware: firmware
   } do
     device = Fixtures.device_fixture(NervesHub.Repo.get!(Org, product.org_id), product, firmware)
-    {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 10.0, "fps" => 24.0})
-    {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 40.5, "fps" => 61.0})
+    {:ok, _} = Metrics.record(device_info(device), %{"cpu_usage_percent" => 10.0, "fps" => 24.0})
+    {:ok, _} = Metrics.record(device_info(device), %{"cpu_usage_percent" => 40.5, "fps" => 61.0})
+    :ok = Buffer.flush(DeviceMetric)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/settings/health")
@@ -95,7 +99,8 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
   } do
     # The key picker offers reported keys; report an fps sample first.
     device = Fixtures.device_fixture(NervesHub.Repo.get!(Org, product.org_id), product, firmware)
-    {:ok, _} = Metrics.save_metrics(device.id, %{"fps" => 60.0})
+    {:ok, _} = Metrics.record(device_info(device), %{"fps" => 60.0})
+    :ok = Buffer.flush(DeviceMetric)
 
     profile = HealthProfiles.resolve(product.id, nil)
 
@@ -266,5 +271,14 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
     |> assert_has("div", text: "health profile was deleted")
 
     assert HealthProfiles.resolve(product.id, firmware.platform).platform == nil
+  end
+
+  defp device_info(device) do
+    %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
   end
 end

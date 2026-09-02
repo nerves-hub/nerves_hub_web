@@ -11,11 +11,10 @@ defmodule NervesHub.Products.HealthProfiles do
   A profile holds any number of metrics, each with a warning and an alert
   level: a level engages when the metric's median over that level's
   measurement period (a minute to 24 hours) reaches the level's threshold.
-  Most metrics read the values devices report to `device_metrics`; a metric
-  flagged `built_in` is a virtual one evaluated with its own query (e.g.
-  "disconnects" counts connectivity events). Evaluation happens as reports
-  arrive — in `NervesHub.Devices.HealthEvaluator`'s in-memory windows, with
-  `NervesHub.Devices.HealthEvaluation`'s query-based path as the fallback.
+  Most metrics read the values devices report; a metric flagged `built_in`
+  is a virtual one evaluated with its own query (e.g. "disconnects" counts
+  connectivity events). Evaluation happens as reports arrive, in
+  `NervesHub.Devices.HealthEvaluation`.
 
   A metric can also be flagged `featured`, which is about display rather than
   status: featured metrics are the ones surfaced at the top of the device
@@ -117,33 +116,6 @@ defmodule NervesHub.Products.HealthProfiles do
   defp platform_or_default(query, platform), do: where(query, [p], is_nil(p.platform) or p.platform == ^platform)
 
   @doc """
-  The product's profiles keyed by platform (`nil` key = the default
-  profile), with metrics preloaded. The shape health evaluators cache:
-  resolution is `profiles[platform] || profiles[nil]`.
-  """
-  @spec profiles_by_platform(pos_integer()) :: %{optional(String.t() | nil) => HealthProfile.t()}
-  def profiles_by_platform(product_id) do
-    HealthProfile
-    |> where(product_id: ^product_id)
-    |> preload(:metrics)
-    |> Repo.all()
-    |> Map.new(&{&1.platform, &1})
-  end
-
-  @doc """
-  The PubSub topic carrying `{:health_profiles_changed, product_id}`,
-  published on any change to the product's profiles or their metrics.
-  Health evaluators subscribe to drop state built against old thresholds.
-  """
-  @spec topic(pos_integer()) :: String.t()
-  def topic(product_id), do: "product:#{product_id}:health_profiles"
-
-  defp broadcast_change(product_id) do
-    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic(product_id), {:health_profiles_changed, product_id})
-    :ok
-  end
-
-  @doc """
   Keys of the featured metrics in the profile that applies to a device of the
   product on `platform` — the metrics surfaced at the top of the device
   details page. Built-ins are left out: they have no reported value to put in
@@ -219,7 +191,6 @@ defmodule NervesHub.Products.HealthProfiles do
     |> Repo.transact()
     |> case do
       {:ok, %{profile: profile}} ->
-        broadcast_change(product_id)
         {:ok, Repo.preload(profile, :metrics)}
 
       {:error, _step, changeset, _} ->
@@ -235,9 +206,7 @@ defmodule NervesHub.Products.HealthProfiles do
   def delete_profile(%HealthProfile{platform: nil}), do: {:error, :cannot_delete_default}
 
   def delete_profile(%HealthProfile{} = profile) do
-    deleted = Repo.delete!(profile)
-    broadcast_change(profile.product_id)
-    {:ok, deleted}
+    {:ok, Repo.delete!(profile)}
   end
 
   @doc """
@@ -247,7 +216,7 @@ defmodule NervesHub.Products.HealthProfiles do
   """
   @spec add_metric(HealthProfile.t(), map()) ::
           {:ok, HealthProfileMetric.t()} | {:error, Ecto.Changeset.t()}
-  def add_metric(%HealthProfile{id: profile_id} = profile, attrs) do
+  def add_metric(%HealthProfile{id: profile_id}, attrs) do
     built_in? = Map.has_key?(@built_in_metrics, String.trim(attrs["key"] || ""))
 
     attrs =
@@ -262,10 +231,6 @@ defmodule NervesHub.Products.HealthProfiles do
     %HealthProfileMetric{}
     |> HealthProfileMetric.changeset(attrs)
     |> Repo.insert()
-    |> tap(fn
-      {:ok, _} -> broadcast_change(profile.product_id)
-      {:error, _} -> :ok
-    end)
   end
 
   @doc """
@@ -283,10 +248,6 @@ defmodule NervesHub.Products.HealthProfiles do
     metric
     |> HealthProfileMetric.changeset(Map.drop(attrs, fixed))
     |> Repo.update()
-    |> tap(fn
-      {:ok, _} -> broadcast_change(product_id_of(metric))
-      {:error, _} -> :ok
-    end)
   end
 
   @spec get_metric!(HealthProfile.t(), pos_integer()) :: HealthProfileMetric.t()
@@ -299,14 +260,6 @@ defmodule NervesHub.Products.HealthProfiles do
   @spec delete_metric(HealthProfileMetric.t()) :: :ok
   def delete_metric(%HealthProfileMetric{} = metric) do
     Repo.delete!(metric)
-    broadcast_change(product_id_of(metric))
     :ok
-  end
-
-  defp product_id_of(%HealthProfileMetric{health_profile_id: profile_id}) do
-    HealthProfile
-    |> where(id: ^profile_id)
-    |> select([p], p.product_id)
-    |> Repo.one!()
   end
 end

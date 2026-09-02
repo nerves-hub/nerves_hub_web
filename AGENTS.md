@@ -75,7 +75,7 @@ when adding or removing one.
   archive artifacts, uploads, and firmware **delta** building.
 - `products.ex` / `products/` — products and product settings, including
   health profiles (the per-product thresholds behind device health status,
-  evaluated in `devices/health_evaluator.ex`).
+  evaluated in `devices/health_evaluation.ex`).
 - `extensions.ex` / `extensions/` — the device **extension framework**
   (`health`, `geo`, `local_shell`, `logging`, `network_identity`,
   `error_reports`); extensions attach per-device and exchange messages over the

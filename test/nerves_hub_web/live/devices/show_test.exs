@@ -799,7 +799,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 93.0, "mem_used_percent" => 85.0})
+      {:ok, _} = Metrics.record(to_device_info(device), %{"cpu_usage_percent" => 93.0, "mem_used_percent" => 85.0})
 
       # Reasons as the evaluator writes them; they come back string-keyed.
       {:ok, _} =

@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
 
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.PubSub
   alias NervesHub.Extensions.Geo
   alias NervesHub.Extensions.Health
@@ -59,7 +60,7 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
   # ---- Product with the health extension disabled ----
 
   describe "product with the health extension disabled" do
-    test "attaches nothing health-shaped and starts no evaluator", %{tmp_dir: tmp_dir} do
+    test "attaches nothing health-shaped and stores nothing", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org, %{extensions: %{health: false, geo: true}})
@@ -85,9 +86,8 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
       ref = push(ext_channel, "health:report", %{"value" => %{"metrics" => %{"cpu_usage_percent" => 99.0}}})
       assert_reply(ref, :error, "detach")
 
-      assert Registry.lookup(NervesHub.Devices.HealthEvaluator.Registry, product.id) == []
       assert NervesHub.Repo.aggregate(DeviceHealth, :count) == 0
-      assert NervesHub.Repo.aggregate(DeviceMetric, :count) == 0
+      assert Metrics.get_latest_metric_set(device.id) == %{}
     end
   end
 
