@@ -8,12 +8,12 @@ defmodule NervesHub.Devices.DeviceLatestMetrics do
   state in one query, and that query is PostgreSQL's. So the latest set is kept
   here, one row per device, replaced by each report.
 
-  Written only by `NervesHub.Devices.Metrics.record/3`.
+  Written only by `NervesHub.Devices.Metrics.record/3`, and written with
+  `insert_all` rather than through a changeset -- the upsert has to be able to
+  decline an out-of-order report by writing no row at all.
   """
 
   use Ecto.Schema
-
-  import Ecto.Changeset
 
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
@@ -27,12 +27,5 @@ defmodule NervesHub.Devices.DeviceLatestMetrics do
 
     field(:metrics, :map, default: %{})
     field(:reported_at, :utc_datetime_usec)
-  end
-
-  @spec changeset(map()) :: Ecto.Changeset.t()
-  def changeset(attrs) do
-    %__MODULE__{}
-    |> cast(attrs, [:device_id, :product_id, :metrics, :reported_at])
-    |> validate_required([:device_id, :product_id, :metrics, :reported_at])
   end
 end

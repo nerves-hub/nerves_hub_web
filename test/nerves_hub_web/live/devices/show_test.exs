@@ -661,7 +661,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      refute PubSub.health_watched?(device.id)
+      refute PubSub.watched?(device.id, :health)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -671,7 +671,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       # once per open page, on top of the interval the platform already had.
       # Now it says it is watching and `NervesHub.Extensions.Health` does the
       # asking -- once, however many people are looking.
-      assert PubSub.health_watched?(device.id)
+      assert PubSub.watched?(device.id, :health)
     end
 
     test "no device health", %{conn: conn, org: org, product: product, device: device} do

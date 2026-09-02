@@ -312,13 +312,12 @@ defmodule NervesHub.Devices.Metrics do
   # that buffered across a disconnect sends them on reconnect -- and without
   # this the last message to arrive would win rather than the latest reading.
   defp write_latest(device_info, readings, timestamp) do
-    changeset =
-      DeviceLatestMetrics.changeset(%{
-        device_id: device_info.device_id,
-        product_id: device_info.product_id,
-        metrics: Map.new(readings),
-        reported_at: timestamp
-      })
+    row = %{
+      device_id: device_info.device_id,
+      product_id: device_info.product_id,
+      metrics: Map.new(readings),
+      reported_at: timestamp
+    }
 
     on_conflict =
       DeviceLatestMetrics
@@ -327,7 +326,12 @@ defmodule NervesHub.Devices.Metrics do
       )
       |> where([m], fragment("EXCLUDED.reported_at") >= m.reported_at)
 
-    _ = Repo.insert!(changeset, on_conflict: on_conflict, conflict_target: :device_id)
+    # `insert_all` rather than `insert!`: the `WHERE` above means the upsert
+    # writes no row when the report is older than what is stored, and `insert!`
+    # reads that as an `Ecto.StaleEntryError`. Declining the write is the whole
+    # point of the clause, so it has to be an ordinary outcome -- which for
+    # `insert_all` is a count of zero.
+    {_written, nil} = Repo.insert_all(DeviceLatestMetrics, [row], on_conflict: on_conflict, conflict_target: :device_id)
 
     :ok
   end

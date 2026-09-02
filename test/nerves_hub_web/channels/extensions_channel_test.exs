@@ -409,7 +409,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     # What the device Show LiveView does on mount. The whole point of the round
     # trip is that the device is asked by the channel, so a second page opening
     # adds nothing to what the device is already being sent.
-    :ok = PubSub.watch_health(device.id)
+    :ok = PubSub.watch(device.id, :health)
 
     assert_push("health:check", _)
   end

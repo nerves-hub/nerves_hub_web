@@ -74,6 +74,30 @@ defmodule NervesHub.DeviceMetricsTest do
       assert Metrics.get_latest_metric_set(device.id) == %{}
     end
 
+    test "an older report does not move the latest set backwards", %{device: device, device_info: device_info} do
+      now = DateTime.utc_now()
+
+      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 42}, now)
+      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 1}, DateTime.add(now, -60, :second))
+
+      # A batch can carry readings older than ones already stored -- a device
+      # that buffered across a disconnect sends them on reconnect -- and the
+      # last message to arrive is not necessarily the latest reading.
+      assert Metrics.get_latest_metric_set(device.id)["cpu_temp"] == 42.0
+
+      # Both are still in the history; only the latest set is guarded.
+      assert [%{value: 1.0}, %{value: 42.0}] = analytics_rows(device)
+    end
+
+    test "a newer report does move it", %{device: device, device_info: device_info} do
+      now = DateTime.utc_now()
+
+      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 42}, DateTime.add(now, -60, :second))
+      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 43}, now)
+
+      assert Metrics.get_latest_metric_set(device.id)["cpu_temp"] == 43.0
+    end
+
     test "strips spaces from metric names", %{device: device, device_info: device_info} do
       assert {:ok, 1} = Metrics.record(device_info, %{"cpu_ temp" => 42})
 

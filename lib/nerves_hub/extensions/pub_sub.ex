@@ -27,8 +27,8 @@ defmodule NervesHub.Extensions.PubSub do
   because the churn scales with the fleet rather than with the number of open
   pages. A `Phoenix.PubSub` subscribe is node-local and costs nothing to hold.
 
-  `device:health/<id>` is the one exception, and it earns it: `Health` needs a
-  message from an open page (see `watch_health/1`), and there is no
+  `device:<extension>/<id>` is the one exception, and it earns it: a paced
+  extension needs a message from an open page (see `watch/2`), and there is no
   `Phoenix.PubSub` topic that reaches one device's connection without every node
   in the cluster hearing about it. The join is per *attached extension* rather
   than per connection, and it buys targeted delivery for something that would
@@ -75,7 +75,7 @@ defmodule NervesHub.Extensions.PubSub do
   `NervesHub.Consoles.PubSub` is the same shape for the same reason.
   """
 
-  alias NervesHub.Extensions.Health
+  alias NervesHub.Extensions
   alias Phoenix.Channel.Server, as: ChannelServer
   alias Phoenix.Socket.Broadcast
 
@@ -120,50 +120,54 @@ defmodule NervesHub.Extensions.PubSub do
   # -- Health: who is watching a device right now -----------------------------
 
   @doc """
-  The group key the device's extensions channel joins while `Health` is
+  The group key a device's extensions channel joins while a paced extension is
   attached, so an open page can tell it to report more often.
+
+  `Health` and `Metrics` both use it, each with its own key, so a page open on a
+  device speeds up whichever of them that device is running.
 
   Public because the join cannot happen here: `Group.join/4` joins the calling
   process, and the process that has to be a member is the one holding the
-  device's connection. `Health` therefore returns a `{:group_join, key}` effect
-  and lets the connection carry it out -- the same reason
+  device's connection. An extension therefore returns a `{:group_join, key}`
+  effect and lets the connection carry it out -- the same reason
   `NervesHub.Consoles.PubSub.local_shell_key/1` is public.
   """
-  @spec health_key(integer()) :: String.t()
-  def health_key(device_id), do: "device:health/#{device_id}"
+  @spec watch_key(integer(), Extensions.extension()) :: String.t()
+  def watch_key(device_id, extension), do: "device:#{extension}/#{device_id}"
 
   @doc """
-  Watch a device's health from the calling process (a device Show LiveView).
+  Watch a device's `extension` from the calling process (a device Show LiveView).
 
   Two things happen, and they answer different questions.
 
   The join is the standing answer to "is anybody still watching?", which is what
-  `Health` reads when it decides to *slow back down*. Membership is the right
-  shape for that: a page closing, a browser tab going away and a LiveView
+  a paced extension reads when it decides to *slow back down*. Membership is the
+  right shape for that: a page closing, a browser tab going away and a LiveView
   crashing all look the same, and none of them can send a message on the way
   out. It is also why there is no matching unwatch -- the membership lasts
   exactly as long as the process that took it, which is exactly as long as
   somebody is looking.
 
-  The dispatch is what makes the *speed up* immediate. `Health` could read the
-  membership instead, but that read runs wherever the extension runs, which is
-  not necessarily the node this join was made on, and group state is eventually
-  consistent -- a read in that gap would miss the page that just opened and
-  nothing further would arrive to correct it. Announcing needs no read at all.
+  The dispatch is what makes the *speed up* immediate. The extension could read
+  the membership instead, but that read runs wherever the extension runs, which
+  is not necessarily the node this join was made on, and group state is
+  eventually consistent -- a read in that gap would miss the page that just
+  opened and nothing further would arrive to correct it. Announcing needs no
+  read at all.
   """
-  @spec watch_health(integer()) :: :ok
-  def watch_health(device_id) do
-    :ok = Group.join(@group, health_watchers_key(device_id), %{})
+  @spec watch(integer(), Extensions.extension()) :: :ok
+  def watch(device_id, extension) do
+    :ok = Group.join(@group, watchers_key(device_id, extension), %{})
 
     # The extensions channel routes `{module, msg}` to the matching attached
     # extension, so the tuple has to carry the module.
-    Group.dispatch(@group, health_key(device_id), {Health, :watching})
+    Group.dispatch(@group, watch_key(device_id, extension), {Extensions.module(extension), :watching})
   end
 
-  @doc "Is anybody watching this device's health right now?"
-  @spec health_watched?(integer()) :: boolean()
-  def health_watched?(device_id) do
-    Group.members(@group, health_watchers_key(device_id)) != []
+  @doc "Is anybody watching this device's `extension` right now?"
+  @spec watched?(integer(), Extensions.extension()) :: boolean()
+  def watched?(device_id, extension) do
+    Group.members(@group, watchers_key(device_id, extension)) != []
   end
 
   # -- Product-wide extension config (stays on Phoenix.PubSub) -----------------
@@ -189,7 +193,7 @@ defmodule NervesHub.Extensions.PubSub do
 
   # Group keys ("/" is Group's hierarchy separator).
   defp reports_key(device_id), do: "device:extensions:reports/#{device_id}"
-  defp health_watchers_key(device_id), do: "device:health:watchers/#{device_id}"
+  defp watchers_key(device_id, extension), do: "device:#{extension}:watchers/#{device_id}"
 
   # Preserved as the previous `Phoenix.PubSub` topic strings.
   defp topic(device_id), do: "device:#{device_id}:extensions"
