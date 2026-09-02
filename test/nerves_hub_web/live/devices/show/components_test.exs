@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
 
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Components
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.Metrics
@@ -48,7 +49,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
 
   defp seed_components(device) do
     {:ok, _} = Components.update_topology(device.id, @topology)
-    {:ok, _} = Metrics.save_metrics(device.id, %{"display_fps" => 59.9})
+    :ok = record_metrics(device, %{"display_fps" => 59.9})
 
     {:ok, _} =
       Health.save_device_health(%{
@@ -95,7 +96,7 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
 
   test "the details tab summarizes networks as counts only", %{conn: conn, fixture: fixture} do
     :ok = seed_components(fixture.device)
-    {:ok, _} = Metrics.save_metrics(fixture.device.id, %{"zwave_rssi" => -61.0})
+    :ok = record_metrics(fixture.device, %{"zwave_rssi" => -61.0})
 
     conn
     |> visit(device_path(fixture))
@@ -132,6 +133,22 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
     session
     |> assert_has("option[selected]", text: "night", timeout: 1_000)
     |> assert_has("span", text: "v43")
+  end
+
+  test "a metrics report updates the numbers without a reload", %{conn: conn, fixture: fixture} do
+    %{device: device} = fixture
+    :ok = seed_components(device)
+
+    session = visit(conn, device_path(fixture))
+    assert_has(session, "span", text: "59.90")
+
+    :ok = record_metrics(device, %{"display_fps" => 61.2})
+    :ok = ExtensionsPubSub.broadcast_report(device.id, "metrics_report", %{})
+
+    session
+    |> assert_has("span", text: "61.20", timeout: 1_000)
+    # Metadata is health's; a metrics report does not move it.
+    |> assert_has("span", text: "v42")
   end
 
   test "clicking an action sends the request to the device and audits it", %{
@@ -219,5 +236,17 @@ defmodule NervesHubWeb.Live.Devices.Show.ComponentsTest do
     conn
     |> visit(device_path(fixture))
     |> assert_has("button[disabled]", text: "Recalibrate")
+  end
+
+  defp record_metrics(device, metrics) do
+    device_info = %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
+
+    {:ok, _stored} = Metrics.record(device_info, metrics)
+    :ok
   end
 end

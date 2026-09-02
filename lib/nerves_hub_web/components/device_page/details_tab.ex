@@ -1049,6 +1049,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  # Fresh numbers via the metrics extension; metadata is health's, so only
+  # the metric assigns move.
+  def hooked_info(%Broadcast{event: "metrics_report"}, %{assigns: %{device: device}} = socket) do
+    socket
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
+    |> halt()
+  end
+
   def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
     # The device was mounted with the report before this one denormalized on
     # it; without the re-read, metadata (and the component modes driven by it)

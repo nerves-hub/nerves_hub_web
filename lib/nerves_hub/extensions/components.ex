@@ -69,12 +69,12 @@ defmodule NervesHub.Extensions.Components do
 
   def handle_in("action:result", payload, state) do
     {state, effects} = relay_result(state, "components:action_result", payload)
-    {state, effects ++ health_refresh(state)}
+    {state, effects ++ refresh_reports(state)}
   end
 
   def handle_in("mode:result", payload, state) do
     {state, effects} = relay_result(state, "components:mode_result", payload)
-    {state, effects ++ health_refresh(state)}
+    {state, effects ++ refresh_reports(state)}
   end
 
   def handle_in(event, payload, state) do
@@ -110,14 +110,17 @@ defmodule NervesHub.Extensions.Components do
     end
   end
 
-  # An action or mode change usually moves the very numbers and metadata the
-  # component boxes show, and the next scheduled health report could be a
-  # minute out. Ask for one now so the page reflects what the action did.
-  defp health_refresh(state) do
-    if :health in (state.device_info.allowed_extensions || []) do
-      [{:push, "health:check", %{}}]
-    else
-      []
+  # An action or mode change usually moves the very things the component
+  # boxes show, and the next scheduled report could be minutes out. Ask for
+  # fresh ones now: numbers travel through the metrics extension, and the
+  # metadata that drives mode dropdowns still travels through health — a
+  # device may run either or both.
+  defp refresh_reports(state) do
+    allowed = state.device_info.allowed_extensions || []
+
+    for {extension, event} <- [metrics: "metrics:check", health: "health:check"],
+        extension in allowed do
+      {:push, event, %{}}
     end
   end
 end

@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.Devices.Show.NetworksTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Components
   alias NervesHub.Devices.Metrics
@@ -51,7 +52,7 @@ defmodule NervesHubWeb.Live.Devices.Show.NetworksTabTest do
   test "shows the networks and peers a device reported", %{conn: conn, fixture: fixture} do
     %{device: device} = fixture
     {:ok, _} = Components.update_topology(device.id, @topology)
-    {:ok, _} = Metrics.save_metrics(device.id, %{"zwave_rssi" => -61.0, "battery_pct" => 87.0})
+    :ok = record_metrics(device, %{"zwave_rssi" => -61.0, "battery_pct" => 87.0})
 
     conn
     |> visit(networks_path(fixture))
@@ -69,8 +70,8 @@ defmodule NervesHubWeb.Live.Devices.Show.NetworksTabTest do
     %{device: device} = fixture
     {:ok, _} = Components.update_topology(device.id, @topology)
 
-    {:ok, _} =
-      Metrics.save_metrics(device.id, %{
+    :ok =
+      record_metrics(device, %{
         "battery_pct_leak_sensor_2878f" => 91.0,
         "rssi_leak_sensor_2878f" => -48.0,
         "battery_pct_leak_sensor_91c02" => 77.0,
@@ -120,5 +121,17 @@ defmodule NervesHubWeb.Live.Devices.Show.NetworksTabTest do
     assert_receive %Broadcast{event: "components:action:run", payload: payload}
     assert payload["component"] == "zwave-26"
     assert payload["action"] == "rediscover"
+  end
+
+  defp record_metrics(device, metrics) do
+    device_info = %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
+
+    {:ok, _stored} = Metrics.record(device_info, metrics)
+    :ok
   end
 end

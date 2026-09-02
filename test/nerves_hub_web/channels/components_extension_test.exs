@@ -20,10 +20,12 @@ defmodule NervesHubWeb.ComponentsExtensionTest do
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     # Opt in at the product level, which is where every extension starts off.
-    # Health too: an action/mode result asks for a health refresh when the
-    # device is allowed to report health.
+    # Health and metrics too: an action/mode result asks both for a fresh
+    # report when the device is allowed to send one — numbers travel through
+    # metrics, the metadata driving modes through health.
     {:ok, _product} = Products.enable_extension_setting(product, "components")
     {:ok, _product} = Products.enable_extension_setting(product, "health")
+    {:ok, _product} = Products.enable_extension_setting(product, "metrics")
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -135,8 +137,9 @@ defmodule NervesHubWeb.ComponentsExtensionTest do
     assert result["output"] == "calibration complete"
 
     # The action likely changed the values the component boxes show, so the
-    # device is asked for a fresh health report rather than waiting out the
-    # regular interval.
+    # device is asked for fresh reports rather than waiting out the regular
+    # intervals: metrics for the numbers, health for the metadata.
+    assert_push("metrics:check", %{})
     assert_push("health:check", %{})
   end
 
@@ -173,11 +176,13 @@ defmodule NervesHubWeb.ComponentsExtensionTest do
     assert result["ref"] == ref
     assert result["status"] == "ok"
 
-    # A mode drives a metadata value, so the refresh matters even more here.
+    # A mode drives a metadata value, so the health refresh matters even more
+    # here.
+    assert_push("metrics:check", %{})
     assert_push("health:check", %{})
   end
 
-  test "no health refresh is requested when the device may not report health", %{
+  test "each refresh is gated on its own extension being allowed", %{
     user: user,
     device: device,
     certificate: certificate
@@ -205,6 +210,8 @@ defmodule NervesHubWeb.ComponentsExtensionTest do
       "output" => ""
     })
 
+    # Health is off for this device, metrics is still on.
+    assert_push("metrics:check", %{})
     refute_push("health:check", %{})
   end
 

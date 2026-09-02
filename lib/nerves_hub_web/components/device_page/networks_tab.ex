@@ -81,6 +81,12 @@ defmodule NervesHubWeb.Components.DevicePage.NetworksTab do
     |> halt()
   end
 
+  def hooked_info(%Broadcast{event: "metrics_report"}, %{assigns: %{device: device}} = socket) do
+    socket
+    |> assign(:network_latest_metrics, Metrics.get_latest_metric_set(device.id))
+    |> halt()
+  end
+
   def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
     device = %{device | latest_health: Health.get_latest_health(device.id)}
 
