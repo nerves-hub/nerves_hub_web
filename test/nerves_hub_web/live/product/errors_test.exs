@@ -248,7 +248,6 @@ defmodule NervesHubWeb.Live.Product.ErrorsTest do
     test "a group from another product is not reachable", %{
       conn: conn,
       org: org,
-      product: product,
       user: user,
       group: group
     } do
