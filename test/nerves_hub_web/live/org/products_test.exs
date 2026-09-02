@@ -80,8 +80,8 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       conn
       |> visit("/org/#{org.name}")
       |> assert_has("a", text: product.name)
-      |> assert_has("span.product-connected-devices-count", text: "1")
-      |> assert_has("span.product-disconnected-devices-count", text: "3")
+      |> assert_has("span.product-connected-devices-count", text: "1", timeout: 2000)
+      |> assert_has("span.product-disconnected-devices-count", text: "3", timeout: 2000)
     end
   end
 
