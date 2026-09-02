@@ -12,8 +12,6 @@ defmodule NervesHubWeb.DeviceSocketRedirectTest do
   alias NervesHubWeb.Endpoint
   alias Phoenix.Socket.Broadcast
 
-  require Logger
-
   @web_port Application.compile_env(:nerves_hub, Endpoint) |> get_in([:http, :port])
 
   setup do
