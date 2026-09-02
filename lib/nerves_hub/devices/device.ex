@@ -5,6 +5,7 @@ defmodule NervesHub.Devices.Device do
 
   alias __MODULE__
   alias NervesHub.Accounts.Org
+  alias NervesHub.Devices.ComponentTopology
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceFirmware
@@ -55,6 +56,7 @@ defmodule NervesHub.Devices.Device do
 
     has_one(:latest_connection, DeviceConnection)
     has_one(:inflight_update, InflightUpdate)
+    has_one(:component_topology, ComponentTopology, on_delete: :delete_all)
 
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)

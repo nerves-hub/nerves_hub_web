@@ -14,11 +14,12 @@ defmodule NervesHub.Extensions.DeviceExtensionsSetting do
     field(:logging, :boolean, default: true)
     field(:network_identity, :boolean, default: true)
     field(:error_reports, :boolean, default: true)
+    field(:components, :boolean, default: true)
   end
 
   def changeset(setting, params) do
     setting
-    |> cast(params, [:health, :metrics, :geo, :local_shell, :logging, :network_identity, :error_reports])
+    |> cast(params, [:health, :metrics, :geo, :local_shell, :logging, :network_identity, :error_reports, :components])
   end
 
   @impl Access

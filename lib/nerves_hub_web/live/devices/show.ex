@@ -22,6 +22,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DevicePage.HealthTab
   alias NervesHubWeb.Components.DevicePage.LocalShellTab
   alias NervesHubWeb.Components.DevicePage.LogsTab
+  alias NervesHubWeb.Components.DevicePage.NetworksTab
   alias NervesHubWeb.Components.DevicePage.SettingsTab
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.UpdateProgress
@@ -42,6 +43,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     HealthTab,
     LocalShellTab,
     LogsTab,
+    NetworksTab,
     SettingsTab
   ]
 
@@ -344,7 +346,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
       :product,
       :latest_connection,
       :latest_health,
-      :network_identities
+      :network_identities,
+      :component_topology
     ])
   end
 
@@ -466,6 +469,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     <HealthTab.render :if={@tab == :health} {assigns} />
     <LocalShellTab.render :if={@tab == :local_shell} {assigns} />
     <LogsTab.render :if={@tab == :logs} {assigns} />
+    <NetworksTab.render :if={@tab == :networks} {assigns} />
     <SettingsTab.render :if={@tab == :settings} {assigns} />
     """
   end

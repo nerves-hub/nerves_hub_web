@@ -114,6 +114,7 @@ attached is its own, scoped `<key>:<event>` in both directions.
 | `local_shell` | A shell on the device | `NervesHub.Extensions.LocalShell` |
 | `network_identity` | Identities the device holds on networks NervesHub doesn't run | `NervesHub.Extensions.NetworkIdentity` |
 | `error_reports` | Exceptions and explicit error reports, grouped into issues | [error_reports.md](error_reports.md) |
+| `components` | The device's hardware topology, with operator-invokable actions and modes | `NervesHub.Extensions.Components` |
 
 Most are documented by the module implementing them, which is enough while
 `nerves_hub_link` is the only client that speaks them. An extension meant for

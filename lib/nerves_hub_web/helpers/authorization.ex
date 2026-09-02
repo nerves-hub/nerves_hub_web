@@ -57,6 +57,9 @@ defmodule NervesHubWeb.Helpers.Authorization do
 
   def authorized?(:"device:extensions:local_shell", role), do: role_check(:manage, role)
 
+  def authorized?(:"device:components:run-action", role), do: role_check(:manage, role)
+  def authorized?(:"device:components:set-mode", role), do: role_check(:manage, role)
+
   def authorized?(:"firmware:upload", role), do: role_check(:manage, role)
   def authorized?(:"firmware:delete", role), do: role_check(:manage, role)
 

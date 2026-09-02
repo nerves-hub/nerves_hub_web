@@ -125,6 +125,11 @@ defmodule NervesHub.Extensions.Metrics do
       reports
       |> Enum.take(@max_reports_per_message)
       |> Enum.each(&record(state.device_info, &1))
+
+      # Whoever is watching the device's page hears there are fresh numbers,
+      # exactly as a health report announces itself. Costless when nobody is
+      # watching — see `NervesHub.Extensions.PubSub.broadcast_report/3`.
+      :ok = PubSub.broadcast_report(device_id(state), "metrics_report", %{})
     end
 
     {state, []}

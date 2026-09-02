@@ -18,6 +18,7 @@ defmodule NervesHub.Extensions.MetricsTest do
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
   alias NervesHub.Fixtures
+  alias Phoenix.Socket.Broadcast
 
   @watched_ms to_timeout(minute: 1)
   @idle_ms to_timeout(minute: 15)
@@ -130,6 +131,23 @@ defmodule NervesHub.Extensions.MetricsTest do
 
       # The budget was not spent, so a real report in the same second still lands.
       assert Metrics.allow?(state.device_info)
+    end
+
+    test "tells whoever is watching the device's page about fresh numbers", %{device: device, state: state} do
+      :ok = PubSub.subscribe_reports(device.id)
+
+      {^state, []} =
+        Metrics.handle_in(
+          "report",
+          %{"reports" => [%{"timestamp" => iso(at(-60)), "metrics" => %{"cpu_temp" => 40.0}}]},
+          state
+        )
+
+      assert_receive %Broadcast{event: "metrics_report"}
+
+      # An empty batch stored nothing, so there is nothing to announce.
+      {^state, []} = Metrics.handle_in("report", %{"reports" => []}, state)
+      refute_receive %Broadcast{event: "metrics_report"}, 100
     end
 
     test "a report with an unreadable timestamp is skipped, and its neighbours are not", %{

@@ -375,6 +375,12 @@ defmodule NervesHubWeb.Router do
       )
 
       live(
+        "/org/:org_name/:product_name/devices/:device_identifier/networks",
+        Live.Devices.Show,
+        :networks
+      )
+
+      live(
         "/org/:org_name/:product_name/devices/:device_identifier/activity",
         Live.Devices.Show,
         :activity

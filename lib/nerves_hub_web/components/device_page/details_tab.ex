@@ -9,13 +9,16 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Health
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Scripts
+  alias NervesHubWeb.Components.DeviceComponents
   alias NervesHubWeb.Components.DeviceLocation
   alias NervesHubWeb.Components.DeviceNetworkIdentities
+  alias NervesHubWeb.Components.DevicePage.SharedComponentsHandlers
   alias NervesHubWeb.Components.HealthStatus
   alias Phoenix.Socket.Broadcast
 
@@ -32,7 +35,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     :alarms,
     :extension_overrides,
     :deployment_groups,
-    :addable_tags
+    :addable_tags,
+    :component_topology,
+    :component_metadata,
+    :can_manage_components
   ]
 
   def tab_params(_params, _uri, %{assigns: %{device: device}} = socket) do
@@ -48,6 +54,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> assign_addable_tags()
     |> assign_metadata()
     |> assign_deployment_groups()
+    |> assign_components()
     |> cont()
   end
 
@@ -77,6 +84,15 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   # value. The threshold roughly matches the value column's max width so short
   # values that already fit don't get a redundant tooltip.
   defp long_value?(value), do: String.length(value) > 32
+
+  defp assign_components(%{assigns: %{product: product, device: device}} = socket) do
+    socket
+    |> SharedComponentsHandlers.assign_topology()
+    |> assign(
+      :can_manage_components,
+      SharedComponentsHandlers.can_manage_components?(socket.assigns.current_scope, product, device)
+    )
+  end
 
   defp assign_support_scripts(%{assigns: %{product: product}} = socket) do
     scripts = Scripts.all_by_product(product)
@@ -564,7 +580,22 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       </div>
 
       <div class="flex w-1/2 flex-col gap-4">
-        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col items-start rounded border">
+        <DeviceComponents.group_box
+          :for={assembly <- (@component_topology && @component_topology["assemblies"]) || []}
+          group={assembly}
+          members_key="components"
+          latest_metrics={@latest_metrics}
+          metadata={@component_metadata}
+          can_manage={@can_manage_components}
+        />
+
+        <DeviceComponents.networks_summary
+          :if={@component_topology && @component_topology["networks"] != []}
+          networks={@component_topology["networks"]}
+          path={~p"/org/#{@org}/#{@product}/devices/#{@device}/networks"}
+        />
+
+        <div :if={DeviceLocation.maps_enabled?()} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col items-start rounded border">
           <DeviceLocation.render
             enabled_product={@product.extensions.geo}
             enabled_device={@device.extensions.geo}
@@ -969,6 +1000,18 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     end
   end
 
+  def hooked_event("components-run-action", params, socket) do
+    socket
+    |> SharedComponentsHandlers.run_action(params)
+    |> halt()
+  end
+
+  def hooked_event("components-set-mode", params, socket) do
+    socket
+    |> SharedComponentsHandlers.set_mode(params)
+    |> halt()
+  end
+
   def hooked_event(_event, _params, socket), do: {:cont, socket}
 
   def hooked_info(:platform_or_architecture_updated, %{assigns: %{device: device}} = socket) do
@@ -1006,12 +1049,38 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  # Fresh numbers via the metrics extension; metadata is health's, so only
+  # the metric assigns move.
+  def hooked_info(%Broadcast{event: "metrics_report"}, %{assigns: %{device: device}} = socket) do
+    socket
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
+    |> halt()
+  end
+
   def hooked_info(%Broadcast{event: "health_check_report"}, %{assigns: %{device: device}} = socket) do
-    latest_metrics = Metrics.get_latest_metric_set(device.id)
+    # The device was mounted with the report before this one denormalized on
+    # it; without the re-read, metadata (and the component modes driven by it)
+    # would stay a report behind until a full page load.
+    device = %{device | latest_health: Health.get_latest_health(device.id)}
 
     socket
-    |> assign(:latest_metrics, latest_metrics)
+    |> assign(:device, device)
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign_metadata()
+    |> assign(:component_metadata, SharedComponentsHandlers.health_metadata(device))
+    |> halt()
+  end
+
+  def hooked_info(%Broadcast{event: "components:updated"}, socket) do
+    socket
+    |> SharedComponentsHandlers.refresh_topology()
+    |> halt()
+  end
+
+  def hooked_info(%Broadcast{event: event, payload: payload}, socket)
+      when event in ["components:action_result", "components:mode_result"] do
+    socket
+    |> SharedComponentsHandlers.flash_result(payload)
     |> halt()
   end
 
