@@ -92,26 +92,22 @@ defmodule NervesHub.Extensions.Health do
       "status_reasons" => reasons
     }
 
-    with {:health_report, {:ok, _}} <-
-           {:health_report, Health.save_device_health(device_health)},
-         {:metrics_report, {:ok, _}} <-
-           {:metrics_report, Metrics.save_metrics(device_info.device_id, metrics)} do
-      :ok = PubSub.broadcast_report(device_info.device_id, "health_check_report", %{})
-    else
-      {:health_report, {:error, err}} ->
+    # Metrics first, and not inside the health report's failure handling:
+    # `Metrics.record/3` buffers rather than writing, so there is no failure
+    # here to report, and a health row that will not save is no reason to throw
+    # away readings that would.
+    {:ok, _stored} = Metrics.record(device_info, metrics)
+
+    case Health.save_device_health(device_health) do
+      {:ok, _health} ->
+        :ok = PubSub.broadcast_report(device_info.device_id, "health_check_report", %{})
+
+      {:error, err} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
 
         Logging.log_to_sentry(
           device_info,
           "[DeviceChannel] Failed to save health check data."
-        )
-
-      {:metrics_report, :error} ->
-        Logger.warning("Failed to save metrics report")
-
-        Logging.log_to_sentry(
-          device_info,
-          "[DeviceChannel] Failed to save metrics report."
         )
     end
 

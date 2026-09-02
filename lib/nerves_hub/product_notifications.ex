@@ -177,6 +177,68 @@ defmodule NervesHub.ProductNotifications do
     |> insert_and_notify!()
   end
 
+  @doc """
+  A device reported metric names too long to store.
+
+  The readings were discarded; the rest of the report was kept. Raised to the
+  operator because nothing else would notice -- the device goes on reporting
+  perfectly happily, and the missing readings look like a metric the firmware
+  simply does not collect.
+
+  Deduplicated on the *device*, not on the offending name. A client generating
+  unbounded names would otherwise get a notification row per name, which is the
+  unbounded growth the cap exists to prevent.
+  """
+  @spec create_oversized_metric_keys_notification!(DeviceInfo.t(), String.t(), pos_integer(), pos_integer()) ::
+          Notification.t()
+  def create_oversized_metric_keys_notification!(device_info, example_key, count, max_bytes) do
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device reported metric names that were too long to store.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' sent #{count} " <>
+          "metric#{if count > 1, do: "s"} whose names are longer than #{max_bytes} bytes, " <>
+          "starting with '#{String.slice(example_key, 0, 64)}'. Those readings were discarded, " <>
+          "and the rest of the report was stored. Please shorten the metric names the device reports.",
+      level: :warning,
+      metadata: %{
+        identifier: device_info.device_identifier,
+        example_key: String.slice(example_key, 0, 256),
+        count: count,
+        max_bytes: max_bytes
+      },
+      event_key: "oversized_metric_keys-#{device_info.device_identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
+  A device reported more metrics in one report than will be stored.
+
+  The report is kept, trimmed to the first `max_keys` names in sorted order --
+  so the same readings are dropped every time rather than an arbitrary subset
+  that changes shape between reports.
+
+  Deduplicated on the device, for the same reason as
+  `create_oversized_metric_keys_notification!/4`.
+  """
+  @spec create_too_many_metrics_notification!(DeviceInfo.t(), pos_integer(), pos_integer()) :: Notification.t()
+  def create_too_many_metrics_notification!(device_info, reported, max_keys) do
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device reported more metrics than NervesHub will store.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' sent #{reported} metrics " <>
+          "in one report, and NervesHub stores at most #{max_keys}. The report was trimmed to the " <>
+          "first #{max_keys} metric names in alphabetical order, so the same readings are dropped " <>
+          "each time. Reduce what the device reports, or raise the limit for this deployment.",
+      level: :warning,
+      metadata: %{identifier: device_info.device_identifier, reported: reported, max_keys: max_keys},
+      event_key: "too_many_metrics-#{device_info.device_identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
   defp insert_and_notify!(changeset) do
     conflict_query =
       Notification

@@ -6,7 +6,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
-  alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.DeviceMetricLegacy
   alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
@@ -246,7 +246,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
                value: value,
                inserted_at: now
              }
-             |> DeviceMetric.save_with_timestamp()
+             |> DeviceMetricLegacy.save_with_timestamp()
              |> Repo.insert()
 
     {:ok, lv, _html} =
@@ -350,8 +350,8 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     key = "totally_novel_metric_#{System.unique_integer([:positive])}"
 
     {1, _} =
-      Repo.insert_all(DeviceMetric, [
-        DeviceMetric.save_with_timestamp(%{
+      Repo.insert_all(DeviceMetricLegacy, [
+        DeviceMetricLegacy.save_with_timestamp(%{
           device_id: device.id,
           key: key,
           value: 12.5,
@@ -374,7 +374,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
   defp save_metrics_with_timestamp(device_id, timestamp) do
     entries =
       Enum.map(@metrics, fn {key, val} ->
-        DeviceMetric.save_with_timestamp(%{
+        DeviceMetricLegacy.save_with_timestamp(%{
           device_id: device_id,
           key: key,
           value: val,
@@ -382,6 +382,6 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
         }).changes
       end)
 
-    Repo.insert_all(DeviceMetric, entries)
+    Repo.insert_all(DeviceMetricLegacy, entries)
   end
 end

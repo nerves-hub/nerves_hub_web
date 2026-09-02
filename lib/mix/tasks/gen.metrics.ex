@@ -12,7 +12,7 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
   use Mix.Task
 
   alias NervesHub.Devices.Device
-  alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.DeviceMetricLegacy
   alias NervesHub.Repo
 
   @requirements ["app.start"]
@@ -54,7 +54,7 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
     Repo.transact(fn ->
       inserted =
         Enum.map(metrics, fn {key, val} ->
-          DeviceMetric.save_with_timestamp(%{
+          DeviceMetricLegacy.save_with_timestamp(%{
             device_id: device_id,
             key: key,
             value: val,

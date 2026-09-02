@@ -10,7 +10,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
-  alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.DeviceMetricLegacy
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.FirmwareUpdates
@@ -590,7 +590,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       # Use explicit timestamps to avoid sleeping for ordering.
       Repo.insert!(
-        DeviceMetric.save_with_timestamp(%{
+        DeviceMetricLegacy.save_with_timestamp(%{
           device_id: device2.id,
           key: "cpu_temp",
           value: 36,
@@ -599,7 +599,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       )
 
       Repo.insert!(
-        DeviceMetric.save_with_timestamp(%{
+        DeviceMetricLegacy.save_with_timestamp(%{
           device_id: device2.id,
           key: "cpu_temp",
           value: 42,
@@ -608,7 +608,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       )
 
       Repo.insert!(
-        DeviceMetric.save_with_timestamp(%{device_id: device2.id, key: "load_1min", value: 3, inserted_at: now})
+        DeviceMetricLegacy.save_with_timestamp(%{device_id: device2.id, key: "load_1min", value: 3, inserted_at: now})
       )
 
       conn

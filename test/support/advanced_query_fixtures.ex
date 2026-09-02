@@ -17,7 +17,7 @@ defmodule NervesHub.AdvancedQueryFixtures do
   test name.
   """
 
-  alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.DeviceMetricLegacy
   alias NervesHub.Devices.Health
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -85,7 +85,7 @@ defmodule NervesHub.AdvancedQueryFixtures do
   def save_metric(device, key, value, seconds_ago) do
     inserted_at = DateTime.add(DateTime.utc_now(), -seconds_ago, :second)
 
-    DeviceMetric.save_with_timestamp(%{
+    DeviceMetricLegacy.save_with_timestamp(%{
       device_id: device.id,
       key: key,
       value: value,

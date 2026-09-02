@@ -36,11 +36,11 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
 
       inserted_metric =
         %{"device_id" => device.id, "key" => "cpu_temp", "value" => 41.381}
-        |> Devices.DeviceMetric.save()
+        |> Devices.DeviceMetricLegacy.save()
         |> Ecto.Changeset.put_change(:inserted_at, days_ago)
         |> Repo.insert()
 
-      assert {:ok, %Devices.DeviceMetric{}} = inserted_metric
+      assert {:ok, %Devices.DeviceMetricLegacy{}} = inserted_metric
     end
 
     assert :ok = perform_job(DeviceHealthTruncation, %{})

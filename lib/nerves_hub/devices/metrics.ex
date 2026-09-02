@@ -1,8 +1,56 @@
 defmodule NervesHub.Devices.Metrics do
+  @moduledoc """
+  Device metrics: what a device reports about itself, and what is kept of it.
+
+  Readings are written to ClickHouse as `NervesHub.Devices.DeviceMetric`, via
+  `NervesHub.Analytics.Buffer`, and read back for the health tab's charts. The
+  PostgreSQL `device_metrics` table is still written alongside them while the
+  read paths move over one at a time; it goes, along with
+  `NervesHub.Devices.DeviceMetricLegacy`, once the last read has moved.
+
+  Every write goes through `record/3`, whichever extension it arrived on, so
+  the caps below apply once rather than once per client.
+
+  ## What a report may carry
+
+  Metric names come from the device, and they land in three places that a
+  confused client could widen permanently: a `LowCardinality` column in
+  ClickHouse, JSONB keys in PostgreSQL, and the advanced-query autosuggest list
+  a product's operators read. So a report is trimmed rather than trusted:
+
+    * Names longer than 64 bytes are dropped.
+    * At most `:max_keys_per_report` names are kept (20 by default, configurable
+      — see `config/config.exs`), taken in sorted order so a device over the
+      limit loses the same readings every report rather than an arbitrary
+      subset that changes shape between them.
+    * Values that are not numbers are dropped.
+
+  In each case the rest of the report is stored — a device that gets one metric
+  wrong should not lose the reading it got right — and the operator is told
+  through `NervesHub.ProductNotifications`, throttled per device by
+  `NervesHub.RateLimit.Metrics` so a permanently broken client costs one
+  notification a minute rather than one per report.
+  """
+
   import Ecto.Query
 
+  alias NervesHub.Analytics.Buffer
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.DeviceMetricLegacy
+  alias NervesHub.ProductNotifications
+  alias NervesHub.RateLimit.Metrics, as: RateLimit
   alias NervesHub.Repo
+
+  @max_key_bytes 64
+  @default_max_keys_per_report 20
+
+  # One notification per device per minute, whatever the report. The budget is
+  # per device rather than per product: a single broken device in a large fleet
+  # should not stop its neighbours' problems being reported.
+  @rate_limit_tokens_per_sec 1
+  @rate_limit_max_capacity 1
+  @rate_limit_token_cost 1
 
   @default_metrics [
     "cpu_temp",
@@ -24,7 +72,7 @@ defmodule NervesHub.Devices.Metrics do
   Get all metrics for device
   """
   def get_device_metrics(device_id) do
-    DeviceMetric
+    DeviceMetricLegacy
     |> where(device_id: ^device_id)
     |> order_by(asc: :inserted_at)
     |> Repo.all()
@@ -34,7 +82,7 @@ defmodule NervesHub.Devices.Metrics do
   Get metrics by device within a specified time frame
   """
   def get_device_metrics(device_id, {time_unit, amount}) do
-    DeviceMetric
+    DeviceMetricLegacy
     |> where(device_id: ^device_id)
     |> where([d], d.inserted_at > ago(^amount, ^time_unit))
     |> order_by(asc: :inserted_at)
@@ -45,7 +93,7 @@ defmodule NervesHub.Devices.Metrics do
   Get specific key metrics for device
   """
   def get_device_metrics_by_key(device_id, key) do
-    DeviceMetric
+    DeviceMetricLegacy
     |> where(device_id: ^device_id)
     |> where(key: ^key)
     |> order_by(asc: :inserted_at)
@@ -56,7 +104,7 @@ defmodule NervesHub.Devices.Metrics do
   Get specific key metrics for device within a specified time frame
   """
   def get_device_metrics_by_key(device_id, key, {time_unit, amount}) do
-    DeviceMetric
+    DeviceMetricLegacy
     |> where(device_id: ^device_id)
     |> where(key: ^key)
     |> where([d], d.inserted_at > ago(^amount, ^time_unit))
@@ -68,7 +116,7 @@ defmodule NervesHub.Devices.Metrics do
   Distinct metric keys reported by devices in the product, sorted.
   """
   def distinct_keys(product_id) do
-    DeviceMetric
+    DeviceMetricLegacy
     |> join(:inner, [dm], d in assoc(dm, :device))
     |> where([_, d], d.product_id == ^product_id)
     |> distinct(true)
@@ -78,7 +126,7 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   def get_product_metrics_by_key(product_id, key) do
-    DeviceMetric
+    DeviceMetricLegacy
     |> join(:left, [dm], d in assoc(dm, :device))
     |> where([_, d], d.product_id == ^product_id)
     |> where([dm, _], dm.key == ^key)
@@ -87,7 +135,7 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   def get_product_metrics_by_key(product_id, key, time_unit, amount) do
-    DeviceMetric
+    DeviceMetricLegacy
     |> join(:left, [dm], d in assoc(dm, :device))
     |> where([_, d], d.product_id == ^product_id)
     |> where([dm, _], dm.key == ^key)
@@ -97,7 +145,7 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   def get_latest_metric(device_id) do
-    DeviceMetric
+    DeviceMetricLegacy
     |> where(device_id: ^device_id)
     |> order_by(desc: :inserted_at)
     |> limit(1)
@@ -105,7 +153,7 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   def get_latest_metric(device_id, key) do
-    DeviceMetric
+    DeviceMetricLegacy
     |> where(device_id: ^device_id)
     |> where(key: ^key)
     |> order_by(desc: :inserted_at)
@@ -117,7 +165,7 @@ defmodule NervesHub.Devices.Metrics do
     device_id
     |> get_latest_metric()
     |> case do
-      %DeviceMetric{inserted_at: timestamp} -> timestamp
+      %DeviceMetricLegacy{inserted_at: timestamp} -> timestamp
       _ -> nil
     end
   end
@@ -125,16 +173,16 @@ defmodule NervesHub.Devices.Metrics do
   @doc """
   Retrieves the latest metric set, together with the timestamp, for a given device.
 
-  Uses a subquery to filter the `DeviceMetric` table on the most recent `inserted_at` timestamp.
+  Uses a subquery to filter the `DeviceMetricLegacy` table on the most recent `inserted_at` timestamp.
   """
   def get_latest_metric_set(device_id) do
-    DeviceMetric
+    DeviceMetricLegacy
     |> where([dm], dm.device_id == ^device_id)
     |> where(
       [dm],
       dm.inserted_at ==
         subquery(
-          DeviceMetric
+          DeviceMetricLegacy
           |> select([:inserted_at])
           |> where(device_id: ^device_id)
           |> order_by(desc: :inserted_at)
@@ -150,32 +198,169 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   @doc """
-  Saves single metric.
+  The longest metric name that will be stored, in bytes.
   """
-  def save_metric(params) do
-    params
-    |> DeviceMetric.save()
-    |> Repo.insert()
+  def max_key_bytes(), do: @max_key_bytes
+
+  @doc """
+  How many metrics one report may carry.
+  """
+  @spec max_keys_per_report() :: pos_integer()
+  def max_keys_per_report() do
+    :nerves_hub
+    |> Application.get_env(:device_metrics, [])
+    |> Keyword.get(:max_keys_per_report, @default_max_keys_per_report)
   end
 
   @doc """
-  Saves map of metrics.
-  """
-  def save_metrics(_device_id, metrics) when metrics == %{}, do: {:ok, 0}
+  Records one report of metrics from one device.
 
-  def save_metrics(device_id, metrics) do
+  `timestamp` is when the device took the readings. It defaults to now, which is
+  what `NervesHub.Extensions.Health` wants: a 0.0.1 report carries no timestamp
+  of its own, so the only one available is the moment it arrived.
+
+  Returns how many readings were stored, which is not necessarily how many were
+  sent — see the module documentation for what gets trimmed and why.
+  """
+  @spec record(DeviceInfo.t(), map(), DateTime.t()) :: {:ok, non_neg_integer()}
+  def record(device_info, metrics, timestamp \\ DateTime.utc_now())
+
+  def record(%DeviceInfo{}, metrics, _timestamp) when map_size(metrics) == 0, do: {:ok, 0}
+
+  def record(%DeviceInfo{} = device_info, metrics, %DateTime{} = timestamp) do
+    readings =
+      metrics
+      |> Enum.flat_map(&normalize/1)
+      |> reject_oversized_keys(device_info)
+      |> cap_key_count(device_info)
+
+    :ok = write_analytics(device_info, readings, timestamp)
+    :ok = write_legacy(device_info, readings, timestamp)
+
+    {:ok, length(readings)}
+  end
+
+  # `{key, value}` as the device sent it, into `{key, float}` or nothing.
+  #
+  # Spaces are stripped rather than rejected, which is what the PostgreSQL
+  # schema did before this and what devices in the field are written against.
+  # A non-numeric value is dropped silently: unlike an over-long name it is a
+  # single bad reading rather than a client that will keep doing it, and the
+  # health tab has always simply not drawn it.
+  defp normalize({key, value}) when is_binary(key) do
+    case to_float(value) do
+      {:ok, float} -> [{String.replace(key, " ", ""), float}]
+      :error -> []
+    end
+  end
+
+  defp normalize(_pair), do: []
+
+  defp to_float(value) when is_float(value), do: {:ok, value}
+  defp to_float(value) when is_integer(value), do: {:ok, value * 1.0}
+  defp to_float(_value), do: :error
+
+  defp reject_oversized_keys(readings, device_info) do
+    {kept, oversized} = Enum.split_with(readings, fn {key, _value} -> byte_size(key) <= @max_key_bytes end)
+
+    _ =
+      case oversized do
+        [] ->
+          :ok
+
+        [{example, _value} | _rest] ->
+          notify(device_info, fn ->
+            ProductNotifications.create_oversized_metric_keys_notification!(
+              device_info,
+              example,
+              length(oversized),
+              @max_key_bytes
+            )
+          end)
+      end
+
+    kept
+  end
+
+  defp cap_key_count(readings, device_info) do
+    max_keys = max_keys_per_report()
+
+    if length(readings) <= max_keys do
+      readings
+    else
+      _ =
+        notify(device_info, fn ->
+          ProductNotifications.create_too_many_metrics_notification!(device_info, length(readings), max_keys)
+        end)
+
+      # Sorted before the cap, so the same readings survive every report. Taking
+      # whatever the map happened to enumerate first would give a chart that
+      # stops and starts for no reason the operator can see.
+      readings
+      |> Enum.sort_by(&elem(&1, 0))
+      |> Enum.take(max_keys)
+    end
+  end
+
+  # Both notifications cost a PostgreSQL upsert and a broadcast, and a client
+  # that gets this wrong gets it wrong on every report forever. The dedup on
+  # `{product_id, event_key}` keeps the table from growing; this keeps the
+  # writes off the metrics path.
+  defp notify(device_info, build) do
+    case RateLimit.hit(
+           "device_#{device_info.device_id}",
+           @rate_limit_tokens_per_sec,
+           @rate_limit_max_capacity,
+           @rate_limit_token_cost
+         ) do
+      {:allow, _count} ->
+        _ = build.()
+        :ok
+
+      {:deny, _ms} ->
+        :ok
+    end
+  end
+
+  defp write_analytics(_device_info, [], _timestamp), do: :ok
+
+  # `Buffer.insert/2` is a cast to a named process, and the buffers are only
+  # started where there is a ClickHouse to write to. Gated explicitly rather
+  # than relying on a cast to a missing name quietly succeeding, so that a
+  # deployment without analytics is a decision this code made.
+  defp write_analytics(device_info, readings, timestamp) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      Enum.each(readings, fn {key, value} ->
+        Buffer.insert(
+          DeviceMetric,
+          DeviceMetric.changeset(%{
+            timestamp: timestamp,
+            org_id: device_info.org_id,
+            product_id: device_info.product_id,
+            device_id: device_info.device_id,
+            key: key,
+            value: value
+          })
+        )
+      end)
+    end
+
+    :ok
+  end
+
+  defp write_legacy(_device_info, [], _timestamp), do: :ok
+
+  # The PostgreSQL half of the dual write, removed with the table in a later
+  # phase. Kept for now so the read paths can move one at a time.
+  defp write_legacy(device_info, readings, timestamp) do
     entries =
-      Enum.map(metrics, fn {key, val} ->
-        DeviceMetric.save(%{device_id: device_id, key: key, value: val}).changes
-        |> Map.put(:inserted_at, {:placeholder, :now})
+      Enum.map(readings, fn {key, value} ->
+        %{device_id: device_info.device_id, key: key, value: value, inserted_at: timestamp}
       end)
 
-    results = Repo.insert_all(DeviceMetric, entries, placeholders: %{now: DateTime.utc_now()})
+    _ = Repo.insert_all(DeviceMetricLegacy, entries)
 
-    case results do
-      {0, _} -> :error
-      {count, _} -> {:ok, count}
-    end
+    :ok
   end
 
   @doc """
@@ -188,7 +373,7 @@ defmodule NervesHub.Devices.Metrics do
     days_ago = DateTime.shift(DateTime.utc_now(), day: -days_to_retain)
 
     {count, _} =
-      DeviceMetric
+      DeviceMetricLegacy
       |> where([dh], dh.inserted_at < ^days_ago)
       |> Repo.delete_all()
 
