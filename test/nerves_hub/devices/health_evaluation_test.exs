@@ -52,14 +52,14 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
 
   describe "against the default profile" do
     test "no samples means no opinion", %{device_info: device_info} do
-      assert {:unknown, nil} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:unknown, nil} = HealthEvaluation.evaluate(device_info, [])
     end
 
     test "samples under every threshold are healthy", %{device: device, device_info: device_info} do
       insert_metric(device, "cpu_usage_percent", 20.0)
       insert_metric(device, "mem_used_percent", 30.0)
 
-      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, [])
     end
 
     test "a warning-level majority engages warning, with the window in the reason", %{
@@ -68,7 +68,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
     } do
       insert_metric(device, "cpu_usage_percent", 85.0)
 
-      assert {:warning, reasons} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:warning, reasons} = HealthEvaluation.evaluate(device_info, [])
       assert reasons.unhealthy == %{}
 
       assert reasons.warning == %{
@@ -86,7 +86,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       insert_metric(device, "cpu_usage_percent", 85.0)
       insert_metric(device, "mem_used_percent", 95.0)
 
-      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, [])
       assert %{"mem_used_percent" => %{threshold: 80.0}} = reasons.unhealthy
       assert %{"cpu_usage_percent" => _} = reasons.warning
     end
@@ -96,7 +96,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       insert_metric(device, "cpu_usage_percent", 10.0, 5)
       insert_metric(device, "cpu_usage_percent", 10.0)
 
-      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, [])
     end
 
     test "one absurd glitch reading doesn't poison the window", %{device: device, device_info: device_info} do
@@ -107,20 +107,28 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       insert_metric(device, "cpu_usage_percent", 17_000.0, 5)
       insert_metric(device, "cpu_usage_percent", 31.0)
 
-      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, [])
     end
 
     test "samples outside the measurement period are ignored", %{device: device, device_info: device_info} do
       insert_metric(device, "cpu_usage_percent", 100.0, 90)
       insert_metric(device, "cpu_usage_percent", 20.0)
 
-      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, [])
+    end
+
+    test "readings still in the write buffer are judged in hand", %{device_info: device_info} do
+      # Nothing stored, nothing flushed: the sample exists only in this call.
+      in_hand = [{"cpu_usage_percent", DateTime.utc_now(), 95.0}]
+
+      assert {:unhealthy, %{unhealthy: %{"cpu_usage_percent" => %{value: 100}}}} =
+               HealthEvaluation.evaluate(device_info, in_hand)
     end
 
     test "metrics outside the profile do not affect the status", %{device: device, device_info: device_info} do
       insert_metric(device, "my_custom_metric", 1_000_000.0)
 
-      assert {:unknown, nil} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:unknown, nil} = HealthEvaluation.evaluate(device_info, [])
     end
   end
 
@@ -140,7 +148,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
 
       insert_metric(device, "fps", 12.0)
 
-      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, [])
       assert %{"fps" => %{threshold: 15.0, operator: :lte}} = reasons.unhealthy
     end
   end
@@ -157,7 +165,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
 
       insert_metric(device, "cpu_usage_percent", 20.0)
 
-      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, [])
       assert %{"cpu_usage_percent" => %{threshold: 15.0}} = reasons.unhealthy
     end
 
@@ -172,14 +180,18 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
       on_exit(fn -> Application.put_env(:nerves_hub, :analytics_enabled, original) end)
 
       # The stored low readings are invisible; only the report is judged.
-      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 95})
+      assert {:unhealthy, reasons} =
+               HealthEvaluation.evaluate(device_info, [{"cpu_usage_percent", DateTime.utc_now(), 95}])
+
       assert %{"cpu_usage_percent" => %{value: 95, threshold: 90}} = reasons.unhealthy
     end
 
     test "a product without any profile falls back to the legacy instantaneous check", %{device_info: device_info} do
       Repo.delete_all(HealthProfile)
 
-      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, %{"cpu_usage_percent" => 95})
+      assert {:unhealthy, reasons} =
+               HealthEvaluation.evaluate(device_info, [{"cpu_usage_percent", DateTime.utc_now(), 95}])
+
       assert %{"cpu_usage_percent" => %{value: 95, threshold: 90}} = reasons.unhealthy
     end
   end
@@ -231,7 +243,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
     test "enough disconnects in the window engage the levels", %{device: device, device_info: device_info} do
       insert_disconnects(device, 4)
 
-      assert {:warning, reasons} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:warning, reasons} = HealthEvaluation.evaluate(device_info, [])
 
       assert reasons.warning == %{
                "disconnects" => %{value: 4, threshold: 3.0, period_seconds: 3600, aggregation: :count}
@@ -239,7 +251,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
 
       insert_disconnects(device, 2, 10)
 
-      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:unhealthy, reasons} = HealthEvaluation.evaluate(device_info, [])
       assert %{"disconnects" => %{value: 6}} = reasons.unhealthy
     end
 
@@ -248,7 +260,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
 
       # Zero disconnects in the window is a real observation, so the metric
       # counts as healthy rather than as having no opinion.
-      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, [])
     end
 
     test "an unknown built-in key contributes no opinion", %{product: product, device_info: device_info} do
@@ -269,7 +281,7 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
 
       # The unknown built-in contributes nothing; the disconnects metric from
       # the setup still evaluates (zero disconnects -> healthy).
-      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, %{})
+      assert {:healthy, nil} = HealthEvaluation.evaluate(device_info, [])
     end
   end
 end
