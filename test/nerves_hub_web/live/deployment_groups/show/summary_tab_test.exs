@@ -534,6 +534,38 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
       |> assert_has("div", text: "CSV contained no identifier values", timeout: 100)
     end
 
+    test "devices with mismatched platform or architecture are not added", %{
+      conn: conn,
+      org: org,
+      product: product,
+      org_key: org_key,
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      mismatched_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{
+          platform: "x86_64",
+          architecture: "amd64",
+          dir: tmp_dir
+        })
+
+      device =
+        Fixtures.device_fixture(org, product, mismatched_firmware, %{
+          identifier: "csv-mismatched-device-1"
+        })
+
+      csv_path = Path.join(tmp_dir, "mismatched.csv")
+      :ok = :file.write_file(csv_path, "identifier\ncsv-mismatched-device-1\n")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+      |> upload("Import from CSV", csv_path)
+      |> assert_has("div", text: "0 devices imported from CSV", timeout: 1000)
+      |> then(fn _ ->
+        refute Repo.reload(device) |> Map.get(:deployment_id)
+      end)
+    end
+
     test "unknown identifiers result in zero devices added", %{
       conn: conn,
       org: org,
