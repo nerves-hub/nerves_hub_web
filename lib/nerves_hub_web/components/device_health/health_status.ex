@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Components.HealthStatus do
   use NervesHubWeb, :component
 
+  alias NervesHubWeb.Components.Utils
+
   attr(:device_id, :integer)
   attr(:health, :map, default: %{status: :unknown, status_reasons: nil})
   attr(:tooltip_position, :string, default: "bottom")
@@ -47,11 +49,36 @@ defmodule NervesHubWeb.Components.HealthStatus do
             {key_parts, ""}
           end
 
-        "#{Enum.join(key_parts, " ")}: #{reasons["value"]}#{delimiter} (threshold is #{reasons["threshold"]}#{delimiter})"
+        name = Enum.join(key_parts, " ")
+
+        # A share reason's value is how much of the window breached the
+        # threshold, not a reading of the metric itself, so it gets its own
+        # sentence shape.
+        case reasons do
+          %{"aggregation" => "share"} ->
+            "#{name}: #{direction_word(reasons)} #{Utils.format_number(reasons["threshold"])}#{delimiter} for #{reasons["value"]}% of #{Utils.format_period(reasons["period_seconds"])}"
+
+          _ ->
+            "#{name}: #{Utils.format_number(reasons["value"])}#{delimiter}#{window_phrase(reasons)} (threshold is #{Utils.format_number(reasons["threshold"])}#{delimiter})"
+        end
       end)
 
     if Enum.any?(reasons) do
       "#{String.capitalize(status)}:  #{key_strings}"
     end
   end
+
+  # A reason judged by a health profile carries the measurement period (a
+  # count reason names the window it counted over); one from the legacy
+  # instantaneous check carries neither.
+  defp window_phrase(%{"aggregation" => "count", "period_seconds" => seconds}) when is_integer(seconds) do
+    " in #{Utils.format_period(seconds)}"
+  end
+
+  defp window_phrase(_reasons), do: ""
+
+  # Which side of the threshold the metric breached; reasons written before
+  # operators existed read as the historical at-or-over.
+  defp direction_word(%{"operator" => "lte"}), do: "at or under"
+  defp direction_word(_reasons), do: "at or over"
 end

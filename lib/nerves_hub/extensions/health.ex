@@ -26,15 +26,11 @@ defmodule NervesHub.Extensions.Health do
 
   @behaviour NervesHub.Extensions
 
-  alias NervesHub.Devices.Health
-  alias NervesHub.Devices.HealthStatus
+  alias NervesHub.Devices.HealthEvaluation
   alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
-  alias NervesHub.Helpers.Logging
-
-  require Logger
 
   @default_interval_minutes 60
   @default_ui_polling_seconds 60
@@ -76,41 +72,19 @@ defmodule NervesHub.Extensions.Health do
   def handle_in("report", %{"value" => device_report}, state) do
     device_info = state.device_info
 
-    # Get metrics from health report to store in metrics table and calculate status
     metrics = device_report["metrics"] || %{}
-
-    # Get device status together with reasons, if any.
-    {status, reasons} =
-      case HealthStatus.calculate_metrics_status(metrics) do
-        {status, reasons} -> {status, reasons}
-        status -> {status, nil}
-      end
-
-    device_health = %{
-      "device_id" => device_info.device_id,
-      "data" => device_report,
-      "status" => status,
-      "status_reasons" => reasons
-    }
 
     # Metrics first, and not inside the health report's failure handling:
     # `Metrics.record/3` buffers rather than writing, so there is no failure
-    # here to report, and a health row that will not save is no reason to throw
-    # away readings that would.
+    # here to report, and a health row that will not save is no reason to
+    # throw away readings that would. The buffered write is also why the
+    # judgement takes the readings in hand rather than reading them back.
     {:ok, _stored} = Metrics.record(device_info, metrics)
 
-    case Health.save_device_health(device_health) do
-      {:ok, _health} ->
-        :ok = PubSub.broadcast_report(device_info.device_id, "health_check_report", %{})
+    now = DateTime.utc_now()
+    in_hand = for {key, value} <- metrics, is_number(value), do: {key, now, value}
 
-      {:error, err} ->
-        Logger.warning("Failed to save health check data: #{inspect(err)}")
-
-        Logging.log_to_sentry(
-          device_info,
-          "[DeviceChannel] Failed to save health check data."
-        )
-    end
+    _ = HealthEvaluation.evaluate_and_save(device_info, in_hand, device_report)
 
     {state, []}
   end

@@ -9,7 +9,8 @@ defmodule NervesHub.Devices.HealthStatus do
   @default_thresholds %{
     "cpu_usage_percent" => %{unhealthy: 90, warning: 80},
     "mem_used_percent" => %{unhealthy: 80, warning: 70},
-    "disk_used_percentage" => %{unhealthy: 90, warning: 80}
+    "disk_used_percentage" => %{unhealthy: 90, warning: 80},
+    "load_15min" => %{unhealthy: 10, warning: 8}
   }
 
   def default_thresholds(), do: @default_thresholds

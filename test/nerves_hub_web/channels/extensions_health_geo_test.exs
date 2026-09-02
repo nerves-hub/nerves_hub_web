@@ -2,6 +2,9 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
   use NervesHubWeb.ChannelCase
   use DefaultMocks
 
+  alias NervesHub.Devices.DeviceHealth
+  alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.PubSub
   alias NervesHub.Extensions.Geo
   alias NervesHub.Extensions.Health
@@ -52,6 +55,40 @@ defmodule NervesHubWeb.Extensions.HealthGeoTest do
   defp attach_extension(ext_channel, name) do
     push(ext_channel, "#{name}:attached", %{})
     :sys.get_state(ext_channel.channel_pid)
+  end
+
+  # ---- Product with the health extension disabled ----
+
+  describe "product with the health extension disabled" do
+    test "attaches nothing health-shaped and stores nothing", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org, %{extensions: %{health: false, geo: true}})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{version: "0.0.1", dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+      %{db_cert: certificate} = Fixtures.device_certificate_fixture(device)
+
+      {:ok, socket} = connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      params = %{"device_api_version" => "2.2.0"}
+      {:ok, _, _device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
+      assert_push("extensions:get", _)
+
+      # The device offers health; the server's attach list must not take it.
+      params = Map.merge(%{"device_api_version" => "2.2.0"}, %{"health" => "0.0.1", "geo" => "0.0.1"})
+      {:ok, attach_list, ext_channel} = subscribe_and_join(socket, ExtensionsChannel, "extensions", params)
+
+      refute "health" in attach_list
+
+      # Even a rogue report from an unattached extension is refused untouched:
+      # the server replies "detach" and processes nothing.
+      ref = push(ext_channel, "health:report", %{"value" => %{"metrics" => %{"cpu_usage_percent" => 99.0}}})
+      assert_reply(ref, :error, "detach")
+
+      assert NervesHub.Repo.aggregate(DeviceHealth, :count) == 0
+      assert Metrics.get_latest_metric_set(device.id) == %{}
+    end
   end
 
   # ---- Extensions.Health ----

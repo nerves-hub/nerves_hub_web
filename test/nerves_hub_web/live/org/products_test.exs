@@ -80,8 +80,10 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       conn
       |> visit("/org/#{org.name}")
       |> assert_has("a", text: product.name)
-      |> assert_has("span.product-connected-devices-count", text: "1")
-      |> assert_has("span.product-disconnected-devices-count", text: "3")
+      # The counts load via assign_async and render as "—" until they arrive,
+      # so these assertions need the retry window.
+      |> assert_has("span.product-connected-devices-count", text: "1", timeout: 1000)
+      |> assert_has("span.product-disconnected-devices-count", text: "3", timeout: 1000)
     end
   end
 

@@ -14,6 +14,7 @@ defmodule NervesHub.Extensions.MetricsTest do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.Health
   alias NervesHub.Extensions.Metrics
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
@@ -41,6 +42,55 @@ defmodule NervesHub.Extensions.MetricsTest do
     on_exit(fn -> AnalyticsRepo.query!("TRUNCATE TABLE device_metrics") end)
 
     %{device: device, device_info: device_info, state: State.new(device_info)}
+  end
+
+  describe "health judgement rides the batch" do
+    test "a recorded batch produces a health verdict, no health report needed", %{
+      device: device,
+      state: state
+    } do
+      now = DateTime.utc_now()
+
+      reports = [
+        %{
+          "timestamp" => DateTime.to_iso8601(DateTime.add(now, -3, :minute)),
+          "metrics" => %{"cpu_usage_percent" => 95.0}
+        },
+        %{
+          "timestamp" => DateTime.to_iso8601(DateTime.add(now, -2, :minute)),
+          "metrics" => %{"cpu_usage_percent" => 96.0}
+        },
+        %{"timestamp" => DateTime.to_iso8601(now), "metrics" => %{"cpu_usage_percent" => 20.0}}
+      ]
+
+      {_state, []} = Metrics.handle_in("report", %{"reports" => reports}, state)
+
+      # Two of three readings at or over the alert threshold: the batch's own
+      # readings are judged in hand, before any buffer flush.
+      device = Repo.preload(Repo.reload(device), :latest_health)
+      assert device.latest_health.status == :unhealthy
+      assert %{"cpu_usage_percent" => %{"value" => 67}} = device.latest_health.status_reasons["unhealthy"]
+    end
+
+    test "the health row carries the previous report's payload forward", %{device: device, state: state} do
+      # The metrics extension has no metadata or alarms to store; the verdict
+      # row must not blank what the last health report displayed.
+      {:ok, _} =
+        Health.save_device_health(%{
+          "device_id" => device.id,
+          "data" => %{"alarms" => %{"CoffeeAlarm" => "empty pot"}},
+          "status" => :unknown,
+          "status_reasons" => nil
+        })
+
+      reports = [%{"timestamp" => DateTime.to_iso8601(DateTime.utc_now()), "metrics" => %{"cpu_usage_percent" => 20.0}}]
+
+      {_state, []} = Metrics.handle_in("report", %{"reports" => reports}, state)
+
+      device = Repo.preload(Repo.reload(device), :latest_health)
+      assert device.latest_health.status == :healthy
+      assert device.latest_health.data == %{"alarms" => %{"CoffeeAlarm" => "empty pot"}}
+    end
   end
 
   describe "attaching" do

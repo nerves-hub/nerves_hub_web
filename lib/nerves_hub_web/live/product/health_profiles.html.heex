@@ -1,0 +1,212 @@
+<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
+  <:header>
+    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Health Profiles</h1>
+  </:header>
+
+  <div class="h-0 flex-1 overflow-y-auto">
+    <div class="flex flex-col items-start justify-between gap-4 p-6">
+      <div :for={profile <- @profiles} class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
+        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+          <div class="text-base-50 text-base font-medium">
+            <%= if profile.platform do %>
+              Platform: {profile.platform}
+            <% else %>
+              Default profile
+            <% end %>
+          </div>
+          <.button
+            :if={profile.platform}
+            style="danger"
+            type="button"
+            phx-click="delete-profile"
+            phx-value-profile_id={profile.id}
+            data-confirm={"Delete the #{profile.platform} profile? Its devices will use the default profile."}
+            disabled={!authorized?(:"product:update", @current_scope)}
+          >
+            Delete profile
+          </.button>
+        </div>
+
+        <div class="flex flex-col gap-3 p-6">
+          <p :if={is_nil(profile.platform)} class="text-base-400 w-2/3 text-sm">
+            A metric engages its warning (orange) or alert (red) level when its median over the measurement period crosses the
+            threshold in the direction the operator points. This profile applies to every device without a platform profile.
+            Featured metrics are shown at the top of the device details page.
+          </p>
+          <div :if={profile.metrics == []} class="text-base-400 text-sm">
+            This profile has no metrics, so its devices always report an unknown health status.
+          </div>
+
+          <form
+            :for={metric <- profile.metrics}
+            id={"metric-#{metric.id}"}
+            phx-submit="update-metric"
+            class="border-base-700 flex flex-col gap-3 rounded border p-3"
+          >
+            <input type="hidden" name="profile_id" value={profile.id} />
+            <input type="hidden" name="metric_id" value={metric.id} />
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-col">
+                <span class="text-base-300 text-sm font-medium">{MetricLabels.label(metric.key, @custom_labels)}</span>
+                <span :if={metric.built_in} class="text-base-500 text-xs">built-in</span>
+                <span :if={!metric.built_in && MetricLabels.label(metric.key, @custom_labels) != metric.key} class="text-base-500 text-xs">{metric.key}</span>
+                <span :if={seen_range(@observed_stats, metric.key)} class="text-base-500 text-xs" title="Lowest and highest value reported across this product's devices, over the retention window">
+                  {seen_range(@observed_stats, metric.key)}
+                  <span
+                    :if={suggested(@observed_stats, metric.key, metric.operator)}
+                    title="Statistical outlier fences from at least a week of this fleet's history: values this far outside the middle half of readings are unusual for this fleet"
+                  >
+                    · {suggested(@observed_stats, metric.key, metric.operator)}
+                  </span>
+                </span>
+              </div>
+              <div class="flex items-center gap-3">
+                <label class="text-base-400 flex items-center gap-2 text-xs" title="Featured metrics are shown at the top of the device details page">
+                  <input type="hidden" name="metric[featured]" value="false" />
+                  <input
+                    type="checkbox"
+                    name="metric[featured]"
+                    value="true"
+                    checked={metric.featured}
+                    disabled={!authorized?(:"product:update", @current_scope)}
+                    class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
+                  /> Featured
+                </label>
+                <button
+                  type="submit"
+                  title="Save changes"
+                  disabled={!authorized?(:"product:update", @current_scope)}
+                  class="hover:bg-base-700 rounded p-1.5 hover:cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <span class="lucide-save--light text-base-400 size-4"></span>
+                </button>
+                <button
+                  type="button"
+                  title="Remove metric"
+                  phx-click="delete-metric"
+                  phx-value-profile_id={profile.id}
+                  phx-value-metric_id={metric.id}
+                  data-confirm={"Remove #{metric.key} from this profile?"}
+                  disabled={!authorized?(:"product:update", @current_scope)}
+                  class="hover:bg-base-700 rounded p-1.5 hover:cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <span class="lucide-trash-2--light text-alert size-4"></span>
+                </button>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <span
+                :if={metric.built_in}
+                title="A count only goes bad high"
+                class="text-base-500 flex size-9 shrink-0 items-center justify-center font-mono text-lg"
+              >
+                ≥
+              </span>
+              <.operator_flip
+                :if={!metric.built_in}
+                target={"metric-#{metric.id}"}
+                operator={shown_operator(@pending_operators, "metric-#{metric.id}", metric.operator)}
+                disabled={!authorized?(:"product:update", @current_scope)}
+              />
+              <.level_fields
+                level="warning"
+                threshold={metric.warning_threshold}
+                period_seconds={metric.warning_period_seconds}
+                disabled={!authorized?(:"product:update", @current_scope)}
+              />
+              <.level_fields
+                level="alert"
+                threshold={metric.alert_threshold}
+                period_seconds={metric.alert_period_seconds}
+                disabled={!authorized?(:"product:update", @current_scope)}
+              />
+            </div>
+          </form>
+
+          <form
+            id={"add-metric-#{profile.id}"}
+            phx-submit="add-metric"
+            phx-change="suggest-thresholds"
+            class="border-base-700 mt-2 flex flex-col gap-3 rounded border border-dashed p-3"
+          >
+            <input type="hidden" name="profile_id" value={profile.id} />
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <select
+                name="metric[key]"
+                required
+                disabled={!authorized?(:"product:update", @current_scope)}
+                class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-64 rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+              >
+                <option value="">Add a metric...</option>
+                {Phoenix.HTML.Form.options_for_select(metric_options(assigns, profile), nil)}
+              </select>
+              <div class="flex items-center gap-3">
+                <label class="text-base-400 flex items-center gap-2 text-xs" title="Featured metrics are shown at the top of the device details page">
+                  <input type="hidden" name="metric[featured]" value="false" />
+                  <input
+                    type="checkbox"
+                    name="metric[featured]"
+                    value="true"
+                    disabled={!authorized?(:"product:update", @current_scope)}
+                    class="border-base-700 checked:bg-primary text-base-400 rounded focus:ring-0"
+                  /> Featured
+                </label>
+                <.button style="secondary" type="submit" disabled={!authorized?(:"product:update", @current_scope)}>
+                  Add
+                </.button>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <.operator_flip
+                target={"new-#{profile.id}"}
+                operator={shown_operator(@pending_operators, "new-#{profile.id}", :gte)}
+                disabled={!authorized?(:"product:update", @current_scope)}
+              />
+              <.level_fields
+                level="warning"
+                threshold={suggested_threshold(assigns, "new-#{profile.id}", :warning)}
+                period_seconds={3600}
+                disabled={!authorized?(:"product:update", @current_scope)}
+              />
+              <.level_fields
+                level="alert"
+                threshold={suggested_threshold(assigns, "new-#{profile.id}", :alert)}
+                period_seconds={3600}
+                disabled={!authorized?(:"product:update", @current_scope)}
+              />
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
+        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+          <div class="text-base-50 text-base font-medium">Add a platform profile</div>
+        </div>
+        <div class="flex flex-col gap-3 p-6">
+          <p class="w-2/3 text-sm">
+            A platform profile starts as a copy of the default profile and overrides it for devices on that platform. Platforms are
+            taken from the firmware uploaded to this product.
+          </p>
+          <form :if={@available_platforms != []} phx-submit="create-platform-profile" class="flex items-center gap-3">
+            <select
+              name="platform"
+              required
+              disabled={!authorized?(:"product:update", @current_scope)}
+              class="bg-base-900 border-base-600 focus:border-base-400 text-base-400 block w-64 rounded border px-2 py-1 focus:ring-0 sm:text-sm"
+            >
+              <option value="">Choose a platform...</option>
+              {Phoenix.HTML.Form.options_for_select(@available_platforms, nil)}
+            </select>
+            <.button style="secondary" type="submit" disabled={!authorized?(:"product:update", @current_scope)}>
+              Create profile
+            </.button>
+          </form>
+          <p :if={@available_platforms == []} class="text-base-400 text-sm">
+            Every platform seen in this product's firmware already has a profile, or no firmware has been uploaded yet.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</NervesHubWeb.Layouts.sidebar>
