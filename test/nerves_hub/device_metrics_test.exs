@@ -73,6 +73,38 @@ defmodule NervesHub.DeviceMetricsTest do
       assert Metrics.get_latest_metric_set(device.id) == %{}
     end
 
+    test "records the firmware the device was running", %{device: device, device_info: device_info} do
+      device_info = %{device_info | firmware_metadata: %{uuid: "abc-123"}}
+
+      assert {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 41.5})
+
+      assert [%{firmware_uuid: "abc-123"}] = analytics_rows(device)
+    end
+
+    test "a device that has reported no firmware metadata gets an empty string", %{
+      device: device,
+      device_info: device_info
+    } do
+      assert {:ok, 1} = Metrics.record(%{device_info | firmware_metadata: nil}, %{"cpu_temp" => 41.5})
+
+      assert [%{firmware_uuid: ""}] = analytics_rows(device)
+    end
+
+    test "readings keep the firmware they were taken under, not the newest one", %{
+      device: device,
+      device_info: device_info
+    } do
+      before_update = %{device_info | firmware_metadata: %{uuid: "1.3.0-uuid"}}
+      after_update = %{device_info | firmware_metadata: %{uuid: "1.4.0-uuid"}}
+
+      {:ok, 1} = Metrics.record(before_update, %{"mem_used_percent" => 30}, at(-120))
+      {:ok, 1} = Metrics.record(after_update, %{"mem_used_percent" => 55}, at(-60))
+
+      # What the whole column is for: the same metric, split by release.
+      assert [%{value: 30.0, firmware_uuid: "1.3.0-uuid"}, %{value: 55.0, firmware_uuid: "1.4.0-uuid"}] =
+               analytics_rows(device)
+    end
+
     test "an older report does not move the latest set backwards", %{device: device, device_info: device_info} do
       now = DateTime.utc_now()
 
@@ -332,6 +364,8 @@ defmodule NervesHub.DeviceMetricsTest do
       product_id: device.product_id
     }
   end
+
+  defp at(seconds_ago), do: DateTime.add(DateTime.utc_now(), seconds_ago, :second)
 
   # Everything buffered before this call is readable when it returns.
   defp analytics_rows(device) do

@@ -8,6 +8,9 @@ defmodule NervesHub.Devices.DeviceMetric do
   PostgreSQL, denormalised, because it has to be filterable alongside the rest
   of a device's state in one query.
 
+  Each reading carries the firmware the device was running when it took it, so
+  a metric can be read per release and not only per device.
+
   Readings are dropped after thirty days by the table's TTL.
 
   ## One row per key, not one row per report
@@ -35,6 +38,11 @@ defmodule NervesHub.Devices.DeviceMetric do
 
     field(:key, Ch, type: "LowCardinality(String)")
     field(:value, Ch, type: "Float64")
+
+    # What the device was running when it took the reading. Bounded per product,
+    # so `LowCardinality` pays off, and it is what lets a metric be read per
+    # release rather than only per device.
+    field(:firmware_uuid, Ch, type: "LowCardinality(String)", default: "")
   end
 
   @doc """

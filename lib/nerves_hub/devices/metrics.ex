@@ -8,6 +8,11 @@ defmodule NervesHub.Devices.Metrics do
   `NervesHub.Devices.DeviceLatestMetrics`, because the devices list has to filter
   on it alongside the rest of a device's state in one query.
 
+  ClickHouse rows carry the firmware the device was running, so a metric can be
+  read per release. The PostgreSQL row does not: the latest set is always
+  "now", and what the device is running now is on the device row, one join
+  away in the same database.
+
   Every write goes through `record/3`, whichever extension it arrived on, so
   the caps below apply once rather than once per client.
 
@@ -277,6 +282,8 @@ defmodule NervesHub.Devices.Metrics do
   # deployment without analytics is a decision this code made.
   defp write_analytics(device_info, readings, timestamp) do
     if Application.get_env(:nerves_hub, :analytics_enabled) do
+      firmware_uuid = firmware_uuid(device_info)
+
       Enum.each(readings, fn {key, value} ->
         Buffer.insert(
           DeviceMetric,
@@ -286,7 +293,8 @@ defmodule NervesHub.Devices.Metrics do
             product_id: device_info.product_id,
             device_id: device_info.device_id,
             key: key,
-            value: value
+            value: value,
+            firmware_uuid: firmware_uuid
           })
         )
       end)
@@ -294,6 +302,19 @@ defmodule NervesHub.Devices.Metrics do
 
     :ok
   end
+
+  # Read from the connection rather than asked for, because the device does not
+  # send it and does not need to: `DeviceInfo` carries the firmware the device
+  # reported on join, and it is refreshed when the device reports new metadata,
+  # so it is right for as long as the connection lives. A firmware update
+  # reboots the device, which is a new connection.
+  #
+  # Empty string for a device that has not reported firmware metadata, matching
+  # `NervesHub.ErrorReports`. `LowCardinality` has no null to speak of, and an
+  # empty string groups as its own bucket rather than pretending to be a
+  # release.
+  defp firmware_uuid(%DeviceInfo{firmware_metadata: %{uuid: uuid}}) when is_binary(uuid), do: uuid
+  defp firmware_uuid(_device_info), do: ""
 
   defp write_latest(_device_info, [], _timestamp), do: :ok
 

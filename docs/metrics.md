@@ -132,7 +132,11 @@ report cannot move the latest set backwards, so a batch of buffered readings
 arriving after a fresh one does not undo it.
 
 Every reading is also kept as **history**, for the charts on the device's health
-tab, and expires after **30 days**.
+tab, and expires after **30 days**. Each historical reading records the firmware
+the device was running when it took it, so a metric can be read per release:
+whether memory use went up with 1.4.0, whether a temperature regression followed
+a deploy. You do not send this, and should not: NervesHub takes it from the
+firmware metadata your device reported when it connected.
 
 History needs ClickHouse. A NervesHub deployment without one does not offer this
 extension at all, and reports metrics through `health` — the latest set is
