@@ -185,21 +185,12 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
       for key <- assigns.reported_keys,
           not MapSet.member?(taken, key) do
         case seen_range(assigns.observed_ranges, key) do
-          nil -> {metric_label(assigns, key), key}
-          seen -> {"#{metric_label(assigns, key)} — #{seen}", key}
+          nil -> {MetricLabels.label(key, assigns.custom_labels), key}
+          seen -> {"#{MetricLabels.label(key, assigns.custom_labels)} — #{seen}", key}
         end
       end
 
     [{"Built-in", built_in}, {"Health metrics", regular}]
-  end
-
-  # Built-ins carry their own label; everything else derives its label the
-  # same way the device health page does.
-  defp metric_label(assigns, key) do
-    case HealthProfiles.built_in_metrics() do
-      %{^key => %{label: label}} -> label
-      _ -> MetricLabels.label(key, assigns.custom_labels)
-    end
   end
 
   # The operator sits between the metric and its thresholds and flips on

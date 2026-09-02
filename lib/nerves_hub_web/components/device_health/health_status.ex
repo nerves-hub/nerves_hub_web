@@ -56,10 +56,10 @@ defmodule NervesHubWeb.Components.HealthStatus do
         # sentence shape.
         case reasons do
           %{"aggregation" => "share"} ->
-            "#{name}: #{direction_word(reasons)} #{num(reasons["threshold"])}#{delimiter} for #{reasons["value"]}% of #{format_period(reasons["period_seconds"])}"
+            "#{name}: #{direction_word(reasons)} #{Utils.format_number(reasons["threshold"])}#{delimiter} for #{reasons["value"]}% of #{Utils.format_period(reasons["period_seconds"])}"
 
           _ ->
-            "#{name}: #{num(reasons["value"])}#{delimiter}#{window_phrase(reasons)} (threshold is #{num(reasons["threshold"])}#{delimiter})"
+            "#{name}: #{Utils.format_number(reasons["value"])}#{delimiter}#{window_phrase(reasons)} (threshold is #{Utils.format_number(reasons["threshold"])}#{delimiter})"
         end
       end)
 
@@ -72,18 +72,13 @@ defmodule NervesHubWeb.Components.HealthStatus do
   # count reason names the window it counted over); one from the legacy
   # instantaneous check carries neither.
   defp window_phrase(%{"aggregation" => "count", "period_seconds" => seconds}) when is_integer(seconds) do
-    " in #{format_period(seconds)}"
+    " in #{Utils.format_period(seconds)}"
   end
 
   defp window_phrase(_reasons), do: ""
-
-  defp num(value) when is_number(value), do: Utils.format_number(value)
-  defp num(value), do: value
 
   # Which side of the threshold the metric breached; reasons written before
   # operators existed read as the historical at-or-over.
   defp direction_word(%{"operator" => "lte"}), do: "at or under"
   defp direction_word(_reasons), do: "at or over"
-
-  defp format_period(seconds), do: Utils.format_period(seconds)
 end

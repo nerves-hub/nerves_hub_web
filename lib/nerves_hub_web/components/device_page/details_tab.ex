@@ -1069,11 +1069,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   defp update_mode_label(:off), do: "off"
 
   defp featured_keys(device) do
-    HealthProfiles.featured_keys(device.product_id, device_platform(device))
+    HealthProfiles.featured_keys(device)
   end
-
-  defp device_platform(%{firmware_metadata: %{platform: platform}}), do: platform
-  defp device_platform(_device), do: nil
 
   # The engaged metrics of the latest evaluation — the row pinned above the
   # featured tiles, alert level first. Reasons come back from jsonb with
@@ -1130,7 +1127,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       @level == "unhealthy" && "border-alert health-alert",
       @level == "warning" && "border-warning health-warning"
     ]}>
-      <span class="text-base-400 text-xs tracking-wide">{engaged_label(@metric_key, @custom_labels)}</span>
+      <span class="text-base-400 text-xs tracking-wide">{MetricLabels.label(@metric_key, @custom_labels)}</span>
       <div class="flex items-end justify-between gap-3">
         <span class="text-base-50 text-xl leading-[30px]">{engaged_value(@metric_key, @reason, @latest_metrics)}</span>
         <span class={["pb-1 text-xs", @level == "unhealthy" && "text-alert", @level == "warning" && "text-warning"]}>
@@ -1141,38 +1138,28 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     """
   end
 
-  defp engaged_label(key, custom_labels) do
-    case HealthProfiles.built_in_metrics() do
-      %{^key => %{label: label}} -> label
-      _ -> MetricLabels.label(key, custom_labels)
-    end
-  end
-
   # A count reason's value is the observation itself; a share reason's main
   # number is the metric's latest reading.
   defp engaged_value(_key, %{"aggregation" => "count", "value" => count}, _latest_metrics), do: count
 
   defp engaged_value(key, _reason, latest_metrics) do
     case latest_metrics[key] do
-      value when is_number(value) -> nice_round(value)
+      value when is_number(value) -> Utils.nice_round(value)
       _ -> "NA"
     end
   end
 
   defp engaged_detail(%{"aggregation" => "count"} = reason) do
-    "threshold #{num(reason["threshold"])} in #{Utils.format_period(reason["period_seconds"])}"
+    "threshold #{Utils.format_number(reason["threshold"])} in #{Utils.format_period(reason["period_seconds"])}"
   end
 
   defp engaged_detail(%{"aggregation" => "share"} = reason) do
     direction = if reason["operator"] == "lte", do: "at or under", else: "at or over"
 
-    "#{direction} #{num(reason["threshold"])} for #{reason["value"]}% of #{Utils.format_period(reason["period_seconds"])}"
+    "#{direction} #{Utils.format_number(reason["threshold"])} for #{reason["value"]}% of #{Utils.format_period(reason["period_seconds"])}"
   end
 
-  defp engaged_detail(reason), do: "threshold #{num(reason["threshold"])}"
-
-  defp num(value) when is_number(value), do: Utils.format_number(value)
-  defp num(value), do: value
+  defp engaged_detail(reason), do: "threshold #{Utils.format_number(reason["threshold"])}"
 
   defp featured_tile(%{tile: :cpu} = assigns) do
     ~H"""
@@ -1248,13 +1235,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     ~H"""
     <div class="health-plain flex h-16 grow flex-col rounded border-b border-neutral-500 px-3 py-2">
       <span class="text-base-400 text-xs tracking-wide">{MetricLabels.label(@key, @custom_labels)}</span>
-      <span :if={@latest_metrics[@key]} class="text-base-50 text-xl leading-[30px]">{nice_round(@latest_metrics[@key])}</span>
+      <span :if={@latest_metrics[@key]} class="text-base-50 text-xl leading-[30px]">{Utils.nice_round(@latest_metrics[@key])}</span>
       <span :if={!@latest_metrics[@key]} class="text-base-500 text-xl leading-[30px]">Not reported</span>
     </div>
     """
   end
-
-  defp nice_round(val) when is_float(val), do: Utils.format_number(Float.round(val, 1))
-  defp nice_round(val) when is_integer(val), do: Utils.format_number(val)
-  defp nice_round(val), do: val
 end

@@ -127,7 +127,7 @@ defmodule NervesHub.Products.HealthProfilesTest do
       assert metric.featured == false
 
       # featured_keys reports the featured, non-built-in keys of the resolved profile
-      assert HealthProfiles.featured_keys(product.id, nil) |> Enum.sort() ==
+      assert HealthProfiles.featured_keys(%{product_id: product.id}) |> Enum.sort() ==
                ["cpu_usage_percent", "disk_used_percentage", "load_15min", "mem_used_percent"]
     end
 

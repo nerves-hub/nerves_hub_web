@@ -47,9 +47,9 @@
             <input type="hidden" name="metric_id" value={metric.id} />
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="flex flex-col">
-                <span class="text-base-300 text-sm font-medium">{metric_label(assigns, metric.key)}</span>
+                <span class="text-base-300 text-sm font-medium">{MetricLabels.label(metric.key, @custom_labels)}</span>
                 <span :if={metric.built_in} class="text-base-500 text-xs">built-in</span>
-                <span :if={!metric.built_in && metric_label(assigns, metric.key) != metric.key} class="text-base-500 text-xs">{metric.key}</span>
+                <span :if={!metric.built_in && MetricLabels.label(metric.key, @custom_labels) != metric.key} class="text-base-500 text-xs">{metric.key}</span>
                 <span :if={seen_range(@observed_ranges, metric.key)} class="text-base-500 text-xs" title="Lowest and highest value reported across this product's devices, over the retention window">
                   {seen_range(@observed_ranges, metric.key)}
                 </span>

@@ -4,9 +4,12 @@ defmodule NervesHubWeb.Components.DeviceHealth.MetricLabels do
   device health tab, the device details tiles, and the health profiles page
   all agree.
 
-  A custom label set on the product wins; a well-known nerves_hub_health key
-  gets its hand-written title; anything else is humanized from the key.
+  A built-in health-profile metric carries its own label; otherwise a custom
+  label set on the product wins; a well-known nerves_hub_health key gets its
+  hand-written title; anything else is humanized from the key.
   """
+
+  alias NervesHub.Products.HealthProfiles
 
   # Also the display order for the health tab's charts.
   @default_titles [
@@ -25,14 +28,14 @@ defmodule NervesHubWeb.Components.DeviceHealth.MetricLabels do
   def default_titles(), do: @default_titles
 
   @doc """
-  The display label for `key`: the product's custom label when one is set,
-  otherwise the derived title.
+  The display label for `key`: a built-in's own label, else the product's
+  custom label when one is set, else the derived title.
   """
   @spec label(String.t(), %{optional(String.t()) => String.t()} | nil) :: String.t()
   def label(key, custom_labels \\ %{}) do
-    case Map.get(custom_labels || %{}, key) do
-      nil -> title(key)
-      label -> label
+    case HealthProfiles.built_in_metrics() do
+      %{^key => %{label: label}} -> label
+      _ -> Map.get(custom_labels || %{}, key) || title(key)
     end
   end
 

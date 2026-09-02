@@ -94,37 +94,46 @@ defmodule NervesHub.Products.HealthProfiles do
   end
 
   @doc """
-  The profile that applies to a device of the product on `platform`: the
-  platform's own profile when one exists, the product default otherwise.
+  The profile that applies to a device: the profile of the platform its
+  firmware reports, when one exists, the product default otherwise. Takes
+  anything shaped like a device — a `Device`, a `DeviceLink.DeviceInfo` —
+  or a product id and a platform.
 
   `nil` only for products that predate health profiles without the backfill
   having run, or when the default profile has been removed directly in the
   database; callers fall back to the legacy hardcoded thresholds.
   """
+  @spec resolve(%{:product_id => pos_integer(), optional(atom()) => any()}) :: HealthProfile.t() | nil
+  def resolve(%{product_id: product_id} = device), do: resolve(product_id, platform(device))
+
   @spec resolve(pos_integer(), String.t() | nil) :: HealthProfile.t() | nil
   def resolve(product_id, platform) do
     HealthProfile
     |> where(product_id: ^product_id)
     |> platform_or_default(platform)
+    # A platform match (platform not null) sorts before the default.
+    |> order_by([p], asc: is_nil(p.platform))
+    |> limit(1)
     |> preload(:metrics)
-    |> Repo.all()
-    |> Enum.sort_by(&is_nil(&1.platform))
-    |> List.first()
+    |> Repo.one()
   end
 
   defp platform_or_default(query, nil), do: where(query, [p], is_nil(p.platform))
   defp platform_or_default(query, platform), do: where(query, [p], is_nil(p.platform) or p.platform == ^platform)
 
+  defp platform(%{firmware_metadata: %{platform: platform}}), do: platform
+  defp platform(%{firmware_metadata: %{"platform" => platform}}), do: platform
+  defp platform(_device), do: nil
+
   @doc """
-  Keys of the featured metrics in the profile that applies to a device of the
-  product on `platform` — the metrics surfaced at the top of the device
-  details page. Built-ins are left out: they have no reported value to put in
-  a tile. `nil` when the product has no profile, so the caller can fall back
-  to the legacy fixed tiles.
+  Keys of the featured metrics in the device's profile — the metrics
+  surfaced at the top of the device details page. Built-ins are left out:
+  they have no reported value to put in a tile. `nil` when the product has
+  no profile, so the caller can fall back to the legacy fixed tiles.
   """
-  @spec featured_keys(pos_integer(), String.t() | nil) :: [String.t()] | nil
-  def featured_keys(product_id, platform) do
-    case resolve(product_id, platform) do
+  @spec featured_keys(%{:product_id => pos_integer(), optional(atom()) => any()}) :: [String.t()] | nil
+  def featured_keys(device) do
+    case resolve(device) do
       nil ->
         nil
 

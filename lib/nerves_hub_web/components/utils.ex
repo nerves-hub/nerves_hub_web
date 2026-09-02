@@ -14,7 +14,9 @@ defmodule NervesHubWeb.Components.Utils do
   A number for display. Elixir's default float rendering flips to scientific
   notation at 10^4 (9000.0 prints as "9.0e3"), which is wrong everywhere a
   threshold or metric value faces a person. Whole floats print as integers,
-  fractions keep up to four decimals.
+  fractions keep up to four decimals. Anything that is not a number — a
+  jsonb value that predates validation — passes through untouched, so a
+  template can render whatever is there.
   """
   def format_number(number) when is_integer(number), do: Integer.to_string(number)
 
@@ -29,9 +31,18 @@ defmodule NervesHubWeb.Components.Utils do
     end
   end
 
+  def format_number(not_a_number), do: not_a_number
+
   @doc """
-  A measurement period in seconds as a compact human string: "90s", "30m",
-  "6h", "1d".
+  A metric reading for display: floats rounded to one decimal, formatted by
+  `format_number/1`; anything else untouched.
+  """
+  def nice_round(value) when is_float(value), do: format_number(Float.round(value, 1))
+  def nice_round(value), do: format_number(value)
+
+  @doc """
+  A measurement period in seconds as a compact human string: "45s", "30m",
+  "6h", "1d", "1m 30s".
   """
   def format_period(seconds) when seconds < 60, do: "#{seconds}s"
   def format_period(seconds) when rem(seconds, 86_400) == 0, do: "#{div(seconds, 86_400)}d"

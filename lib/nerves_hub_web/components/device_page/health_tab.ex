@@ -544,13 +544,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   # them. Dots are judged instantaneously — a colored dot is a sample beyond
   # a threshold, whether or not the windowed median engaged the level.
   defp threshold_specs(device) do
-    platform =
-      case device.firmware_metadata do
-        %{platform: platform} -> platform
-        _ -> nil
-      end
-
-    case HealthProfiles.resolve(device.product_id, platform) do
+    case HealthProfiles.resolve(device) do
       nil ->
         %{}
 
@@ -565,9 +559,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     Enum.reject(metrics, &(elem(&1, 0) in @manual_metrics))
   end
 
-  defp nice_round(val) when is_float(val), do: Utils.format_number(Float.round(val, 1))
-  defp nice_round(val) when is_integer(val), do: Utils.format_number(val)
-  defp nice_round(val), do: val
+  defp nice_round(val), do: Utils.nice_round(val)
 
   # Charts are keyed by metric name, and metric names come from the device --
   # `Extensions.Health` stores whatever keys a report carries. Deriving an
