@@ -8,11 +8,6 @@ defmodule NervesHub.Devices.Metrics do
   `NervesHub.Devices.DeviceLatestMetrics`, because the devices list has to filter
   on it alongside the rest of a device's state in one query.
 
-  The PostgreSQL `device_metrics` table is no longer written or read. It is
-  still truncated, so that it drains itself before it is dropped, and
-  `NervesHub.Devices.DeviceMetricLegacy` stays until then -- deleting a device
-  still has to clear its rows, since that table's foreign key has no cascade.
-
   Every write goes through `record/3`, whichever extension it arrived on, so
   the caps below apply once rather than once per client.
 
@@ -45,7 +40,6 @@ defmodule NervesHub.Devices.Metrics do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceLatestMetrics
   alias NervesHub.Devices.DeviceMetric
-  alias NervesHub.Devices.DeviceMetricLegacy
   alias NervesHub.ProductNotifications
   alias NervesHub.RateLimit.Metrics, as: RateLimit
   alias NervesHub.Repo
@@ -334,27 +328,5 @@ defmodule NervesHub.Devices.Metrics do
     {_written, nil} = Repo.insert_all(DeviceLatestMetrics, [row], on_conflict: on_conflict, conflict_target: :device_id)
 
     :ok
-  end
-
-  @doc """
-  Deletes rows from the retired PostgreSQL metrics table.
-
-  Nothing writes it any more, so this only drains what is left, on the retention
-  window `HEALTH_CHECK_DAYS_TO_RETAIN` used to govern. It goes with the table.
-  ClickHouse expires its own rows by the table's TTL and needs no worker.
-  """
-  @spec truncate_device_metrics() :: {:ok, non_neg_integer()}
-  def truncate_device_metrics() do
-    days_to_retain =
-      Application.get_env(:nerves_hub, :device_health_days_to_retain)
-
-    days_ago = DateTime.shift(DateTime.utc_now(), day: -days_to_retain)
-
-    {count, _} =
-      DeviceMetricLegacy
-      |> where([dh], dh.inserted_at < ^days_ago)
-      |> Repo.delete_all()
-
-    {:ok, count}
   end
 end

@@ -10,7 +10,6 @@ defmodule NervesHub.DeviceMetricsTest do
   alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.DeviceMetric
-  alias NervesHub.Devices.DeviceMetricLegacy
   alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
   alias NervesHub.Products.Notification
@@ -322,23 +321,6 @@ defmodule NervesHub.DeviceMetricsTest do
       {:ok, 1} = Metrics.record(device_info2, %{"cpu_temp" => 42})
 
       assert Metrics.distinct_keys(product.id) == []
-    end
-  end
-
-  describe "truncate_device_metrics/0" do
-    test "drains what is left in the retired PostgreSQL table", %{device: device} do
-      days_to_retain = Application.get_env(:nerves_hub, :device_health_days_to_retain)
-      old_time = DateTime.shift(DateTime.utc_now(), day: -(days_to_retain + 1))
-
-      # Seeded directly: `record/3` stopped writing this table when the reads
-      # moved to ClickHouse, and the worker only drains it until it is dropped.
-      {1, _} =
-        Repo.insert_all(DeviceMetricLegacy, [
-          %{device_id: device.id, key: "cpu_temp", value: 42.0, inserted_at: old_time}
-        ])
-
-      assert {:ok, count} = Metrics.truncate_device_metrics()
-      assert count >= 1
     end
   end
 

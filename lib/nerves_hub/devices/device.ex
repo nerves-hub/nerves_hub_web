@@ -9,7 +9,6 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.DeviceHealth
-  alias NervesHub.Devices.DeviceMetricLegacy
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Devices.UpdateStat
@@ -59,10 +58,6 @@ defmodule NervesHub.Devices.Device do
 
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)
-    # The retired PostgreSQL metrics table. Nothing writes it any more, but its
-    # foreign key has no cascade, so deleting a device still has to clear the
-    # rows it left behind. Goes with the table.
-    has_many(:device_metrics, DeviceMetricLegacy, on_delete: :delete_all)
     has_many(:device_health, DeviceHealth, on_delete: :delete_all)
     has_many(:network_identities, NetworkIdentity, on_delete: :delete_all)
     has_many(:update_stats, UpdateStat, on_delete: :delete_all)
