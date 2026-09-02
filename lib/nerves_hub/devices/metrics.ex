@@ -154,20 +154,91 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   @doc """
-  The device's raw readings for `keys` over the trailing window, as
-  `[{key, timestamp, value}]` — what health evaluation judges. ClickHouse:
-  callers are expected to check that analytics is enabled first.
-  """
-  def samples_since(device_id, keys, seconds) do
-    cutoff = DateTime.shift(DateTime.utc_now(), second: -seconds)
+  How many stored readings each health-profile metric has in its measurement
+  windows, and how many of those breach its thresholds — counted by
+  ClickHouse, so no raw readings cross the wire. What health evaluation
+  judges; the counting semantics are documented on
+  `NervesHub.Devices.HealthEvaluation`.
 
-    DeviceMetric
-    |> where([dm], dm.device_id == ^device_id)
-    |> where([dm], dm.key in ^keys)
-    |> where([dm], dm.timestamp > ^cutoff)
-    |> select([dm], {dm.key, dm.timestamp, dm.value})
-    |> AnalyticsRepo.all()
+  Takes the profile's regular (non-built-in) metrics and returns
+  `%{key => %{warning: {samples, breaching}, alert: {samples, breaching}}}`,
+  one map entry per metric, `{0, 0}` where the store holds nothing. Window
+  membership is judged on minute buckets (`unix time div 60`), matching the
+  evaluation granularity, with `now_minute` the current bucket.
+
+  One query per evaluation: a pair of `countIf`s per metric level over one
+  scan of the device's rows in the longest window, pruned by the table's
+  `(product_id, device_id, key, timestamp)` sort key. ClickHouse: callers
+  are expected to check that analytics is enabled first.
+  """
+  @spec health_breach_counts(DeviceInfo.t() | map(), [struct()], integer()) ::
+          %{
+            optional(String.t()) => %{
+              warning: {non_neg_integer(), non_neg_integer()},
+              alert: {non_neg_integer(), non_neg_integer()}
+            }
+          }
+  def health_breach_counts(_device_info, [] = _metrics, _now_minute), do: %{}
+
+  def health_breach_counts(device_info, metrics, now_minute) do
+    {selects, params} =
+      metrics
+      |> Enum.with_index()
+      |> Enum.map_reduce(%{}, fn {metric, i}, params ->
+        # The comparison direction comes from a validated Ecto.Enum, never
+        # from user input.
+        op = if metric.operator == :lte, do: "<=", else: ">="
+
+        selects =
+          for level <- ["w", "a"] do
+            in_window = "key = {k#{i}:String} AND intDiv(toUnixTimestamp(timestamp), 60) > {c#{level}#{i}:Int64}"
+            "countIf(#{in_window}), countIf(#{in_window} AND value #{op} {t#{level}#{i}:Float64})"
+          end
+
+        params =
+          Map.merge(params, %{
+            "k#{i}" => metric.key,
+            "cw#{i}" => now_minute - minute_span(metric.warning_period_seconds),
+            "tw#{i}" => metric.warning_threshold,
+            "ca#{i}" => now_minute - minute_span(metric.alert_period_seconds),
+            "ta#{i}" => metric.alert_threshold
+          })
+
+        {selects, params}
+      end)
+
+    longest_period = metrics |> Enum.flat_map(&[&1.warning_period_seconds, &1.alert_period_seconds]) |> Enum.max()
+
+    params =
+      Map.merge(params, %{
+        "product_id" => device_info.product_id,
+        "device_id" => device_info.device_id,
+        "keys" => Enum.map(metrics, & &1.key),
+        # Scan pruning only; the per-metric bucket filters above decide
+        # membership. The oldest reachable bucket starts at this instant.
+        "oldest" => DateTime.from_unix!((now_minute - minute_span(longest_period)) * 60)
+      })
+
+    sql = """
+    SELECT #{selects |> List.flatten() |> Enum.join(",\n  ")}
+    FROM device_metrics
+    WHERE product_id = {product_id:UInt64}
+      AND device_id = {device_id:UInt64}
+      AND key IN {keys:Array(String)}
+      AND timestamp >= {oldest:DateTime}
+    """
+
+    %{rows: [counts]} = AnalyticsRepo.query!(sql, params)
+
+    metrics
+    |> Enum.zip(Enum.chunk_every(counts, 4))
+    |> Map.new(fn {metric, [n_w, k_w, n_a, k_a]} ->
+      {metric.key, %{warning: {n_w, k_w}, alert: {n_a, k_a}}}
+    end)
   end
+
+  # Periods are stored in seconds; evaluation granularity is a minute.
+  defp minute_span(period_seconds), do: div(period_seconds + 59, 60)
 
   @doc """
   The longest metric name that will be stored, in bytes.
