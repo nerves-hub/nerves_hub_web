@@ -50,6 +50,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> schedule_tick()
     |> update_from_and_until_timestamps()
     |> assign(:time_frame_opts, @time_frame_opts)
+    # The charts read ClickHouse; the numbers above them do not. Without a
+    # ClickHouse the tab still has current values to show, so the tab stays and
+    # the charts say why they are empty.
+    |> assign(:analytics_enabled, analytics_enabled?())
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(socket.assigns.device.id))
     |> assign(:custom_health_labels, Products.custom_health_metrics_labels(socket.assigns.product))
     |> assign(:editing_label_key, nil)
@@ -59,6 +63,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> cont()
   end
 
+  # `:analytics_enabled` is deliberately absent: the Logs, Errors and Data
+  # History tabs set it too, and `cleanup/0` runs for every inactive tab -- a
+  # shared key listed here is deleted out from under whichever tab is active.
+  # See `NervesHubWeb.Components.DevicePage.TabCleanupTest`.
   def cleanup() do
     [
       :time_frame,
@@ -172,9 +180,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
     {from, until} = fetch_from_and_until(socket)
 
-    # if we previously didn't loaded any metric keys, now is the time to do it
+    # No charts yet, so this report is what creates them.
     if Enum.empty?(chart_keys) do
-      async_assign_charts(socket)
+      seed_charts(socket, latest_metrics)
     else
       latest_metrics
       |> metrics_to_chart()
@@ -358,7 +366,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                   data-unit="minute"
                 ></canvas>
                 <div :if={!@has_chart_data[key] && Enum.empty?(chart_data)} class="bg-base-900/70 absolute inset-0 flex items-center justify-center">
-                  <span class="text-base-500 font-extralight">No metrics for {key} found for the selected period.</span>
+                  <span :if={@analytics_enabled} class="text-base-500 font-extralight">No metrics for {key} found for the selected period.</span>
+                  <span :if={!@analytics_enabled} class="text-base-500 font-extralight">
+                    Metric history needs analytics, which isn't enabled for your platform. The current values above are up to date.
+                  </span>
                 </div>
               </.async_result>
             </div>
@@ -417,19 +428,19 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   end
 
   defp update_charts(socket) do
-    %{device: %{id: device_id}, time_frame: time_frame, latest_metrics: latest_metrics} = socket.assigns
+    %{device: device, time_frame: time_frame, latest_metrics: latest_metrics} = socket.assigns
 
     latest_metrics
     |> metrics_to_chart()
     |> Enum.reduce(socket, fn key, socket ->
       start_async(socket, "update_chart:#{key}", fn ->
-        formatted_metrics(device_id, key, time_frame)
+        formatted_metrics(device, key, time_frame)
       end)
     end)
   end
 
   defp async_assign_charts(socket) do
-    device_id = socket.assigns.device.id
+    device = socket.assigns.device
     time_frame = socket.assigns.time_frame
 
     socket.assigns.latest_metrics
@@ -438,7 +449,27 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       socket
       |> put_chart_data(key, AsyncResult.loading())
       |> put_has_chart_data(key, false)
-      |> start_async("load_chart:#{key}", fn -> formatted_metrics(device_id, key, time_frame) end)
+      |> start_async("load_chart:#{key}", fn -> formatted_metrics(device, key, time_frame) end)
+    end)
+  end
+
+  # Builds the charts out of the report that has just arrived, rather than
+  # reading the history back for them.
+  #
+  # Two reasons, and either alone would be enough. The write is buffered, so a
+  # read this soon comes back empty and the chart would say there was nothing
+  # for the period -- of the reading the user just watched arrive. And there is
+  # nothing to read anyway: no charts means the latest set was empty when the
+  # page loaded, which means the device had never reported.
+  defp seed_charts(socket, latest_metrics) do
+    x = DateTime.to_unix(latest_metrics["timestamp"], :millisecond)
+
+    latest_metrics
+    |> metrics_to_chart()
+    |> Enum.reduce(socket, fn key, socket ->
+      socket
+      |> put_chart_data(key, AsyncResult.ok(chart_data(socket, key), [%{x: x, y: latest_metrics[key]}]))
+      |> put_has_chart_data(key, true)
     end)
   end
 
@@ -463,10 +494,11 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   defp standard_keys(%{firmware_metadata: firmware_metadata}),
     do: firmware_metadata |> Map.keys() |> Enum.map(&to_string/1)
 
-  defp formatted_metrics(device_id, key, time_frame) do
-    Metrics.get_device_metrics_by_key(device_id, key, time_frame)
+  defp formatted_metrics(device, key, time_frame) do
+    device
+    |> Metrics.get_device_metrics_by_key(key, time_frame)
     |> Enum.map(fn metric ->
-      %{x: DateTime.to_unix(metric.inserted_at, :millisecond), y: metric.value}
+      %{x: DateTime.to_unix(metric.timestamp, :millisecond), y: metric.value}
     end)
   end
 

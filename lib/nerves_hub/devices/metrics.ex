@@ -4,9 +4,14 @@ defmodule NervesHub.Devices.Metrics do
 
   Readings are written to ClickHouse as `NervesHub.Devices.DeviceMetric`, via
   `NervesHub.Analytics.Buffer`, and read back for the health tab's charts. The
-  PostgreSQL `device_metrics` table is still written alongside them while the
-  read paths move over one at a time; it goes, along with
-  `NervesHub.Devices.DeviceMetricLegacy`, once the last read has moved.
+  latest set of each device is denormalised into PostgreSQL as
+  `NervesHub.Devices.DeviceLatestMetrics`, because the devices list has to filter
+  on it alongside the rest of a device's state in one query.
+
+  The PostgreSQL `device_metrics` table is no longer written or read. It is
+  still truncated, so that it drains itself before it is dropped, and
+  `NervesHub.Devices.DeviceMetricLegacy` stays until then -- deleting a device
+  still has to clear its rows, since that table's foreign key has no cascade.
 
   Every write goes through `record/3`, whichever extension it arrived on, so
   the caps below apply once rather than once per client.
@@ -35,7 +40,9 @@ defmodule NervesHub.Devices.Metrics do
   import Ecto.Query
 
   alias NervesHub.Analytics.Buffer
+  alias NervesHub.AnalyticsRepo
   alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceLatestMetrics
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.DeviceMetricLegacy
@@ -70,47 +77,33 @@ defmodule NervesHub.Devices.Metrics do
   def default_metrics(), do: @default_metrics
 
   @doc """
-  Get all metrics for device
-  """
-  def get_device_metrics(device_id) do
-    DeviceMetricLegacy
-    |> where(device_id: ^device_id)
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
-  end
+  A device's readings of one metric over `time_frame`, oldest first.
 
-  @doc """
-  Get metrics by device within a specified time frame
-  """
-  def get_device_metrics(device_id, {time_unit, amount}) do
-    DeviceMetricLegacy
-    |> where(device_id: ^device_id)
-    |> where([d], d.inserted_at > ago(^amount, ^time_unit))
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
-  end
+  `time_frame` is a `{unit, amount}` pair, e.g. `{"hour", 3}`.
 
-  @doc """
-  Get specific key metrics for device
-  """
-  def get_device_metrics_by_key(device_id, key) do
-    DeviceMetricLegacy
-    |> where(device_id: ^device_id)
-    |> where(key: ^key)
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
-  end
+  Takes the device rather than its id because the ClickHouse table is sorted
+  `(product_id, device_id, key, timestamp)` -- without the product this would
+  read every part in every partition instead of one range of one.
 
-  @doc """
-  Get specific key metrics for device within a specified time frame
+  An empty list where the deployment has no ClickHouse. Metric *history* is the
+  one thing that needs one; the latest set is in PostgreSQL, so the device page
+  still has numbers to show.
   """
-  def get_device_metrics_by_key(device_id, key, {time_unit, amount}) do
-    DeviceMetricLegacy
-    |> where(device_id: ^device_id)
-    |> where(key: ^key)
-    |> where([d], d.inserted_at > ago(^amount, ^time_unit))
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
+  @spec get_device_metrics_by_key(Device.t(), String.t(), {String.t(), pos_integer()}) :: [DeviceMetric.t()]
+  def get_device_metrics_by_key(%Device{} = device, key, {time_unit, amount}) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      since = DateTime.add(DateTime.utc_now(), -amount, String.to_existing_atom(time_unit))
+
+      DeviceMetric
+      |> where(product_id: ^device.product_id)
+      |> where(device_id: ^device.id)
+      |> where(key: ^key)
+      |> where([m], m.timestamp > ^since)
+      |> order_by(asc: :timestamp)
+      |> AnalyticsRepo.all()
+    else
+      []
+    end
   end
 
   @doc """
@@ -128,51 +121,6 @@ defmodule NervesHub.Devices.Metrics do
     |> distinct(true)
     |> Repo.all()
     |> Enum.sort()
-  end
-
-  def get_product_metrics_by_key(product_id, key) do
-    DeviceMetricLegacy
-    |> join(:left, [dm], d in assoc(dm, :device))
-    |> where([_, d], d.product_id == ^product_id)
-    |> where([dm, _], dm.key == ^key)
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
-  end
-
-  def get_product_metrics_by_key(product_id, key, time_unit, amount) do
-    DeviceMetricLegacy
-    |> join(:left, [dm], d in assoc(dm, :device))
-    |> where([_, d], d.product_id == ^product_id)
-    |> where([dm, _], dm.key == ^key)
-    |> where([d], d.inserted_at > ago(^amount, ^time_unit))
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
-  end
-
-  def get_latest_metric(device_id) do
-    DeviceMetricLegacy
-    |> where(device_id: ^device_id)
-    |> order_by(desc: :inserted_at)
-    |> limit(1)
-    |> Repo.one()
-  end
-
-  def get_latest_metric(device_id, key) do
-    DeviceMetricLegacy
-    |> where(device_id: ^device_id)
-    |> where(key: ^key)
-    |> order_by(desc: :inserted_at)
-    |> limit(1)
-    |> Repo.one()
-  end
-
-  def get_latest_timestamp_for_device(device_id) do
-    device_id
-    |> get_latest_metric()
-    |> case do
-      %DeviceMetricLegacy{inserted_at: timestamp} -> timestamp
-      _ -> nil
-    end
   end
 
   @doc """
@@ -231,7 +179,6 @@ defmodule NervesHub.Devices.Metrics do
 
     :ok = write_analytics(device_info, readings, timestamp)
     :ok = write_latest(device_info, readings, timestamp)
-    :ok = write_legacy(device_info, readings, timestamp)
 
     {:ok, length(readings)}
   end
@@ -385,24 +332,14 @@ defmodule NervesHub.Devices.Metrics do
     :ok
   end
 
-  defp write_legacy(_device_info, [], _timestamp), do: :ok
-
-  # The PostgreSQL half of the dual write, removed with the table in a later
-  # phase. Kept for now so the read paths can move one at a time.
-  defp write_legacy(device_info, readings, timestamp) do
-    entries =
-      Enum.map(readings, fn {key, value} ->
-        %{device_id: device_info.device_id, key: key, value: value, inserted_at: timestamp}
-      end)
-
-    _ = Repo.insert_all(DeviceMetricLegacy, entries)
-
-    :ok
-  end
-
   @doc """
-  Delete metrics after x days
+  Deletes rows from the retired PostgreSQL metrics table.
+
+  Nothing writes it any more, so this only drains what is left, on the retention
+  window `HEALTH_CHECK_DAYS_TO_RETAIN` used to govern. It goes with the table.
+  ClickHouse expires its own rows by the table's TTL and needs no worker.
   """
+  @spec truncate_device_metrics() :: {:ok, non_neg_integer()}
   def truncate_device_metrics() do
     days_to_retain =
       Application.get_env(:nerves_hub, :device_health_days_to_retain)

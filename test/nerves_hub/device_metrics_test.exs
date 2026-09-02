@@ -67,17 +67,11 @@ defmodule NervesHub.DeviceMetricsTest do
       assert [%{timestamp: ^timestamp}, %{timestamp: ^timestamp}] = analytics_rows(device)
     end
 
-    test "also writes the legacy PostgreSQL rows", %{device: device, device_info: device_info} do
-      assert {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 41.5})
-
-      assert [%DeviceMetricLegacy{key: "cpu_temp", value: 41.5}] = legacy_rows(device)
-    end
-
     test "an empty report stores nothing", %{device: device, device_info: device_info} do
       assert {:ok, 0} = Metrics.record(device_info, %{})
 
       assert analytics_rows(device) == []
-      assert legacy_rows(device) == []
+      assert Metrics.get_latest_metric_set(device.id) == %{}
     end
 
     test "strips spaces from metric names", %{device: device, device_info: device_info} do
@@ -212,20 +206,50 @@ defmodule NervesHub.DeviceMetricsTest do
     end
   end
 
-  describe "get_device_metrics_by_key/2" do
-    test "returns only the given device's readings", %{
+  describe "get_device_metrics_by_key/3" do
+    test "returns only the given device's readings of that key", %{
       device: device,
       device_info: device_info,
       device_info2: device_info2
     } do
-      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 42})
+      {:ok, 2} = Metrics.record(device_info, %{"cpu_temp" => 42, "load_1min" => 1.0})
       {:ok, 1} = Metrics.record(device_info2, %{"cpu_temp" => 43})
 
-      assert [%{value: 42.0}] = Metrics.get_device_metrics_by_key(device.id, "cpu_temp")
+      :ok = Buffer.flush(DeviceMetric)
+
+      assert [%{value: 42.0}] = Metrics.get_device_metrics_by_key(device, "cpu_temp", {"hour", 1})
+    end
+
+    test "excludes readings older than the time frame", %{device: device, device_info: device_info} do
+      long_ago = DateTime.add(DateTime.utc_now(), -2, :hour)
+
+      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 42}, long_ago)
+      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 43})
+
+      :ok = Buffer.flush(DeviceMetric)
+
+      assert [%{value: 43.0}] = Metrics.get_device_metrics_by_key(device, "cpu_temp", {"hour", 1})
+      assert [%{value: 42.0}, %{value: 43.0}] = Metrics.get_device_metrics_by_key(device, "cpu_temp", {"day", 1})
     end
 
     test "returns an empty list when nothing has been reported", %{device: device} do
-      assert [] = Metrics.get_device_metrics_by_key(device.id, "cpu_temp")
+      assert [] = Metrics.get_device_metrics_by_key(device, "cpu_temp", {"hour", 1})
+    end
+
+    test "returns an empty list where the deployment has no ClickHouse", %{
+      device: device,
+      device_info: device_info
+    } do
+      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 42})
+      :ok = Buffer.flush(DeviceMetric)
+
+      Application.put_env(:nerves_hub, :analytics_enabled, false)
+      on_exit(fn -> Application.put_env(:nerves_hub, :analytics_enabled, true) end)
+
+      assert [] = Metrics.get_device_metrics_by_key(device, "cpu_temp", {"hour", 1})
+
+      # The latest set is PostgreSQL, so the device page still has numbers.
+      assert Metrics.get_latest_metric_set(device.id)["cpu_temp"] == 42.0
     end
   end
 
@@ -278,14 +302,16 @@ defmodule NervesHub.DeviceMetricsTest do
   end
 
   describe "truncate_device_metrics/0" do
-    test "deletes old metrics and returns {:ok, count}", %{device_info: device_info} do
+    test "drains what is left in the retired PostgreSQL table", %{device: device} do
       days_to_retain = Application.get_env(:nerves_hub, :device_health_days_to_retain)
-
-      {:ok, 1} = Metrics.record(device_info, %{"cpu_temp" => 42})
-
       old_time = DateTime.shift(DateTime.utc_now(), day: -(days_to_retain + 1))
 
-      Repo.update_all(DeviceMetricLegacy, set: [inserted_at: old_time])
+      # Seeded directly: `record/3` stopped writing this table when the reads
+      # moved to ClickHouse, and the worker only drains it until it is dropped.
+      {1, _} =
+        Repo.insert_all(DeviceMetricLegacy, [
+          %{device_id: device.id, key: "cpu_temp", value: 42.0, inserted_at: old_time}
+        ])
 
       assert {:ok, count} = Metrics.truncate_device_metrics()
       assert count >= 1
@@ -309,13 +335,6 @@ defmodule NervesHub.DeviceMetricsTest do
     |> where(device_id: ^device.id)
     |> order_by(asc: :key, asc: :timestamp)
     |> AnalyticsRepo.all()
-  end
-
-  defp legacy_rows(device) do
-    DeviceMetricLegacy
-    |> where(device_id: ^device.id)
-    |> order_by(asc: :key)
-    |> Repo.all()
   end
 
   defp notifications(product) do

@@ -3,7 +3,11 @@ defmodule NervesHub.Workers.DeviceHealthTruncation do
   Remove old Device health and metric reports.
 
   The number of days to keep is configured using the environment
-  variable `HEALTH_CHECK_DAYS_TO_RETAIN`
+  variable `HEALTH_CHECK_DAYS_TO_RETAIN`.
+
+  Metrics live in ClickHouse now and expire on that table's own TTL. The metrics
+  call here drains what is left in the retired PostgreSQL table so it is empty
+  by the time it is dropped, and goes with it.
   """
 
   use Oban.Worker,

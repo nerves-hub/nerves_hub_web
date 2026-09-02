@@ -52,7 +52,14 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
 
     assert 7 = Enum.count(healths)
 
-    metrics = Devices.Metrics.get_device_metrics(device.id)
+    # Queried directly: nothing writes or reads this table through
+    # `Devices.Metrics` any more, and the worker only drains it until it is
+    # dropped.
+    metrics =
+      Devices.DeviceMetricLegacy
+      |> where(device_id: ^device.id)
+      |> Repo.all()
+
     assert 7 = Enum.count(metrics)
   end
 end

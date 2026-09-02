@@ -6,7 +6,9 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.Metrics
   alias NervesHub.Products
   alias NervesHubWeb.Endpoint
@@ -365,6 +367,12 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
       product_id: device.product_id
     }
 
-    Metrics.record(device_info, metrics, timestamp)
+    result = Metrics.record(device_info, metrics, timestamp)
+
+    # The charts read ClickHouse, and the write is buffered. Without this the
+    # assertions race the flush.
+    :ok = Buffer.flush(DeviceMetric)
+
+    result
   end
 end
