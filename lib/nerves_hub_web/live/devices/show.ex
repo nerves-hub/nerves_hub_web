@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> sidebar_tab(:devices)
     |> selected_tab()
     |> general_assigns(device)
-    |> watch_health()
+    |> watch_paced_extensions()
     |> load_inprogress_firmware_update()
     |> assign(:pinned?, Pinning.device_pinned?(user.id, device.id))
     |> setup_presence_tracking()
@@ -379,25 +379,33 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   # Tells the device's extensions channel that somebody is looking, which is the
-  # whole of the page's involvement in health reporting: the pace, and the
-  # `health:check` itself, belong to `NervesHub.Extensions.Health`. Every open
-  # page used to run its own timer and ask the device directly, so two people on
-  # one device meant two extra streams of requests on top of the platform's.
+  # whole of the page's involvement in reporting: the pace, and the `check`
+  # itself, belong to the extension. Every open page used to run its own timer
+  # and ask the device directly, so two people on one device meant two extra
+  # streams of requests on top of the platform's.
+  #
+  # Both paced extensions are announced, each only if it is switched on for this
+  # device -- a device running `metrics` and a device running `health` both get
+  # to speed up while the page is open, and a device running both is asked once
+  # by each rather than twice by either.
   #
   # There is nothing to give up again: watching lasts as long as this process,
   # and the reporting slows back down once the last page has closed.
-  defp watch_health(socket) do
+  defp watch_paced_extensions(socket) do
     %{device: device, product: product} = socket.assigns
 
-    if connected?(socket) and health_extension_enabled?(product, device) do
-      :ok = Extensions.PubSub.watch_health(device.id)
-    end
+    _ =
+      if connected?(socket) do
+        [:health, :metrics]
+        |> Enum.filter(&extension_enabled?(product, device, &1))
+        |> Enum.each(&(:ok = Extensions.PubSub.watch(device.id, &1)))
+      end
 
     socket
   end
 
-  defp health_extension_enabled?(product, device) do
-    product.extensions.health and device.extensions.health
+  defp extension_enabled?(product, device, extension) do
+    product.extensions[extension] and device.extensions[extension]
   end
 
   defp show_firmware_status_box(device) do

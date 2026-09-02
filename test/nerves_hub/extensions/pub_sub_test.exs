@@ -66,9 +66,9 @@ defmodule NervesHub.Extensions.PubSubTest do
     test "watching announces itself to the device's extensions channel", %{device_id: device_id} do
       # Standing in for the extensions channel, which joins this group for as
       # long as the health extension is attached.
-      :ok = Group.join(NervesHub.Group, PubSub.health_key(device_id), %{})
+      :ok = Group.join(NervesHub.Group, PubSub.watch_key(device_id, :health), %{})
 
-      task = Task.async(fn -> PubSub.watch_health(device_id) end)
+      task = Task.async(fn -> PubSub.watch(device_id, :health) end)
       :ok = Task.await(task)
 
       # Tagged with the module because that is how the channel routes it to the
@@ -77,33 +77,33 @@ defmodule NervesHub.Extensions.PubSubTest do
     end
 
     test "watching is also a standing membership, for the slowdown", %{device_id: device_id} do
-      refute PubSub.health_watched?(device_id)
+      refute PubSub.watched?(device_id, :health)
 
-      :ok = PubSub.watch_health(device_id)
+      :ok = PubSub.watch(device_id, :health)
 
-      assert PubSub.health_watched?(device_id)
+      assert PubSub.watched?(device_id, :health)
     end
 
     test "the page closing is what gives the membership up", %{device_id: device_id} do
       page = watching_page(device_id)
-      assert PubSub.health_watched?(device_id)
+      assert PubSub.watched?(device_id, :health)
 
       # Nothing is sent on the way out -- a closed tab cannot -- so this is the
       # only thing that ends a watch.
       close(page)
 
-      assert eventually(fn -> not PubSub.health_watched?(device_id) end)
+      assert eventually(fn -> not PubSub.watched?(device_id, :health) end)
     end
 
     test "one page closing does not stop the others being watched", %{device_id: device_id} do
       page = watching_page(device_id)
-      :ok = PubSub.watch_health(device_id)
+      :ok = PubSub.watch(device_id, :health)
 
       close(page)
 
       # This test process is still a member, so the device keeps reporting at
       # the faster pace for whoever is left.
-      assert PubSub.health_watched?(device_id)
+      assert PubSub.watched?(device_id, :health)
     end
   end
 
@@ -114,7 +114,7 @@ defmodule NervesHub.Extensions.PubSubTest do
 
     pid =
       spawn(fn ->
-        :ok = PubSub.watch_health(device_id)
+        :ok = PubSub.watch(device_id, :health)
         send(test, :watching)
         Process.sleep(:infinity)
       end)

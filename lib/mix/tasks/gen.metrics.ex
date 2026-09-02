@@ -2,7 +2,11 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
   @shortdoc "Generate metrics for one or more devices"
 
   @moduledoc """
-  Generate a collection of metrics for one or more devices.
+  Generate a week of metrics for a device, one report every twenty minutes.
+
+  Goes through `NervesHub.Devices.Metrics.record/3`, so it fills ClickHouse and
+  the device's latest set exactly as a real report would. Needs a ClickHouse to
+  write the history to; without one only the latest set is filled in.
 
   ## Examples
 
@@ -11,8 +15,11 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
 
   use Mix.Task
 
+  alias NervesHub.Analytics.Buffer
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Repo
 
   @requirements ["app.start"]
@@ -20,54 +27,51 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
 
   @impl Mix.Task
   def run([device_identifier | _]) do
-    %{id: device_id} = Repo.get_by(Device, identifier: device_identifier)
-    now = DateTime.now!("Etc/UTC") |> DateTime.truncate(:millisecond)
-    a_week_ago = DateTime.add(now, -7, :day) |> DateTime.truncate(:millisecond)
+    device = Repo.get_by!(Device, identifier: device_identifier)
 
-    add_metrics(device_id, now, a_week_ago)
+    device_info = %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
+
+    now = DateTime.truncate(DateTime.utc_now(), :millisecond)
+    a_week_ago = DateTime.add(now, -7, :day)
+
+    :ok = add_metrics(device_info, now, a_week_ago)
+
+    # Reports are buffered, so without this the task can exit before ClickHouse
+    # has seen the last batch.
+    :ok = Buffer.flush(DeviceMetric)
   end
 
-  @doc """
-  Runs recursively until current timestamp is less than or equal to ending timestamp
-  """
-  def add_metrics(device_id, current_timestamp, ending_timestamp) when current_timestamp <= ending_timestamp,
-    do: save_metrics(device_id, current_timestamp)
-
-  def add_metrics(device_id, current_timestamp, ending_timestamp) do
-    save_metrics(device_id, current_timestamp)
-
-    new_timestamp = DateTime.add(current_timestamp, -20, :minute)
-    add_metrics(device_id, new_timestamp, ending_timestamp)
+  # Walks backwards from `timestamp` until it passes `stop_at`. Newest first,
+  # which is also what leaves the newest report as the device's latest set --
+  # the upsert behind `record/3` refuses to move it backwards.
+  defp add_metrics(device_info, timestamp, stop_at) when timestamp <= stop_at do
+    save_metrics(device_info, timestamp)
   end
 
-  def save_metrics(device_id, current_timestamp) do
+  defp add_metrics(device_info, timestamp, stop_at) do
+    :ok = save_metrics(device_info, timestamp)
+
+    add_metrics(device_info, DateTime.add(timestamp, -20, :minute), stop_at)
+  end
+
+  defp save_metrics(device_info, timestamp) do
     metrics = %{
       "cpu_temp" => Enum.random(1..100),
-      "load_1min" => :rand.uniform() |> Float.ceil(2),
-      "load_5min" => :rand.uniform() |> Float.ceil(2),
-      "load_15min" => :rand.uniform() |> Float.ceil(2),
+      "load_1min" => Float.ceil(:rand.uniform(), 2),
+      "load_5min" => Float.ceil(:rand.uniform(), 2),
+      "load_15min" => Float.ceil(:rand.uniform(), 2),
       "mem_size_mb" => 7892,
       "mem_used_mb" => Enum.random(0..7892),
       "mem_used_percent" => Enum.random(0..100)
     }
 
-    Repo.transact(fn ->
-      inserted =
-        Enum.map(metrics, fn {key, val} ->
-          DeviceMetric.save_with_timestamp(%{
-            device_id: device_id,
-            key: key,
-            value: val,
-            inserted_at: current_timestamp
-          })
-          |> Repo.insert()
-        end)
+    {:ok, _stored} = Metrics.record(device_info, metrics, timestamp)
 
-      if Enum.any?(inserted, fn {k, _v} -> k == :error end) do
-        raise "Failed to generate metrics"
-      else
-        {:ok, Enum.map(inserted, fn {_k, v} -> v end)}
-      end
-    end)
+    :ok
   end
 end

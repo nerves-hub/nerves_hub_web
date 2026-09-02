@@ -116,9 +116,16 @@ environment.
 
 ## Analytics (ClickHouse)
 
-Prod only. Analytics — device connection history, metrics, the Insights pages
-and the device message log — are enabled by setting `CLICKHOUSE_URL`. With it
-unset the feature is off and none of the other variables here are read.
+Prod only. Analytics — device connection history, metric history, error
+reports, the Insights pages and the device message log — are enabled by setting
+`CLICKHOUSE_URL`. With it unset the feature is off and none of the other
+variables here are read.
+
+Leaving it unset costs metric *history*: the device health tab's charts, and
+nothing else. Current metric values, the devices-list metrics filter and
+`metric:` advanced queries all read PostgreSQL and keep working. The `metrics`
+extension is not offered to devices at all without it, so they report metrics
+through `health` instead.
 
 | Variable | Default | Description |
 | --- | --- | --- |
@@ -196,7 +203,7 @@ job can trim it.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `HEALTH_CHECK_DAYS_TO_RETAIN` | `7` | Days of device health and metric records kept. |
+| `HEALTH_CHECK_DAYS_TO_RETAIN` | `7` | Days of device health records kept. Does not cover metrics: those are in ClickHouse and expire on that table's own TTL, fixed at 30 days when the table is created. |
 | `DEVICE_HEALTH_DELETE_LIMIT` | `100000` | Rows deleted per truncation run. |
 | `DEVICE_CONNECTION_UPDATE_LIMIT` | `100000` | Stale connection rows updated per run. |
 | `DEVICE_LAST_SEEN_UPDATE_INTERVAL_MINUTES` | `15` | How often a connected device's `last_seen_at` is written. Lower values mean fresher data and more writes. |
@@ -215,7 +222,25 @@ instance-wide intervals.
 | `FEATURES_GEO_INTERVAL_MINUTES` | `0` | How often a device reports its location. `0` means once, on connection. |
 | `FEATURES_HEALTH_INTERVAL_MINUTES` | `60` | How often a device reports health metrics. |
 | `FEATURES_HEALTH_UI_POLLING_SECONDS` | `60` | How often the health pages refresh. |
+| `FEATURES_METRICS_INTERVAL_MINUTES` | `15` | How often a device on the `metrics` extension reports, while nobody has its page open. |
+| `FEATURES_METRICS_UI_POLLING_SECONDS` | `60` | How often it reports while somebody does. |
 | `EXTENSIONS_LOGGING_DAYS_TO_KEEP` | `3` | Days of device logs kept. |
+
+## Device metrics
+
+Read in every environment. Metric names come from the device, and they become a
+`LowCardinality` ClickHouse column, JSONB keys in PostgreSQL, and entries in the
+advanced-query autosuggest list, so one confused client can widen all three
+permanently. A report carrying more names than this is trimmed to the first
+`DEVICE_METRICS_MAX_KEYS_PER_REPORT` in sorted order, and the product's
+operators get a notification saying what was dropped.
+
+Names longer than 64 bytes are dropped whatever this is set to. That limit is
+not configurable: it exists to protect a column type, not to express a policy.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DEVICE_METRICS_MAX_KEYS_PER_REPORT` | `20` | Most metric names stored from one report. Raise it for genuinely wide devices. |
 
 ## Firmware formats
 

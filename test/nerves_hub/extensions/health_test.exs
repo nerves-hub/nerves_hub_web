@@ -39,7 +39,7 @@ defmodule NervesHub.Extensions.HealthTest do
     end
 
     test "picks up a page that was already open", %{device_id: device_id, state: state} do
-      :ok = PubSub.watch_health(device_id)
+      :ok = PubSub.watch(device_id, :health)
 
       {state, effects} = Health.attach(state)
 
@@ -70,7 +70,7 @@ defmodule NervesHub.Extensions.HealthTest do
     end
 
     test "a second page changes nothing", %{device_id: device_id, state: state} do
-      :ok = PubSub.watch_health(device_id)
+      :ok = PubSub.watch(device_id, :health)
       {state, _effects} = Health.attach(state)
 
       # What the device would otherwise pay for every extra person looking at it.
@@ -81,7 +81,7 @@ defmodule NervesHub.Extensions.HealthTest do
 
   describe "checking" do
     test "asks the device, and nothing more while the pace is right", %{device_id: device_id, state: state} do
-      :ok = PubSub.watch_health(device_id)
+      :ok = PubSub.watch(device_id, :health)
       {state, _effects} = Health.attach(state)
 
       assert {_state, [{:push, "health:check", %{}}]} = Health.handle_info(:check, state)
@@ -111,7 +111,7 @@ defmodule NervesHub.Extensions.HealthTest do
       # A join this node had not replicated when the page announced itself would
       # leave the announcement landing nowhere. Reading membership on every
       # check means that heals, rather than lasting the life of the connection.
-      :ok = PubSub.watch_health(device_id)
+      :ok = PubSub.watch(device_id, :health)
 
       {state, effects} = Health.handle_info(:check, state)
 
@@ -144,7 +144,7 @@ defmodule NervesHub.Extensions.HealthTest do
 
     pid =
       spawn(fn ->
-        :ok = PubSub.watch_health(device_id)
+        :ok = PubSub.watch(device_id, :health)
         send(test, :watching)
         Process.sleep(:infinity)
       end)
@@ -160,7 +160,7 @@ defmodule NervesHub.Extensions.HealthTest do
 
     # Membership is given up by the group noticing the exit, not by the exit
     # itself, so the read has to wait for the group rather than the process.
-    wait_until(fn -> not PubSub.health_watched?(device_id) end)
+    wait_until(fn -> not PubSub.watched?(device_id, :health) end)
   end
 
   defp wait_until(fun, attempts \\ 50) do

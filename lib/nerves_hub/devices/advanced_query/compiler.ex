@@ -51,20 +51,23 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     comparison_dynamic(column, operator, value)
   end
 
-  # Compares a device's most-recent metric value for `key` against `value`. The
-  # device_metrics table isn't joined into the base query, so this is a
-  # self-contained correlated subquery (the inner MAX picks the latest reading
-  # per device) rather than a named binding.
+  # Compares the device's own latest reading for `key` against `value`.
+  #
+  # Still an `EXISTS` rather than a named binding, because `device_latest_metrics`
+  # is not joined into the base query and a `dynamic/2` cannot add a join. It is
+  # a much smaller one than it was: the latest set is one row per device, so the
+  # inner `MAX(inserted_at)` this used to need -- which took the newest reading
+  # across every device rather than this one -- is gone along with the bug in it.
+  #
+  # One clause per operator because `fragment/1` needs a literal string.
   defp metric_dynamic(key, ">", value) do
     dynamic(
       [d],
       fragment(
-        "EXISTS (SELECT 1 FROM device_metrics dm WHERE dm.device_id = ? AND dm.key = ? AND dm.value > ? AND dm.inserted_at = (SELECT MAX(inserted_at) FROM device_metrics WHERE device_id = ? AND key = ?))",
+        "EXISTS (SELECT 1 FROM device_latest_metrics dlm WHERE dlm.device_id = ? AND (dlm.metrics->>?)::float > ?)",
         d.id,
         ^key,
-        ^value,
-        d.id,
-        ^key
+        ^value
       )
     )
   end
@@ -73,12 +76,10 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     dynamic(
       [d],
       fragment(
-        "EXISTS (SELECT 1 FROM device_metrics dm WHERE dm.device_id = ? AND dm.key = ? AND dm.value >= ? AND dm.inserted_at = (SELECT MAX(inserted_at) FROM device_metrics WHERE device_id = ? AND key = ?))",
+        "EXISTS (SELECT 1 FROM device_latest_metrics dlm WHERE dlm.device_id = ? AND (dlm.metrics->>?)::float >= ?)",
         d.id,
         ^key,
-        ^value,
-        d.id,
-        ^key
+        ^value
       )
     )
   end
@@ -87,12 +88,10 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     dynamic(
       [d],
       fragment(
-        "EXISTS (SELECT 1 FROM device_metrics dm WHERE dm.device_id = ? AND dm.key = ? AND dm.value < ? AND dm.inserted_at = (SELECT MAX(inserted_at) FROM device_metrics WHERE device_id = ? AND key = ?))",
+        "EXISTS (SELECT 1 FROM device_latest_metrics dlm WHERE dlm.device_id = ? AND (dlm.metrics->>?)::float < ?)",
         d.id,
         ^key,
-        ^value,
-        d.id,
-        ^key
+        ^value
       )
     )
   end
@@ -101,12 +100,10 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     dynamic(
       [d],
       fragment(
-        "EXISTS (SELECT 1 FROM device_metrics dm WHERE dm.device_id = ? AND dm.key = ? AND dm.value <= ? AND dm.inserted_at = (SELECT MAX(inserted_at) FROM device_metrics WHERE device_id = ? AND key = ?))",
+        "EXISTS (SELECT 1 FROM device_latest_metrics dlm WHERE dlm.device_id = ? AND (dlm.metrics->>?)::float <= ?)",
         d.id,
         ^key,
-        ^value,
-        d.id,
-        ^key
+        ^value
       )
     )
   end

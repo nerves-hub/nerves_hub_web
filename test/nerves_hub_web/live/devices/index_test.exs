@@ -6,13 +6,14 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
   alias NervesHub.DeviceEvents
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
-  alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.Metrics
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -588,28 +589,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       now = DateTime.utc_now()
 
-      # Use explicit timestamps to avoid sleeping for ordering.
-      Repo.insert!(
-        DeviceMetric.save_with_timestamp(%{
-          device_id: device2.id,
-          key: "cpu_temp",
-          value: 36,
-          inserted_at: DateTime.add(now, -2, :second)
-        })
-      )
-
-      Repo.insert!(
-        DeviceMetric.save_with_timestamp(%{
-          device_id: device2.id,
-          key: "cpu_temp",
-          value: 42,
-          inserted_at: DateTime.add(now, -1, :second)
-        })
-      )
-
-      Repo.insert!(
-        DeviceMetric.save_with_timestamp(%{device_id: device2.id, key: "load_1min", value: 3, inserted_at: now})
-      )
+      # Explicit timestamps rather than sleeping, so the later report is the one
+      # the filter sees.
+      record_metrics(device2, %{"cpu_temp" => 36}, DateTime.add(now, -2, :second))
+      record_metrics(device2, %{"cpu_temp" => 42, "load_1min" => 3}, now)
 
       conn
       |> visit(device_index_path(fixture))
@@ -642,7 +625,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       device2 = Fixtures.device_fixture(org, product, firmware, %{})
 
-      Repo.insert!(DeviceMetric.save(%{device_id: device2.id, key: "goats_per_second", value: 42}))
+      record_metrics(device2, %{"goats_per_second" => 42})
 
       conn
       |> visit(device_index_path(fixture))
@@ -667,19 +650,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       # device: an old high reading superseded by a low one; device2: a high
       # reading, at a different time than device's. Only each device's latest
       # value may count, regardless of which device reported most recently.
-      for {device_id, value, seconds_ago} <- [
-            {device.id, 90, 3},
-            {device.id, 30, 2},
-            {device2.id, 60, 1}
+      for {reporting, value, seconds_ago} <- [
+            {device, 90, 3},
+            {device, 30, 2},
+            {device2, 60, 1}
           ] do
-        Repo.insert!(
-          DeviceMetric.save_with_timestamp(%{
-            device_id: device_id,
-            key: "test_latency_ms",
-            value: value,
-            inserted_at: DateTime.add(now, -seconds_ago, :second)
-          })
-        )
+        record_metrics(reporting, %{"test_latency_ms" => value}, DateTime.add(now, -seconds_ago, :second))
       end
 
       conn
@@ -1889,5 +1865,16 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
   def device_index_path(%{org: org, product: product}) do
     ~p"/org/#{org}/#{product}/devices"
+  end
+
+  defp record_metrics(device, metrics, timestamp \\ DateTime.utc_now()) do
+    device_info = %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
+
+    {:ok, _stored} = Metrics.record(device_info, metrics, timestamp)
   end
 end
