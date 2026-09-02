@@ -273,6 +273,69 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
     assert HealthProfiles.resolve(product.id, firmware.platform).platform == nil
   end
 
+  describe "threshold suggestions" do
+    # Quartiles land inside flat runs of the distribution (80 tens, 80
+    # twenties, 40 thirties: q1 = 10, q3 = 20, IQR = 10), so the suggestion
+    # is deterministic whatever interpolation ClickHouse uses. Tukey's
+    # fences: gte 35 / 50, lte -5 / -20.
+    defp seed_fps_history(product, firmware, days_ago) do
+      device = Fixtures.device_fixture(NervesHub.Repo.get!(Org, product.org_id), product, firmware)
+      at = DateTime.add(DateTime.utc_now(), -days_ago, :day)
+
+      for value <- List.duplicate(10.0, 80) ++ List.duplicate(20.0, 80) ++ List.duplicate(30.0, 40) do
+        {:ok, 1} = Metrics.record(device_info(device), %{"fps" => value}, at)
+      end
+
+      :ok = Buffer.flush(DeviceMetric)
+    end
+
+    test "a week of history suggests thresholds in the picker and pre-fills the add form", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      seed_fps_history(product, firmware, 8)
+      profile = HealthProfiles.resolve(product.id, nil)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings/health")
+      |> assert_has("option", text: "Fps — seen 10 – 30, suggested 35 / 50")
+
+      {:ok, view, _html} = live(conn, "/org/#{org.name}/#{product.name}/settings/health")
+
+      # Picking the metric pre-fills the thresholds with the suggestion...
+      html =
+        render_change(view, "suggest-thresholds", %{
+          "_target" => ["metric", "key"],
+          "profile_id" => to_string(profile.id),
+          "metric" => %{"key" => "fps"}
+        })
+
+      assert html =~ ~s(value="35")
+      assert html =~ ~s(value="50")
+
+      # ...and flipping the operator swaps in the low-side fences.
+      html = render_click(view, "flip-operator", %{"target" => "new-#{profile.id}", "operator" => "gte"})
+      assert html =~ ~s(value="-5")
+      assert html =~ ~s(value="-20")
+    end
+
+    test "no suggestion before a full week cycle has been seen", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      seed_fps_history(product, firmware, 2)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings/health")
+      |> assert_has("option", text: "Fps — seen 10 – 30")
+      |> refute_has("option", text: "suggested")
+    end
+  end
+
   defp device_info(device) do
     %DeviceInfo{
       device_id: device.id,

@@ -250,6 +250,52 @@ defmodule NervesHub.Products.HealthProfilesTest do
     assert HealthProfiles.all_for_product(product) == []
   end
 
+  describe "suggested_thresholds/1" do
+    # A history that clears every gate: over a week old, plenty of samples,
+    # quartiles 20 and 40 (IQR 20).
+    defp stats(overrides \\ []) do
+      Map.merge(
+        %{
+          min: 5.0,
+          max: 60.0,
+          q1: 20.0,
+          q3: 40.0,
+          samples: 200,
+          oldest: DateTime.add(DateTime.utc_now(), -8, :day)
+        },
+        Map.new(overrides)
+      )
+    end
+
+    test "suggests Tukey's fences in both directions" do
+      assert HealthProfiles.suggested_thresholds(stats()) == %{
+               gte: %{warning: 70.0, alert: 100.0},
+               lte: %{warning: -10.0, alert: -40.0}
+             }
+    end
+
+    test "no suggestion without stats, a week of history, enough samples, or any spread" do
+      assert HealthProfiles.suggested_thresholds(nil) == nil
+
+      six_days = DateTime.add(DateTime.utc_now(), -6, :day)
+      assert HealthProfiles.suggested_thresholds(stats(oldest: six_days)) == nil
+
+      assert HealthProfiles.suggested_thresholds(stats(samples: 99)) == nil
+
+      # Zero IQR: the fences would sit on the median, where half of all
+      # normal samples already "breach".
+      assert HealthProfiles.suggested_thresholds(stats(q1: 42.0, q3: 42.0)) == nil
+    end
+
+    test "suggestions are rounded to three significant digits" do
+      %{gte: gte} = HealthProfiles.suggested_thresholds(stats(q1: 10.111, q3: 30.333))
+      assert gte == %{warning: 60.7, alert: 91.0}
+
+      %{gte: big} = HealthProfiles.suggested_thresholds(stats(q1: 1_000_000.0, q3: 2_345_678.0))
+      assert big.warning == 4_360_000.0
+    end
+  end
+
   defp valid_metric_attrs(key) do
     %{
       "key" => key,

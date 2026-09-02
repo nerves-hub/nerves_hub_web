@@ -138,17 +138,34 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   @doc """
-  The lowest and highest value observed per metric key across the product's
-  devices, as `%{key => {min, max}}`. Spans ClickHouse's retention (30 days);
-  what the health profiles page shows so thresholds get picked against real
-  units rather than guesses. Callers are expected to check that analytics is
-  enabled first.
+  What the fleet's history says about each metric key, across the product's
+  devices and ClickHouse's retention (30 days), as
+
+      %{key => %{min: _, max: _, q1: _, q3: _, samples: _, oldest: _}}
+
+  One grouped query; the quartiles (`quantile(0.25)`/`quantile(0.75)`) are
+  computed by ClickHouse alongside the range. The health profiles page shows
+  the range so thresholds get picked against real units rather than guesses,
+  and feeds the quartiles to `NervesHub.Products.HealthProfiles.suggested_thresholds/1`
+  — `samples` and `oldest` are what it gates on. Callers are expected to
+  check that analytics is enabled first.
   """
-  def observed_ranges(product_id) do
+  def observed_stats(product_id) do
     DeviceMetric
     |> where([dm], dm.product_id == ^product_id)
     |> group_by([dm], dm.key)
-    |> select([dm], {dm.key, {min(dm.value), max(dm.value)}})
+    |> select(
+      [dm],
+      {dm.key,
+       %{
+         min: min(dm.value),
+         max: max(dm.value),
+         q1: fragment("quantile(0.25)(?)", dm.value),
+         q3: fragment("quantile(0.75)(?)", dm.value),
+         samples: count(dm.value),
+         oldest: min(dm.timestamp)
+       }}
+    )
     |> AnalyticsRepo.all()
     |> Map.new()
   end

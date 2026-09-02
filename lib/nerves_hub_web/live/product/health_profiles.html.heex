@@ -50,8 +50,14 @@
                 <span class="text-base-300 text-sm font-medium">{MetricLabels.label(metric.key, @custom_labels)}</span>
                 <span :if={metric.built_in} class="text-base-500 text-xs">built-in</span>
                 <span :if={!metric.built_in && MetricLabels.label(metric.key, @custom_labels) != metric.key} class="text-base-500 text-xs">{metric.key}</span>
-                <span :if={seen_range(@observed_ranges, metric.key)} class="text-base-500 text-xs" title="Lowest and highest value reported across this product's devices, over the retention window">
-                  {seen_range(@observed_ranges, metric.key)}
+                <span :if={seen_range(@observed_stats, metric.key)} class="text-base-500 text-xs" title="Lowest and highest value reported across this product's devices, over the retention window">
+                  {seen_range(@observed_stats, metric.key)}
+                  <span
+                    :if={suggested(@observed_stats, metric.key, metric.operator)}
+                    title="Statistical outlier fences from at least a week of this fleet's history: values this far outside the middle half of readings are unusual for this fleet"
+                  >
+                    · {suggested(@observed_stats, metric.key, metric.operator)}
+                  </span>
                 </span>
               </div>
               <div class="flex items-center gap-3">
@@ -120,6 +126,7 @@
           <form
             id={"add-metric-#{profile.id}"}
             phx-submit="add-metric"
+            phx-change="suggest-thresholds"
             class="border-base-700 mt-2 flex flex-col gap-3 rounded border border-dashed p-3"
           >
             <input type="hidden" name="profile_id" value={profile.id} />
@@ -155,8 +162,18 @@
                 operator={shown_operator(@pending_operators, "new-#{profile.id}", :gte)}
                 disabled={!authorized?(:"product:update", @current_scope)}
               />
-              <.level_fields level="warning" period_seconds={3600} disabled={!authorized?(:"product:update", @current_scope)} />
-              <.level_fields level="alert" period_seconds={3600} disabled={!authorized?(:"product:update", @current_scope)} />
+              <.level_fields
+                level="warning"
+                threshold={suggested_threshold(assigns, "new-#{profile.id}", :warning)}
+                period_seconds={3600}
+                disabled={!authorized?(:"product:update", @current_scope)}
+              />
+              <.level_fields
+                level="alert"
+                threshold={suggested_threshold(assigns, "new-#{profile.id}", :alert)}
+                period_seconds={3600}
+                disabled={!authorized?(:"product:update", @current_scope)}
+              />
             </div>
           </form>
         </div>

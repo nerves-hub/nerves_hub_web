@@ -142,6 +142,60 @@ defmodule NervesHub.Products.HealthProfiles do
     end
   end
 
+  # Enough history to have seen a full week cycle (weekday vs weekend
+  # behavior), and enough samples for the quartiles to mean something.
+  @suggestion_minimum_days 7
+  @suggestion_minimum_samples 100
+
+  @doc """
+  Threshold suggestions derived from a metric's observed fleet history (the
+  per-key stats of `NervesHub.Devices.Metrics.observed_stats/1`), or `nil`
+  when the history cannot support one.
+
+  Uses Tukey's fences — warning at `Q3 + 1.5 * IQR`, alert at `Q3 + 3 * IQR`
+  (mirrored below `Q1` for the `lte` direction) — the boxplot outlier rule.
+  Not standard deviations: those assume roughly bell-shaped data and are
+  themselves dragged by the freak readings device metrics produce, the same
+  reason evaluation judges a median and not a mean. Quartiles ignore the
+  extreme tails entirely, so one glitch in the history cannot move the
+  suggestion, and the fences scale with the metric's own normal spread.
+
+  `nil` when the history spans less than #{@suggestion_minimum_days} days
+  (a threshold suggested before a full week cycle has been seen would read
+  weekend behavior as an anomaly), holds fewer than
+  #{@suggestion_minimum_samples} samples, or has zero spread between the
+  quartiles (the fences would sit on the median itself, where half of all
+  normal samples already "breach").
+
+  Values are rounded to three significant digits: they are suggestions to
+  adjust, not measurements.
+  """
+  @spec suggested_thresholds(map() | nil) ::
+          %{gte: %{warning: float(), alert: float()}, lte: %{warning: float(), alert: float()}} | nil
+  def suggested_thresholds(%{q1: q1, q3: q3, samples: samples, oldest: oldest}) do
+    iqr = q3 - q1
+    week_ago = DateTime.add(DateTime.utc_now(), -@suggestion_minimum_days, :day)
+
+    if samples >= @suggestion_minimum_samples and DateTime.before?(oldest, week_ago) and iqr > 0 do
+      %{
+        gte: %{warning: round_sig(q3 + 1.5 * iqr), alert: round_sig(q3 + 3 * iqr)},
+        lte: %{warning: round_sig(q1 - 1.5 * iqr), alert: round_sig(q1 - 3 * iqr)}
+      }
+    end
+  end
+
+  def suggested_thresholds(_no_stats), do: nil
+
+  @sig_digits 3
+
+  defp round_sig(value) when value == 0, do: 0.0
+
+  defp round_sig(value) do
+    magnitude = value |> abs() |> :math.log10() |> :math.floor() |> trunc()
+    factor = :math.pow(10, @sig_digits - 1 - magnitude)
+    round(value * factor) / factor
+  end
+
   @doc """
   Creates the product's default profile, seeded with `default_metric_attrs/0`.
 

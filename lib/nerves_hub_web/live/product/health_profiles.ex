@@ -23,12 +23,26 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
 
   # Flipping the operator is page state until the row is saved: the flipped
   # thresholds usually need adjusting before they validate, so nothing is
-  # persisted on the click itself.
+  # persisted on the click itself. On an add-metric form with a suggestion
+  # pending, the pre-filled thresholds follow the flip (the suggestion has a
+  # value per direction).
   def handle_event("flip-operator", %{"target" => target, "operator" => current}, socket) do
     flipped = if current == "gte", do: "lte", else: "gte"
 
     {:noreply, update(socket, :pending_operators, &Map.put(&1, target, flipped))}
   end
+
+  # Picking a metric in an add form pre-fills its thresholds with the fleet
+  # suggestion (page state until Add). The form's phx-change also fires for
+  # the other inputs; only the picker matters here.
+  def handle_event("suggest-thresholds", %{"_target" => ["metric", "key"]} = params, socket) do
+    %{"profile_id" => profile_id, "metric" => %{"key" => key}} = params
+    suggestion = HealthProfiles.suggested_thresholds(socket.assigns.observed_stats[key])
+
+    {:noreply, update(socket, :pending_suggestions, &Map.put(&1, "new-#{profile_id}", suggestion))}
+  end
+
+  def handle_event("suggest-thresholds", _other_input, socket), do: {:noreply, socket}
 
   def handle_event("create-platform-profile", %{"platform" => platform}, socket) do
     authorized!(:"product:update", socket.assigns.current_scope)
@@ -137,39 +151,67 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     |> assign(:profiles, profiles)
     |> assign(:available_platforms, platforms)
     |> assign(:pending_operators, %{})
+    |> assign(:pending_suggestions, %{})
   end
 
-  # One pass over the product's stored metrics feeds both the picker (its
-  # keys, padded with the well-known nerves_hub_health defaults so a fresh
-  # product isn't looking at an empty list) and the observed value ranges
-  # shown beside each metric — thresholds get picked against real units.
+  # One pass over the product's stored metrics feeds the picker (its keys,
+  # padded with the well-known nerves_hub_health defaults so a fresh product
+  # isn't looking at an empty list), the observed value ranges shown beside
+  # each metric, and the threshold suggestions derived from the quartiles —
+  # thresholds get picked against real units and real behavior.
   defp assign_observed(socket, product) do
-    observed_ranges =
+    observed_stats =
       if Application.get_env(:nerves_hub, :analytics_enabled, false) do
-        Metrics.observed_ranges(product.id)
+        Metrics.observed_stats(product.id)
       else
         %{}
       end
 
     reported_keys =
-      (Metrics.default_metrics() ++ Map.keys(observed_ranges))
+      (Metrics.default_metrics() ++ Map.keys(observed_stats))
       |> Enum.uniq()
       |> Enum.sort()
 
     socket
-    |> assign(:observed_ranges, observed_ranges)
+    |> assign(:observed_stats, observed_stats)
     |> assign(:reported_keys, reported_keys)
   end
 
   # What the fleet has actually reported for this key, over the retention
   # window; nil when nothing has (built-ins, defaults never reported).
-  defp seen_range(observed_ranges, key) do
-    case observed_ranges do
-      %{^key => {min, max}} ->
+  defp seen_range(observed_stats, key) do
+    case observed_stats do
+      %{^key => %{min: min, max: max}} ->
         "seen #{Utils.format_number(min)} – #{Utils.format_number(max)}"
 
       _ ->
         nil
+    end
+  end
+
+  # "suggested 82 / 91" for the direction the metric points, or nil when the
+  # history can't support a suggestion (see HealthProfiles.suggested_thresholds/1).
+  defp suggested(observed_stats, key, operator) do
+    direction = if operator in [:lte, "lte"], do: :lte, else: :gte
+
+    case HealthProfiles.suggested_thresholds(observed_stats[key]) do
+      %{^direction => %{warning: warning, alert: alert}} ->
+        "suggested #{Utils.format_number(warning)} / #{Utils.format_number(alert)}"
+
+      nil ->
+        nil
+    end
+  end
+
+  # The pre-fill for an add form's threshold input: the pending suggestion
+  # for the operator currently shown on that form, if a picked metric has one.
+  defp suggested_threshold(assigns, target, level) do
+    operator = shown_operator(assigns.pending_operators, target, :gte)
+    direction = if operator in [:lte, "lte"], do: :lte, else: :gte
+
+    case assigns.pending_suggestions[target] do
+      %{^direction => levels} -> Map.fetch!(levels, level)
+      nil -> nil
     end
   end
 
@@ -184,9 +226,15 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     regular =
       for key <- assigns.reported_keys,
           not MapSet.member?(taken, key) do
-        case seen_range(assigns.observed_ranges, key) do
-          nil -> {MetricLabels.label(key, assigns.custom_labels), key}
-          seen -> {"#{MetricLabels.label(key, assigns.custom_labels)} — #{seen}", key}
+        label = MetricLabels.label(key, assigns.custom_labels)
+
+        annotations =
+          [seen_range(assigns.observed_stats, key), suggested(assigns.observed_stats, key, :gte)]
+          |> Enum.reject(&is_nil/1)
+
+        case annotations do
+          [] -> {label, key}
+          _ -> {"#{label} — #{Enum.join(annotations, ", ")}", key}
         end
       end
 
