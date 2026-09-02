@@ -6,13 +6,14 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
   alias NervesHub.DeviceEvents
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
-  alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.Metrics
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -588,28 +589,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       now = DateTime.utc_now()
 
-      # Use explicit timestamps to avoid sleeping for ordering.
-      Repo.insert!(
-        DeviceMetric.save_with_timestamp(%{
-          device_id: device2.id,
-          key: "cpu_temp",
-          value: 36,
-          inserted_at: DateTime.add(now, -2, :second)
-        })
-      )
-
-      Repo.insert!(
-        DeviceMetric.save_with_timestamp(%{
-          device_id: device2.id,
-          key: "cpu_temp",
-          value: 42,
-          inserted_at: DateTime.add(now, -1, :second)
-        })
-      )
-
-      Repo.insert!(
-        DeviceMetric.save_with_timestamp(%{device_id: device2.id, key: "load_1min", value: 3, inserted_at: now})
-      )
+      # Explicit timestamps rather than sleeping, so the later report is the one
+      # the filter sees.
+      record_metrics(device2, %{"cpu_temp" => 36}, DateTime.add(now, -2, :second))
+      record_metrics(device2, %{"cpu_temp" => 42, "load_1min" => 3}, now)
 
       conn
       |> visit(device_index_path(fixture))
@@ -635,6 +618,63 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device.identifier)
+    end
+
+    test "by custom metrics", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{})
+
+      record_metrics(device2, %{"goats_per_second" => 42})
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> select("Metrics", option: "goats_per_second")
+      |> assert_has("label", text: "Operator", timeout: 1000)
+      |> select("Metrics Operator", option: "Greater Than")
+      |> assert_has("label", text: "Metrics Value", timeout: 1000)
+      |> fill_in("Metrics Value", with: "37")
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: device2.identifier)
+      |> refute_has("div a", text: device.identifier)
+    end
+
+    test "by metrics compares each device's latest value", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{})
+
+      now = DateTime.utc_now()
+
+      # device: an old high reading superseded by a low one; device2: a high
+      # reading, at a different time than device's. Only each device's latest
+      # value may count, regardless of which device reported most recently.
+      for {reporting, value, seconds_ago} <- [
+            {device, 90, 3},
+            {device, 30, 2},
+            {device2, 60, 1}
+          ] do
+        record_metrics(reporting, %{"test_latency_ms" => value}, DateTime.add(now, -seconds_ago, :second))
+      end
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> select("Metrics", option: "test_latency_ms")
+      |> assert_has("label", text: "Operator", timeout: 1000)
+      |> select("Metrics Operator", option: "Greater Than")
+      |> assert_has("label", text: "Metrics Value", timeout: 1000)
+      |> fill_in("Metrics Value", with: "40")
+      # device's latest reading is 30 - its stale 90 must not match.
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: device2.identifier)
+      |> refute_has("div a", text: device.identifier)
+      |> select("Metrics Operator", option: "Less Than")
+      # device's latest reading is 30, even though device2 reported later.
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: device.identifier)
+      |> refute_has("div a", text: device2.identifier)
     end
 
     test "by several tags", %{conn: conn, fixture: fixture} do
@@ -1825,5 +1865,16 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
   def device_index_path(%{org: org, product: product}) do
     ~p"/org/#{org}/#{product}/devices"
+  end
+
+  defp record_metrics(device, metrics, timestamp \\ DateTime.utc_now()) do
+    device_info = %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
+
+    {:ok, _stored} = Metrics.record(device_info, metrics, timestamp)
   end
 end

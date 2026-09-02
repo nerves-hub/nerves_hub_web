@@ -60,6 +60,9 @@ config :nerves_hub,
   device_last_seen_update_interval_jitter_seconds:
     String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_JITTER_SECONDS", "300")),
   device_connection_update_limit: String.to_integer(System.get_env("DEVICE_CONNECTION_UPDATE_LIMIT", "100000")),
+  device_metrics: [
+    max_keys_per_report: String.to_integer(System.get_env("DEVICE_METRICS_MAX_KEYS_PER_REPORT", "20"))
+  ],
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
   extension_config: [
     geo: [
@@ -69,6 +72,10 @@ config :nerves_hub,
     health: [
       interval_minutes: System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer(),
       ui_polling_seconds: System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer()
+    ],
+    metrics: [
+      interval_minutes: System.get_env("FEATURES_METRICS_INTERVAL_MINUTES", "15") |> String.to_integer(),
+      ui_polling_seconds: System.get_env("FEATURES_METRICS_UI_POLLING_SECONDS", "60") |> String.to_integer()
     ],
     logging: [
       days_to_keep: String.to_integer(System.get_env("EXTENSIONS_LOGGING_DAYS_TO_KEEP", "3"))

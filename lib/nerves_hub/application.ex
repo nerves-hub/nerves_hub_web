@@ -5,6 +5,7 @@ defmodule NervesHub.Application do
   alias NervesHub.DeviceLink.Handlers
   alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Devices.DeviceMessage
+  alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.LogLine
   alias NervesHub.ErrorReports.ErrorReport
   alias NervesHub.ErrorReports.GroupBuffer
@@ -12,6 +13,7 @@ defmodule NervesHub.Application do
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.RateLimit.ErrorReports, as: ErrorReportLimit
   alias NervesHub.RateLimit.LogLines
+  alias NervesHub.RateLimit.Metrics, as: MetricsLimit
   alias NervesHub.Telemetry.Customizations
   alias PlugAttack.Storage.Ets, as: PlugAttackEts
 
@@ -49,7 +51,8 @@ defmodule NervesHub.Application do
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
           {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
-          {ErrorReportLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}
+          {ErrorReportLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
+          {MetricsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}
         ] ++
         analytics_buffers() ++
         device_link_handlers() ++
@@ -172,6 +175,7 @@ defmodule NervesHub.Application do
         Buffer.child_spec([schema: DeviceMessage] ++ opts),
         Buffer.child_spec([schema: LogLine] ++ opts),
         Buffer.child_spec([schema: ErrorReport] ++ opts),
+        Buffer.child_spec([schema: DeviceMetric] ++ opts),
         # Writes PostgreSQL, not ClickHouse, and is here anyway: it is the other
         # half of the same write path, and the extension that feeds it is gated
         # on the same flag. Started without a ClickHouse to pair with, it would

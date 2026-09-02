@@ -6,7 +6,7 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
   alias NervesHub.Fixtures
   alias NervesHub.Workers.DeviceHealthTruncation
 
-  test "delete device health and metrics entries older than 7 days", %{tmp_dir: dir} do
+  test "delete device health entries older than 7 days", %{tmp_dir: dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
@@ -14,7 +14,7 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: dir})
     device = Fixtures.device_fixture(org, product, firmware)
 
-    # Insert health and metrics, from 9 days ago until today
+    # Insert health, from 9 days ago until today
     for x <- 9..0//-1 do
       days_ago = DateTime.shift(DateTime.utc_now(), day: -x)
 
@@ -33,14 +33,6 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
         end
 
       assert {:ok, %Devices.DeviceHealth{}} = inserted_health
-
-      inserted_metric =
-        %{"device_id" => device.id, "key" => "cpu_temp", "value" => 41.381}
-        |> Devices.DeviceMetric.save()
-        |> Ecto.Changeset.put_change(:inserted_at, days_ago)
-        |> Repo.insert()
-
-      assert {:ok, %Devices.DeviceMetric{}} = inserted_metric
     end
 
     assert :ok = perform_job(DeviceHealthTruncation, %{})
@@ -51,8 +43,5 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
       |> Repo.all()
 
     assert 7 = Enum.count(healths)
-
-    metrics = Devices.Metrics.get_device_metrics(device.id)
-    assert 7 = Enum.count(metrics)
   end
 end

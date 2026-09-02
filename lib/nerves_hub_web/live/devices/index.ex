@@ -716,14 +716,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp assign_filter_data(%{assigns: %{current_scope: %{product: product}}} = socket) do
     socket
     |> start_async(:update_filter_data, fn ->
+      distinct_metric_keys = Metrics.distinct_keys(product.id)
+
       [
         current_alarms: Alarms.get_current_alarm_types(product.id),
-        metrics_keys: Metrics.default_metrics(),
+        metrics_keys: Enum.sort(Enum.uniq(Metrics.default_metrics() ++ distinct_metric_keys)),
         deployment_groups: ManagedDeployments.get_deployment_groups_by_product(product),
         platforms: Devices.platforms(product.id),
         architectures: Devices.architectures(product.id),
         advanced_query_tags: Devices.distinct_tags(product.id),
-        advanced_query_metric_keys: Metrics.distinct_keys(product.id),
+        advanced_query_metric_keys: distinct_metric_keys,
         advanced_query_firmwares: Firmwares.firmware_versions_and_uuids(product.id)
       ]
     end)
