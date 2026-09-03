@@ -706,20 +706,31 @@ defmodule NervesHub.DevicesTest do
         ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1}, user)
 
       assert :ok = DeviceEvents.device_requested_update(device)
-      assert :ok = DeviceEvents.device_requested_update(device)
     end
 
     # There is one inflight row per device, so a device that missed the push and
     # asks again has to refresh the one it has rather than fail on the index.
-    test "device_requested_update sends again to a device already updating", %{device: device} do
+    # The device would reject the second update and carry on with the one it has,
+    # and there is a single inflight row per device, so the progress it reports
+    # for the running update would be recorded against whatever replaced it.
+    test "device_requested_update is refused while the device is already updating", %{device: device} do
       topic = "device:#{device.id}"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
 
       assert :ok = DeviceEvents.device_requested_update(device)
       assert_receive %Broadcast{topic: ^topic, event: "update"}, 1_000
 
+      assert {:error, :already_updating} = DeviceEvents.device_requested_update(device)
+      refute_receive %Broadcast{topic: ^topic, event: "update"}, 200
+    end
+
+    # The row survives the reboot, so the device is not given a second update
+    # while it is on its way back up.
+    test "device_requested_update is refused while the device is rebooting", %{device: device} do
       assert :ok = DeviceEvents.device_requested_update(device)
-      assert_receive %Broadcast{topic: ^topic, event: "update"}, 1_000
+      :ok = FirmwareUpdates.update_inflight_update(device.id, "completed", nil, true)
+
+      assert {:error, :already_updating} = DeviceEvents.device_requested_update(device)
     end
 
     test "device_requested_update is refused when there is nothing to send", %{

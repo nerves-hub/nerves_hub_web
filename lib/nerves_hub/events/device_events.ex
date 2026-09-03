@@ -11,6 +11,7 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
@@ -65,18 +66,8 @@ defmodule NervesHub.DeviceEvents do
       InflightUpdate.deployment_requested_changeset(deployment_group, device_id, priority_queue)
 
     Repo.transact(fn ->
-      # A device may ask for an update it has already been given — because it
-      # missed the push, or restarted mid-download — and there is one inflight
-      # row per device, so a second request would otherwise fail on the unique
-      # index. Refresh the row and send the payload again, which is what the
-      # device is asking for.
-      {:ok, inflight_update} =
-        Repo.insert(inflight_changeset,
-          on_conflict:
-            {:replace, [:deployment_id, :firmware_id, :firmware_uuid, :priority_queue, :status, :progress, :updated_at]},
-          conflict_target: :device_id,
-          returning: true
-        )
+      # we might need to do an upsert here
+      {:ok, inflight_update} = Repo.insert(inflight_changeset)
 
       device = Devices.get_device(device_id)
 
@@ -134,18 +125,31 @@ defmodule NervesHub.DeviceEvents do
   decided this is a moment it can afford one, which is a judgement it is better
   placed to make than the server is, and holding it back only means it asks
   again later.
+
+  A device that is already updating is refused. It would reject the second
+  update and carry on with the one it has, and there is a single inflight row
+  per device, so the progress it reports for the running update would be recorded
+  against the request that replaced it. A device that is not really updating has
+  its row cleared by `NervesHub.Workers.ExpireInflightUpdates` soon enough, and
+  can ask again then.
   """
-  @spec device_requested_update(Device.t()) :: :ok | {:error, :no_deployment_group | :no_update}
+  @spec device_requested_update(Device.t()) ::
+          :ok | {:error, :no_deployment_group | :no_update | :already_updating}
   def device_requested_update(%Device{deployment_id: nil}), do: {:error, :no_deployment_group}
 
   def device_requested_update(%Device{} = device) do
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
 
-    if match?(%{available?: true}, Updates.check_update(device)) do
-      {:ok, _inflight} = schedule_update(device.id, deployment_group, initiated_by: :device)
-      :ok
-    else
-      {:error, :no_update}
+    cond do
+      not match?(%{available?: true}, Updates.check_update(device)) ->
+        {:error, :no_update}
+
+      not is_nil(FirmwareUpdates.inflight_update_for(device)) ->
+        {:error, :already_updating}
+
+      true ->
+        {:ok, _inflight} = schedule_update(device.id, deployment_group, initiated_by: :device)
+        :ok
     end
   end
 
