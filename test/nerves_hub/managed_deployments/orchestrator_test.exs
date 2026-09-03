@@ -1,4 +1,4 @@
-defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
+defmodule NervesHub.ManagedDeployments.OrchestratorTest do
   use NervesHub.DataCase, async: false
   use Mimic
   use AssertEventually, timeout: 500, interval: 50
@@ -19,7 +19,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.Distributed.Orchestrator
+  alias NervesHub.ManagedDeployments.Orchestrator
+  alias NervesHub.ManagedDeployments.Orchestrator.DefaultCoordinator
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
@@ -675,36 +676,48 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   describe "trigger_update/1" do
     test "ignores updates when deployment_group is inactive", %{deployment_group: deployment_group} do
       reject(&Updates.available_for_update/2)
-      reject(&Orchestrator.schedule_devices!/2)
+      reject(&DefaultCoordinator.schedule_devices!/2)
 
-      Orchestrator.trigger_update(%{deployment_group | is_active: false})
+      Orchestrator.trigger_update(%{
+        coordinator: DefaultCoordinator,
+        deployment_group: %{deployment_group | is_active: false}
+      })
     end
 
     test "skips scheduling firmware updates when deployment_group status is :preparing", %{
       deployment_group: deployment_group
     } do
       reject(&Updates.available_for_update/2)
-      reject(&Orchestrator.schedule_devices!/2)
+      reject(&DefaultCoordinator.schedule_devices!/2)
 
-      Orchestrator.trigger_update(%{deployment_group | status: :preparing})
+      Orchestrator.trigger_update(%{
+        coordinator: DefaultCoordinator,
+        deployment_group: %{deployment_group | status: :preparing}
+      })
     end
 
     test "skips scheduling firmware updates when deployment_group status is :deltas_failed", %{
       deployment_group: deployment_group
     } do
       reject(&Updates.available_for_update/2)
-      reject(&Orchestrator.schedule_devices!/2)
+      reject(&DefaultCoordinator.schedule_devices!/2)
 
-      Orchestrator.trigger_update(%{deployment_group | status: :deltas_failed})
+      Orchestrator.trigger_update(%{
+        coordinator: DefaultCoordinator,
+        deployment_group: %{deployment_group | status: :deltas_failed}
+      })
     end
 
     test "skips scheduling firmware updates when deployment_group status is :unknown_error", %{
       deployment_group: deployment_group
     } do
       reject(&Updates.available_for_update/2)
-      reject(&Orchestrator.schedule_devices!/2)
+      reject(&DefaultCoordinator.schedule_devices!/2)
 
-      Orchestrator.trigger_update(%{deployment_group | status: :unknown_error})
+      Orchestrator.trigger_update(%{
+        coordinator: DefaultCoordinator,
+        deployment_group: %{deployment_group | status: :unknown_error}
+      })
     end
   end
 
@@ -783,7 +796,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       Phoenix.PubSub.subscribe(NervesHub.PubSub, old_device2_topic)
       Phoenix.PubSub.subscribe(NervesHub.PubSub, new_device_topic)
 
-      Orchestrator.trigger_update(deployment_group)
+      Orchestrator.trigger_update(%{coordinator: DefaultCoordinator, deployment_group: deployment_group})
 
       # Priority queue devices should get updates first
       # Receive all messages and verify priority queue devices were scheduled
@@ -835,12 +848,12 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
 
       {:ok, conn1} = Connections.device_connecting(old_device1.org_id, old_device1.product_id, old_device1.id)
       :ok = Connections.device_connected(conn1.id)
-      assert Orchestrator.available_priority_slots(deployment_group) == 2
+      assert DefaultCoordinator.available_priority_slots(deployment_group) == 2
 
       # Add one device to priority queue
       {:ok, _inflight_update} = DeviceEvents.schedule_update(old_device1.id, deployment_group, priority_queue: true)
 
-      assert Orchestrator.available_priority_slots(deployment_group) == 1
+      assert DefaultCoordinator.available_priority_slots(deployment_group) == 1
     end
 
     test "priority and normal queues operate independently", %{
@@ -896,13 +909,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       {:ok, _inflight_update} = DeviceEvents.schedule_update(old_device1.id, deployment_group, priority_queue: true)
 
       # Normal queue should still have full capacity
-      assert Orchestrator.available_slots(deployment_group) == deployment_group.concurrent_updates
+      assert DefaultCoordinator.available_slots(deployment_group) == deployment_group.concurrent_updates
 
       # Fill normal queue partially
       {:ok, _inflight_update} = DeviceEvents.schedule_update(new_device.id, deployment_group, priority_queue: false)
 
       # Priority queue should still have capacity
-      assert Orchestrator.available_priority_slots(deployment_group) == 1
+      assert DefaultCoordinator.available_priority_slots(deployment_group) == 1
     end
 
     test "priority queue disabled by default", %{user: user, org: org, product: product, firmware: firmware} do
@@ -1406,15 +1419,15 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
       {:ok, _inflight_update} = DeviceEvents.schedule_update(new_device.id, deployment_group, priority_queue: false)
 
       # Verify both queues are full
-      assert Orchestrator.available_priority_slots(deployment_group) == 0
-      assert Orchestrator.available_slots(deployment_group) == 0
+      assert DefaultCoordinator.available_priority_slots(deployment_group) == 0
+      assert DefaultCoordinator.available_slots(deployment_group) == 0
 
       # Subscribe to device2's topic
       old_device2_topic = "device:#{old_device2.id}"
       Phoenix.PubSub.subscribe(NervesHub.PubSub, old_device2_topic)
 
       # Trigger update
-      Orchestrator.trigger_update(deployment_group)
+      Orchestrator.trigger_update(%{coordinator: DefaultCoordinator, deployment_group: deployment_group})
 
       # Device 2 should NOT receive an update because both queues are full
       refute_receive %Broadcast{topic: ^old_device2_topic, event: "update"}, 1_000

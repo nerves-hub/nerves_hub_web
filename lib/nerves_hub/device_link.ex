@@ -196,9 +196,6 @@ defmodule NervesHub.DeviceLink do
       :ok ->
         {session, []}
 
-      {:error, {:busy, delay_for}} ->
-        {session, [{:push, "update_rejected", %{"reason" => "busy", "delay_for" => delay_for}}]}
-
       {:error, reason} ->
         {session, [{:push, "update_rejected", %{"reason" => to_string(reason)}}]}
     end

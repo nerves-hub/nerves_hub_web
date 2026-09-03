@@ -18,7 +18,8 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.Distributed.Orchestrator
+  alias NervesHub.ManagedDeployments.Orchestrator
+  alias NervesHub.ManagedDeployments.Orchestrator.DefaultCoordinator
   alias NervesHub.Products
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
@@ -870,7 +871,10 @@ defmodule NervesHubWeb.WebsocketTest do
         ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
       # This is what the orchestrator process will do
-      Orchestrator.trigger_update(Map.put(deployment_group, :firmware, new_firmware))
+      Orchestrator.trigger_update(%{
+        coordinator: DefaultCoordinator,
+        deployment_group: Map.put(deployment_group, :firmware, new_firmware)
+      })
 
       message = SocketClient.wait_update(socket)
 

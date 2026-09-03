@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NimbleCSV.RFC4180, as: CSV
   alias Phoenix.Naming
 
@@ -250,7 +251,102 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def render(assigns) do
     ~H"""
     <div class="flex w-full flex-col items-start gap-4 p-6">
-      <div :if={@waiting_for_update_count == 0} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border p-4">
+      <div :if={@flow} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border">
+        <div id="deployment-workflow-fit" phx-hook="WorkflowDiagramFit" class="h-[200px]">
+          <.live_component
+            module={LiveFlow.Components.Flow}
+            id="deployment-workflow"
+            flow={@flow}
+            opts={
+              %{
+                background: :dots,
+                # Deliberately not `fit_view_on_init`. LiveFlow's fit pads by a
+                # fixed 0.1 and animates over 200ms, so having it and ours both
+                # run showed the diagram being sized twice. The WorkflowDiagramFit
+                # hook does it once instead, and without animating.
+                # See assets/js/hooks/workflowDiagramFit.js.
+                # The fit scales the diagram to fill the panel, which is what we
+                # want of a workflow long enough to need it. The cap is only here
+                # so a two-step workflow in a wide panel is not blown up to fill
+                # the same room.
+                max_zoom: 1.5,
+                pan_on_drag: "false",
+                zoom_on_scroll: "false"
+              }
+            }
+            node_types={@flow_nodes}
+            on_nodes_change={fn changes -> send(self(), {:workflow_nodes_changed, changes}) end}
+          />
+        </div>
+      </div>
+
+      <div
+        :if={@failed_step}
+        class="bg-surface-raised border-alert shadow-device-details-content flex w-full flex-col gap-3 rounded border p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div class="flex flex-col gap-1">
+          <div class="text-base-50 text-base font-medium">
+            Stopped at: {DeploymentWorkflowStep.label(@failed_step)}
+          </div>
+          <div :if={@failed_step.description} class="text-base-400 text-sm">
+            {@failed_step.description}
+          </div>
+          <div class="text-base-400 text-sm">
+            Too many of this step's devices failed to update. No further devices will be updated until it is retried or skipped.
+          </div>
+        </div>
+
+        <div class="flex w-fit shrink-0 gap-2">
+          <.button
+            style="primary"
+            phx-click="workflow-step-retry"
+            phx-value-number={@failed_step.number}
+            aria-label={"Retry the stopped step: #{DeploymentWorkflowStep.label(@failed_step)}"}
+            data-confirm="Offer this step's devices the update again?"
+          >
+            Retry step
+          </.button>
+
+          <.button
+            style="secondary"
+            phx-click="workflow-step-skip"
+            phx-value-number={@failed_step.number}
+            aria-label={"Skip the stopped step: #{DeploymentWorkflowStep.label(@failed_step)}"}
+            data-confirm="Skip this step? Its devices will be picked up by a later step."
+          >
+            Skip step
+          </.button>
+        </div>
+      </div>
+
+      <div
+        :if={@awaiting_approval}
+        class="bg-surface-raised border-warning shadow-device-details-content flex w-full flex-col gap-3 rounded border p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div class="flex flex-col gap-1">
+          <div class="text-base-50 text-base font-medium">
+            Waiting on you: {DeploymentWorkflowStep.label(@awaiting_approval)}
+          </div>
+          <div :if={@awaiting_approval.description} class="text-base-400 text-sm">
+            {@awaiting_approval.description}
+          </div>
+          <div class="text-base-400 text-sm">
+            No further devices will be updated until this step is approved.
+          </div>
+        </div>
+
+        <.button
+          style="primary"
+          phx-click="approve-workflow-step"
+          aria-label={"Approve workflow step: #{DeploymentWorkflowStep.label(@awaiting_approval)}"}
+          data-confirm="Approve this step and let the deployment carry on?"
+          class="w-fit shrink-0"
+        >
+          Approve and continue
+        </.button>
+      </div>
+
+      <div :if={@waiting_for_update_count == 0 && is_nil(@flow)} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border p-4">
         <div class="text-base-50 flex h-10 items-center justify-center text-xl/6 font-medium">
           {if @updates_disabled_count > 0, do: "All eligible devices are up to date!", else: "All devices are up to date!"}
         </div>
@@ -496,7 +592,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </span>
               </div>
               <div class="flex items-center gap-4">
-                <span class="text-base-500 w-40 text-sm">Device failure threshold:</span>
+                <span class="text-base-500 text-sm">Device failure threshold:</span>
                 <span class="text-base-300 text-sm">{@deployment_group.device_failure_threshold}</span>
               </div>
               <div class="flex items-center gap-4">
