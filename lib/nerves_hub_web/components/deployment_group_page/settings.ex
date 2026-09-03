@@ -173,14 +173,20 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <div class="text-base-50 text-base font-medium">Rolling updates</div>
           </div>
 
-          <div class="flex gap-6 p-6">
-            <div class="flex w-1/2 flex-col gap-6">
-              <.input
-                field={@form[:concurrent_updates]}
-                label="Concurrent Device Updates"
-                type="number"
-                hint="The number of devices that will update at any given time. This is a soft limit and concurrent updates may be slightly above this number."
-              />
+          <div class="flex flex-col gap-6 p-6">
+            <.superseded_by_workflow :if={@deployment_group.workflow_definition}>
+              A workflow paces each step separately, using the step's own <span class="font-mono">concurrent_updates</span>, so this limit is not applied while one is in use.
+            </.superseded_by_workflow>
+
+            <div class="flex gap-6">
+              <div class="flex w-1/2 flex-col gap-6">
+                <.input
+                  field={@form[:concurrent_updates]}
+                  label="Concurrent Device Updates"
+                  type="number"
+                  hint="The number of devices that will update at any given time. This is a soft limit and concurrent updates may be slightly above this number."
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -191,6 +197,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
 
           <div class="flex flex-col gap-6 p-6">
+            <.superseded_by_workflow :if={@deployment_group.workflow_definition}>
+              A workflow decides the order devices update in through its steps, so the priority queue is not used while one is in use.
+            </.superseded_by_workflow>
+
             <div class="flex flex-col gap-3">
               <p class="text-base-400 w-2/3 text-sm">
                 Enable priority queue to fast-track devices with older firmware versions (e.g., fresh from factory) for immediate updates, bypassing the normal rolling update queue.
@@ -336,6 +346,21 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
         </div>
       </.form>
+    </div>
+    """
+  end
+
+  # Settings a workflow takes over. They are left editable rather than hidden or
+  # disabled, since they apply again the moment the workflow definition is
+  # removed, and a setting that vanishes is harder to reason about than one that
+  # says why it is idle.
+  slot(:inner_block, required: true)
+
+  defp superseded_by_workflow(assigns) do
+    ~H"""
+    <div class="bg-surface-muted border-base-700 text-base-400 flex w-2/3 gap-2 rounded border px-3 py-2 text-sm">
+      <.icon name="info" class="stroke-base-400 mt-0.5 size-4 shrink-0" />
+      <div>{render_slot(@inner_block)}</div>
     </div>
     """
   end
