@@ -153,6 +153,7 @@ defmodule NervesHub.MixProject do
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
+      {:ex_json_schema, "~> 0.11.3"},
       {:excoveralls, "~> 0.18", only: :test},
       {:finch, "~> 0.23.0"},
       {:floki, "~> 0.38.0"},
@@ -168,10 +169,11 @@ defmodule NervesHub.MixProject do
       {:joken, "~> 2.6"},
       {:lazy_html, ">= 0.0.0", only: :test},
       {:libcluster_postgres, "~> 0.2.0"},
+      {:live_flow, "~> 0.2.3"},
       {:logfmt_ex, "~> 0.4"},
       {
         :lucide,
-        github: "lucide-icons/lucide", tag: "1.37.0", sparse: "icons", app: false, compile: false, depth: 1
+        github: "lucide-icons/lucide", tag: "1.38.0", sparse: "icons", app: false, compile: false, depth: 1
       },
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},

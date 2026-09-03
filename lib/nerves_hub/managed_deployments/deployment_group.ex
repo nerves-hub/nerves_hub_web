@@ -12,6 +12,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   alias NervesHub.Devices.UpdateStat
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentRelease
+  alias NervesHub.ManagedDeployments.WorkflowValidator
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Types.Tag
@@ -52,6 +53,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     field(:platform, :string, writable: :insert)
     field(:architecture, :string, writable: :insert)
+
+    field(:workflow_definition, :map)
 
     field(:device_failure_threshold, :integer, default: 3)
     field(:device_failure_rate_seconds, :integer, default: 180)
@@ -233,16 +236,34 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
       :priority_queue_enabled,
       :priority_queue_firmware_version_threshold,
       :release_network_interfaces,
-      :release_tags
+      :release_tags,
+      :workflow_definition
     ])
     |> cast_and_validate_numeric_fields(params)
     |> cast_embed(:conditions, required: true, with: &conditions_changeset/2)
     |> validate_required([:name, :delta_updatable, :is_active, :queue_management])
     |> validate_length(:notes, max: 1_000)
+    |> validate_workflow_definition()
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> prepare_current_updated_devices()
     |> prepare_device_count()
     |> prepare_status()
+  end
+
+  # Validated here rather than at the upload so that every path setting a
+  # definition is covered, and so a bad one cannot reach a release, where its
+  # steps are expanded.
+  defp validate_workflow_definition(changeset) do
+    case get_change(changeset, :workflow_definition) do
+      nil ->
+        changeset
+
+      definition ->
+        case WorkflowValidator.validate(definition) do
+          :ok -> changeset
+          {:error, messages} -> Enum.reduce(messages, changeset, &add_error(&2, :workflow_definition, &1))
+        end
+    end
   end
 
   defp cast_and_validate_numeric_fields(changeset, params) do

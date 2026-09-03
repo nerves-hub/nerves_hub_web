@@ -14,7 +14,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
-  alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
+  alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
@@ -168,6 +168,11 @@ defmodule NervesHub.ManagedDeployments do
     |> preload([product: p], product: p)
   end
 
+  # The `steps` join is only added alongside its preload. `steps` is a has_many, so
+  # the left join multiplies the parent rows; Ecto collapses them again when the
+  # preload is expressed through the join, but a caller that only joins for
+  # filtering (see `Devices.Updates.available_for_update/2`) would get one row per
+  # step for every device.
   def join_current_release(query, preload_firmware \\ false) do
     query
     |> join(:inner, [deployment_group: dg], dr in assoc(dg, :current_release), as: :current_release)
@@ -176,8 +181,9 @@ defmodule NervesHub.ManagedDeployments do
         query
         |> join(:left, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
         |> join(:left, [current_release: cr], a in assoc(cr, :archive), as: :archive)
-        |> preload([current_release: cr, firmware: f, archive: a],
-          current_release: {cr, firmware: f, archive: a}
+        |> join(:left, [current_release: cr], s in assoc(cr, :steps), as: :steps)
+        |> preload([current_release: cr, firmware: f, archive: a, steps: s],
+          current_release: {cr, firmware: f, archive: a, steps: s}
         )
       else
         query
@@ -285,7 +291,7 @@ defmodule NervesHub.ManagedDeployments do
 
   def load_current_release(deployment_group, opts \\ []) do
     force = Keyword.get(opts, :force, false)
-    Repo.preload(deployment_group, [current_release: [:firmware, :archive]], force: force)
+    Repo.preload(deployment_group, [current_release: [:firmware, :archive, :steps]], force: force)
   end
 
   def create_deployment_release(deployment_group, firmware, archive, user, params, opts \\ []) do
@@ -795,14 +801,14 @@ defmodule NervesHub.ManagedDeployments do
 
   @spec deployment_created_event(DeploymentGroup.t()) :: :ok
   defp deployment_created_event(deployment_group) do
-    _ = DistributedOrchestrator.start_orchestrator(deployment_group)
+    _ = Orchestrator.start_orchestrator(deployment_group)
 
     :ok
   end
 
   @spec deployment_activated_event(DeploymentGroup.t()) :: :ok
   defp deployment_activated_event(deployment_group) do
-    _ = DistributedOrchestrator.start_orchestrator(deployment_group)
+    _ = Orchestrator.start_orchestrator(deployment_group)
 
     :ok
   end

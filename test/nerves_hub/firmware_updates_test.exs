@@ -4,6 +4,7 @@ defmodule NervesHub.FirmwareUpdatesTest do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.Updates
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -18,6 +19,36 @@ defmodule NervesHub.FirmwareUpdatesTest do
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
 
     %{deployment_group: deployment_group, device: device}
+  end
+
+  describe "a device that has written the firmware but not rebooted" do
+    # `:completed` means the device finished writing, not that it is running the
+    # new firmware. Its row lives until it rejoins, and until then it is still
+    # occupying one of the deployment's slots. Counting it as finished would let
+    # the orchestrator schedule past its concurrency limit, and would offer
+    # another update to a device on its way down.
+    setup %{deployment_group: deployment_group, device: device} do
+      {:ok, inflight} =
+        InflightUpdate.deployment_requested_changeset(deployment_group, device.id, false)
+        |> Repo.insert()
+
+      :ok = FirmwareUpdates.update_inflight_update(device.id, "completed", nil, true)
+
+      %{inflight: inflight}
+    end
+
+    test "still counts against the deployment's concurrency", %{deployment_group: deployment_group} do
+      assert FirmwareUpdates.count_inflight_updates_for(deployment_group) == 1
+    end
+
+    test "is still listed as updating", %{deployment_group: deployment_group, device: device} do
+      assert [listed] = FirmwareUpdates.inflight_updates_for(deployment_group)
+      assert listed.device_id == device.id
+    end
+
+    test "is not offered another update", %{deployment_group: deployment_group, device: device} do
+      refute device.id in Enum.map(Updates.available_for_update(deployment_group, 10), & &1.id)
+    end
   end
 
   describe "status_update/4 without an inflight update" do
