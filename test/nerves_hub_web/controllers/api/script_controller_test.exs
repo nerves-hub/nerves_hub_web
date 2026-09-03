@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
 
   alias NervesHub.Fixtures
   alias NervesHub.Scripts.Runner
+  alias NervesHub.Scripts.Script
 
   setup context do
     org_key = Fixtures.org_key_fixture(context.org, context.user, context.tmp_dir)
@@ -160,6 +161,19 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
       conn = get(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/boopsnoot")
 
       assert json_response(conn, 404)
+    end
+
+    test "omits created_by when script has no creator", %{conn: conn, org: org, product: product} do
+      script =
+        Script.validate_changeset(%{name: "test-script", text: "echo hi"})
+        |> Ecto.Changeset.put_assoc(:product, product)
+        |> NervesHub.Repo.insert!()
+
+      conn = get(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}")
+
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["name"] == "test-script"
+      refute Map.has_key?(data, "created_by")
     end
 
     test "returns a 404 when is not accessible", %{conn2: conn, user: user, org: org, product: product} do
