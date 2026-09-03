@@ -694,7 +694,10 @@ defmodule NervesHub.DevicesTest do
       assert audit_log.description =~ "requested firmware"
     end
 
-    test "device_requested_update is refused once the deployment's slots are full", %{
+    # A device asking for an update is treated like a person pushing one to it.
+    # The deployment group's pacing governs what the orchestrator sends out, not
+    # what a device asks for on its own account.
+    test "device_requested_update is not held back by the deployment's slots", %{
       device: device,
       deployment_group: deployment_group,
       user: user
@@ -702,13 +705,21 @@ defmodule NervesHub.DevicesTest do
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{concurrent_updates: 1}, user)
 
-      # The first request takes the deployment's only slot.
       assert :ok = DeviceEvents.device_requested_update(device)
+      assert :ok = DeviceEvents.device_requested_update(device)
+    end
 
-      # Self-scheduling devices must not walk past the pacing the deployment
-      # group exists to provide, so the next one is told to come back later.
-      assert {:error, {:busy, delay}} = DeviceEvents.device_requested_update(device)
-      assert delay > 0
+    # There is one inflight row per device, so a device that missed the push and
+    # asks again has to refresh the one it has rather than fail on the index.
+    test "device_requested_update sends again to a device already updating", %{device: device} do
+      topic = "device:#{device.id}"
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+
+      assert :ok = DeviceEvents.device_requested_update(device)
+      assert_receive %Broadcast{topic: ^topic, event: "update"}, 1_000
+
+      assert :ok = DeviceEvents.device_requested_update(device)
+      assert_receive %Broadcast{topic: ^topic, event: "update"}, 1_000
     end
 
     test "device_requested_update is refused when there is nothing to send", %{
