@@ -115,7 +115,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
         entries =
           deployment_group
-          |> unclaimed_matching_devices_query(step)
+          |> claimable_devices_query(step)
           |> maybe_limit(remaining)
           |> select([device: d], d.id)
           |> Repo.all()
@@ -169,27 +169,16 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   `NervesHub.Devices.Updates` puts it after `device_failure_threshold` attempts.
   Its own retries have already been spent by that point.
 
-  Being in the box is not enough on its own, because a device can arrive already
-  in it — boxed by a previous release, or by a manual push, before this step
-  existed. Counting those would fail a step for something that happened before it
-  started, and with a tolerance of one device that is enough to halt a workflow
-  on its first pass, having offered nobody anything. So the device must also have
-  tried since the step started, which is what `update_attempts` records.
+  A step only claims devices that were out of the box at the time, so one that is
+  in it now was put there while this step had it.
   """
   @spec failed_device_count(DeploymentGroup.t(), DeploymentWorkflowStep.t()) :: non_neg_integer()
-  def failed_device_count(_deployment_group, %DeploymentWorkflowStep{started_at: nil}), do: 0
-
   def failed_device_count(deployment_group, step) do
     now = DateTime.utc_now()
-    started_at = DateTime.from_naive!(step.started_at, "Etc/UTC")
 
     deployment_group
     |> step_devices_query(step)
     |> where([device: d], not is_nil(d.updates_blocked_until) and d.updates_blocked_until > ^now)
-    |> where(
-      [device: d],
-      fragment("EXISTS (SELECT 1 FROM unnest(?) AS attempt WHERE attempt >= ?)", d.update_attempts, ^started_at)
-    )
     |> Repo.aggregate(:count)
   end
 
@@ -302,7 +291,28 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   end
 
   def step_complete?(deployment_group, step) do
-    outstanding_device_count(deployment_group, step) == 0
+    outstanding_device_count(deployment_group, step) == 0 and
+      not more_to_claim?(deployment_group, step)
+  end
+
+  # A step that has claimed nothing yet, because everything it matches is offline
+  # or boxed for the moment, has not done its job — it has done nothing. Letting
+  # it complete would hand its devices to the catch_all and turn a staged rollout
+  # into an unstaged one over a momentary blip. It waits instead, and claims them
+  # when they turn up.
+  #
+  # Once the match limit is reached there is nothing more for the step to take,
+  # however many devices it still matches: that is what the limit means.
+  defp more_to_claim?(deployment_group, step) do
+    case remaining_match_limit(step) do
+      0 ->
+        false
+
+      _ ->
+        deployment_group
+        |> unclaimed_matching_devices_query(step)
+        |> Repo.exists?()
+    end
   end
 
   @doc """
@@ -419,6 +429,34 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
   # Devices in the deployment group that match the step and have not already been
   # claimed by one of the release's steps.
+  # A step's `match_limit` is how many devices it updates, so a slot should go to
+  # a device the step can actually update. One that is disconnected, or sitting
+  # in the penalty box, or already on the release's firmware, would take up a
+  # place in the cohort and give nothing back — and, being unable to move, would
+  # hold the step open until somebody skipped it.
+  #
+  # A device passed over here is not lost. It stays unclaimed, so a later pass
+  # takes it if the step still has room, and the catch_all covers it once the
+  # step has finished.
+  defp claimable_devices_query(deployment_group, step) do
+    deployment_group
+    |> unclaimed_matching_devices_query(step)
+    |> where([latest_connection: lc], lc.status == :connected)
+    |> where(
+      [device: d],
+      is_nil(d.updates_blocked_until) or d.updates_blocked_until <= ^DateTime.utc_now()
+    )
+    |> where(
+      [device: d],
+      is_nil(d.firmware_metadata) or
+        fragment("? #>> '{\"uuid\"}'", d.firmware_metadata) != ^release_firmware_uuid(deployment_group)
+    )
+  end
+
+  defp release_firmware_uuid(deployment_group), do: deployment_group.current_release.firmware.uuid
+
+  # Devices the step matches and nothing has claimed yet, whether or not they can
+  # be updated this moment. This is what says there is still work in the step.
   defp unclaimed_matching_devices_query(deployment_group, step) do
     deployment_group
     |> matching_devices_query(step)
@@ -426,14 +464,21 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   end
 
   defp matching_devices_query(deployment_group, %DeploymentWorkflowStep{matching_conditions: nil}) do
-    deployment_group_devices_query(deployment_group)
+    deployment_group
+    |> deployment_group_devices_query()
+    |> join_latest_connection()
   end
 
   defp matching_devices_query(deployment_group, %DeploymentWorkflowStep{matching_conditions: conditions}) do
     deployment_group
     |> deployment_group_devices_query()
+    |> join_latest_connection()
     |> maybe_match_tags(conditions.tags)
     |> maybe_match_network_interfaces(conditions.network_interfaces)
+  end
+
+  defp join_latest_connection(query) do
+    join(query, :inner, [device: d], lc in assoc(d, :latest_connection), as: :latest_connection)
   end
 
   defp deployment_group_devices_query(deployment_group) do
@@ -456,12 +501,8 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
   defp maybe_match_network_interfaces(query, interfaces) when interfaces in [nil, []], do: query
 
-  # The interface comes off the most recent connection, which outlives the
-  # connection itself, so a device that is currently offline still matches.
   defp maybe_match_network_interfaces(query, interfaces) do
-    query
-    |> join(:inner, [device: d], lc in assoc(d, :latest_connection), as: :latest_connection)
-    |> where([latest_connection: lc], lc.network_interface in ^interfaces)
+    where(query, [latest_connection: lc], lc.network_interface in ^interfaces)
   end
 
   @doc """

@@ -396,20 +396,21 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
     end
   end
 
-  describe "a device that arrives already in the penalty box" do
+  describe "a device the step cannot update" do
     @canary_step %{
       "version" => 1,
       "steps" => [%{"name" => "Canary", "matching_conditions" => %{"tags" => ["canary"]}}]
     }
 
-    # A device can be boxed before the step exists, by a previous release or a
-    # manual push. Counting that against the step would fail it for something
-    # that happened before it started — and with the default tolerance of one
-    # device, halt the workflow on its first pass having offered nobody anything.
-    test "does not count against the step it lands in", context do
-      device = add_device(context, %{tags: ["canary"]})
+    # A step's match limit is how many devices it updates, so a device that is
+    # boxed — by a previous release, or a manual push, before this step existed —
+    # should not take up a place in the cohort. Claiming it would both waste the
+    # slot and, since it cannot move, hold the step open until somebody skipped it.
+    test "is not claimed while it is in the penalty box", context do
+      boxed = add_device(context, %{tags: ["canary"]})
+      healthy = add_device(context, %{tags: ["canary"]})
 
-      device
+      boxed
       |> Ecto.Changeset.change(%{
         updates_blocked_until: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second)
       })
@@ -423,15 +424,19 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert canary.status == :in_progress
       assert Workflows.claimed_device_count(canary) == 1
+      assert covered_device_ids(deployment_group, canary) == [healthy.id]
+
+      # And so it fails the step for nothing: the step only ever claimed devices
+      # that were out of the box, so one in it now was put there by this step.
       assert Workflows.failed_device_count(deployment_group, canary) == 0
     end
 
-    # It is still the step's device, so the step waits for it rather than handing
-    # it to a later one.
-    test "is still covered by the step", context do
-      device = add_device(context, %{tags: ["canary"]})
+    # Passed over is not lost. The step takes it on a later pass if it still has
+    # room, and the catch_all covers it once the step has finished.
+    test "is claimed on a later pass once it can be updated", context do
+      boxed = add_device(context, %{tags: ["canary"]})
 
-      device
+      boxed
       |> Ecto.Changeset.change(%{
         updates_blocked_until: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second)
       })
@@ -440,9 +445,18 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       %{deployment_group: deployment_group, release: release} = release_with(context, @canary_step)
 
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      assert Workflows.claimed_device_count(step(release, 1)) == 0
 
-      refute Workflows.step_complete?(deployment_group, step(release, 1))
-      assert covered_device_ids(deployment_group, step(release, 1)) == [device.id]
+      # The box expires. Reloaded first, or the in-memory struct still shows no
+      # box and Ecto writes nothing.
+      boxed
+      |> Repo.reload!()
+      |> Ecto.Changeset.change(%{updates_blocked_until: nil})
+      |> Repo.update!()
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert Workflows.claimed_device_count(step(release, 1)) == 1
     end
   end
 
