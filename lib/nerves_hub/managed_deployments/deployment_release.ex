@@ -81,7 +81,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
 
   defp generate_workflow_steps(changeset, workflow_definition) do
     {steps, _} =
-      Enum.map_reduce(workflow_definition["steps"], 1, fn step, count ->
+      Enum.map_reduce(workflow_definition["steps"] || [], 1, fn step, count ->
         {DeploymentWorkflowStep.new_changeset(step, count), count + 1}
       end)
 
@@ -89,6 +89,12 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
 
     put_assoc(changeset, :steps, steps)
   end
+
+  # A definition that has been through the schema always has at least one step, so
+  # this only sees an empty list from something that wrote `workflow_definition`
+  # without going through the changeset. Failing here would take out release
+  # creation for the deployment group, so give it the catch_all and carry on.
+  defp maybe_add_catch_all([]), do: [DeploymentWorkflowStep.new_catch_all(1)]
 
   defp maybe_add_catch_all(steps) do
     last = List.last(steps)

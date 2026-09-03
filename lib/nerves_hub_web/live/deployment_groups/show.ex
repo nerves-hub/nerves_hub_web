@@ -106,7 +106,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
         AuditLogs.audit!(
           user,
           deployment_group,
-          "User #{user.name} approved workflow step #{step.number} (#{step.name}) for deployment group #{deployment_group.name}"
+          "User #{user.name} approved workflow step #{step.number} (#{DeploymentWorkflowStep.label(step)}) for deployment group #{deployment_group.name}"
         )
 
         # Approving only clears the block. The orchestrator is what completes the

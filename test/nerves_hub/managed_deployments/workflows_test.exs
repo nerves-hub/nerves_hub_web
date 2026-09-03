@@ -85,6 +85,21 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
       assert Enum.map(steps, & &1.type) == [:update_devices, :catch_all]
     end
 
+    # The schema will not let an empty list through, so this only arrives from
+    # something that wrote the column directly. Release creation should still work.
+    test "a definition with no steps still produces a catch_all", context do
+      assert [catch_all] = steps_for_definition(context, %{"version" => 1, "steps" => []})
+
+      assert catch_all.type == :catch_all
+      assert catch_all.number == 1
+    end
+
+    test "a definition with no steps key at all is survivable", context do
+      assert [catch_all] = steps_for_definition(context, %{"version" => 1})
+
+      assert catch_all.type == :catch_all
+    end
+
     test "a deployment group without a workflow gets no steps", context do
       %{deployment_group: deployment_group, user: user, org_key: org_key, product: product} = context
 
@@ -95,6 +110,23 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
 
       assert Repo.preload(release, :steps).steps == []
     end
+  end
+
+  # Written straight to the column, since the changeset would reject it, and
+  # released against the firmware already to hand.
+  defp steps_for_definition(context, definition) do
+    %{deployment_group: deployment_group, user: user, firmware: firmware} = context
+
+    deployment_group
+    |> Ecto.Changeset.change(%{workflow_definition: definition})
+    |> Repo.update!()
+
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(deployment_group.id)
+
+    {:ok, {release, _}} =
+      ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{}, broadcast: false)
+
+    Repo.preload(release, :steps).steps
   end
 
   describe "current release preloading" do
