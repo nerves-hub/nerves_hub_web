@@ -9,7 +9,7 @@ defmodule NervesHub.Application do
   alias NervesHub.Devices.LogLine
   alias NervesHub.ErrorReports.ErrorReport
   alias NervesHub.ErrorReports.GroupBuffer
-  alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
+  alias NervesHub.ManagedDeployments.OrchestratorRegistration
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
   alias NervesHub.RateLimit.ErrorReports, as: ErrorReportLimit
   alias NervesHub.RateLimit.LogLines
