@@ -250,6 +250,20 @@ defmodule NervesHub.Devices.BulkActions do
     )
   end
 
+  @spec move_many_to_deployment_group_by_identifiers(
+          Product.t(),
+          [String.t()],
+          DeploymentGroup.t() | non_neg_integer(),
+          User.t()
+        ) :: %{ok: non_neg_integer(), error: non_neg_integer()}
+  def move_many_to_deployment_group_by_identifiers(product, identifiers, deployment_group, user) do
+    Device
+    |> Repo.exclude_deleted()
+    |> where([d], d.product_id == ^product.id)
+    |> where([d], d.identifier in ^identifiers)
+    |> move_many_to_deployment_group(deployment_group, user)
+  end
+
   @spec move_many([Device.t()] | Ecto.Query.t(), Product.t(), User.t()) ::
           %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
           | %{ok: non_neg_integer(), error: non_neg_integer()}

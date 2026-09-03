@@ -326,6 +326,18 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
+  def handle_info(:refresh_device_count, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    updated_deployment =
+      ManagedDeployments.get_by_product_and_name!(deployment_group.product, deployment_group.name, true)
+
+    socket
+    |> assign(:deployment_group, updated_deployment)
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
   def handle_info({:flash, level, message}, socket) do
     socket
     |> put_flash(level, message)
