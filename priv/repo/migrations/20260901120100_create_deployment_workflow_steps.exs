@@ -13,7 +13,9 @@ defmodule NervesHub.Repo.Migrations.CreateDeploymentWorkflowSteps do
       add(:type, :string, null: false)
       add(:matching_conditions, :map, null: false, default: %{})
       add(:failure_tolerance, :map, null: true)
-      add(:concurrency, :integer, default: 10)
+      # Not nullable: nothing reads a null as "unlimited", and `available_slots/2`
+      # would fail arithmetic on one.
+      add(:concurrency, :integer, default: 10, null: false)
       add(:approved_at, :naive_datetime_usec, null: true)
       add(:started_at, :naive_datetime_usec, null: true)
       add(:skipped_at, :naive_datetime_usec, null: true)

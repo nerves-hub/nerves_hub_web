@@ -396,6 +396,56 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
     end
   end
 
+  describe "a device that arrives already in the penalty box" do
+    @canary_step %{
+      "version" => 1,
+      "steps" => [%{"name" => "Canary", "matching_conditions" => %{"tags" => ["canary"]}}]
+    }
+
+    # A device can be boxed before the step exists, by a previous release or a
+    # manual push. Counting that against the step would fail it for something
+    # that happened before it started — and with the default tolerance of one
+    # device, halt the workflow on its first pass having offered nobody anything.
+    test "does not count against the step it lands in", context do
+      device = add_device(context, %{tags: ["canary"]})
+
+      device
+      |> Ecto.Changeset.change(%{
+        updates_blocked_until: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second)
+      })
+      |> Repo.update!()
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_step)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      canary = step(release, 1)
+
+      assert canary.status == :in_progress
+      assert Workflows.claimed_device_count(canary) == 1
+      assert Workflows.failed_device_count(deployment_group, canary) == 0
+    end
+
+    # It is still the step's device, so the step waits for it rather than handing
+    # it to a later one.
+    test "is still covered by the step", context do
+      device = add_device(context, %{tags: ["canary"]})
+
+      device
+      |> Ecto.Changeset.change(%{
+        updates_blocked_until: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second)
+      })
+      |> Repo.update!()
+
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_step)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      refute Workflows.step_complete?(deployment_group, step(release, 1))
+      assert covered_device_ids(deployment_group, step(release, 1)) == [device.id]
+    end
+  end
+
   describe "an approval step" do
     @needs_approval %{
       "version" => 1,
@@ -497,10 +547,15 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
     }
 
     # A device counts as failed once it is in the penalty box, which is where
-    # repeated failed update attempts put it.
+    # repeated failed update attempts put it. Both halves matter: the attempts
+    # are what say the failure belongs to the step that is running, rather than
+    # to whatever boxed the device before it started.
     defp fail_device(device) do
       device
-      |> Ecto.Changeset.change(%{updates_blocked_until: DateTime.utc_now(:second) |> DateTime.add(3600, :second)})
+      |> Ecto.Changeset.change(%{
+        updates_blocked_until: DateTime.utc_now(:second) |> DateTime.add(3600, :second),
+        update_attempts: [DateTime.utc_now(:second)]
+      })
       |> Repo.update!()
     end
 

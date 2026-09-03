@@ -163,19 +163,33 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   end
 
   @doc """
-  How many of a step's devices have failed to take the update.
+  How many of a step's devices have failed to take *this* step's update.
 
   A device counts as failed once it is in the penalty box, which is where
   `NervesHub.Devices.Updates` puts it after `device_failure_threshold` attempts.
   Its own retries have already been spent by that point.
+
+  Being in the box is not enough on its own, because a device can arrive already
+  in it — boxed by a previous release, or by a manual push, before this step
+  existed. Counting those would fail a step for something that happened before it
+  started, and with a tolerance of one device that is enough to halt a workflow
+  on its first pass, having offered nobody anything. So the device must also have
+  tried since the step started, which is what `update_attempts` records.
   """
   @spec failed_device_count(DeploymentGroup.t(), DeploymentWorkflowStep.t()) :: non_neg_integer()
+  def failed_device_count(_deployment_group, %DeploymentWorkflowStep{started_at: nil}), do: 0
+
   def failed_device_count(deployment_group, step) do
     now = DateTime.utc_now()
+    started_at = DateTime.from_naive!(step.started_at, "Etc/UTC")
 
     deployment_group
     |> step_devices_query(step)
     |> where([device: d], not is_nil(d.updates_blocked_until) and d.updates_blocked_until > ^now)
+    |> where(
+      [device: d],
+      fragment("EXISTS (SELECT 1 FROM unnest(?) AS attempt WHERE attempt >= ?)", d.update_attempts, ^started_at)
+    )
     |> Repo.aggregate(:count)
   end
 

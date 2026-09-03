@@ -129,6 +129,30 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
     Repo.preload(release, :steps).steps
   end
 
+  describe "a step's concurrency" do
+    # A null would have to mean something, and nothing reads it as "unlimited" —
+    # `available_slots/2` fails arithmetic on it. The column refuses one.
+    test "cannot be null", context do
+      %{release: release} = with_workflow(context)
+      [step | _] = Workflows.release_steps(release.id)
+
+      assert_raise Postgrex.Error, ~r/null value in column "concurrency"/, fn ->
+        step
+        |> Ecto.Changeset.change(%{concurrency: nil})
+        |> Repo.update!()
+      end
+    end
+
+    test "defaults rather than being left unset", context do
+      %{release: release} = with_workflow(context)
+
+      for step <- Workflows.release_steps(release.id) do
+        assert is_integer(step.concurrency)
+        assert step.concurrency > 0
+      end
+    end
+  end
+
   describe "current release preloading" do
     test "steps are preloaded so the orchestrator can pick a coordinator", context do
       %{deployment_group: deployment_group} = with_workflow(context)
