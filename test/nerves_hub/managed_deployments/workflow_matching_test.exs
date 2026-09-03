@@ -4,6 +4,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
   import Ecto.Query
 
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -84,6 +85,18 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
     |> Repo.update!()
   end
 
+  # Backdate each device's connection so FIFO has something deterministic to order
+  # by, rather than whatever order the fixtures happened to run in.
+  defp age_connections(device_offsets) do
+    for {device, seconds} <- device_offsets do
+      established = DateTime.utc_now() |> DateTime.add(seconds, :second) |> DateTime.truncate(:second)
+
+      DeviceConnection
+      |> where([c], c.device_id == ^device.id)
+      |> Repo.update_all(set: [established_at: established])
+    end
+  end
+
   defp steps(release), do: Workflows.release_steps(release.id)
 
   describe "claim_devices/2" do
@@ -125,6 +138,51 @@ defmodule NervesHub.ManagedDeployments.WorkflowMatchingTest do
     # A step's match limit is how many devices it updates, so a slot should not
     # go to one that cannot take the update. It stays unclaimed for a later pass,
     # or for the catch_all once this step has finished.
+    # Which devices a step takes is where the group's queue management decides
+    # something: covering two of three canaries is choosing which two.
+    test "takes the longest-connected devices first under FIFO", context do
+      first = add_device(context, %{tags: ["canary"]})
+      second = add_device(context, %{tags: ["canary"]})
+      _third = add_device(context, %{tags: ["canary"]})
+
+      # Connection order is what FIFO reads, so make it explicit rather than
+      # relying on how quickly the fixtures ran.
+      age_connections([{first, -300}, {second, -200}])
+
+      definition = %{
+        "version" => 1,
+        "steps" => [%{"name" => "Canary", "matching_conditions" => %{"tags" => ["canary"], "match_limit" => 2}}]
+      }
+
+      %{release: release, deployment_group: deployment_group} = release_with(context, definition)
+      [step | _] = steps(release)
+
+      assert Workflows.claim_devices(deployment_group, step) == 2
+      assert claimed_device_ids(step) == Enum.sort([first.id, second.id])
+    end
+
+    test "takes the newest devices first under LIFO", context do
+      %{user: user} = context
+      _oldest = add_device(context, %{tags: ["canary"], first_seen_at: ~U[2020-01-01 00:00:00Z]})
+      newer = add_device(context, %{tags: ["canary"], first_seen_at: ~U[2026-01-01 00:00:00Z]})
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{queue_management: :LIFO}, user)
+
+      definition = %{
+        "version" => 1,
+        "steps" => [%{"name" => "Canary", "matching_conditions" => %{"tags" => ["canary"], "match_limit" => 1}}]
+      }
+
+      %{release: release, deployment_group: deployment_group} =
+        release_with(Map.put(context, :deployment_group, deployment_group), definition)
+
+      [step | _] = steps(release)
+
+      assert Workflows.claim_devices(deployment_group, step) == 1
+      assert claimed_device_ids(step) == [newer.id]
+    end
+
     test "passes over a device that is disconnected", context do
       _offline = add_disconnected_device(context, %{tags: ["canary"]})
       online = add_device(context, %{tags: ["canary"]})

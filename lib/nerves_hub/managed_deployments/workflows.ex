@@ -441,6 +441,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   defp claimable_devices_query(deployment_group, step) do
     deployment_group
     |> unclaimed_matching_devices_query(step)
+    |> order_by_queue_management(deployment_group.queue_management)
     |> where([latest_connection: lc], lc.status == :connected)
     |> where(
       [device: d],
@@ -486,9 +487,19 @@ defmodule NervesHub.ManagedDeployments.Workflows do
     |> from(as: :device)
     |> where([device: d], d.deployment_id == ^deployment_group.id)
     |> Repo.exclude_deleted()
-    # Claiming happens once and then sticks, so pick in a stable order rather than
-    # by anything that moves around, such as connection recency.
-    |> order_by([device: d], asc: d.id)
+  end
+
+  # Which devices a step takes is where the deployment group's queue management
+  # decides something: a step covering thirty of a hundred canaries is choosing
+  # which thirty, and FIFO or LIFO is the answer the group already gives. By the
+  # time devices are being scheduled they have all been claimed and will all be
+  # updated, so ordering there settles little.
+  defp order_by_queue_management(query, :LIFO) do
+    order_by(query, [device: d], desc_nulls_last: d.first_seen_at)
+  end
+
+  defp order_by_queue_management(query, _fifo) do
+    order_by(query, [latest_connection: lc], asc: lc.established_at)
   end
 
   defp maybe_match_tags(query, tags) when tags in [nil, []], do: query
