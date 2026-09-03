@@ -17,6 +17,7 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
     {:ok, ast} = Parser.parse(query, product.id)
 
     Device
+    |> from(as: :device)
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
     |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)

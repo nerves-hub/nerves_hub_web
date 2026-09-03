@@ -79,13 +79,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, _} =
-        Health.save_device_health(%{
-          "device_id" => device.id,
-          "data" => %{"metadata" => %{"serial_number" => "SN-1234"}},
-          "status" => :healthy,
-          "status_reasons" => %{}
-        })
+      # Metadata rides the connection now, not the health row.
+      _ = Fixtures.device_connection_fixture(device, %{metadata: %{"serial_number" => "SN-1234"}})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -100,13 +95,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, _} =
-        Health.save_device_health(%{
-          "device_id" => device.id,
-          "data" => %{"metadata" => %{"serial_number" => "SN-1234"}},
-          "status" => :healthy,
-          "status_reasons" => %{}
-        })
+      # Metadata rides the connection now, not the health row.
+      _ = Fixtures.device_connection_fixture(device, %{metadata: %{"serial_number" => "SN-1234"}})
 
       session = visit(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
 
@@ -688,12 +678,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      device_health = %{
-        "device_id" => device.id,
-        "data" => %{"alarms" => %{"SomeAlarm" => "Some description"}}
-      }
-
-      assert {:ok, _} = Health.save_device_health(device_health)
+      Fixtures.device_alarms_fixture(device, %{"SomeAlarm" => "Some description"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -715,11 +700,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "Health")
       |> assert_has("div", text: "No Alarms Received")
 
-      assert {:ok, _} =
-               Health.save_device_health(%{
-                 "device_id" => device.id,
-                 "data" => %{"alarms" => %{}}
-               })
+      Fixtures.device_alarms_fixture(device, %{})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
