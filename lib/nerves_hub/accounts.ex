@@ -540,13 +540,18 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
-  Fetch the org's firmware signing keys for the given device.
+  Fetch the org's firmware signing keys of one scheme for the given device.
+
+  Keys of different schemes are different formats — an fwup Ed25519 key, an
+  ESP-IDF RSA key and a RAUC certificate have nothing in common — so a caller
+  always wants exactly one scheme, never the org's whole keyring.
   """
-  def fetch_firmware_signing_keys(device_id) do
+  @spec fetch_firmware_signing_keys(integer(), OrgKey.scheme()) :: [OrgKey.t()]
+  def fetch_firmware_signing_keys(device_id, scheme) do
     OrgKey
     |> join(:inner, [ok], d in assoc(ok, :org))
     |> join(:inner, [ok, o], d in assoc(o, :devices))
-    |> where([ok, o, d], d.id == ^device_id)
+    |> where([ok, o, d], d.id == ^device_id and ok.scheme == ^scheme)
     |> Repo.all()
   end
 

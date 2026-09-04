@@ -5,6 +5,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   import TrackerHelper
 
+  alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgKey
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Connections
@@ -16,6 +18,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
+  alias NervesHub.Support.EspIdf
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
@@ -334,13 +337,44 @@ defmodule NervesHubWeb.DeviceChannelTest do
       end
 
     params = Map.put(params, "fwup_public_keys", "on_connect")
+    fwup_key = seed_other_scheme_keys(device, user)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
-    assert_push("fwup_public_keys", %{keys: [_]})
+    assert_push("fwup_public_keys", %{keys: [^fwup_key]})
+
+    assert_online_and_available(device)
+    close_cleanly(device_channel)
+  end
+
+  test "the firmware keys sent follow the device's update tool", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    _fwup_key = seed_other_scheme_keys(device, user)
+    esp_idf_key = EspIdf.signing_public_key()
+
+    # What nerves-hub-link-esp32 sends on join, plus the request for keys.
+    params = %{
+      "device_api_version" => "2.2.0",
+      "update_tool" => "esp-idf",
+      "esp_idf_project_name" => "my_app",
+      "esp_idf_version" => "1.0.0",
+      "esp_idf_app_elf_sha256" => Base.encode16(:crypto.strong_rand_bytes(32), case: :lower),
+      "esp_idf_ver" => "v5.2.1",
+      "esp_idf_chip_id" => 9,
+      "fwup_public_keys" => "on_connect"
+    }
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
+
+    assert_push("fwup_public_keys", %{keys: [^esp_idf_key]})
 
     assert_online_and_available(device)
     close_cleanly(device_channel)
@@ -360,13 +394,14 @@ defmodule NervesHubWeb.DeviceChannelTest do
       end
 
     params = Map.put(params, "archive_public_keys", "on_connect")
+    fwup_key = seed_other_scheme_keys(device, user)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
-    assert_push("archive_public_keys", %{keys: [_]})
+    assert_push("archive_public_keys", %{keys: [^fwup_key]})
 
     assert_online_and_available(device)
     close_cleanly(device_channel)
@@ -925,6 +960,39 @@ defmodule NervesHubWeb.DeviceChannelTest do
       )
 
     {device, firmware, deployment_group}
+  end
+
+  # Give the device's org one key of every other scheme, and return the fwup
+  # key it already has. Neither an ESP-IDF RSA key nor a RAUC certificate is
+  # something `fwup --public-key` can use, so neither may reach the device.
+  defp seed_other_scheme_keys(device, user) do
+    %OrgKey{key: fwup_key} = Repo.get_by!(OrgKey, org_id: device.org_id, scheme: :ed25519)
+
+    {:ok, _esp_idf} =
+      Accounts.create_org_key(%{
+        org_id: device.org_id,
+        created_by_id: user.id,
+        name: "esp-idf",
+        key: EspIdf.signing_public_key(),
+        scheme: :secure_boot_v2_rsa
+      })
+
+    certificate =
+      :secp256r1
+      |> X509.PrivateKey.new_ec()
+      |> X509.Certificate.self_signed("CN=rauc")
+      |> X509.Certificate.to_pem()
+
+    {:ok, _rauc} =
+      Accounts.create_org_key(%{
+        org_id: device.org_id,
+        created_by_id: user.id,
+        name: "rauc",
+        key: certificate,
+        scheme: :x509_certificate
+      })
+
+    fwup_key
   end
 
   defp archive_setup(tmp_dir) do
