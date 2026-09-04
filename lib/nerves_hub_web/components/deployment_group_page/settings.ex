@@ -388,7 +388,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         {:error, _reason} ->
           socket
-          |> put_flash(:error, "That file could not be read as JSON. Check it for a stray comma or bracket.")
+          |> flash(:error, "That file could not be read as JSON. Check it for a stray comma or bracket.")
           |> noreply()
       end
     else
@@ -418,7 +418,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
       {:error, changeset} ->
         socket
-        |> put_flash(:error, workflow_definition_error_message(changeset))
+        |> flash(:error, workflow_definition_error_message(changeset))
         |> assign(:form, to_form(changeset))
         |> noreply()
     end
@@ -511,7 +511,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
       {:error, changeset} ->
         socket
-        |> put_flash(
+        |> flash(
           :error,
           "An error occurred while updating the deployment group. Please check the form for errors."
         )
@@ -533,6 +533,15 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     |> put_flash(:info, "Deployment group successfully deleted")
     |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups")
     |> noreply()
+  end
+
+  # A flash put on a live component's own socket only ever reaches the page
+  # because a navigation carries it into the next mount. Anything that stays put
+  # has to ask the LiveView to raise it, which is what the other tabs do.
+  defp flash(socket, level, message) do
+    send(self(), {:flash, level, message})
+
+    socket
   end
 
   defp help_message_for(field) do
