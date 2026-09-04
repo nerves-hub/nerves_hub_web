@@ -11,6 +11,11 @@ defmodule NervesHub.ProductNotifications do
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
+  # Failure reasons arrive in a device's message payload, so they are whatever
+  # the device chose to send. Cap them before they reach a notification the UI
+  # renders, the way `DeviceTemplates` does for audit log descriptions.
+  @reason_max_length 200
+
   @spec subscribe(pos_integer()) :: :ok
   def subscribe(product_id) do
     :ok = Group.join(NervesHub.Group, key(product_id), %{})
@@ -241,6 +246,47 @@ defmodule NervesHub.ProductNotifications do
   end
 
   @doc """
+  A device could not start an extension it was asked to attach.
+
+  Both ways that can happen end up here. `NervesHub.Extensions.Dispatch` reports
+  the device failing to start the extension at all, which detaches it; an
+  extension reports a failure of its own, which does not -- the local shell
+  answering `request_shell` with a reason it has no pty is the case this was
+  written for.
+
+  Either way the extension is enabled and not working, and nothing about the
+  device says so: it stays connected, and the toggle on its settings page stays
+  on. The fix is almost always in the device's firmware, so it needs a person.
+
+  Deduplicated on the device, the extension and the reason. Including the reason
+  looks redundant next to `occurrence_count`, and is not: the conflict clause in
+  `insert_and_notify!/1` updates the count and the timestamp but not the
+  message, so a device that starts failing for a new reason would otherwise
+  keep showing the old one.
+  """
+  @spec create_extension_failure_notification!(DeviceInfo.t(), String.t(), String.t() | nil) ::
+          Notification.t()
+  def create_extension_failure_notification!(%DeviceInfo{} = device_info, extension, reason) do
+    reason = truncate_reason(reason)
+
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device could not start an extension.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' could not start the " <>
+          "'#{extension}' extension#{reason_clause(reason)}. It stays enabled in NervesHub and " <>
+          "will not work on this device until the cause is fixed, which is usually in the " <>
+          "device's firmware.",
+      level: :warning,
+      metadata: %{identifier: device_info.device_identifier, extension: extension, reason: reason},
+      # The changeset rejects spaces, and a reason is a sentence, so the reason
+      # is keyed by hash rather than by its text.
+      event_key: "extension_failure-#{extension}-#{device_info.device_identifier}-#{:erlang.phash2(reason)}"
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
   A device reported more metrics in one report than will be stored.
 
   The report is kept, trimmed to the first `max_keys` names in sorted order --
@@ -278,6 +324,21 @@ defmodule NervesHub.ProductNotifications do
      "Step #{step.number} ('#{DeploymentWorkflowStep.label(step)}') of the workflow for deployment group '#{deployment_group.name}' needs approving before the rollout continues. No further devices will be updated for this release until it is approved or skipped.",
      :info}
   end
+
+  defp reason_clause(nil), do: ""
+  defp reason_clause(reason), do: ": #{reason}"
+
+  defp truncate_reason(nil), do: nil
+
+  defp truncate_reason(reason) when is_binary(reason) do
+    if String.length(reason) > @reason_max_length do
+      String.slice(reason, 0, @reason_max_length - 1) <> "…"
+    else
+      reason
+    end
+  end
+
+  defp truncate_reason(reason), do: truncate_reason(inspect(reason))
 
   defp insert_and_notify!(changeset) do
     conflict_query =
