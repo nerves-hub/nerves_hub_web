@@ -71,6 +71,14 @@ defmodule NervesHubWeb.Live.Product.Notifications do
     |> noreply()
   end
 
+  # Something that had raised a notification is no longer the case, so the list
+  # changes under the reader with nothing to announce.
+  def handle_info(%Broadcast{event: "resolved"}, socket) do
+    socket
+    |> fetch_notifications(socket.assigns.result_meta.current_page, socket.assigns.result_meta.page_size)
+    |> noreply()
+  end
+
   def handle_info(%Broadcast{event: "dismissed", payload: %{dismissed_by: %{id: user_id, name: name}}}, socket) do
     message =
       if socket.assigns.current_scope.user.id == user_id do

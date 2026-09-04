@@ -235,7 +235,7 @@ defmodule NervesHub.ProductNotifications do
       },
       # Keyed to the step rather than the deployment group, so a workflow that
       # stops twice at different stages says so twice.
-      event_key: "workflow_halted-#{deployment_group.id}-#{step.id}"
+      event_key: workflow_halted_key(deployment_group.id, step.id)
     })
     |> insert_and_notify!()
   end
@@ -265,6 +265,41 @@ defmodule NervesHub.ProductNotifications do
       event_key: "too_many_metrics-#{device_info.device_identifier}"
     })
     |> insert_and_notify!()
+  end
+
+  @doc """
+  Take back the notice that a workflow had stopped.
+
+  Raised when a workflow stops and cleared when it starts again, so the list
+  reflects what needs attention now rather than everything that ever did. The
+  same key the notice was raised under finds it, whether it was raised once or
+  coalesced from several.
+  """
+  @spec resolve_workflow_halted_notification!(pos_integer(), pos_integer(), pos_integer()) :: :ok
+  def resolve_workflow_halted_notification!(product_id, deployment_group_id, step_id) do
+    resolve!(product_id, workflow_halted_key(deployment_group_id, step_id))
+  end
+
+  defp resolve!(product_id, event_key) do
+    {deleted, _} =
+      Notification
+      |> where([n], n.product_id == ^product_id and n.event_key == ^event_key)
+      |> Repo.delete_all()
+
+    if deleted > 0 do
+      _ =
+        Group.dispatch(NervesHub.Group, key(product_id), %Broadcast{
+          topic: topic(product_id),
+          event: "resolved",
+          payload: %{}
+        })
+    end
+
+    :ok
+  end
+
+  defp workflow_halted_key(deployment_group_id, step_id) do
+    "workflow_halted-#{deployment_group_id}-#{step_id}"
   end
 
   defp workflow_halted_copy(deployment_group, step, {:failed, failed_count}) do
