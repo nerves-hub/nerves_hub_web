@@ -142,6 +142,9 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
   def file_extension(), do: ".raucb"
 
   @impl UpdateTool
+  def key_scheme(), do: :x509_certificate
+
+  @impl UpdateTool
   def recognises?(filepath) do
     case File.open(filepath, [:read, :binary], &IO.binread(&1, 4)) do
       {:ok, @squashfs_magic} -> true
@@ -154,7 +157,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Rauc do
     # Only certificates are RAUC trust anchors. An org may also hold fwup
     # Ed25519 keys and ESP secure-boot RSA keys, and handing either to
     # `openssl cms` would fail in a way that reads like a bad bundle.
-    case Enum.filter(keys, &(&1.scheme == :x509_certificate)) do
+    case Enum.filter(keys, &(&1.scheme == key_scheme())) do
       [] -> {:error, :no_public_keys}
       candidates -> find_signing_key(filepath, candidates)
     end

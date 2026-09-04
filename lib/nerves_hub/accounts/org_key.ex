@@ -9,6 +9,7 @@ defmodule NervesHub.Accounts.OrgKey do
   alias NervesHub.Firmwares.Firmware
 
   @type t :: %__MODULE__{}
+  @type scheme :: :ed25519 | :secure_boot_v2_rsa | :x509_certificate
 
   @required_params [:org_id, :created_by_id, :name, :key]
   @optional_params [:scheme]
@@ -70,7 +71,7 @@ defmodule NervesHub.Accounts.OrgKey do
   @doc """
   The signature schemes a key may use.
   """
-  @spec schemes() :: [:ed25519 | :secure_boot_v2_rsa, ...]
+  @spec schemes() :: [scheme(), ...]
   def schemes(), do: @schemes
 
   # `validate_change/3` only runs when `:key` changes, and it cannot see other

@@ -141,6 +141,16 @@ defmodule NervesHub.Firmwares.UpdateTool do
               {:ok, OrgKey.t() | nil} | {:error, term()}
 
   @doc """
+  The `NervesHub.Accounts.OrgKey` scheme this tool's signatures verify against.
+
+  An org's keyring mixes formats — fwup Ed25519 keys, ESP-IDF Secure Boot RSA
+  keys, RAUC certificates — and only one of them means anything to a given
+  tool. This is what `c:verify_signature/2` filters on, and what decides which
+  keys a device running this tool is sent when it asks for them on join.
+  """
+  @callback key_scheme() :: OrgKey.scheme()
+
+  @doc """
   Retrieves metadata from a firmware file.
   """
   @callback get_firmware_metadata_from_file(String.t()) ::

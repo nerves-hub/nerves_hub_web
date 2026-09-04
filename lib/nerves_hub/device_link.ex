@@ -22,6 +22,8 @@ defmodule NervesHub.DeviceLink do
   alias NervesHub.Extensions
   alias NervesHub.Extensions.Dispatch, as: ExtensionDispatch
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.UpdateTool
+  alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ProductNotifications
@@ -29,8 +31,6 @@ defmodule NervesHub.DeviceLink do
   alias Phoenix.Socket.Broadcast
 
   require Logger
-
-  @public_key_types ["fwup_public_keys", "archive_public_keys"]
 
   # The device API version that introduced device-managed updates. Devices below
   # it have no handler for `update_mode` and would only log it as unknown, so it
@@ -818,22 +818,26 @@ defmodule NervesHub.DeviceLink do
     |> Map.put(:deployment_group, nil)
   end
 
+  # A device may ask for its signing keys on join. Which keys those are follows
+  # its update tool: an fwup device wants Ed25519 keys, an ESP-IDF device Secure
+  # Boot RSA keys, a RAUC device certificates. The org's keys of the other
+  # schemes are a different format entirely — a PEM handed to `fwup
+  # --public-key` can never match — so they are never sent. Archives are always
+  # fwup-signed, whatever tool the firmware uses.
   defp maybe_send_public_keys(device_info, params) do
-    signing_keys =
-      if Enum.any?(@public_key_types, fn type -> params[type] == "on_connect" end) do
-        Accounts.fetch_firmware_signing_keys(device_info.device_id)
-      else
-        []
-      end
+    tool = UpdateTool.for_device_metadata(params)
 
-    Enum.each(["fwup_public_keys", "archive_public_keys"], fn key_type ->
-      with "on_connect" <- params[key_type],
-           org_keys when is_list(org_keys) and org_keys != [] <- signing_keys do
-        broadcast(device_info, key_type, %{keys: Enum.map(org_keys, & &1.key)})
-      else
-        _ -> :ok
+    Enum.each(
+      [{"fwup_public_keys", tool.key_scheme()}, {"archive_public_keys", Fwup.key_scheme()}],
+      fn {topic, scheme} ->
+        with "on_connect" <- params[topic],
+             [_ | _] = org_keys <- Accounts.fetch_firmware_signing_keys(device_info.device_id, scheme) do
+          broadcast(device_info, topic, %{keys: Enum.map(org_keys, & &1.key)})
+        else
+          _ -> :ok
+        end
       end
-    end)
+    )
 
     :ok
   end
