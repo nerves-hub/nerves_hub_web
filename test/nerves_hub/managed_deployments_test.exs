@@ -15,7 +15,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentGroup.Conditions
-  alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
+  alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.Workers.FirmwareDeltaBuilder
   alias Phoenix.Socket.Broadcast
 
@@ -194,7 +194,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
       stub(
-        DistributedOrchestrator,
+        Orchestrator,
         :start_orchestrator,
         fn _deployment_group -> :ok end
       )

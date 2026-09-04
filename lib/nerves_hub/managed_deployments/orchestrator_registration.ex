@@ -1,4 +1,4 @@
-defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
+defmodule NervesHub.ManagedDeployments.OrchestratorRegistration do
   @moduledoc """
   Registers deployment orchestrators with `ProcessHub`.
 
@@ -8,7 +8,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
   use GenServer
 
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.Distributed.Orchestrator
+  alias NervesHub.ManagedDeployments.Orchestrator
 
   require Logger
 

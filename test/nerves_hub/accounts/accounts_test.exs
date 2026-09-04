@@ -125,6 +125,28 @@ defmodule NervesHub.AccountsTest do
     assert nil == Accounts.find_org_user_with_device(user2, device.id)
   end
 
+  test "fetch_firmware_signing_keys/2 returns only the org's keys of the requested scheme", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
+    product = Fixtures.product_fixture(user, org)
+    fwup_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(fwup_key, product, %{dir: tmp_dir})
+    device = Fixtures.device_fixture(org, product, firmware)
+    esp_idf_key = Fixtures.esp_idf_key_fixture(org, user)
+
+    # Another org's keys never belong to this device, whatever their scheme.
+    other_org = Fixtures.org_fixture(user, %{name: "other-org"})
+    _ = Fixtures.org_key_fixture(other_org, user, tmp_dir)
+
+    assert [%OrgKey{id: id}] = Accounts.fetch_firmware_signing_keys(device.id, :ed25519)
+    assert id == fwup_key.id
+
+    assert [%OrgKey{id: id}] = Accounts.fetch_firmware_signing_keys(device.id, :secure_boot_v2_rsa)
+    assert id == esp_idf_key.id
+
+    assert [] = Accounts.fetch_firmware_signing_keys(device.id, :x509_certificate)
+  end
+
   describe "authenticate" do
     setup do
       user_params = %{

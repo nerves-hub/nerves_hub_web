@@ -143,6 +143,9 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVM do
   def file_extension(), do: ".avm"
 
   @impl UpdateTool
+  def key_scheme(), do: :ed25519
+
+  @impl UpdateTool
   def recognises?(filepath) do
     case File.open(filepath, [:read, :binary], &IO.binread(&1, @magic_size)) do
       {:ok, @magic} -> true
@@ -180,7 +183,7 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVM do
 
   defp verify_payload(signed, <<"NH1", @signature_version::8, signature::binary-size(64)>>, keys) do
     keys
-    |> Enum.filter(&(&1.scheme == :ed25519))
+    |> Enum.filter(&(&1.scheme == key_scheme()))
     |> Enum.find(&verifies?(signed, signature, &1))
     |> case do
       nil -> {:error, :invalid_signature}

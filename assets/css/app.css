@@ -9,6 +9,8 @@
 @import "mapbox-gl/dist/mapbox-gl.css";
 @import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 
+@import "../../deps/live_flow/assets/css/live_flow.css";
+
 @import "tailwindcss" source(none);
 
 @source "../css";
@@ -19,6 +21,14 @@
 @plugin "../vendor/lucideicons";
 @plugin "../vendor/animatedelay";
 @plugin "tailwind-scrollbar";
+
+@plugin "../../deps/live_flow/assets/js/live_flow/liveflow-theme" {
+  name: "light";
+}
+@plugin "../../deps/live_flow/assets/js/live_flow/liveflow-theme" {
+  name: "dark";
+  default: true;
+}
 
 @import "@artusdev/tailwind-underlines";
 

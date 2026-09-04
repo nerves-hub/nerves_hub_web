@@ -4,6 +4,7 @@ defmodule NervesHub.ProductNotifications do
   alias NervesHub.Accounts.Scope
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Products
   alias NervesHub.Products.Notification
   alias NervesHub.Products.Product
@@ -213,6 +214,33 @@ defmodule NervesHub.ProductNotifications do
   end
 
   @doc """
+  A workflow stopped part-way through a rollout and is waiting on a person.
+
+  Raised to the operator because nothing else will notice. A halted workflow is
+  quiet: devices carry on connecting, the deployment group still says it is
+  active, and the only sign is a diagram nobody is looking at.
+  """
+  def create_workflow_halted_notification!(deployment_group, step, reason) do
+    {title, message, level} = workflow_halted_copy(deployment_group, step, reason)
+
+    %Product{id: deployment_group.product_id}
+    |> Notification.new_changeset(%{
+      title: title,
+      message: message,
+      level: level,
+      metadata: %{
+        deployment_group: deployment_group.name,
+        step_number: step.number,
+        step: DeploymentWorkflowStep.label(step)
+      },
+      # Keyed to the step rather than the deployment group, so a workflow that
+      # stops twice at different stages says so twice.
+      event_key: "workflow_halted-#{deployment_group.id}-#{step.id}"
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
   A device reported more metrics in one report than will be stored.
 
   The report is kept, trimmed to the first `max_keys` names in sorted order --
@@ -237,6 +265,18 @@ defmodule NervesHub.ProductNotifications do
       event_key: "too_many_metrics-#{device_info.device_identifier}"
     })
     |> insert_and_notify!()
+  end
+
+  defp workflow_halted_copy(deployment_group, step, {:failed, failed_count}) do
+    {"A deployment workflow stopped after devices failed to update.",
+     "Step #{step.number} ('#{DeploymentWorkflowStep.label(step)}') of the workflow for deployment group '#{deployment_group.name}' failed: #{failed_count} device(s) could not take the update. No further devices will be updated for this release until the step is retried or skipped.",
+     :error}
+  end
+
+  defp workflow_halted_copy(deployment_group, step, :awaiting_approval) do
+    {"A deployment workflow is waiting for approval.",
+     "Step #{step.number} ('#{DeploymentWorkflowStep.label(step)}') of the workflow for deployment group '#{deployment_group.name}' needs approving before the rollout continues. No further devices will be updated for this release until it is approved or skipped.",
+     :info}
   end
 
   defp insert_and_notify!(changeset) do

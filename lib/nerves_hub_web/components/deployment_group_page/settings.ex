@@ -13,6 +13,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
     socket
     |> assign(assigns)
+    |> allow_upload(:workflow_definition,
+      accept: ~w(.json),
+      max_entries: 1,
+      auto_upload: true,
+      progress: &handle_progress/3
+    )
     |> assign(:form, to_form(changeset))
     |> assign(:available_tags, Devices.distinct_tags_for_product(assigns.current_scope.product))
     |> ok()
@@ -93,6 +99,59 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
         <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+            <div class="text-base-50 text-base font-medium">Deployment Workflows</div>
+          </div>
+
+          <div class="flex flex-col gap-6 p-6">
+            <div class="flex flex-col gap-3">
+              <p class="text-base-400 w-2/3 text-sm">
+                Use continuous deployment workflows for updating devices. These workflows are defined in JSON, similar to how GitHub Actions and CircleCI configs are defined in YML.
+              </p>
+
+              <p class="text-base-400 w-2/3 text-sm">
+                This is an early release feature, please report all feedback to the <.link href="https://github.com/nerves_hub/nerves_hub_web/issues">NervesHub GitHub issue tracker.</.link>
+              </p>
+
+              <p :if={@deployment_group.workflow_definition} class="text-base-400 w-2/3 text-sm font-semibold">
+                A Workflow Definition with {length(@deployment_group.workflow_definition["steps"])} steps has been uploaded.
+              </p>
+            </div>
+
+            <div class="flex gap-3">
+              <div :if={@deployment_group.workflow_definition} class="w-fit">
+                <.button
+                  type="link"
+                  style="danger"
+                  phx-click="delete-workflow-definition"
+                  phx-target={@myself}
+                  aria-label="Delete Workflow Definition"
+                  data-confirm="Are you sure you want to delete the current Workflow Definition?"
+                >
+                  <.icon name="trash" />Delete Workflow Definition
+                </.button>
+              </div>
+
+              <div class="bg-base-800 border-base-600 flex w-fit shrink gap-2 rounded border px-3 py-1.5 hover:cursor-pointer">
+                <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+                  <path
+                    d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
+                    stroke="#A1A1AA"
+                    stroke-width="1.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <label for={@uploads.workflow_definition.ref} class="text-base-300 text-sm font-medium hover:cursor-pointer">
+                  {if is_nil(@deployment_group.workflow_definition), do: "Upload Workflow Definition", else: "Upload New Workflow Definition"}
+                </label>
+                <.live_file_input upload={@uploads.workflow_definition} class="hidden" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-surface-raised border-base-700 flex w-2/3 flex-col rounded border">
+          <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
             <div class="text-base-50 text-base font-medium">Device queue settings</div>
           </div>
 
@@ -114,14 +173,20 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <div class="text-base-50 text-base font-medium">Rolling updates</div>
           </div>
 
-          <div class="flex gap-6 p-6">
-            <div class="flex w-1/2 flex-col gap-6">
-              <.input
-                field={@form[:concurrent_updates]}
-                label="Concurrent Device Updates"
-                type="number"
-                hint="The number of devices that will update at any given time. This is a soft limit and concurrent updates may be slightly above this number."
-              />
+          <div class="flex flex-col gap-6 p-6">
+            <.superseded_by_workflow :if={@deployment_group.workflow_definition}>
+              A workflow paces each step separately, using the step's own <span class="font-mono">concurrent_updates</span>, so this limit is not applied while one is in use.
+            </.superseded_by_workflow>
+
+            <div class="flex gap-6">
+              <div class="flex w-1/2 flex-col gap-6">
+                <.input
+                  field={@form[:concurrent_updates]}
+                  label="Concurrent Device Updates"
+                  type="number"
+                  hint="The number of devices that will update at any given time. This is a soft limit and concurrent updates may be slightly above this number."
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -132,6 +197,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
           </div>
 
           <div class="flex flex-col gap-6 p-6">
+            <.superseded_by_workflow :if={@deployment_group.workflow_definition}>
+              A workflow decides the order devices update in through its steps, so the priority queue is not used while one is in use.
+            </.superseded_by_workflow>
+
             <div class="flex flex-col gap-3">
               <p class="text-base-400 w-2/3 text-sm">
                 Enable priority queue to fast-track devices with older firmware versions (e.g., fresh from factory) for immediate updates, bypassing the normal rolling update queue.
@@ -281,7 +350,131 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     """
   end
 
+  # Settings a workflow takes over. They are left editable rather than hidden or
+  # disabled, since they apply again the moment the workflow definition is
+  # removed, and a setting that vanishes is harder to reason about than one that
+  # says why it is idle.
+  slot(:inner_block, required: true)
+
+  defp superseded_by_workflow(assigns) do
+    ~H"""
+    <div class="bg-surface-muted border-base-700 text-base-400 flex w-2/3 gap-2 rounded border px-3 py-2 text-sm">
+      <.icon name="info" class="stroke-base-400 mt-0.5 size-4 shrink-0" />
+      <div>{render_slot(@inner_block)}</div>
+    </div>
+    """
+  end
+
+  def handle_progress(:workflow_definition, entry, socket) do
+    %{
+      current_scope: %{org: org, product: product, user: user},
+      deployment_group: deployment_group
+    } =
+      socket.assigns
+
+    if entry.done? do
+      authorized!(:"deployment_group:update", socket.assigns.current_scope)
+
+      [contents] =
+        consume_uploaded_entries(socket, :workflow_definition, fn %{path: path}, _entry ->
+          {:ok, File.read!(path)}
+        end)
+
+      # The file is whatever someone picked, so a decode failure is an ordinary
+      # outcome to report rather than something to crash the page over.
+      case JSON.decode(contents) do
+        {:ok, workflow_definition} ->
+          save_workflow_definition(socket, workflow_definition, deployment_group, user, org, product)
+
+        {:error, _reason} ->
+          socket
+          |> flash(:error, "That file could not be read as JSON. Check it for a stray comma or bracket.")
+          |> noreply()
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp save_workflow_definition(socket, workflow_definition, deployment_group, user, org, product) do
+    case ManagedDeployments.update_deployment_group(
+           deployment_group,
+           %{workflow_definition: workflow_definition},
+           user
+         ) do
+      {:ok, updated} ->
+        # Use original deployment so changes will get
+        # marked in audit log
+        AuditLogs.audit!(
+          user,
+          updated,
+          "User #{user.name} uploaded a new Workflow definition to the deployment group #{updated.name}"
+        )
+
+        socket
+        |> put_flash(:info, "Workflow definition uploaded successfully. This will be used with the next release.")
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{updated}")
+        |> noreply()
+
+      {:error, changeset} ->
+        socket
+        |> flash(:error, workflow_definition_error_message(changeset))
+        |> assign(:form, to_form(changeset))
+        |> noreply()
+    end
+  end
+
+  # The validator says exactly what is wrong and where, so pass that on instead
+  # of asking someone to go and look for it themselves.
+  defp workflow_definition_error_message(changeset) do
+    changeset.errors
+    |> Keyword.get_values(:workflow_definition)
+    |> Enum.map(fn {message, _opts} -> message end)
+    |> case do
+      [] -> "An error occurred while uploading the Workflow definition."
+      problems -> "That workflow definition is not valid: " <> Enum.join(problems, "; ")
+    end
+  end
+
   @impl Phoenix.LiveComponent
+
+  def handle_event("delete-workflow-definition", _params, socket) do
+    %{
+      current_scope: %{org: org, product: product, user: user},
+      deployment_group: deployment_group
+    } =
+      socket.assigns
+
+    authorized!(:"deployment_group:update", socket.assigns.current_scope)
+
+    case ManagedDeployments.update_deployment_group(deployment_group, %{workflow_definition: nil}, user) do
+      {:ok, updated} ->
+        # Use original deployment so changes will get
+        # marked in audit log
+        AuditLogs.audit!(
+          user,
+          updated,
+          "User #{user.name} removed the Workflow Definition from the deployment group #{updated.name}"
+        )
+
+        socket
+        |> put_flash(
+          :info,
+          "The Workflow Definition was removed successfully. Future releases won't use Workflows when using devices."
+        )
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{updated}")
+        |> noreply()
+
+      {:error, _changeset} ->
+        socket
+        |> put_flash(
+          :error,
+          "An error occurred while removing the Workflow Definition. Please contact support if this happens again."
+        )
+        |> noreply()
+    end
+  end
+
   def handle_event("validate-deployment-group", %{"deployment_group" => params}, socket) do
     changeset =
       socket.assigns.deployment_group
@@ -318,7 +511,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
       {:error, changeset} ->
         socket
-        |> put_flash(
+        |> flash(
           :error,
           "An error occurred while updating the deployment group. Please check the form for errors."
         )
@@ -340,6 +533,15 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     |> put_flash(:info, "Deployment group successfully deleted")
     |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups")
     |> noreply()
+  end
+
+  # A flash put on a live component's own socket only ever reaches the page
+  # because a navigation carries it into the next mount. Anything that stays put
+  # has to ask the LiveView to raise it, which is what the other tabs do.
+  defp flash(socket, level, message) do
+    send(self(), {:flash, level, message})
+
+    socket
   end
 
   defp help_message_for(field) do

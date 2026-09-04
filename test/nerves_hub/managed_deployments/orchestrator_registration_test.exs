@@ -1,10 +1,10 @@
-defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistrationTest do
+defmodule NervesHub.ManagedDeployments.OrchestratorRegistrationTest do
   use ExUnit.Case, async: false
   use Mimic
 
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.Distributed.Orchestrator
-  alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
+  alias NervesHub.ManagedDeployments.Orchestrator
+  alias NervesHub.ManagedDeployments.OrchestratorRegistration
 
   describe "start_orchestrators/0 — filter_already_started_errors" do
     test "returns :ok when no orchestrators need starting" do

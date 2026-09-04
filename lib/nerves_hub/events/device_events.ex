@@ -11,15 +11,10 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.Distributed.Orchestrator
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
-
-  # How long a device told its deployment group is busy should wait before asking
-  # again. Long enough that a refused fleet does not come straight back, short
-  # enough that a device is not left sitting on old firmware once slots free up.
-  @retry_after_minutes 5
 
   def updated(device) do
     broadcast(device, "updated", %{})
@@ -73,6 +68,7 @@ defmodule NervesHub.DeviceEvents do
     Repo.transact(fn ->
       # we might need to do an upsert here
       {:ok, inflight_update} = Repo.insert(inflight_changeset)
+
       device = Devices.get_device(device_id)
 
       update_opts =
@@ -119,15 +115,26 @@ defmodule NervesHub.DeviceEvents do
   @doc """
   A device that manages its own updates asked for one.
 
-  Answers with the deployment group's target firmware, or a reason it cannot
-  right now. Self-scheduling devices would otherwise walk straight past the
-  pacing a deployment group exists to provide — ten thousand units waking at
-  03:00 local all ask at once — so a request takes a concurrency slot exactly as
-  an orchestrator-driven update does, and is told to come back later when there
-  is none.
+  Answers with the deployment group's target firmware, or the reason there is
+  none to give. A device asking for an update is treated the same way as a person
+  pushing one to it: the request is honoured if there is an update to send, and
+  the deployment group's pacing does not apply.
+
+  That pacing exists to stop the orchestrator pushing to more devices than a
+  fleet's bandwidth can take. A device that manages its own updates has already
+  decided this is a moment it can afford one, which is a judgement it is better
+  placed to make than the server is, and holding it back only means it asks
+  again later.
+
+  A device that is already updating is refused. It would reject the second
+  update and carry on with the one it has, and there is a single inflight row
+  per device, so the progress it reports for the running update would be recorded
+  against the request that replaced it. A device that is not really updating has
+  its row cleared by `NervesHub.Workers.ExpireInflightUpdates` soon enough, and
+  can ask again then.
   """
   @spec device_requested_update(Device.t()) ::
-          :ok | {:error, :no_deployment_group | :no_update | {:busy, pos_integer()}}
+          :ok | {:error, :no_deployment_group | :no_update | :already_updating}
   def device_requested_update(%Device{deployment_id: nil}), do: {:error, :no_deployment_group}
 
   def device_requested_update(%Device{} = device) do
@@ -137,8 +144,8 @@ defmodule NervesHub.DeviceEvents do
       not match?(%{available?: true}, Updates.check_update(device)) ->
         {:error, :no_update}
 
-      Orchestrator.available_slots(deployment_group) <= 0 ->
-        {:error, {:busy, @retry_after_minutes}}
+      not is_nil(FirmwareUpdates.inflight_update_for(device)) ->
+        {:error, :already_updating}
 
       true ->
         {:ok, _inflight} = schedule_update(device.id, deployment_group, initiated_by: :device)
