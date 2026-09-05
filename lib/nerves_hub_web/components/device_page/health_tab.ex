@@ -475,7 +475,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
     metadata =
-      if device.latest_health, do: device.latest_health.data["metadata"] || %{}, else: %{}
+      if device.latest_connection, do: device.latest_connection.metadata || %{}, else: %{}
 
     assign(socket, :metadata, Map.drop(metadata, standard_keys(device)))
   end

@@ -20,6 +20,7 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
 
   defp base_query(product) do
     Device
+    |> from(as: :device)
     |> where([d], d.product_id == ^product.id)
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d], dh in assoc(d, :latest_health), as: :latest_health)
@@ -205,8 +206,9 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
     test "filters devices by alarm name substring", %{org: org, product: product, firmware: firmware} do
       with_alarm = Fixtures.device_fixture(org, product, firmware)
       without_alarm = Fixtures.device_fixture(org, product, firmware)
-      save_health(with_alarm, "healthy", %{"alarms" => %{"HighTempAlarm" => "active"}})
-      save_health(without_alarm, "healthy", %{"alarms" => %{}})
+      save_health(with_alarm, "healthy")
+      save_health(without_alarm, "healthy")
+      Fixtures.device_alarms_fixture(with_alarm, %{"HighTempAlarm" => "active"})
 
       query = base_query(product)
       result = DeviceFiltering.filter(query, %{}, :alarm, "HighTemp") |> identifiers()
@@ -308,11 +310,10 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
     end
   end
 
-  defp save_health(device, status, data \\ %{}) do
+  defp save_health(device, status) do
     {:ok, _} =
       Health.save_device_health(%{
         "device_id" => device.id,
-        "data" => data,
         "status" => status,
         "status_reasons" => %{}
       })
@@ -352,8 +353,9 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
     test "with filters devices that have alarms", %{org: org, product: product, firmware: firmware} do
       with_alarm = Fixtures.device_fixture(org, product, firmware)
       without_alarm = Fixtures.device_fixture(org, product, firmware)
-      save_health(with_alarm, "healthy", %{"alarms" => %{"SomeAlarm" => "active"}})
-      save_health(without_alarm, "healthy", %{"alarms" => %{}})
+      save_health(with_alarm, "healthy")
+      save_health(without_alarm, "healthy")
+      Fixtures.device_alarms_fixture(with_alarm, %{"SomeAlarm" => "active"})
 
       query = base_query(product)
       result = DeviceFiltering.filter(query, %{}, :alarm_status, "with") |> identifiers()
@@ -364,8 +366,9 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
     test "without filters devices that have no alarms", %{org: org, product: product, firmware: firmware} do
       with_alarm = Fixtures.device_fixture(org, product, firmware)
       without_alarm = Fixtures.device_fixture(org, product, firmware)
-      save_health(with_alarm, "healthy", %{"alarms" => %{"SomeAlarm" => "active"}})
-      save_health(without_alarm, "healthy", %{"alarms" => %{}})
+      save_health(with_alarm, "healthy")
+      save_health(without_alarm, "healthy")
+      Fixtures.device_alarms_fixture(with_alarm, %{"SomeAlarm" => "active"})
 
       query = base_query(product)
       result = DeviceFiltering.filter(query, %{}, :alarm_status, "without") |> identifiers()
@@ -375,7 +378,7 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
 
     test "unknown value returns query unchanged", %{org: org, product: product, firmware: firmware} do
       device = Fixtures.device_fixture(org, product, firmware)
-      save_health(device, "healthy", %{"alarms" => %{}})
+      save_health(device, "healthy")
 
       query = base_query(product)
       result = DeviceFiltering.filter(query, %{}, :alarm_status, "bogus") |> identifiers()
