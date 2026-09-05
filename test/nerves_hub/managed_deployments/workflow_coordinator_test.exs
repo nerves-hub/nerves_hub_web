@@ -680,6 +680,90 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
     end
   end
 
+  describe "taking back the notice that a workflow stopped" do
+    @needs_approval %{
+      "version" => 1,
+      "steps" => [%{"name" => "Sign-off", "type" => "approval_required"}]
+    }
+
+    # The notice says a workflow needs attention. Once it has had some, it should
+    # stop saying so, or the list becomes a record of everything that ever went
+    # wrong rather than what is wrong now.
+    test "approving clears it", context do
+      %{product: product} = context
+      %{deployment_group: deployment_group, release: release} = release_with(context, @needs_approval)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert [_notification] = product_notifications(product)
+
+      _ = Workflows.approve_step(step(release, 1), context.user)
+
+      assert product_notifications(product) == []
+    end
+
+    test "skipping clears it", context do
+      canary_device = add_device(context, %{tags: ["canary"]})
+
+      %{product: product} = context
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = fail_device(canary_device)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert [_notification] = product_notifications(product)
+
+      {:ok, _} = Workflows.skip_step(step(release, 1), context.user)
+
+      assert product_notifications(product) == []
+    end
+
+    test "retrying clears it", context do
+      canary_device = add_device(context, %{tags: ["canary"]})
+
+      %{product: product} = context
+      %{deployment_group: deployment_group, release: release} = release_with(context, @canary_then_rest)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+      _ = fail_device(canary_device)
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      assert [_notification] = product_notifications(product)
+
+      {:ok, _} = Workflows.retry_step(deployment_group, step(release, 1), context.user)
+
+      assert product_notifications(product) == []
+    end
+
+    # Two stages stopping are two things to attend to, and clearing one should
+    # not clear the other.
+    test "clearing one step's notice leaves another step's alone", context do
+      %{product: product} = context
+      %{deployment_group: deployment_group, release: release} = release_with(context, @needs_approval)
+
+      approval = step(release, 1)
+      catch_all = step(release, 2)
+
+      _ = WorkflowCoordinator.schedule_updates(deployment_group)
+
+      # Stand in for the catch_all having stopped too.
+      _ =
+        NervesHub.ProductNotifications.create_workflow_halted_notification!(
+          deployment_group,
+          catch_all,
+          :awaiting_approval
+        )
+
+      assert length(product_notifications(product)) == 2
+
+      _ = Workflows.approve_step(approval, context.user)
+
+      assert [remaining] = product_notifications(product)
+      assert remaining.event_key =~ "-#{catch_all.id}"
+    end
+  end
+
   describe "announcing that a workflow has stopped" do
     test "a failed step is measured, recorded, and raised to the product", context do
       canary_device = add_device(context, %{tags: ["canary"]})

@@ -35,7 +35,9 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   alias NervesHub.Devices.Device
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
+  alias NervesHub.ProductNotifications
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
 
@@ -339,7 +341,11 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   """
   @spec approve_step(DeploymentWorkflowStep.t(), User.t()) :: DeploymentWorkflowStep.t()
   def approve_step(step, user) do
-    transition(step, approved_at: now(), approved_by_id: user.id)
+    step = transition(step, approved_at: now(), approved_by_id: user.id)
+
+    :ok = resolve_halt_notification(step)
+
+    step
   end
 
   @doc """
@@ -383,7 +389,11 @@ defmodule NervesHub.ManagedDeployments.Workflows do
     if skippable?(step) do
       _ = release_claimed_devices(step)
 
-      {:ok, transition(step, status: :skipped, skipped_at: now(), skipped_by_id: user.id)}
+      step = transition(step, status: :skipped, skipped_at: now(), skipped_by_id: user.id)
+
+      :ok = resolve_halt_notification(step)
+
+      {:ok, step}
     else
       {:error, :not_skippable}
     end
@@ -407,6 +417,8 @@ defmodule NervesHub.ManagedDeployments.Workflows do
         |> exclude(:order_by)
         |> Repo.update_all(set: [updates_blocked_until: nil, update_attempts: []])
 
+      :ok = resolve_halt_notification(step, deployment_group)
+
       Logger.info("Workflow step retried",
         deployment_id: deployment_group.id,
         step_number: step.number,
@@ -418,6 +430,34 @@ defmodule NervesHub.ManagedDeployments.Workflows do
     else
       {:error, :not_retryable}
     end
+  end
+
+  # A workflow that has stopped raises a notification, since nothing else would
+  # say so. Starting again takes it back: the list is what needs attention now,
+  # not everything that ever did.
+  defp resolve_halt_notification(step, deployment_group \\ nil)
+
+  defp resolve_halt_notification(step, nil) do
+    case deployment_group_ids(step) do
+      nil -> :ok
+      {product_id, deployment_group_id} -> resolve_halt_notification(step, {product_id, deployment_group_id})
+    end
+  end
+
+  defp resolve_halt_notification(step, %DeploymentGroup{} = deployment_group) do
+    resolve_halt_notification(step, {deployment_group.product_id, deployment_group.id})
+  end
+
+  defp resolve_halt_notification(step, {product_id, deployment_group_id}) do
+    ProductNotifications.resolve_workflow_halted_notification!(product_id, deployment_group_id, step.id)
+  end
+
+  defp deployment_group_ids(step) do
+    DeploymentRelease
+    |> where([r], r.id == ^step.deployment_release_id)
+    |> join(:inner, [r], dg in assoc(r, :deployment_group), as: :deployment_group)
+    |> select([deployment_group: dg], {dg.product_id, dg.id})
+    |> Repo.one()
   end
 
   defp release_claimed_devices(step) do

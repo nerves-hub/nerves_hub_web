@@ -11,6 +11,11 @@ defmodule NervesHub.ProductNotifications do
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
+  # Failure reasons arrive in a device's message payload, so they are whatever
+  # the device chose to send. Cap them before they reach a notification the UI
+  # renders, the way `DeviceTemplates` does for audit log descriptions.
+  @reason_max_length 200
+
   @spec subscribe(pos_integer()) :: :ok
   def subscribe(product_id) do
     :ok = Group.join(NervesHub.Group, key(product_id), %{})
@@ -235,7 +240,48 @@ defmodule NervesHub.ProductNotifications do
       },
       # Keyed to the step rather than the deployment group, so a workflow that
       # stops twice at different stages says so twice.
-      event_key: "workflow_halted-#{deployment_group.id}-#{step.id}"
+      event_key: workflow_halted_key(deployment_group.id, step.id)
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
+  A device could not start an extension it was asked to attach.
+
+  Both ways that can happen end up here. `NervesHub.Extensions.Dispatch` reports
+  the device failing to start the extension at all, which detaches it; an
+  extension reports a failure of its own, which does not -- the local shell
+  answering `request_shell` with a reason it has no pty is the case this was
+  written for.
+
+  Either way the extension is enabled and not working, and nothing about the
+  device says so: it stays connected, and the toggle on its settings page stays
+  on. The fix is almost always in the device's firmware, so it needs a person.
+
+  Deduplicated on the device, the extension and the reason. Including the reason
+  looks redundant next to `occurrence_count`, and is not: the conflict clause in
+  `insert_and_notify!/1` updates the count and the timestamp but not the
+  message, so a device that starts failing for a new reason would otherwise
+  keep showing the old one.
+  """
+  @spec create_extension_failure_notification!(DeviceInfo.t(), String.t(), String.t() | nil) ::
+          Notification.t()
+  def create_extension_failure_notification!(%DeviceInfo{} = device_info, extension, reason) do
+    reason = truncate_reason(reason)
+
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device could not start an extension.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' could not start the " <>
+          "'#{extension}' extension#{reason_clause(reason)}. It stays enabled in NervesHub and " <>
+          "will not work on this device until the cause is fixed, which is usually in the " <>
+          "device's firmware.",
+      level: :warning,
+      metadata: %{identifier: device_info.device_identifier, extension: extension, reason: reason},
+      # The changeset rejects spaces, and a reason is a sentence, so the reason
+      # is keyed by hash rather than by its text.
+      event_key: "extension_failure-#{extension}-#{device_info.device_identifier}-#{:erlang.phash2(reason)}"
     })
     |> insert_and_notify!()
   end
@@ -267,6 +313,41 @@ defmodule NervesHub.ProductNotifications do
     |> insert_and_notify!()
   end
 
+  @doc """
+  Take back the notice that a workflow had stopped.
+
+  Raised when a workflow stops and cleared when it starts again, so the list
+  reflects what needs attention now rather than everything that ever did. The
+  same key the notice was raised under finds it, whether it was raised once or
+  coalesced from several.
+  """
+  @spec resolve_workflow_halted_notification!(pos_integer(), pos_integer(), pos_integer()) :: :ok
+  def resolve_workflow_halted_notification!(product_id, deployment_group_id, step_id) do
+    resolve!(product_id, workflow_halted_key(deployment_group_id, step_id))
+  end
+
+  defp resolve!(product_id, event_key) do
+    {deleted, _} =
+      Notification
+      |> where([n], n.product_id == ^product_id and n.event_key == ^event_key)
+      |> Repo.delete_all()
+
+    if deleted > 0 do
+      _ =
+        Group.dispatch(NervesHub.Group, key(product_id), %Broadcast{
+          topic: topic(product_id),
+          event: "resolved",
+          payload: %{}
+        })
+    end
+
+    :ok
+  end
+
+  defp workflow_halted_key(deployment_group_id, step_id) do
+    "workflow_halted-#{deployment_group_id}-#{step_id}"
+  end
+
   defp workflow_halted_copy(deployment_group, step, {:failed, failed_count}) do
     {"A deployment workflow stopped after devices failed to update.",
      "Step #{step.number} ('#{DeploymentWorkflowStep.label(step)}') of the workflow for deployment group '#{deployment_group.name}' failed: #{failed_count} device(s) could not take the update. No further devices will be updated for this release until the step is retried or skipped.",
@@ -278,6 +359,21 @@ defmodule NervesHub.ProductNotifications do
      "Step #{step.number} ('#{DeploymentWorkflowStep.label(step)}') of the workflow for deployment group '#{deployment_group.name}' needs approving before the rollout continues. No further devices will be updated for this release until it is approved or skipped.",
      :info}
   end
+
+  defp reason_clause(nil), do: ""
+  defp reason_clause(reason), do: ": #{reason}"
+
+  defp truncate_reason(nil), do: nil
+
+  defp truncate_reason(reason) when is_binary(reason) do
+    if String.length(reason) > @reason_max_length do
+      String.slice(reason, 0, @reason_max_length - 1) <> "…"
+    else
+      reason
+    end
+  end
+
+  defp truncate_reason(reason), do: truncate_reason(inspect(reason))
 
   defp insert_and_notify!(changeset) do
     conflict_query =

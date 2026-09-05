@@ -19,6 +19,7 @@ defmodule NervesHub.Extensions.Dispatch do
   alias NervesHub.Extensions
   alias NervesHub.Extensions.State
   alias NervesHub.Helpers.Logging
+  alias NervesHub.ProductNotifications
 
   require Logger
 
@@ -69,6 +70,17 @@ defmodule NervesHub.Extensions.Dispatch do
           |> dispatch(key, mod, &mod.detach/1)
 
         "error" ->
+          # The device could not start it at all. Nothing else records this: the
+          # extension is detached below and the device carries on connected, so
+          # without a notification the only trace is a log line and whatever the
+          # device happened to put in its payload.
+          _ =
+            ProductNotifications.create_extension_failure_notification!(
+              device_info(extensions, key),
+              key,
+              reason(payload)
+            )
+
           extensions
           |> put_status(key, :detached)
           |> safe_dispatch(key, mod, &mod.handle_in(event, payload, &1), event)
@@ -161,6 +173,11 @@ defmodule NervesHub.Extensions.Dispatch do
       Logging.log_to_sentry(device_info(extensions, key), error)
       {:ok, extensions, []}
   end
+
+  # `nerves_hub_link` sends `%{reason: ...}`, but an older or third-party client
+  # may not, and a notification is worth having either way.
+  defp reason(%{"reason" => reason}), do: reason
+  defp reason(_payload), do: nil
 
   # Extensions speak in their own tags; callers need something they can send and
   # something they can key a timer by, without knowing which module is involved.

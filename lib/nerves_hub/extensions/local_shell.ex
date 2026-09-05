@@ -15,6 +15,7 @@ defmodule NervesHub.Extensions.LocalShell do
   @behaviour NervesHub.Extensions
 
   alias NervesHub.Consoles
+  alias NervesHub.ProductNotifications
 
   require Logger
 
@@ -50,6 +51,25 @@ defmodule NervesHub.Extensions.LocalShell do
 
     {state, [{:scrollback_append, data}]}
   end
+
+  # The device answers `request_shell` with how it went. A failure here is not an
+  # attach failure -- the extension is attached, and stays attached, so the shell
+  # looks available right up until nothing happens when it is opened. That is the
+  # case this notification exists for; `:expty` missing from a device's
+  # dependencies is how it was found.
+  def handle_in("request_status", %{"status" => "failed"} = payload, state) do
+    _ =
+      ProductNotifications.create_extension_failure_notification!(
+        state.device_info,
+        "local_shell",
+        payload["reason"]
+      )
+
+    {state, []}
+  end
+
+  # A shell that started needs nothing from us, and is not an unknown message.
+  def handle_in("request_status", _payload, state), do: {state, []}
 
   def handle_in(event, params, state) do
     Logger.warning(
