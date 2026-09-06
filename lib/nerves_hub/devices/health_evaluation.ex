@@ -39,7 +39,10 @@ defmodule NervesHub.Devices.HealthEvaluation do
   profile (backfill not run).
   """
 
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.DeviceHealth
+  alias NervesHub.Devices.DeviceHealthHistory
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
@@ -115,11 +118,16 @@ defmodule NervesHub.Devices.HealthEvaluation do
     }
 
     case Health.save_device_health(device_health) do
-      # Broadcast either way: this says a report landed, not that the verdict
-      # moved. It is what refreshes the readings, the charts and the metadata
-      # on an open device page, and those change on every report even when
-      # the status does not.
-      {:ok, _health_or_unchanged} ->
+      {:ok, saved} ->
+        # A row rather than `:unchanged` means the verdict actually moved, or
+        # this is the device's first — which is exactly the edge the history
+        # records.
+        :ok = record_transition(device_info, saved)
+
+        # Broadcast either way: this says a report landed, not that the verdict
+        # moved. It is what refreshes the readings, the charts and the metadata
+        # on an open device page, and those change on every report even when
+        # the status does not.
         :ok = ExtensionsPubSub.broadcast_report(device_info.device_id, "health_check_report", %{})
 
       {:error, error} ->
@@ -259,6 +267,34 @@ defmodule NervesHub.Devices.HealthEvaluation do
 
   defp boolint(true), do: 1
   defp boolint(false), do: 0
+
+  # Gated explicitly rather than relying on a cast to a missing buffer quietly
+  # succeeding, the same way `NervesHub.Devices.Alarms` gates its history: a
+  # deployment without analytics is a decision this code made.
+  defp record_transition(_device_info, :unchanged), do: :ok
+
+  defp record_transition(device_info, %DeviceHealth{} = health) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      Buffer.insert(
+        DeviceHealthHistory,
+        DeviceHealthHistory.changeset(%{
+          # The moment the verdict was recorded, taken from the row itself so
+          # the two stores agree rather than nearly agree.
+          timestamp: health.updated_at,
+          org_id: device_info.org_id,
+          product_id: device_info.product_id,
+          device_id: device_info.device_id,
+          status: to_string(health.status),
+          status_reasons: encode_reasons(health.status_reasons)
+        })
+      )
+    end
+
+    :ok
+  end
+
+  defp encode_reasons(nil), do: ""
+  defp encode_reasons(reasons), do: Jason.encode!(reasons)
 
   # Built-ins move independently of what the device reports — each has its
   # own query.
