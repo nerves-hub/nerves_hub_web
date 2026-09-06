@@ -9,9 +9,19 @@ defmodule NervesHub.Devices.Health do
 
   import Ecto.Query
 
+  alias NervesHub.AnalyticsRepo
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceHealth
+  alias NervesHub.Devices.DeviceHealthHistory
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
+
+  # More than five moves into a warning or unhealthy verdict in an hour. Only
+  # levels that engaged count: settling back to healthy is the recovery, not
+  # the symptom.
+  @flapping_threshold 5
+  @flapping_statuses ["warning", "unhealthy"]
 
   @doc """
   Record the device's current health status, replacing whatever it had.
@@ -57,6 +67,34 @@ defmodule NervesHub.Devices.Health do
         ]
       ]
     )
+  end
+
+  @doc """
+  The product's devices whose health has been flapping: those with more than
+  `@flapping_threshold` moves into a warning or unhealthy verdict in the last
+  hour, worst first, capped at ten.
+
+  Only transitions are recorded, so a count here is that many genuine changes
+  of mind about the device rather than that many reports. A device sitting
+  steadily unhealthy contributes one; a device crossing its threshold back and
+  forth contributes one each time, which is the behaviour worth surfacing.
+
+  Reads ClickHouse (`NervesHub.Devices.DeviceHealthHistory`); callers are
+  expected to check that analytics is enabled first.
+  """
+  @spec flapping_health(Product.t()) :: [{Device.t(), non_neg_integer()}]
+  def flapping_health(%Product{} = product) do
+    DeviceHealthHistory
+    |> where([h], h.org_id == ^product.org_id and h.product_id == ^product.id)
+    |> where([h], h.timestamp >= fragment("now() - INTERVAL 1 HOUR"))
+    |> where([h], h.status in ^@flapping_statuses)
+    |> group_by([h], h.device_id)
+    |> having([h], fragment("count() > ?", ^@flapping_threshold))
+    |> select([h], %{device_id: h.device_id, count: fragment("count()")})
+    |> order_by([h], desc: fragment("count()"))
+    |> limit(10)
+    |> AnalyticsRepo.all()
+    |> Devices.with_counts(product)
   end
 
   def health_status_count(product, status) do

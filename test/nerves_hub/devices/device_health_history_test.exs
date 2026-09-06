@@ -9,6 +9,7 @@ defmodule NervesHub.Devices.DeviceHealthHistoryTest do
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.DeviceHealthHistory
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthEvaluation
   alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
@@ -39,7 +40,7 @@ defmodule NervesHub.Devices.DeviceHealthHistoryTest do
       firmware_metadata: device.firmware_metadata
     }
 
-    {:ok, %{org: org, product: product, device: device, device_info: device_info}}
+    {:ok, %{org: org, product: product, firmware: firmware, device: device, device_info: device_info}}
   end
 
   # Readings land the way production writes them, flushed so the judgement
@@ -136,6 +137,84 @@ defmodule NervesHub.Devices.DeviceHealthHistoryTest do
       end
 
       assert ["healthy", "warning", "unhealthy", "healthy"] = Enum.map(history(device), & &1.status)
+    end
+  end
+
+  describe "flapping_health/1" do
+    # Straight into the history, so what is under test is the read rather than
+    # a long march of readings through the judgement.
+    defp record(device, status, minutes_ago) do
+      Buffer.insert(
+        DeviceHealthHistory,
+        DeviceHealthHistory.changeset(%{
+          timestamp: DateTime.add(DateTime.utc_now(), -minutes_ago, :minute),
+          org_id: device.org_id,
+          product_id: device.product_id,
+          device_id: device.id,
+          status: status,
+          status_reasons: ""
+        })
+      )
+    end
+
+    defp flapping(product) do
+      :ok = Buffer.flush(DeviceHealthHistory)
+      Health.flapping_health(product)
+    end
+
+    test "lists devices with more than five engaged verdicts in the last hour", %{
+      product: product,
+      device: device
+    } do
+      for _ <- 1..6, do: record(device, "warning", 10)
+
+      assert [{listed, 6}] = flapping(product)
+      assert listed.id == device.id
+    end
+
+    test "five is not yet flapping", %{product: product, device: device} do
+      for _ <- 1..5, do: record(device, "warning", 10)
+
+      assert flapping(product) == []
+    end
+
+    test "settling back to healthy is not counted", %{product: product, device: device} do
+      for _ <- 1..4, do: record(device, "unhealthy", 10)
+      for _ <- 1..4, do: record(device, "healthy", 10)
+
+      assert flapping(product) == []
+    end
+
+    test "warning and unhealthy count together", %{product: product, device: device} do
+      for _ <- 1..3, do: record(device, "warning", 10)
+      for _ <- 1..3, do: record(device, "unhealthy", 10)
+
+      assert [{_device, 6}] = flapping(product)
+    end
+
+    test "transitions older than an hour do not count", %{product: product, device: device} do
+      for _ <- 1..6, do: record(device, "warning", 90)
+
+      assert flapping(product) == []
+    end
+
+    test "the worst come first, capped at ten", %{org: org, product: product, firmware: firmware, device: device} do
+      devices =
+        for n <- 1..11 do
+          other = Fixtures.device_fixture(org, product, firmware, %{identifier: "flapper-#{n}"})
+          for _ <- 1..(5 + n), do: record(other, "warning", 10)
+          other
+        end
+
+      for _ <- 1..6, do: record(device, "warning", 10)
+
+      listed = flapping(product)
+
+      assert length(listed) == 10
+      assert [{first, 16} | _] = listed
+      assert first.id == List.last(devices).id
+      # The busiest ten crowd out the six-count device entirely.
+      refute device.id in Enum.map(listed, fn {d, _} -> d.id end)
     end
   end
 

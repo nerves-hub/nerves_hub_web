@@ -6,7 +6,7 @@ defmodule NervesHub.Devices.Connections do
 
   alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
-  alias NervesHub.Devices.Device
+  alias NervesHub.Devices
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Products.Product
@@ -448,29 +448,6 @@ defmodule NervesHub.Devices.Connections do
     |> having([dc], fragment("count > 10"))
     |> order_by(desc: fragment("count"))
     |> AnalyticsRepo.all(settings: [final: 1])
-    |> case do
-      [] -> []
-      results -> fetch_devices_and_transform(results, product)
-    end
-  end
-
-  defp fetch_devices_and_transform(results, product) do
-    device_ids = Enum.map(results, & &1.device_id)
-
-    devices =
-      Device
-      |> where(product_id: ^product.id)
-      |> where([d], d.id in ^device_ids)
-      |> NervesHub.Repo.all()
-      |> Map.new(fn device -> {device.id, device} end)
-
-    # Preserve the "most flapping first" ordering from the analytics query;
-    # drop any ids without a matching device (e.g. deleted devices).
-    Enum.flat_map(results, fn %{device_id: device_id, count: count} ->
-      case Map.get(devices, device_id) do
-        nil -> []
-        device -> [{device, count}]
-      end
-    end)
+    |> Devices.with_counts(product)
   end
 end
