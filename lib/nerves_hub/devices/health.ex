@@ -18,16 +18,44 @@ defmodule NervesHub.Devices.Health do
 
   One statement: the row is the device's current verdict, so a second report
   overwrites the first rather than appending to it.
+
+  The update carries a `WHERE`, so a report that agrees with the stored
+  verdict writes nothing — which is most of them, since a device's status
+  changes far more rarely than it reports. That case answers `{:ok,
+  :unchanged}`.
   """
   @spec save_device_health(health_report :: map()) ::
-          {:ok, DeviceHealth.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, DeviceHealth.t()} | {:ok, :unchanged} | {:error, Ecto.Changeset.t()}
   def save_device_health(device_status) do
     device_status
     |> DeviceHealth.save()
     |> Repo.insert(
-      on_conflict: {:replace, [:status, :status_reasons, :updated_at]},
+      on_conflict: replace_when_changed(),
       conflict_target: [:device_id],
       returning: true
+    )
+  rescue
+    # `ON CONFLICT DO UPDATE ... WHERE` returns no row when the verdict is
+    # unchanged, and Ecto reads "no row came back" as a stale entry. Here it
+    # is the answer rather than an error.
+    Ecto.StaleEntryError -> {:ok, :unchanged}
+  end
+
+  # `IS DISTINCT FROM` rather than `!=` because either side can be NULL:
+  # `status_reasons` is null whenever no level is engaged, which is the
+  # common case, and `NULL != NULL` is null, not true.
+  defp replace_when_changed() do
+    from(h in DeviceHealth,
+      where:
+        fragment("? IS DISTINCT FROM ?", h.status, fragment("EXCLUDED.status")) or
+          fragment("? IS DISTINCT FROM ?", h.status_reasons, fragment("EXCLUDED.status_reasons")),
+      update: [
+        set: [
+          status: fragment("EXCLUDED.status"),
+          status_reasons: fragment("EXCLUDED.status_reasons"),
+          updated_at: fragment("EXCLUDED.updated_at")
+        ]
+      ]
     )
   end
 

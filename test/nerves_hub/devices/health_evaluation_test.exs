@@ -7,13 +7,16 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
+  alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.HealthEvaluation
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Extensions.PubSub, as: ExtensionsPubSub
   alias NervesHub.Fixtures
   alias NervesHub.Products.HealthProfile
   alias NervesHub.Products.HealthProfileMetric
   alias NervesHub.Products.HealthProfiles
+  alias Phoenix.Socket.Broadcast
 
   setup %{tmp_dir: tmp_dir} do
     AnalyticsRepo.query!("TRUNCATE TABLE device_metrics")
@@ -193,6 +196,30 @@ defmodule NervesHub.Devices.HealthEvaluationTest do
                HealthEvaluation.evaluate(device_info, [{"cpu_usage_percent", DateTime.utc_now(), 95}])
 
       assert %{"cpu_usage_percent" => %{value: 95, threshold: 90}} = reasons.unhealthy
+    end
+  end
+
+  describe "evaluate_and_save/2" do
+    test "an unchanged verdict still broadcasts, so an open page picks up the readings", %{
+      device: device,
+      device_info: device_info
+    } do
+      :ok = ExtensionsPubSub.subscribe_reports(device.id)
+
+      reading = [{"cpu_usage_percent", DateTime.utc_now(), 20.0}]
+
+      :ok = HealthEvaluation.evaluate_and_save(device_info, reading)
+      assert_receive %Broadcast{event: "health_check_report"}, 500
+      assert Repo.get_by(DeviceHealth, device_id: device.id).status == :healthy
+
+      # Same verdict, so nothing is written — but new readings arrived, and
+      # the charts and tiles on an open device page are drawn from those.
+      before = Repo.get_by(DeviceHealth, device_id: device.id)
+
+      :ok = HealthEvaluation.evaluate_and_save(device_info, reading)
+
+      assert_receive %Broadcast{event: "health_check_report"}, 500
+      assert Repo.get_by(DeviceHealth, device_id: device.id).updated_at == before.updated_at
     end
   end
 

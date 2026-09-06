@@ -99,6 +99,10 @@ defmodule NervesHub.Devices.HealthEvaluation do
   broadcast it. The row is the current verdict alone — one per device,
   replaced in place; alarms and metadata went to their own homes, and the
   readings live in ClickHouse.
+
+  A verdict that has not moved since the last report writes nothing: the
+  steady state, which is nearly every report, costs one statement that
+  touches no rows.
   """
   @spec evaluate_and_save(struct() | map(), [sample()]) :: :ok | :error
   def evaluate_and_save(device_info, in_hand_samples) do
@@ -111,7 +115,11 @@ defmodule NervesHub.Devices.HealthEvaluation do
     }
 
     case Health.save_device_health(device_health) do
-      {:ok, _health} ->
+      # Broadcast either way: this says a report landed, not that the verdict
+      # moved. It is what refreshes the readings, the charts and the metadata
+      # on an open device page, and those change on every report even when
+      # the status does not.
+      {:ok, _health_or_unchanged} ->
         :ok = ExtensionsPubSub.broadcast_report(device_info.device_id, "health_check_report", %{})
 
       {:error, error} ->

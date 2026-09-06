@@ -1552,6 +1552,45 @@ defmodule NervesHub.DevicesTest do
       assert %{latest_health: %{status: :unhealthy}} = Devices.get_device(device.id, [:latest_health])
       assert Repo.aggregate(where(Devices.DeviceHealth, device_id: ^device.id), :count) == 1
     end
+
+    test "a report that agrees with the stored verdict writes nothing", %{device: device} do
+      verdict = %{
+        "device_id" => device.id,
+        "status" => :warning,
+        "status_reasons" => %{"warning" => %{"cpu_usage_percent" => %{"value" => 60}}}
+      }
+
+      {:ok, %{updated_at: written_at}} = Health.save_device_health(verdict)
+
+      assert {:ok, :unchanged} = Health.save_device_health(verdict)
+
+      # Untouched, not rewritten with the same values.
+      assert %{latest_health: %{updated_at: ^written_at, status: :warning}} =
+               Devices.get_device(device.id, [:latest_health])
+    end
+
+    test "a changed reason writes even when the status is the same", %{device: device} do
+      base = %{"device_id" => device.id, "status" => :warning}
+
+      {:ok, _} = Health.save_device_health(Map.put(base, "status_reasons", %{"warning" => %{"cpu" => 1}}))
+
+      assert {:ok, %Devices.DeviceHealth{}} =
+               Health.save_device_health(Map.put(base, "status_reasons", %{"warning" => %{"cpu" => 2}}))
+    end
+
+    test "moving to and from a nil reason is a change", %{device: device} do
+      {:ok, _} = Health.save_device_health(%{"device_id" => device.id, "status" => :healthy})
+
+      assert {:ok, %Devices.DeviceHealth{}} =
+               Health.save_device_health(%{
+                 "device_id" => device.id,
+                 "status" => :healthy,
+                 "status_reasons" => %{"warning" => %{"cpu" => 1}}
+               })
+
+      assert {:ok, %Devices.DeviceHealth{}} =
+               Health.save_device_health(%{"device_id" => device.id, "status" => :healthy, "status_reasons" => nil})
+    end
   end
 
   describe "update_deployment_group/2" do
