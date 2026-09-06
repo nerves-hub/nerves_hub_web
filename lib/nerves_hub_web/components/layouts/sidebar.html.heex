@@ -170,7 +170,16 @@
       {if(assigns[:top_bar], do: render_slot(@top_bar))}
     </div>
 
-    <div :if={assigns[:header]} id="header" class="border-base-700 h-header flex items-center gap-4 border-b px-6 text-sm font-medium">
+    <%!-- The tab bar draws the line under the header when there is one, the
+          way `big_header` leaves it to. Two borders read as a double rule. --%>
+    <div
+      :if={assigns[:header]}
+      id="header"
+      class={[
+        "border-base-700 h-header flex items-center gap-4 px-6 text-sm font-medium",
+        !assigns[:tabbed_nav] && "border-b"
+      ]}
+    >
       {render_slot(@header)}
     </div>
 
@@ -184,7 +193,7 @@
           :for={nav <- @tabbed_nav}
           data-selected={nav.selected}
           class="data-selected:border-primary data-selected:tab-selected data-selected:text-base-300 hover:border-primary text-base-50 relative -bottom-px h-11 px-6 py-2 text-sm font-normal hover:border-b data-selected:border-b"
-          patch={nav.path}
+          {tab_target(nav)}
         >
           {nav.label}
         </.link>

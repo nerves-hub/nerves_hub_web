@@ -46,6 +46,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       socket
       |> assign(:page_title, "#{product.name} Settings")
       |> sidebar_tab(:settings)
+      |> assign(:tab, :general)
       |> assign(:product, product)
       |> assign(:shared_secrets, product.shared_secret_auths)
       |> assign(:shared_auth_enabled, DeviceLink.shared_secrets_enabled?())

@@ -237,6 +237,40 @@
             </div>
           </div>
         </div>
+        <div :if={@flapping_health_enabled} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col gap-5 rounded border p-5">
+          <div class="flex justify-between">
+            <div class="text-base-50 flex items-center leading-6 font-medium">
+              Flapping Health
+            </div>
+            <div class="relative z-20 ml-4" id="flapping-health-tooltip" phx-hook="ToolTip" data-placement="top">
+              <span class="lucide-info--light size-4" />
+              <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border px-2 py-1.5 text-xs">
+                <p class="pb-2">Devices whose health has crossed into warning or unhealthy more than 5 times in the last hour.</p>
+                <p>
+                  A device sitting steadily unhealthy is not here — these are the ones <br />changing their mind, which usually means a
+                  threshold sits right where <br />the metric normally runs.
+                </p>
+                <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+              </div>
+            </div>
+          </div>
+          <div class="divide-b-subtle flex flex-col divide-y">
+            <.link
+              :for={{device, change_count} <- @flapping_health}
+              :if={Enum.any?(@flapping_health)}
+              navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{device.identifier}/health"}
+            >
+              <div class="group flex items-center gap-3 py-3">
+                <span class="text-content-body flex-1 font-mono text-sm group-hover:underline">{device.identifier}</span>
+                <span class="text-content-strong text-right font-mono text-sm">{change_count} p/hour</span>
+              </div>
+            </.link>
+            <div :if={Enum.empty?(@flapping_health)} class="inline-flex h-20 items-center justify-center">
+              <span class="text-content-faint font-mono">No flapping health detected</span>
+            </div>
+          </div>
+        </div>
+
         <%!-- <div class="bg-surface-raised border-base-700 shadow-device-details-content flex h-[132px] flex-col rounded border">
           <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
             Device Alarms

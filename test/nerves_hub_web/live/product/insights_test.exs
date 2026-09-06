@@ -3,6 +3,9 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
   import Phoenix.LiveViewTest
 
+  alias NervesHub.Analytics.Buffer
+  alias NervesHub.AnalyticsRepo
+  alias NervesHub.Devices.DeviceHealthHistory
   alias NervesHub.Devices.Health
   alias NervesHub.Fixtures
   alias NervesHub.ProductNotifications
@@ -238,6 +241,52 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
       render_click(view, "toggle-auto-refresh")
 
       assert :sys.get_state(view.pid).socket.assigns.polling_pid
+    end
+  end
+
+  describe "flapping health" do
+    setup %{org: org, product: product, firmware: firmware} do
+      AnalyticsRepo.query!("TRUNCATE TABLE device_health_history")
+      on_exit(fn -> AnalyticsRepo.query!("TRUNCATE TABLE device_health_history") end)
+
+      %{device: Fixtures.device_fixture(org, product, firmware)}
+    end
+
+    defp record_health(device, status, count) do
+      for _ <- 1..count do
+        Buffer.insert(
+          DeviceHealthHistory,
+          DeviceHealthHistory.changeset(%{
+            timestamp: DateTime.utc_now(),
+            org_id: device.org_id,
+            product_id: device.product_id,
+            device_id: device.id,
+            status: status,
+            status_reasons: ""
+          })
+        )
+      end
+
+      :ok = Buffer.flush(DeviceHealthHistory)
+    end
+
+    test "lists a device that keeps changing its mind", %{conn: conn, org: org, product: product, device: device} do
+      record_health(device, "warning", 6)
+
+      conn
+      |> visit(insights_path(org, product))
+      |> assert_has("div", text: "Flapping Health")
+      |> assert_has("span", text: device.identifier)
+      |> assert_has("span", text: "6 p/hour")
+    end
+
+    test "says so when nothing is flapping", %{conn: conn, org: org, product: product, device: device} do
+      record_health(device, "warning", 2)
+
+      conn
+      |> visit(insights_path(org, product))
+      |> assert_has("span", text: "No flapping health detected")
+      |> refute_has("span", text: device.identifier)
     end
   end
 end

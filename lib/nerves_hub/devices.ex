@@ -27,6 +27,37 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
+  @doc """
+  Pair counted analytics results with their devices, in the order given.
+
+  Analytics tables hold device ids, not devices, so a "top N devices by
+  something" read comes back as `[%{device_id: _, count: _}]` and needs the
+  devices fetched from PostgreSQL. The analytics ordering is preserved, and an
+  id with no matching device — deleted, or belonging to another product — is
+  dropped rather than rendered as a hole.
+  """
+  @spec with_counts([%{device_id: pos_integer(), count: non_neg_integer()}], Product.t()) ::
+          [{Device.t(), non_neg_integer()}]
+  def with_counts([], _product), do: []
+
+  def with_counts(counted, %Product{id: product_id}) do
+    device_ids = Enum.map(counted, & &1.device_id)
+
+    devices =
+      Device
+      |> where(product_id: ^product_id)
+      |> where([d], d.id in ^device_ids)
+      |> Repo.all()
+      |> Map.new(&{&1.id, &1})
+
+    Enum.flat_map(counted, fn %{device_id: device_id, count: count} ->
+      case Map.get(devices, device_id) do
+        nil -> []
+        device -> [{device, count}]
+      end
+    end)
+  end
+
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
   end

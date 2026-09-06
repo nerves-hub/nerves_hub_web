@@ -15,6 +15,7 @@ defmodule NervesHub.DataCase do
   use ExUnit.CaseTemplate
 
   alias Ecto.Adapters.SQL.Sandbox, as: SQLSandbox
+  alias NervesHub.Products.HealthProfiles.Cache
 
   using do
     quote do
@@ -34,6 +35,10 @@ defmodule NervesHub.DataCase do
 
   setup tags do
     :ok = SQLSandbox.checkout(NervesHub.Repo)
+
+    # The profile cache outlives the sandbox transaction that is about to be
+    # rolled back underneath it.
+    :ok = Cache.reset()
 
     if !tags[:async] do
       SQLSandbox.mode(NervesHub.Repo, {:shared, self()})

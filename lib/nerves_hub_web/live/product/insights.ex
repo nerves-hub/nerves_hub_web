@@ -20,6 +20,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> fleet_health_information()
     |> assign_notifications()
     |> maybe_assign_flapping_connections()
+    |> maybe_assign_flapping_health()
     |> assign(:page_title, "#{scope.product.name} Insights")
     |> sidebar_tab(:insights)
     |> ok()
@@ -137,6 +138,16 @@ defmodule NervesHubWeb.Live.Product.Insights do
     case DateTime.now(time_zone) do
       {:ok, now} -> {time_zone, now}
       {:error, _} -> {"Etc/UTC", DateTime.utc_now()}
+    end
+  end
+
+  defp maybe_assign_flapping_health(%{assigns: %{current_scope: scope}} = socket) do
+    if Application.get_env(:nerves_hub, :analytics_enabled) do
+      socket
+      |> assign(:flapping_health, Health.flapping_health(scope.product))
+      |> assign(:flapping_health_enabled, true)
+    else
+      assign(socket, :flapping_health_enabled, false)
     end
   end
 

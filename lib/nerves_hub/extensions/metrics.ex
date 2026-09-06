@@ -59,6 +59,7 @@ defmodule NervesHub.Extensions.Metrics do
   @behaviour NervesHub.Extensions
 
   alias NervesHub.DeviceLink.DeviceInfo
+  alias NervesHub.Devices.HealthEvaluation
   alias NervesHub.Devices.Metrics, as: Store
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
@@ -122,9 +123,15 @@ defmodule NervesHub.Extensions.Metrics do
 
   def handle_in("report", %{"reports" => reports}, state) when is_list(reports) do
     if allow?(state.device_info) do
-      reports
-      |> Enum.take(@max_reports_per_message)
-      |> Enum.each(&record(state.device_info, &1))
+      reports = Enum.take(reports, @max_reports_per_message)
+
+      Enum.each(reports, &record(state.device_info, &1))
+
+      # The readings just recorded are still in the write buffer, so the
+      # health judgement takes them in hand rather than expecting to read
+      # them back. One judgement per message, however many batched reports
+      # it carried.
+      _ = HealthEvaluation.evaluate_and_save(state.device_info, in_hand_samples(reports))
     end
 
     {state, []}
@@ -194,6 +201,18 @@ defmodule NervesHub.Extensions.Metrics do
   # failing its neighbours: a device that gets one report wrong should not lose
   # the rest of the batch.
   defp record(_device_info, _report), do: :ok
+
+  # The batch as `{key, timestamp, value}` readings, filtered the way
+  # `record/2` filters — a report without a usable timestamp or a value that
+  # is not a number contributes nothing to the judgement either.
+  defp in_hand_samples(reports) do
+    for %{"metrics" => metrics} = report <- reports,
+        is_map(metrics),
+        {:ok, timestamp} <- [timestamp(report)],
+        {key, value} <- metrics,
+        is_number(value),
+        do: {key, timestamp, value}
+  end
 
   # A reading is only worth what its timestamp is worth. A device whose clock
   # has not caught up with NTP yet would otherwise write a chart that stretches
