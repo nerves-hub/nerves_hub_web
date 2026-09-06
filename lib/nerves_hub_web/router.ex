@@ -16,6 +16,7 @@ defmodule NervesHubWeb.Router do
   alias Live.Orgs.New
   alias Live.Product.ErrorGroup
   alias Live.Product.Errors
+  alias Live.Product.HealthProfiles
   alias Live.Product.Insights
   alias Live.Product.Notifications
   alias Live.SupportScripts.Edit
@@ -438,6 +439,7 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/notifications", Notifications)
 
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
+      live("/org/:org_name/:product_name/settings/health", HealthProfiles)
     end
   end
 
