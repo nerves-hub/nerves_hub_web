@@ -27,6 +27,7 @@ defmodule NervesHub.Products.HealthProfiles do
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Products.HealthProfile
   alias NervesHub.Products.HealthProfileMetric
+  alias NervesHub.Products.HealthProfiles.Cache
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
@@ -108,6 +109,10 @@ defmodule NervesHub.Products.HealthProfiles do
 
   @spec resolve(pos_integer(), String.t() | nil) :: HealthProfile.t() | nil
   def resolve(product_id, platform) do
+    Cache.fetch({product_id, platform}, fn -> load(product_id, platform) end)
+  end
+
+  defp load(product_id, platform) do
     HealthProfile
     |> where(product_id: ^product_id)
     |> platform_or_default(platform)
@@ -254,6 +259,7 @@ defmodule NervesHub.Products.HealthProfiles do
     |> Repo.transact()
     |> case do
       {:ok, %{profile: profile}} ->
+        :ok = Cache.invalidate(product_id)
         {:ok, Repo.preload(profile, :metrics)}
 
       {:error, _step, changeset, _} ->
@@ -269,7 +275,10 @@ defmodule NervesHub.Products.HealthProfiles do
   def delete_profile(%HealthProfile{platform: nil}), do: {:error, :cannot_delete_default}
 
   def delete_profile(%HealthProfile{} = profile) do
-    {:ok, Repo.delete!(profile)}
+    deleted = Repo.delete!(profile)
+    :ok = Cache.invalidate(profile.product_id)
+
+    {:ok, deleted}
   end
 
   @doc """
@@ -279,7 +288,7 @@ defmodule NervesHub.Products.HealthProfiles do
   """
   @spec add_metric(HealthProfile.t(), map()) ::
           {:ok, HealthProfileMetric.t()} | {:error, Ecto.Changeset.t()}
-  def add_metric(%HealthProfile{id: profile_id}, attrs) do
+  def add_metric(%HealthProfile{id: profile_id, product_id: product_id}, attrs) do
     built_in? = Map.has_key?(@built_in_metrics, String.trim(attrs["key"] || ""))
 
     attrs =
@@ -294,6 +303,7 @@ defmodule NervesHub.Products.HealthProfiles do
     %HealthProfileMetric{}
     |> HealthProfileMetric.changeset(attrs)
     |> Repo.insert()
+    |> tap_ok(product_id)
   end
 
   @doc """
@@ -311,6 +321,7 @@ defmodule NervesHub.Products.HealthProfiles do
     metric
     |> HealthProfileMetric.changeset(Map.drop(attrs, fixed))
     |> Repo.update()
+    |> tap_ok(product_id_of(metric))
   end
 
   @spec get_metric!(HealthProfile.t(), pos_integer()) :: HealthProfileMetric.t()
@@ -322,7 +333,26 @@ defmodule NervesHub.Products.HealthProfiles do
 
   @spec delete_metric(HealthProfileMetric.t()) :: :ok
   def delete_metric(%HealthProfileMetric{} = metric) do
+    product_id = product_id_of(metric)
     Repo.delete!(metric)
-    :ok
+
+    Cache.invalidate(product_id)
   end
+
+  # A metric knows its profile, not its product; the cache is keyed by
+  # product. One query on an admin action, never on a report.
+  defp product_id_of(%HealthProfileMetric{health_profile_id: profile_id}) do
+    HealthProfile
+    |> where(id: ^profile_id)
+    |> select([p], p.product_id)
+    |> Repo.one!()
+  end
+
+  # Drop the product's cached profiles when a write succeeded, and only then.
+  defp tap_ok({:ok, _} = result, product_id) do
+    :ok = Cache.invalidate(product_id)
+    result
+  end
+
+  defp tap_ok({:error, _} = result, _product_id), do: result
 end

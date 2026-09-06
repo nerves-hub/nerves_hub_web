@@ -12,6 +12,7 @@ defmodule NervesHub.Application do
   alias NervesHub.ErrorReports.GroupBuffer
   alias NervesHub.ManagedDeployments.OrchestratorRegistration
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
+  alias NervesHub.Products.HealthProfiles.Cache
   alias NervesHub.RateLimit.ErrorReports, as: ErrorReportLimit
   alias NervesHub.RateLimit.LogLines
   alias NervesHub.RateLimit.Metrics, as: MetricsLimit
@@ -43,6 +44,9 @@ defmodule NervesHub.Application do
         ecto_repos() ++
         [
           {Phoenix.PubSub, name: NervesHub.PubSub},
+          # Reads the profile every metric report needs; see the module for why
+          # this cache is not the state health evaluation does without.
+          Cache,
           # Ahead of the group tree: `RateLimitPubSub` applies peer throttle
           # increments into this storage the moment it joins its group.
           {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
