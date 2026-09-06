@@ -16,7 +16,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceFirmwares
-  alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
@@ -143,19 +142,10 @@ defmodule NervesHub.Devices do
   def filter(product, user, opts) do
     common_filter_query(user)
     |> preload([latest_connection: lc], latest_connection: lc)
-    |> preload(latest_health: ^health_status_query())
+    |> preload([latest_health: lh], latest_health: lh)
     |> preload([deployment_group: dg], deployment_group: dg)
     |> preload([inflight_update: ifu], inflight_update: ifu)
     |> CommonFiltering.filter(product, opts)
-  end
-
-  # The device list renders the health icon and its tooltip, and nothing else
-  # off `latest_health` - but the row carries every metric the device last
-  # reported in `data`. Preloading from a narrowed query rather than the joined
-  # binding leaves that payload in the database. The join itself stays: the
-  # alarm and health status filters read `data` from it in SQL.
-  defp health_status_query() do
-    from(dh in DeviceHealth, select: [:id, :status, :status_reasons])
   end
 
   @spec filter_query(Product.t(), User.t(), map()) :: Ecto.Query.t()
@@ -165,7 +155,10 @@ defmodule NervesHub.Devices do
   end
 
   defp common_filter_query(user) do
+    # Named so the alarm filters can correlate an EXISTS against `device_alarms`
+    # back to this device; see `NervesHub.Devices.AdvancedQuery.Compiler`.
     Device
+    |> from(as: :device)
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
     |> join(:left, [d, dc, dh], pd in PinnedDevice,

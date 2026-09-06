@@ -7,6 +7,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Certificate
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
@@ -365,6 +366,28 @@ defmodule NervesHub.Fixtures do
       |> Map.merge(params)
       |> Enum.into(@device_params)
       |> Devices.create_device()
+
+    device
+  end
+
+  @doc """
+  Raise `alarms` (`%{name => description}`) on the device, as a health report
+  would.
+
+  Goes through `NervesHub.Devices.Alarms.sync/3` rather than inserting rows, so
+  a fixture exercises the same diff the report path does — passing `%{}`
+  resolves whatever the device had raised.
+  """
+  def device_alarms_fixture(%Devices.Device{} = device, alarms) do
+    :ok =
+      Devices.Alarms.sync(
+        %DeviceInfo{
+          device_id: device.id,
+          product_id: device.product_id,
+          org_id: device.org_id
+        },
+        alarms
+      )
 
     device
   end

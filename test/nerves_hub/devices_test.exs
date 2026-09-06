@@ -1535,13 +1535,22 @@ defmodule NervesHub.DevicesTest do
 
   describe "device health reports" do
     test "create new device health", %{device: device} do
-      device_health = %{"device_id" => device.id, "data" => %{"literally_any_map" => "values"}}
-
       assert {:ok, %Devices.DeviceHealth{id: health_id}} =
-               Health.save_device_health(device_health)
+               Health.save_device_health(%{"device_id" => device.id, "status" => :healthy})
 
-      # Assert device is updated with latest health
-      assert %{latest_health_id: ^health_id} = Devices.get_device(device.id)
+      assert %{latest_health: %{id: ^health_id, status: :healthy}} =
+               Devices.get_device(device.id, [:latest_health])
+    end
+
+    test "a second report replaces the row rather than appending", %{device: device} do
+      {:ok, %{id: health_id}} =
+        Health.save_device_health(%{"device_id" => device.id, "status" => :healthy})
+
+      {:ok, %{id: ^health_id}} =
+        Health.save_device_health(%{"device_id" => device.id, "status" => :unhealthy})
+
+      assert %{latest_health: %{status: :unhealthy}} = Devices.get_device(device.id, [:latest_health])
+      assert Repo.aggregate(where(Devices.DeviceHealth, device_id: ^device.id), :count) == 1
     end
   end
 
@@ -3069,7 +3078,6 @@ defmodule NervesHub.DevicesTest do
       {:ok, _} =
         Health.save_device_health(%{
           "device_id" => device.id,
-          "data" => %{"metrics" => %{"cpu_temp" => 41.2}, "alarms" => %{"SomeAlarm" => "boom"}},
           "status" => "warning",
           "status_reasons" => %{"warning" => %{"cpu_temp" => %{"value" => 41.2, "threshold" => 40}}}
         })
@@ -3082,13 +3090,6 @@ defmodule NervesHub.DevicesTest do
 
       assert health.status == :warning
       assert health.status_reasons == %{"warning" => %{"cpu_temp" => %{"value" => 41.2, "threshold" => 40}}}
-    end
-
-    # The list only renders the health icon and its tooltip. `data` holds every
-    # metric the device last reported, so it stays in the database - anything
-    # needing it should load the device through `get_by_identifier!/3` instead.
-    test "leaves the metrics payload behind", %{product: product, user: user, device: device} do
-      assert filtered_health(product, user, device).data == nil
     end
 
     defp filtered_health(product, user, device) do

@@ -739,8 +739,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       device2 = Fixtures.device_fixture(org, product, firmware)
 
-      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{"SomeAlarm" => []}}}
-      assert {:ok, _} = Health.save_device_health(device_health)
+      Fixtures.device_alarms_fixture(device, %{"SomeAlarm" => "active"})
 
       conn
       |> visit(device_index_path(fixture))
@@ -759,8 +758,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       device2 = Fixtures.device_fixture(org, product, firmware)
 
-      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{"SomeAlarm" => []}}}
-      assert {:ok, _} = Health.save_device_health(device_health)
+      Fixtures.device_alarms_fixture(device, %{"SomeAlarm" => "active"})
 
       conn
       |> visit(device_index_path(fixture))
@@ -780,8 +778,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       device2 = Fixtures.device_fixture(org, product, firmware)
 
       alarm = "SomeAlarm"
-      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{alarm => []}}}
-      assert {:ok, _} = Health.save_device_health(device_health)
+      Fixtures.device_alarms_fixture(device, %{alarm => "active"})
 
       conn
       |> visit(device_index_path(fixture))

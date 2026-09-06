@@ -53,8 +53,10 @@ defmodule NervesHub.AdvancedQueryFixtures do
 
     # "tagged" and "connected" get health records; the others have none (= unknown).
     # "tagged" has an active alarm; "connected" has none.
-    {:ok, _} = save_health(tagged, :healthy, %{"alarms" => %{"SomeAlarm" => "boom"}})
-    {:ok, _} = save_health(connected, :warning, %{"alarms" => %{}})
+    {:ok, _} = save_health(tagged, :healthy)
+    {:ok, _} = save_health(connected, :warning)
+
+    _ = Fixtures.device_alarms_fixture(tagged, %{"SomeAlarm" => "boom"})
 
     %{
       user: user,
@@ -70,12 +72,11 @@ defmodule NervesHub.AdvancedQueryFixtures do
     }
   end
 
-  @doc "Saves a health record (and updates the device's latest health)."
-  def save_health(device, status, data \\ %{}) do
+  @doc "Saves the device's current health status."
+  def save_health(device, status) do
     {:ok, _} =
       Health.save_device_health(%{
         "device_id" => device.id,
-        "data" => data,
         "status" => status,
         "status_reasons" => %{}
       })

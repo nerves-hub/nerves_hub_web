@@ -4,15 +4,18 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
   query.
 
   Kept separate from `NervesHub.Devices.DeviceFiltering` so the advanced
-  query language can be tested in isolation. Assumes the query already has
-  a `latest_connection` named binding, the same convention `DeviceFiltering`
-  relies on (see `NervesHub.Devices.common_filter_query/1`).
+  query language can be tested in isolation. Assumes the query already names
+  its bindings — `device` for the devices themselves (the alarm filters
+  correlate a subquery back to it) and `latest_connection` — the same
+  convention `DeviceFiltering` relies on (see
+  `NervesHub.Devices.common_filter_query/1`).
   """
 
   import Ecto.Query
 
   alias NervesHub.Devices.AdvancedQuery.Parser
   alias NervesHub.Devices.AdvancedQuery.Schema
+  alias NervesHub.Devices.DeviceAlarm
 
   @not_set_value Schema.not_set_value()
   @metric_prefix Schema.metric_prefix()
@@ -280,31 +283,29 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
   defp comparison_dynamic("update_status", op, "not updating") when op in ["is", "is not"],
     do: update_status_dynamic(op == "is not")
 
-  # Matches a specific alarm by fuzzy text search over the health data, the same
-  # way the sidebar "Alarm" filter does (alarm keys are stored with an "Elixir."
-  # prefix, so an ILIKE substring match keeps the trimmed names working).
-  defp comparison_dynamic("alarm", "contains", value),
-    do:
-      dynamic(
-        [latest_health: lh],
-        fragment("EXISTS (SELECT 1 FROM jsonb_each_text(?) WHERE value ILIKE ?)", lh.data, ^"%#{value}%")
-      )
+  # Matches a raised alarm by fuzzy text search over its name or description,
+  # the same way the sidebar "Alarm" filter does. This used to run over the
+  # whole health payload with `jsonb_each_text`, which also matched metadata
+  # and metric values; scoped to `device_alarms` it matches only alarms, and
+  # names are stored already stripped of their "Elixir." prefix.
+  defp comparison_dynamic("alarm", "contains", value), do: dynamic([], exists(alarms_matching(value)))
 
-  defp comparison_dynamic("alarm", "not_contains", value),
-    do:
-      dynamic(
-        [latest_health: lh],
-        fragment(
-          "NOT EXISTS (SELECT 1 FROM jsonb_each_text(COALESCE(?, '{}'::jsonb)) WHERE value ILIKE ?)",
-          lh.data,
-          ^"%#{value}%"
-        )
-      )
+  defp comparison_dynamic("alarm", "not_contains", value), do: dynamic([], not exists(alarms_matching(value)))
 
-  defp alarm_status_dynamic(true), do: dynamic([latest_health: lh], fragment("?->'alarms' != '{}'", lh.data))
+  defp alarm_status_dynamic(true), do: dynamic([], exists(raised_alarms()))
 
-  defp alarm_status_dynamic(false),
-    do: dynamic([latest_health: lh], fragment("(? IS NULL OR ?->'alarms' = '{}')", lh, lh.data))
+  defp alarm_status_dynamic(false), do: dynamic([], not exists(raised_alarms()))
+
+  # Correlated on the `:device` binding the device filter query names.
+  defp raised_alarms() do
+    from(a in DeviceAlarm, where: a.device_id == parent_as(:device).id, select: 1)
+  end
+
+  defp alarms_matching(value) do
+    pattern = "%#{value}%"
+
+    from(a in raised_alarms(), where: ilike(a.alarm, ^pattern) or ilike(a.description, ^pattern))
+  end
 
   defp update_status_dynamic(true), do: dynamic([inflight_update: ifu], not is_nil(ifu))
   defp update_status_dynamic(false), do: dynamic([inflight_update: ifu], is_nil(ifu))

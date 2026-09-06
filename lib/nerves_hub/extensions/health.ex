@@ -26,6 +26,8 @@ defmodule NervesHub.Extensions.Health do
 
   @behaviour NervesHub.Extensions
 
+  alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
@@ -88,16 +90,29 @@ defmodule NervesHub.Extensions.Health do
 
     device_health = %{
       "device_id" => device_info.device_id,
-      "data" => device_report,
       "status" => status,
       "status_reasons" => reasons
     }
+
+    now = DateTime.utc_now()
 
     # Metrics first, and not inside the health report's failure handling:
     # `Metrics.record/3` buffers rather than writing, so there is no failure
     # here to report, and a health row that will not save is no reason to throw
     # away readings that would.
-    {:ok, _stored} = Metrics.record(device_info, metrics)
+    {:ok, _stored} = Metrics.record(device_info, metrics, now)
+
+    # The report carries the device's whole current alarm set; `sync/3` works
+    # out which of those are new and which have cleared. Server time rather
+    # than anything the device sends: a clock behind NTP would date an alarm to
+    # 1970, and when the platform heard about it is the honest answer anyway.
+    :ok = Alarms.sync(device_info, device_report["alarms"] || %{}, now)
+
+    # Metadata rides the connection, not the health row: it describes the
+    # device as this connection found it, and a reconnect resets it and is
+    # followed immediately by a fresh report (`attach/1` sends a check ahead of
+    # the timer).
+    :ok = merge_metadata(device_info, device_report["metadata"])
 
     case Health.save_device_health(device_health) do
       {:ok, _health} ->
@@ -168,6 +183,25 @@ defmodule NervesHub.Extensions.Health do
   end
 
   defp device_id(state), do: state.device_info.device_id
+
+  # Merged rather than replaced, so a report that carries only part of what the
+  # device knows does not blank the rest. A report with no metadata at all
+  # leaves the connection alone; an error only means the connection row has
+  # already moved on, which the next report will correct.
+  defp merge_metadata(_device_info, metadata) when metadata == %{}, do: :ok
+
+  defp merge_metadata(device_info, metadata) when is_map(metadata) do
+    case Connections.merge_update_metadata(device_info.connection_ref, metadata) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("[Health] failed to merge connection metadata: #{inspect(reason)}")
+        :ok
+    end
+  end
+
+  defp merge_metadata(_device_info, _absent_or_not_a_map), do: :ok
 
   defp health_interval_minutes() do
     case config([:health, :interval_minutes]) do

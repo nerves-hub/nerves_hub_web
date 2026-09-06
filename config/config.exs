@@ -4,7 +4,6 @@ alias NervesHub.Accounts.Scope
 alias NervesHub.Workers.CleanStaleDeviceConnections
 alias NervesHub.Workers.CleanUpSoftDeletedDevices
 alias NervesHub.Workers.DeleteExpiredCLISessionRecords
-alias NervesHub.Workers.DeviceHealthTruncation
 alias NervesHub.Workers.ExpireInflightUpdates
 alias NervesHub.Workers.FirmwareDeltaTimeout
 alias NervesHub.Workers.ScheduleOrgAuditLogTruncation
@@ -110,7 +109,6 @@ config :nerves_hub, Oban,
       {"*/1 * * * *", CleanStaleDeviceConnections},
       {"* * * * *", FirmwareDeltaTimeout},
       {"*/5 * * * *", ExpireInflightUpdates},
-      {"*/15 * * * *", DeviceHealthTruncation},
       {"*/15 * * * *", CleanUpSoftDeletedDevices}
     ]
   ],

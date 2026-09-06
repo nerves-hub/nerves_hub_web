@@ -5,6 +5,7 @@ defmodule NervesHub.Devices.Device do
 
   alias __MODULE__
   alias NervesHub.Accounts.Org
+  alias NervesHub.Devices.DeviceAlarm
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceFirmware
@@ -50,15 +51,18 @@ defmodule NervesHub.Devices.Device do
     belongs_to(:org, Org)
     belongs_to(:product, Product)
     belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
-    belongs_to(:latest_health, DeviceHealth)
     belongs_to(:current_device_firmware, DeviceFirmware, type: UUIDv7)
 
+    # One row per device, so the association finds it directly. It used to be a
+    # `belongs_to` through `latest_health_id`, which only existed to pick the
+    # newest of many rows; see `NervesHub.Devices.DeviceHealth`.
+    has_one(:latest_health, DeviceHealth)
     has_one(:latest_connection, DeviceConnection)
     has_one(:inflight_update, InflightUpdate)
 
+    has_many(:alarms, DeviceAlarm, on_delete: :delete_all)
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)
-    has_many(:device_health, DeviceHealth, on_delete: :delete_all)
     has_many(:network_identities, NetworkIdentity, on_delete: :delete_all)
     has_many(:update_stats, UpdateStat, on_delete: :delete_all)
 
