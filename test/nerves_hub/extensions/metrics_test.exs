@@ -43,6 +43,35 @@ defmodule NervesHub.Extensions.MetricsTest do
     %{device: device, device_info: device_info, state: State.new(device_info)}
   end
 
+  describe "health judgement rides the batch" do
+    test "a recorded batch produces a health verdict, no health report needed", %{
+      device: device,
+      state: state
+    } do
+      now = DateTime.utc_now()
+
+      reports = [
+        %{
+          "timestamp" => DateTime.to_iso8601(DateTime.add(now, -3, :minute)),
+          "metrics" => %{"cpu_usage_percent" => 95.0}
+        },
+        %{
+          "timestamp" => DateTime.to_iso8601(DateTime.add(now, -2, :minute)),
+          "metrics" => %{"cpu_usage_percent" => 96.0}
+        },
+        %{"timestamp" => DateTime.to_iso8601(now), "metrics" => %{"cpu_usage_percent" => 20.0}}
+      ]
+
+      {_state, []} = Metrics.handle_in("report", %{"reports" => reports}, state)
+
+      # Two of three readings at or over the alert threshold: the batch's own
+      # readings are judged in hand, before any buffer flush.
+      device = Repo.preload(Repo.reload(device), :latest_health)
+      assert device.latest_health.status == :unhealthy
+      assert %{"cpu_usage_percent" => %{"value" => 67}} = device.latest_health.status_reasons["unhealthy"]
+    end
+  end
+
   describe "attaching" do
     test "asks straight away and settles into the platform interval", %{device: device, state: state} do
       {state, effects} = Metrics.attach(state)

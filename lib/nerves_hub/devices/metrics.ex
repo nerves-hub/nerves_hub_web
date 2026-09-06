@@ -138,6 +138,124 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   @doc """
+  What the fleet's history says about each metric key, across the product's
+  devices and ClickHouse's retention (30 days), as
+
+      %{key => %{min: _, max: _, q1: _, q3: _, samples: _, oldest: _}}
+
+  One grouped query; the quartiles (`quantile(0.25)`/`quantile(0.75)`) are
+  computed by ClickHouse alongside the range. The health profiles page shows
+  the range so thresholds get picked against real units rather than guesses,
+  and feeds the quartiles to `NervesHub.Products.HealthProfiles.suggested_thresholds/1`
+  — `samples` and `oldest` are what it gates on. Callers are expected to
+  check that analytics is enabled first.
+  """
+  def observed_stats(product_id) do
+    DeviceMetric
+    |> where([dm], dm.product_id == ^product_id)
+    |> group_by([dm], dm.key)
+    |> select(
+      [dm],
+      {dm.key,
+       %{
+         min: min(dm.value),
+         max: max(dm.value),
+         q1: fragment("quantile(0.25)(?)", dm.value),
+         q3: fragment("quantile(0.75)(?)", dm.value),
+         samples: count(dm.value),
+         oldest: min(dm.timestamp)
+       }}
+    )
+    |> AnalyticsRepo.all()
+    |> Map.new()
+  end
+
+  @doc """
+  How many stored readings each health-profile metric has in its measurement
+  windows, and how many of those breach its thresholds — counted by
+  ClickHouse, so no raw readings cross the wire. What health evaluation
+  judges; the counting semantics are documented on
+  `NervesHub.Devices.HealthEvaluation`.
+
+  Takes the profile's regular (non-built-in) metrics and returns
+  `%{key => %{warning: {samples, breaching}, alert: {samples, breaching}}}`,
+  one map entry per metric, `{0, 0}` where the store holds nothing. Window
+  membership is judged on minute buckets (`unix time div 60`), matching the
+  evaluation granularity, with `now_minute` the current bucket.
+
+  One query per evaluation, built entirely from Ecto dynamics — a pair of
+  `countIf`s per metric level in an interpolated select map — over one scan
+  of the device's rows in the longest window, pruned by the table's
+  `(product_id, device_id, key, timestamp)` sort key. ClickHouse: callers
+  are expected to check that analytics is enabled first.
+  """
+  @spec health_breach_counts(DeviceInfo.t() | map(), [struct()], integer()) ::
+          %{
+            optional(String.t()) => %{
+              warning: {non_neg_integer(), non_neg_integer()},
+              alert: {non_neg_integer(), non_neg_integer()}
+            }
+          }
+  def health_breach_counts(_device_info, [] = _metrics, _now_minute), do: %{}
+
+  def health_breach_counts(device_info, metrics, now_minute) do
+    selects =
+      metrics
+      |> Enum.flat_map(fn metric ->
+        for {level, threshold, period_seconds} <- [
+              {"warning", metric.warning_threshold, metric.warning_period_seconds},
+              {"alert", metric.alert_threshold, metric.alert_period_seconds}
+            ] do
+          cutoff = now_minute - minute_span(period_seconds)
+
+          in_window =
+            dynamic(
+              [dm],
+              dm.key == ^metric.key and fragment("intDiv(toUnixTimestamp(?), 60)", dm.timestamp) > ^cutoff
+            )
+
+          breach = breach_condition(metric.operator, threshold)
+
+          [
+            {"#{metric.key}:#{level}:n", dynamic([dm], fragment("countIf(?)", ^in_window))},
+            {"#{metric.key}:#{level}:k", dynamic([dm], fragment("countIf(? AND ?)", ^in_window, ^breach))}
+          ]
+        end
+      end)
+      |> List.flatten()
+      |> Map.new()
+
+    longest_period = metrics |> Enum.flat_map(&[&1.warning_period_seconds, &1.alert_period_seconds]) |> Enum.max()
+    # Scan pruning only; the per-metric bucket conditions above decide
+    # membership. The oldest reachable bucket starts at this instant.
+    oldest = DateTime.from_unix!((now_minute - minute_span(longest_period)) * 60)
+
+    row =
+      DeviceMetric
+      |> where([dm], dm.product_id == ^device_info.product_id and dm.device_id == ^device_info.device_id)
+      |> where([dm], dm.key in ^Enum.map(metrics, & &1.key))
+      |> where([dm], dm.timestamp >= ^oldest)
+      |> select([dm], ^selects)
+      |> AnalyticsRepo.one()
+
+    Map.new(metrics, fn metric ->
+      {metric.key,
+       %{
+         warning: {row["#{metric.key}:warning:n"], row["#{metric.key}:warning:k"]},
+         alert: {row["#{metric.key}:alert:n"], row["#{metric.key}:alert:k"]}
+       }}
+    end)
+  end
+
+  # Which side of the threshold is unhealthy. `nil` (rows from before the
+  # operator column existed) reads as :gte, the historical behavior.
+  defp breach_condition(:lte, threshold), do: dynamic([dm], dm.value <= ^threshold)
+  defp breach_condition(_gte_or_nil, threshold), do: dynamic([dm], dm.value >= ^threshold)
+
+  # Periods are stored in seconds; evaluation granularity is a minute.
+  defp minute_span(period_seconds), do: div(period_seconds + 59, 60)
+
+  @doc """
   The longest metric name that will be stored, in bytes.
   """
   def max_key_bytes(), do: @max_key_bytes

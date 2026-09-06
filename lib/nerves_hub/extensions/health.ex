@@ -28,13 +28,11 @@ defmodule NervesHub.Extensions.Health do
 
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
-  alias NervesHub.Devices.Health
-  alias NervesHub.Devices.HealthStatus
+  alias NervesHub.Devices.HealthEvaluation
   alias NervesHub.Devices.Metrics
   alias NervesHub.Extensions.Jitter
   alias NervesHub.Extensions.PubSub
   alias NervesHub.Extensions.State
-  alias NervesHub.Helpers.Logging
 
   require Logger
 
@@ -78,28 +76,15 @@ defmodule NervesHub.Extensions.Health do
   def handle_in("report", %{"value" => device_report}, state) do
     device_info = state.device_info
 
-    # Get metrics from health report to store in metrics table and calculate status
     metrics = device_report["metrics"] || %{}
-
-    # Get device status together with reasons, if any.
-    {status, reasons} =
-      case HealthStatus.calculate_metrics_status(metrics) do
-        {status, reasons} -> {status, reasons}
-        status -> {status, nil}
-      end
-
-    device_health = %{
-      "device_id" => device_info.device_id,
-      "status" => status,
-      "status_reasons" => reasons
-    }
 
     now = DateTime.utc_now()
 
     # Metrics first, and not inside the health report's failure handling:
     # `Metrics.record/3` buffers rather than writing, so there is no failure
     # here to report, and a health row that will not save is no reason to throw
-    # away readings that would.
+    # away readings that would. The buffered write is also why the judgement
+    # takes the readings in hand rather than reading them back.
     {:ok, _stored} = Metrics.record(device_info, metrics, now)
 
     # The report carries the device's whole current alarm set; `sync/3` works
@@ -114,18 +99,9 @@ defmodule NervesHub.Extensions.Health do
     # the timer).
     :ok = merge_metadata(device_info, device_report["metadata"])
 
-    case Health.save_device_health(device_health) do
-      {:ok, _health} ->
-        :ok = PubSub.broadcast_report(device_info.device_id, "health_check_report", %{})
+    in_hand = for {key, value} <- metrics, is_number(value), do: {key, now, value}
 
-      {:error, err} ->
-        Logger.warning("Failed to save health check data: #{inspect(err)}")
-
-        Logging.log_to_sentry(
-          device_info,
-          "[DeviceChannel] Failed to save health check data."
-        )
-    end
+    _ = HealthEvaluation.evaluate_and_save(device_info, in_hand)
 
     {state, []}
   end
