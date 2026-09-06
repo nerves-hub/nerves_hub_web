@@ -20,7 +20,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
   test "shows the default profile with its metrics", %{conn: conn, org: org, product: product} do
     conn
     |> visit("/org/#{org.name}/#{product.name}/settings/health")
-    |> assert_has("h1", text: "Health Profiles")
+    |> assert_has("h1", text: "Product Settings")
     |> assert_has("div", text: "Default profile")
     |> assert_has("span", text: "cpu_usage_percent")
     |> assert_has("span", text: "mem_used_percent")
@@ -46,12 +46,20 @@ defmodule NervesHubWeb.Live.Product.HealthProfilesTest do
     |> assert_has("option", text: "Fps — seen 24 – 61")
   end
 
-  test "is linked from the product settings page", %{conn: conn, org: org, product: product} do
+  test "is a tab of the product settings page", %{conn: conn, org: org, product: product} do
     conn
     |> visit("/org/#{org.name}/#{product.name}/settings")
-    |> click_link("Manage health profiles")
+    |> click_link("Device Health")
     |> assert_path("/org/#{org.name}/#{product.name}/settings/health")
-    |> assert_has("h1", text: "Health Profiles")
+    |> assert_has("div", text: "Default profile")
+  end
+
+  test "the tab leads back to the general settings", %{conn: conn, org: org, product: product} do
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/settings/health")
+    |> click_link("General")
+    |> assert_path("/org/#{org.name}/#{product.name}/settings")
+    |> assert_has("div", text: "General settings")
   end
 
   test "adds a metric to the default profile", %{conn: conn, org: org, product: product} do

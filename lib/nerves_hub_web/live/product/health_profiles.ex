@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Live.Product.HealthProfiles do
     socket
     |> assign(:page_title, "#{product.name} Health Profiles")
     |> sidebar_tab(:settings)
+    |> assign(:tab, :health)
     |> assign(:product, product)
     |> assign(:custom_labels, Products.custom_health_metrics_labels(product))
     |> assign_observed(product)
