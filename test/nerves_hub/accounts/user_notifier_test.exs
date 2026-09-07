@@ -83,8 +83,8 @@ defmodule NervesHub.Accounts.UserNotifierTest do
     {:ok, _job} =
       UserNotifier.deliver_org_user_added(
         org,
-        user,
-        invited_by
+        invited_by,
+        user
       )
 
     send_queued_emails()

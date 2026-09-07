@@ -71,7 +71,7 @@ defmodule NervesHub.Accounts.UserNotifier do
     )
   end
 
-  def deliver_org_user_added(org, user, invited_by) do
+  def deliver_org_user_added(org, invited_by, user) do
     Oban.insert(
       job("org_user_added", user, %{
         user_name: user.name,
