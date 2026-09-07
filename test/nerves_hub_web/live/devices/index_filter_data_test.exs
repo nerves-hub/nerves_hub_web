@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Live.Devices.IndexFilterDataTest do
       [:nerves_hub, :repo, :query],
       fn _event, _measurements, %{query: query}, _config ->
         cond do
-          # `Devices.distinct_tags/1`, one of the eight filter dropdown queries
+          # `Devices.distinct_tags/1`, one of the nine filter dropdown queries
           String.contains?(query, "DISTINCT unnest") ->
             :counters.add(counter, 2, 1)
 
