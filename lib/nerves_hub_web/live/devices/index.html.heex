@@ -410,7 +410,7 @@
       label="Firmware"
       type={:select}
       values={[{"All", ""} | Enum.map(@firmware_versions, &{&1, &1})] ++ [{"Unknown", "Unknown"}]}
-      hint="Only versions currently running on devices in this product are listed. Uploaded firmware which no device is running won't appear." 
+      hint="Only versions currently running on devices in this product are listed. Uploaded firmware which no device is running won't appear."
     />
     <:filter
       attr="firmware_validation_status"
