@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.AccountTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  import NervesHub.Support.Emails
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
@@ -85,6 +86,8 @@ defmodule NervesHubWeb.Live.AccountTest do
       end)
       |> assert_path("/account")
       |> assert_has("div", text: "Account updated")
+
+      send_queued_emails()
 
       assert_email_sent(subject: "NervesHub: Your password has been updated")
     end

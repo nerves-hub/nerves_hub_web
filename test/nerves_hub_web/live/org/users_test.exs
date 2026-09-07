@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   import Ecto.Query, only: [where: 3]
+  import NervesHub.Support.Emails
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
@@ -105,6 +106,8 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User removed")
 
+      send_queued_emails()
+
       # don't send email to admin who added the user
       refute_email_sent()
     end
@@ -122,6 +125,8 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("h2", text: "Outstanding Invites")
       |> assert_has("td", text: "josh@mrjosh.com")
 
+      send_queued_emails()
+
       assert_email_sent(subject: "NervesHub: You have been invited to join Jeff")
     end
 
@@ -137,6 +142,8 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("div", text: "User has been added to #{org.name}")
       |> refute_has("h1", text: "Outstanding Invites")
       |> assert_has("td", text: josh_again.email)
+
+      send_queued_emails()
 
       # don't send email to admin who added the user
       refute_email_sent(subject: "NervesHub: Josh Again has been added to")
@@ -169,6 +176,8 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("p", text: "Something went wrong, please check the errors below.")
       |> assert_has("span", text: "is already member")
 
+      send_queued_emails()
+
       refute_email_sent()
     end
 
@@ -194,6 +203,8 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> click_button("Rescind")
       |> refute_has("td", text: "josh@mrjosh.com")
       |> assert_has("div", text: "Invite couldn't be rescinded as the invite has been accepted.")
+
+      send_queued_emails()
 
       refute_email_sent()
     end

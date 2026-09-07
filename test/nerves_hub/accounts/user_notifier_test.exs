@@ -1,18 +1,33 @@
 defmodule NervesHub.Accounts.UserNotifierTest do
   use NervesHub.DataCase, async: true
 
+  import NervesHub.Support.Emails
   import Swoosh.X.TestAssertions
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserNotifier
   alias NervesHub.Fixtures
+  alias NervesHub.Workers.SendEmail
+
+  test "emails are queued rather than sent" do
+    user = %User{name: "Tony", email: "tony@salami.com"}
+
+    {:ok, _job} = UserNotifier.deliver_welcome_email(user)
+
+    assert_enqueued(worker: SendEmail, args: %{template: "welcome", to: user.email})
+    refute_email_sent()
+
+    send_queued_emails()
+
+    assert_email_sent(to: user.email, subject: "NervesHub: Welcome Tony!")
+  end
 
   test "invite email" do
     invite = %{email: "foo@bar.com", token: "token"}
     org = %{name: "My Org Name"}
 
-    {:ok, email} =
+    {:ok, _job} =
       UserNotifier.deliver_user_invite(
         invite.email,
         org,
@@ -20,9 +35,13 @@ defmodule NervesHub.Accounts.UserNotifierTest do
         "/invite/token"
       )
 
-    assert email.to == [{"", invite.email}]
-    assert email.html_body =~ org.name
-    assert email.html_body =~ "/invite/#{invite.token}"
+    send_queued_emails()
+
+    assert_email_sent(fn email ->
+      assert email.to == [{"", invite.email}]
+      assert email.html_body =~ org.name
+      assert email.html_body =~ "/invite/#{invite.token}"
+    end)
   end
 
   test "forgot_password email" do
@@ -33,17 +52,19 @@ defmodule NervesHub.Accounts.UserNotifierTest do
 
     password_reset_token = "ultrarandomresettoken"
 
-    {:ok, email} =
+    {:ok, _job} =
       UserNotifier.deliver_reset_password_instructions(
         user,
         "/password-reset/#{password_reset_token}"
       )
 
-    assert email.to == [{"", user.email}]
-    assert email.html_body =~ user.name
+    send_queued_emails()
 
-    assert email.html_body =~
-             "/password-reset/#{password_reset_token}"
+    assert_email_sent(fn email ->
+      assert email.to == [{"", user.email}]
+      assert email.html_body =~ user.name
+      assert email.html_body =~ "/password-reset/#{password_reset_token}"
+    end)
   end
 
   test "org user created email" do
@@ -59,17 +80,21 @@ defmodule NervesHub.Accounts.UserNotifierTest do
       email: "baloney@curedmeats.com"
     }
 
-    {:ok, email} =
+    {:ok, _job} =
       UserNotifier.deliver_org_user_added(
         org,
         user,
         invited_by
       )
 
-    assert email.to == [{"", "tony@salami.com"}]
+    send_queued_emails()
 
-    assert email.html_body =~
-             "You've been added to the <strong>My Org Name</strong> organization by <strong>Baloney</strong>."
+    assert_email_sent(fn email ->
+      assert email.to == [{"", "tony@salami.com"}]
+
+      assert email.html_body =~
+               "You've been added to the <strong>My Org Name</strong> organization by <strong>Baloney</strong>."
+    end)
   end
 
   test "tell org about new user" do
@@ -87,6 +112,8 @@ defmodule NervesHub.Accounts.UserNotifierTest do
     tony = Fixtures.user_fixture(name: "Tony", email: "tony@salami.com")
 
     UserNotifier.deliver_all_tell_org_user_added(the_band, paul, tony)
+
+    send_queued_emails()
 
     assert_email_sent(to: john.email, subject: "NervesHub: Tony has been added to TheBeatles")
     assert_email_sent(to: ringo.email, subject: "NervesHub: Tony has been added to TheBeatles")
@@ -110,6 +137,8 @@ defmodule NervesHub.Accounts.UserNotifierTest do
     tony = Fixtures.user_fixture(name: "Tony", email: "tony@salami.com")
 
     UserNotifier.deliver_all_tell_org_user_removed(the_band, paul, tony)
+
+    send_queued_emails()
 
     assert_email_sent(to: john.email, subject: "NervesHub: Tony has been removed from TheBeatles")
 
