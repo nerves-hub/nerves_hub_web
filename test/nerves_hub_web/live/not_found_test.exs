@@ -84,6 +84,25 @@ defmodule NervesHubWeb.Live.NotFoundTest do
       %{other_product: Fixtures.product_fixture(user, org, %{name: "Another"})}
     end
 
+    test "device", %{conn: conn, org: org, other_product: other_product, device: device} do
+      assert_error_sent(404, fn ->
+        get(conn, ~p"/org/#{org}/#{other_product}/devices/#{device.identifier}")
+      end)
+    end
+
+    test "device, on a route guarded by Plugs.Device", %{
+      conn: conn,
+      org: org,
+      other_product: other_product,
+      device: device
+    } do
+      # This one renders the 404 itself rather than raising, so there is no
+      # error to assert on — only the response.
+      conn = get(conn, ~p"/org/#{org}/#{other_product}/devices/#{device.identifier}/audit_logs/download")
+
+      assert conn.status == 404
+    end
+
     test "firmware", %{conn: conn, org: org, other_product: other_product, firmware: firmware} do
       assert_error_sent(404, fn ->
         get(conn, ~p"/org/#{org}/#{other_product}/firmware/#{firmware.uuid}")

@@ -271,25 +271,38 @@ defmodule NervesHub.Devices do
     |> Repo.fetch()
   end
 
-  defp get_by_identifier_query(%Scope{org: org}, identifier, preload_assoc) when not is_nil(org) do
+  defp get_by_identifier_query(%Scope{org: org} = scope, identifier, preload_assoc) when not is_nil(org) do
     Device
     |> join(:left, [d], o in assoc(d, :org), as: :org)
     |> where(identifier: ^identifier)
     |> where(org_id: ^org.id)
+    |> scope_to_product(scope)
     |> preload([org: o], org: o)
     |> join_and_preload_deployment_group_and_current_release()
     |> join_and_preload(preload_assoc)
   end
 
-  defp get_by_identifier_query(%Scope{user: user}, identifier, preload_assoc) when not is_nil(user) do
+  defp get_by_identifier_query(%Scope{user: user} = scope, identifier, preload_assoc) when not is_nil(user) do
     Device
     |> join(:left, [d], o in assoc(d, :org), as: :org)
     |> join(:left, [d, o], u in assoc(o, :users), as: :users)
     |> where(identifier: ^identifier)
     |> where([users: u], u.id == ^user.id)
+    |> scope_to_product(scope)
     |> preload([org: o], org: o)
     |> join_and_preload_deployment_group_and_current_release()
     |> join_and_preload(preload_assoc)
+  end
+
+  # A route carrying a :product_name segment puts the product on the scope, and
+  # then the URL has to mean what it says: without this, a device was reachable
+  # under any sibling product in the same org. The top-level /api/devices/:identifier
+  # routes carry no product at all, so scoping only when one is present is what
+  # keeps those working.
+  defp scope_to_product(query, %Scope{product: nil}), do: query
+
+  defp scope_to_product(query, %Scope{product: product}) do
+    where(query, product_id: ^product.id)
   end
 
   @doc """
