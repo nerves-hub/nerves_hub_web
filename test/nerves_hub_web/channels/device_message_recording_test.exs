@@ -16,6 +16,7 @@ defmodule NervesHubWeb.DeviceMessageRecordingTest do
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.DeviceMessage
   alias NervesHub.Devices.DeviceMessages
+  alias NervesHub.Extensions
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
@@ -68,6 +69,27 @@ defmodule NervesHubWeb.DeviceMessageRecordingTest do
       # interception rule doing its job rather than nothing being recorded.
       assert find(messages, "join")
       refute find(messages, "updated")
+
+      close_cleanly(channel)
+    end
+  end
+
+  describe "web -> device extension events" do
+    # These are recorded by whoever produces them rather than by
+    # `Extensions.PubSub`, which stays free of the database so the connection
+    # layer can be duplicated onto a node that has none. Which means a caller
+    # can forget, and only a test would say so.
+    test "records an extension being attached and detached", %{tmp_dir: tmp_dir} do
+      %{device: device, channel: channel} = join_device(tmp_dir)
+
+      :ok = Extensions.broadcast_extension_event(device, "attach", "health")
+      :ok = Extensions.broadcast_extension_event(device, "detach", "health")
+
+      messages = recorded(device)
+
+      assert %{direction: "sent", topic: "extensions", payload: payload} = find(messages, "attach")
+      assert payload =~ "health"
+      assert %{direction: "sent", topic: "extensions"} = find(messages, "detach")
 
       close_cleanly(channel)
     end

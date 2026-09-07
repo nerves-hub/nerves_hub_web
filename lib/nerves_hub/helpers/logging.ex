@@ -6,13 +6,14 @@ defmodule NervesHub.Helpers.Logging do
   @doc """
   Helper function for creating issues in Sentry.
 
-  * `resource`: Accepts a Device or Deployment Group. Sets Sentry tags based on type.
+  * `resource`: Accepts a Device, Deployment Group or `DeviceInfo`. Sets Sentry tags based on type.
   * `message_or_exception`: Binary or Elixir exception.
   * `extra`: A map to provide any other details to Sentry.
 
-  Sets tags for Devices and Deployment Groups. Accepts a binary message or Elixir exception.
+  Sets tags for Devices, Deployment Groups and `DeviceInfo`s. Accepts a binary
+  message or Elixir exception.
   """
-  @spec log_to_sentry(DeploymentGroup.t() | Device.t(), binary() | Exception.t(), map()) :: :ok
+  @spec log_to_sentry(DeploymentGroup.t() | Device.t() | DeviceInfo.t(), binary() | Exception.t(), map()) :: :ok
   def log_to_sentry(resource, msg_or_ex, extra \\ %{}) do
     _ = set_sentry_tags(resource)
     _ = send_to_sentry(msg_or_ex, extra)

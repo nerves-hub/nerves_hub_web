@@ -40,8 +40,12 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
     end
   end
 
+  # `:analytics_enabled` and `:streaming_enabled` are deliberately absent: the
+  # Logs and Errors tabs set them too, and an inactive tab that cleans a key
+  # another tab sets deletes it out from under whichever of them is active. See
+  # `NervesHubWeb.Components.DevicePage.TabCleanupTest`.
   def cleanup() do
-    [:analytics_enabled, :streaming_enabled, :has_messages, :direction_filter, :topic_filter]
+    [:has_messages, :direction_filter, :topic_filter]
   end
 
   defp configure_stream(%{assigns: %{streams: %{messages: _}}} = socket), do: socket

@@ -19,6 +19,8 @@ defmodule NervesHub.Database.IndexTest do
     "archives.org_key_id",
     "ca_certificates.org_id",
     "deployment_releases.created_by_id",
+    "deployment_workflow_steps.approved_by_id",
+    "deployment_workflow_steps.skipped_by_id",
     "deployments.org_id",
     "device_certificates.org_id",
     "device_firmwares.firmware_id",

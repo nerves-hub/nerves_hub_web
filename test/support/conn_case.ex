@@ -15,6 +15,8 @@ defmodule NervesHubWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
+  alias NervesHub.Products.HealthProfiles.Cache
+
   using do
     quote do
       use NervesHubWeb, :verified_routes
@@ -34,6 +36,10 @@ defmodule NervesHubWeb.ConnCase do
   setup tags do
     # credo:disable-for-next-line
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
+
+    # The profile cache outlives the sandbox transaction that is about to be
+    # rolled back underneath it.
+    :ok = Cache.reset()
 
     if !tags[:async] do
       # credo:disable-for-next-line
@@ -62,6 +68,7 @@ defmodule NervesHubWeb.APIConnCase do
   use ExUnit.CaseTemplate
 
   alias NervesHub.Fixtures
+  alias NervesHub.Products.HealthProfiles.Cache
 
   using do
     quote do
@@ -94,6 +101,10 @@ defmodule NervesHubWeb.APIConnCase do
   setup tags do
     # credo:disable-for-next-line
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
+
+    # The profile cache outlives the sandbox transaction that is about to be
+    # rolled back underneath it.
+    :ok = Cache.reset()
 
     if !tags[:async] do
       # credo:disable-for-next-line
@@ -144,6 +155,8 @@ defmodule NervesHubWeb.DeviceConnCase do
 
   use ExUnit.CaseTemplate
 
+  alias NervesHub.Products.HealthProfiles.Cache
+
   using do
     quote do
       use NervesHubWeb, :verified_routes
@@ -163,6 +176,10 @@ defmodule NervesHubWeb.DeviceConnCase do
   setup tags do
     # credo:disable-for-next-line
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
+
+    # The profile cache outlives the sandbox transaction that is about to be
+    # rolled back underneath it.
+    :ok = Cache.reset()
 
     if !tags[:async] do
       # credo:disable-for-next-line

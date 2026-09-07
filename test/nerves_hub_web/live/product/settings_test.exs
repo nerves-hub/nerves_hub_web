@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.Live.Product.SettingsTest do
-  use NervesHubWeb.ConnCase.Browser, async: true
+  use NervesHubWeb.ConnCase.Browser, async: false
+  use Mimic
 
   alias NervesHub.Fixtures
   alias NervesHub.Products
@@ -18,6 +19,28 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
       product = NervesHub.Repo.reload(product)
       refute is_nil(product.deleted_at)
+    end
+
+    test "shows error when product has firmware or devices", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+
+      stub(Products, :delete_product, fn _ ->
+        {:error,
+         %Ecto.Changeset{
+           errors: [base: {"cannot delete", []}],
+           data: %{},
+           changes: %{},
+           types: %{},
+           valid?: false
+         }}
+      end)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> click_button("Delete product")
+      |> assert_has("div",
+        text: "There was an error deleting the Product. Please delete all Firmware and Devices first."
+      )
     end
   end
 
@@ -153,6 +176,90 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
     end
   end
 
+  describe "require unique firmware version" do
+    test "enables the setting", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> unwrap(fn view ->
+        render_change(view, "update-require-unique-firmware-version", %{"value" => "on"})
+      end)
+      |> assert_has("div", text: "Unique firmware versions are now required.")
+    end
+
+    test "disables the setting", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> unwrap(fn view ->
+        render_change(view, "update-require-unique-firmware-version", %{"value" => "off"})
+      end)
+      |> assert_has("div", text: "Unique firmware versions are now not required.")
+    end
+
+    test "shows error when update fails", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+
+      stub(Products, :update_product, fn _, _ ->
+        {:error,
+         %Ecto.Changeset{errors: [base: {"cannot update", []}], data: %{}, changes: %{}, types: %{}, valid?: false}}
+      end)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> unwrap(fn view ->
+        render_change(view, "update-require-unique-firmware-version", %{"value" => "on"})
+      end)
+      |> assert_has("div",
+        text: "Failed to update the unique firmware version setting. Please contact support if this problem persists."
+      )
+    end
+  end
+
+  describe "extensions" do
+    test "enables an extension", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> unwrap(fn view ->
+        render_click(view, "update-extension", %{"extension" => "health", "value" => "on"})
+      end)
+      |> assert_has("div", text: "The health extension was enabled successfully.")
+    end
+
+    test "disables an extension", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> unwrap(fn view ->
+        render_click(view, "update-extension", %{"extension" => "health", "value" => "off"})
+      end)
+      |> assert_has("div", text: "The health extension was disabled successfully.")
+    end
+
+    test "shows error when extension update fails", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+
+      stub(Products, :enable_extension_setting, fn _, _ ->
+        {:error,
+         %Ecto.Changeset{errors: [base: {"cannot update", []}], data: %{}, changes: %{}, types: %{}, valid?: false}}
+      end)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> unwrap(fn view ->
+        render_click(view, "update-extension", %{"extension" => "health", "value" => "on"})
+      end)
+      |> assert_has("div",
+        text: "Failed to update the health extension. Please contact support if this problem persists."
+      )
+    end
+  end
+
   describe "shared secrets" do
     setup do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])
@@ -241,5 +348,28 @@ defmodule NervesHubWeb.Live.Product.SettingsPlatformGateTest do
     {:ok, _view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
 
     refute html =~ "Accept AtomVM packbeam archives"
+  end
+
+  test "a format with no unsigned variant does not crash the unsigned toggle", %{
+    conn: conn,
+    org: org,
+    user: user
+  } do
+    Application.put_env(:nerves_hub, :rauc_firmware_enabled, true)
+    on_exit(fn -> Application.put_env(:nerves_hub, :rauc_firmware_enabled, false) end)
+
+    product = Fixtures.product_fixture(user, org)
+    {:ok, view, html} = live(conn, "/org/#{org.name}/#{product.name}/settings")
+
+    assert html =~ "Accept RAUC bundles"
+    # RAUC will not build an unsigned bundle, so no toggle is rendered for it.
+    refute html =~ "Allow unsigned RAUC"
+
+    # The event is still reachable by anything that can send one, and matching
+    # only the formats that *do* carry an unsigned field made that a
+    # CaseClauseError rather than a no-op.
+    assert render_click(view, "update-allow-unsigned", %{"tool" => "rauc", "value" => "on"})
+
+    assert NervesHub.Repo.reload(product).allowed_update_tools == ["fwup"]
   end
 end

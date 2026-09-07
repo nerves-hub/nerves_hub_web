@@ -119,13 +119,13 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   def handle_event("delete-support-script", %{"script_id" => script_id}, socket) do
     authorized!(:"support_script:delete", socket.assigns.current_scope)
 
-    %{product: product, current_scope: %{user: user}} = socket.assigns
+    %{current_scope: %{product: product, user: user}} = socket.assigns
 
     {:ok, _script} = Scripts.delete(script_id, product, user)
 
     socket
     |> put_flash(:info, "Script deleted")
-    |> assign(:scripts, Scripts.all_by_product(socket.assigns.product))
+    |> assign(:scripts, Scripts.all_by_product(product))
     |> noreply()
   end
 

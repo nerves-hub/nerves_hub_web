@@ -4,18 +4,16 @@ defmodule NervesHubWeb.UserLocalShellChannel do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Consoles
   alias NervesHub.Devices
-  alias NervesHub.Extensions.LocalShell
   alias NervesHubWeb.Helpers.Authorization
   alias Phoenix.Socket.Broadcast
 
   def join("user:local_shell:identifier-" <> identifier, _, socket) do
     if device = authorized?(socket.assigns.user, identifier) do
-      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "user:local_shell:#{device.id}")
+      :ok = Consoles.PubSub.subscribe_user_local_shell(device.id)
 
-      topic = "device:#{device.id}:extensions"
-      message = {LocalShell, {:connect, self()}}
-      _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic, message)
+      _ = Consoles.PubSub.connect_to_local_shell(device.id, self())
 
       {:ok, assign(socket, :device_id, device.id)}
     else
@@ -26,14 +24,12 @@ defmodule NervesHubWeb.UserLocalShellChannel do
   def handle_in("input", payload, socket) do
     # Key presses are coming in here raw
     # Send them to the device
-    topic = "device:#{socket.assigns.device_id}:extensions"
-    socket.endpoint.broadcast!(topic, "local_shell:shell_input", payload)
+    Consoles.PubSub.broadcast_to_local_shell(socket.assigns.device_id, "local_shell:shell_input", payload)
     {:noreply, socket}
   end
 
   def handle_in("window_size", payload, socket) do
-    topic = "device:#{socket.assigns.device_id}:extensions"
-    socket.endpoint.broadcast!(topic, "local_shell:window_size", payload)
+    Consoles.PubSub.broadcast_to_local_shell(socket.assigns.device_id, "local_shell:window_size", payload)
     {:noreply, socket}
   end
 

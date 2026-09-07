@@ -37,24 +37,45 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     schema: %OpenApiSpex.Schema{
       type: :object,
       properties: %{
-        alarm: %OpenApiSpex.Schema{type: :string, required: false, example: "SomeAlarm"},
-        alarm_status: %OpenApiSpex.Schema{type: :string, required: false, enum: ["with", "without"]},
-        connection: %OpenApiSpex.Schema{type: :string, required: false, enum: ["connected", "disconnected", "not_seen"]},
-        deployment_id: %OpenApiSpex.Schema{type: :string, required: false, example: "12"},
-        display_deleted: %OpenApiSpex.Schema{type: :string, required: false, enum: ["include", "exclude", "only"]},
-        firmware_version: %OpenApiSpex.Schema{type: :string, required: false, example: "1.10.0"},
-        has_no_tags: %OpenApiSpex.Schema{type: :string, required: false, enum: ["true", "false"]},
+        advanced_query: %OpenApiSpex.Schema{
+          type: :string,
+          description: """
+          A query in the device list's advanced query language, the same one the
+          web UI's search bar uses. Values are quoted; expressions combine with
+          `and`/`or`/`not` and parentheses. Custom health metrics are queried as
+          `metric:<key>` with numeric comparisons against each device's latest
+          reading. Input that doesn't look like a query expression is treated as
+          a free-text search across the device's textual fields; an invalid
+          query expression is rejected with a 422 and the parse error.
+
+          Examples:
+          * `metric:cpu_temp > 70`
+          * `connection = "connected" and tags contains "prod"`
+          * `health_status != "healthy" or alarm_status = "with"`
+          * `metric:battery_soc < 20 and updates = "enabled"`
+          """,
+          example: ~s|metric:cpu_temp > 70 and connection = "connected"|
+        },
+        alarm: %OpenApiSpex.Schema{type: :string, example: "SomeAlarm"},
+        alarm_status: %OpenApiSpex.Schema{type: :string, enum: ["with", "without"]},
+        connection: %OpenApiSpex.Schema{type: :string, enum: ["connected", "disconnected", "not_seen"]},
+        deployment_id: %OpenApiSpex.Schema{type: :string, example: "12"},
+        display_deleted: %OpenApiSpex.Schema{type: :string, enum: ["include", "exclude", "only"]},
+        firmware_version: %OpenApiSpex.Schema{type: :string, example: "1.10.0"},
+        has_no_tags: %OpenApiSpex.Schema{type: :string, enum: ["true", "false"]},
         health_status: %OpenApiSpex.Schema{
           type: :string,
-          required: false,
           enum: ["healthy", "unhealthy", "warning", "unknown"]
         },
-        identifier: %OpenApiSpex.Schema{type: :string, required: false, example: "sn123"},
-        only_updating: %OpenApiSpex.Schema{type: :string, required: false, enum: ["true", "false"]},
-        platform: %OpenApiSpex.Schema{type: :string, required: false, example: "rpi4"},
-        search: %OpenApiSpex.Schema{type: :string, required: false, example: "sn123"},
-        tags: %OpenApiSpex.Schema{type: :string, required: false, example: "prod,staging"},
-        updates: %OpenApiSpex.Schema{type: :string, required: false, enum: ["enabled", "disabled", "penalty-box"]}
+        identifier: %OpenApiSpex.Schema{type: :string, example: "sn123"},
+        only_updating: %OpenApiSpex.Schema{type: :string, enum: ["true", "false"]},
+        platform: %OpenApiSpex.Schema{type: :string, example: "rpi4"},
+        search: %OpenApiSpex.Schema{type: :string, example: "sn123"},
+        tags: %OpenApiSpex.Schema{type: :string, example: "prod,staging"},
+        updates: %OpenApiSpex.Schema{
+          type: :string,
+          enum: ["enabled", "disabled", "automatic", "device-managed", "penalty-box"]
+        }
       }
     }
   }
@@ -126,7 +147,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     opts = @path_structures[:short]
 
     path_items = %OpenApiSpex.PathItem{
-      get: show_device_action(@path_structures[:short])
+      get: show_device_action(@path_structures[:short], :short)
     }
 
     updated_paths = Map.put(openapi.paths, opts.path_prefix, path_items)
@@ -138,7 +159,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     opts = @path_structures[:long]
 
     add_to_paths(openapi, opts.path_prefix, %OpenApiSpex.PathItem{
-      get: show_device_action(@path_structures[:long]),
+      get: show_device_action(@path_structures[:long], :long),
       delete: delete_device_action(@path_structures[:long]),
       put: update_device_action(@path_structures[:long]),
       post: create_device_action(@path_structures[:long])
@@ -169,8 +190,9 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     )
   end
 
-  def show_device_action(opts) do
+  def show_device_action(opts, path_structure) do
     device_operation("Show a Device", :show, opts.parameters, opts.tags,
+      path_structure: path_structure,
       response: Map.merge(@device_response, @not_found_error)
     )
   end
@@ -254,6 +276,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         :code,
         opts.parameters,
         opts.tags,
+        path_structure: path_structure,
         request_body: request_body,
         response: Map.merge(@no_content_response, @not_found_error)
       )
@@ -291,6 +314,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         :move,
         opts.parameters ++ query_parameters,
         opts.tags,
+        path_structure: path_structure,
         response: Map.merge(@device_response, @not_found_error)
       )
 
@@ -308,6 +332,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         :reboot,
         opts.parameters,
         opts.tags,
+        path_structure: path_structure,
         response: Map.merge(@no_content_response, @not_found_error)
       )
 
@@ -325,6 +350,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         :reconnect,
         opts.parameters,
         opts.tags,
+        path_structure: path_structure,
         response: Map.merge(@no_content_response, @not_found_error)
       )
 
@@ -350,6 +376,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         :upgrade,
         opts.parameters,
         opts.tags,
+        path_structure: path_structure,
         request_body: request_body,
         response: Map.merge(@no_content_response, Map.merge(@not_found_error, @validation_error))
       )
@@ -368,6 +395,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         :penalty,
         opts.parameters,
         opts.tags,
+        path_structure: path_structure,
         response: Map.merge(@no_content_response, @not_found_error)
       )
 
@@ -415,6 +443,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         :send,
         opts.parameters ++ additional_parameters,
         opts.tags,
+        path_structure: path_structure,
         response: response
       )
 
@@ -451,11 +480,17 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     )
   end
 
+  # An operation published under both the short and long URL structures needs a
+  # distinct operationId for each, since OpenAPI requires them to be unique
+  # document-wide.
+  defp operation_id(controller, action, nil), do: "#{controller}.#{action}"
+  defp operation_id(controller, action, path_structure), do: "#{controller}.#{action}.#{path_structure}"
+
   defp device_operation(summary, operation_id, parameters, tags, opts) do
     %OpenApiSpex.Operation{
       tags: tags,
       summary: summary,
-      operationId: "NervesHubWeb.API.DevicesController.#{operation_id}",
+      operationId: operation_id("NervesHubWeb.API.DevicesController", operation_id, opts[:path_structure]),
       parameters: parameters,
       requestBody: opts[:request_body],
       responses: Map.merge(@common_errors, opts[:response] || %{}),
@@ -469,7 +504,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
     %OpenApiSpex.Operation{
       tags: tags,
       summary: summary,
-      operationId: "NervesHubWeb.API.ScriptController.#{operation_id}",
+      operationId: operation_id("NervesHubWeb.API.ScriptController", operation_id, opts[:path_structure]),
       parameters: parameters,
       requestBody: opts[:request_body],
       responses: Map.merge(@common_errors, opts[:response] || %{}),

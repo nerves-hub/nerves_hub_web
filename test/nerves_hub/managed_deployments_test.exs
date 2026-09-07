@@ -6,6 +6,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
   alias Ecto.Changeset
   alias NervesHub.AuditLogs
+  alias NervesHub.DeploymentOrchestratorEvents
   alias NervesHub.Devices
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.Device
@@ -14,7 +15,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentGroup.Conditions
-  alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
+  alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.Workers.FirmwareDeltaBuilder
   alias Phoenix.Socket.Broadcast
 
@@ -190,14 +191,10 @@ defmodule NervesHub.ManagedDeploymentsTest do
          } do
       refute deployment_group.is_active
 
-      :ok =
-        Phoenix.PubSub.subscribe(
-          NervesHub.PubSub,
-          "orchestrator:deployment:#{deployment_group.id}"
-        )
+      :ok = DeploymentOrchestratorEvents.subscribe(deployment_group)
 
       stub(
-        DistributedOrchestrator,
+        Orchestrator,
         :start_orchestrator,
         fn _deployment_group -> :ok end
       )
@@ -208,7 +205,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{is_active: false}, user)
 
-      topic = "orchestrator:deployment:#{deployment_group.id}"
+      topic = DeploymentOrchestratorEvents.topic(deployment_group)
       assert_receive %Broadcast{topic: ^topic, event: "deactivated"}, 500
     end
 

@@ -20,6 +20,7 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFirmware
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -27,8 +28,9 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
+  alias NervesHub.ManagedDeployments.Workflows
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   require Logger
 
@@ -44,13 +46,7 @@ defmodule NervesHub.Devices.Updates do
       end
     end)
 
-    ChannelServer.broadcast_from!(
-      NervesHub.PubSub,
-      self(),
-      "internal:device:#{device_info.device_id}",
-      "firmware:validated",
-      %{}
-    )
+    PubSub.broadcast(device_info.device_id, "firmware:validated", %{})
 
     :ok
   end
@@ -97,23 +93,42 @@ defmodule NervesHub.Devices.Updates do
     |> Repo.all()
   end
 
+  @doc """
+  Get devices eligible for an update that belong to a workflow step.
+
+  The same eligibility rules as `available_for_update/2`, narrowed to the devices
+  claimed by the step. Which devices a step covers is decided once, when the step
+  claims them (see `NervesHub.ManagedDeployments.Workflows.claim_devices/2`);
+  this only answers which of them can be sent an update right now.
+  """
+  @spec available_for_workflow_step(DeploymentGroup.t(), DeploymentWorkflowStep.t(), non_neg_integer()) :: [Device.t()]
+  def available_for_workflow_step(deployment_group, step, count) do
+    build_available_devices_query(deployment_group, count, workflow_step: step)
+    |> Repo.all()
+  end
+
   # Builds the query for finding available devices for updates
   # Options:
   #   - :version_threshold - Optional firmware version threshold for priority queue filtering
+  #   - :workflow_step - Optional workflow step to restrict the devices to
   defp build_available_devices_query(deployment_group, count, opts) do
     now = DateTime.utc_now(:second)
     version_threshold = Keyword.get(opts, :version_threshold)
+    workflow_step = Keyword.get(opts, :workflow_step)
 
     Device
     |> from(as: :device)
     |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:inner, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
-    |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
+    |> join(:left, [d], ifu in InflightUpdate,
+      on: d.id == ifu.device_id and ifu.status in ^InflightUpdate.active_statuses(),
+      as: :inflight_update
+    )
     |> ManagedDeployments.join_current_release()
     |> join_firmware()
     |> join_firmware_deltas()
     |> where([device: d], d.deployment_id == ^deployment_group.id)
-    |> where([device: d], d.updates_enabled == true)
+    |> where([device: d], d.update_mode == :automatic)
     |> where([device: d], not is_nil(d.firmware_metadata))
     |> where([device: d], d.firmware_validation_status in [:validated, :unknown])
     |> where([device: d], coalesce(d.updates_blocked_until, "1970-01-01 00:00:00") |> type(:naive_datetime) < ^now)
@@ -133,8 +148,30 @@ defmodule NervesHub.Devices.Updates do
     |> maybe_version_threshold(version_threshold)
     |> maybe_filter_by_network_interfaces(deployment_group.release_network_interfaces)
     |> maybe_release_tags(deployment_group.release_tags)
+    |> maybe_limit_to_workflow_step(workflow_step)
     |> order_by_queue_management(deployment_group.queue_management)
     |> limit(^count)
+  end
+
+  defp maybe_limit_to_workflow_step(query, nil), do: query
+
+  # A catch_all covers whatever the release's unfinished steps are not holding, so
+  # it is defined by their claims rather than by any of its own. A finished step
+  # holds nothing, which is what lets the catch_all update a device that reverts
+  # long after its own stage passed.
+  defp maybe_limit_to_workflow_step(query, %DeploymentWorkflowStep{type: :catch_all} = step) do
+    where(
+      query,
+      [device: d],
+      d.id not in subquery(Workflows.actively_claimed_device_ids_query(step.deployment_release_id))
+    )
+  end
+
+  defp maybe_limit_to_workflow_step(query, %DeploymentWorkflowStep{id: step_id}) do
+    join(query, :inner, [device: d], sd in "deployment_workflow_steps_devices",
+      on: sd.device_id == d.id and sd.deployment_workflow_step_id == ^step_id,
+      as: :workflow_step_device
+    )
   end
 
   defp join_firmware(query) do
@@ -258,6 +295,37 @@ defmodule NervesHub.Devices.Updates do
     end
   end
 
+  @doc """
+  Is there firmware waiting for this device, without minting a URL for it?
+
+  Answers the device's own "anything for me?" question. Deliberately free of the
+  side effects `verify_update_eligibility/3` carries — that one clears inflight
+  updates and can put a device in the penalty box, neither of which a device
+  should be able to trigger by asking a question.
+
+  It also mints no firmware URL. Those are signed and time limited, so a device
+  that checks at 02:00 and updates at 04:00 would find a dead link; the URL is
+  fetched when it is about to be used, by `request_update`.
+  """
+  @spec check_update(Device.t()) :: %{available?: boolean(), firmware_meta: map() | nil}
+  def check_update(device, now \\ DateTime.utc_now())
+
+  def check_update(%Device{deployment_id: nil}, _now), do: %{available?: false, firmware_meta: nil}
+
+  def check_update(%Device{firmware_metadata: nil}, _now), do: %{available?: false, firmware_meta: nil}
+
+  def check_update(%Device{} = device, now) do
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
+
+    if deployment_group.is_active and not device_matches_deployment_group?(device, deployment_group) and
+         not updates_blocked?(device, now) do
+      {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.current_release.firmware)
+      %{available?: true, firmware_meta: meta}
+    else
+      %{available?: false, firmware_meta: nil}
+    end
+  end
+
   @spec failure_threshold_met?(Device.t(), DeploymentGroup.t()) :: boolean()
   def failure_threshold_met?(%Device{} = device, %DeploymentGroup{} = deployment_group) do
     Enum.count(device.update_attempts) >= deployment_group.device_failure_threshold
@@ -295,8 +363,16 @@ defmodule NervesHub.Devices.Updates do
     DateTime.after?(device.updates_blocked_until, now)
   end
 
-  defp updates_blocked?(device, now) do
-    device.updates_enabled == false || device_in_penalty_box?(device, now)
+  @doc """
+  Whether the device is barred from taking firmware right now.
+
+  A `:device_managed` device is not blocked — it is simply never pushed to, which
+  the orchestrator's available-devices query enforces. It still reaches here when
+  it asks for an update itself, and must pass.
+  """
+  @spec updates_blocked?(Device.t(), DateTime.t()) :: boolean()
+  def updates_blocked?(device, now \\ DateTime.utc_now()) do
+    device.update_mode == :off || device_in_penalty_box?(device, now)
   end
 
   def device_matches_deployment_group?(device, deployment_group) do
@@ -383,11 +459,136 @@ defmodule NervesHub.Devices.Updates do
     end
   end
 
+  @doc """
+  Set a device's update mode.
+
+  `enable_updates/2` and `disable_updates/2` remain as the two-state shortcuts
+  the UI toggle and the bulk actions use; this is the general form, and the one
+  a device uses when it asks to manage its own updates.
+
+  Moving to `:automatic` re-evaluates the device against its deployment group
+  straight away, so a device that opts back in does not wait for its next
+  reconnect to be considered.
+  """
+  @spec set_update_mode(Device.t(), Device.update_mode(), User.t() | :device) ::
+          {:ok, Device.t()} | {:error, :not_permitted} | {:error, any(), any(), any()}
+  def set_update_mode(device, mode, actor)
+
+  # Two rules bound what a device may do to itself: :off is the operator's alone,
+  # so a device can neither freeze itself out of reach nor unfreeze itself; and
+  # :device_managed needs the grant, without which any device could take itself
+  # out of its deployment group's rollout unasked.
+  def set_update_mode(%Device{}, :off, :device), do: {:error, :not_permitted}
+
+  def set_update_mode(%Device{managed_updates_allowed: false}, :device_managed, :device), do: {:error, :not_permitted}
+
+  def set_update_mode(%Device{} = device, mode, actor) when mode in [:off, :automatic, :device_managed] do
+    description =
+      case actor do
+        :device -> "Device #{device.identifier} set its update mode to #{mode}"
+        user -> "User #{user.name} set the update mode for device #{device.identifier} to #{mode}"
+      end
+
+    params =
+      if mode == :automatic do
+        %{update_mode: mode, update_attempts: []}
+      else
+        %{update_mode: mode}
+      end
+
+    # The device itself is the audit actor when it sets its own mode, which is how
+    # the log distinguishes a device opting in from a user changing it for them.
+    audit_actor = if actor == :device, do: device, else: actor
+
+    case Devices.update_device_with_audit(device, params, audit_actor, description) do
+      {:ok, device} = result ->
+        _ =
+          if mode == :automatic and device.deployment_id do
+            DeploymentOrchestratorEvents.device_updated(device)
+          end
+
+        result
+
+      {:error, _, _, _} = result ->
+        result
+    end
+  end
+
+  @doc """
+  Return a device to automatic updates because its firmware cannot ask for them.
+
+  A `:device_managed` device running firmware that predates device-managed
+  updates is stranded: the orchestrator does not push to it, and it has no way to
+  ask. Most often it arrived here by auto-reverting onto an older image after a
+  failed update, which is exactly when being stuck is least affordable.
+
+  The device is the audit actor, because its own firmware is what forced this —
+  no operator asked for it, and the log should not imply one did.
+  """
+  @spec revert_unsupported_update_mode(Device.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
+  def revert_unsupported_update_mode(%Device{} = device) do
+    description =
+      "Device #{device.identifier} was returned to automatic updates: its firmware is too old to manage its own"
+
+    case Devices.update_device_with_audit(device, %{update_mode: :automatic}, device, description) do
+      {:ok, device} = result ->
+        _ =
+          if device.deployment_id do
+            DeploymentOrchestratorEvents.device_updated(device)
+          end
+
+        result
+
+      {:error, _, _, _} = result ->
+        result
+    end
+  end
+
+  @doc """
+  Stop the deployment group overwriting firmware that was just pushed by hand.
+
+  Only moves a device out of `:automatic`. A device that manages its own updates
+  is already not pushed to, and freezing it would silently take away a mode it
+  or an operator chose; an already-frozen device has nothing to change.
+  """
+  @spec pause_automatic_updates(Device.t(), User.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
+  def pause_automatic_updates(%Device{update_mode: :automatic} = device, user) do
+    description =
+      "User #{user.name} paused automatic updates for device #{device.identifier} to send firmware manually"
+
+    Devices.update_device_with_audit(device, %{update_mode: :off}, user, description)
+  end
+
+  def pause_automatic_updates(%Device{} = device, _user), do: {:ok, device}
+
+  @doc """
+  Allow or forbid a device putting itself into `:device_managed`.
+
+  Forbidding does not move a device that is already there — that is an operator's
+  call to make explicitly with `set_update_mode/3`, so revoking the grant cannot
+  quietly drag a fleet back into rollout.
+  """
+  @spec set_managed_updates_allowed(Device.t(), boolean(), User.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
+  def set_managed_updates_allowed(%Device{} = device, enabled, user) when is_boolean(enabled) do
+    description =
+      "User #{user.name} #{(enabled && "allowed") || "disallowed"} device-managed updates for device #{device.identifier}"
+
+    Devices.update_device_with_audit(
+      device,
+      %{managed_updates_allowed: enabled},
+      user,
+      description
+    )
+  end
+
   @spec enable_updates(Device.t() | [Device.t()], User.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def enable_updates(%Device{} = device, user) do
     description = "User #{user.name} enabled updates for device #{device.identifier}"
-    params = %{updates_enabled: true, update_attempts: []}
+    params = %{update_mode: :automatic, update_attempts: []}
 
     case Devices.update_device_with_audit(device, params, user, description) do
       {:ok, device} = result ->
@@ -407,23 +608,13 @@ defmodule NervesHub.Devices.Updates do
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def disable_updates(%Device{} = device, user) do
     description = "User #{user.name} disabled updates for device #{device.identifier}"
-    params = %{updates_enabled: false}
+    params = %{update_mode: :off}
     Devices.update_device_with_audit(device, params, user, description)
-  end
-
-  def toggle_automatic_updates(device, user) do
-    case device.updates_enabled do
-      true ->
-        disable_updates(device, user)
-
-      false ->
-        enable_updates(device, user)
-    end
   end
 
   def clear_penalty_box(%Device{} = device, user) do
     description = "User #{user.name} removed device #{device.identifier} from the penalty box"
-    params = %{updates_blocked_until: nil, update_attempts: [], updates_enabled: true}
+    params = %{updates_blocked_until: nil, update_attempts: []}
     Devices.update_device_with_audit(device, params, user, description)
   end
 

@@ -23,7 +23,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
         </div>
         """
 
-      device.updates_enabled ->
+      device.update_mode != :off ->
         ~H"""
         <svg title="Updates enabled" xmlns="http://www.w3.org/2000/svg" class="stroke-success z-10 size-4" viewBox="0 0 16 16" fill="none">
           <path

@@ -11,11 +11,11 @@ defmodule NervesHub.Devices do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
+  alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceFirmwares
-  alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
@@ -26,6 +26,37 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+
+  @doc """
+  Pair counted analytics results with their devices, in the order given.
+
+  Analytics tables hold device ids, not devices, so a "top N devices by
+  something" read comes back as `[%{device_id: _, count: _}]` and needs the
+  devices fetched from PostgreSQL. The analytics ordering is preserved, and an
+  id with no matching device — deleted, or belonging to another product — is
+  dropped rather than rendered as a hole.
+  """
+  @spec with_counts([%{device_id: pos_integer(), count: non_neg_integer()}], Product.t()) ::
+          [{Device.t(), non_neg_integer()}]
+  def with_counts([], _product), do: []
+
+  def with_counts(counted, %Product{id: product_id}) do
+    device_ids = Enum.map(counted, & &1.device_id)
+
+    devices =
+      Device
+      |> where(product_id: ^product_id)
+      |> where([d], d.id in ^device_ids)
+      |> Repo.all()
+      |> Map.new(&{&1.id, &1})
+
+    Enum.flat_map(counted, fn %{device_id: device_id, count: count} ->
+      case Map.get(devices, device_id) do
+        nil -> []
+        device -> [{device, count}]
+      end
+    end)
+  end
 
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
@@ -90,7 +121,13 @@ defmodule NervesHub.Devices do
       |> Map.merge(Map.get(opts, :pagination, %{}))
 
     sorting = Map.get(opts, :sort, {:asc, :identifier})
-    filters = Map.get(opts, :filters, %{})
+    {advanced_query, filters} = Map.pop(Map.get(opts, :filters, %{}), :advanced_query)
+
+    # When the advanced query checks the `deleted` column, let it control whether
+    # soft-deleted devices appear instead of the default exclusion and the
+    # `display_deleted` filter (matching `NervesHub.Filtering` for the UI list).
+    query_controls_deleted = AdvancedQuery.references_column?(advanced_query, product_id, "deleted")
+    filters = if query_controls_deleted, do: Map.delete(filters, :display_deleted), else: filters
 
     flop = %Flop{page: pagination[:page], page_size: pagination[:page_size]}
 
@@ -104,9 +141,11 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p, dg, cr], f in assoc(cr, :firmware))
     |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, o, p, dg, cr, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
-    |> Repo.exclude_deleted()
+    |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)
+    |> then(&if(query_controls_deleted, do: &1, else: Repo.exclude_deleted(&1)))
     |> DeviceFiltering.sort(sorting)
     |> DeviceFiltering.build_filters(filters)
+    |> AdvancedQuery.apply_to_query(advanced_query, product_id)
     |> preload([d, o, p, dg, cr, f, latest_connection: lc, latest_health: lh],
       org: o,
       product: p,
@@ -134,19 +173,10 @@ defmodule NervesHub.Devices do
   def filter(product, user, opts) do
     common_filter_query(user)
     |> preload([latest_connection: lc], latest_connection: lc)
-    |> preload(latest_health: ^health_status_query())
+    |> preload([latest_health: lh], latest_health: lh)
     |> preload([deployment_group: dg], deployment_group: dg)
     |> preload([inflight_update: ifu], inflight_update: ifu)
     |> CommonFiltering.filter(product, opts)
-  end
-
-  # The device list renders the health icon and its tooltip, and nothing else
-  # off `latest_health` - but the row carries every metric the device last
-  # reported in `data`. Preloading from a narrowed query rather than the joined
-  # binding leaves that payload in the database. The join itself stays: the
-  # alarm and health status filters read `data` from it in SQL.
-  defp health_status_query() do
-    from(dh in DeviceHealth, select: [:id, :status, :status_reasons])
   end
 
   @spec filter_query(Product.t(), User.t(), map()) :: Ecto.Query.t()
@@ -156,7 +186,10 @@ defmodule NervesHub.Devices do
   end
 
   defp common_filter_query(user) do
+    # Named so the alarm filters can correlate an EXISTS against `device_alarms`
+    # back to this device; see `NervesHub.Devices.AdvancedQuery.Compiler`.
     Device
+    |> from(as: :device)
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
     |> join(:left, [d, dc, dh], pd in PinnedDevice,
@@ -657,7 +690,14 @@ defmodule NervesHub.Devices do
     tag_device(device, user, new_tags)
   end
 
-  @spec update_device_with_audit(Device.t(), map(), User.t(), String.t()) ::
+  @doc """
+  Update a device and record who did it.
+
+  The actor is usually a user, but a device is one too: a device that sets its
+  own update mode, or that is moved off a mode its firmware cannot support, is
+  the actor for that change, and the log should not imply an operator asked.
+  """
+  @spec update_device_with_audit(Device.t(), map(), User.t() | Device.t(), String.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def update_device_with_audit(device, params, user, description) do
     Multi.new()

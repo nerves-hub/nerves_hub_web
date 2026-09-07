@@ -345,6 +345,11 @@ defmodule NervesHubWeb do
         if socket.assigns.tab == @tab_id do
           tab_params(params, uri, socket)
         else
+          # Every inactive tab drops its assigns here, and these hooks run in
+          # `@tab_components` order — so a tab that cleans a key another tab
+          # *sets* deletes it whenever it happens to be listed later, and the
+          # crash surfaces in that other tab's render. Hence the rule on
+          # `cleanup/0` below, and the test that enforces it.
           cleanup()
           |> Enum.reduce(socket, fn key, acc ->
             new_assigns = Map.delete(acc.assigns, key)
@@ -355,6 +360,10 @@ defmodule NervesHubWeb do
       end
 
       def tab_params(_params, _uri, socket), do: cont(socket)
+
+      # Assigns to drop when this tab is not the one being shown. A tab may only
+      # name keys it alone uses: a key two tabs share is one neither may clean.
+      # `NervesHubWeb.Components.DevicePage.TabCleanupTest` checks this.
       def cleanup(), do: []
 
       defoverridable tab_params: 3, cleanup: 0

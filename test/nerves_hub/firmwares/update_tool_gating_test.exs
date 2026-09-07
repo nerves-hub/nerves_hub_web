@@ -14,12 +14,17 @@ defmodule NervesHub.Firmwares.UpdateToolGatingTest do
     setup do
       original = Application.get_env(:nerves_hub, :esp_idf_firmware_enabled)
       original_atomvm = Application.get_env(:nerves_hub, :atomvm_firmware_enabled)
+      original_rauc = Application.get_env(:nerves_hub, :rauc_firmware_enabled)
 
       on_exit(fn ->
         Application.put_env(:nerves_hub, :esp_idf_firmware_enabled, original)
         Application.put_env(:nerves_hub, :atomvm_firmware_enabled, original_atomvm)
+        Application.put_env(:nerves_hub, :rauc_firmware_enabled, original_rauc)
       end)
 
+      # Every optional tool starts off, so a test that turns one on is testing
+      # that one rather than whatever a previous test left behind.
+      Application.put_env(:nerves_hub, :rauc_firmware_enabled, false)
       :ok
     end
 
@@ -37,6 +42,17 @@ defmodule NervesHub.Firmwares.UpdateToolGatingTest do
 
       Application.put_env(:nerves_hub, :esp_idf_firmware_enabled, true)
       assert Map.has_key?(UpdateTool.all(), "esp-idf")
+    end
+
+    # Same reasoning as ESP-IDF: a format an instance has no trust anchor for
+    # should not become acceptable because someone deployed a new version.
+    test "rauc is only available when the platform enables it" do
+      Application.put_env(:nerves_hub, :esp_idf_firmware_enabled, false)
+      Application.put_env(:nerves_hub, :rauc_firmware_enabled, false)
+      refute Map.has_key?(UpdateTool.all(), "rauc")
+
+      Application.put_env(:nerves_hub, :rauc_firmware_enabled, true)
+      assert Map.has_key?(UpdateTool.all(), "rauc")
     end
 
     test "an esp-idf image is not recognised while the tool is disabled", %{} do
@@ -94,7 +110,7 @@ defmodule NervesHub.Firmwares.UpdateToolGatingTest do
       Application.put_env(:nerves_hub, :esp_idf_firmware_enabled, false)
       Application.put_env(:nerves_hub, :atomvm_firmware_enabled, false)
 
-      assert Enum.sort(Map.keys(UpdateTool.known())) == ["atomvm", "esp-idf", "fwup"]
+      assert Enum.sort(Map.keys(UpdateTool.known())) == ["atomvm", "esp-idf", "fwup", "rauc"]
     end
 
     # The pre-registry config key pinned an instance to a single tool. Existing

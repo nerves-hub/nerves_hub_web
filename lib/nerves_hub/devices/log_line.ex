@@ -54,4 +54,10 @@ defmodule NervesHub.Devices.LogLine do
   defp format_message(%{"message" => message} = params) do
     Map.put(params, "message", inspect(message))
   end
+
+  # A line with no message at all. Left as it is so `validate_required/2`
+  # refuses it -- raising here would take out every other line in the same
+  # batch, and put a device that sends one malformed line in Sentry rather
+  # than in the changeset error it deserves.
+  defp format_message(params), do: params
 end

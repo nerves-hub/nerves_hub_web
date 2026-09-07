@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
-  use NervesHubWeb.ConnCase.Browser, async: true
+  use NervesHubWeb.ConnCase.Browser, async: false
+  use Mimic
 
   alias NervesHub.Certificate
   alias NervesHub.Devices.CACertificate.CSR
@@ -121,8 +122,16 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       assert [] = CACertificates.get_ca_certificates(org)
     end
 
-    @tag timeout: :infinity
-    test "create with JITP", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+    test "renders error when no cert uploaded", %{conn: conn, org: org} do
+      conn
+      |> visit("/org/#{org.name}/settings/certificates/new")
+      |> click_button("Create Certificate")
+      |> assert_has("div", text: "Certificate Authority files required")
+    end
+  end
+
+  describe "create with JITP" do
+    test "creates CA with JITP", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
 
       ca_file_path = Fixtures.device_certificate_authority_file()
@@ -187,6 +196,19 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       assert {:error, :not_found} = CACertificates.get_ca_certificate_by_serial(ca.serial)
     end
+
+    test "shows error when delete fails", %{conn: conn, org: org} do
+      %{db_cert: _ca} = Fixtures.ca_certificate_fixture(org)
+
+      stub(CACertificates, :delete_ca_certificate, fn _ ->
+        {:error, :cannot_delete}
+      end)
+
+      conn
+      |> visit("/org/#{org.name}/settings/certificates")
+      |> click_button("Delete")
+      |> assert_has("div", text: "Failed to delete certificate. Please contact support if this happens again.")
+    end
   end
 
   describe "update" do
@@ -220,6 +242,13 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> assert_path("/org/#{org.name}/settings/certificates/#{serial}/edit")
       |> assert_has("div", text: "Error updating certificate")
       |> assert_has("span", text: "can't be blank")
+    end
+
+    test "redirects when certificate not found on edit", %{conn: conn, org: org} do
+      conn
+      |> visit("/org/#{org.name}/settings/certificates/nonexistent-serial/edit")
+      |> assert_path("/org/#{org.name}/settings/certificates")
+      |> assert_has("div", text: "Certificate Authority not found")
     end
   end
 

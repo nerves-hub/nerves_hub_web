@@ -8,12 +8,13 @@ defmodule NervesHub.FirmwareUpdates do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server, as: ChannelServer
 
   @spec firmware_update_successful(Device.t(), FirmwareMetadata.t() | nil) ::
           {:ok, Device.t()} | {:error, Changeset.t()}
@@ -67,16 +68,18 @@ defmodule NervesHub.FirmwareUpdates do
       "ignored",
       %{reason: info["reason"]},
       fn device ->
+        deployment_group = deployment_group(device)
+
         _ =
-          if device.inflight_update.deployment_group do
-            blocked_for_mins = device.inflight_update.deployment_group.penalty_timeout_minutes
+          if deployment_group do
+            blocked_for_mins = deployment_group.penalty_timeout_minutes
 
             blocked_until = DateTime.utc_now(:second) |> DateTime.add(blocked_for_mins, :minute)
 
             {:ok, _device} = Devices.update_device(device, %{updates_blocked_until: blocked_until})
           end
 
-        DeviceTemplates.audit_firmware_upgrade_ignored(device, device.inflight_update.deployment_group, info["reason"])
+        DeviceTemplates.audit_firmware_upgrade_ignored(device, deployment_group, info["reason"])
 
         clear_inflight_update(device_id)
       end,
@@ -97,7 +100,7 @@ defmodule NervesHub.FirmwareUpdates do
         info["reason"]
       )
 
-      if device.inflight_update.deployment_group do
+      if deployment_group(device) do
         {:ok, _device} = Devices.update_device(device, %{updates_blocked_until: blocked_until})
       end
     end
@@ -113,8 +116,8 @@ defmodule NervesHub.FirmwareUpdates do
       fn device ->
         clear_inflight_update(device_id)
 
-        if device.inflight_update.deployment_group do
-          blocked_for_mins = device.inflight_update.deployment_group.penalty_timeout_minutes
+        if deployment_group = deployment_group(device) do
+          blocked_for_mins = deployment_group.penalty_timeout_minutes
 
           blocked_until = DateTime.utc_now(:second) |> DateTime.add(blocked_for_mins, :minute)
 
@@ -124,7 +127,7 @@ defmodule NervesHub.FirmwareUpdates do
 
           {:ok, _device} = Devices.update_device(device, %{updates_blocked_until: blocked_until})
         else
-          DeviceTemplates.audit_firmware_upgrade_failed(device, nil, info["reason"])
+          DeviceTemplates.audit_firmware_upgrade_failed(device, info["reason"])
         end
       end,
       preload: :deployment
@@ -220,6 +223,15 @@ defmodule NervesHub.FirmwareUpdates do
     counts
   end
 
+  @doc """
+  The device's update, including one that has just finished.
+
+  Deliberately not filtered to the active statuses: the device page shows the
+  outcome of an update from this — "complete, waiting for device to restart" is
+  read off a `:completed` row in the moment before it is cleared. Were updates
+  kept as history rather than deleted, this would need to become the most recent
+  row rather than the only one.
+  """
   def inflight_update_for(%Device{id: device_id}) when not is_nil(device_id) do
     InflightUpdate
     |> where([iu], iu.device_id == ^device_id)
@@ -228,6 +240,7 @@ defmodule NervesHub.FirmwareUpdates do
 
   def inflight_updates_for(%DeploymentGroup{} = deployment_group) do
     InflightUpdate
+    |> active()
     |> where([iu], iu.deployment_id == ^deployment_group.id)
     |> preload([:device])
     |> Repo.all()
@@ -239,8 +252,25 @@ defmodule NervesHub.FirmwareUpdates do
   """
   def count_inflight_updates_for(%DeploymentGroup{} = deployment_group) do
     InflightUpdate
+    |> active()
     |> where([iu], iu.deployment_id == ^deployment_group.id)
     |> where([iu], iu.priority_queue == false)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Count inflight updates for the devices a workflow step has claimed.
+
+  A workflow step paces its own devices, so the deployment group's concurrency is
+  not what limits it.
+  """
+  @spec count_inflight_updates_for_workflow_step(DeploymentWorkflowStep.t()) :: non_neg_integer()
+  def count_inflight_updates_for_workflow_step(%DeploymentWorkflowStep{id: step_id}) do
+    InflightUpdate
+    |> active()
+    |> join(:inner, [iu], sd in "deployment_workflow_steps_devices",
+      on: sd.device_id == iu.device_id and sd.deployment_workflow_step_id == ^step_id
+    )
     |> Repo.aggregate(:count)
   end
 
@@ -250,15 +280,22 @@ defmodule NervesHub.FirmwareUpdates do
   @spec count_inflight_priority_updates_for(DeploymentGroup.t()) :: non_neg_integer()
   def count_inflight_priority_updates_for(%DeploymentGroup{} = deployment_group) do
     InflightUpdate
+    |> active()
     |> where([iu], iu.deployment_id == ^deployment_group.id)
     |> where([iu], iu.priority_queue == true)
     |> Repo.aggregate(:count)
   end
 
+  # An update is only "inflight" while it is still going. Rows that have reached
+  # an outcome are deleted today, so this matches exactly what it did before —
+  # but the queries no longer rely on that.
+  defp active(query) do
+    where(query, [iu], iu.status in ^InflightUpdate.active_statuses())
+  end
+
   defp broadcast_firmware_update_status!(device_id, status, extra_info) do
-    topic = "internal:device:#{device_id}"
     payload = Map.put(extra_info, "stage", status)
-    ChannelServer.broadcast_from!(NervesHub.PubSub, self(), topic, "firmware_update_progress", payload)
+    PubSub.broadcast(device_id, "firmware_update_progress", payload)
   end
 
   defp maybe_update_update_attempts(%{inflight_update: %{status: :requested}} = device) do
@@ -293,6 +330,9 @@ defmodule NervesHub.FirmwareUpdates do
         inflight_update =
           InflightUpdate.empty_requested_changeset(device.id)
           |> Repo.insert!()
+          # the record was built here rather than by the query above, so the
+          # association is unloaded. It has no deployment_id, so nil is correct.
+          |> Map.put(:deployment_group, nil)
 
         Map.put(device, :inflight_update, inflight_update)
 
@@ -300,6 +340,13 @@ defmodule NervesHub.FirmwareUpdates do
         device
     end
   end
+
+  # Guards against an unloaded association being mistaken for a deployment
+  # group, which is truthy and blows up on the first field access.
+  defp deployment_group(%{inflight_update: %{deployment_group: %DeploymentGroup{} = deployment_group}}),
+    do: deployment_group
+
+  defp deployment_group(_device), do: nil
 
   defp should_persist?(ifu) do
     some_secs_ago = NaiveDateTime.utc_now() |> NaiveDateTime.add(-15, :second)

@@ -36,6 +36,8 @@ defmodule NervesHubWeb.Helpers.Authorization do
 
   def authorized?(:"product:notifications:dismiss", role), do: role_check(:manage, role)
 
+  def authorized?(:"error_group:update", role), do: role_check(:manage, role)
+
   def authorized?(:"device:console", role), do: role_check(:manage, role)
   def authorized?(:"device:create", role), do: role_check(:manage, role)
   def authorized?(:"device:update", role), do: role_check(:manage, role)

@@ -76,20 +76,34 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
   defp scheme_options() do
     [
       {"fwup (Ed25519)", :ed25519},
-      {"ESP-IDF Secure Boot v2 (RSA-3072)", :secure_boot_v2_rsa}
+      {"ESP-IDF Secure Boot v2 (RSA-3072)", :secure_boot_v2_rsa},
+      {"RAUC (X.509 certificate)", :x509_certificate}
     ]
   end
 
   defp scheme_label(:ed25519), do: "ed25519"
   defp scheme_label(:secure_boot_v2_rsa), do: "secure-boot-v2-rsa"
+  defp scheme_label(:x509_certificate), do: "x509-certificate"
   defp scheme_label(other), do: to_string(other)
 
   defp key_label(%{scheme: :secure_boot_v2_rsa}), do: "eFuse digest"
+  defp key_label(%{scheme: :x509_certificate}), do: "SHA-256 fingerprint"
   defp key_label(_), do: nil
 
   # An Ed25519 key is one short line and is worth showing whole — it is how
   # operators recognise it.
   defp key_preview(%{scheme: :ed25519, key: key}), do: key
+
+  # RAUC verifies a bundle's CMS signature against a certificate chain, so the
+  # organization key is a certificate rather than a bare public key. The
+  # fingerprint is what identifies it, and what can be checked against the
+  # keyring an image was built with.
+  defp key_preview(%{scheme: :x509_certificate, key: key}) do
+    case OrgKey.certificate_fingerprint(key) do
+      {:ok, fingerprint} -> fingerprint
+      _ -> boundary_lines(key)
+    end
+  end
 
   # A PEM is 600+ bytes of base64 that reads the same for every key. The Secure
   # Boot v2 key digest is what `espsecure.py digest-sbv2-public-key` produces

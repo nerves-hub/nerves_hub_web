@@ -17,6 +17,20 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
     end
   end
 
+  describe "create firmware - error paths" do
+    test "returns error when firmware file is invalid", %{conn: conn, org: org, product: product} do
+      {boundary, body} = multipart_file("this is not a valid firmware file")
+      path = Routes.api_firmware_path(conn, :create, org.name, product.name)
+
+      conn =
+        conn
+        |> put_req_header("content-type", "multipart/form-data; boundary=#{boundary}")
+        |> post(path, body)
+
+      assert conn.status in [422, 500]
+    end
+  end
+
   describe "create firmware" do
     test "renders firmware when data is valid", %{
       conn: conn,

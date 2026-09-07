@@ -6,7 +6,7 @@ defmodule NervesHub.Devices.Connections do
 
   alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
-  alias NervesHub.Devices.Device
+  alias NervesHub.Devices
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceConnectionHistory
   alias NervesHub.Products.Product
@@ -26,9 +26,9 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Creates a device connection, reported from device socket
   """
-  @spec device_connecting(pos_integer(), pos_integer(), pos_integer()) ::
+  @spec device_connecting(pos_integer(), pos_integer(), pos_integer(), String.t() | nil) ::
           {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
-  def device_connecting(org_id, product_id, device_id) do
+  def device_connecting(org_id, product_id, device_id, ip_address \\ nil) do
     conflict_query =
       DeviceConnection
       |> update([ldc],
@@ -44,11 +44,12 @@ defmodule NervesHub.Devices.Connections do
           status: fragment("EXCLUDED.status"),
           lib: fragment("EXCLUDED.lib"),
           lib_version: fragment("EXCLUDED.lib_version"),
-          network_interface: fragment("EXCLUDED.network_interface")
+          network_interface: fragment("EXCLUDED.network_interface"),
+          ip_address: fragment("EXCLUDED.ip_address")
         ]
       )
 
-    DeviceConnection.connecting_changeset(org_id, product_id, device_id)
+    DeviceConnection.connecting_changeset(org_id, product_id, device_id, ip_address)
     |> Repo.insert(on_conflict: conflict_query, conflict_target: [:device_id])
     |> case do
       {:ok, device_connection} ->
@@ -410,6 +411,34 @@ defmodule NervesHub.Devices.Connections do
     :ok
   end
 
+  @doc """
+  How many times the device disconnected during each of two trailing
+  windows, as `{count_in_first, count_in_second}` — one query for both.
+
+  Backs the "disconnects" built-in health profile metric (a warning and an
+  alert window per judgement); callers are expected to check that analytics
+  is enabled first.
+  """
+  @spec disconnection_counts(pos_integer(), pos_integer(), pos_integer(), {pos_integer(), pos_integer()}) ::
+          {non_neg_integer(), non_neg_integer()}
+  def disconnection_counts(org_id, product_id, device_id, {first_seconds, second_seconds}) do
+    now = DateTime.utc_now()
+    first_cutoff = DateTime.shift(now, second: -first_seconds)
+    second_cutoff = DateTime.shift(now, second: -second_seconds)
+    widest = if DateTime.before?(first_cutoff, second_cutoff), do: first_cutoff, else: second_cutoff
+
+    DeviceConnectionHistory
+    |> where([dc], dc.org_id == ^org_id and dc.product_id == ^product_id and dc.device_id == ^device_id)
+    |> where([dc], not is_nil(dc.disconnected_at))
+    |> where([dc], dc.disconnected_at >= ^widest)
+    |> select(
+      [dc],
+      {fragment("countIf(disconnected_at >= ?)", ^first_cutoff),
+       fragment("countIf(disconnected_at >= ?)", ^second_cutoff)}
+    )
+    |> AnalyticsRepo.one(settings: [final: 1])
+  end
+
   def flapping_connections(%Product{} = product) do
     DeviceConnectionHistory
     |> where([dc], dc.org_id == ^product.org_id and dc.product_id == ^product.id)
@@ -419,29 +448,6 @@ defmodule NervesHub.Devices.Connections do
     |> having([dc], fragment("count > 10"))
     |> order_by(desc: fragment("count"))
     |> AnalyticsRepo.all(settings: [final: 1])
-    |> case do
-      [] -> []
-      results -> fetch_devices_and_transform(results, product)
-    end
-  end
-
-  defp fetch_devices_and_transform(results, product) do
-    device_ids = Enum.map(results, & &1.device_id)
-
-    devices =
-      Device
-      |> where(product_id: ^product.id)
-      |> where([d], d.id in ^device_ids)
-      |> NervesHub.Repo.all()
-      |> Map.new(fn device -> {device.id, device} end)
-
-    # Preserve the "most flapping first" ordering from the analytics query;
-    # drop any ids without a matching device (e.g. deleted devices).
-    Enum.flat_map(results, fn %{device_id: device_id, count: count} ->
-      case Map.get(devices, device_id) do
-        nil -> []
-        device -> [{device, count}]
-      end
-    end)
+    |> Devices.with_counts(product)
   end
 end

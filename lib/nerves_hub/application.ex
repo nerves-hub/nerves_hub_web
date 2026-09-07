@@ -3,12 +3,20 @@ defmodule NervesHub.Application do
 
   alias NervesHub.Analytics.Buffer
   alias NervesHub.DeviceLink.Handlers
+  alias NervesHub.Devices.DeviceAlarmHistory
   alias NervesHub.Devices.DeviceConnectionHistory
+  alias NervesHub.Devices.DeviceHealthHistory
   alias NervesHub.Devices.DeviceMessage
+  alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.LogLine
-  alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
+  alias NervesHub.ErrorReports.ErrorReport
+  alias NervesHub.ErrorReports.GroupBuffer
+  alias NervesHub.ManagedDeployments.OrchestratorRegistration
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
+  alias NervesHub.Products.HealthProfiles.Cache
+  alias NervesHub.RateLimit.ErrorReports, as: ErrorReportLimit
   alias NervesHub.RateLimit.LogLines
+  alias NervesHub.RateLimit.Metrics, as: MetricsLimit
   alias NervesHub.Telemetry.Customizations
   alias PlugAttack.Storage.Ets, as: PlugAttackEts
 
@@ -37,17 +45,23 @@ defmodule NervesHub.Application do
         ecto_repos() ++
         [
           {Phoenix.PubSub, name: NervesHub.PubSub},
+          # Reads the profile every metric report needs; see the module for why
+          # this cache is not the state health evaluation does without.
+          Cache,
+          # Ahead of the group tree: `RateLimitPubSub` applies peer throttle
+          # increments into this storage the moment it joins its group.
+          {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000},
+          NervesHub.GroupSupervisor,
           {Cluster.Supervisor, [libcluster_topology()]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, oban_opts()},
           NervesHubWeb.Presence,
           {LogLines, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
-          NervesHubWeb.RateLimitPubSub,
-          {PlugAttackEts, name: PlugAttackStorage, clean_period: 60_000}
+          {ErrorReportLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]},
+          {MetricsLimit, [clean_period: to_timeout(minute: 5), key_older_than: to_timeout(hour: 1)]}
         ] ++
         analytics_buffers() ++
         device_link_handlers() ++
-        cli_session_cache() ++
         deployments_orchestrator(deploy_env()) ++
         endpoints(deploy_env())
 
@@ -84,13 +98,6 @@ defmodule NervesHub.Application do
     case Application.get_env(:nerves_hub, :app) do
       "device" -> scope
       _ -> scope ++ [Handlers]
-    end
-  end
-
-  defp cli_session_cache() do
-    case Application.get_env(:nerves_hub, :app) do
-      "device" -> []
-      _ -> [NervesHub.CLISessionCache]
     end
   end
 
@@ -172,7 +179,16 @@ defmodule NervesHub.Application do
       [
         Buffer.child_spec([schema: DeviceConnectionHistory] ++ opts),
         Buffer.child_spec([schema: DeviceMessage] ++ opts),
-        Buffer.child_spec([schema: LogLine] ++ opts)
+        Buffer.child_spec([schema: LogLine] ++ opts),
+        Buffer.child_spec([schema: ErrorReport] ++ opts),
+        Buffer.child_spec([schema: DeviceMetric] ++ opts),
+        Buffer.child_spec([schema: DeviceAlarmHistory] ++ opts),
+        Buffer.child_spec([schema: DeviceHealthHistory] ++ opts),
+        # Writes PostgreSQL, not ClickHouse, and is here anyway: it is the other
+        # half of the same write path, and the extension that feeds it is gated
+        # on the same flag. Started without a ClickHouse to pair with, it would
+        # only ever count occurrences nothing recorded.
+        GroupBuffer.child_spec([])
       ]
     else
       []

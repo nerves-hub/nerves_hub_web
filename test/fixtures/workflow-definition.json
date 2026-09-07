@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "name": "Canary",
+      "description": "wifi and ethernet canary devices",
+      "matching_conditions": {
+        "tags": ["canary"],
+        "network_interfaces": ["wifi", "ethernet"],
+        "match_limit": 20
+      },
+      "concurrent_updates": 10
+    },
+    {
+      "name": "Canary - LTE",
+      "description": "Cellular connected canaries",
+      "matching_conditions": {
+        "tags": ["canary"],
+        "network_interfaces": ["cellular"],
+        "match_limit": 10
+      },
+      "concurrent_updates": 10
+    },
+    {
+      "name": "Phoenix based",
+      "description": "Locally servicable devices",
+      "matching_conditions": {
+        "tags": ["city:phoenix"],
+        "match_limit": 100
+      },
+      "concurrent_updates": 25
+    },
+    {
+      "type": "approval_required",
+      "name": "Product sign-off",
+      "description": "Someone confirms the canaries are healthy"
+    }
+  ]
+}

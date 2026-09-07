@@ -2,18 +2,23 @@ defmodule NervesHub.ProductNotifications do
   import Ecto.Query
 
   alias NervesHub.Accounts.Scope
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.Products
   alias NervesHub.Products.Notification
   alias NervesHub.Products.Product
   alias NervesHub.Repo
-  alias Phoenix.Channel.Server
-  alias Phoenix.PubSub
+  alias Phoenix.Socket.Broadcast
+
+  # Failure reasons arrive in a device's message payload, so they are whatever
+  # the device chose to send. Cap them before they reach a notification the UI
+  # renders, the way `DeviceTemplates` does for audit log descriptions.
+  @reason_max_length 200
 
   @spec subscribe(pos_integer()) :: :ok
   def subscribe(product_id) do
-    _ = PubSub.subscribe(NervesHub.PubSub, "product_notifications:#{product_id}")
-    :ok
+    :ok = Group.join(NervesHub.Group, key(product_id), %{})
   end
 
   @spec paginated_list(Product.t(), integer(), integer()) :: {[Notification.t()], Flop.Meta.t()}
@@ -34,12 +39,11 @@ defmodule NervesHub.ProductNotifications do
       |> Repo.delete_all()
 
     _ =
-      Server.broadcast(
-        NervesHub.PubSub,
-        "product_notifications:#{product.id}",
-        "dismissed",
-        %{dismissed_by: %{id: user.id, name: user.name}}
-      )
+      Group.dispatch(NervesHub.Group, key(product.id), %Broadcast{
+        topic: topic(product.id),
+        event: "dismissed",
+        payload: %{dismissed_by: %{id: user.id, name: user.name}}
+      })
 
     :ok
   end
@@ -117,6 +121,21 @@ defmodule NervesHub.ProductNotifications do
     |> insert_and_notify!()
   end
 
+  @spec create_wrong_websocket_host_notification!(device_info :: DeviceInfo.t(), host :: String.t()) ::
+          Notification.t()
+  def create_wrong_websocket_host_notification!(device_info, host) do
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device connected to the wrong host.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' connected to the management host instead of '#{host}', and was redirected. Please update the device's configuration.",
+      level: :warning,
+      metadata: %{identifier: device_info.device_identifier, host: host},
+      event_key: "wrong_websocket_host-#{device_info.device_identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
   @spec create_soft_deleted_device_removed!(device :: Device.t()) :: Notification.t()
   def create_soft_deleted_device_removed!(device) do
     %Product{id: device.product_id}
@@ -144,6 +163,218 @@ defmodule NervesHub.ProductNotifications do
     |> insert_and_notify!()
   end
 
+  @doc """
+  A device could not be moved off an update mode its firmware cannot support.
+
+  The device is stranded until someone acts: its deployment group will not push
+  to it, and its firmware has no way to ask. Raised to the operator because
+  nothing else will notice — the device goes on connecting perfectly happily.
+  """
+  def create_update_mode_revert_failed_notification!(device) do
+    %Product{id: device.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device could not be returned to automatic updates.",
+      message:
+        "The device with the identifier '#{device.identifier}' is set to manage its own updates, but is running firmware too old to do so. NervesHub tried to return it to automatic updates and could not, so it will receive no firmware at all until this is resolved. Set its update mode manually, or send it firmware by hand.",
+      level: :error,
+      metadata: %{identifier: device.identifier},
+      event_key: "update_mode_revert_failed-#{device.identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
+  A device reported metric names too long to store.
+
+  The readings were discarded; the rest of the report was kept. Raised to the
+  operator because nothing else would notice -- the device goes on reporting
+  perfectly happily, and the missing readings look like a metric the firmware
+  simply does not collect.
+
+  Deduplicated on the *device*, not on the offending name. A client generating
+  unbounded names would otherwise get a notification row per name, which is the
+  unbounded growth the cap exists to prevent.
+  """
+  @spec create_oversized_metric_keys_notification!(DeviceInfo.t(), String.t(), pos_integer(), pos_integer()) ::
+          Notification.t()
+  def create_oversized_metric_keys_notification!(device_info, example_key, count, max_bytes) do
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device reported metric names that were too long to store.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' sent #{count} " <>
+          "metric#{if count > 1, do: "s"} whose names are longer than #{max_bytes} bytes, " <>
+          "starting with '#{String.slice(example_key, 0, 64)}'. Those readings were discarded, " <>
+          "and the rest of the report was stored. Please shorten the metric names the device reports.",
+      level: :warning,
+      metadata: %{
+        identifier: device_info.device_identifier,
+        example_key: String.slice(example_key, 0, 256),
+        count: count,
+        max_bytes: max_bytes
+      },
+      event_key: "oversized_metric_keys-#{device_info.device_identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
+  A workflow stopped part-way through a rollout and is waiting on a person.
+
+  Raised to the operator because nothing else will notice. A halted workflow is
+  quiet: devices carry on connecting, the deployment group still says it is
+  active, and the only sign is a diagram nobody is looking at.
+  """
+  def create_workflow_halted_notification!(deployment_group, step, reason) do
+    {title, message, level} = workflow_halted_copy(deployment_group, step, reason)
+
+    %Product{id: deployment_group.product_id}
+    |> Notification.new_changeset(%{
+      title: title,
+      message: message,
+      level: level,
+      metadata: %{
+        deployment_group: deployment_group.name,
+        step_number: step.number,
+        step: DeploymentWorkflowStep.label(step)
+      },
+      # Keyed to the step rather than the deployment group, so a workflow that
+      # stops twice at different stages says so twice.
+      event_key: workflow_halted_key(deployment_group.id, step.id)
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
+  A device could not start an extension it was asked to attach.
+
+  Both ways that can happen end up here. `NervesHub.Extensions.Dispatch` reports
+  the device failing to start the extension at all, which detaches it; an
+  extension reports a failure of its own, which does not -- the local shell
+  answering `request_shell` with a reason it has no pty is the case this was
+  written for.
+
+  Either way the extension is enabled and not working, and nothing about the
+  device says so: it stays connected, and the toggle on its settings page stays
+  on. The fix is almost always in the device's firmware, so it needs a person.
+
+  Deduplicated on the device, the extension and the reason. Including the reason
+  looks redundant next to `occurrence_count`, and is not: the conflict clause in
+  `insert_and_notify!/1` updates the count and the timestamp but not the
+  message, so a device that starts failing for a new reason would otherwise
+  keep showing the old one.
+  """
+  @spec create_extension_failure_notification!(DeviceInfo.t(), String.t(), String.t() | nil) ::
+          Notification.t()
+  def create_extension_failure_notification!(%DeviceInfo{} = device_info, extension, reason) do
+    reason = truncate_reason(reason)
+
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device could not start an extension.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' could not start the " <>
+          "'#{extension}' extension#{reason_clause(reason)}. It stays enabled in NervesHub and " <>
+          "will not work on this device until the cause is fixed, which is usually in the " <>
+          "device's firmware.",
+      level: :warning,
+      metadata: %{identifier: device_info.device_identifier, extension: extension, reason: reason},
+      # The changeset rejects spaces, and a reason is a sentence, so the reason
+      # is keyed by hash rather than by its text.
+      event_key: "extension_failure-#{extension}-#{device_info.device_identifier}-#{:erlang.phash2(reason)}"
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
+  A device reported more metrics in one report than will be stored.
+
+  The report is kept, trimmed to the first `max_keys` names in sorted order --
+  so the same readings are dropped every time rather than an arbitrary subset
+  that changes shape between reports.
+
+  Deduplicated on the device, for the same reason as
+  `create_oversized_metric_keys_notification!/4`.
+  """
+  @spec create_too_many_metrics_notification!(DeviceInfo.t(), pos_integer(), pos_integer()) :: Notification.t()
+  def create_too_many_metrics_notification!(device_info, reported, max_keys) do
+    %Product{id: device_info.product_id}
+    |> Notification.new_changeset(%{
+      title: "A device reported more metrics than NervesHub will store.",
+      message:
+        "The device with the identifier '#{device_info.device_identifier}' sent #{reported} metrics " <>
+          "in one report, and NervesHub stores at most #{max_keys}. The report was trimmed to the " <>
+          "first #{max_keys} metric names in alphabetical order, so the same readings are dropped " <>
+          "each time. Reduce what the device reports, or raise the limit for this deployment.",
+      level: :warning,
+      metadata: %{identifier: device_info.device_identifier, reported: reported, max_keys: max_keys},
+      event_key: "too_many_metrics-#{device_info.device_identifier}"
+    })
+    |> insert_and_notify!()
+  end
+
+  @doc """
+  Take back the notice that a workflow had stopped.
+
+  Raised when a workflow stops and cleared when it starts again, so the list
+  reflects what needs attention now rather than everything that ever did. The
+  same key the notice was raised under finds it, whether it was raised once or
+  coalesced from several.
+  """
+  @spec resolve_workflow_halted_notification!(pos_integer(), pos_integer(), pos_integer()) :: :ok
+  def resolve_workflow_halted_notification!(product_id, deployment_group_id, step_id) do
+    resolve!(product_id, workflow_halted_key(deployment_group_id, step_id))
+  end
+
+  defp resolve!(product_id, event_key) do
+    {deleted, _} =
+      Notification
+      |> where([n], n.product_id == ^product_id and n.event_key == ^event_key)
+      |> Repo.delete_all()
+
+    if deleted > 0 do
+      _ =
+        Group.dispatch(NervesHub.Group, key(product_id), %Broadcast{
+          topic: topic(product_id),
+          event: "resolved",
+          payload: %{}
+        })
+    end
+
+    :ok
+  end
+
+  defp workflow_halted_key(deployment_group_id, step_id) do
+    "workflow_halted-#{deployment_group_id}-#{step_id}"
+  end
+
+  defp workflow_halted_copy(deployment_group, step, {:failed, failed_count}) do
+    {"A deployment workflow stopped after devices failed to update.",
+     "Step #{step.number} ('#{DeploymentWorkflowStep.label(step)}') of the workflow for deployment group '#{deployment_group.name}' failed: #{failed_count} device(s) could not take the update. No further devices will be updated for this release until the step is retried or skipped.",
+     :error}
+  end
+
+  defp workflow_halted_copy(deployment_group, step, :awaiting_approval) do
+    {"A deployment workflow is waiting for approval.",
+     "Step #{step.number} ('#{DeploymentWorkflowStep.label(step)}') of the workflow for deployment group '#{deployment_group.name}' needs approving before the rollout continues. No further devices will be updated for this release until it is approved or skipped.",
+     :info}
+  end
+
+  defp reason_clause(nil), do: ""
+  defp reason_clause(reason), do: ": #{reason}"
+
+  defp truncate_reason(nil), do: nil
+
+  defp truncate_reason(reason) when is_binary(reason) do
+    if String.length(reason) > @reason_max_length do
+      String.slice(reason, 0, @reason_max_length - 1) <> "…"
+    else
+      reason
+    end
+  end
+
+  defp truncate_reason(reason), do: truncate_reason(inspect(reason))
+
   defp insert_and_notify!(changeset) do
     conflict_query =
       Notification
@@ -161,15 +392,21 @@ defmodule NervesHub.ProductNotifications do
       )
 
     _ =
-      Server.broadcast(
-        NervesHub.PubSub,
-        "product_notifications:#{notification.product_id}",
-        "created",
-        %{}
-      )
+      Group.dispatch(NervesHub.Group, key(notification.product_id), %Broadcast{
+        topic: topic(notification.product_id),
+        event: "created",
+        payload: %{}
+      })
 
     notification
   end
+
+  # Group key. "/" is Group's hierarchy separator, matching the other pub/sub
+  # wrappers.
+  defp key(product_id), do: "product_notifications/#{product_id}"
+
+  # Preserved as the previous `Phoenix.PubSub` topic string.
+  defp topic(product_id), do: "product_notifications:#{product_id}"
 
   def count(product) do
     Notification

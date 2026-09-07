@@ -1,17 +1,19 @@
 defmodule NervesHubWeb.Live.Devices.IndexTest do
-  use NervesHubWeb.ConnCase.Browser, async: true
+  use NervesHubWeb.ConnCase.Browser, async: false
 
   import Ecto.Query, only: [where: 2]
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
   alias NervesHub.DeviceEvents
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Health
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.Metrics
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -585,12 +587,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       device2 = Fixtures.device_fixture(org, product, firmware, %{})
 
-      # Add metrics for device2, sleep between to secure order.
-      Devices.Metrics.save_metric(%{device_id: device2.id, key: "cpu_temp", value: 36})
-      :timer.sleep(100)
-      Devices.Metrics.save_metric(%{device_id: device2.id, key: "cpu_temp", value: 42})
-      :timer.sleep(100)
-      Devices.Metrics.save_metric(%{device_id: device2.id, key: "load_1min", value: 3})
+      now = DateTime.utc_now()
+
+      # Explicit timestamps rather than sleeping, so the later report is the one
+      # the filter sees.
+      record_metrics(device2, %{"cpu_temp" => 36}, DateTime.add(now, -2, :second))
+      record_metrics(device2, %{"cpu_temp" => 42, "load_1min" => 3}, now)
 
       conn
       |> visit(device_index_path(fixture))
@@ -616,6 +618,63 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "0", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
       |> refute_has("div a", text: device.identifier)
+    end
+
+    test "by custom metrics", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{})
+
+      record_metrics(device2, %{"goats_per_second" => 42})
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> select("Metrics", option: "goats_per_second")
+      |> assert_has("label", text: "Operator", timeout: 1000)
+      |> select("Metrics Operator", option: "Greater Than")
+      |> assert_has("label", text: "Metrics Value", timeout: 1000)
+      |> fill_in("Metrics Value", with: "37")
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: device2.identifier)
+      |> refute_has("div a", text: device.identifier)
+    end
+
+    test "by metrics compares each device's latest value", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{})
+
+      now = DateTime.utc_now()
+
+      # device: an old high reading superseded by a low one; device2: a high
+      # reading, at a different time than device's. Only each device's latest
+      # value may count, regardless of which device reported most recently.
+      for {reporting, value, seconds_ago} <- [
+            {device, 90, 3},
+            {device, 30, 2},
+            {device2, 60, 1}
+          ] do
+        record_metrics(reporting, %{"test_latency_ms" => value}, DateTime.add(now, -seconds_ago, :second))
+      end
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> select("Metrics", option: "test_latency_ms")
+      |> assert_has("label", text: "Operator", timeout: 1000)
+      |> select("Metrics Operator", option: "Greater Than")
+      |> assert_has("label", text: "Metrics Value", timeout: 1000)
+      |> fill_in("Metrics Value", with: "40")
+      # device's latest reading is 30 - its stale 90 must not match.
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: device2.identifier)
+      |> refute_has("div a", text: device.identifier)
+      |> select("Metrics Operator", option: "Less Than")
+      # device's latest reading is 30, even though device2 reported later.
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: device.identifier)
+      |> refute_has("div a", text: device2.identifier)
     end
 
     test "by several tags", %{conn: conn, fixture: fixture} do
@@ -680,8 +739,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       device2 = Fixtures.device_fixture(org, product, firmware)
 
-      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{"SomeAlarm" => []}}}
-      assert {:ok, _} = Health.save_device_health(device_health)
+      Fixtures.device_alarms_fixture(device, %{"SomeAlarm" => "active"})
 
       conn
       |> visit(device_index_path(fixture))
@@ -700,8 +758,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       device2 = Fixtures.device_fixture(org, product, firmware)
 
-      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{"SomeAlarm" => []}}}
-      assert {:ok, _} = Health.save_device_health(device_health)
+      Fixtures.device_alarms_fixture(device, %{"SomeAlarm" => "active"})
 
       conn
       |> visit(device_index_path(fixture))
@@ -721,8 +778,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       device2 = Fixtures.device_fixture(org, product, firmware)
 
       alarm = "SomeAlarm"
-      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{alarm => []}}}
-      assert {:ok, _} = Health.save_device_health(device_health)
+      Fixtures.device_alarms_fixture(device, %{alarm => "active"})
 
       conn
       |> visit(device_index_path(fixture))
@@ -1282,8 +1338,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       second_device = Fixtures.device_fixture(org, product, firmware)
 
-      assert device.updates_enabled
-      assert second_device.updates_enabled
+      assert device.update_mode == :automatic
+      assert second_device.update_mode == :automatic
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
@@ -1293,15 +1349,15 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> click_button("Disable")
       |> assert_has("div", text: "Disabled updates for 2 selected device(s).")
       |> tap(fn _ ->
-        refute Repo.reload(device).updates_enabled
-        refute Repo.reload(second_device).updates_enabled
+        assert Repo.reload(device).update_mode == :off
+        assert Repo.reload(second_device).update_mode == :off
       end)
       |> assert_has("div", text: "2 devices selected")
       |> click_button("Enable")
       |> assert_has("div", text: "Enabled updates for 2 selected device(s).")
       |> tap(fn _ ->
-        assert Repo.reload(device).updates_enabled
-        assert Repo.reload(second_device).updates_enabled
+        assert Repo.reload(device).update_mode == :automatic
+        assert Repo.reload(second_device).update_mode == :automatic
       end)
     end
 
@@ -1342,14 +1398,14 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
 
       other_product = Fixtures.product_fixture(user, org)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
@@ -1365,7 +1421,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
       |> assert_has("div", text: "All selected devices successfully moved to the selected product.", timeout: 3_000)
       |> visit("/org/#{org.name}/#{other_product.name}/devices")
-      |> assert_has("div", text: "75", timeout: 1000)
+      |> assert_has("div", text: "26", timeout: 1000)
 
       assert Repo.reload(devices) |> Enum.all?(fn device -> device.product_id == other_product.id end)
     end
@@ -1376,7 +1432,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       Repo.delete_all(Device)
 
       devices =
-        Enum.map(1..75, fn _ ->
+        Enum.map(1..26, fn _ ->
           Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
         end)
 
@@ -1385,7 +1441,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
@@ -1393,7 +1449,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> click_button("#remove-devices-from-deployment-group", "")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
       |> assert_has("div",
-        text: "All devices (75) were successfully removed from their deployment group.",
+        text: "All devices (26) were successfully removed from their deployment group.",
         timeout: 3_000
       )
 
@@ -1405,12 +1461,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
@@ -1437,12 +1493,12 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
@@ -1451,7 +1507,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         render_submit(view, "tag-devices", %{"tags" => "moussaka"})
       end)
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
-      |> assert_has("div", text: "All selected devices (75) tagged successfully.", timeout: 3_000)
+      |> assert_has("div", text: "All selected devices (26) tagged successfully.", timeout: 3_000)
 
       assert Repo.reload(devices) |> Enum.all?(fn device -> device.tags == ["moussaka"] end)
     end
@@ -1461,23 +1517,23 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false}) end)
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware, %{update_mode: :off}) end)
 
-      assert Enum.all?(devices, fn device -> not device.updates_enabled end)
+      assert Enum.all?(devices, fn device -> device.update_mode == :off end)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
       |> assert_has("span", "All available devices matching the filters have been selected.")
       |> click_button("Enable")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
-      |> assert_has("div", text: "Enabled updates for #{75} selected device(s).", timeout: 3_000)
+      |> assert_has("div", text: "Enabled updates for #{26} selected device(s).", timeout: 3_000)
 
-      assert Repo.reload(devices) |> Enum.all?(fn device -> device.updates_enabled end)
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.update_mode == :automatic end)
     end
 
     test "disable updates", %{conn: conn, fixture: fixture} do
@@ -1485,23 +1541,23 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       Repo.delete_all(Device)
 
-      devices = Enum.map(1..75, fn _ -> Fixtures.device_fixture(org, product, firmware, %{updates_enabled: true}) end)
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware, %{update_mode: :automatic}) end)
 
-      assert Enum.all?(devices, fn device -> device.updates_enabled end)
+      assert Enum.all?(devices, fn device -> device.update_mode == :automatic end)
 
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
       |> assert_has("span", "All available devices matching the filters have been selected.")
       |> click_button("Disable")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
-      |> assert_has("div", text: "Disabled updates for 75 selected device(s).", timeout: 3_000)
+      |> assert_has("div", text: "Disabled updates for 26 selected device(s).", timeout: 3_000)
 
-      assert Repo.reload(devices) |> Enum.all?(fn device -> not device.updates_enabled end)
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.update_mode == :off end)
     end
 
     test "clear penalty boxes", %{conn: conn, fixture: fixture} do
@@ -1510,7 +1566,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       Repo.delete_all(Device)
 
       devices =
-        Enum.map(1..75, fn _ ->
+        Enum.map(1..26, fn _ ->
           Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
         end)
 
@@ -1519,14 +1575,14 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       conn
       |> visit(~p"/org/#{org}/#{product}/devices")
       |> assert_has("h1", text: "Devices", timeout: 1_000)
-      |> assert_has("#device-count", text: "75", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
       |> check("Select all devices", exact: false)
       |> click_button("Select all")
       |> assert_has("h4", "All devices selected")
       |> assert_has("span", "All available devices matching the filters have been selected.")
       |> click_button("Clear penalty box")
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
-      |> assert_has("div", text: "75 selected device(s) cleared from the penalty box.", timeout: 3_000)
+      |> assert_has("div", text: "26 selected device(s) cleared from the penalty box.", timeout: 3_000)
 
       assert Repo.reload(devices) |> Enum.all?(fn device -> is_nil(device.updates_blocked_until) end)
     end
@@ -1806,5 +1862,16 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
   def device_index_path(%{org: org, product: product}) do
     ~p"/org/#{org}/#{product}/devices"
+  end
+
+  defp record_metrics(device, metrics, timestamp \\ DateTime.utc_now()) do
+    device_info = %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
+
+    {:ok, _stored} = Metrics.record(device_info, metrics, timestamp)
   end
 end

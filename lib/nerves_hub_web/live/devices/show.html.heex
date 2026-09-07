@@ -122,83 +122,63 @@
               </div>
             </div>
 
+            <%!-- Dismissing the penalty box is a one-way action, not a state to
+                 switch between, so it reads as a button rather than a toggle. --%>
             <button
               type="button"
               phx-click="clear-penalty-box"
-              class={[
-                "border-1.5 relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-0 focus:outline-none",
-                "bg-warning"
-              ]}
-              role="switch"
-              aria-checked="false"
+              aria-label="Clear the penalty box"
+              disabled={!authorized?(:"device:clear-penalty-box", @current_scope)}
+              class="hover:bg-primary/20 hover:text-base-50 text-base-400 flex items-center rounded p-1 disabled:pointer-events-none disabled:opacity-60"
             >
-              <span
-                aria-hidden="true"
-                class={[
-                  "pointer-events-none inline-block size-3",
-                  "translate-x-0",
-                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                ]}
-              ></span>
-            </button>
-          <% @device.updates_enabled == false -> %>
-            <svg class="stroke-alert mx-2 size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-
-            <button
-              type="button"
-              phx-click="toggle-deployment-firmware-updates"
-              class={[
-                "border-1.5 relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-0 focus:outline-none",
-                "bg-alert"
-              ]}
-              role="switch"
-              aria-checked="false"
-            >
-              <span
-                aria-hidden="true"
-                class={[
-                  "pointer-events-none inline-block size-3",
-                  "translate-x-0",
-                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                ]}
-              ></span>
+              <span class="lucide-x--light size-4" />
             </button>
           <% true -> %>
-            <svg class="stroke-success mx-2 size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M5.99992 8L7.33325 9.33333L9.99992 6M7.99992 14C7.99992 14 12.6666 12 12.6666 9.33333V3.33333C11.6666 3.44444 9.33325 3.33333 7.99992 2C6.66659 3.33333 4.33325 3.44444 3.33325 3.33333V9.33333C3.33325 12 7.99992 14 7.99992 14Z"
-                stroke-width="1.2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <div class="relative ml-2">
+              <button
+                type="button"
+                id="update-mode-toggle"
+                phx-click={toggle_update_mode_menu()}
+                aria-haspopup="menu"
+                aria-label={"Firmware updates: #{update_mode_label(@device.update_mode)}"}
+                disabled={!authorized?(:"device:toggle-updates", @current_scope)}
+                class="hover:bg-primary/20 flex items-center gap-1 rounded p-1 disabled:pointer-events-none disabled:opacity-60"
+              >
+                <span class={[update_mode_icon(@device.update_mode), update_mode_color(@device.update_mode), "size-4"]} />
+                <span class="lucide-chevron-down--light text-base-400 size-3" />
+              </button>
 
-            <button
-              type="button"
-              phx-click="toggle-deployment-firmware-updates"
-              class={[
-                "border-1.5 relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-0 focus:outline-none",
-                "bg-success"
-              ]}
-              role="switch"
-              aria-checked="false"
-            >
-              <span
-                aria-hidden="true"
-                class={[
-                  "pointer-events-none inline-block size-3",
-                  "translate-x-3",
-                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                ]}
-              ></span>
-            </button>
+              <div
+                id="update-mode-menu-container"
+                class="hidden"
+                phx-click-away={hide_update_mode_menu()}
+                phx-window-keydown={hide_update_mode_menu()}
+                phx-key="escape"
+              >
+                <div
+                  id="update-mode-menu"
+                  role="menu"
+                  class="bg-surface-overlay border-base-700 absolute top-9 right-0 z-30 flex w-80 flex-col rounded-md border p-2 shadow-lg"
+                >
+                  <button
+                    :for={{mode, label, description} <- update_modes()}
+                    type="button"
+                    role="menuitem"
+                    phx-click={JS.push("set-update-mode", value: %{mode: mode}) |> hide_update_mode_menu()}
+                    class="hover:bg-primary/20 flex items-start gap-2.5 rounded-md p-2 text-left"
+                  >
+                    <span class={[update_mode_icon(mode), update_mode_color(mode), "mt-0.5 size-5 shrink-0"]} />
+                    <span class="flex flex-col gap-0.5">
+                      <span class="text-base-50 flex items-center gap-1.5 text-sm font-medium">
+                        {label}
+                        <span :if={@device.update_mode == mode} class="lucide-check--light text-primary size-4" />
+                      </span>
+                      <span class="text-base-400 text-xs/snug">{description}</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
         <% end %>
       </div>
     </div>
@@ -210,6 +190,7 @@
   <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/console"} selected={@tab == :console} label="Console" />
   <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/local_shell"} selected={@tab == :local_shell} label="System Shell" />
   <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"} selected={@tab == :logs} label="Logs" />
+  <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/errors"} selected={@tab == :errors} label="Errors" />
   <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"} selected={@tab == :activity} label="Activity" />
   <:tabbed_nav path={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"} selected={@tab == :settings} label="Settings" />
 

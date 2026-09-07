@@ -1,0 +1,124 @@
+<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
+  <:header>
+    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">Errors</h1>
+    <div :if={@extension_enabled?} id="error-count" class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs">
+      {@status_counts.unresolved} unresolved
+    </div>
+  </:header>
+
+  <div :if={!@extension_enabled?} class="flex h-full flex-col items-center justify-center gap-3 p-14">
+    <span class="text-base-300 font-semibold">Error reports aren't enabled for this product.</span>
+    <span class="text-base-500 font-extralight">
+      Turn the extension on in <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/settings"} class="underline">product settings</.link>
+      and devices that support it will start reporting.
+    </span>
+  </div>
+
+  <div :if={@extension_enabled?} class="flex h-1 flex-1 flex-col items-start justify-between gap-4 overflow-x-auto p-6">
+    <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
+      <div class="border-base-700 flex h-14 items-center gap-4 border-b px-4">
+        <form id="error-filters" phx-change="filter" class="flex grow flex-row items-center gap-4">
+          <label class="flex items-center gap-2">
+            <span class="text-base-400 text-sm">Status :</span>
+            <select name="status" class="bg-base-800 border-base-600 text-base-300 rounded border py-0.5 pr-8 pl-2 text-sm">
+              <option :for={{label, value} <- NervesHubWeb.Live.Product.Errors.status_options()} value={value} selected={value == @status_filter}>
+                {label} ({Map.get(@status_counts, NervesHubWeb.Live.Product.Errors.status_option(value), 0)})
+              </option>
+            </select>
+          </label>
+
+          <label class="flex items-center gap-2">
+            <span class="text-base-400 text-sm">Sort by :</span>
+            <select name="sort" class="bg-base-800 border-base-600 text-base-300 rounded border py-0.5 pr-8 pl-2 text-sm">
+              <option :for={{label, value} <- NervesHubWeb.Live.Product.Errors.sort_options()} value={value} selected={value == @sort}>
+                {label}
+              </option>
+            </select>
+          </label>
+
+          <input
+            type="text"
+            name="search"
+            value={@search}
+            placeholder="Search reasons"
+            phx-debounce="400"
+            class="bg-base-800 border-base-600 text-base-300 ml-auto rounded border px-2 py-0.5 text-sm"
+          />
+        </form>
+      </div>
+
+      <div :if={Enum.empty?(@groups)} class="flex items-center justify-center p-14">
+        <span class="text-base-500 font-extralight">
+          {(@search != "" && "No errors match that search.") || "No #{@status_filter} errors. Huzzah!"}
+        </span>
+      </div>
+
+      <table :if={Enum.any?(@groups)} class="w-full table-fixed text-sm">
+        <colgroup>
+          <col class="w-28" />
+          <col />
+          <col class="w-24" />
+          <col class="w-24" />
+          <col class="w-44" />
+          <col class="w-28" />
+        </colgroup>
+        <thead>
+          <tr class="border-base-700 text-base-400 border-b text-left font-extralight">
+            <th class="px-4 py-2 font-normal">Status</th>
+            <th class="py-2 pr-6 font-normal">Error</th>
+            <th class="py-2 pr-6 font-normal">Count</th>
+            <th class="py-2 pr-6 font-normal">Devices</th>
+            <th class="py-2 pr-6 font-normal">Last seen</th>
+            <th class="py-2 pr-4 font-normal"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={group <- @groups} id={"error-group-#{group.id}"} class="border-base-800 hover:bg-base-900 border-b align-top">
+            <td class="px-4 py-3">
+              <span class={["rounded px-1.5 py-0.5 text-xs", NervesHubWeb.Live.Product.Errors.status_class(group.status)]}>
+                {group.status}
+              </span>
+              <div :if={group.regressed_at} class="text-warning pt-1 text-xs">regressed</div>
+            </td>
+            <td class="py-3 pr-6">
+              <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/errors/#{group.id}"} class="text-base-200 block truncate font-mono hover:underline" title={group.reason}>
+                {group.reason}
+              </.link>
+              <div :if={NervesHubWeb.Live.Product.Errors.top_frame(group)} class="text-base-500 truncate pt-0.5 font-mono text-xs">
+                {NervesHubWeb.Live.Product.Errors.top_frame(group)}
+              </div>
+            </td>
+            <td class="text-base-300 py-3 pr-6">{group.occurrence_count}</td>
+            <td class="text-base-300 py-3 pr-6">
+              {Map.get(@device_counts, group.id, "—")}
+            </td>
+            <td class="text-base-300 py-3 pr-6">
+              <div>{Timex.from_now(group.last_seen_at)}</div>
+              <div :if={group.last_seen_firmware_uuid not in [nil, ""]} class="text-base-500 truncate pt-0.5 font-mono text-xs" title={group.last_seen_firmware_uuid}>
+                {group.last_seen_firmware_uuid}
+              </div>
+            </td>
+            <td class="py-3 pr-4">
+              <%!-- Icon-only, with the label kept for screen readers and as a
+                    hover tooltip: three labelled buttons per row crowds out the
+                    reason, which is the column people are actually reading. --%>
+              <div :if={authorized?(:"error_group:update", @current_scope)} class="flex flex-row gap-2">
+                <.button :if={group.status != :resolved} style="secondary" phx-click="resolve" phx-value-id={group.id} title="Resolve">
+                  <.icon name="check" /><span class="sr-only">Resolve</span>
+                </.button>
+                <.button :if={group.status == :unresolved} style="secondary" phx-click="mute" phx-value-id={group.id} title="Mute">
+                  <.icon name="mute" /><span class="sr-only">Mute</span>
+                </.button>
+                <.button :if={group.status != :unresolved} style="secondary" phx-click="reopen" phx-value-id={group.id} title="Reopen">
+                  <.icon name="undo" /><span class="sr-only">Reopen</span>
+                </.button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <NervesHubWeb.Components.Pager.render_with_page_sizes :if={@extension_enabled? && @result_meta.total_count && @result_meta.total_count > 0} pager={@result_meta} />
+</NervesHubWeb.Layouts.sidebar>

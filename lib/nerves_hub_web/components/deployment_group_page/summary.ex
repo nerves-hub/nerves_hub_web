@@ -4,12 +4,29 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   import NervesHubWeb.LayoutView,
     only: [humanize_size: 1]
 
+  alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
+  alias NimbleCSV.RFC4180, as: CSV
   alias Phoenix.Naming
+
+  @impl Phoenix.LiveComponent
+  def mount(socket) do
+    {:ok,
+     socket
+     |> assign(:delta_target_firmware_id, nil)
+     |> allow_upload(:device_csv,
+       accept: ~w(.csv),
+       max_entries: 1,
+       auto_upload: true,
+       progress: &handle_progress/3
+     )}
+  end
 
   @impl Phoenix.LiveComponent
   def update(%{event: :update_matched_devices_count}, socket) do
@@ -145,11 +162,191 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     |> noreply()
   end
 
+  def handle_event("validate-csv", _params, socket), do: {:noreply, socket}
+
+  def handle_progress(:device_csv, %{done?: true} = entry, socket) do
+    %{deployment_group: deployment_group, current_scope: %{product: product, user: user}} =
+      socket.assigns
+
+    result =
+      consume_uploaded_entry(socket, entry, fn %{path: path} ->
+        {:ok, parse_identifiers_from_csv(path)}
+      end)
+
+    socket =
+      case result do
+        {:error, :invalid_csv} ->
+          send_flash(socket, :error, "CSV must have a single 'identifier' column header")
+
+        {:ok, []} ->
+          send_flash(socket, :error, "CSV contained no identifier values")
+
+        {:ok, identifiers} ->
+          socket
+          |> start_async(:import_devices_from_csv, fn ->
+            BulkActions.move_many_to_deployment_group_by_identifiers(
+              product,
+              identifiers,
+              deployment_group,
+              user
+            )
+          end)
+          |> send_flash(:info, "Importing devices from CSV, this may take a moment")
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_progress(:device_csv, _entry, socket), do: {:noreply, socket}
+
+  @impl Phoenix.LiveComponent
+  def handle_async(:import_devices_from_csv, {:ok, %{ok: updated, error: 0}}, socket) do
+    send(self(), :refresh_device_count)
+
+    socket
+    |> assign_matched_devices_count()
+    |> send_flash(:info, "#{updated} devices imported from CSV into #{socket.assigns.deployment_group.name}")
+    |> noreply()
+  end
+
+  def handle_async(:import_devices_from_csv, {:ok, %{ok: updated, error: ignored}}, socket) do
+    %{deployment_group: deployment_group} = socket.assigns
+
+    send(self(), :refresh_device_count)
+
+    :ok =
+      Logging.log_to_sentry(
+        deployment_group,
+        "There was an issue importing devices from CSV into a deployment group.",
+        %{
+          updated_count: updated,
+          ignored_count: ignored,
+          deployment_group_id: deployment_group.id
+        }
+      )
+
+    socket
+    |> assign_matched_devices_count()
+    |> send_flash(
+      :error,
+      "#{updated} devices imported into #{deployment_group.name}. However, we couldn't import #{ignored} devices. We've been notified and are looking into it."
+    )
+    |> noreply()
+  end
+
+  def handle_async(:import_devices_from_csv, {:exit, reason}, socket) do
+    %{deployment_group: deployment_group} = socket.assigns
+    :ok = Logging.log_to_sentry(deployment_group, reason)
+
+    socket
+    |> assign_matched_devices_count()
+    |> send_flash(
+      :error,
+      "There was an issue importing devices from CSV into #{deployment_group.name}. We've been notified and are looking into it."
+    )
+    |> noreply()
+  end
+
   @impl Phoenix.LiveComponent
   def render(assigns) do
     ~H"""
     <div class="flex w-full flex-col items-start gap-4 p-6">
-      <div :if={@waiting_for_update_count == 0} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border p-4">
+      <div :if={@flow} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border">
+        <div id="deployment-workflow-fit" phx-hook="WorkflowDiagramFit" class="h-[200px]">
+          <.live_component
+            module={LiveFlow.Components.Flow}
+            id="deployment-workflow"
+            flow={@flow}
+            opts={
+              %{
+                background: :dots,
+                # Deliberately not `fit_view_on_init`. LiveFlow's fit pads by a
+                # fixed 0.1 and animates over 200ms, so having it and ours both
+                # run showed the diagram being sized twice. The WorkflowDiagramFit
+                # hook does it once instead, and without animating.
+                # See assets/js/hooks/workflowDiagramFit.js.
+                # The fit scales the diagram to fill the panel, which is what we
+                # want of a workflow long enough to need it. The cap is only here
+                # so a two-step workflow in a wide panel is not blown up to fill
+                # the same room.
+                max_zoom: 1.5,
+                pan_on_drag: "false",
+                zoom_on_scroll: "false"
+              }
+            }
+            node_types={@flow_nodes}
+            on_nodes_change={fn changes -> send(self(), {:workflow_nodes_changed, changes}) end}
+          />
+        </div>
+      </div>
+
+      <div
+        :if={@failed_step}
+        class="bg-surface-raised border-alert shadow-device-details-content flex w-full flex-col gap-3 rounded border p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div class="flex flex-col gap-1">
+          <div class="text-base-50 text-base font-medium">
+            Stopped at: {DeploymentWorkflowStep.label(@failed_step)}
+          </div>
+          <div :if={@failed_step.description} class="text-base-400 text-sm">
+            {@failed_step.description}
+          </div>
+          <div class="text-base-400 text-sm">
+            Too many of this step's devices failed to update. No further devices will be updated until it is retried or skipped.
+          </div>
+        </div>
+
+        <div class="flex w-fit shrink-0 gap-2">
+          <.button
+            style="primary"
+            phx-click="workflow-step-retry"
+            phx-value-number={@failed_step.number}
+            aria-label={"Retry the stopped step: #{DeploymentWorkflowStep.label(@failed_step)}"}
+            data-confirm="Offer this step's devices the update again?"
+          >
+            Retry step
+          </.button>
+
+          <.button
+            style="secondary"
+            phx-click="workflow-step-skip"
+            phx-value-number={@failed_step.number}
+            aria-label={"Skip the stopped step: #{DeploymentWorkflowStep.label(@failed_step)}"}
+            data-confirm="Skip this step? Its devices will be picked up by a later step."
+          >
+            Skip step
+          </.button>
+        </div>
+      </div>
+
+      <div
+        :if={@awaiting_approval}
+        class="bg-surface-raised border-warning shadow-device-details-content flex w-full flex-col gap-3 rounded border p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div class="flex flex-col gap-1">
+          <div class="text-base-50 text-base font-medium">
+            Waiting on you: {DeploymentWorkflowStep.label(@awaiting_approval)}
+          </div>
+          <div :if={@awaiting_approval.description} class="text-base-400 text-sm">
+            {@awaiting_approval.description}
+          </div>
+          <div class="text-base-400 text-sm">
+            No further devices will be updated until this step is approved.
+          </div>
+        </div>
+
+        <.button
+          style="primary"
+          phx-click="approve-workflow-step"
+          aria-label={"Approve workflow step: #{DeploymentWorkflowStep.label(@awaiting_approval)}"}
+          data-confirm="Approve this step and let the deployment carry on?"
+          class="w-fit shrink-0"
+        >
+          Approve and continue
+        </.button>
+      </div>
+
+      <div :if={@waiting_for_update_count == 0 && is_nil(@flow)} class="bg-surface-raised border-base-700 shadow-device-details-content w-full items-center justify-center rounded border p-4">
         <div class="text-base-50 flex h-10 items-center justify-center text-xl/6 font-medium">
           {if @updates_disabled_count > 0, do: "All eligible devices are up to date!", else: "All devices are up to date!"}
         </div>
@@ -395,7 +592,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </span>
               </div>
               <div class="flex items-center gap-4">
-                <span class="text-base-500 w-40 text-sm">Device failure threshold:</span>
+                <span class="text-base-500 text-sm">Device failure threshold:</span>
                 <span class="text-base-300 text-sm">{@deployment_group.device_failure_threshold}</span>
               </div>
               <div class="flex items-center gap-4">
@@ -529,6 +726,18 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
               </div>
             </div>
+            <div class="border-base-700 flex items-center justify-between border-t pt-3">
+              <span class="text-base-500 text-sm">Import devices by identifier</span>
+              <form id="import-devices-csv-form" phx-change="validate-csv" phx-target={@myself}>
+                <label
+                  for={@uploads.device_csv.ref}
+                  class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 flex cursor-pointer items-center gap-1.5 rounded border px-3 py-1.5 text-sm"
+                >
+                  <.icon name="add" class="stroke-base-400" /> Import from CSV
+                </label>
+                <.live_file_input upload={@uploads.device_csv} class="hidden" />
+              </form>
+            </div>
           </div>
 
           <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col gap-2 rounded border p-4">
@@ -600,9 +809,60 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   defp assign_deltas_and_stats(%{assigns: %{deployment_group: deployment_group}} = socket) do
-    :ok = Firmwares.subscribe_firmware_delta_target(deployment_group.current_release.firmware.id)
-
     socket
+    |> subscribe_to_firmware_deltas(deployment_group.current_release.firmware.id)
     |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
+  end
+
+  # `update/2` runs again on every parent re-render, and the firmware we want
+  # delta updates for changes whenever a new release is activated. Track the
+  # firmware we're subscribed to so we only re-join when the target actually
+  # moves, and leave the previous one when it does — otherwise memberships
+  # accumulate for the lifetime of the LiveView. The dead render has nothing to
+  # push an update to, so it doesn't join at all.
+  defp subscribe_to_firmware_deltas(socket, firmware_id) do
+    previous_firmware_id = socket.assigns.delta_target_firmware_id
+
+    cond do
+      not connected?(socket) ->
+        socket
+
+      previous_firmware_id == firmware_id ->
+        socket
+
+      true ->
+        if previous_firmware_id do
+          :ok = Firmwares.PubSub.unsubscribe_delta_target(previous_firmware_id)
+        end
+
+        :ok = Firmwares.PubSub.subscribe_delta_target(firmware_id)
+
+        assign(socket, :delta_target_firmware_id, firmware_id)
+    end
+  end
+
+  defp send_flash(socket, type, message) do
+    send(self(), {:flash, type, message})
+    socket
+  end
+
+  defp parse_identifiers_from_csv(path) do
+    path
+    |> File.stream!()
+    |> CSV.parse_stream(skip_headers: false)
+    |> Enum.reduce({nil, []}, fn
+      [header], {nil, []} ->
+        if String.trim(header) == "identifier", do: {:ok, []}, else: {:error, :bad_header}
+
+      [id], {:ok, acc} ->
+        {:ok, [String.trim(id) | acc]}
+
+      _, {:error, _} = err ->
+        err
+    end)
+    |> case do
+      {:ok, ids} -> {:ok, Enum.reverse(ids)}
+      _ -> {:error, :invalid_csv}
+    end
   end
 end

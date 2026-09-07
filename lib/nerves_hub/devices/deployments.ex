@@ -112,7 +112,7 @@ defmodule NervesHub.Devices.Deployments do
     firmware_uuid = if(device_info.firmware_metadata, do: device_info.firmware_metadata.uuid)
 
     payload = %{
-      updates_enabled: device_info.device_updates_enabled,
+      update_mode: device_info.device_update_mode,
       updates_blocked_until: device_info.device_updates_blocked_until,
       firmware_uuid: firmware_uuid
     }
@@ -125,7 +125,7 @@ defmodule NervesHub.Devices.Deployments do
   def up_to_date_count(%DeploymentGroup{} = deployment_group) do
     Device
     |> where([d], d.deployment_id == ^deployment_group.id)
-    |> where([d], d.updates_enabled == true)
+    |> where([d], d.update_mode == :automatic)
     |> where([d], d.firmware_metadata["uuid"] == ^deployment_group.current_release.firmware.uuid)
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
@@ -142,7 +142,7 @@ defmodule NervesHub.Devices.Deployments do
   def waiting_for_update_count(%DeploymentGroup{} = deployment_group) do
     Device
     |> where([d], d.deployment_id == ^deployment_group.id)
-    |> where([d], d.updates_enabled == true)
+    |> where([d], d.update_mode == :automatic)
     |> where(
       [d],
       is_nil(d.firmware_metadata) or
@@ -156,7 +156,7 @@ defmodule NervesHub.Devices.Deployments do
   def updates_disabled_count(%DeploymentGroup{id: id}) do
     Device
     |> where([d], d.deployment_id == ^id)
-    |> where([d], d.updates_enabled == false)
+    |> where([d], d.update_mode == :off)
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
   end

@@ -80,6 +80,22 @@ defmodule NervesHubWeb.Channels.Effects do
     socket
   end
 
+  defp apply_one(socket, {:group_join, key}) do
+    :ok = Group.join(NervesHub.Group, key, %{})
+    socket
+  end
+
+  # Leaving a group never joined is not an error here. A leave is driven by
+  # something the device said -- `local_shell:detached` is delivered without
+  # checking that an attach came first -- so surfacing `{:error, :not_in_group}`
+  # would let a device take down its own channel by detaching twice.
+  defp apply_one(socket, {:group_leave, key}) do
+    case Group.leave(NervesHub.Group, key) do
+      :ok -> socket
+      {:error, :not_in_group} -> socket
+    end
+  end
+
   defp apply_one(socket, {:send_self, message}) do
     send(self(), message)
     socket
@@ -99,6 +115,16 @@ defmodule NervesHubWeb.Channels.Effects do
     socket = cancel(socket, key)
 
     put_timer(socket, key, {:interval, arm(key, message, interval_ms), interval_ms})
+  end
+
+  # As above, but the first delivery is offset. `timer_fired/2` re-arms from the
+  # stored interval rather than from what was armed, so the period is exact from
+  # the first fire onward -- which is what lets a fleet be spread out without
+  # changing how often any one device reports. See `NervesHub.Extensions.Jitter`.
+  defp apply_one(socket, {:start_timer, key, message, first_ms, interval_ms}) do
+    socket = cancel(socket, key)
+
+    put_timer(socket, key, {:interval, arm(key, message, first_ms), interval_ms})
   end
 
   defp apply_one(socket, {:cancel_timer, key}), do: cancel(socket, key)

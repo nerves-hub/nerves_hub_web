@@ -24,6 +24,17 @@ defmodule NervesHubWeb.Layouts do
 
   embed_templates("layouts/*")
 
+  @doc """
+  How a tab links to its path.
+
+  Tabs patch by default, which is what a page whose tabs are `live_action`s of
+  one LiveView wants — the device and deployment group pages. A tab whose
+  target is a *different* LiveView cannot be patched to, so it opts into
+  `navigate` by setting `navigate: true` on the slot.
+  """
+  def tab_target(%{navigate: true} = nav), do: %{navigate: nav.path}
+  def tab_target(nav), do: %{patch: nav.path}
+
   def toggle_product_picker(js \\ %JS{}) do
     JS.toggle(js,
       to: "#product-picker",

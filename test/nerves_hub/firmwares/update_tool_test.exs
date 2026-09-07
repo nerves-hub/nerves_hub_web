@@ -1,6 +1,7 @@
 defmodule NervesHub.Firmwares.UpdateToolTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.UpdateTool.Fwup
   alias NervesHub.Fixtures
 
@@ -771,6 +772,17 @@ defmodule NervesHub.Firmwares.UpdateToolTest do
       # Validate Boot A having been patched to match Boot B
       assert same_fat_files?(dir, {img_a, boot_b_offset}, {img_b, boot_a_offset}, ["first"])
       assert compare_images?({img_a, root_b_offset, root_size}, {img_b, root_a_offset, root_size})
+    end
+  end
+
+  describe "key_scheme/0" do
+    test "every known tool names the scheme its verify_signature/2 filters on" do
+      assert %{
+               "fwup" => :ed25519,
+               "atomvm" => :ed25519,
+               "esp-idf" => :secure_boot_v2_rsa,
+               "rauc" => :x509_certificate
+             } == Map.new(UpdateTool.known(), fn {name, module} -> {name, module.key_scheme()} end)
     end
   end
 

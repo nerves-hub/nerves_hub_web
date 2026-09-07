@@ -32,6 +32,8 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
 
     field(:network_interface, Ch, type: "LowCardinality(String)")
 
+    field(:ip_address, Ch, type: "String")
+
     field(:version, Ch, type: "UInt64")
   end
 
@@ -51,6 +53,7 @@ defmodule NervesHub.Devices.DeviceConnectionHistory do
     |> put_change(:lib, to_string(connection.lib))
     |> put_change(:lib_version, to_string(connection.lib_version))
     |> put_change(:network_interface, to_string(connection.network_interface))
+    |> put_change(:ip_address, connection.ip_address || "")
     |> put_change(:version, current_version())
   end
 

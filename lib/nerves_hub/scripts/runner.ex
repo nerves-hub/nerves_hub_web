@@ -14,7 +14,7 @@ defmodule NervesHub.Scripts.Runner do
 
   use GenServer
 
-  alias NervesHubWeb.Endpoint
+  alias NervesHub.Consoles.PubSub
   alias Phoenix.Socket.Broadcast
 
   @default_timeout to_timeout(second: 30)
@@ -25,7 +25,7 @@ defmodule NervesHub.Scripts.Runner do
   @deadline_grace to_timeout(second: 1)
 
   defmodule State do
-    defstruct [:buffer, :device_channel, :from, :receive_channel, :send_channel, :text, :timeout]
+    defstruct [:buffer, :device_channel, :device_id, :from, :text, :timeout]
   end
 
   def send(device, command, timeout \\ @default_timeout) do
@@ -45,8 +45,7 @@ defmodule NervesHub.Scripts.Runner do
       from: nil,
       timeout: timeout,
       device_channel: "device:#{device_id}",
-      receive_channel: "user:console:#{device_id}",
-      send_channel: "device:console:#{device_id}"
+      device_id: device_id
     }
 
     {:ok, state}
@@ -79,11 +78,11 @@ defmodule NervesHub.Scripts.Runner do
   def handle_info({:error, :incompatible_version}, state) do
     text = ~s/#{state.text}\n# [NERVESHUB:END]/
 
-    Endpoint.broadcast_from!(self(), state.send_channel, "dn", %{"data" => text})
+    PubSub.broadcast_to_console(state.device_id, "dn", %{"data" => text})
 
-    _ = Endpoint.subscribe(state.receive_channel)
+    _ = PubSub.subscribe_user_console(state.device_id)
 
-    Endpoint.broadcast_from!(self(), state.send_channel, "dn", %{"data" => "\r"})
+    PubSub.broadcast_to_console(state.device_id, "dn", %{"data" => "\r"})
 
     {:noreply, state}
   end

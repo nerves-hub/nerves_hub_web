@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.Navigation do
   use NervesHubWeb, :component
 
   alias NervesHub.Accounts.Scope
+  alias NervesHub.ErrorReports
   alias NervesHub.ProductNotifications
 
   attr(:scope, Scope, required: false)
@@ -15,7 +16,19 @@ defmodule NervesHubWeb.Components.Navigation do
         n -> n
       end
 
-    assigns = assign(assigns, :notifications_count, count)
+    unresolved_errors =
+      if product.extensions.error_reports do
+        case ErrorReports.status_counts(product) do
+          %{unresolved: 0} -> nil
+          %{unresolved: n} -> n
+        end
+      end
+
+    assigns =
+      assigns
+      |> assign(:notifications_count, count)
+      |> assign(:error_reports_enabled, product.extensions.error_reports)
+      |> assign(:unresolved_errors_count, unresolved_errors)
 
     ~H"""
     <ul role="list">
@@ -54,6 +67,14 @@ defmodule NervesHubWeb.Components.Navigation do
         path={~p"/org/#{@scope.org}/#{@scope.product}/scripts"}
         selected={:support_scripts == @selected_tab}
         icon="data-[selected=false]:lucide-file-code-corner--light data-[selected=true]:lucide-file-code-corner"
+      />
+      <.nav_link
+        :if={@error_reports_enabled}
+        label="Errors"
+        badge={@unresolved_errors_count}
+        path={~p"/org/#{@scope.org}/#{@scope.product}/errors"}
+        selected={:errors == @selected_tab}
+        icon="data-[selected=false]:lucide-circle-alert--light data-[selected=true]:lucide-circle-alert"
       />
       <.nav_link
         label="Notifications"

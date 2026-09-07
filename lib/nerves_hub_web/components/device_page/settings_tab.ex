@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   alias NervesHub.Devices
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Updates
   alias NervesHub.Extensions
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.LayoutView.DateTimeFormat
@@ -84,6 +85,32 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
       <div class="bg-surface-raised border-base-700 shadow-device-details-content flex w-full flex-col rounded border">
         <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
+          <div class="text-base-50 text-base font-medium">Firmware updates</div>
+        </div>
+        <div class="flex flex-col gap-1 px-4 py-2">
+          <div class="flex h-16 items-center gap-6 p-2">
+            <div class="bg-base-800 border-base-700 flex h-8 shrink-0 items-center rounded-full border px-2 py-1">
+              <input
+                id="managed-updates-allowed"
+                name="managed-updates-allowed"
+                type="checkbox"
+                phx-click="toggle-managed-updates-allowed"
+                checked={@device.managed_updates_allowed}
+                disabled={!authorized?(:"device:toggle-updates", @current_scope)}
+              />
+            </div>
+            <div class="flex flex-col">
+              <div class="text-base-300 font-medium">Let the device choose its update mode</div>
+              <div class="text-base-400 font-light">
+                The device may move itself between automatic and device managed.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-surface-raised border-base-700 shadow-device-details-content flex w-full flex-col rounded border">
+        <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
           <div class="text-base-50 text-base font-medium">Extensions</div>
         </div>
         <div class="flex flex-col gap-1 px-4 py-2">
@@ -108,7 +135,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
                   - Extension is disabled at the product level.
                 </div>
               </div>
-              <div class="text-base-300">
+              <div class="text-base-400 font-light">
                 {description}
               </div>
             </div>
@@ -385,6 +412,26 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       _ ->
         socket
         |> put_flash(:error, "Failed to delete certificate, please contact support.")
+        |> halt()
+    end
+  end
+
+  def hooked_event("toggle-managed-updates-allowed", params, socket) do
+    authorized!(:"device:toggle-updates", socket.assigns.current_scope)
+
+    %{device: device, user: user} = socket.assigns
+    enabled = params["value"] == "on"
+
+    case Updates.set_managed_updates_allowed(device, enabled, user) do
+      {:ok, device} ->
+        socket
+        |> assign(:device, device)
+        |> put_flash(:info, "The device #{(enabled && "may") || "may no longer"} choose its own update mode.")
+        |> halt()
+
+      _error ->
+        socket
+        |> put_flash(:error, "We couldn't save that change. Please contact support if this happens again.")
         |> halt()
     end
   end

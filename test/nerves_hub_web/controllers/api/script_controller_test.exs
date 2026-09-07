@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
 
   alias NervesHub.Fixtures
   alias NervesHub.Scripts.Runner
+  alias NervesHub.Scripts.Script
 
   setup context do
     org_key = Fixtures.org_key_fixture(context.org, context.user, context.tmp_dir)
@@ -160,6 +161,19 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
       conn = get(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/boopsnoot")
 
       assert json_response(conn, 404)
+    end
+
+    test "omits created_by when script has no creator", %{conn: conn, org: org, product: product} do
+      script =
+        Script.validate_changeset(%{name: "test-script", text: "echo hi"})
+        |> Ecto.Changeset.put_assoc(:product, product)
+        |> NervesHub.Repo.insert!()
+
+      conn = get(conn, ~p"/api/orgs/#{org.name}/products/#{product.name}/scripts/#{script.id}")
+
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["name"] == "test-script"
+      refute Map.has_key?(data, "created_by")
     end
 
     test "returns a 404 when is not accessible", %{conn2: conn, user: user, org: org, product: product} do
@@ -457,6 +471,44 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
         |> json_response(404)
 
       assert resp == %{"errors" => %{"detail" => "Resource Not Found or Authorization Insufficient"}}
+    end
+
+    test "returns 403 when runner errors", %{conn: conn, device: device, product: product, user: user} do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+      path = Routes.api_script_path(conn, :send, device, script.name)
+
+      expect(Runner, :send, fn _, _, _ -> {:error, :timeout} end)
+
+      resp =
+        conn
+        |> post(path)
+        |> json_response(403)
+
+      assert resp["errors"]["detail"] =~ "device not available"
+    end
+
+    test "sends script with integer timeout param", %{conn: conn, device: device, product: product, user: user} do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+      path = Routes.api_script_path(conn, :send, device, script.name)
+
+      expect(Runner, :send, fn _, _, _ -> {:ok, "hello"} end)
+
+      conn
+      |> post(path, %{timeout: 5000})
+      |> response(200)
+    end
+
+    test "returns error when timeout param is invalid string", %{
+      conn: conn,
+      device: device,
+      product: product,
+      user: user
+    } do
+      script = Fixtures.support_script_fixture(product, user, %{name: "test-script"})
+      path = Routes.api_script_path(conn, :send, device, script.name)
+
+      resp = conn |> post(path, %{timeout: "not_a_number"})
+      assert resp.status in [422, 500]
     end
   end
 end

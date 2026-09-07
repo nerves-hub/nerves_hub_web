@@ -51,4 +51,13 @@ defmodule NervesHub.AuditLogs.AuditLogTest do
       assert String.valid?(truncated)
     end
   end
+
+  describe "changeset/2" do
+    test "accepts keyword list params", %{device: device, user: user} do
+      al = AuditLog.build(user, device, "something happened")
+      params = Map.to_list(Map.from_struct(al)) |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      changeset = AuditLog.changeset(%AuditLog{}, params)
+      assert changeset.valid?
+    end
+  end
 end

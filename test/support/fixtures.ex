@@ -7,6 +7,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Certificate
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
@@ -117,6 +118,25 @@ defmodule NervesHub.Fixtures do
       org_id: org.id,
       key: key,
       name: fwup_key_name,
+      created_by_id: user.id
+    }
+
+    {:ok, org_key} = Accounts.create_org_key(params)
+
+    org_key
+  end
+
+  # Like org_key_fixture/3 but skips the fwup key-generation subprocess — the
+  # key pair already exists on disk under `dir` with the given name. Used when
+  # caching key generation across tests (e.g. setup_all in BrowserCase).
+  # Each call is for a fresh org, so reusing the same key_name is safe.
+  def org_key_fixture_from_existing(%Accounts.Org{} = org, %Accounts.User{} = user, key_name, dir) do
+    key = Fwup.get_public_key(key_name, dir)
+
+    params = %{
+      org_id: org.id,
+      key: key,
+      name: key_name,
       created_by_id: user.id
     }
 
@@ -242,6 +262,13 @@ defmodule NervesHub.Fixtures do
     firmware
   end
 
+  # Like firmware_fixture/3 but accepts a pre-built .fw filepath, skipping the
+  # fwup subprocess calls. Used when caching firmware generation across tests.
+  def firmware_fixture_from_file(%Accounts.Org{} = org, fw_path) do
+    {:ok, firmware} = Firmwares.create_firmware(org, fw_path)
+    firmware
+  end
+
   def firmware_delta_fixture(
         %Firmwares.Firmware{id: source_id, uuid: source_uuid},
         %Firmwares.Firmware{id: target_id, org_id: org_id, uuid: target_uuid},
@@ -339,6 +366,28 @@ defmodule NervesHub.Fixtures do
       |> Map.merge(params)
       |> Enum.into(@device_params)
       |> Devices.create_device()
+
+    device
+  end
+
+  @doc """
+  Raise `alarms` (`%{name => description}`) on the device, as a health report
+  would.
+
+  Goes through `NervesHub.Devices.Alarms.sync/3` rather than inserting rows, so
+  a fixture exercises the same diff the report path does — passing `%{}`
+  resolves whatever the device had raised.
+  """
+  def device_alarms_fixture(%Devices.Device{} = device, alarms) do
+    :ok =
+      Devices.Alarms.sync(
+        %DeviceInfo{
+          device_id: device.id,
+          product_id: device.product_id,
+          org_id: device.org_id
+        },
+        alarms
+      )
 
     device
   end

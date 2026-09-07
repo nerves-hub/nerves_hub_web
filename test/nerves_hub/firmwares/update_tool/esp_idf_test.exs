@@ -300,4 +300,132 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdfTest do
     # the offset regression this file used to cover with a hand-rolled signer,
     # lives in `EspIdfSignatureTest`.
   end
+
+  describe "get_firmware_metadata_from_upload/1" do
+    # download_archive always fetches via HTTP regardless of the upload adapter,
+    # so stub the Req client just like the delta tests do.
+    defp serve_image!(binary) do
+      Req.Test.stub(NervesHub, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/octet-stream")
+        |> Plug.Conn.send_resp(200, binary)
+      end)
+    end
+
+    test "downloads and parses the firmware image" do
+      binary = image(project_name: "my_app", version: "1.2.3")
+      serve_image!(binary)
+      firmware = %{id: 1, upload_metadata: %{"public_path" => "http://example.test/fw.bin"}}
+
+      assert {:ok, %{firmware_metadata: meta, tool: "esp-idf"}} =
+               EspIdf.get_firmware_metadata_from_upload(firmware)
+
+      assert meta.product == "my_app"
+      assert meta.version == "1.2.3"
+    end
+
+    test "returns an error when the download fails" do
+      Req.Test.stub(NervesHub, fn conn -> Plug.Conn.send_resp(conn, 404, "nope") end)
+      firmware = %{id: 2, upload_metadata: %{"public_path" => "http://example.test/fw.bin"}}
+
+      assert {:error, _} = EspIdf.get_firmware_metadata_from_upload(firmware)
+    end
+  end
+
+  describe "recognises_device_metadata?/1" do
+    test "true when esp_idf_app_elf_sha256 is present" do
+      assert EspIdf.recognises_device_metadata?(%{"esp_idf_app_elf_sha256" => "abc"})
+    end
+
+    test "true when esp_idf_project_name is present" do
+      assert EspIdf.recognises_device_metadata?(%{"esp_idf_project_name" => "my_app"})
+    end
+
+    test "true when both keys are present" do
+      assert EspIdf.recognises_device_metadata?(%{
+               "esp_idf_app_elf_sha256" => "abc",
+               "esp_idf_project_name" => "my_app"
+             })
+    end
+
+    test "false when neither key is present" do
+      refute EspIdf.recognises_device_metadata?(%{"atomvm_app_name" => "blinky"})
+      refute EspIdf.recognises_device_metadata?(%{})
+    end
+  end
+
+  describe "metadata_from_device/1" do
+    test "maps all fields from a fully-populated device report" do
+      sha = String.duplicate("ab", 32)
+
+      metadata =
+        EspIdf.metadata_from_device(%{
+          "esp_idf_chip_id" => 0x0009,
+          "esp_idf_project_name" => "my_app",
+          "esp_idf_version" => "1.2.3",
+          "esp_idf_ver" => "v5.2.1",
+          "esp_idf_app_elf_sha256" => sha
+        })
+
+      assert metadata.product == "my_app"
+      assert metadata.version == "1.2.3"
+      assert metadata.platform == "esp32s3"
+      assert metadata.architecture == "xtensa"
+      assert metadata.description == "ESP-IDF v5.2.1"
+      assert is_binary(metadata.uuid)
+      assert metadata.uuid =~ ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    end
+
+    test "uuid is nil when esp_idf_app_elf_sha256 is absent" do
+      metadata = EspIdf.metadata_from_device(%{"esp_idf_project_name" => "my_app"})
+      assert is_nil(metadata.uuid)
+    end
+
+    test "uuid is nil when esp_idf_app_elf_sha256 is not valid hex" do
+      metadata =
+        EspIdf.metadata_from_device(%{
+          "esp_idf_project_name" => "my_app",
+          "esp_idf_app_elf_sha256" => "not-hex-at-all"
+        })
+
+      assert is_nil(metadata.uuid)
+    end
+
+    test "version is nil when esp_idf_version is absent" do
+      metadata = EspIdf.metadata_from_device(%{"esp_idf_project_name" => "my_app"})
+      assert is_nil(metadata.version)
+    end
+
+    test "version is nil when esp_idf_version cannot be normalised" do
+      metadata =
+        EspIdf.metadata_from_device(%{
+          "esp_idf_project_name" => "my_app",
+          "esp_idf_version" => "banana"
+        })
+
+      assert is_nil(metadata.version)
+    end
+
+    test "a device reporting nothing returns nils without raising" do
+      metadata = EspIdf.metadata_from_device(%{})
+
+      assert is_nil(metadata.product)
+      assert is_nil(metadata.uuid)
+      assert is_nil(metadata.version)
+      assert is_nil(metadata.description)
+      assert is_nil(metadata.platform)
+      assert is_nil(metadata.architecture)
+    end
+
+    test "derives the same uuid from a device hash as from the image file" do
+      elf_sha256 = :binary.copy(<<0xAB>>, 32)
+      sha_hex = Base.encode16(elf_sha256, case: :lower)
+
+      from_device = EspIdf.metadata_from_device(%{"esp_idf_app_elf_sha256" => sha_hex})
+      from_file = EspIdf.get_firmware_metadata_from_file(write!(image(elf_sha256: elf_sha256)))
+
+      {:ok, %{firmware_metadata: from_file_meta}} = from_file
+      assert from_device.uuid == from_file_meta.uuid
+    end
+  end
 end

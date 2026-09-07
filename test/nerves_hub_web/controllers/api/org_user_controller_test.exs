@@ -98,6 +98,11 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
   end
 
   describe "invite user" do
+    test "returns 400 when email or role are missing", %{conn: conn, org: org} do
+      conn = post(conn, Routes.api_org_user_path(conn, :invite, org.name), %{})
+      assert conn.status == 400
+    end
+
     test "renders org_user when data is valid", %{conn: conn, org: org} do
       org_user = %{"email" => "bogus@example.com", "role" => "manage"}
       conn = post(conn, Routes.api_org_user_path(conn, :invite, org.name), org_user)

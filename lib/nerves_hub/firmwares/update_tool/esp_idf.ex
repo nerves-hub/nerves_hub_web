@@ -127,6 +127,9 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
   def file_extension(), do: ".bin"
 
   @impl UpdateTool
+  def key_scheme(), do: :secure_boot_v2_rsa
+
+  @impl UpdateTool
   def recognises?(filepath) do
     case read_header(filepath) do
       {:ok, <<@image_magic, _::binary-size(0x1F), @app_desc_magic::little-32, _::binary>>} -> true
@@ -375,7 +378,7 @@ defmodule NervesHub.Firmwares.UpdateTool.EspIdf do
   # Ed25519 key. Keys of another scheme are not candidates.
   defp match_org_key(%{version: @sig_version_rsa} = block, keys) do
     keys
-    |> Enum.filter(&(&1.scheme == :secure_boot_v2_rsa))
+    |> Enum.filter(&(&1.scheme == key_scheme()))
     |> Enum.find(&rsa_signature_valid?(block, &1))
     |> case do
       %OrgKey{} = key -> {:ok, key}

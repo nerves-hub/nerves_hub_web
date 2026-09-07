@@ -174,7 +174,7 @@ defmodule NervesHubWeb.Live.Org.IrohEndpointsTest do
     test "filters to endpoints with no owner", %{conn: conn, org: org} do
       conn
       |> visit(path(org))
-      |> select("Unassigned", from: "Owner")
+      |> select("Owner", option: "Unassigned")
       |> assert_has("div", text: "abababababababab")
       |> refute_has("div", text: String.slice(@endpoint_id, 0, 16))
     end
@@ -219,7 +219,7 @@ defmodule NervesHubWeb.Live.Org.IrohEndpointsTest do
       |> visit(path(org))
       |> click_button("Register Endpoint")
       |> fill_in("Endpoint id", with: @endpoint_id)
-      |> select(user.name, from: "Belongs to")
+      |> select("Belongs to", option: "Jeff")
       |> submit()
       |> assert_has("div", text: "Endpoint registered")
       |> assert_has("span", text: user.name)

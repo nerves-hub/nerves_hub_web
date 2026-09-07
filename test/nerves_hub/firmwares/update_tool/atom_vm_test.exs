@@ -349,6 +349,53 @@ defmodule NervesHub.Firmwares.UpdateTool.AtomVMTest do
     end
   end
 
+  describe "get_firmware_metadata_from_upload/1" do
+    test "reads metadata from a packbeam served over HTTP" do
+      binary = Builder.packbeam(product: "blinky", version: "3.1.4")
+
+      Req.Test.stub(NervesHub, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/octet-stream")
+        |> Plug.Conn.send_resp(200, binary)
+      end)
+
+      firmware = %{id: 1, upload_metadata: %{"public_path" => "http://example.test/blinky.avm"}}
+
+      assert {:ok, %{firmware_metadata: metadata, tool: "atomvm"}} =
+               AtomVM.get_firmware_metadata_from_upload(firmware)
+
+      assert metadata.product == "blinky"
+      assert metadata.version == "3.1.4"
+    end
+
+    test "returns an error when the download fails" do
+      Req.Test.stub(NervesHub, fn conn -> Plug.Conn.send_resp(conn, 404, "not found") end)
+
+      firmware = %{id: 2, upload_metadata: %{"public_path" => "http://example.test/missing.avm"}}
+
+      assert {:error, {:download_failed, 404}} = AtomVM.get_firmware_metadata_from_upload(firmware)
+    end
+  end
+
+  describe "signatures, edge cases" do
+    test "a key with a non-binary key field is skipped rather than crashing" do
+      {_public, seed} = Builder.keypair()
+      path = write!(Builder.sign(Builder.packbeam(), seed))
+
+      assert {:error, :invalid_signature} = AtomVM.verify_signature(path, [org_key(42)])
+    end
+
+    test "a signature entry whose payload does not start with NH1 is refused as malformed" do
+      {_public, seed} = Builder.keypair()
+      signed = Builder.sign(Builder.packbeam(), seed)
+
+      # Replace the "NH1" magic in the signature payload with "XXX".
+      corrupted = :binary.replace(signed, "NH1", "XXX")
+
+      assert {:error, :malformed_signature} = AtomVM.verify_signature(write!(corrupted), [])
+    end
+  end
+
   describe "device metadata" do
     test "recognises what an AtomVM device reports" do
       assert AtomVM.recognises_device_metadata?(%{"atomvm_app_name" => "blinky"})

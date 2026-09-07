@@ -39,8 +39,11 @@ Key runtime pieces:
 - **Deployment orchestration** — one singleton `Orchestrator` process per
   deployment group, owned by ProcessHub (`NervesHub.ManagedDeployments.Distributed`).
 - **Presence/liveness** — `NervesHub.Tracker` + Phoenix Presence.
-- **Cross-node messaging** — `Phoenix.PubSub` on per-entity topics (per device,
-  per product, per firmware, …).
+- **Cross-node messaging** — two transports. `Phoenix.PubSub` for dense
+  fan-out, and the `group` library for per-entity topics whose consumers are
+  sparse (per device, per console session, per product, per firmware). See
+  [docs/cross_node_messaging.md](docs/cross_node_messaging.md) for which is
+  which and how to choose for something new.
 
 ## Repository layout
 
@@ -56,6 +59,10 @@ rel/                  Release config
 docs/                 Design docs
 ```
 
+Every environment variable `config/runtime.exs` reads is documented in
+[docs/runtime_configuration.md](docs/runtime_configuration.md); keep it in step
+when adding or removing one.
+
 ### `lib/nerves_hub/` (contexts)
 
 - `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes.
@@ -66,10 +73,16 @@ docs/                 Design docs
   `Distributed.Orchestrator` (one per deployment).
 - `firmwares.ex` / `firmwares/` and `archives.ex` / `archives/` — firmware and
   archive artifacts, uploads, and firmware **delta** building.
-- `products.ex` / `products/` — products and product settings.
+- `products.ex` / `products/` — products and product settings, including
+  health profiles (the per-product thresholds behind device health status,
+  evaluated in `devices/health_evaluation.ex`).
 - `extensions.ex` / `extensions/` — the device **extension framework**
-  (`health`, `geo`, `local_shell`, `logging`, `network_identity`); extensions
-  attach per-device and exchange messages over the extensions channel.
+  (`health`, `geo`, `local_shell`, `logging`, `network_identity`,
+  `error_reports`); extensions attach per-device and exchange messages over the
+  extensions channel.
+- `error_reports.ex` / `error_reports/` — exceptions devices report, grouped
+  into issues. Split across both stores: the group in Postgres, the
+  occurrences in ClickHouse. See [docs/error_reports.md](docs/error_reports.md).
 - `scripts.ex` / `scripts/` — support scripts run against a device console.
 - `workers/` — Oban workers (e.g. firmware delta building, firmware deletion).
 - Cross-cutting: `audit_logs.ex`, `product_notifications.ex`, `tracker.ex`,

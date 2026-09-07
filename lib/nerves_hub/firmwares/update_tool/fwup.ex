@@ -29,6 +29,9 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   def file_extension(), do: ".fw"
 
   @impl UpdateTool
+  def key_scheme(), do: :ed25519
+
+  @impl UpdateTool
   def recognises?(filepath) do
     # A .fw archive is a zip, so it starts with the local file header magic.
     case File.open(filepath, [:read, :binary], &IO.binread(&1, 4)) do
@@ -42,7 +45,7 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     # Only Ed25519 keys are fwup keys. An org may also hold Secure Boot v2 RSA
     # keys, which are PEM and would just be handed to `fwup --verify` as a
     # multi-line argument that can never match.
-    case Enum.filter(keys, &(&1.scheme == :ed25519)) do
+    case Enum.filter(keys, &(&1.scheme == key_scheme())) do
       [] -> {:error, :no_public_keys}
       candidates -> find_signing_key(filepath, candidates)
     end

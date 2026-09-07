@@ -1,14 +1,8 @@
-## Cap the largest multiblock carrier for the binary and heap allocators at
-## 512KB, down from the 5MB default. Smaller carriers mean the allocator hands
-## memory back to the OS in smaller pieces, which matters on a device node
-## where RSS is dominated by connection churn rather than steady-state size.
-##
-## The `as`, `acul` and `smbcs` settings that used to sit here were removed:
-## every one of them restated the OTP default (aoffcbf, 0, and 256KB
-## respectively, for both binary_alloc and eheap_alloc), so they only made it
-## look like more tuning had happened than actually had. Check before adding
-## more:
-##
-##   erlang:system_info({allocator, binary_alloc}) -> options -> lmbcs/smbcs/as/acul
+## Carrier size for the binary and heap allocators. Removing these was measured
+## in production and cost 262MB of RSS. See #2981.
 +MBlmbcs 512
 +MHlmbcs 512
+
+## Scheduler count is set per deployment via ELIXIR_ERL_OPTIONS, not here: this
+## file ships in the release and web and device nodes share the image. It costs
+## memory as well as CPU, since allocator instances follow it. See #2981.
