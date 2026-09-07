@@ -76,6 +76,20 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
       assert d2.identifier in v2_ids
       refute d1.identifier in v2_ids
     end
+
+    test "Unknown matches only devices which haven't reported a firmware version", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      unreported = Fixtures.device_fixture(org, product, firmware, %{firmware_metadata: nil})
+      reported = Fixtures.device_fixture(org, product, firmware)
+
+      result = DeviceFiltering.filter(base_query(product), %{}, :firmware_version, "Unknown") |> identifiers()
+
+      assert unreported.identifier in result
+      refute reported.identifier in result
+    end
   end
 
   describe "filter/4 :tags" do

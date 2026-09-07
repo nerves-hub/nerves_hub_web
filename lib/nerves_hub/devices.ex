@@ -271,25 +271,38 @@ defmodule NervesHub.Devices do
     |> Repo.fetch()
   end
 
-  defp get_by_identifier_query(%Scope{org: org}, identifier, preload_assoc) when not is_nil(org) do
+  defp get_by_identifier_query(%Scope{org: org} = scope, identifier, preload_assoc) when not is_nil(org) do
     Device
     |> join(:left, [d], o in assoc(d, :org), as: :org)
     |> where(identifier: ^identifier)
     |> where(org_id: ^org.id)
+    |> scope_to_product(scope)
     |> preload([org: o], org: o)
     |> join_and_preload_deployment_group_and_current_release()
     |> join_and_preload(preload_assoc)
   end
 
-  defp get_by_identifier_query(%Scope{user: user}, identifier, preload_assoc) when not is_nil(user) do
+  defp get_by_identifier_query(%Scope{user: user} = scope, identifier, preload_assoc) when not is_nil(user) do
     Device
     |> join(:left, [d], o in assoc(d, :org), as: :org)
     |> join(:left, [d, o], u in assoc(o, :users), as: :users)
     |> where(identifier: ^identifier)
     |> where([users: u], u.id == ^user.id)
+    |> scope_to_product(scope)
     |> preload([org: o], org: o)
     |> join_and_preload_deployment_group_and_current_release()
     |> join_and_preload(preload_assoc)
+  end
+
+  # A route carrying a :product_name segment puts the product on the scope, and
+  # then the URL has to mean what it says: without this, a device was reachable
+  # under any sibling product in the same org. The top-level /api/devices/:identifier
+  # routes carry no product at all, so scoping only when one is present is what
+  # keeps those working.
+  defp scope_to_product(query, %Scope{product: nil}), do: query
+
+  defp scope_to_product(query, %Scope{product: product}) do
+    where(query, product_id: ^product.id)
   end
 
   @doc """
@@ -761,6 +774,29 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
+  Get distinct firmware versions currently reported by the product's devices,
+  newest first.
+
+  This is the set of versions actually in use, which is a subset of the
+  firmware uploaded to the product.
+  """
+  def firmware_versions(product_id) do
+    Device
+    |> where([d], d.product_id == ^product_id)
+    |> where([d], not is_nil(fragment("?->>'version'", d.firmware_metadata)))
+    # `SELECT DISTINCT` requires the sort expression in the select list, so the
+    # semver key comes back alongside the version and is dropped afterwards.
+    |> select([d], %{
+      version: fragment("?->>'version'", d.firmware_metadata),
+      sort_key: fragment(~s|semver_sort_key(?->>'version') COLLATE "C"|, d.firmware_metadata)
+    })
+    |> distinct(true)
+    |> order_by([d], fragment(~s|semver_sort_key(?->>'version') COLLATE "C" DESC NULLS LAST|, d.firmware_metadata))
+    |> Repo.all()
+    |> Enum.map(& &1.version)
+  end
+
+  @doc """
   Get distinct tags currently used across devices in the product
   """
   def distinct_tags(product_id) do
@@ -853,5 +889,34 @@ defmodule NervesHub.Devices do
     |> where(product_id: ^product.id)
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Counts the product's devices by the firmware version they last reported,
+  largest group first, then newest version first for groups of equal size.
+
+  Devices which haven't reported any firmware metadata yet are grouped under a
+  `nil` version.
+
+  Distinct from `firmware_versions/1`, which lists the versions for the devices
+  list's filter dropdown: that one keeps soft-deleted devices so the "Only
+  deleted devices" filter still has options, where this one drops them so the
+  counts add up to the product's fleet size.
+  """
+  @spec firmware_version_counts(Product.t()) :: [%{version: String.t() | nil, count: non_neg_integer()}]
+  def firmware_version_counts(product) do
+    Device
+    |> where(product_id: ^product.id)
+    |> Repo.exclude_deleted()
+    |> group_by([d], fragment("? ->> 'version'", d.firmware_metadata))
+    |> select([d], %{
+      version: fragment("? ->> 'version'", d.firmware_metadata),
+      count: count(d.id)
+    })
+    |> order_by([d], [
+      {:desc, count(d.id)},
+      {:desc_nulls_last, fragment(~s|semver_sort_key(? ->> 'version') COLLATE "C"|, d.firmware_metadata)}
+    ])
+    |> Repo.all()
   end
 end

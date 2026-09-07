@@ -9,6 +9,11 @@ defmodule NervesHubWeb.WebErrorViewTest do
              "Sorry, we tried to process your request but something went wrong."
   end
 
+  test "render 404.html" do
+    assert render_to_string(NervesHubWeb.ErrorHTML, "404", "html", []) =~
+             "Sorry, the page you are looking can't be found."
+  end
+
   test "render 400.html" do
     assert render_to_string(NervesHubWeb.ErrorHTML, "400", "html", []) =~
              "Sorry, your request was invalid or corrupted."
