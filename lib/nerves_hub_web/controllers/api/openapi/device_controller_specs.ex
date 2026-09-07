@@ -53,6 +53,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
           * `connection = "connected" and tags contains "prod"`
           * `health_status != "healthy" or alarm_status = "with"`
           * `metric:battery_soc < 20 and updates = "enabled"`
+          * `firmware_validation_status = "not_validated"`
           """,
           example: ~s|metric:cpu_temp > 70 and connection = "connected"|
         },
@@ -61,6 +62,10 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         connection: %OpenApiSpex.Schema{type: :string, enum: ["connected", "disconnected", "not_seen"]},
         deployment_id: %OpenApiSpex.Schema{type: :string, example: "12"},
         display_deleted: %OpenApiSpex.Schema{type: :string, enum: ["include", "exclude", "only"]},
+        firmware_validation_status: %OpenApiSpex.Schema{
+          type: :string,
+          enum: ["validated", "not_validated", "unknown"]
+        },
         firmware_version: %OpenApiSpex.Schema{type: :string, example: "1.10.0"},
         has_no_tags: %OpenApiSpex.Schema{type: :string, enum: ["true", "false"]},
         health_status: %OpenApiSpex.Schema{
