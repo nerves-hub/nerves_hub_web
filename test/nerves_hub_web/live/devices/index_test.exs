@@ -390,6 +390,25 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> refute_has("a", text: device2.identifier)
     end
 
+    test "the firmware dropdown only lists versions devices are running", %{
+      conn: conn,
+      fixture: fixture,
+      tmp_dir: tmp_dir
+    } do
+      %{device: device, org: org, product: product, user: user} = fixture
+
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      # uploaded to the product, but no device is running it
+      _unused = Fixtures.firmware_fixture(org_key, product, %{version: "9.9.9", dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+      |> assert_has("#input_firmware_version option", text: device.firmware_metadata.version, timeout: 1000)
+      |> refute_has("#input_firmware_version option", text: "9.9.9")
+    end
+
     # `Devices.filter/3` preloads only the columns behind the health icon and its
     # tooltip, so this asserts the tooltip still has what it renders from.
     test "renders the health tooltip from the trimmed preload", %{conn: conn, fixture: fixture} do

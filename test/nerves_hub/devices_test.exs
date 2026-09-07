@@ -450,6 +450,50 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "firmware_versions/1" do
+    setup %{org: org, user: user, firmware: firmware} do
+      product = Fixtures.product_fixture(user, org, %{name: "Firmware Versions Product"})
+
+      running = fn version ->
+        {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+
+        Fixtures.device_fixture(org, product, firmware, %{
+          firmware_metadata: Map.put(metadata, :version, version)
+        })
+      end
+
+      %{product: product, running: running}
+    end
+
+    test "returns the distinct versions devices are running, newest first", %{
+      product: product,
+      running: running
+    } do
+      for version <- ["1.9.0", "1.10.0", "1.10.0-rc1", "1.9.0"], do: running.(version)
+
+      assert Devices.firmware_versions(product.id) == ["1.10.0", "1.10.0-rc1", "1.9.0"]
+    end
+
+    test "is scoped to the given product", %{product: product, running: running} do
+      # setup already created three devices in the other product
+      running.("1.9.0")
+
+      assert Devices.firmware_versions(product.id) == ["1.9.0"]
+    end
+
+    test "ignores devices which haven't reported firmware", %{
+      org: org,
+      product: product,
+      firmware: firmware,
+      running: running
+    } do
+      running.("1.9.0")
+      _ = Fixtures.device_fixture(org, product, firmware, %{firmware_metadata: nil})
+
+      assert Devices.firmware_versions(product.id) == ["1.9.0"]
+    end
+  end
+
   describe "disable_updates_for_devices/2" do
     test "can disable updates for multiple devices", %{
       user: user,

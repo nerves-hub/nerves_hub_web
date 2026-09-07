@@ -774,6 +774,29 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
+  Get distinct firmware versions currently reported by the product's devices,
+  newest first.
+
+  This is the set of versions actually in use, which is a subset of the
+  firmware uploaded to the product.
+  """
+  def firmware_versions(product_id) do
+    Device
+    |> where([d], d.product_id == ^product_id)
+    |> where([d], not is_nil(fragment("?->>'version'", d.firmware_metadata)))
+    # `SELECT DISTINCT` requires the sort expression in the select list, so the
+    # semver key comes back alongside the version and is dropped afterwards.
+    |> select([d], %{
+      version: fragment("?->>'version'", d.firmware_metadata),
+      sort_key: fragment(~s|semver_sort_key(?->>'version') COLLATE "C"|, d.firmware_metadata)
+    })
+    |> distinct(true)
+    |> order_by([d], fragment(~s|semver_sort_key(?->>'version') COLLATE "C" DESC NULLS LAST|, d.firmware_metadata))
+    |> Repo.all()
+    |> Enum.map(& &1.version)
+  end
+
+  @doc """
   Get distinct tags currently used across devices in the product
   """
   def distinct_tags(product_id) do
