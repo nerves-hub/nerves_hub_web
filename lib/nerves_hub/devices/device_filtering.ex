@@ -13,6 +13,7 @@ defmodule NervesHub.Devices.DeviceFiltering do
     connection: "",
     connection_type: "",
     firmware_version: "",
+    firmware_validation_status: "",
     platform: "",
     healthy: "",
     health_status: "",
@@ -37,6 +38,7 @@ defmodule NervesHub.Devices.DeviceFiltering do
     connection: :string,
     connection_type: :string,
     firmware_version: :string,
+    firmware_validation_status: :string,
     platform: :string,
     healthy: :string,
     health_status: :string,
@@ -176,6 +178,11 @@ defmodule NervesHub.Devices.DeviceFiltering do
   # this stays a direct comparison.
   def filter(query, _filters, :firmware_version, value) do
     where(query, [d], d.firmware_metadata["version"] == ^value)
+  end
+
+  def filter(query, _filters, :firmware_validation_status, value)
+      when value in ["validated", "not_validated", "unknown"] do
+    advanced(query, "firmware_validation_status", "=", value)
   end
 
   def filter(query, _filters, :platform, "Unknown") do

@@ -168,6 +168,25 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
 
   defp comparison_dynamic("architecture", "!=", value), do: dynamic([d], d.firmware_metadata["architecture"] != ^value)
 
+  # Whether the device reported its running firmware as validated. The column is
+  # nullable, and a device that has never reported reads as "unknown" - so the
+  # null is folded in rather than left to drop out of both sides of the compare.
+  defp comparison_dynamic("firmware_validation_status", "=", "unknown"),
+    do: dynamic([d], d.firmware_validation_status == :unknown or is_nil(d.firmware_validation_status))
+
+  defp comparison_dynamic("firmware_validation_status", "!=", "unknown"),
+    do: dynamic([d], not is_nil(d.firmware_validation_status) and d.firmware_validation_status != :unknown)
+
+  defp comparison_dynamic("firmware_validation_status", "=", value) do
+    status = String.to_existing_atom(value)
+    dynamic([d], d.firmware_validation_status == ^status)
+  end
+
+  defp comparison_dynamic("firmware_validation_status", "!=", value) do
+    status = String.to_existing_atom(value)
+    dynamic([d], is_nil(d.firmware_validation_status) or d.firmware_validation_status != ^status)
+  end
+
   # The sentinel value matches devices with no tags. `array_length` returns NULL
   # for both a NULL column and an empty array, so COALESCE treats both as 0.
   defp comparison_dynamic("tags", "contains", @not_set_value),

@@ -764,6 +764,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
         "last_seen" => AdvancedQuery.Schema.last_seen_values(nil),
         "tags" => assigns.advanced_query_tags ++ [AdvancedQuery.Schema.not_set_value()],
         "health_status" => AdvancedQuery.Schema.health_status_values(nil),
+        "firmware_validation_status" => AdvancedQuery.Schema.firmware_validation_status_values(nil),
         "connection_type" => AdvancedQuery.Schema.connection_type_values(nil),
         "updates" => AdvancedQuery.Schema.updates_values(nil),
         "alarm_status" => AdvancedQuery.Schema.alarm_status_values(nil),
