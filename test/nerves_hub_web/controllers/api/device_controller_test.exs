@@ -461,6 +461,45 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       |> assert_authorization_error(404)
     end
 
+    test "device from another product in the same org, using nested url", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "Owning"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      sibling = Fixtures.product_fixture(user, org, %{name: "Sibling"})
+
+      assert_error_sent(404, fn ->
+        get(conn, Routes.api_device_path(conn, :show, org.name, sibling.name, device.identifier))
+      end)
+      |> assert_authorization_error(404)
+    end
+
+    test "short url resolves a device even when the org has other products", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "Owning"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      # No product in this URL, so nothing to scope to. Guards the conditional
+      # in Devices.scope_to_product/2.
+      _sibling = Fixtures.product_fixture(user, org, %{name: "Sibling"})
+
+      conn = get(conn, Routes.api_device_path(conn, :show, device.identifier))
+
+      assert json_response(conn, 200)["data"]["identifier"] == device.identifier
+    end
+
     test "deleted device can be queried", %{
       conn: conn,
       user: user,

@@ -18,5 +18,13 @@ defmodule NervesHubWeb.FirmwareControllerTest do
 
       assert redirected_to(conn) == firmware.upload_metadata.public_path
     end
+
+    test "404s for firmware that does not exist", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+
+      assert_error_sent(404, fn ->
+        get(conn, ~p"/org/#{org}/#{product}/firmware/#{Ecto.UUID.generate()}/download")
+      end)
+    end
   end
 end

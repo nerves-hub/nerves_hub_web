@@ -2,11 +2,6 @@ defmodule NervesHubWeb.DeviceControllerTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Devices.Certificates
-  alias NervesHub.Fixtures
-
-  setup %{user: user, org: org} do
-    [product: Fixtures.product_fixture(user, org)]
-  end
 
   describe "certificates" do
     test "download certificate for device", %{

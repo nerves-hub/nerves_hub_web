@@ -7,17 +7,25 @@ defmodule NervesHubWeb.DownloadController do
   plug(:validate_role, org: :view)
 
   def archive(%{assigns: %{current_scope: scope}} = conn, %{"uuid" => uuid}) do
-    {:ok, archive} = Archives.get(scope.product, uuid)
+    case Archives.get(scope.product, uuid) do
+      {:ok, archive} ->
+        redirect(conn, external: Archives.url(archive))
 
-    redirect(conn, external: Archives.url(archive))
+      {:error, :not_found} ->
+        raise NervesHubWeb.NotFoundError
+    end
   end
 
   def firmware(%{assigns: %{current_scope: scope}} = conn, %{"uuid" => uuid}) do
-    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(scope.product, uuid)
+    case Firmwares.get_firmware_by_product_and_uuid(scope.product, uuid) do
+      {:ok, firmware} ->
+        {:ok, url} = firmware_uploader().download_file(firmware)
 
-    {:ok, url} = firmware_uploader().download_file(firmware)
+        redirect(conn, external: url)
 
-    redirect(conn, external: url)
+      {:error, :not_found} ->
+        raise NervesHubWeb.NotFoundError
+    end
   end
 
   defp firmware_uploader(), do: Application.get_env(:nerves_hub, :firmware_upload)
