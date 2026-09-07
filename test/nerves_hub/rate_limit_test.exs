@@ -3,8 +3,13 @@ defmodule NervesHub.RateLimitTest do
 
   alias NervesHub.RateLimit
 
+  # The bucket is global and keyed by the current second, and these tests
+  # deliberately fill it past the limit. Clearing it on the way out as well as
+  # on the way in keeps the next test in the same second from being rejected by
+  # `NervesHub.DeviceSSLTransport`, which reads the same counter.
   setup do
     :ets.delete_all_objects(:nerves_hub_rate_limit)
+    on_exit(fn -> :ets.delete_all_objects(:nerves_hub_rate_limit) end)
     :ok
   end
 
