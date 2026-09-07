@@ -93,6 +93,13 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
 
       {:ok, delta} = Firmwares.start_firmware_delta(source_firmware.id, target_firmware.id)
 
+      # Capture the work directory the builder actually uses, so the cleanup
+      # assertions below can be scoped to this test rather than to global state.
+      stub(Fwup, :create_firmware_delta_file, fn source, target, work_dir ->
+        send(self(), {:delta_work_dir, work_dir})
+        Mimic.call_original(Fwup, :create_firmware_delta_file, [source, target, work_dir])
+      end)
+
       assert :ok ==
                FirmwareDeltaBuilder.perform(%Oban.Job{
                  id: Ecto.UUID.generate(),
@@ -108,8 +115,19 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
       assert delta.status == :completed
       assert delta.size > 0
 
-      assert Enum.empty?(:ets.tab2list(Briefly.Entry.Path)),
+      assert_received {:delta_work_dir, work_dir}
+
+      refute File.exists?(work_dir),
              "Work directory should be cleaned up after delta generation"
+
+      # Scoped to this test's own entries on purpose. `Briefly.Entry.Path` is a
+      # single `:named_table, :public` table shared by the whole VM, so asserting
+      # it is empty outright fails whenever a concurrent async test happens to be
+      # holding a temp path of its own. It is keyed by owning pid, and
+      # `perform/1` runs inline here, so this test's work directory is registered
+      # against `self()`.
+      assert :ets.lookup(Briefly.Entry.Path, self()) == [],
+             "Briefly should no longer be holding a work directory for this test"
     end
 
     test "marks delta as failed on final attempt", %{
