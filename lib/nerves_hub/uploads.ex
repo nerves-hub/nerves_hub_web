@@ -77,6 +77,8 @@ defmodule NervesHub.Uploads.S3 do
 
   alias ExAws.S3
 
+  @upload_timeout to_timeout(minute: 1)
+
   def bucket() do
     Application.get_env(:nerves_hub, __MODULE__)[:bucket]
   end
@@ -93,8 +95,14 @@ defmodule NervesHub.Uploads.S3 do
 
   @impl NervesHub.Uploads
   def upload(file_path, key, opts) do
-    bucket()
-    |> S3.put_object(key, File.read!(file_path), Keyword.get(opts, :meta, []))
+    # Stream the file up in parts rather than reading it whole. Archives and
+    # firmware images run to tens of megabytes, and `File.read!/1` put the
+    # entire thing in the calling process as one binary -- a spike the size of
+    # the file per upload, several times that when a few land together.
+    # `NervesHub.Firmwares.Upload.S3` already uploads this way.
+    file_path
+    |> S3.Upload.stream_file()
+    |> S3.upload(bucket(), key, [timeout: @upload_timeout] ++ Keyword.take(opts, [:meta]))
     |> ExAws.request!()
 
     :ok

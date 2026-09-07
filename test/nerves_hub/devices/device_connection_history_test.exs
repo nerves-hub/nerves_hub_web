@@ -71,13 +71,37 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
         last_seen_at: ~U[2020-01-01 00:05:00.000000Z]
       }
 
-      before = DateTime.utc_now() |> DateTime.to_unix()
+      one_second = 1_000_000
+      before = System.system_time(:microsecond)
       changes = DeviceConnectionHistory.from_device_connection_changeset(connection).changes
-      later = DateTime.utc_now() |> DateTime.to_unix()
 
-      # version tracks the current time at insert, independent of last_seen_at
+      # version tracks the current time at insert, independent of last_seen_at -
+      # it can sit a hair past the clock when a tie has to be broken, so the
+      # upper bound is loose
       assert changes.version >= before
-      assert changes.version <= later
+      assert changes.version <= before + one_second
+    end
+
+    test "successive rows for the same connection get strictly increasing versions" do
+      connection = %DeviceConnection{
+        id: UUIDv7.generate(),
+        org_id: 1,
+        product_id: 2,
+        device_id: 3,
+        established_at: DateTime.utc_now(),
+        last_seen_at: DateTime.utc_now()
+      }
+
+      # every row for a connection shares the ReplacingMergeTree's sorting key,
+      # so the versions have to break the tie - ties are resolved arbitrarily by
+      # ClickHouse and the disconnect could lose to an earlier row
+      versions =
+        Enum.map(1..25, fn _ ->
+          DeviceConnectionHistory.from_device_connection_changeset(connection).changes.version
+        end)
+
+      assert versions == Enum.sort(versions)
+      assert versions == Enum.uniq(versions)
     end
 
     test "the version does not depend on last_seen_at" do
@@ -89,7 +113,8 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
         established_at: ~U[2026-06-20 10:00:00.000000Z]
       }
 
-      now = DateTime.utc_now() |> DateTime.to_unix()
+      now = DateTime.utc_now() |> DateTime.to_unix(:microsecond)
+      one_second = 1_000_000
 
       old_last_seen =
         DeviceConnectionHistory.from_device_connection_changeset(%{base | last_seen_at: ~U[2020-01-01 00:00:00Z]})
@@ -98,8 +123,42 @@ defmodule NervesHub.Devices.DeviceConnectionHistoryTest do
         DeviceConnectionHistory.from_device_connection_changeset(%{base | last_seen_at: ~U[2026-06-20 10:05:00Z]})
 
       # both are versioned by insert time, not by their (very different) last_seen_at
-      assert_in_delta old_last_seen.changes.version, now, 2
-      assert_in_delta new_last_seen.changes.version, now, 2
+      assert_in_delta old_last_seen.changes.version, now, 2 * one_second
+      assert_in_delta new_last_seen.changes.version, now, 2 * one_second
+    end
+
+    test "mark_as_stale_and_disconnected_changeset bumps the version past the row it carries forward" do
+      ref = UUIDv7.generate()
+
+      # version the carried forward row the way the writer would have, so the
+      # bump has to beat it even when both land in the same microsecond
+      carried_forward_version =
+        %DeviceConnection{
+          id: ref,
+          org_id: 1,
+          product_id: 2,
+          device_id: 3,
+          established_at: ~U[2026-06-20 10:00:00.000000Z],
+          last_seen_at: ~U[2026-06-20 10:05:00.000000Z]
+        }
+        |> DeviceConnectionHistory.from_device_connection_changeset()
+        |> Map.fetch!(:changes)
+        |> Map.fetch!(:version)
+
+      history = %DeviceConnectionHistory{
+        org_id: 1,
+        product_id: 2,
+        device_id: 3,
+        ref: ref,
+        established_at: ~U[2026-06-20 10:00:00.000000Z],
+        last_seen_at: ~U[2026-06-20 10:05:00.000000Z],
+        version: carried_forward_version
+      }
+
+      changes = DeviceConnectionHistory.mark_as_stale_and_disconnected_changeset(history).changes
+
+      assert changes.disconnected_reason == "Stale connection"
+      assert changes.version > history.version
     end
   end
 end

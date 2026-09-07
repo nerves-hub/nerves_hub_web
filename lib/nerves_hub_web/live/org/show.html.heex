@@ -18,14 +18,19 @@
       <div class="text-base-50 text-sm font-semibold">
         <.link navigate={~p"/org/#{@org}/#{product}/insights"}>{product.name}</.link>
       </div>
+      <% product_counts = Map.get(assigns, :"product_counts_#{product.id}") %>
+      <% {connected, disconnected} =
+        if product_counts && product_counts.ok?,
+          do: product_counts.result,
+          else: {nil, nil} %>
       <div class="flex gap-4 text-sm font-medium">
         <div class="flex items-center gap-1.5">
           <div class="bg-status-online size-2 rounded-full"></div>
-          <span class="product-connected-devices-count text-base-300">{product.connected_devices_count}</span>
+          <span class="product-connected-devices-count text-base-300">{if connected, do: connected, else: "—"}</span>
         </div>
         <div class="flex items-center gap-1.5">
           <div class="bg-status-offline size-2 rounded-full"></div>
-          <span class="product-disconnected-devices-count text-base-400">{product.disconnected_devices_count}</span>
+          <span class="product-disconnected-devices-count text-base-400">{if disconnected, do: disconnected, else: "—"}</span>
         </div>
       </div>
     </div>

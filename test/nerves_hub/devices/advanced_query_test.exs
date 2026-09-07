@@ -133,6 +133,20 @@ defmodule NervesHub.Devices.AdvancedQueryTest do
       assert via_filter(product, user, ~s|health_status = "healthy"|) == ["tagged"]
     end
 
+    # `latest_health` is preloaded from a narrowed query, so the join is the only
+    # thing left serving filters that read `data` in SQL. The compiler tests
+    # supply their own bindings and would not catch the join going away.
+    test "alarm_status reads data off the latest_health join", %{product: product, user: user} do
+      assert via_filter(product, user, ~s|alarm_status = "with"|) == ["tagged"]
+
+      assert via_filter(product, user, ~s|alarm_status = "without"|) ==
+               ["connected", "never_connected", "untagged"]
+    end
+
+    test "alarm reads the alarm name off the latest_health join", %{product: product, user: user} do
+      assert via_filter(product, user, ~s|alarm contains "SomeAlarm"|) == ["tagged"]
+    end
+
     test "connection uses the latest_connection binding", %{product: product, user: user} do
       assert via_filter(product, user, ~s|connection = "connected"|) == ["connected"]
     end

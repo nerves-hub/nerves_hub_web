@@ -5,8 +5,127 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   import Ecto.Query
 
-  alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.AdvancedQuery.Compiler
+  alias NervesHub.Devices.AdvancedQuery.Schema
   alias NervesHub.Types.Tag
+
+  @default_filters %{
+    connection: "",
+    connection_type: "",
+    firmware_version: "",
+    platform: "",
+    healthy: "",
+    health_status: "",
+    identifier: "",
+    tags: "",
+    updates: "",
+    has_no_tags: false,
+    alarm_status: "",
+    alarm: "",
+    metrics_key: "",
+    metrics_operator: "gt",
+    metrics_value: "",
+    deployment_id: "",
+    is_pinned: false,
+    search: "",
+    display_deleted: "exclude",
+    only_updating: false,
+    advanced_query: ""
+  }
+
+  @filter_types %{
+    connection: :string,
+    connection_type: :string,
+    firmware_version: :string,
+    platform: :string,
+    healthy: :string,
+    health_status: :string,
+    identifier: :string,
+    tags: :string,
+    updates: :string,
+    has_no_tags: :boolean,
+    alarm_status: :string,
+    alarm: :string,
+    metrics_key: :string,
+    metrics_operator: :string,
+    metrics_value: :string,
+    deployment_id: :string,
+    is_pinned: :boolean,
+    search: :string,
+    display_deleted: :string,
+    only_updating: :boolean,
+    advanced_query: :string
+  }
+
+  @default_sort %{sort_direction: "asc", sort: "identifier"}
+  @sort_types %{sort_direction: :string, sort: :string}
+  @sortable_fields ~w(identifier connection_established_at connection_last_seen_at tags)
+  @sort_directions ~w(asc desc)
+
+  def default_filters(), do: @default_filters
+
+  def default_sort(), do: @default_sort
+
+  @doc """
+  Casts raw (string-keyed) params into the filter map, applying defaults for
+  any missing values.
+  """
+  def parse_filters(params) do
+    Map.merge(@default_filters, filter_changes(params))
+  end
+
+  @doc """
+  Casts raw (string-keyed) params into a sort opts map, applying defaults for
+  any missing/invalid values.
+  """
+  def parse_sort(params) do
+    @default_sort
+    |> Map.merge(sort_changes(params))
+    |> validate_sort()
+  end
+
+  defp validate_sort(%{sort: sort} = sort_opts) when sort not in @sortable_fields do
+    validate_sort(%{sort_opts | sort: @default_sort.sort})
+  end
+
+  defp validate_sort(%{sort_direction: direction} = sort_opts) when direction not in @sort_directions do
+    %{sort_opts | sort_direction: @default_sort.sort_direction}
+  end
+
+  defp validate_sort(sort_opts), do: sort_opts
+
+  def transform_deployment_filter(%{deployment_id: ""} = filters), do: Map.delete(filters, :deployment_id)
+
+  def transform_deployment_filter(%{deployment_id: "-1"} = filters), do: %{filters | deployment_id: nil}
+
+  def transform_deployment_filter(filters), do: %{filters | deployment_id: String.to_integer(filters.deployment_id)}
+
+  @doc """
+  Casts raw (string-keyed) params into only the filter fields present in
+  `params`, without filling in defaults for missing ones.
+  """
+  def filter_changes(params) do
+    # when the metrics key is switched from being selected to being an empty value,
+    # the metrics value is not cleared, this addresses that.
+    params =
+      if params["metrics_key"] == "" do
+        params
+        |> Map.put("metrics_operator", "gt")
+        |> Map.put("metrics_value", "")
+      else
+        params
+      end
+
+    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters), empty_values: []).changes
+  end
+
+  @doc """
+  Casts raw (string-keyed) params into only the sort fields present in
+  `params`, without filling in defaults for missing ones.
+  """
+  def sort_changes(params) do
+    Ecto.Changeset.cast({@default_sort, @sort_types}, params, Map.keys(@default_sort)).changes
+  end
 
   @spec build_filters(Ecto.Query.t(), %{optional(atom) => String.t()}) :: Ecto.Query.t()
   def build_filters(query, filters) do
@@ -26,102 +145,54 @@ defmodule NervesHub.Devices.DeviceFiltering do
   end
 
   def filter(query, _filters, :alarm, alarm) do
-    where(
-      query,
-      [latest_health: lh],
-      fragment(
-        "EXISTS (SELECT 1 FROM jsonb_each_text(?) WHERE value ILIKE ?)",
-        lh.data,
-        ^"%#{alarm}%"
-      )
-    )
+    advanced(query, "alarm", "contains", alarm)
   end
 
-  def filter(query, _filters, :alarm_status, value) do
-    case value do
-      "with" ->
-        where(query, [latest_health: lh], fragment("?->'alarms' != '{}'", lh.data))
-
-      "without" ->
-        where(query, [latest_health: lh], fragment("(? IS NULL OR ?->'alarms' = '{}')", lh, lh.data))
-
-      _ ->
-        query
-    end
-  end
-
-  def filter(query, _filters, :health_status, "unknown") do
-    where(query, [latest_health: lh], lh.status == ^"unknown" or is_nil(lh))
+  def filter(query, _filters, :alarm_status, value) when value in ["with", "without"] do
+    advanced(query, "alarm_status", "=", value)
   end
 
   def filter(query, _filters, :health_status, value) do
-    where(query, [latest_health: lh], lh.status == ^value)
-  end
-
-  def filter(query, _filters, :connection, "not_seen") do
-    where(query, [d], d.status == :registered)
+    advanced(query, "health_status", "=", value)
   end
 
   def filter(query, _filters, :connection, "not_seen_in_seven_days") do
-    seven_days_ago = DateTime.utc_now() |> DateTime.add(-7, :day)
-
-    query
-    |> where([latest_connection: lc], lc.status == :disconnected)
-    |> where([latest_connection: lc], lc.last_seen_at < ^seven_days_ago)
+    advanced(query, "last_seen", "<", "7 days ago")
   end
 
   def filter(query, _filters, :connection, "not_seen_in_fourteen_days") do
-    fourteen_days_ago = DateTime.utc_now() |> DateTime.add(-14, :day)
-
-    query
-    |> where([latest_connection: lc], lc.status == :disconnected)
-    |> where([latest_connection: lc], lc.last_seen_at < ^fourteen_days_ago)
+    advanced(query, "last_seen", "<", "14 days ago")
   end
 
   def filter(query, _filters, :connection, value) do
-    if value == "not_seen" do
-      where(query, [d], d.status == :registered)
-    else
-      where(query, [latest_connection: lc], lc.status == ^value)
-    end
-  end
-
-  def filter(query, _filters, :connection_type, "unknown") do
-    where(query, [latest_connection: lc], lc.network_interface == :unknown or is_nil(lc.network_interface))
+    advanced(query, "connection", "=", value)
   end
 
   def filter(query, _filters, :connection_type, value) do
-    interface = String.to_existing_atom(value)
-    where(query, [latest_connection: lc], lc.network_interface == ^interface)
+    advanced(query, "connection_type", "=", value)
   end
 
+  # The advanced query's `firmware` column matches by UUID, not version, so
+  # this stays a direct comparison.
   def filter(query, _filters, :firmware_version, value) do
     where(query, [d], d.firmware_metadata["version"] == ^value)
   end
 
-  def filter(query, _filters, :platform, value) do
-    if value == "Unknown" do
-      where(query, [d], is_nil(d.firmware_metadata["platform"]))
-    else
-      where(query, [d], d.firmware_metadata["platform"] == ^value)
-    end
+  def filter(query, _filters, :platform, "Unknown") do
+    where(query, [d], is_nil(d.firmware_metadata["platform"]))
   end
 
-  def filter(query, _filters, :updates, value) do
-    case value do
-      "enabled" ->
-        where(query, [d], d.updates_enabled == true)
+  def filter(query, _filters, :platform, value) do
+    advanced(query, "platform", "=", value)
+  end
 
-      "penalty-box" ->
-        where(query, [d], d.updates_blocked_until > fragment("now() at time zone 'utc'"))
-
-      "disabled" ->
-        where(query, [d], d.updates_enabled == false)
-    end
+  def filter(query, _filters, :updates, value)
+      when value in ["enabled", "penalty-box", "disabled", "automatic", "device-managed"] do
+    advanced(query, "updates", "=", value)
   end
 
   def filter(query, _filters, :identifier, value) do
-    where(query, [d], ilike(d.identifier, ^"%#{value}%"))
+    advanced(query, "identifier", "like", "%#{value}%")
   end
 
   def filter(query, _filters, :deployment_id, nil) do
@@ -138,7 +209,7 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   def filter(query, _filters, :has_no_tags, value) do
     if value do
-      where(query, [d], fragment("array_length(?, 1) = 0 or ? IS NULL", d.tags, d.tags))
+      advanced(query, "tags", "contains", Schema.not_set_value())
     else
       query
     end
@@ -150,29 +221,16 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   def filter(query, _filters, :display_deleted, "include"), do: order_by(query, [d], asc_nulls_last: d.deleted_at)
 
-  def filter(query, _filters, :display_deleted, "exclude"), do: where(query, [d], is_nil(d.deleted_at))
+  def filter(query, _filters, :display_deleted, "exclude"), do: advanced(query, "deleted", "=", "false")
 
-  def filter(query, _filters, :display_deleted, "only"), do: where(query, [d], not is_nil(d.deleted_at))
+  def filter(query, _filters, :display_deleted, "only"), do: advanced(query, "deleted", "=", "true")
 
   def filter(query, _filters, :only_updating, false), do: query
 
-  def filter(query, _filters, :only_updating, true), do: where(query, [inflight_update: ifu], not is_nil(ifu))
+  def filter(query, _filters, :only_updating, true), do: advanced(query, "update_status", "is", "updating")
 
   def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
-    search_term = "%#{value}%"
-
-    query
-    |> where(
-      [d],
-      ilike(d.identifier, ^search_term) or
-        ilike(fragment("COALESCE(?->>'version', '')", d.firmware_metadata), ^search_term) or
-        ilike(fragment("COALESCE(?->>'platform', '')", d.firmware_metadata), ^search_term) or
-        fragment(
-          "string_array_to_string(COALESCE(?, ARRAY[]::text[]), ' ', ' ') ILIKE ?",
-          d.tags,
-          ^search_term
-        )
-    )
+    advanced(query, "search", "like", "%#{value}%")
   end
 
   # Ignore any undefined filter.
@@ -218,23 +276,15 @@ defmodule NervesHub.Devices.DeviceFiltering do
 
   defp filter_on_metric(query, %{metrics_key: key, metrics_operator: operator, metrics_value: value})
        when key != "" and value != "" do
-    {value_as_float, _} = Float.parse(value)
-
-    query
-    |> join(:inner, [d], m in DeviceMetric, on: d.id == m.device_id, as: :device_metric)
-    |> where([device_metric: dm], dm.inserted_at == subquery(latest_metric_for_key(key)))
-    |> where([device_metric: dm], dm.key == ^key)
-    |> gt_or_lt(value_as_float, operator)
+    advanced(query, Schema.metric_prefix() <> key, metric_operator(operator), value)
   end
 
   defp filter_on_metric(query, _), do: query
 
-  defp latest_metric_for_key(key) do
-    DeviceMetric
-    |> select([dm], max(dm.inserted_at))
-    |> where([dm], dm.key == ^key)
-  end
+  defp metric_operator("lt"), do: "<"
+  defp metric_operator(_), do: ">"
 
-  defp gt_or_lt(query, value, "gt"), do: where(query, [device_metric: dm], dm.value > ^value)
-  defp gt_or_lt(query, value, "lt"), do: where(query, [device_metric: dm], dm.value < ^value)
+  defp advanced(query, column, operator, value) do
+    where(query, ^Compiler.to_dynamic({:comparison, column, operator, value}))
+  end
 end

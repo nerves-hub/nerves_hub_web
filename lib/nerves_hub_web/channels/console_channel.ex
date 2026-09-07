@@ -2,12 +2,14 @@
 defmodule NervesHubWeb.ConsoleChannel do
   use Phoenix.Channel
 
+  alias NervesHub.Consoles.PubSub
+  alias NervesHubWeb.Channels.Scrollback
   alias Phoenix.Socket.Broadcast
 
   def join("console", payload, socket) do
     send(self(), {:after_join, payload})
 
-    {:ok, assign(socket, %{current_line: "", buffer: CircularBuffer.new(1024)})}
+    {:ok, assign(socket, :scrollback, Scrollback.new())}
   end
 
   def terminate(_, _socket) do
@@ -15,42 +17,28 @@ defmodule NervesHubWeb.ConsoleChannel do
   end
 
   def handle_in("up", payload, socket) do
-    current_line = socket.assigns.current_line <> payload["data"]
-    [current_line | lines] = Enum.reverse(String.split(current_line, "\n"))
+    scrollback = Scrollback.append(socket.assigns.scrollback, payload["data"])
+    socket = assign(socket, :scrollback, scrollback)
 
-    buffer =
-      Enum.reduce(Enum.reverse(lines), socket.assigns.buffer, fn line, buffer ->
-        CircularBuffer.insert(buffer, line <> "\n")
-      end)
-
-    socket =
-      socket
-      |> assign(:current_line, current_line)
-      |> assign(:buffer, buffer)
-
-    user_topic(socket)
-    |> socket.endpoint.broadcast!("up", payload)
+    PubSub.broadcast_to_user_console(device_id(socket), "up", payload)
 
     {:noreply, socket}
   end
 
   def handle_in("file-data/start", payload, socket) do
-    user_topic(socket)
-    |> socket.endpoint.broadcast!("file-data/start", payload)
+    PubSub.broadcast_to_user_console(device_id(socket), "file-data/start", payload)
 
     {:noreply, socket}
   end
 
   def handle_in("file-data", payload, socket) do
-    user_topic(socket)
-    |> socket.endpoint.broadcast!("file-data", payload)
+    PubSub.broadcast_to_user_console(device_id(socket), "file-data", payload)
 
     {:noreply, socket}
   end
 
   def handle_in("file-data/stop", payload, socket) do
-    user_topic(socket)
-    |> socket.endpoint.broadcast!("file-data/stop", payload)
+    PubSub.broadcast_to_user_console(device_id(socket), "file-data/stop", payload)
 
     {:noreply, socket}
   end
@@ -63,13 +51,9 @@ defmodule NervesHubWeb.ConsoleChannel do
     # additionally, this topic isn't needed or used, so we can unsubscribe from it
     socket.endpoint.unsubscribe("console")
 
-    socket.endpoint.subscribe(device_topic(socket))
+    PubSub.join_console(device_id(socket))
 
-    socket.endpoint.broadcast!(
-      device_internal_topic(socket),
-      "console_joined",
-      %{}
-    )
+    PubSub.broadcast_console_joined(device_id(socket))
 
     {:noreply, socket}
   end
@@ -78,14 +62,8 @@ defmodule NervesHubWeb.ConsoleChannel do
     metadata = %{version: socket.assigns.version}
     send(pid, {:metadata, metadata})
 
-    lines = Enum.join(socket.assigns.buffer) <> socket.assigns.current_line
-    send(pid, {:cache, lines})
+    send(pid, {:cache, Scrollback.text(socket.assigns.scrollback)})
 
-    {:noreply, socket}
-  end
-
-  def handle_info({:active?, pid}, socket) do
-    send(pid, :active)
     {:noreply, socket}
   end
 
@@ -94,9 +72,5 @@ defmodule NervesHubWeb.ConsoleChannel do
     {:noreply, socket}
   end
 
-  defp device_topic(socket), do: "device:console:#{socket.assigns.device_info.device_id}"
-
-  defp device_internal_topic(socket), do: "device:console:#{socket.assigns.device_info.device_id}:internal"
-
-  defp user_topic(socket), do: "user:console:#{socket.assigns.device_info.device_id}"
+  defp device_id(socket), do: socket.assigns.device_info.device_id
 end

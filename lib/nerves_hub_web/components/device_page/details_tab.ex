@@ -13,9 +13,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Products
+  alias NervesHub.Products.HealthProfiles
   alias NervesHub.Scripts
+  alias NervesHubWeb.Components.DeviceHealth.MetricLabels
   alias NervesHubWeb.Components.DeviceLocation
+  alias NervesHubWeb.Components.DeviceNetworkIdentities
   alias NervesHubWeb.Components.HealthStatus
+  alias NervesHubWeb.Components.Utils
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -31,7 +36,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     :alarms,
     :extension_overrides,
     :deployment_groups,
-    :available_tags
+    :addable_tags
   ]
 
   def tab_params(_params, _uri, %{assigns: %{device: device}} = socket) do
@@ -39,12 +44,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> assign_support_scripts()
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:update_information, Updates.resolve_update(device))
-    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
+    |> assign_health_display(device)
     |> assign(:alarms, Alarms.current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, device.product))
     |> assign(:delta_available?, false)
     |> assign(:selected_firmware, "")
-    |> assign_available_tags()
+    |> assign_addable_tags()
     |> assign_metadata()
     |> assign_deployment_groups()
     |> cont()
@@ -52,12 +57,48 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   def cleanup(), do: @keys_to_cleanup
 
+  # The health card only renders when the extension is enabled for both the
+  # product and the device, so nothing health-shaped is read otherwise — no
+  # metrics, no labels, no profile resolution. An install that leaves the
+  # health extension off pays none of its query load on this page.
+  defp assign_health_display(socket, device) do
+    if device.product.extensions.health && device.extensions.health do
+      socket
+      |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
+      |> assign(:custom_labels, Products.custom_health_metrics_labels(device.product))
+      |> assign(:featured_keys, featured_keys(device))
+    else
+      socket
+      |> assign(:latest_metrics, %{})
+      |> assign(:custom_labels, %{})
+      |> assign(:featured_keys, nil)
+    end
+  end
+
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
     metadata =
-      if device.latest_health, do: device.latest_health.data["metadata"] || %{}, else: %{}
+      if device.latest_connection, do: device.latest_connection.metadata || %{}, else: %{}
 
-    assign(socket, :metadata, Map.drop(metadata, standard_keys(device)))
+    entries =
+      metadata
+      |> Map.drop(standard_keys(device))
+      |> Enum.reject(fn {_key, value} -> value in ["", nil] end)
+      |> Enum.map(fn {key, value} -> {key, metadata_value(value)} end)
+      |> Enum.sort_by(fn {key, _value} -> key end)
+
+    assign(socket, :metadata_entries, entries)
   end
+
+  # Metadata values arrive as decoded JSON, so they can be strings, numbers,
+  # booleans, or nested structures. Render everything as a string so it can be
+  # both displayed and copied to the clipboard.
+  defp metadata_value(value) when is_binary(value), do: value
+  defp metadata_value(value), do: inspect(value)
+
+  # Values wider than the truncation cap get a hover tooltip revealing the full
+  # value. The threshold roughly matches the value column's max width so short
+  # values that already fit don't get a redundant tooltip.
+  defp long_value?(value), do: String.length(value) > 32
 
   defp assign_support_scripts(%{assigns: %{product: product}} = socket) do
     scripts = Scripts.all_by_product(product)
@@ -72,9 +113,9 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   # Tags already on the device are excluded so the "add tag" suggestions only
   # offer tags that can actually be added.
-  defp assign_available_tags(%{assigns: %{product: product, device: device}} = socket) do
-    available_tags = Devices.distinct_tags_for_product(product) -- (device.tags || [])
-    assign(socket, :available_tags, available_tags)
+  defp assign_addable_tags(%{assigns: %{product: product, device: device}} = socket) do
+    addable_tags = Devices.distinct_tags_for_product(product) -- (device.tags || [])
+    assign(socket, :addable_tags, addable_tags)
   end
 
   defp assign_deployment_groups(%{assigns: %{device: %{status: :provisioned} = device}} = socket) do
@@ -88,8 +129,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def render(assigns) do
-    assigns = Map.put(assigns, :auto_refresh_health, !!assigns.health_check_timer)
-
     ~H"""
     <div
       id="details-tab"
@@ -120,86 +159,30 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <div class="text-base-50 leading-6 font-medium">Health</div>
               <HealthStatus.render device_id={@device.id} health={@device.latest_health} tooltip_position="right" />
             </div>
-            <div class="flex items-center gap-2">
-              <div class="text-base-500 text-xs tracking-wide">
-                <span>Last updated: </span>
-                <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
-                  {Timex.from_now(@latest_metrics["timestamp"])}
-                </time>
-              </div>
-              <div class="text-base-300 text-xs tracking-wide">Auto refresh</div>
-              <div>
-                <button
-                  type="button"
-                  phx-click="toggle-health-check-auto-refresh"
-                  class={[
-                    "border-1.5 focus:ring-focus-ring relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer items-center rounded-full border-transparent transition-colors duration-200 ease-in-out focus:ring-1 focus:ring-offset-2 focus:outline-none",
-                    (@auto_refresh_health && "bg-primary") || "bg-gray-200"
-                  ]}
-                  role="switch"
-                  aria-checked="false"
-                >
-                  <span class="sr-only">Auto refresh health information</span>
-                  <span
-                    aria-hidden="true"
-                    class={[
-                      "pointer-events-none inline-block size-3",
-                      (@auto_refresh_health && "translate-x-3") || "translate-x-0",
-                      "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                    ]}
-                  ></span>
-                </button>
-              </div>
+            <div class="text-base-500 text-xs tracking-wide">
+              <span>Last updated: </span>
+              <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
+                {Timex.from_now(@latest_metrics["timestamp"])}
+              </time>
             </div>
           </div>
+          <div :if={engaged_reasons(@device.latest_health) != []} class="flex flex-wrap items-center justify-items-stretch gap-2 px-4 pt-2">
+            <.engaged_tile
+              :for={{level, key, reason} <- engaged_reasons(@device.latest_health)}
+              level={level}
+              metric_key={key}
+              reason={reason}
+              latest_metrics={@latest_metrics}
+              custom_labels={@custom_labels}
+            />
+          </div>
           <div class="flex flex-wrap items-center justify-items-stretch gap-2 px-4 pt-2 pb-4">
-            <div class="border-success health-good flex h-16 grow flex-col rounded border-b px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">CPU</span>
-              <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}%</span>
-                <span class="text-success text-base">{round(@latest_metrics["cpu_temp"])}°</span>
-              </div>
-              <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]}>
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}</span>
-                <span class="text-base-50 text-lg leading-[30px]">%</span>
-              </div>
-              <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
-                <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_temp"])}°</span>
-              </div>
-              <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-base-500 text-xl leading-[30px]">NA</span>
-            </div>
-            <div class="border-warning health-warning flex h-16 grow flex-col rounded border-b px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">Memory used</span>
-              <div :if={@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
-                <div>
-                  <span class="text-base-50 text-xl leading-[30px]">{number_to_delimited(@latest_metrics["mem_used_mb"], precision: 0)}</span>
-                  <span class="text-base-50 text-sm leading-[30px]">MB</span>
-                </div>
-                <div>
-                  <span class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}</span>
-                  <span class="text-warning text-sm">%</span>
-                </div>
-              </div>
-              <div :if={!@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
-                <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
-              </div>
-            </div>
-            <div class="border-notice health-neutral flex h-16 grow flex-col rounded border-b px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">Load avg</span>
-              <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex items-center justify-between">
-                <span :if={@latest_metrics["load_1min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_1min"]}</span>
-                <span :if={!@latest_metrics["load_1min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
-                <span class="bg-base-700 h-4 w-px"></span>
-                <span :if={@latest_metrics["load_5min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_5min"]}</span>
-                <span :if={!@latest_metrics["load_5min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
-                <span class="bg-base-700 h-4 w-px"></span>
-                <span :if={@latest_metrics["load_15min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_15min"]}</span>
-                <span :if={!@latest_metrics["load_15min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
-              </div>
-              <div :if={!@latest_metrics["load_1min"] && !@latest_metrics["load_5min"] && !@latest_metrics["load_15min"]} class="flex items-center">
-                <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
-              </div>
-            </div>
+            <.featured_tile
+              :for={tile <- featured_tiles(@featured_keys, engaged_keys(@device.latest_health))}
+              tile={tile}
+              latest_metrics={@latest_metrics}
+              custom_labels={@custom_labels}
+            />
           </div>
           <div class="text-base-400 px-4 pb-4 text-xs font-normal">
             Learn more about
@@ -296,6 +279,25 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </span>
             </div>
 
+            <div :if={@device.latest_connection && @device.latest_connection.ip_address} class="group/ip flex min-h-7 items-center gap-4 px-4">
+              <span class="text-base-500 text-sm">IP Address:</span>
+              <div class="flex min-w-0 items-center gap-1.5">
+                <span class="text-base-300 font-mono text-sm">{@device.latest_connection.ip_address}</span>
+                <button
+                  id="copy-ip-address"
+                  type="button"
+                  phx-hook="CopyToClipboard"
+                  data-copy-value={@device.latest_connection.ip_address}
+                  aria-label="Copy IP address"
+                  title="Copy value"
+                  class="hover:text-base-200 text-base-500 inline-flex shrink-0 cursor-pointer items-center opacity-0 transition-opacity group-hover/ip:opacity-100 focus-visible:opacity-100"
+                >
+                  <span data-icon="copy" class="lucide-copy--light size-4"></span>
+                  <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+                </button>
+              </div>
+            </div>
+
             <div class="flex min-h-7 items-center gap-4 px-4">
               <span class="text-base-500 text-sm">Added:</span>
               <span class="text-base-300 text-sm">{@device.inserted_at |> NaiveDateTime.to_date() |> Date.to_string()}</span>
@@ -365,7 +367,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                     class="relative"
                     phx-hook="TagAutocomplete"
                     data-single
-                    data-available-tags={Jason.encode!(@available_tags)}
+                    data-available-tags={Jason.encode!(@addable_tags)}
                   >
                     <input
                       type="text"
@@ -394,13 +396,34 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               </div>
             </div>
 
-            <div :if={!Enum.empty?(@metadata)} class="flex min-h-7 gap-4 px-4">
-              <span class="text-base-500 pt-1 text-sm">Metadata:</span>
-              <span class="flex flex-col gap-1">
-                <span :for={{key, value} <- Map.filter(@metadata, fn {_key, val} -> val != "" end)} class="bg-base-800 border-base-800 text-base-300 rounded border px-2 py-1 text-sm">
-                  <span>{key |> String.replace("_", " ") |> String.capitalize()}: {value}</span>
-                </span>
-              </span>
+            <div :if={@metadata_entries != []} class="flex flex-col gap-2 px-4">
+              <span class="text-base-500 text-sm">Metadata:</span>
+              <div class="flex flex-col gap-1.5">
+                <div :for={{key, value} <- @metadata_entries} class="group/meta flex w-full min-w-0 items-center gap-1.5">
+                  <div id={"metadata-#{key}"} class="relative flex min-w-0" phx-hook={long_value?(value) && "ToolTip"} data-placement="top">
+                    <div class="border-base-700 flex min-w-0 items-stretch overflow-hidden rounded border text-xs">
+                      <span class="bg-base-700 text-base-300 shrink-0 px-2 py-0.5 tracking-wide">{key |> String.replace("_", " ") |> String.capitalize()}</span>
+                      <span class="bg-base-800 text-base-200 min-w-0 truncate px-2 py-0.5 font-mono">{value}</span>
+                    </div>
+                    <div :if={long_value?(value)} role="tooltip" class="bg-surface-overlay border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border px-2 py-1.5 shadow-lg">
+                      <span class="text-base-200 font-mono text-xs break-all">{value}</span>
+                      <div class="bg-surface-overlay border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+                    </div>
+                  </div>
+                  <button
+                    id={"copy-metadata-#{key}"}
+                    type="button"
+                    phx-hook="CopyToClipboard"
+                    data-copy-value={value}
+                    aria-label={"Copy #{key} value"}
+                    title="Copy value"
+                    class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/meta:opacity-100 focus-visible:opacity-100"
+                  >
+                    <span data-icon="copy" class="lucide-copy--light size-4"></span>
+                    <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div :if={@extension_overrides != []} class="flex min-h-7 items-center gap-4 px-4">
@@ -542,6 +565,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         </div>
 
         <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
+          <DeviceNetworkIdentities.render
+            enabled_product={@product.extensions.network_identity}
+            enabled_device={@device.extensions.network_identity}
+            identities={@device.network_identities}
+          />
+        </div>
+
+        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
             Support Scripts
           </div>
@@ -642,36 +673,28 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     """
   end
 
-  def hooked_event("toggle-deployment-firmware-updates", _params, socket) do
+  def hooked_event("set-update-mode", %{"mode" => mode}, socket) do
     %{current_scope: scope, device: device} = socket.assigns
 
     authorized!(:"device:toggle-updates", scope)
 
-    {:ok, updated_device} = Updates.toggle_automatic_updates(device, scope.user)
+    mode = String.to_existing_atom(mode)
 
-    message = [
-      "Firmware updates ",
-      (updated_device.updates_enabled && "enabled") || "disabled",
-      "."
-    ]
+    case Updates.set_update_mode(device, mode, scope.user) do
+      {:ok, updated_device} ->
+        socket
+        |> assign(:device, updated_device)
+        |> assign(:update_information, Updates.resolve_update(updated_device))
+        |> put_flash(:info, "Firmware updates set to #{update_mode_label(mode)}.")
+        |> halt()
 
-    socket
-    |> assign(:device, updated_device)
-    |> put_flash(:info, Enum.join(message))
-    |> halt()
-  end
-
-  def hooked_event("toggle-health-check-auto-refresh", _value, socket) do
-    if timer_ref = socket.assigns.health_check_timer do
-      _ = Process.cancel_timer(timer_ref)
-
-      socket
-      |> assign(:health_check_timer, nil)
-      |> halt()
-    else
-      socket
-      |> schedule_health_check_timer()
-      |> halt()
+      _error ->
+        socket
+        |> put_flash(
+          :error,
+          "We couldn't change how this device receives updates. Please contact support if this happens again."
+        )
+        |> halt()
     end
   end
 
@@ -909,7 +932,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       {:ok, device} ->
         socket
         |> assign(:device, device)
-        |> assign_available_tags()
+        |> assign_addable_tags()
         |> put_flash(:info, "Tag \"#{tag}\" added successfully.")
         |> halt()
 
@@ -926,7 +949,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       {:ok, device} ->
         socket
         |> assign(:device, device)
-        |> assign_available_tags()
+        |> assign_addable_tags()
         |> put_flash(:info, "Tag \"#{tag}\" removed successfully.")
         |> halt()
 
@@ -1004,21 +1027,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
-  defp schedule_health_check_timer(socket) do
-    %{device: device, product: product} = socket.assigns
-
-    if connected?(socket) and health_extension_enabled?(product, device) do
-      timer_ref = Process.send_after(self(), :check_health_interval, 500)
-      assign(socket, :health_check_timer, timer_ref)
-    else
-      assign(socket, :health_check_timer, nil)
-    end
-  end
-
-  defp health_extension_enabled?(product, device) do
-    product.extensions.health and device.extensions.health
-  end
-
   # TODO: this is duplicated code, find a new way to reuse it
   defp disconnected?(connection) do
     is_nil(connection) || connection.status != :connected
@@ -1054,5 +1062,182 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp has_description?(description) do
     is_binary(description) and byte_size(description) > 0 and description != "[]"
+  end
+
+  defp update_mode_label(:automatic), do: "automatic"
+  defp update_mode_label(:device_managed), do: "device managed"
+  defp update_mode_label(:off), do: "off"
+
+  defp featured_keys(device) do
+    HealthProfiles.featured_keys(device)
+  end
+
+  # The engaged metrics of the latest evaluation — the row pinned above the
+  # featured tiles, alert level first. Reasons come back from jsonb with
+  # string keys.
+  defp engaged_reasons(%{status_reasons: %{} = reasons}) do
+    for level <- ["unhealthy", "warning"],
+        {key, reason} <- Enum.sort(Map.get(reasons, level) || %{}),
+        do: {level, key, reason}
+  end
+
+  defp engaged_reasons(_no_health_or_reasons), do: []
+
+  defp engaged_keys(latest_health) do
+    MapSet.new(engaged_reasons(latest_health), fn {_level, key, _reason} -> key end)
+  end
+
+  # A tile per featured metric of the device's health profile. Keys the
+  # hand-designed composite tiles cover collapse into their tile — featuring
+  # cpu_usage_percent or cpu_temp gives the CPU tile — and any other featured
+  # key gets a plain value tile, unless it is already pinned in the engaged
+  # row above. An engaged key belonging to a composite shows in both places
+  # on purpose: the engaged tile carries the reason, the composite keeps its
+  # companion readings (CPU keeps its temperature). With no profile, the
+  # pre-profile fixed trio.
+  defp featured_tiles(nil, _engaged_keys), do: [:cpu, :memory, :load]
+
+  defp featured_tiles(featured_keys, engaged_keys) do
+    featured_keys
+    |> Enum.map(fn
+      key when key in ["cpu_usage_percent", "cpu_temp"] -> :cpu
+      key when key in ["mem_used_percent", "mem_used_mb", "mem_size_mb"] -> :memory
+      "load_" <> _rest -> :load
+      key -> {:metric, key}
+    end)
+    |> Enum.reject(fn
+      {:metric, key} -> MapSet.member?(engaged_keys, key)
+      _composite -> false
+    end)
+    |> Enum.uniq()
+  end
+
+  # An engaged metric's tile: the level's tile treatment (colored bottom
+  # border and tint), the current value, and how the level engaged.
+  attr(:level, :string, required: true, values: ["warning", "unhealthy"])
+  attr(:metric_key, :string, required: true)
+  attr(:reason, :map, required: true)
+  attr(:latest_metrics, :map, required: true)
+  attr(:custom_labels, :map, required: true)
+
+  defp engaged_tile(assigns) do
+    ~H"""
+    <div class={[
+      "flex h-16 grow flex-col rounded border-b px-3 py-2",
+      @level == "unhealthy" && "border-alert health-alert",
+      @level == "warning" && "border-warning health-warning"
+    ]}>
+      <span class="text-base-400 text-xs tracking-wide">{MetricLabels.label(@metric_key, @custom_labels)}</span>
+      <div class="flex items-end justify-between gap-3">
+        <span class="text-base-50 text-xl leading-[30px]">{engaged_value(@metric_key, @reason, @latest_metrics)}</span>
+        <span class={["pb-1 text-xs", @level == "unhealthy" && "text-alert", @level == "warning" && "text-warning"]}>
+          {engaged_detail(@reason)}
+        </span>
+      </div>
+    </div>
+    """
+  end
+
+  # A count reason's value is the observation itself; a share reason's main
+  # number is the metric's latest reading.
+  defp engaged_value(_key, %{"aggregation" => "count", "value" => count}, _latest_metrics), do: count
+
+  defp engaged_value(key, _reason, latest_metrics) do
+    case latest_metrics[key] do
+      value when is_number(value) -> Utils.nice_round(value)
+      _ -> "NA"
+    end
+  end
+
+  defp engaged_detail(%{"aggregation" => "count"} = reason) do
+    "threshold #{Utils.format_number(reason["threshold"])} in #{Utils.format_period(reason["period_seconds"])}"
+  end
+
+  defp engaged_detail(%{"aggregation" => "share"} = reason) do
+    direction = if reason["operator"] == "lte", do: "at or under", else: "at or over"
+
+    "#{direction} #{Utils.format_number(reason["threshold"])} for #{reason["value"]}% of #{Utils.format_period(reason["period_seconds"])}"
+  end
+
+  defp engaged_detail(reason), do: "threshold #{Utils.format_number(reason["threshold"])}"
+
+  defp featured_tile(%{tile: :cpu} = assigns) do
+    ~H"""
+    <div class="border-success health-good flex h-16 grow flex-col rounded border-b px-3 py-2">
+      <span class="text-base-400 text-xs tracking-wide">CPU</span>
+      <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
+        <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}%</span>
+        <span class="text-success text-base">{round(@latest_metrics["cpu_temp"])}°</span>
+      </div>
+      <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]}>
+        <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_usage_percent"])}</span>
+        <span class="text-base-50 text-lg leading-[30px]">%</span>
+      </div>
+      <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex items-end justify-between">
+        <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["cpu_temp"])}°</span>
+      </div>
+      <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-base-500 text-xl leading-[30px]">NA</span>
+    </div>
+    """
+  end
+
+  defp featured_tile(%{tile: :memory} = assigns) do
+    ~H"""
+    <div class="border-warning health-warning flex h-16 grow flex-col rounded border-b px-3 py-2">
+      <span class="text-base-400 text-xs tracking-wide">Memory used</span>
+      <div :if={@latest_metrics["mem_used_mb"]} class="flex items-end justify-between">
+        <div>
+          <span class="text-base-50 text-xl leading-[30px]">{number_to_delimited(@latest_metrics["mem_used_mb"], precision: 0)}</span>
+          <span class="text-base-50 text-sm leading-[30px]">MB</span>
+        </div>
+        <div>
+          <span class="text-warning text-base">{round(@latest_metrics["mem_used_percent"])}</span>
+          <span class="text-warning text-sm">%</span>
+        </div>
+      </div>
+      <div :if={!@latest_metrics["mem_used_mb"] && @latest_metrics["mem_used_percent"]} class="flex items-end justify-between">
+        <div>
+          <span class="text-base-50 text-xl leading-[30px]">{round(@latest_metrics["mem_used_percent"])}</span>
+          <span class="text-base-50 text-sm leading-[30px]">%</span>
+        </div>
+      </div>
+      <div :if={!@latest_metrics["mem_used_mb"] && !@latest_metrics["mem_used_percent"]} class="flex items-end justify-between">
+        <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
+      </div>
+    </div>
+    """
+  end
+
+  defp featured_tile(%{tile: :load} = assigns) do
+    ~H"""
+    <div class="border-notice health-neutral flex h-16 grow flex-col rounded border-b px-3 py-2">
+      <span class="text-base-400 text-xs tracking-wide">Load avg</span>
+      <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex items-center justify-between">
+        <span :if={@latest_metrics["load_1min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_1min"]}</span>
+        <span :if={!@latest_metrics["load_1min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
+        <span class="bg-base-700 h-4 w-px"></span>
+        <span :if={@latest_metrics["load_5min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_5min"]}</span>
+        <span :if={!@latest_metrics["load_5min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
+        <span class="bg-base-700 h-4 w-px"></span>
+        <span :if={@latest_metrics["load_15min"]} class="text-base-50 text-xl leading-[30px]">{@latest_metrics["load_15min"]}</span>
+        <span :if={!@latest_metrics["load_15min"]} class="text-base-500 text-xl leading-[30px]">NA</span>
+      </div>
+      <div :if={!@latest_metrics["load_1min"] && !@latest_metrics["load_5min"] && !@latest_metrics["load_15min"]} class="flex items-center">
+        <span class="text-base-500 text-xl leading-[30px]">Not reported</span>
+      </div>
+    </div>
+    """
+  end
+
+  defp featured_tile(%{tile: {:metric, key}} = assigns) do
+    assigns = assign(assigns, :key, key)
+
+    ~H"""
+    <div class="health-plain flex h-16 grow flex-col rounded border-b border-neutral-500 px-3 py-2">
+      <span class="text-base-400 text-xs tracking-wide">{MetricLabels.label(@key, @custom_labels)}</span>
+      <span :if={@latest_metrics[@key]} class="text-base-50 text-xl leading-[30px]">{Utils.nice_round(@latest_metrics[@key])}</span>
+      <span :if={!@latest_metrics[@key]} class="text-base-500 text-xl leading-[30px]">Not reported</span>
+    </div>
+    """
   end
 end

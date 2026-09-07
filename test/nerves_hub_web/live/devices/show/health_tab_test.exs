@@ -6,9 +6,11 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Analytics.Buffer
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Products
-  alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
   alias Phoenix.Socket.Broadcast
 
@@ -45,7 +47,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     product: product,
     device: device
   } do
-    assert {7, _} = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
+    assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
@@ -76,41 +78,45 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
         |> DateTime.add(-4, :hour)
         |> DateTime.truncate(:millisecond)
 
-      _ = save_metrics_with_timestamp(device.id, timestamp)
+      _ = save_metrics_with_timestamp(device, timestamp)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
       # Default time frame is 1 hour, so no charts are expected.
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("1 day")
+      |> refute_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("7 days")
+      |> refute_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       # Makes sure "3 hours" button is working
       |> click_button("3 hours")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
     end
@@ -127,31 +133,34 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
         |> DateTime.add(-7, :day)
         |> DateTime.truncate(:millisecond)
 
-      _ = save_metrics_with_timestamp(device.id, timestamp)
+      _ = save_metrics_with_timestamp(device, timestamp)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("1 day")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("7 days")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
 
@@ -161,31 +170,34 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
         |> DateTime.add(-1, :day)
         |> DateTime.truncate(:millisecond)
 
-      _ = save_metrics_with_timestamp(device.id, timestamp)
+      _ = save_metrics_with_timestamp(device, timestamp)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("1 day")
+      |> assert_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          assert_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
       |> click_button("7 days")
+      |> refute_has("span", text: "No metrics for cpu_temp found for the selected period.", timeout: 100)
       |> then(fn socket ->
         @metrics
-        |> Enum.reject(fn {key, _} -> key == "mem_size_mb" end)
+        |> Enum.reject(fn {key, _} -> key in ["mem_size_mb", "cpu_temp"] end)
         |> Enum.reduce(socket, fn {key, _}, socket ->
-          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.", timeout: 100)
+          refute_has(socket, "span", text: "No metrics for #{key} found for the selected period.")
         end)
       end)
     end
@@ -201,7 +213,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     |> assert_has("div", text: "No health metrics have been received from the device")
     |> unwrap(fn view ->
-      assert {7, _} = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
+      assert {:ok, 7} = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
 
       send(view.pid, %Broadcast{
         topic: "internal:device:#{device.id}",
@@ -229,15 +241,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     now = DateTime.now!("Etc/UTC")
     value = 0.55
 
-    assert {:ok, _} =
-             %{
-               device_id: device.id,
-               key: "load_1min",
-               value: value,
-               inserted_at: now
-             }
-             |> DeviceMetric.save_with_timestamp()
-             |> Repo.insert()
+    assert {:ok, 1} = record_metrics(device, %{"load_1min" => value}, now)
 
     {:ok, lv, _html} =
       live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
@@ -257,7 +261,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
       product: product,
       device: device
     } do
-      _ = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
+      _ = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
@@ -271,7 +275,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
       product: product,
       device: device
     } do
-      _ = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
+      _ = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
 
       {:ok, view, _html} =
         live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
@@ -295,7 +299,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     } do
       {:ok, _} = Products.set_custom_health_metrics_label(product, "load_1min", "1 Minute Load")
 
-      _ = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
+      _ = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
 
       {:ok, view, html} =
         live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
@@ -319,7 +323,7 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
       org_user = Accounts.get_org_user!(scope, user)
       Accounts.change_org_user_role(org_user, :view)
 
-      _ = save_metrics_with_timestamp(device.id, DateTime.now!("Etc/UTC"))
+      _ = save_metrics_with_timestamp(device, DateTime.now!("Etc/UTC"))
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
@@ -328,17 +332,47 @@ defmodule NervesHubWeb.Live.Devices.Show.HealthTabTest do
     end
   end
 
-  defp save_metrics_with_timestamp(device_id, timestamp) do
-    entries =
-      Enum.map(@metrics, fn {key, val} ->
-        DeviceMetric.save_with_timestamp(%{
-          device_id: device_id,
-          key: key,
-          value: val,
-          inserted_at: timestamp
-        }).changes
-      end)
+  test "rendering a device-reported metric key mints no atoms", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    # Metric keys are whatever the device put in its health report, and atoms
+    # are never reclaimed -- so deriving assign keys from them used to make the
+    # node permanently heavier for every novel key a fleet reported.
+    key = "totally_novel_metric_#{System.unique_integer([:positive])}"
 
-    Repo.insert_all(DeviceMetric, entries)
+    {:ok, 1} = record_metrics(device, %{key => 12.5}, DateTime.now!("Etc/UTC"))
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+    |> assert_has("##{key}-chart", timeout: 100)
+
+    # Asserted on the specific atoms rather than on `:erlang.system_info(:atom_count)`,
+    # which is global and moves under any other test running alongside this one.
+    # These two are what the tab used to derive from the metric name.
+    for never_an_atom <- [key <> "_chart_data", key <> "_has_chart_data"] do
+      assert_raise ArgumentError, fn -> String.to_existing_atom(never_an_atom) end
+    end
+  end
+
+  defp save_metrics_with_timestamp(device, timestamp), do: record_metrics(device, @metrics, timestamp)
+
+  defp record_metrics(device, metrics, timestamp) do
+    device_info = %DeviceInfo{
+      device_id: device.id,
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
+
+    result = Metrics.record(device_info, metrics, timestamp)
+
+    # The charts read ClickHouse, and the write is buffered. Without this the
+    # assertions race the flush.
+    :ok = Buffer.flush(DeviceMetric)
+
+    result
   end
 end

@@ -41,6 +41,7 @@
               <th phx-click="sort" phx-value-sort="version" class="cursor-pointer">
                 <Sorting.sort_icon text="Version" field="version" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
+              <th>Tool</th>
               <th>Platform</th>
               <th>Architecture</th>
               <th phx-click="sort" phx-value-sort="install_count" class="cursor-pointer">
@@ -66,6 +67,12 @@
                 <div class="flex items-center gap-2">
                   {firmware.version}
                 </div>
+              </td>
+
+              <td>
+                <span class="bg-base-800 border-base-700 inline-flex gap-1 rounded-full border py-0.5 pr-3 pl-2.5">
+                  <code class="text-base-300 text-xs">{firmware.tool}</code>
+                </span>
               </td>
 
               <td>
@@ -119,7 +126,7 @@
                   <div class="dropdown-divider"></div>
                   <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
                     <span>
-                      <%= if device.updates_enabled, do: "Disable Updates", else: "Enable Updates" %>
+                      <%= if device.update_mode != :off, do: "Disable Updates", else: "Enable Updates" %>
                     </span>
                   </.link>
 

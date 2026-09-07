@@ -4,15 +4,18 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
   query.
 
   Kept separate from `NervesHub.Devices.DeviceFiltering` so the advanced
-  query language can be tested in isolation. Assumes the query already has
-  a `latest_connection` named binding, the same convention `DeviceFiltering`
-  relies on (see `NervesHub.Devices.common_filter_query/1`).
+  query language can be tested in isolation. Assumes the query already names
+  its bindings — `device` for the devices themselves (the alarm filters
+  correlate a subquery back to it) and `latest_connection` — the same
+  convention `DeviceFiltering` relies on (see
+  `NervesHub.Devices.common_filter_query/1`).
   """
 
   import Ecto.Query
 
   alias NervesHub.Devices.AdvancedQuery.Parser
   alias NervesHub.Devices.AdvancedQuery.Schema
+  alias NervesHub.Devices.DeviceAlarm
 
   @not_set_value Schema.not_set_value()
   @metric_prefix Schema.metric_prefix()
@@ -51,20 +54,23 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     comparison_dynamic(column, operator, value)
   end
 
-  # Compares a device's most-recent metric value for `key` against `value`. The
-  # device_metrics table isn't joined into the base query, so this is a
-  # self-contained correlated subquery (the inner MAX picks the latest reading
-  # per device) rather than a named binding.
+  # Compares the device's own latest reading for `key` against `value`.
+  #
+  # Still an `EXISTS` rather than a named binding, because `device_latest_metrics`
+  # is not joined into the base query and a `dynamic/2` cannot add a join. It is
+  # a much smaller one than it was: the latest set is one row per device, so the
+  # inner `MAX(inserted_at)` this used to need -- which took the newest reading
+  # across every device rather than this one -- is gone along with the bug in it.
+  #
+  # One clause per operator because `fragment/1` needs a literal string.
   defp metric_dynamic(key, ">", value) do
     dynamic(
       [d],
       fragment(
-        "EXISTS (SELECT 1 FROM device_metrics dm WHERE dm.device_id = ? AND dm.key = ? AND dm.value > ? AND dm.inserted_at = (SELECT MAX(inserted_at) FROM device_metrics WHERE device_id = ? AND key = ?))",
+        "EXISTS (SELECT 1 FROM device_latest_metrics dlm WHERE dlm.device_id = ? AND (dlm.metrics->>?)::float > ?)",
         d.id,
         ^key,
-        ^value,
-        d.id,
-        ^key
+        ^value
       )
     )
   end
@@ -73,12 +79,10 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     dynamic(
       [d],
       fragment(
-        "EXISTS (SELECT 1 FROM device_metrics dm WHERE dm.device_id = ? AND dm.key = ? AND dm.value >= ? AND dm.inserted_at = (SELECT MAX(inserted_at) FROM device_metrics WHERE device_id = ? AND key = ?))",
+        "EXISTS (SELECT 1 FROM device_latest_metrics dlm WHERE dlm.device_id = ? AND (dlm.metrics->>?)::float >= ?)",
         d.id,
         ^key,
-        ^value,
-        d.id,
-        ^key
+        ^value
       )
     )
   end
@@ -87,12 +91,10 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     dynamic(
       [d],
       fragment(
-        "EXISTS (SELECT 1 FROM device_metrics dm WHERE dm.device_id = ? AND dm.key = ? AND dm.value < ? AND dm.inserted_at = (SELECT MAX(inserted_at) FROM device_metrics WHERE device_id = ? AND key = ?))",
+        "EXISTS (SELECT 1 FROM device_latest_metrics dlm WHERE dlm.device_id = ? AND (dlm.metrics->>?)::float < ?)",
         d.id,
         ^key,
-        ^value,
-        d.id,
-        ^key
+        ^value
       )
     )
   end
@@ -101,12 +103,10 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     dynamic(
       [d],
       fragment(
-        "EXISTS (SELECT 1 FROM device_metrics dm WHERE dm.device_id = ? AND dm.key = ? AND dm.value <= ? AND dm.inserted_at = (SELECT MAX(inserted_at) FROM device_metrics WHERE device_id = ? AND key = ?))",
+        "EXISTS (SELECT 1 FROM device_latest_metrics dlm WHERE dlm.device_id = ? AND (dlm.metrics->>?)::float <= ?)",
         d.id,
         ^key,
-        ^value,
-        d.id,
-        ^key
+        ^value
       )
     )
   end
@@ -240,14 +240,22 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     dynamic([latest_connection: lc], is_nil(lc.network_interface) or lc.network_interface != ^interface)
   end
 
-  defp comparison_dynamic("updates", "=", "enabled"), do: dynamic([d], d.updates_enabled == true)
-  defp comparison_dynamic("updates", "=", "disabled"), do: dynamic([d], d.updates_enabled == false)
+  # "enabled" keeps meaning "not frozen", so it still matches a device that manages
+  # its own updates. The two mode-specific terms tell them apart.
+  defp comparison_dynamic("updates", "=", "enabled"), do: dynamic([d], d.update_mode != :off)
+  defp comparison_dynamic("updates", "=", "disabled"), do: dynamic([d], d.update_mode == :off)
+  defp comparison_dynamic("updates", "=", "automatic"), do: dynamic([d], d.update_mode == :automatic)
+
+  defp comparison_dynamic("updates", "=", "device-managed"), do: dynamic([d], d.update_mode == :device_managed)
 
   defp comparison_dynamic("updates", "=", "penalty-box"),
     do: dynamic([d], d.updates_blocked_until > fragment("now() at time zone 'utc'"))
 
-  defp comparison_dynamic("updates", "!=", "enabled"), do: dynamic([d], d.updates_enabled == false)
-  defp comparison_dynamic("updates", "!=", "disabled"), do: dynamic([d], d.updates_enabled == true)
+  defp comparison_dynamic("updates", "!=", "enabled"), do: dynamic([d], d.update_mode == :off)
+  defp comparison_dynamic("updates", "!=", "disabled"), do: dynamic([d], d.update_mode != :off)
+  defp comparison_dynamic("updates", "!=", "automatic"), do: dynamic([d], d.update_mode != :automatic)
+
+  defp comparison_dynamic("updates", "!=", "device-managed"), do: dynamic([d], d.update_mode != :device_managed)
 
   # Devices with no penalty-box timeout (the common case) are "not penalty-box".
   defp comparison_dynamic("updates", "!=", "penalty-box"),
@@ -275,31 +283,29 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
   defp comparison_dynamic("update_status", op, "not updating") when op in ["is", "is not"],
     do: update_status_dynamic(op == "is not")
 
-  # Matches a specific alarm by fuzzy text search over the health data, the same
-  # way the sidebar "Alarm" filter does (alarm keys are stored with an "Elixir."
-  # prefix, so an ILIKE substring match keeps the trimmed names working).
-  defp comparison_dynamic("alarm", "contains", value),
-    do:
-      dynamic(
-        [latest_health: lh],
-        fragment("EXISTS (SELECT 1 FROM jsonb_each_text(?) WHERE value ILIKE ?)", lh.data, ^"%#{value}%")
-      )
+  # Matches a raised alarm by fuzzy text search over its name or description,
+  # the same way the sidebar "Alarm" filter does. This used to run over the
+  # whole health payload with `jsonb_each_text`, which also matched metadata
+  # and metric values; scoped to `device_alarms` it matches only alarms, and
+  # names are stored already stripped of their "Elixir." prefix.
+  defp comparison_dynamic("alarm", "contains", value), do: dynamic([], exists(alarms_matching(value)))
 
-  defp comparison_dynamic("alarm", "not_contains", value),
-    do:
-      dynamic(
-        [latest_health: lh],
-        fragment(
-          "NOT EXISTS (SELECT 1 FROM jsonb_each_text(COALESCE(?, '{}'::jsonb)) WHERE value ILIKE ?)",
-          lh.data,
-          ^"%#{value}%"
-        )
-      )
+  defp comparison_dynamic("alarm", "not_contains", value), do: dynamic([], not exists(alarms_matching(value)))
 
-  defp alarm_status_dynamic(true), do: dynamic([latest_health: lh], fragment("?->'alarms' != '{}'", lh.data))
+  defp alarm_status_dynamic(true), do: dynamic([], exists(raised_alarms()))
 
-  defp alarm_status_dynamic(false),
-    do: dynamic([latest_health: lh], fragment("(? IS NULL OR ?->'alarms' = '{}')", lh, lh.data))
+  defp alarm_status_dynamic(false), do: dynamic([], not exists(raised_alarms()))
+
+  # Correlated on the `:device` binding the device filter query names.
+  defp raised_alarms() do
+    from(a in DeviceAlarm, where: a.device_id == parent_as(:device).id, select: 1)
+  end
+
+  defp alarms_matching(value) do
+    pattern = "%#{value}%"
+
+    from(a in raised_alarms(), where: ilike(a.alarm, ^pattern) or ilike(a.description, ^pattern))
+  end
 
   defp update_status_dynamic(true), do: dynamic([inflight_update: ifu], not is_nil(ifu))
   defp update_status_dynamic(false), do: dynamic([inflight_update: ifu], is_nil(ifu))

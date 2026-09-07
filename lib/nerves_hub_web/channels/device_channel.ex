@@ -62,7 +62,12 @@ defmodule NervesHubWeb.DeviceChannel do
   @impl Phoenix.Channel
   @decorate with_span("Channels.DeviceChannel.handle_info")
   def handle_info(message, socket) do
-    advance(socket, &DeviceLink.device_notify(&1, message))
+    # Timers armed through `Effects` deliver in an envelope; the rest passes through.
+    case Effects.timer_fired(socket, message) do
+      {:deliver, message, socket} -> advance(socket, &DeviceLink.device_notify(&1, message))
+      {:drop, socket} -> {:noreply, socket}
+      :not_timer -> advance(socket, &DeviceLink.device_notify(&1, message))
+    end
   end
 
   @impl Phoenix.Channel

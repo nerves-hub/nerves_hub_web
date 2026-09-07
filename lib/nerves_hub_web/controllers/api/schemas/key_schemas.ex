@@ -10,11 +10,17 @@ defmodule NervesHubWeb.API.Schemas.KeySchemas do
       type: :object,
       properties: %{
         name: %Schema{type: :string},
-        key: %Schema{type: :string}
+        key: %Schema{type: :string},
+        scheme: %Schema{
+          type: :string,
+          description: "Signature scheme this key belongs to",
+          enum: ["ed25519", "secure_boot_v2_rsa"]
+        }
       },
       example: %{
         "name" => "CI",
-        "key" => "abc123="
+        "key" => "abc123=",
+        "scheme" => "ed25519"
       }
     })
   end
@@ -30,11 +36,13 @@ defmodule NervesHubWeb.API.Schemas.KeySchemas do
         "data" => [
           %{
             "name" => "QA",
-            "key" => "abc123="
+            "key" => "abc123=",
+            "scheme" => "ed25519"
           },
           %{
-            "name" => "CI",
-            "key" => "doerayme="
+            "name" => "ESP release",
+            "key" => "-----BEGIN PUBLIC KEY-----\nMIIBoj...\n-----END PUBLIC KEY-----\n",
+            "scheme" => "secure_boot_v2_rsa"
           }
         ]
       }
@@ -51,7 +59,8 @@ defmodule NervesHubWeb.API.Schemas.KeySchemas do
       example: %{
         "data" => %{
           "name" => "QA",
-          "key" => "abc123="
+          "key" => "abc123=",
+          "scheme" => "ed25519"
         }
       }
     })
@@ -59,16 +68,27 @@ defmodule NervesHubWeb.API.Schemas.KeySchemas do
 
   defmodule SigningKeyCreationRequest do
     OpenApiSpex.schema(%{
-      description: "POST body for adding a Signing Key to an Organization",
+      description: """
+      POST body for adding a Signing Key to an Organization.
+
+      `scheme` defaults to `ed25519` when omitted, which is what every key was
+      before ESP-IDF support — so existing clients keep working unchanged.
+      """,
       type: :object,
       properties: %{
         name: %Schema{type: :string},
-        key: %Schema{type: :string}
+        key: %Schema{type: :string},
+        scheme: %Schema{
+          type: :string,
+          description: "Signature scheme this key belongs to",
+          enum: ["ed25519", "secure_boot_v2_rsa"]
+        }
       },
       required: [:name, :key],
       example: %{
-        "name" => "QA",
-        "key" => "abc123="
+        "name" => "ESP release",
+        "key" => "-----BEGIN PUBLIC KEY-----\nMIIBoj...\n-----END PUBLIC KEY-----\n",
+        "scheme" => "secure_boot_v2_rsa"
       }
     })
   end

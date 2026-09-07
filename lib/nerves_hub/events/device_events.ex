@@ -6,10 +6,12 @@ defmodule NervesHub.DeviceEvents do
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceMessages
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: ChannelServer
@@ -66,6 +68,7 @@ defmodule NervesHub.DeviceEvents do
     Repo.transact(fn ->
       # we might need to do an upsert here
       {:ok, inflight_update} = Repo.insert(inflight_changeset)
+
       device = Devices.get_device(device_id)
 
       update_opts =
@@ -79,18 +82,28 @@ defmodule NervesHub.DeviceEvents do
 
       device = %{device | deployment_group: deployment_group}
 
-      if opts[:user] do
-        DeviceTemplates.audit_pushed_available_update(opts[:user], device_id, deployment_group)
-      else
-        DeviceTemplates.audit_device_deployment_group_update_triggered(
-          device,
-          device.deployment_group
-        )
+      cond do
+        opts[:user] ->
+          DeviceTemplates.audit_pushed_available_update(opts[:user], device_id, deployment_group)
+
+        opts[:initiated_by] == :device ->
+          DeviceTemplates.audit_device_requested_update(device, device.deployment_group)
+
+        true ->
+          DeviceTemplates.audit_device_deployment_group_update_triggered(
+            device,
+            device.deployment_group
+          )
       end
 
       broadcast(device, "update", update_payload)
 
-      :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1}, %{
+      # A device asking for firmware and a deployment group sending it are the
+      # same delivery but not the same event, and conflating them would hide how
+      # much of a fleet is driving its own updates.
+      event = if opts[:initiated_by] == :device, do: :device_requested, else: :automatic
+
+      :telemetry.execute([:nerves_hub, :devices, :update, event], %{count: 1}, %{
         identifier: device.identifier,
         firmware_uuid: inflight_update.firmware_uuid
       })
@@ -99,16 +112,55 @@ defmodule NervesHub.DeviceEvents do
     end)
   end
 
+  @doc """
+  A device that manages its own updates asked for one.
+
+  Answers with the deployment group's target firmware, or the reason there is
+  none to give. A device asking for an update is treated the same way as a person
+  pushing one to it: the request is honoured if there is an update to send, and
+  the deployment group's pacing does not apply.
+
+  That pacing exists to stop the orchestrator pushing to more devices than a
+  fleet's bandwidth can take. A device that manages its own updates has already
+  decided this is a moment it can afford one, which is a judgement it is better
+  placed to make than the server is, and holding it back only means it asks
+  again later.
+
+  A device that is already updating is refused. It would reject the second
+  update and carry on with the one it has, and there is a single inflight row
+  per device, so the progress it reports for the running update would be recorded
+  against the request that replaced it. A device that is not really updating has
+  its row cleared by `NervesHub.Workers.ExpireInflightUpdates` soon enough, and
+  can ask again then.
+  """
+  @spec device_requested_update(Device.t()) ::
+          :ok | {:error, :no_deployment_group | :no_update | :already_updating}
+  def device_requested_update(%Device{deployment_id: nil}), do: {:error, :no_deployment_group}
+
+  def device_requested_update(%Device{} = device) do
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
+
+    cond do
+      not match?(%{available?: true}, Updates.check_update(device)) ->
+        {:error, :no_update}
+
+      not is_nil(FirmwareUpdates.inflight_update_for(device)) ->
+        {:error, :already_updating}
+
+      true ->
+        {:ok, _inflight} = schedule_update(device.id, deployment_group, initiated_by: :device)
+        :ok
+    end
+  end
+
   def manual_update(device, firmware, user, opts \\ []) do
     Repo.transact(fn ->
-      url =
-        if opts[:delta] do
-          {:ok, url} = Firmwares.get_delta_url(device, firmware)
-          url
-        else
-          {:ok, url} = Firmwares.get_firmware_url(firmware)
-          url
-        end
+      # When a delta is being sent it is the delta that the device downloads, so
+      # it is the delta that describes the download.
+      {:ok, firmware_or_delta} =
+        if opts[:delta], do: Firmwares.get_delta(device, firmware), else: {:ok, firmware}
+
+      {:ok, url} = Firmwares.get_firmware_url(firmware_or_delta)
 
       firmware_url =
         if opts[:firmware_proxy_url] do
@@ -122,14 +174,17 @@ defmodule NervesHub.DeviceEvents do
         |> Repo.insert()
 
       {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
-      {:ok, device} = Updates.disable_updates(device, user)
+      {:ok, device} = Updates.pause_automatic_updates(device, user)
 
       DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
       payload = %UpdatePayload{
         update_available: true,
         firmware_url: firmware_url,
-        firmware_meta: meta
+        firmware_meta: meta,
+        size: firmware_or_delta.size,
+        checksum: firmware_or_delta.checksum,
+        partials_checksums: firmware_or_delta.partials_checksums
       }
 
       :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
@@ -151,6 +206,18 @@ defmodule NervesHub.DeviceEvents do
   end
 
   defp broadcast(device, event, payload) do
+    :ok = record_send(device, event, payload)
     :ok = ChannelServer.broadcast(NervesHub.PubSub, topic(device), event, payload)
+  end
+
+  # `NervesHubWeb.DeviceChannel` intercepts these two, so they stop at the
+  # channel and are turned into other messages — the device never sees them,
+  # and recording them here would claim a send that did not happen. Everything
+  # else on this topic is fastlaned straight to the device's transport, which
+  # means this broadcast is the only place it can be seen at all.
+  defp record_send(_device, event, _payload) when event in ["updated", "deployment_updated"], do: :ok
+
+  defp record_send(device, event, payload) do
+    DeviceMessages.record(device, :sent, :device, event, payload)
   end
 end

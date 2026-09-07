@@ -15,10 +15,16 @@
         <div class="border-base-700 from-base-800/50 to-base-800 flex items-start gap-4 rounded border bg-linear-to-r p-4">
           <span class="lucide-key-round--light mt-1 size-6"></span>
           <div class="min-w-0 flex-1">
-            <h3 class="text-base-50 mb-2 text-sm font-semibold">
+            <h3 class="text-base-50 mb-2 flex items-center gap-2 text-sm font-semibold">
               {signing_key.name}
+              <span class="bg-base-800 border-base-700 rounded-full border px-2 py-0.5 text-xs font-normal">
+                <code class="text-base-300">{scheme_label(signing_key.scheme)}</code>
+              </span>
             </h3>
-            <div class="text-base-400 mb-1 text-xs break-all">{signing_key.key}</div>
+            <div class="text-base-400 mb-1 flex items-baseline gap-2 text-xs">
+              <span :if={key_label(signing_key)} class="text-base-500 shrink-0">{key_label(signing_key)}</span>
+              <span class="font-mono break-all">{key_preview(signing_key)}</span>
+            </div>
             <div :if={signing_key.created_by} class="text-base-500 text-xs">
               Created by: {signing_key.created_by.name} ({signing_key.created_by.email})
             </div>
@@ -60,9 +66,31 @@
         <div class="text-alert-content mt-1 text-sm">{error_tag(f, :name)}</div>
       </div>
 
+      <div class="mb-4">
+        {label(f, :scheme, for: "scheme_input", class: "block text-sm font-medium text-base-300 mb-2")}
+        {select(f, :scheme, scheme_options(),
+          class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
+          id: "scheme_input"
+        )}
+        <p class="text-base-500 mt-1 text-xs">
+          <strong>fwup (Ed25519)</strong>
+          signs <code>.fw</code>
+          archives for Nerves devices — a base64 public key from <code>fwup -g</code>. <strong>ESP-IDF Secure Boot v2 (RSA-3072)</strong>
+          signs <code>.bin</code>
+          images — the PEM public half of an <code>espsecure.py</code>
+          signing key.
+        </p>
+        <div class="text-alert-content mt-1 text-sm">{error_tag(f, :scheme)}</div>
+      </div>
+
       <div class="mb-6">
         {label(f, :key, for: "key_input", class: "block text-sm font-medium text-base-300 mb-2")}
-        {text_input(f, :key, class: "w-full px-3 py-2 text-sm bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring", id: "key_input")}
+        {textarea(f, :key,
+          rows: 8,
+          class: "w-full px-3 py-2 text-sm font-mono bg-base-900 border border-base-700 rounded text-base-50 focus:outline-none focus:ring-2 focus:ring-focus-ring",
+          id: "key_input"
+        )}
+        <p class="text-base-500 mt-1 text-xs">Paste the public key. An RSA key is a multi-line PEM block, including its BEGIN and END lines.</p>
         <div class="text-alert-content mt-1 text-sm">{error_tag(f, :key)}</div>
       </div>
 

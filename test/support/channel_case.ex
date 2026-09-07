@@ -16,6 +16,7 @@ defmodule NervesHubWeb.ChannelCase do
   use ExUnit.CaseTemplate
 
   alias Ecto.Adapters.SQL.Sandbox, as: SQLSandbox
+  alias NervesHub.Products.HealthProfiles.Cache
 
   using do
     quote do
@@ -62,6 +63,10 @@ defmodule NervesHubWeb.ChannelCase do
   setup do
     # Explicitly get a connection before each test
     :ok = SQLSandbox.checkout(NervesHub.Repo)
+
+    # The profile cache outlives the sandbox transaction that is about to be
+    # rolled back underneath it.
+    :ok = Cache.reset()
   end
 
   setup tags do

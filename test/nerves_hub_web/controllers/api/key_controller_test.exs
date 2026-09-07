@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.KeyControllerTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Fixtures
+  alias NervesHub.Support.EspIdf
   alias NervesHub.Support.Fwup
 
   describe "index" do
@@ -32,6 +33,45 @@ defmodule NervesHubWeb.API.KeyControllerTest do
 
       conn = get(conn, Routes.api_key_path(conn, :show, org.name, key.name))
       assert json_response(conn, 200)["data"]["name"] == name
+    end
+
+    # Regression: `create` whitelisted only "name" and "key", so a posted
+    # `scheme` was silently dropped, defaulted to ed25519, and an RSA PEM was
+    # rejected as "not a valid Ed25519 public key". ESP-IDF keys could not be
+    # registered through the API at all.
+    test "accepts a Secure Boot v2 RSA key", %{conn: conn, org: org} do
+      params = %{
+        name: "esp release",
+        key: EspIdf.signing_public_key(),
+        scheme: "secure_boot_v2_rsa"
+      }
+
+      conn = post(conn, Routes.api_key_path(conn, :create, org.name), params)
+
+      assert data = json_response(conn, 201)["data"]
+      assert data["scheme"] == "secure_boot_v2_rsa"
+
+      {:ok, key} = Accounts.get_org_key_by_name(org, "esp release")
+      assert key.scheme == :secure_boot_v2_rsa
+    end
+
+    test "defaults to ed25519 when no scheme is given", %{conn: conn, org: org} do
+      name = "legacy client"
+      Fwup.gen_key_pair(name)
+
+      params = %{name: name, key: Fwup.get_public_key(name)}
+      conn = post(conn, Routes.api_key_path(conn, :create, org.name), params)
+
+      assert json_response(conn, 201)["data"]["scheme"] == "ed25519"
+    end
+
+    test "rejects an RSA key posted without the matching scheme", %{conn: conn, org: org} do
+      params = %{name: "wrong scheme", key: EspIdf.signing_public_key()}
+
+      conn = post(conn, Routes.api_key_path(conn, :create, org.name), params)
+
+      assert errors = json_response(conn, 422)["errors"]
+      assert Enum.any?(errors["key"] || [], &(&1 =~ "Ed25519"))
     end
 
     test "invalid keys aren't allowed", %{conn: conn, org: org} do

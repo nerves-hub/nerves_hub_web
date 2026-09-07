@@ -17,10 +17,10 @@ defmodule NervesHub.AdvancedQueryFixtures do
   test name.
   """
 
-  alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Health
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
-  alias NervesHub.Repo
 
   @doc """
   ExUnit `setup` callback. Returns a map merged into the test context with
@@ -37,7 +37,7 @@ defmodule NervesHub.AdvancedQueryFixtures do
     tagged = Fixtures.device_fixture(org, product, firmware, %{identifier: "tagged", tags: ["prod", "beta"]})
 
     untagged =
-      Fixtures.device_fixture(org, product, firmware, %{identifier: "untagged", tags: nil, updates_enabled: false})
+      Fixtures.device_fixture(org, product, firmware, %{identifier: "untagged", tags: nil, update_mode: :off})
 
     connected =
       Fixtures.device_fixture(org, product, firmware, %{identifier: "connected", tags: [], status: :provisioned})
@@ -53,8 +53,10 @@ defmodule NervesHub.AdvancedQueryFixtures do
 
     # "tagged" and "connected" get health records; the others have none (= unknown).
     # "tagged" has an active alarm; "connected" has none.
-    {:ok, _} = save_health(tagged, :healthy, %{"alarms" => %{"SomeAlarm" => "boom"}})
-    {:ok, _} = save_health(connected, :warning, %{"alarms" => %{}})
+    {:ok, _} = save_health(tagged, :healthy)
+    {:ok, _} = save_health(connected, :warning)
+
+    _ = Fixtures.device_alarms_fixture(tagged, %{"SomeAlarm" => "boom"})
 
     %{
       user: user,
@@ -70,28 +72,35 @@ defmodule NervesHub.AdvancedQueryFixtures do
     }
   end
 
-  @doc "Saves a health record (and updates the device's latest health)."
-  def save_health(device, status, data \\ %{}) do
+  @doc "Saves the device's current health status."
+  def save_health(device, status) do
     {:ok, _} =
       Health.save_device_health(%{
         "device_id" => device.id,
-        "data" => data,
         "status" => status,
         "status_reasons" => %{}
       })
   end
 
-  @doc "Inserts a metric reading `seconds_ago` in the past (to control which is latest)."
-  def save_metric(device, key, value, seconds_ago) do
-    inserted_at = DateTime.add(DateTime.utc_now(), -seconds_ago, :second)
+  @doc """
+  Records a metric report `seconds_ago` in the past, to control which is latest.
 
-    DeviceMetric.save_with_timestamp(%{
+  One key at a time, which is all these tests need. A report replaces the
+  device's latest set, so a second call with a different key does not add to the
+  first -- pass a map to `NervesHub.Devices.Metrics.record/3` directly if a
+  device needs to carry two metrics at once.
+  """
+  def save_metric(device, key, value, seconds_ago) do
+    timestamp = DateTime.add(DateTime.utc_now(), -seconds_ago, :second)
+
+    device_info = %DeviceInfo{
       device_id: device.id,
-      key: key,
-      value: value,
-      inserted_at: inserted_at
-    })
-    |> Repo.insert!()
+      device_identifier: device.identifier,
+      org_id: device.org_id,
+      product_id: device.product_id
+    }
+
+    {:ok, _stored} = Metrics.record(device_info, %{key => value}, timestamp)
   end
 
   defp tmp_dir() do

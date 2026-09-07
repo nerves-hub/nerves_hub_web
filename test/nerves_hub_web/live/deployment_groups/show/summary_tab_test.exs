@@ -164,6 +164,40 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     |> assert_has("span", text: "2")
   end
 
+  test "activating a release moves the delta subscription to the new firmware", %{
+    conn: conn,
+    deployment_group: deployment_group,
+    target_firmware: target_firmware,
+    org_key: org_key,
+    product: product,
+    tmp_dir: tmp_dir,
+    user: user
+  } do
+    assert [{live_view, _meta}] = Group.members(NervesHub.Group, "firmware/#{target_firmware.id}")
+
+    other_firmware =
+      Fixtures.firmware_fixture(org_key, product, %{version: "2.0.1", dir: tmp_dir})
+
+    {:ok, {_release, _deployment_group}} =
+      ManagedDeployments.create_deployment_release(
+        deployment_group,
+        other_firmware,
+        nil,
+        user,
+        %{}
+      )
+
+    conn
+    |> assert_has("span",
+      text: "No stats recorded for firmware #{other_firmware.version}",
+      exact: false,
+      timeout: 100
+    )
+
+    assert [{^live_view, _meta}] = Group.members(NervesHub.Group, "firmware/#{other_firmware.id}")
+    assert [] == Group.members(NervesHub.Group, "firmware/#{target_firmware.id}")
+  end
+
   test "shows delta status and available actions", %{
     conn: conn,
     source_firmware: source_firmware,
@@ -434,5 +468,118 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
   test "hides notes block when absent", %{conn: conn} do
     conn
     |> refute_has("span", text: "Notes:")
+  end
+
+  describe "CSV import" do
+    test "imports devices by identifier from a valid CSV", %{
+      conn: conn,
+      org: org,
+      product: product,
+      fixture: %{firmware: firmware},
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["beta"],
+          identifier: "csv-import-device-1"
+        })
+
+      csv_path = Path.join(tmp_dir, "devices.csv")
+      :ok = :file.write_file(csv_path, "identifier\ncsv-import-device-1\n")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+      |> upload("Import from CSV", csv_path)
+      |> assert_has("div", text: "imported from CSV", timeout: 1000)
+      |> assert_has(
+        "a[href='/org/#{org.name}/#{product.name}/devices?deployment_id=#{deployment_group.id}']",
+        text: "2",
+        timeout: 1000
+      )
+      |> then(fn _ ->
+        assert Repo.reload(device) |> Map.get(:deployment_id) == deployment_group.id
+      end)
+    end
+
+    test "shows an error flash for a CSV with the wrong header", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      csv_path = Path.join(tmp_dir, "bad_header.csv")
+      :ok = :file.write_file(csv_path, "device_id\nsome-device\n")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+      |> upload("Import from CSV", csv_path)
+      |> assert_has("div", text: "CSV must have a single 'identifier' column header", timeout: 100)
+    end
+
+    test "shows an error flash for an empty CSV (header only)", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      csv_path = Path.join(tmp_dir, "empty.csv")
+      :ok = :file.write_file(csv_path, "identifier\n")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+      |> upload("Import from CSV", csv_path)
+      |> assert_has("div", text: "CSV contained no identifier values", timeout: 100)
+    end
+
+    test "devices with mismatched platform or architecture are not added", %{
+      conn: conn,
+      org: org,
+      product: product,
+      org_key: org_key,
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      mismatched_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{
+          platform: "x86_64",
+          architecture: "amd64",
+          dir: tmp_dir
+        })
+
+      device =
+        Fixtures.device_fixture(org, product, mismatched_firmware, %{
+          identifier: "csv-mismatched-device-1"
+        })
+
+      csv_path = Path.join(tmp_dir, "mismatched.csv")
+      :ok = :file.write_file(csv_path, "identifier\ncsv-mismatched-device-1\n")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+      |> upload("Import from CSV", csv_path)
+      |> assert_has("div", text: "0 devices imported from CSV", timeout: 1000)
+      |> then(fn _ ->
+        refute Repo.reload(device) |> Map.get(:deployment_id)
+      end)
+    end
+
+    test "unknown identifiers result in zero devices added", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group,
+      tmp_dir: tmp_dir
+    } do
+      csv_path = Path.join(tmp_dir, "unknown.csv")
+      :ok = :file.write_file(csv_path, "identifier\nnonexistent-device-xyz\n")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+      |> upload("Import from CSV", csv_path)
+      |> assert_has("div", text: "0 devices imported from CSV", timeout: 1000)
+    end
   end
 end

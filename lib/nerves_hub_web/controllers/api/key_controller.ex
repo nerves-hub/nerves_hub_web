@@ -39,6 +39,17 @@ defmodule NervesHubWeb.API.KeyController do
 
   operation(:create,
     summary: "Create a new Signing Key for an Organization",
+    description: """
+    The `scheme` decides how `key` is validated and what it can verify:
+
+      * `ed25519` (the default) — an fwup signing key, base64 encoded, as
+        produced by `fwup -g`. Verifies `.fw` archives.
+      * `secure_boot_v2_rsa` — a PEM-encoded RSA-3072 public key, the public
+        half of an `espsecure.py` Secure Boot v2 signing key. Verifies ESP-IDF
+        `.bin` images.
+
+    A key is only ever a candidate for firmware of its own scheme.
+    """,
     parameters: [
       org_name: [
         in: :path,
@@ -62,7 +73,7 @@ defmodule NervesHubWeb.API.KeyController do
 
   def create(%{assigns: %{current_scope: %{user: user, org: org}}} = conn, params) do
     params =
-      Map.take(params, ["name", "key"])
+      Map.take(params, ["name", "key", "scheme"])
       |> Map.put("org_id", org.id)
       |> Map.put("created_by_id", user.id)
 

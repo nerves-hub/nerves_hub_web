@@ -1,7 +1,11 @@
 defmodule NervesHubWeb.Live.Org.SigningKeysTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Fixtures
+  alias NervesHub.Support.EspIdf
+  alias NervesHub.Support.RaucBundle
 
   describe "list" do
     test "no signing keys", %{conn: conn, user: user} do
@@ -47,6 +51,92 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_has("div", text: "Signing Key created successfully.")
       |> assert_has("h3", text: "my amazing key")
       |> assert_has("div", text: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
+    end
+  end
+
+  describe "create a RAUC signing key" do
+    test "accepts a PEM X.509 certificate", %{conn: conn, org: org} do
+      # RAUC signs bundles with CMS against a certificate chain, so the
+      # organization key is a certificate rather than a bare public key. Without
+      # the scheme in this dropdown there was no way to add one at all, and
+      # therefore no way to upload a bundle.
+      signer = RaucBundle.keypair()
+
+      conn
+      |> visit("/org/#{org.name}/settings/keys/new")
+      |> select("Scheme", option: "RAUC (X.509 certificate)")
+      |> fill_in("Name", with: "rauc release key")
+      |> fill_in("Key", with: signer.certificate)
+      |> click_button("Create Key")
+      |> assert_path("/org/#{org.name}/settings/keys")
+      |> assert_has("div", text: "Signing Key created successfully.")
+      |> assert_has("h3", text: "rauc release key")
+      |> assert_has("code", text: "x509-certificate")
+    end
+
+    test "rejects something that is not a certificate", %{conn: conn, org: org} do
+      conn
+      |> visit("/org/#{org.name}/settings/keys/new")
+      |> select("Scheme", option: "RAUC (X.509 certificate)")
+      |> fill_in("Name", with: "wrong scheme")
+      |> fill_in("Key", with: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
+      |> click_button("Create Key")
+      |> assert_has("div", text: "expected a PEM-encoded X.509 certificate")
+    end
+  end
+
+  describe "create an ESP-IDF signing key" do
+    test "accepts a PEM RSA-3072 public key", %{conn: conn, org: org} do
+      pem = EspIdf.signing_public_key()
+
+      conn
+      |> visit("/org/#{org.name}/settings/keys/new")
+      |> select("Scheme", option: "ESP-IDF Secure Boot v2 (RSA-3072)")
+      |> fill_in("Name", with: "esp release key")
+      |> fill_in("Key", with: pem)
+      |> click_button("Create Key")
+      |> assert_path("/org/#{org.name}/settings/keys")
+      |> assert_has("div", text: "Signing Key created successfully.")
+      |> assert_has("h3", text: "esp release key")
+      |> assert_has("code", text: "secure-boot-v2-rsa")
+    end
+
+    # The Ed25519 check would reject a PEM and vice versa, so the scheme has to
+    # reach the changeset — not just be stored after validation.
+    test "rejects an Ed25519 key submitted as RSA", %{conn: conn, org: org} do
+      conn
+      |> visit("/org/#{org.name}/settings/keys/new")
+      |> select("Scheme", option: "ESP-IDF Secure Boot v2 (RSA-3072)")
+      |> fill_in("Name", with: "wrong scheme")
+      |> fill_in("Key", with: "FMBdNKrU3qlyErQtpqxsq50nGAXz03DCeEXPt2iKBe0=")
+      |> click_button("Create Key")
+      |> assert_has("div", text: "expected a PEM-encoded RSA public key")
+    end
+
+    test "rejects a PEM submitted as Ed25519", %{conn: conn, org: org} do
+      pem = EspIdf.signing_public_key()
+
+      conn
+      |> visit("/org/#{org.name}/settings/keys/new")
+      |> fill_in("Name", with: "wrong scheme")
+      |> fill_in("Key", with: pem)
+      |> click_button("Create Key")
+      |> assert_has("div", text: "valid Ed25519 public key")
+    end
+
+    # A PEM is 600+ bytes of base64 whose visible parts read the same for every
+    # key. The eFuse digest identifies the key, and can be checked against a
+    # chip.
+    test "identifies a PEM by its eFuse digest in the list", %{conn: conn, org: org, user: user} do
+      key = Fixtures.esp_idf_key_fixture(org, user)
+      {:ok, rsa} = OrgKey.decode_rsa_public_key(key.key)
+
+      conn
+      |> visit("/org/#{org.name}/settings/keys")
+      |> assert_has("h3", text: key.name)
+      |> assert_has("span", text: "eFuse digest")
+      |> assert_has("span", text: UpdateTool.EspIdf.key_digest(rsa))
+      |> refute_has("span", text: "BEGIN PUBLIC KEY")
     end
   end
 

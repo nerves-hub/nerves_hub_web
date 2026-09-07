@@ -1,8 +1,10 @@
 defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
+  alias NervesHub.Analytics.Buffer
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.LogLine
   alias NervesHub.Devices.LogLines
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -95,6 +97,8 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
       {:ok, _} = LogLines.async_create(device_info, attrs)
     end
 
+    :ok = Buffer.flush(LogLine)
+
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/logs")
     |> assert_has("div", text: "Showing the last 25 log lines.")
@@ -123,6 +127,8 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
     device_info = %DeviceInfo{device_id: device.id, device_identifier: device.identifier, product_id: device.product_id}
 
     {:ok, _} = LogLines.async_create(device_info, attrs)
+
+    :ok = Buffer.flush(LogLine)
 
     session =
       conn
@@ -163,6 +169,8 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
 
     {:ok, _} = LogLines.async_create(device_info, attrs)
 
+    :ok = Buffer.flush(LogLine)
+
     session =
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/logs")
@@ -197,14 +205,14 @@ defmodule NervesHubWeb.Live.Devices.Show.LogsTabTest do
     for n <- 1..26 do
       attrs = %{
         "level" => "info",
-        "timestamp" => DateTime.utc_now(),
+        "timestamp" => DateTime.utc_now() |> DateTime.add(n, :millisecond),
         "message" => "something wicked this way comes : #{n}"
       }
 
       {:ok, _} = LogLines.async_create(device_info, attrs)
-
-      Process.sleep(5)
     end
+
+    :ok = Buffer.flush(LogLine)
 
     session =
       conn

@@ -202,6 +202,11 @@ jobs:
       - name: Install xdelta3 and mtools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xdelta3 mtools
 
+      # ESP-IDF deltas are detools patches, which is what esp_delta_ota reads on
+      # the device. Nothing else decodes them and there is no apt package.
+      - name: Install detools
+        run: pipx install detools || pip install --user detools
+
       - name: Checkout
         uses: actions/checkout@v7
 

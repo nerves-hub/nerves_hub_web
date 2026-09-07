@@ -14,7 +14,8 @@ defmodule NervesHub.Extensions.LocalShell do
 
   @behaviour NervesHub.Extensions
 
-  alias Phoenix.Channel.Server, as: ChannelServer
+  alias NervesHub.Consoles
+  alias NervesHub.ProductNotifications
 
   require Logger
 
@@ -32,21 +33,43 @@ defmodule NervesHub.Extensions.LocalShell do
 
   @impl NervesHub.Extensions
   def attach(state) do
-    {state, [{:push, "local_shell:request_shell", %{}}, {:scrollback_clear}]}
+    key = Consoles.PubSub.local_shell_key(state.device_info.device_id)
+
+    {state, [{:group_join, key}, {:push, "local_shell:request_shell", %{}}, {:scrollback_clear}]}
   end
 
   @impl NervesHub.Extensions
   def detach(state) do
-    {state, [{:scrollback_clear}]}
+    key = Consoles.PubSub.local_shell_key(state.device_info.device_id)
+
+    {state, [{:group_leave, key}, {:scrollback_clear}]}
   end
 
   @impl NervesHub.Extensions
   def handle_in("shell_output", %{"data" => data}, state) do
-    topic = "user:local_shell:#{state.device_info.device_id}"
-    :ok = ChannelServer.broadcast!(NervesHub.PubSub, topic, "output", %{data: data})
+    :ok = Consoles.PubSub.broadcast_to_user_local_shell(state.device_info.device_id, "output", %{data: data})
 
     {state, [{:scrollback_append, data}]}
   end
+
+  # The device answers `request_shell` with how it went. A failure here is not an
+  # attach failure -- the extension is attached, and stays attached, so the shell
+  # looks available right up until nothing happens when it is opened. That is the
+  # case this notification exists for; `:expty` missing from a device's
+  # dependencies is how it was found.
+  def handle_in("request_status", %{"status" => "failed"} = payload, state) do
+    _ =
+      ProductNotifications.create_extension_failure_notification!(
+        state.device_info,
+        "local_shell",
+        payload["reason"]
+      )
+
+    {state, []}
+  end
+
+  # A shell that started needs nothing from us, and is not an unknown message.
+  def handle_in("request_status", _payload, state), do: {state, []}
 
   def handle_in(event, params, state) do
     Logger.warning(
@@ -58,12 +81,6 @@ defmodule NervesHub.Extensions.LocalShell do
 
   def handle_info({:connect, pid}, state) do
     {state, [{:scrollback_replay, pid}]}
-  end
-
-  def handle_info({:active?, pid}, state) do
-    send(pid, :active)
-
-    {state, []}
   end
 
   @impl NervesHub.Extensions

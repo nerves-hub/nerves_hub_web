@@ -3,10 +3,14 @@ defmodule NervesHubWeb.Live.Firmware do
 
   alias NervesHub.Accounts
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.Upload
+  alias NervesHub.Products
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
   alias Phoenix.Socket.Broadcast
+
+  require Logger
 
   embed_templates("firmware_templates/*")
 
@@ -17,7 +21,7 @@ defmodule NervesHubWeb.Live.Firmware do
     if connected?(socket) do
       Logger.metadata(user_id: scope.user.id, product_id: scope.product.id)
 
-      :ok = socket.endpoint.subscribe("product:#{scope.product.id}")
+      :ok = Products.PubSub.subscribe(scope.product.id)
     end
 
     socket
@@ -39,7 +43,10 @@ defmodule NervesHubWeb.Live.Firmware do
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.current_scope))
     |> assign(:params, unsigned_params)
     |> allow_upload(:firmware,
-      accept: ~w(.fw),
+      # Every format's extension, or the file picker rejects it in the browser
+      # before any of the upload code runs. See firmware_rauc_test.exs and
+      # firmware_atom_vm_test.exs, both written after that happened.
+      accept: ~w(.fw .bin .raucb .avm),
       max_entries: 1,
       auto_upload: true,
       max_file_size: max_file_size(),
@@ -263,51 +270,138 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp create_firmware(socket, filepath) do
-    case Firmwares.create_firmware(socket.assigns.current_scope.org, filepath) do
+    %{org: org, product: product} = socket.assigns.current_scope
+
+    case Firmwares.create_firmware(org, filepath, product: product) do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Firmware uploaded successfully")
-        |> push_patch(to: ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.product}/firmware")
+        |> push_patch(to: ~p"/org/#{org}/#{product}/firmware")
 
-      {:error, :no_public_keys} ->
-        error_feedback(
-          socket,
-          "Please register public keys for verifying firmware signatures first"
-        )
+      {:error, error} ->
+        error_feedback(socket, upload_error(error))
+    end
+  end
 
-      {:error, :invalid_signature} ->
-        error_feedback(socket, "Firmware corrupt, signature invalid, or missing public key")
+  # Turns whatever `create_firmware/3` failed with into something a user can act
+  # on. A changeset is passed through untouched — `error_feedback/3` renders it.
+  defp upload_error(:no_public_keys) do
+    "Please register public keys for verifying firmware signatures first"
+  end
 
-      {:error,
-       %Ecto.Changeset{
-         errors: [product_id: {"can't be blank", [validation: :required]}]
-       }} ->
-        error_feedback(
-          socket,
-          "No matching product could be found. Please check that your Nerves application product name (`:app` or `:name` in `mix.exs`) matches your #{Application.get_env(:nerves_hub, :web_title_suffix)} product name."
-        )
+  defp upload_error(:invalid_signature) do
+    "Firmware corrupt, signature invalid, or missing public key"
+  end
 
-      {:error,
-       %Ecto.Changeset{
+  defp upload_error({:product_mismatch, declared, expected}) do
+    "This firmware is built for the product #{inspect(declared)}, but was uploaded to " <>
+      "#{inspect(expected)}. Check the product name in your firmware build."
+  end
+
+  defp upload_error({:missing_manifest_field, field}) do
+    "This RAUC bundle's manifest has no #{field}. NervesHub needs it to match " <>
+      "the bundle to a deployment."
+  end
+
+  defp upload_error(:unsuitable_certificate_purpose) do
+    "This bundle's signing certificate is not valid for signing. RAUC verifies " <>
+      "with openssl's CMS, which expects a certificate usable for S/MIME " <>
+      "signing — an `extendedKeyUsage` of `codeSigning` alone excludes that, " <>
+      "and a device would refuse the bundle mid-install. Reissue the signing " <>
+      "certificate without a restrictive extendedKeyUsage; `openssl x509 " <>
+      "-purpose` should report \"S/MIME signing: Yes\"."
+  end
+
+  defp upload_error({:invalid_manifest_field, field}) do
+    "This RAUC bundle's manifest has a #{field} that is not a UUID. NervesHub " <>
+      "stores firmware identifiers in a UUID column, so a declared uuid has to " <>
+      "be one — a UUIDv4 generated once per build is the usual answer."
+  end
+
+  defp upload_error({:missing_manifest_section, key}) do
+    "This RAUC bundle's manifest has no [meta.nerveshub] section, so NervesHub " <>
+      "cannot read #{key}. Meta sections require RAUC 1.9 or newer — older " <>
+      "versions drop them silently while building the bundle, so the section " <>
+      "can be present in your manifest and absent from the bundle."
+  end
+
+  defp upload_error(:plain_bundle_unsupported) do
+    "This is a RAUC bundle in the plain format. NervesHub reads verity bundles, " <>
+      "which is also the format required for the streaming installs that make " <>
+      "RAUC worth using. Rebuild with `format=verity` in the manifest's " <>
+      "[bundle] section."
+  end
+
+  # openssl said no for a reason NervesHub does not have a name for. Its own
+  # message is the only thing that explains why, and it was previously dropped
+  # on the floor — leaving an operator with "Unknown error uploading firmware"
+  # and no way to tell a corrupt bundle from a broken openssl invocation.
+  defp upload_error({:openssl_failed, status, output}) do
+    Logger.error("openssl rejected a RAUC bundle (exit #{status}): #{output}")
+
+    "NervesHub could not verify this RAUC bundle: openssl exited #{status}. " <>
+      "If the bundle is not corrupt, the server log has openssl's own message."
+  end
+
+  defp upload_error({:temp_dir_unavailable, reason}) do
+    Logger.error("could not create a temporary directory to verify a RAUC bundle: #{inspect(reason)}")
+
+    "NervesHub could not create a temporary directory to verify this bundle. " <>
+      "This is a server problem rather than something wrong with the bundle."
+  end
+
+  defp upload_error(:openssl_not_available) do
+    "NervesHub could not run `openssl`, which it needs to read a RAUC bundle's " <>
+      "signature. This is a server configuration problem rather than something " <>
+      "wrong with the bundle — openssl has to be installed and on the path."
+  end
+
+  defp upload_error({:update_tool_not_allowed, tool, product}) do
+    "The product #{inspect(product)} does not accept #{tool} firmware. " <>
+      "An organization owner can enable it in the product's settings."
+  end
+
+  defp upload_error(:firmware_not_signed) do
+    "This ESP-IDF image is not signed. Sign it with `espsecure.py sign_data --version 2` and register the matching public key against your organization, or allow unsigned images in this product's settings."
+  end
+
+  defp upload_error(:esp_idf_ecdsa_signatures_not_supported) do
+    "This ESP-IDF image is signed with ECDSA. NervesHub can only verify RSA-3072 Secure Boot v2 signatures at present."
+  end
+
+  defp upload_error(:unknown_signature_block_version) do
+    "This ESP-IDF image carries a signature block NervesHub does not recognise."
+  end
+
+  defp upload_error(:signature_block_corrupt) do
+    "The signature block on this ESP-IDF image failed its checksum — the file is likely damaged in transit."
+  end
+
+  defp upload_error(:unrecognised_firmware_format) do
+    "Unrecognised firmware format. This instance accepts #{UpdateTool.accepted_formats()}."
+  end
+
+  defp upload_error({:invalid_version, raw}) do
+    "Firmware version #{inspect(raw)} is not a valid semantic version. " <>
+      "For ESP-IDF, set PROJECT_VER in your CMakeLists.txt to something like \"1.2.3\"."
+  end
+
+  defp upload_error(%Ecto.Changeset{errors: [product_id: {"can't be blank", [validation: :required]}]}) do
+    "No matching product could be found. Please check that your Nerves application product name " <>
+      "(`:app` or `:name` in `mix.exs`) matches your #{Application.get_env(:nerves_hub, :web_title_suffix)} product name."
+  end
+
+  defp upload_error(%Ecto.Changeset{
          errors: [
            uuid: {"has already been taken", [constraint: :unique, constraint_name: "firmwares_product_id_uuid_index"]}
          ]
-       } = _changeset} ->
-        error_feedback(
-          socket,
-          "Firmware UUID has already been taken, has this version been uploaded already?"
-        )
-
-      {:error, error} when is_binary(error) ->
-        error_feedback(socket, error)
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        error_feedback(socket, changeset)
-
-      _ ->
-        error_feedback(socket, "Unknown error uploading firmware. Please contact support.")
-    end
+       }) do
+    "Firmware UUID has already been taken, has this version been uploaded already?"
   end
+
+  defp upload_error(%Ecto.Changeset{} = changeset), do: changeset
+  defp upload_error(error) when is_binary(error), do: error
+  defp upload_error(_error), do: "Unknown error uploading firmware. Please contact support."
 
   defp error_feedback(socket, changeset_or_message, opts \\ [])
 
@@ -333,9 +427,13 @@ defmodule NervesHubWeb.Live.Firmware do
     end
   end
 
+  defp format_signed(%{org_key_id: nil}, _org_keys), do: "Unsigned"
+
   defp format_signed(%{org_key_id: org_key_id}, org_keys) do
-    key = Enum.find(org_keys, &(&1.id == org_key_id))
-    "#{key.name}"
+    case Enum.find(org_keys, &(&1.id == org_key_id)) do
+      nil -> "Unknown key"
+      key -> key.name
+    end
   end
 
   defp max_file_size() do

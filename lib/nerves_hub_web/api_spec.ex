@@ -2,6 +2,7 @@ defmodule NervesHubWeb.ApiSpec do
   @behaviour OpenApiSpex.OpenApi
 
   alias NervesHubWeb.API.OpenAPI.DeviceControllerSpecs
+  alias NervesHubWeb.API.OpenAPI.DeviceLogControllerSpecs
   alias NervesHubWeb.API.OpenAPI.SupportScriptControllerSpecs
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Plugs.ImAlive
@@ -71,6 +72,10 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Device management, including action requests eg. upgrade, reboot, reconnect"
         },
         %Tag{
+          name: "Device Logs",
+          description: "Log lines Devices have sent over the logging extension"
+        },
+        %Tag{
           name: "Devices (short URL)",
           description: "Device management, including action requests eg. upgrade, reboot, reconnect"
         },
@@ -79,12 +84,20 @@ defmodule NervesHubWeb.ApiSpec do
           description: "Device Certificate management"
         },
         %Tag{
+          name: "Network Identities",
+          description: "Identities a Device holds on networks NervesHub does not run"
+        },
+        %Tag{
           name: "Deployment Groups",
           description: "Deployment Group and release management"
         },
         %Tag{
           name: "Firmwares",
           description: "Firmware uploading and management"
+        },
+        %Tag{
+          name: "Iroh Endpoints",
+          description: "Organization iroh endpoint id registration"
         },
         %Tag{
           name: "Organizations",
@@ -113,6 +126,7 @@ defmodule NervesHubWeb.ApiSpec do
       ]
     }
     |> DeviceControllerSpecs.add_operations()
+    |> DeviceLogControllerSpecs.add_operations()
     |> SupportScriptControllerSpecs.add_operations()
     # Discover request/response schemas from path specs
     |> OpenApiSpex.resolve_schema_modules()

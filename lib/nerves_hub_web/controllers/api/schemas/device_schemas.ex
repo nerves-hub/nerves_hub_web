@@ -40,7 +40,16 @@ defmodule NervesHubWeb.API.Schemas.DeviceSchemas do
             firmware_version: %Schema{type: :string}
           }
         },
-        updates_enabled: %Schema{type: :boolean},
+        updates_enabled: %Schema{
+          type: :boolean,
+          description: "Whether the device takes updates at all. False only when update_mode is off."
+        },
+        update_mode: %Schema{
+          type: :string,
+          description:
+            "How the device receives firmware. automatic: pushed by its deployment group. device_managed: the device asks for updates itself. off: neither, only a manual push.",
+          enum: ["off", "automatic", "device_managed"]
+        },
         updates_blocked_until: %Schema{
           type: :string,
           description: "Device penalty box expiration timestamp",

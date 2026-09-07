@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.Live.FirmwareTest do
   use NervesHubWeb.ConnCase.Browser, async: false
+  use Mimic
 
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
@@ -251,6 +252,90 @@ defmodule NervesHubWeb.Live.FirmwareTest do
     end
   end
 
+  describe "sort and paginate" do
+    test "sort by a new column", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      _firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> assert_has("h1", text: "Firmware")
+      |> unwrap(fn view ->
+        render_change(view, "sort", %{"sort" => "version"})
+      end)
+      |> assert_has("h1", text: "Firmware")
+    end
+
+    test "sort by the same column toggles direction", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      _firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware?sort=inserted_at&sort_direction=asc")
+      |> assert_has("h1", text: "Firmware")
+      |> unwrap(fn view ->
+        render_change(view, "sort", %{"sort" => "inserted_at"})
+      end)
+      |> assert_has("h1", text: "Firmware")
+    end
+
+    test "paginate to another page", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware?page_size=1")
+      |> assert_has("a", text: firmware.uuid)
+      |> unwrap(fn view ->
+        render_change(view, "paginate", %{"page" => "1"})
+      end)
+      |> assert_has("h1", text: "Firmware")
+    end
+
+    test "change page size", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      _firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> assert_has("h1", text: "Firmware")
+      |> unwrap(fn view ->
+        render_change(view, "set-paginate-opts", %{"page-size" => "50"})
+      end)
+      |> assert_has("h1", text: "Firmware")
+    end
+  end
+
+  describe "firmware deleted by another user (index)" do
+    test "shows a flash when firmware is deleted while viewing the index", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware_1 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      firmware_2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> assert_has("a", text: firmware_1.uuid)
+      |> assert_has("a", text: firmware_2.uuid)
+      |> tap(fn _ -> Firmwares.delete_firmware(firmware_2) end)
+      |> assert_has("p", text: "has been deleted by another user.")
+    end
+  end
+
   describe "upload firmware" do
     test "redirects after successful upload", %{
       conn: conn,
@@ -322,6 +407,9 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("div", text: "Firmware corrupt, signature invalid, or missing public key")
     end
 
+    # Previously this reported "No matching product could be found", which
+    # pointed at the wrong thing: the problem is not that AnotherProduct is
+    # missing, it is that this firmware was uploaded to the wrong product.
     test "error if meta-product does not match product name", %{
       conn: conn,
       user: user,
@@ -341,7 +429,98 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> visit("/org/#{org.name}/#{product.name}/firmware")
       |> upload("Upload Firmware", signed_firmware_path)
       |> assert_path("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("div", text: "No matching product could be found.")
+      |> assert_has("div", text: "AnotherProduct")
+      |> assert_has("div", text: "CoolProduct")
+    end
+
+    # The same firmware uploaded to the product it was built for still works —
+    # the check must not reject a legitimate upload.
+    test "uploads firmware whose meta-product matches the product", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{
+          product: "CoolProduct",
+          dir: tmp_dir
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> upload("Upload Firmware", signed_firmware_path)
+      |> assert_has("div", text: "Firmware uploaded successfully")
+    end
+  end
+
+  describe "delete from index" do
+    test "deletes firmware from list page via event", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "DeleteIndexProduct"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> assert_has("a", text: firmware.uuid)
+      |> unwrap(fn view ->
+        render_click(view, "delete-firmware", %{"firmware_uuid" => firmware.uuid})
+      end)
+      |> assert_has("div", text: "Firmware successfully deleted")
+      |> refute_has("a", text: firmware.uuid)
+    end
+
+    test "shows error when delete fails (list page)", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "DeleteErrorFirmwareProduct"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      stub(Firmwares, :delete_firmware, fn _ ->
+        {:error,
+         %Ecto.Changeset{
+           errors: [base: {"firmware has deployments", []}],
+           data: %{},
+           changes: %{},
+           types: %{},
+           valid?: false
+         }}
+      end)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> assert_has("a", text: firmware.uuid)
+      |> unwrap(fn view ->
+        render_click(view, "delete-firmware", %{"firmware_uuid" => firmware.uuid})
+      end)
+      |> assert_has("div", text: "firmware has deployments", exact: false)
+    end
+  end
+
+  describe "firmware-selected event" do
+    test "is a noop", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      _firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> unwrap(fn view ->
+        render_click(view, "firmware-selected", %{})
+      end)
+      |> assert_has("h1", text: "Firmware")
     end
   end
 end

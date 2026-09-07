@@ -23,18 +23,23 @@ defmodule NervesHubWeb.API.ScriptJSON do
   end
 
   defp script(script, :show) do
-    %{
+    base = %{
       id: script.id,
       name: script.name,
       text: script.text,
       tags: script.tags,
       inserted_at: script.inserted_at,
-      updated_at: script.updated_at,
-      created_by: %{
+      updated_at: script.updated_at
+    }
+
+    if script.created_by do
+      Map.put(base, :created_by, %{
         id: script.created_by.id,
         name: script.created_by.name,
         email: script.created_by.email
-      }
-    }
+      })
+    else
+      base
+    end
   end
 end

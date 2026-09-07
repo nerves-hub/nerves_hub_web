@@ -11,10 +11,12 @@ defmodule NervesHub.Devices do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.DeviceEvents
+  alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceFirmwares
+  alias NervesHub.Devices.NetworkIdentity
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Extensions
@@ -24,6 +26,37 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+
+  @doc """
+  Pair counted analytics results with their devices, in the order given.
+
+  Analytics tables hold device ids, not devices, so a "top N devices by
+  something" read comes back as `[%{device_id: _, count: _}]` and needs the
+  devices fetched from PostgreSQL. The analytics ordering is preserved, and an
+  id with no matching device — deleted, or belonging to another product — is
+  dropped rather than rendered as a hole.
+  """
+  @spec with_counts([%{device_id: pos_integer(), count: non_neg_integer()}], Product.t()) ::
+          [{Device.t(), non_neg_integer()}]
+  def with_counts([], _product), do: []
+
+  def with_counts(counted, %Product{id: product_id}) do
+    device_ids = Enum.map(counted, & &1.device_id)
+
+    devices =
+      Device
+      |> where(product_id: ^product_id)
+      |> where([d], d.id in ^device_ids)
+      |> Repo.all()
+      |> Map.new(&{&1.id, &1})
+
+    Enum.flat_map(counted, fn %{device_id: device_id, count: count} ->
+      case Map.get(devices, device_id) do
+        nil -> []
+        device -> [{device, count}]
+      end
+    end)
+  end
 
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
@@ -88,7 +121,13 @@ defmodule NervesHub.Devices do
       |> Map.merge(Map.get(opts, :pagination, %{}))
 
     sorting = Map.get(opts, :sort, {:asc, :identifier})
-    filters = Map.get(opts, :filters, %{})
+    {advanced_query, filters} = Map.pop(Map.get(opts, :filters, %{}), :advanced_query)
+
+    # When the advanced query checks the `deleted` column, let it control whether
+    # soft-deleted devices appear instead of the default exclusion and the
+    # `display_deleted` filter (matching `NervesHub.Filtering` for the UI list).
+    query_controls_deleted = AdvancedQuery.references_column?(advanced_query, product_id, "deleted")
+    filters = if query_controls_deleted, do: Map.delete(filters, :display_deleted), else: filters
 
     flop = %Flop{page: pagination[:page], page_size: pagination[:page_size]}
 
@@ -102,9 +141,11 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p, dg, cr], f in assoc(cr, :firmware))
     |> join(:left, [d, o, p, dg, cr, f], lc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, o, p, dg, cr, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
-    |> Repo.exclude_deleted()
+    |> join(:left, [d], ifu in assoc(d, :inflight_update), as: :inflight_update)
+    |> then(&if(query_controls_deleted, do: &1, else: Repo.exclude_deleted(&1)))
     |> DeviceFiltering.sort(sorting)
     |> DeviceFiltering.build_filters(filters)
+    |> AdvancedQuery.apply_to_query(advanced_query, product_id)
     |> preload([d, o, p, dg, cr, f, latest_connection: lc, latest_health: lh],
       org: o,
       product: p,
@@ -145,7 +186,10 @@ defmodule NervesHub.Devices do
   end
 
   defp common_filter_query(user) do
+    # Named so the alarm filters can correlate an EXISTS against `device_alarms`
+    # back to this device; see `NervesHub.Devices.AdvancedQuery.Compiler`.
     Device
+    |> from(as: :device)
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
     |> join(:left, [d, dc, dh], pd in PinnedDevice,
@@ -288,6 +332,12 @@ defmodule NervesHub.Devices do
     |> preload([d, device_certificates: dc], device_certificates: dc)
   end
 
+  defp join_and_preload(query, :network_identities) do
+    query
+    |> join(:left, [d], ei in assoc(d, :network_identities), as: :network_identities)
+    |> preload([network_identities: ei], network_identities: ei)
+  end
+
   defp join_and_preload(query, :latest_connection) do
     query
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
@@ -369,11 +419,18 @@ defmodule NervesHub.Devices do
   def delete_device(%Device{} = device) do
     device_certificates_query = from(dc in DeviceCertificate, where: dc.device_id == ^device.id)
     pinned_devices_query = from(p in PinnedDevice, where: p.device_id == ^device.id)
+
+    # A device is only soft deleted, so these have to go explicitly: otherwise
+    # they keep holding the (service, identifier) unique index and reprovisioning
+    # the same hardware collides with the identity of the device just deleted.
+    network_identities_query = from(ei in NetworkIdentity, where: ei.device_id == ^device.id)
+
     changeset = Repo.soft_delete_changeset(device)
 
     Multi.new()
     |> Multi.delete_all(:device_certificates, device_certificates_query)
     |> Multi.delete_all(:pinned_devices, pinned_devices_query)
+    |> Multi.delete_all(:network_identities, network_identities_query)
     |> Multi.update(:device, changeset)
     |> Repo.transact()
     |> case do
@@ -540,6 +597,16 @@ defmodule NervesHub.Devices do
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
     |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query/1)
+    # The device's identities on other networks name an organisation of their
+    # own, and that is what those networks resolve a key to. Left behind, this
+    # device would keep answering for the organisation it just left — and be
+    # placed on that organisation's network by anything using them. Same
+    # transaction as the move, so there is no window where the two disagree.
+    |> Multi.update_all(
+      :network_identities,
+      from(ei in NetworkIdentity, where: ei.device_id == ^device.id),
+      set: [org_id: product.org_id, updated_at: DateTime.utc_now(:second)]
+    )
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, description)
     end)
@@ -623,7 +690,14 @@ defmodule NervesHub.Devices do
     tag_device(device, user, new_tags)
   end
 
-  @spec update_device_with_audit(Device.t(), map(), User.t(), String.t()) ::
+  @doc """
+  Update a device and record who did it.
+
+  The actor is usually a user, but a device is one too: a device that sets its
+  own update mode, or that is moved off a mode its firmware cannot support, is
+  the actor for that change, and the log should not imply an operator asked.
+  """
+  @spec update_device_with_audit(Device.t(), map(), User.t() | Device.t(), String.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def update_device_with_audit(device, params, user, description) do
     Multi.new()

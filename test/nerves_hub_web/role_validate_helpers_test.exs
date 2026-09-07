@@ -29,6 +29,37 @@ defmodule NervesHubWeb.RoleValidateHelpersTest do
     refute Validator.validate_role(conn, org: :admin).halted
   end
 
+  @tag :tmp_dir
+  test "validates role using device's org when device is in scope", %{tmp_dir: tmp_dir, user: user} do
+    org = Fixtures.org_fixture(user)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    device = Fixtures.device_fixture(org, product, firmware) |> NervesHub.Repo.preload(:org)
+
+    scope = Scope.for_user(user)
+
+    conn =
+      Plug.Test.conn(:get, "/")
+      |> Plug.Conn.assign(:current_scope, scope)
+      |> Plug.Conn.assign(:device, device)
+
+    refute Validator.validate_role(conn, org: :view).halted
+  end
+
+  test "raises when scope has no org and no device" do
+    user = Fixtures.user_fixture()
+    scope = Scope.for_user(user)
+
+    conn =
+      Plug.Test.conn(:get, "/")
+      |> Plug.Conn.assign(:current_scope, scope)
+
+    assert_raise(NervesHubWeb.UnauthorizedError, fn ->
+      Validator.validate_role(conn, org: :admin)
+    end)
+  end
+
   test "org role", %{conn: conn} do
     user = Fixtures.user_fixture()
 

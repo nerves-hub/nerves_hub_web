@@ -7,12 +7,16 @@ defmodule NervesHubWeb.Router do
 
   alias Live.Org.CertificateAuthorities
   alias Live.Org.Delete
+  alias Live.Org.IrohEndpoints
   alias Live.Org.Settings
   alias Live.Org.Show
   alias Live.Org.SigningKeys
   alias Live.Org.Users
   alias Live.Orgs.Index
   alias Live.Orgs.New
+  alias Live.Product.ErrorGroup
+  alias Live.Product.Errors
+  alias Live.Product.HealthProfiles
   alias Live.Product.Insights
   alias Live.Product.Notifications
   alias Live.SupportScripts.Edit
@@ -95,6 +99,8 @@ defmodule NervesHubWeb.Router do
 
       get("/scripts", ScriptController, :index)
       post("/scripts/:name_or_id", ScriptController, :send)
+
+      get("/logs", DeviceLogController, :index)
     end
 
     scope "/" do
@@ -122,6 +128,13 @@ defmodule NervesHubWeb.Router do
             delete("/:name", KeyController, :delete)
           end
 
+          scope "/iroh_endpoints" do
+            get("/", IrohEndpointController, :index)
+            post("/", IrohEndpointController, :create)
+            get("/:identifier", IrohEndpointController, :show)
+            delete("/:identifier", IrohEndpointController, :delete)
+          end
+
           scope "/ca_certificates" do
             get("/", CACertificateController, :index)
             get("/verification_token", CACertificateController, :verification_token)
@@ -138,6 +151,8 @@ defmodule NervesHubWeb.Router do
               pipe_through([:api_product])
 
               get("/", ProductController, :show)
+              put("/", ProductController, :update)
+              patch("/", ProductController, :update)
               delete("/", ProductController, :delete)
 
               scope "/devices" do
@@ -162,6 +177,14 @@ defmodule NervesHubWeb.Router do
 
                   scope "/scripts", as: :device do
                     post("/:name_or_id", ScriptController, :send)
+                  end
+
+                  scope "/logs" do
+                    get("/", DeviceLogController, :index)
+                  end
+
+                  scope "/network_identities" do
+                    get("/", NetworkIdentityController, :index)
                   end
 
                   scope "/certificates" do
@@ -301,6 +324,10 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/settings/users", Users, :index)
       live("/org/:org_name/settings/users/invite", Users, :invite)
       live("/org/:org_name/settings/users/:user_id/edit", Users, :edit)
+      # Gated as well as hidden from the sidebar: a hidden link still leaves the
+      # URL typeable, so the LiveView refuses to mount when the flag is off.
+      live("/org/:org_name/settings/iroh-endpoints", IrohEndpoints)
+
       live("/org/:org_name/settings/certificates", CertificateAuthorities, :index)
       live("/org/:org_name/settings/certificates/new", CertificateAuthorities, :new)
       live("/org/:org_name/settings/delete", Delete)
@@ -312,6 +339,8 @@ defmodule NervesHubWeb.Router do
       )
 
       live("/org/:org_name/:product_name/insights", Insights)
+      live("/org/:org_name/:product_name/errors", Errors)
+      live("/org/:org_name/:product_name/errors/:id", ErrorGroup)
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
       live("/org/:org_name/:product_name/devices/new", Live.Devices.New)
       live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show, :details)
@@ -332,6 +361,18 @@ defmodule NervesHubWeb.Router do
         "/org/:org_name/:product_name/devices/:device_identifier/logs",
         Live.Devices.Show,
         :logs
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/errors",
+        Live.Devices.Show,
+        :errors
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/data_history",
+        Live.Devices.Show,
+        :data_history
       )
 
       live(
@@ -359,11 +400,9 @@ defmodule NervesHubWeb.Router do
       )
 
       live("/org/:org_name/:product_name/firmware", Live.Firmware, :index)
-      live("/org/:org_name/:product_name/firmware/upload", Live.Firmware, :upload)
       live("/org/:org_name/:product_name/firmware/:firmware_uuid", Live.Firmware, :show)
 
       live("/org/:org_name/:product_name/archives", Live.Archives, :index)
-      live("/org/:org_name/:product_name/archives/upload", Live.Archives, :upload)
       live("/org/:org_name/:product_name/archives/:archive_uuid", Live.Archives, :show)
 
       live("/org/:org_name/:product_name/deployment_groups", Live.DeploymentGroups.Index)
@@ -400,6 +439,7 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/notifications", Notifications)
 
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
+      live("/org/:org_name/:product_name/settings/health", HealthProfiles)
     end
   end
 

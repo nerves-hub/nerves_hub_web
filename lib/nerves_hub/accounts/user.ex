@@ -113,6 +113,23 @@ defmodule NervesHub.Accounts.User do
     |> update_change(:name, &trim/1)
     |> validate_required([:name])
     |> validate_length(:name, min: 2, max: 100)
+    |> validate_format(:name, ~r/^[^<>\/\\@:;{}\[\]|_=+*#\d]+$/u, message: "has invalid character(s)")
+    |> validate_no_url(:name)
+  end
+
+  # Bots register accounts with web addresses in the name field, eg. "Buy now
+  # at example.com". The character check above blocks most of them (slashes,
+  # colons, digits), this catches the bare `something.tld` variants.
+  @url_regex ~r/(\bhttps?\b|\bwww\b|[[:alnum:]-]+\.(com|net|org|io|ru|cn|xyz|info|biz|top|shop|site|online|club|link|live|store))/iu
+
+  defp validate_no_url(changeset, field) do
+    validate_change(changeset, field, fn ^field, value ->
+      if Regex.match?(@url_regex, value) do
+        [{field, "cannot contain a web address"}]
+      else
+        []
+      end
+    end)
   end
 
   defp validate_email(changeset, _opts) do

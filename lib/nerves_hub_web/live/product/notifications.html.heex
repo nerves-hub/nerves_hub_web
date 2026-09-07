@@ -9,7 +9,7 @@
     </div>
   </:header>
 
-  <div class="flex h-full flex-col items-start justify-between gap-4 overflow-x-auto p-6">
+  <div class="flex h-0 flex-1 flex-col items-start justify-between gap-4 overflow-x-auto p-6">
     <div class="bg-surface-raised border-base-700 flex w-full flex-col rounded border">
       <div class="border-base-700 flex h-14 items-center justify-end gap-3 border-b px-4">
         <.button :if={authorized?(:"product:notifications:dismiss", @current_scope)} style="secondary" phx-click="dismiss-all" data-confirm="Are you sure you want to dismiss all notifications?">

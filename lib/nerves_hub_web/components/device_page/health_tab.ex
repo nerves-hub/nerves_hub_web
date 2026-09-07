@@ -3,6 +3,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
   alias NervesHub.Devices.Metrics
   alias NervesHub.Products
+  alias NervesHub.Products.HealthProfiles
+  alias NervesHubWeb.Components.DeviceHealth.MetricLabels
+  alias NervesHubWeb.Components.Utils
+  alias Phoenix.LiveView.AsyncResult
 
   @time_frame_opts [
     {"hour", 3},
@@ -10,19 +14,6 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     {"day", 7}
   ]
   @default_time_frame {"hour", 3}
-
-  # Metric types with belonging titles to display as default.
-  # Also sets order of charts.
-  @default_metrics [
-    {"load_1min", "Load Average 1 Min"},
-    {"load_5min", "Load Average 5 Min"},
-    {"load_15min", "Load Average 15 Min"},
-    {"mem_used_mb", "Memory Usage (MB)"},
-    {"mem_used_percent", "Memory Usage (%)"},
-    {"disk_used_percentage", "Disk Usage (%)"},
-    {"cpu_usage_percent", "CPU Usage (%)"},
-    {"cpu_temp", "CPU Temperature (°C)"}
-  ]
 
   @manual_metrics [
     "cpu_temp",
@@ -45,27 +36,63 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   @tick_interval 55_000
 
   def tab_params(_params, _uri, socket) do
-    _ = if connected?(socket), do: Process.send_after(self(), :tick, @tick_interval)
-
     socket
+    |> schedule_tick()
     |> update_from_and_until_timestamps()
     |> assign(:time_frame_opts, @time_frame_opts)
+    # The charts read ClickHouse; the numbers above them do not. Without a
+    # ClickHouse the tab still has current values to show, so the tab stays and
+    # the charts say why they are empty.
+    |> assign(:analytics_enabled, analytics_enabled?())
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(socket.assigns.device.id))
+    |> assign(:threshold_specs, threshold_specs(socket.assigns.device))
     |> assign(:custom_health_labels, Products.custom_health_metrics_labels(socket.assigns.product))
     |> assign(:editing_label_key, nil)
+    |> assign(:chart_data, %{})
+    |> assign(:has_chart_data, %{})
     |> async_assign_charts()
     |> cont()
   end
 
+  # `:analytics_enabled` is deliberately absent: the Logs, Errors and Data
+  # History tabs set it too, and `cleanup/0` runs for every inactive tab -- a
+  # shared key listed here is deleted out from under whichever tab is active.
+  # See `NervesHubWeb.Components.DevicePage.TabCleanupTest`.
   def cleanup() do
-    [:time_frame, :time_frame_opts, :charts, :custom_health_labels, :editing_label_key]
+    [
+      :time_frame,
+      :time_frame_opts,
+      :charts,
+      :chart_data,
+      :has_chart_data,
+      :custom_health_labels,
+      :editing_label_key
+    ]
+  end
+
+  def hooked_async("load_chart:" <> key, {:ok, results}, socket) do
+    socket
+    |> put_chart_data(key, AsyncResult.ok(chart_data(socket, key), results))
+    |> halt()
+  end
+
+  def hooked_async("load_chart:" <> key, {:exit, reason}, socket) do
+    _ =
+      Sentry.capture_message("Unexpected error when loading device health charts",
+        extra: %{key: key, reason: reason},
+        result: :none
+      )
+
+    socket
+    |> put_chart_data(key, AsyncResult.failed(chart_data(socket, key), {:exit, reason}))
+    |> halt()
   end
 
   def hooked_async("update_chart:" <> key, {:ok, results}, socket) do
     {from, until} = fetch_from_and_until(socket)
 
     socket
-    |> assign(has_chart_data_key(key), Enum.any?(results))
+    |> put_has_chart_data(key, Enum.any?(results))
     |> push_event("update-charts", %{
       key: key,
       data: results,
@@ -144,9 +171,9 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
     {from, until} = fetch_from_and_until(socket)
 
-    # if we previously didn't loaded any metric keys, now is the time to do it
+    # No charts yet, so this report is what creates them.
     if Enum.empty?(chart_keys) do
-      async_assign_charts(socket)
+      seed_charts(socket, latest_metrics)
     else
       latest_metrics
       |> metrics_to_chart()
@@ -158,16 +185,15 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
         socket
         |> push_event("add-data-point", %{key: key, data: data, from: from, until: until})
-        |> assign(has_chart_data_key(key), true)
+        |> put_has_chart_data(key, true)
       end)
     end
     |> halt()
   end
 
   def hooked_info(:tick, socket) do
-    Process.send_after(self(), :tick, @tick_interval)
-
     socket
+    |> schedule_tick()
     |> update_from_and_until_timestamps()
     |> then(fn socket ->
       {from, until} = fetch_from_and_until(socket)
@@ -233,7 +259,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
               </div>
             </div>
             <div :for={{key, value} <- custom_metrics(@latest_metrics)} class="health-plain flex h-16 grow flex-col rounded border-b border-neutral-500 px-3 py-2">
-              <span class="text-base-400 text-xs tracking-wide">{key_label(key)}</span>
+              <span class="text-base-400 text-xs tracking-wide">{label_for(key, @custom_health_labels)}</span>
               <span class="text-base-50 text-xl leading-[30px]">{nice_round(value)}</span>
             </div>
           </div>
@@ -307,7 +333,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
               </div>
             </div>
             <div class="relative flex h-[200px] w-full">
-              <.async_result :let={chart_data} assign={assigns[chart_data_key(key)]}>
+              <.async_result :let={chart_data} assign={@chart_data[key]}>
                 <:loading>
                   <div class="bg-base-900/70 absolute inset-0 flex items-center justify-center">
                     <span class="text-base-500 font-extralight">Loading history for {key}...</span>
@@ -324,14 +350,18 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
                   phx-update="ignore"
                   data-key={key}
                   data-metrics={Jason.encode!(chart_data)}
+                  data-thresholds={Jason.encode!(@threshold_specs[key])}
                   data-title=""
                   data-max={suggested_max(key)}
                   data-mintime={Jason.encode!(@charts_from_timestamp)}
                   data-maxtime={Jason.encode!(@charts_until_timestamp)}
                   data-unit="minute"
                 ></canvas>
-                <div :if={not assigns[has_chart_data_key(key)] && Enum.empty?(chart_data)} class="bg-base-900/70 absolute inset-0 flex items-center justify-center">
-                  <span class="text-base-500 font-extralight">No metrics for {key} found for the selected period.</span>
+                <div :if={!@has_chart_data[key] && Enum.empty?(chart_data)} class="bg-base-900/70 absolute inset-0 flex items-center justify-center">
+                  <span :if={@analytics_enabled} class="text-base-500 font-extralight">No metrics for {key} found for the selected period.</span>
+                  <span :if={!@analytics_enabled} class="text-base-500 font-extralight">
+                    Metric history needs analytics, which isn't enabled for your platform. The current values above are up to date.
+                  </span>
                 </div>
               </.async_result>
             </div>
@@ -390,35 +420,54 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   end
 
   defp update_charts(socket) do
-    %{device: %{id: device_id}, time_frame: time_frame, latest_metrics: latest_metrics} = socket.assigns
+    %{device: device, time_frame: time_frame, latest_metrics: latest_metrics} = socket.assigns
 
     latest_metrics
     |> metrics_to_chart()
     |> Enum.reduce(socket, fn key, socket ->
       start_async(socket, "update_chart:#{key}", fn ->
-        formatted_metrics(device_id, key, time_frame)
+        formatted_metrics(device, key, time_frame)
       end)
     end)
   end
 
   defp async_assign_charts(socket) do
-    device_id = socket.assigns.device.id
+    device = socket.assigns.device
     time_frame = socket.assigns.time_frame
 
     socket.assigns.latest_metrics
     |> metrics_to_chart()
     |> Enum.reduce(socket, fn key, socket ->
       socket
-      |> assign_async(chart_data_key(key), fn ->
-        {:ok, %{chart_data_key(key) => formatted_metrics(device_id, key, time_frame)}}
-      end)
-      |> assign(has_chart_data_key(key), false)
+      |> put_chart_data(key, AsyncResult.loading())
+      |> put_has_chart_data(key, false)
+      |> start_async("load_chart:#{key}", fn -> formatted_metrics(device, key, time_frame) end)
+    end)
+  end
+
+  # Builds the charts out of the report that has just arrived, rather than
+  # reading the history back for them.
+  #
+  # Two reasons, and either alone would be enough. The write is buffered, so a
+  # read this soon comes back empty and the chart would say there was nothing
+  # for the period -- of the reading the user just watched arrive. And there is
+  # nothing to read anyway: no charts means the latest set was empty when the
+  # page loaded, which means the device had never reported.
+  defp seed_charts(socket, latest_metrics) do
+    x = DateTime.to_unix(latest_metrics["timestamp"], :millisecond)
+
+    latest_metrics
+    |> metrics_to_chart()
+    |> Enum.reduce(socket, fn key, socket ->
+      socket
+      |> put_chart_data(key, AsyncResult.ok(chart_data(socket, key), [%{x: x, y: latest_metrics[key]}]))
+      |> put_has_chart_data(key, true)
     end)
   end
 
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
     metadata =
-      if device.latest_health, do: device.latest_health.data["metadata"] || %{}, else: %{}
+      if device.latest_connection, do: device.latest_connection.metadata || %{}, else: %{}
 
     assign(socket, :metadata, Map.drop(metadata, standard_keys(device)))
   end
@@ -437,15 +486,12 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   defp standard_keys(%{firmware_metadata: firmware_metadata}),
     do: firmware_metadata |> Map.keys() |> Enum.map(&to_string/1)
 
-  defp formatted_metrics(device_id, key, time_frame) do
-    Metrics.get_device_metrics_by_key(device_id, key, time_frame)
+  defp formatted_metrics(device, key, time_frame) do
+    device
+    |> Metrics.get_device_metrics_by_key(key, time_frame)
     |> Enum.map(fn metric ->
-      %{x: DateTime.to_unix(metric.inserted_at, :millisecond), y: metric.value}
+      %{x: DateTime.to_unix(metric.timestamp, :millisecond), y: metric.value}
     end)
-  end
-
-  defp chart_title(key) do
-    String.replace(key, ~r/mb$/, "MB")
   end
 
   defp metrics_to_chart(latest_metrics) do
@@ -455,8 +501,8 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       k == "timestamp" or String.downcase(k) in @no_chart_metrics
     end)
     |> Enum.sort_by(fn key ->
-      # Sorts list by @default_metrics order
-      Enum.find_index(@default_metrics, fn {default_type, _} ->
+      # Sorts list by the well-known chart order
+      Enum.find_index(MetricLabels.default_titles(), fn {default_type, _} ->
         default_type == key
       end)
     end)
@@ -471,46 +517,65 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     end
   end
 
-  # The custom label set on the product takes precedence over the default title.
-  defp label_for(key, custom_labels) do
-    case Map.get(custom_labels || %{}, key) do
-      nil -> title(key)
-      label -> label
-    end
-  end
+  defp label_for(key, custom_labels), do: MetricLabels.label(key, custom_labels)
 
-  defp title(type) do
-    case Enum.find(@default_metrics, fn {default_type, _} -> default_type == type end) do
-      {_, title} ->
-        title
+  # `tab_params/3` runs from a `:handle_params` hook, so it fires again every
+  # time the user navigates back onto this tab. A tick left over from an earlier
+  # visit that lands while the tab is open re-arms itself alongside the new one,
+  # and from then on both chains run for the life of the LiveView. Hold the ref
+  # so a stale tick can be cancelled -- which is also why `:tick_timer` is not
+  # in `cleanup/0`; dropping it would lose the only handle we have on it.
+  defp schedule_tick(socket) do
+    _ = if ref = socket.assigns[:tick_timer], do: Process.cancel_timer(ref)
 
-      nil ->
-        type
-        |> String.replace("_", " ")
-        |> String.capitalize()
+    if connected?(socket) do
+      assign(socket, :tick_timer, Process.send_after(self(), :tick, @tick_interval))
+    else
+      assign(socket, :tick_timer, nil)
     end
-    |> chart_title()
   end
 
   defp get_time_unit({"hour", _}), do: "minute"
   defp get_time_unit({"day", 1}), do: "hour"
   defp get_time_unit({"day", _}), do: "day"
 
+  # The thresholds the device's resolved profile holds for each regular
+  # metric, handed to the chart hook so it can color the dots that breach
+  # them. Dots are judged instantaneously — a colored dot is a sample beyond
+  # a threshold, whether or not the windowed median engaged the level.
+  defp threshold_specs(device) do
+    case HealthProfiles.resolve(device) do
+      nil ->
+        %{}
+
+      profile ->
+        for metric <- profile.metrics, !metric.built_in, into: %{} do
+          {metric.key, %{operator: metric.operator, warning: metric.warning_threshold, alert: metric.alert_threshold}}
+        end
+    end
+  end
+
   defp custom_metrics(metrics) do
     Enum.reject(metrics, &(elem(&1, 0) in @manual_metrics))
   end
 
-  defp nice_round(val) when is_float(val), do: Float.round(val, 1)
-  defp nice_round(val), do: val
+  defp nice_round(val), do: Utils.nice_round(val)
 
-  defp key_label(key) do
-    key
-    |> String.replace("_", " ")
-    |> String.capitalize()
+  # Charts are keyed by metric name, and metric names come from the device --
+  # `Extensions.Health` stores whatever keys a report carries. Deriving an
+  # assign key per metric meant `String.to_atom/1` on device-controlled input,
+  # and atoms are never reclaimed, so a fleet reporting novel keys made every
+  # node that rendered this tab permanently heavier. A map keyed by the string
+  # mints nothing.
+  defp chart_data(socket, key), do: Map.get(socket.assigns.chart_data, key, AsyncResult.loading())
+
+  defp put_chart_data(socket, key, result) do
+    assign(socket, :chart_data, Map.put(socket.assigns.chart_data, key, result))
   end
 
-  defp chart_data_key(key), do: String.to_atom("#{key}_chart_data")
-  defp has_chart_data_key(key), do: String.to_atom("#{key}_has_chart_data")
+  defp put_has_chart_data(socket, key, has_data?) do
+    assign(socket, :has_chart_data, Map.put(socket.assigns.has_chart_data, key, has_data?))
+  end
 
   defp validate_time_unit(unit) when unit in ~w(hour day minute second), do: unit
   defp validate_time_unit(_unit), do: elem(@default_time_frame, 0)

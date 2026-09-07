@@ -2,12 +2,13 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
   use NervesHubWeb.ChannelCase
 
   alias NervesHub.Accounts
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceEventsStreamChannel
   alias NervesHubWeb.EventStreamSocket
 
   describe "handle_info/2" do
-    test "handles fwup_progress messages", %{tmp_dir: tmp_dir} do
+    test "forwards firmware update progress to subscribers", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture()
 
       device = device_fixture(user, %{identifier: "test-device-123"}, tmp_dir)
@@ -19,11 +20,12 @@ defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
       {:ok, _join_reply, _channel} =
         subscribe_and_join(socket, DeviceEventsStreamChannel, "device:#{device.identifier}")
 
-      NervesHubWeb.Endpoint.broadcast("internal:device:#{device.id}", "fwup_progress", %{
-        percent: 50
-      })
+      # Go through the real broadcast path rather than hand-rolling the message,
+      # so that a mismatch between what is broadcast and what is handled fails
+      # this test instead of hiding behind it.
+      :ok = FirmwareUpdates.update_inflight_update(device.id, "downloading", 50, false)
 
-      assert_push("firmware_update", %{percent: 50})
+      assert_push("firmware_update", %{percent: 50, stage: "downloading"})
     end
   end
 

@@ -1,11 +1,8 @@
-## Allocator strategy: address-order best-fit, helps fragmentation
-+MBas aoffcbf
-+MHas aoffcbf
-+MBacul 0
-+MHacul 0
-
-## Reduce sys_alloc calls by sizing carriers appropriately
+## Carrier size for the binary and heap allocators. Removing these was measured
+## in production and cost 262MB of RSS. See #2981.
 +MBlmbcs 512
 +MHlmbcs 512
-+MBsmbcs 256
-+MHsmbcs 256
+
+## Scheduler count is set per deployment via ELIXIR_ERL_OPTIONS, not here: this
+## file ships in the release and web and device nodes share the image. It costs
+## memory as well as CPU, since allocator instances follow it. See #2981.

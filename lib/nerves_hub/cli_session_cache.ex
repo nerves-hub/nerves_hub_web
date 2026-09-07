@@ -1,7 +1,16 @@
 defmodule NervesHub.CLISessionCache do
   use GenServer
 
+  alias NervesHub.DeviceLink.Handlers
+
   @table :cli_session_cache
+  @group "cli_session_cache"
+  @cluster "web"
+
+  # Peer "web" cluster membership propagates asynchronously after this node
+  # joins, so the cache warm-up retries pulling from a peer for a short window.
+  @warm_up_attempts 5
+  @warm_up_interval 250
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -10,18 +19,13 @@ defmodule NervesHub.CLISessionCache do
   def init([]) do
     _ = :ets.new(@table, [:named_table, :set, :public, read_concurrency: true])
 
-    case fetch_data_from_cluster() do
-      {:ok, data} ->
-        :ets.insert(@table, data)
-
-      :no_nodes_available ->
-        :ok
-    end
-
-    :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "cli_session_cache")
+    :ok = Group.join(NervesHub.Group, @group, %{}, cluster: @cluster)
 
     _ =
       if Application.get_env(:nerves_hub, :env) != :test do
+        # Warm the cache from a peer once "web" membership has propagated (see
+        # the note on @warm_up_attempts); best-effort, `put/2` fills it otherwise.
+        Process.send_after(self(), {:warm_up_from_cluster, @warm_up_attempts}, @warm_up_interval)
         Process.send_after(self(), :delete_expired_session, 60_000)
       end
 
@@ -29,8 +33,8 @@ defmodule NervesHub.CLISessionCache do
   end
 
   def handle_info({:put, origin, _key, _value}, state) when origin == node() do
-    # Our own write echoed back over PubSub. The ETS table was already updated
-    # synchronously in `put/2`, so there is nothing to do.
+    # Our own write echoed back over the group. The ETS table was already
+    # updated synchronously in `put/2`, so there is nothing to do.
     {:noreply, state}
   end
 
@@ -48,14 +52,31 @@ defmodule NervesHub.CLISessionCache do
     {:noreply, state}
   end
 
+  def handle_info({:warm_up_from_cluster, attempts}, state) do
+    _ =
+      case fetch_data_from_cluster() do
+        {:ok, data} ->
+          :ets.insert(@table, data)
+
+        :no_nodes_available when attempts > 1 ->
+          Process.send_after(self(), {:warm_up_from_cluster, attempts - 1}, @warm_up_interval)
+
+        :no_nodes_available ->
+          :ok
+      end
+
+    {:noreply, state}
+  end
+
   def put(key, cli_session) do
     :ets.insert(@table, {key, cli_session, cli_session.expires_at})
 
     _ =
-      Phoenix.PubSub.broadcast(
-        NervesHub.PubSub,
-        "cli_session_cache",
-        {:put, node(), key, cli_session}
+      Group.dispatch(
+        NervesHub.Group,
+        @group,
+        {:put, node(), key, cli_session},
+        cluster: @cluster
       )
 
     :ok
@@ -71,7 +92,7 @@ defmodule NervesHub.CLISessionCache do
   or `:noop`.
 
   Note: this serializes within a node only. Two different nodes can still race
-  on their node-local ETS copies until the PubSub write propagates between them,
+  on their node-local ETS copies until the group dispatch propagates between them,
   matching the cache's best-effort cross-node consistency. Closing that window
   fully would require single-owner routing per token or a DB-level uniqueness
   guard on the minted token.
@@ -128,20 +149,35 @@ defmodule NervesHub.CLISessionCache do
   end
 
   defp fetch_data_from_cluster() do
-    # Gets all connected nodes excluding the current node
-    nodes = Node.list()
+    fetch_from(candidates())
+  end
 
-    if Enum.empty?(nodes) do
-      :no_nodes_available
-    else
-      # Query the first available node to dump its table via RPC
-      [target_node | _] = nodes
+  # Prefer nodes known to carry the platform stack. `Node.list/0` is every node
+  # that joined the topology, which is not the same thing: `device` nodes do not
+  # run this cache, and neither does anything else that joins without carrying
+  # the platform stack. Asking one of those for the table is a wasted round trip
+  # at best.
+  #
+  # At boot the `:pg` group may not have synced yet, and a cold cache is worse
+  # than an imperfect guess, so fall back to any connected node — `fetch_from/1`
+  # skips whatever cannot answer.
+  defp candidates() do
+    case Handlers.nodes() -- [node()] do
+      [] -> Node.list()
+      platform -> platform
+    end
+  end
 
-      # :ets.tab2list/1 converts the entire ETS table into a list of tuples
-      case :rpc.call(target_node, :ets, :tab2list, [@table]) do
-        {:badrpc, _reason} -> :no_nodes_available
-        data when is_list(data) -> {:ok, data}
-      end
+  defp fetch_from([]), do: :no_nodes_available
+
+  # Walks the candidates rather than taking the head and giving up: a single
+  # node that cannot answer used to leave this node with an empty cache for the
+  # life of the process.
+  defp fetch_from([node | rest]) do
+    # :ets.tab2list/1 converts the entire ETS table into a list of tuples
+    case :rpc.call(node, :ets, :tab2list, [@table]) do
+      {:badrpc, _reason} -> fetch_from(rest)
+      data when is_list(data) -> {:ok, data}
     end
   end
 end

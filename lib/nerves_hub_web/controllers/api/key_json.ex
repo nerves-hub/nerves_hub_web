@@ -12,7 +12,8 @@ defmodule NervesHubWeb.API.KeyJSON do
   def key(key) do
     %{
       name: key.name,
-      key: key.key
+      key: key.key,
+      scheme: key.scheme
     }
   end
 end

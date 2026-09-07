@@ -21,6 +21,7 @@ defmodule NervesHub.Scripts do
   def filter(%Product{} = product, opts) do
     Script
     |> from()
+    |> add_last_editor_name()
     |> CommonFiltering.filter(
       product,
       opts
@@ -56,7 +57,19 @@ defmodule NervesHub.Scripts do
   end
 
   def get_by_id!(%Scope{product: product}, id) do
-    Repo.get_by!(Script, id: id, product_id: product.id)
+    Script
+    |> where([s], s.id == ^id and s.product_id == ^product.id)
+    |> add_last_editor_name()
+    |> Repo.one!()
+  end
+
+  defp add_last_editor_name(query) do
+    query
+    |> join(:left, [s], lub in assoc(s, :last_updated_by), as: :last_updated_by)
+    |> join(:left, [s], cb in assoc(s, :created_by), as: :created_by)
+    |> select_merge([s, last_updated_by: lub, created_by: cb], %{
+      last_editor_name: selected_as(fragment("COALESCE(?, ?)", lub.name, cb.name), :last_editor_name)
+    })
   end
 
   def get_by_product_and_id!(product, id) do

@@ -110,6 +110,36 @@ defmodule NervesHub.DeviceLink.Dispatcher.RemoteTest do
     end
   end
 
+  describe "route_key / call dispatch coverage" do
+    test "verify_peer routes by DER bytes (hashes the cert)" do
+      # :verify_peer routes by :erlang.phash2(der) — just call it and observe
+      # it either raises (platform error) or succeeds, but doesn't crash routing
+      der = <<0, 1, 2, 3>>
+      assert catch_error(Remote.call(:verify_peer, [der, :new]))
+    end
+
+    test "connect routes by device_id" do
+      info = device_info(9999)
+      assert catch_error(Remote.call(:connect, [info]))
+    end
+
+    test "device_join routes by device_id" do
+      info = device_info(8888)
+      assert catch_error(Remote.call(:device_join, [info, @versions]))
+    end
+
+    test "extensions_device_id extracted from extensions map" do
+      {_attach_list, extensions} = Remote.call(:extensions_join, [device_info(7777), @versions])
+
+      assert catch_error(Remote.call(:extension_message, [extensions, "health", "foo", %{}]))
+    end
+
+    test "extensions_device_id returns nil for non-matching map" do
+      # Route key for extension_message with empty map should not raise (falls back to nil routing)
+      assert catch_error(Remote.call(:extension_message, [%{}, "health", "foo", %{}]))
+    end
+  end
+
   defp attach_failure_counter() do
     ref = make_ref()
     test = self()

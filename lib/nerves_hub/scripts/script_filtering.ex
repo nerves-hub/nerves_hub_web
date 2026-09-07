@@ -61,5 +61,9 @@ defmodule NervesHub.Scripts.ScriptFiltering do
   end
 
   @spec sort(Ecto.Query.t(), {atom(), atom()}) :: Ecto.Query.t()
+  def sort(query, {direction, :last_updated_by}) do
+    order_by(query, [{^direction, selected_as(:last_editor_name)}])
+  end
+
   def sort(query, sort), do: order_by(query, ^sort)
 end

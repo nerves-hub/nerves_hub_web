@@ -28,7 +28,15 @@ defmodule NervesHubWeb.API.ErrorJSON do
     %{errors: %{detail: message}}
   end
 
+  def render("409.json", %{reason: reason}) do
+    %{errors: %{detail: reason}}
+  end
+
   def render("422.json", %{reason: reason}) do
+    %{errors: %{detail: reason}}
+  end
+
+  def render("501.json", %{reason: reason}) do
     %{errors: %{detail: reason}}
   end
 

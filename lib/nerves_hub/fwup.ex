@@ -28,17 +28,20 @@ defmodule NervesHub.Fwup do
     end
   end
 
+  # Every `meta-*` key in the file used to be atomised here, and only then did
+  # `transform_to_struct/1` throw the unrecognised ones away. Atoms are never
+  # reclaimed, so a firmware carrying arbitrary metadata keys left the node
+  # permanently heavier -- and enough of them would exhaust the atom table.
+  # Match against the names we actually keep instead, and mint nothing.
   defp parse_metadata(metadata) do
+    known = Map.new(Metadata.keys(), &{Atom.to_string(&1), &1})
+
     Regex.scan(~r/meta-(?<key>[^\n]+)=\"?(?<value>[^\"\n]+)/, metadata)
-    |> Enum.reduce(%{}, fn line, acc ->
-      [_, key, value] = line
-
-      key =
-        key
-        |> String.replace("-", "_")
-        |> String.to_atom()
-
-      Map.put(acc, key, value)
+    |> Enum.reduce(%{}, fn [_, key, value], acc ->
+      case Map.fetch(known, String.replace(key, "-", "_")) do
+        {:ok, key} -> Map.put(acc, key, value)
+        :error -> acc
+      end
     end)
   end
 

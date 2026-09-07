@@ -19,6 +19,8 @@ defmodule NervesHub.AuditLogs.AuditLog do
   ]
   @optional_params [:reference_id]
 
+  @description_max_length 500
+
   schema "audit_logs" do
     belongs_to(:org, Org, where: [deleted_at: nil])
 
@@ -71,6 +73,22 @@ defmodule NervesHub.AuditLogs.AuditLog do
   def changeset(%__MODULE__{} = audit_log, params) do
     audit_log
     |> cast(params, @required_params ++ @optional_params)
+    |> update_change(:description, &truncate_description/1)
     |> validate_required(@required_params)
   end
+
+  # Descriptions are built by interpolating values which are either unbounded
+  # (a device supplied failure reason) or columns which are themselves 255
+  # characters wide, so cap what gets stored. Truncating rather than validating
+  # is deliberate: most callers use `audit!/3`, where a validation error would
+  # raise and take down the caller, which is the failure this guards against.
+  defp truncate_description(description) when is_binary(description) do
+    if String.length(description) > @description_max_length do
+      String.slice(description, 0, @description_max_length - 1) <> "…"
+    else
+      description
+    end
+  end
+
+  defp truncate_description(description), do: description
 end

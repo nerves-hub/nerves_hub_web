@@ -16,6 +16,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.UserToken
   alias NervesHub.CLISessionCache
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Pinning
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.Product
@@ -402,49 +403,53 @@ defmodule NervesHub.Accounts do
     |> Repo.one!()
   end
 
-  def get_orgs(%Scope{user: user}) do
-    connected_org_devices_count =
-      Device
-      |> join(:inner, [d], lc in assoc(d, :latest_connection))
-      |> join(:inner, [d], p in assoc(d, :product))
-      |> where([_d, _dc, p], p.org_id == parent_as(:org).id)
-      |> where([_d, dc], dc.status == :connected)
-      |> select([d], %{count: count()})
-
-    disconnected_org_devices_count =
-      Device
-      |> join(:left, [d], lc in assoc(d, :latest_connection))
-      |> join(:inner, [d], p in assoc(d, :product))
-      |> where([_d, _dc, p], p.org_id == parent_as(:org).id)
-      |> where([_d, dc], is_nil(dc) or dc.status != :connected)
-      |> select([d], %{count: count()})
-
+  def get_orgs_without_counts(%Scope{user: user}) do
     Org
     |> from(as: :org)
     |> Repo.exclude_deleted()
     |> join(:inner, [o], u in assoc(o, :users), on: u.id == ^user.id)
-    |> join(:left, [o], p in subquery(products_subquery()), on: p.org_id == o.id)
-    |> preload([d, o, p], products: p)
-    |> select_merge([o], %{
-      connected_devices_count: subquery(connected_org_devices_count),
-      disconnected_devices_count: subquery(disconnected_org_devices_count)
-    })
+    |> preload([o], :products)
     |> Repo.all()
+  end
+
+  def get_org_device_counts(%Scope{}, org_id) do
+    products = products_subquery()
+
+    rows =
+      Product
+      |> Repo.exclude_deleted()
+      |> where([p], p.org_id == ^org_id)
+      |> join(:left, [p], pc in subquery(products), on: pc.id == p.id)
+      |> select([p, pc], %{
+        product_id: p.id,
+        connected: pc.connected_devices_count,
+        disconnected: pc.disconnected_devices_count
+      })
+      |> Repo.all()
+
+    product_counts = Map.new(rows, &{&1.product_id, {&1.connected, &1.disconnected}})
+    connected = Enum.sum(Enum.map(rows, & &1.connected))
+    disconnected = Enum.sum(Enum.map(rows, & &1.disconnected))
+
+    %{org: {connected, disconnected}, products: product_counts}
   end
 
   defp products_subquery() do
     connected_devices_count =
-      Device
-      |> join(:inner, [d], lc in assoc(d, :latest_connection))
-      |> where([d], d.product_id == parent_as(:product).id)
-      |> where([_d, dc], dc.status == :connected)
-      |> select([d], %{count: count()})
+      DeviceConnection
+      |> join(:inner, [dc], d in Device, on: d.id == dc.device_id)
+      |> where([dc, _d], dc.product_id == parent_as(:product).id)
+      |> where([dc, _d], dc.status == :connected)
+      |> where([_dc, d], is_nil(d.deleted_at))
+      |> select([dc], %{count: count()})
 
+    # Must join from Device so devices with no connection row are counted as disconnected
     disconnected_devices_count =
       Device
       |> join(:left, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
-      |> where([_d, dc], is_nil(dc) or dc.status != :connected)
+      |> where([_d, lc], is_nil(lc) or lc.status != :connected)
+      |> Repo.exclude_deleted()
       |> select([d], %{count: count()})
 
     Product
@@ -535,13 +540,18 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
-  Fetch the org's firmware signing keys for the given device.
+  Fetch the org's firmware signing keys of one scheme for the given device.
+
+  Keys of different schemes are different formats — an fwup Ed25519 key, an
+  ESP-IDF RSA key and a RAUC certificate have nothing in common — so a caller
+  always wants exactly one scheme, never the org's whole keyring.
   """
-  def fetch_firmware_signing_keys(device_id) do
+  @spec fetch_firmware_signing_keys(integer(), OrgKey.scheme()) :: [OrgKey.t()]
+  def fetch_firmware_signing_keys(device_id, scheme) do
     OrgKey
     |> join(:inner, [ok], d in assoc(ok, :org))
     |> join(:inner, [ok, o], d in assoc(o, :devices))
-    |> where([ok, o, d], d.id == ^device_id)
+    |> where([ok, o, d], d.id == ^device_id and ok.scheme == ^scheme)
     |> Repo.all()
   end
 

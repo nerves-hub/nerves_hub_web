@@ -5,14 +5,20 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   import TrackerHelper
 
+  alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgKey
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceEvents
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Deployments
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFirmware
+  alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Products.Notification
   alias NervesHub.Repo
+  alias NervesHub.Support.EspIdf
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
@@ -256,6 +262,28 @@ defmodule NervesHubWeb.DeviceChannelTest do
     end
   end
 
+  test "the extensions request tells the device which versions it can have", %{tmp_dir: tmp_dir} do
+    # This is the only point in the handshake where the platform speaks before
+    # the device commits to a version, so what it carries is what lets a device
+    # implementing two versions of an extension pick the one both sides have.
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, device_channel} =
+      subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", %{"device_api_version" => "2.2.0"})
+
+    assert_push("extensions:get", %{"extensions" => advertised})
+
+    assert advertised == NervesHub.Extensions.advertisement()
+    assert advertised["health"] == ["0.0.1"]
+
+    close_cleanly(device_channel)
+  end
+
   test "extensions are requested from device if version is above 2.2.0", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
@@ -309,13 +337,44 @@ defmodule NervesHubWeb.DeviceChannelTest do
       end
 
     params = Map.put(params, "fwup_public_keys", "on_connect")
+    fwup_key = seed_other_scheme_keys(device, user)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
-    assert_push("fwup_public_keys", %{keys: [_]})
+    assert_push("fwup_public_keys", %{keys: [^fwup_key]})
+
+    assert_online_and_available(device)
+    close_cleanly(device_channel)
+  end
+
+  test "the firmware keys sent follow the device's update tool", %{tmp_dir: tmp_dir} do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"}, tmp_dir)
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    _fwup_key = seed_other_scheme_keys(device, user)
+    esp_idf_key = EspIdf.signing_public_key()
+
+    # What nerves-hub-link-esp32 sends on join, plus the request for keys.
+    params = %{
+      "device_api_version" => "2.2.0",
+      "update_tool" => "esp-idf",
+      "esp_idf_project_name" => "my_app",
+      "esp_idf_version" => "1.0.0",
+      "esp_idf_app_elf_sha256" => Base.encode16(:crypto.strong_rand_bytes(32), case: :lower),
+      "esp_idf_ver" => "v5.2.1",
+      "esp_idf_chip_id" => 9,
+      "fwup_public_keys" => "on_connect"
+    }
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
+
+    assert_push("fwup_public_keys", %{keys: [^esp_idf_key]})
 
     assert_online_and_available(device)
     close_cleanly(device_channel)
@@ -335,13 +394,14 @@ defmodule NervesHubWeb.DeviceChannelTest do
       end
 
     params = Map.put(params, "archive_public_keys", "on_connect")
+    fwup_key = seed_other_scheme_keys(device, user)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
 
-    assert_push("archive_public_keys", %{keys: [_]})
+    assert_push("archive_public_keys", %{keys: [^fwup_key]})
 
     assert_online_and_available(device)
     close_cleanly(device_channel)
@@ -633,6 +693,249 @@ defmodule NervesHubWeb.DeviceChannelTest do
     end
   end
 
+  describe "update mode" do
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "update-mode"}, tmp_dir)
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      %{device: device, certificate: certificate, user: user}
+    end
+
+    test "the device is told its mode when it joins", %{device: device, certificate: certificate} do
+      device_channel = join_device(device, certificate, "2.4.0")
+
+      assert_push("update_mode", %{"mode" => "automatic", "managed_updates_allowed" => false})
+
+      close_cleanly(device_channel)
+    end
+
+    test "a device too old to understand the message is not sent it", %{
+      device: device,
+      certificate: certificate
+    } do
+      device_channel = join_device(device, certificate, "2.3.0")
+
+      refute_push("update_mode", _)
+
+      close_cleanly(device_channel)
+    end
+
+    test "a device without the grant is refused, and told the mode it still has", %{
+      device: device,
+      certificate: certificate
+    } do
+      device_channel = join_device(device, certificate, "2.4.0")
+      assert_push("update_mode", %{"mode" => "automatic"})
+
+      push(device_channel, "set_update_mode", %{"mode" => "device_managed"})
+
+      assert_push("update_mode", %{"mode" => "automatic", "error" => "not_permitted"})
+      assert Repo.reload(device).update_mode == :automatic
+
+      close_cleanly(device_channel)
+    end
+
+    test "a device with the grant may manage its own updates", %{
+      device: device,
+      certificate: certificate,
+      user: user
+    } do
+      {:ok, device} = Updates.set_managed_updates_allowed(device, true, user)
+
+      device_channel = join_device(device, certificate, "2.4.0")
+      assert_push("update_mode", %{"mode" => "automatic", "managed_updates_allowed" => true})
+
+      push(device_channel, "set_update_mode", %{"mode" => "device_managed"})
+
+      assert_push("update_mode", %{"mode" => "device_managed"})
+      assert Repo.reload(device).update_mode == :device_managed
+
+      close_cleanly(device_channel)
+    end
+
+    test "a device can never freeze itself over the socket", %{
+      device: device,
+      certificate: certificate,
+      user: user
+    } do
+      {:ok, device} = Updates.set_managed_updates_allowed(device, true, user)
+
+      device_channel = join_device(device, certificate, "2.4.0")
+      assert_push("update_mode", %{"mode" => "automatic"})
+
+      push(device_channel, "set_update_mode", %{"mode" => "off"})
+
+      assert_push("update_mode", %{"mode" => "automatic", "error" => "not_permitted"})
+      assert Repo.reload(device).update_mode == :automatic
+
+      close_cleanly(device_channel)
+    end
+
+    test "a device below the advertised version is still answered when it asks", %{
+      device: device,
+      certificate: certificate
+    } do
+      device_channel = join_device(device, certificate, "2.3.0")
+
+      # Nothing unsolicited for a device that would not understand it...
+      refute_push("update_mode", _)
+
+      push(device_channel, "set_update_mode", %{"mode" => "device_managed"})
+
+      # ...but a device that asks has shown it understands the answer, and acting
+      # on a request without answering it is how the two end up disagreeing.
+      assert_push("update_mode", %{"mode" => "automatic", "error" => "not_permitted"})
+
+      close_cleanly(device_channel)
+    end
+
+    test "an unknown mode is refused rather than crashing the connection", %{
+      device: device,
+      certificate: certificate
+    } do
+      device_channel = join_device(device, certificate, "2.4.0")
+      assert_push("update_mode", %{"mode" => "automatic"})
+
+      push(device_channel, "set_update_mode", %{"mode" => "whenever_i_feel_like_it"})
+
+      assert_push("update_mode", %{"error" => "unknown_mode"})
+
+      close_cleanly(device_channel)
+    end
+
+    test "check_update answers even when there is nothing to send", %{
+      device: device,
+      certificate: certificate
+    } do
+      device_channel = join_device(device, certificate, "2.4.0")
+      assert_push("update_mode", _)
+
+      push(device_channel, "check_update", %{})
+
+      assert_push("update_available", %{"available" => false, "firmware_meta" => nil})
+
+      close_cleanly(device_channel)
+    end
+
+    test "request_update is refused when the device has no deployment group", %{
+      device: device,
+      certificate: certificate
+    } do
+      device_channel = join_device(device, certificate, "2.4.0")
+      assert_push("update_mode", _)
+
+      push(device_channel, "request_update", %{})
+
+      assert_push("update_rejected", %{"reason" => "no_deployment_group"})
+
+      close_cleanly(device_channel)
+    end
+
+    test "a device too old to manage its own updates is put back on automatic", %{
+      device: device,
+      certificate: certificate,
+      user: user
+    } do
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, user)
+
+      device_channel = join_device(device, certificate, "2.3.0")
+
+      # It could neither be pushed to nor ask, so it would have sat on this
+      # firmware indefinitely — most likely having auto-reverted onto it.
+      assert Repo.reload(device).update_mode == :automatic
+
+      assert [audit_log | _] = AuditLogs.logs_for(Repo.reload(device))
+      assert audit_log.actor_type == Device
+      assert audit_log.description =~ "returned to automatic updates"
+      assert audit_log.description =~ "too old"
+
+      close_cleanly(device_channel)
+    end
+
+    test "a failed revert is raised rather than swallowed", %{
+      device: device,
+      certificate: certificate,
+      user: user
+    } do
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, user)
+
+      :ok =
+        :telemetry.attach(
+          "revert-failed-test",
+          [:nerves_hub, :devices, :update_mode_revert_failed],
+          fn _event, _measurements, metadata, pid -> send(pid, {:revert_failed, metadata}) end,
+          self()
+        )
+
+      on_exit(fn -> :telemetry.detach("revert-failed-test") end)
+
+      Mimic.stub(Updates, :revert_unsupported_update_mode, fn _device ->
+        {:error, :update_with_audit, %Ecto.Changeset{}, %{}}
+      end)
+
+      device_channel = join_device(device, certificate, "2.3.0")
+
+      # The device is still stranded, and would otherwise go on connecting as if
+      # nothing were wrong, so it has to reach someone.
+      assert_receive {:revert_failed, metadata}
+      assert metadata.identifier == device.identifier
+
+      assert [notification] = Repo.all(Notification)
+      assert notification.product_id == device.product_id
+      assert notification.level == :error
+      assert notification.message =~ device.identifier
+
+      close_cleanly(device_channel)
+    end
+
+    test "a device that can manage its own updates keeps the mode", %{
+      device: device,
+      certificate: certificate,
+      user: user
+    } do
+      {:ok, device} = Updates.set_update_mode(device, :device_managed, user)
+
+      device_channel = join_device(device, certificate, "2.4.0")
+
+      assert Repo.reload(device).update_mode == :device_managed
+      assert_push("update_mode", %{"mode" => "device_managed"})
+
+      close_cleanly(device_channel)
+    end
+
+    test "an operator changing the mode reaches a connected device", %{
+      device: device,
+      certificate: certificate,
+      user: user
+    } do
+      device_channel = join_device(device, certificate, "2.4.0")
+      assert_push("update_mode", %{"mode" => "automatic", "managed_updates_allowed" => false})
+
+      {:ok, _device} = Updates.set_managed_updates_allowed(device, true, user)
+
+      assert_push("update_mode", %{"managed_updates_allowed" => true})
+
+      close_cleanly(device_channel)
+    end
+  end
+
+  defp join_device(device, certificate, device_api_version) do
+    params =
+      for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+        {"nerves_fw_#{k}", v}
+      end
+
+    params = Map.put(params, "device_api_version", device_api_version)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device:#{device.id}", params)
+
+    device_channel
+  end
+
   def device_fixture(user, device_params, tmp_dir, org \\ nil) do
     org = org || Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
@@ -657,6 +960,39 @@ defmodule NervesHubWeb.DeviceChannelTest do
       )
 
     {device, firmware, deployment_group}
+  end
+
+  # Give the device's org one key of every other scheme, and return the fwup
+  # key it already has. Neither an ESP-IDF RSA key nor a RAUC certificate is
+  # something `fwup --public-key` can use, so neither may reach the device.
+  defp seed_other_scheme_keys(device, user) do
+    %OrgKey{key: fwup_key} = Repo.get_by!(OrgKey, org_id: device.org_id, scheme: :ed25519)
+
+    {:ok, _esp_idf} =
+      Accounts.create_org_key(%{
+        org_id: device.org_id,
+        created_by_id: user.id,
+        name: "esp-idf",
+        key: EspIdf.signing_public_key(),
+        scheme: :secure_boot_v2_rsa
+      })
+
+    certificate =
+      :secp256r1
+      |> X509.PrivateKey.new_ec()
+      |> X509.Certificate.self_signed("CN=rauc")
+      |> X509.Certificate.to_pem()
+
+    {:ok, _rauc} =
+      Accounts.create_org_key(%{
+        org_id: device.org_id,
+        created_by_id: user.id,
+        name: "rauc",
+        key: certificate,
+        scheme: :x509_certificate
+      })
+
+    fwup_key
   end
 
   defp archive_setup(tmp_dir) do
