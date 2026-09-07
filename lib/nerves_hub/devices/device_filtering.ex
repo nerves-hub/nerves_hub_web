@@ -172,6 +172,10 @@ defmodule NervesHub.Devices.DeviceFiltering do
     advanced(query, "connection_type", "=", value)
   end
 
+  def filter(query, _filters, :firmware_version, "Unknown") do
+    where(query, [d], is_nil(d.firmware_metadata["version"]))
+  end
+
   # The advanced query's `firmware` column matches by UUID, not version, so
   # this stays a direct comparison.
   def filter(query, _filters, :firmware_version, value) do

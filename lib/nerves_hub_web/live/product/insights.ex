@@ -9,6 +9,10 @@ defmodule NervesHubWeb.Live.Product.Insights do
 
   @graph_periods ~w(twenty_four_hours fourteen_days four_weeks)
 
+  # A donut is only readable at a glance with a handful of colours, so the
+  # long tail of versions is folded into a single "Other" slice past this.
+  @firmware_version_slices 6
+
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     product = Products.load_shared_secret_auth(scope.product)
@@ -17,6 +21,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> assign(:product, product)
     |> update_information()
     |> maybe_assign_device_connections_graph()
+    |> assign_firmware_version_distribution()
     |> fleet_health_information()
     |> assign_notifications()
     |> maybe_assign_flapping_connections()
@@ -51,6 +56,20 @@ defmodule NervesHubWeb.Live.Product.Insights do
     socket
     |> put_flash(:error, "Invalid graph period selected")
     |> noreply()
+  end
+
+  def handle_event(
+        "view-devices-with-firmware-version",
+        %{"version" => version},
+        %{assigns: %{current_scope: scope, firmware_version_slices: slices}} = socket
+      ) do
+    if Enum.any?(slices, &(&1.filter == version)) do
+      socket
+      |> push_navigate(to: ~p"/org/#{scope.org}/#{scope.product}/devices?firmware_version=#{version}")
+      |> noreply()
+    else
+      noreply(socket)
+    end
   end
 
   @impl Phoenix.LiveView
@@ -163,6 +182,43 @@ defmodule NervesHubWeb.Live.Product.Insights do
     end
   end
 
+  defp assign_firmware_version_distribution(%{assigns: %{current_scope: scope}} = socket) do
+    counts = Devices.firmware_version_counts(scope.product)
+    slices = firmware_version_slices(counts)
+
+    socket
+    |> assign(:firmware_version_slices, slices)
+    |> assign(:firmware_version_other, Enum.find(slices, &is_nil(&1.filter)))
+    |> assign(:firmware_version_count, Enum.count(counts, &(&1.version != nil)))
+    |> assign(:firmware_version_total, Enum.sum_by(counts, & &1.count))
+  end
+
+  # Turns the raw per-version counts into the slices the donut draws: at most
+  # `@firmware_version_slices` named versions, with anything past that folded
+  # into a trailing "Other" (`filter: nil`, because there's no single version
+  # to send the devices list). `filter` is otherwise the devices list's
+  # `firmware_version` filter value.
+  defp firmware_version_slices(counts) do
+    slices =
+      Enum.map(counts, fn
+        %{version: nil, count: count} -> %{label: "Unknown", filter: "Unknown", count: count}
+        %{version: version, count: count} -> %{label: version, filter: version, count: count}
+      end)
+
+    case Enum.split(slices, @firmware_version_slices) do
+      {slices, []} ->
+        slices
+
+      # a lone leftover reads better as itself than as an "Other" of one
+      {slices, [only]} ->
+        slices ++ [only]
+
+      {slices, rest} ->
+        folded = %{label: "Other", filter: nil, count: Enum.sum_by(rest, & &1.count), versions: length(rest)}
+        slices ++ [folded]
+    end
+  end
+
   defp fleet_health_information(%{assigns: %{current_scope: scope}} = socket) do
     socket
     |> assign(:healthy_count, Health.health_status_count(scope.product, :healthy))
@@ -189,6 +245,12 @@ defmodule NervesHubWeb.Live.Product.Insights do
   """
   def percentage(_count, total) when total in [0, nil], do: 0
   def percentage(count, total), do: round(count / total * 100)
+
+  @doc """
+  The colour token for the donut slice in position `index`, matching the
+  palette the chart hook reads off the document root.
+  """
+  def firmware_version_color(index), do: "var(--color-chart-#{index + 1})"
 
   defp onboarding_nhl_host() do
     Application.get_env(:nerves_hub, :devices_websocket_url) || URI.parse(NervesHubWeb.Endpoint.url()).host
