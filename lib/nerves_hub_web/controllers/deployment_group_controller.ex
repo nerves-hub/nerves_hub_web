@@ -7,9 +7,16 @@ defmodule NervesHubWeb.DeploymentGroupController do
   plug(:validate_role, org: :view)
 
   def export_audit_logs(%{assigns: %{current_scope: %{org: org, product: product}}} = conn, %{"name" => deployment_name}) do
-    {:ok, deployment_group} =
-      ManagedDeployments.get_deployment_group_by_name(product, deployment_name)
+    case ManagedDeployments.get_deployment_group_by_name(product, deployment_name) do
+      {:ok, deployment_group} ->
+        send_audit_logs(conn, org, product, deployment_group)
 
+      {:error, :not_found} ->
+        raise NervesHubWeb.NotFoundError
+    end
+  end
+
+  defp send_audit_logs(conn, org, product, deployment_group) do
     case AuditLogs.logs_for(deployment_group) do
       [] ->
         conn
