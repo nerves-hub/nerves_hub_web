@@ -201,6 +201,39 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
       )
     end
 
+    # The parser reports these with a two part message, which crashed the
+    # LiveView while the user was still typing.
+    test "shows syntax errors whose message arrives in two parts", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/new")
+      |> fill_in("Script code", with: "end")
+      |> assert_has("p", text: "has invalid Elixir syntax at line 1, column 1: unexpected reserved word: end")
+    end
+
+    test "does not check the syntax of a shell script", %{conn: conn, org: org, product: product} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/new")
+      |> select("Language", option: "Shell")
+      |> fill_in("Script code", with: "if [ -f /tmp/x ]; then echo yes; fi")
+      |> refute_has("p", text: "has invalid Elixir syntax")
+    end
+
+    test "saves the chosen language", %{conn: conn, org: org, product: product} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/scripts/new")
+      |> fill_in("Name", with: "Disk usage")
+      |> select("Language", option: "Shell")
+      |> fill_in("Script code", with: "df -h")
+      |> click_button("Save changes")
+      |> assert_path("/org/#{org.name}/#{product.name}/scripts")
+
+      assert [%{name: "Disk usage", language: :shell}] = Scripts.all_by_product(product)
+    end
+
     test "add script with tags", %{conn: conn, org: org, product: product} do
       conn
       |> visit("/org/#{org.name}/#{product.name}/scripts/new")

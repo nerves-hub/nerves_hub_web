@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   use NervesHubWeb, :live_view
 
   alias NervesHub.Scripts
+  alias NervesHub.Scripts.Script
   alias NervesHubWeb.Components.Sorting
 
   @default_page 1
