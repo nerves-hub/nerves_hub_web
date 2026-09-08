@@ -288,16 +288,6 @@ defmodule NervesHub.FirmwaresTest do
       assert versions == ["1.10.0", "1.10.0-rc1", "1.9.0", "1.2.0"]
     end
 
-    test "get_firmware_versions_by_product/1 returns distinct versions, newest first", %{
-      product: product,
-      insert: insert
-    } do
-      for v <- ["1.9.0", "1.10.0", "1.10.0-rc1"], do: insert.(v)
-
-      assert Firmwares.get_firmware_versions_by_product(product.id) ==
-               ["1.10.0", "1.10.0-rc1", "1.9.0"]
-    end
-
     test "get_firmwares_by_product_and_platform/2 orders by precedence", %{
       product: product,
       insert: insert

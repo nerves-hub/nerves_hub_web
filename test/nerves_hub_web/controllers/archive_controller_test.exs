@@ -19,5 +19,13 @@ defmodule NervesHubWeb.ArchiveControllerTest do
 
       assert redirected_to(conn) == "http://localhost:1234/uploads/archives/#{archive.uuid}.fw"
     end
+
+    test "404s for an archive that does not exist", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+
+      assert_error_sent(404, fn ->
+        get(conn, ~p"/org/#{org}/#{product}/archives/#{Ecto.UUID.generate()}/download")
+      end)
+    end
   end
 end

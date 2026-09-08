@@ -28,6 +28,11 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
     |> Enum.sort()
   end
 
+  defp set_validation_status(device, status) do
+    {1, _} = Repo.update_all(where(Device, id: ^device.id), set: [firmware_validation_status: status])
+    :ok
+  end
+
   describe "apply_query/2" do
     test "platform equality", %{product: product, platform: platform} do
       assert run(product, ~s|platform = "#{platform}"|) == ["connected", "never_connected", "tagged", "untagged"]
@@ -192,6 +197,44 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
 
     test "health_status inequality includes devices with no health record", %{product: product} do
       assert run(product, ~s|health_status != "healthy"|) == ["connected", "never_connected", "untagged"]
+    end
+
+    test "firmware_validation_status matches the device's reported validation", %{
+      product: product,
+      tagged: tagged,
+      untagged: untagged
+    } do
+      set_validation_status(tagged, :validated)
+      set_validation_status(untagged, :not_validated)
+
+      assert run(product, ~s|firmware_validation_status = "validated"|) == ["tagged"]
+      assert run(product, ~s|firmware_validation_status = "not_validated"|) == ["untagged"]
+      assert run(product, ~s|firmware_validation_status != "validated"|) == ["connected", "never_connected", "untagged"]
+    end
+
+    test "firmware_validation_status unknown matches devices that never reported", %{
+      product: product,
+      tagged: tagged
+    } do
+      set_validation_status(tagged, :validated)
+
+      # The rest keep the schema default of :unknown.
+      assert run(product, ~s|firmware_validation_status = "unknown"|) == ["connected", "never_connected", "untagged"]
+      assert run(product, ~s|firmware_validation_status != "unknown"|) == ["tagged"]
+    end
+
+    test "firmware_validation_status treats a null column as unknown", %{product: product, tagged: tagged} do
+      # The column is nullable, so a null has to read the same way a device that
+      # never reported does - on both sides of the comparison.
+      {1, _} = Repo.update_all(where(Device, id: ^tagged.id), set: [firmware_validation_status: nil])
+
+      assert run(product, ~s|firmware_validation_status = "unknown"|) ==
+               ["connected", "never_connected", "tagged", "untagged"]
+
+      assert run(product, ~s|firmware_validation_status != "unknown"|) == []
+
+      assert run(product, ~s|firmware_validation_status != "validated"|) ==
+               ["connected", "never_connected", "tagged", "untagged"]
     end
 
     test "connection_type equality matches the latest connection's network interface", %{product: product} do

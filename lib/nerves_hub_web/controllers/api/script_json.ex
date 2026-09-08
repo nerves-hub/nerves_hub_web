@@ -18,6 +18,7 @@ defmodule NervesHubWeb.API.ScriptJSON do
     %{
       id: script.id,
       name: script.name,
+      language: script.language,
       tags: script.tags
     }
   end
@@ -27,6 +28,7 @@ defmodule NervesHubWeb.API.ScriptJSON do
       id: script.id,
       name: script.name,
       text: script.text,
+      language: script.language,
       tags: script.tags,
       inserted_at: script.inserted_at,
       updated_at: script.updated_at

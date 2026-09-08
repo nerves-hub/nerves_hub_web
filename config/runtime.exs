@@ -121,6 +121,54 @@ end
 # Web and Device endpoints
 #
 if config_env() == :prod do
+  # Devices reach both endpoints, so both listeners take the same websocket
+  # compression settings.
+  #
+  # The sockets set `compress: true`, but that is only half the switch: Bandit
+  # negotiates per-message deflate when the socket asks for it *and* the
+  # listener allows it, so `DEVICE_WEBSOCKET_COMPRESSION=false` turns it off
+  # fleet-wide on a restart rather than on a rebuild.
+  #
+  # That is worth being able to do, because compression is not free. Bandit
+  # builds a zlib deflate and inflate context per connection and holds both for
+  # as long as the device stays connected. At zlib's mem_level of 8 the deflate
+  # hash table alone is 128KB, and measured end to end that is 271KB per device
+  # -- around 375MB of `:erlang.memory(:system)` on a node holding 1400 devices.
+  #
+  # Device frames are small and repetitive, so that hash table buys little: over
+  # a representative mix of heartbeats, progress and health reports, mem_level 4
+  # emits byte-identical output to mem_level 8 and costs 121KB less per
+  # connection, which is why it is the default here rather than zlib's.
+  #
+  # All of this has to live in Bandit's server-wide `websocket_options`. Bandit
+  # reads `deflate_options` from there, not from the per-socket `websocket:`
+  # list in the endpoint, which accepts the key and then ignores it.
+  deflate_option = fn var, default, range ->
+    value = String.to_integer(System.get_env(var, default))
+
+    if value not in range do
+      raise """
+      #{var} was set to #{value}, and zlib only accepts #{inspect(range)}.
+
+      A value outside that range is not rejected until a device upgrades to a
+      websocket, so leaving it in place would fail every device connection
+      rather than fail the boot.
+      """
+    end
+
+    value
+  end
+
+  device_websocket_options = [
+    compress: System.get_env("DEVICE_WEBSOCKET_COMPRESSION", "true") == "true",
+    deflate_options: [
+      # 6 is what zlib's `:default` resolves to, so leaving these unset keeps
+      # the level Bandit would have picked on its own.
+      level: deflate_option.("DEVICE_WEBSOCKET_DEFLATE_LEVEL", "6", 0..9),
+      mem_level: deflate_option.("DEVICE_WEBSOCKET_DEFLATE_MEM_LEVEL", "4", 1..9)
+    ]
+  ]
+
   if nerves_hub_app in ["all", "web"] do
     host =
       System.get_env("WEB_HOST") || System.get_env("HOST") ||
@@ -195,7 +243,8 @@ if config_env() == :prod do
         port: String.to_integer(System.get_env("WEB_PORT", "443"))
       ],
       http: [
-        port: String.to_integer(port)
+        port: String.to_integer(port),
+        websocket_options: device_websocket_options
       ],
       secret_key_base: System.fetch_env!("SECRET_KEY_BASE"),
       live_view: [
@@ -316,22 +365,7 @@ if config_env() == :prod do
         http_options: [
           log_protocol_errors: false
         ],
-        # The sockets set `compress: true`, so Bandit builds a zlib deflate and
-        # inflate context per connection and holds both for as long as the
-        # device stays connected. At the default mem_level of 8 the deflate
-        # hash table alone is 128KB, and measured end to end that is 271KB per
-        # device -- around 375MB of `:erlang.memory(:system)` on a node holding
-        # 1400 devices.
-        #
-        # Device frames are small and repetitive, so the hash table buys
-        # nothing here: over a representative mix of heartbeats, progress and
-        # health reports, mem_level 4 emits byte-identical output to mem_level
-        # 8. It costs 121KB less per connection.
-        #
-        # This has to live in Bandit's server-wide `websocket_options`. Bandit
-        # reads `deflate_options` from there, not from the per-socket
-        # `websocket:` list in the endpoint.
-        websocket_options: [deflate_options: [mem_level: 4]],
+        websocket_options: device_websocket_options,
         thousand_island_options: [
           transport_module: NervesHub.DeviceSSLTransport,
           transport_options: transport_options

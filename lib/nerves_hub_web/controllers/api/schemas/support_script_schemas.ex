@@ -10,6 +10,7 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
         id: %Schema{type: :string},
         name: %Schema{type: :string},
         text: %Schema{type: :string},
+        language: %Schema{type: :string, enum: ["elixir", "shell"], default: "elixir"},
         tags: %Schema{type: :string},
         inserted_at: %Schema{type: :string, format: "date-time"},
         updated_at: %Schema{type: :string, format: "date-time"},
@@ -26,6 +27,7 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
         "id" => "1",
         "name" => "Clean Disk",
         "text" => "Clean.disk()",
+        "language" => "elixir",
         "tags" => "cleanup",
         "inserted_at" => "2026-03-28T08:10:20Z",
         "updated_at" => "2026-06-23T08:10:20Z",
@@ -44,11 +46,13 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
       properties: %{
         id: %Schema{type: :string},
         name: %Schema{type: :string},
+        language: %Schema{type: :string, enum: ["elixir", "shell"], default: "elixir"},
         tags: %Schema{type: :string}
       },
       example: %{
         "id" => "1",
         "name" => "Clean Disk",
+        "language" => "elixir",
         "tags" => "cleanup"
       }
     })
@@ -75,11 +79,13 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
           %{
             "id" => "1",
             "name" => "Clean Disk",
+            "language" => "elixir",
             "tags" => "cleanup"
           },
           %{
             "id" => "2",
             "name" => "Dim the lights",
+            "language" => "shell",
             "tags" => "lights"
           }
         ],
@@ -105,6 +111,7 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
           "id" => "1",
           "name" => "Snoot Boop",
           "text" => "Snoot.boop()",
+          "language" => "elixir",
           "tags" => "snoots",
           "inserted_at" => "2026-03-28T08:10:20Z",
           "updated_at" => "2026-06-23T08:10:20Z",
@@ -125,12 +132,19 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
       properties: %{
         name: %Schema{type: :string},
         text: %Schema{type: :string},
+        language: %Schema{
+          type: :string,
+          enum: ["elixir", "shell"],
+          default: "elixir",
+          description: "How the device should interpret `text`. Defaults to Elixir."
+        },
         tags: %Schema{type: :string}
       },
       required: [:name, :text],
       example: %{
         "name" => "Clean Disk",
         "text" => "Disk.clean()",
+        "language" => "elixir",
         "tags" => "cleanup"
       }
     })
@@ -143,11 +157,18 @@ defmodule NervesHubWeb.API.Schemas.SupportScriptSchemas do
       properties: %{
         name: %Schema{type: :string},
         text: %Schema{type: :string},
+        language: %Schema{
+          type: :string,
+          enum: ["elixir", "shell"],
+          default: "elixir",
+          description: "How the device should interpret `text`. Defaults to Elixir."
+        },
         tags: %Schema{type: :string}
       },
       example: %{
         "name" => "Clean Disk",
         "text" => "Disk.clean()",
+        "language" => "elixir",
         "tags" => "cleanup"
       }
     })
