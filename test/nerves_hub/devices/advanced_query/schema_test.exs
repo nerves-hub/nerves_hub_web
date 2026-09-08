@@ -28,6 +28,7 @@ defmodule NervesHub.Devices.AdvancedQuery.SchemaTest do
       assert Schema.operators("connection_type") == ["=", "!="]
       assert Schema.operators("tags") == ["contains", "not_contains"]
       assert Schema.operators("update_status") == ["is", "is not"]
+      assert Schema.operators("firmware_validation_status") == ["=", "!="]
       assert Schema.operators("identifier") == ["like", "not like"]
       assert Schema.operators("search") == ["like", "not like"]
     end
@@ -63,6 +64,14 @@ defmodule NervesHub.Devices.AdvancedQuery.SchemaTest do
       refute Schema.value?("identifier", "", 1)
       assert Schema.value?("search", "%anything%", 1)
       refute Schema.value?("search", "", 1)
+    end
+
+    test "firmware_validation_status accepts the device's validation states" do
+      for value <- ["validated", "not_validated", "unknown"] do
+        assert Schema.value?("firmware_validation_status", value, 1)
+      end
+
+      refute Schema.value?("firmware_validation_status", "bogus", 1)
     end
 
     test "connection_type accepts the network interfaces and unknown" do

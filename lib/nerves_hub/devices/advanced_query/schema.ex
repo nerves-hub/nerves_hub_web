@@ -59,6 +59,12 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
       operators: ["=", "!="],
       values: &Devices.architectures/1
     },
+    # Whether the device reported its running firmware as validated. Devices
+    # that don't report validation (or haven't reported yet) are "unknown".
+    "firmware_validation_status" => %{
+      operators: ["=", "!="],
+      values: &__MODULE__.firmware_validation_status_values/1
+    },
     "connection" => %{
       operators: ["=", "!="],
       values: &__MODULE__.connection_values/1
@@ -210,6 +216,9 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
 
   @doc false
   def health_status_values(_product_id), do: ["unknown", "healthy", "warning", "unhealthy"]
+
+  @doc false
+  def firmware_validation_status_values(_product_id), do: ["validated", "not_validated", "unknown"]
 
   @doc false
   def connection_type_values(_product_id), do: ["cellular", "ethernet", "wifi", "unknown"]

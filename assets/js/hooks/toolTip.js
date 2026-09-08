@@ -1,4 +1,4 @@
-import { autoUpdate, computePosition, offset, arrow } from "@floating-ui/dom"
+import { autoUpdate, computePosition, offset, shift, arrow } from "@floating-ui/dom"
 
 export default {
   mounted() {
@@ -20,7 +20,11 @@ export default {
 
       computePosition(this.el, this.content, {
         placement,
-        middleware: [offset(sideOffset), arrow({ element: this.arrow })],
+        // `shift` slides the tooltip back inside the viewport when it would
+        // otherwise overflow — without it a wide tooltip near the right-hand
+        // edge of the page runs off screen. It has to sit before `arrow` so
+        // the arrow is positioned against the shifted box.
+        middleware: [offset(sideOffset), shift({ padding: 8 }), arrow({ element: this.arrow })],
       }).then(({ x, y, middlewareData, placement }) => {
         Object.assign(this.content.style, {
           left: `${x}px`,

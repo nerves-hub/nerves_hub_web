@@ -65,7 +65,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:current_sort, "identifier")
     |> assign(:sort_direction, "asc")
     |> assign(:paginate_opts, @default_pagination)
-    |> assign(:firmware_versions, firmware_versions(product.id))
+    |> assign(:firmware_versions, [])
     |> assign(:platforms, [])
     |> assign(:architectures, [])
     |> assign(:advanced_query_tags, [])
@@ -722,6 +722,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
         current_alarms: Alarms.get_current_alarm_types(product.id),
         metrics_keys: Enum.sort(Enum.uniq(Metrics.default_metrics() ++ distinct_metric_keys)),
         deployment_groups: ManagedDeployments.get_deployment_groups_by_product(product),
+        firmware_versions: Devices.firmware_versions(product.id),
         platforms: Devices.platforms(product.id),
         architectures: Devices.architectures(product.id),
         advanced_query_tags: Devices.distinct_tags(product.id),
@@ -764,6 +765,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
         "last_seen" => AdvancedQuery.Schema.last_seen_values(nil),
         "tags" => assigns.advanced_query_tags ++ [AdvancedQuery.Schema.not_set_value()],
         "health_status" => AdvancedQuery.Schema.health_status_values(nil),
+        "firmware_validation_status" => AdvancedQuery.Schema.firmware_validation_status_values(nil),
         "connection_type" => AdvancedQuery.Schema.connection_type_values(nil),
         "updates" => AdvancedQuery.Schema.updates_values(nil),
         "alarm_status" => AdvancedQuery.Schema.alarm_status_values(nil),
@@ -1043,10 +1045,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> then(fn progresses ->
       assign(socket, :progress, progresses)
     end)
-  end
-
-  defp firmware_versions(product_id) do
-    Firmwares.get_firmware_versions_by_product(product_id)
   end
 
   defp maybe_pluralize(count, to_pluralize) do

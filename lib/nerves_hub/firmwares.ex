@@ -194,19 +194,6 @@ defmodule NervesHub.Firmwares do
   end
 
   @doc """
-  Get only version numbers for a product, sorted highest first
-  """
-  def get_firmware_versions_by_product(product_id) do
-    Firmware
-    |> where([f], f.product_id == ^product_id)
-    |> select([f], %{version: f.version, sort_key: fragment(~s|semver_sort_key(?) COLLATE "C"|, f.version)})
-    |> distinct(true)
-    |> order_by([f], fragment(~s|semver_sort_key(?) COLLATE "C" DESC NULLS LAST|, f.version))
-    |> Repo.all()
-    |> Enum.map(& &1.version)
-  end
-
-  @doc """
   The product's firmwares as `%{version, uuid}` maps, newest version first.
   """
   def firmware_versions_and_uuids(product_id) do

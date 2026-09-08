@@ -44,5 +44,11 @@ defmodule NervesHubWeb.DeploymentGroupControllerTest do
 
       assert response_content_type(conn, :csv) =~ "text/csv"
     end
+
+    test "404s for a deployment group that does not exist", %{conn: conn, org: org, product: product} do
+      assert_error_sent(404, fn ->
+        get(conn, ~p"/org/#{org}/#{product}/deployment_groups/nope/audit_logs/download")
+      end)
+    end
   end
 end

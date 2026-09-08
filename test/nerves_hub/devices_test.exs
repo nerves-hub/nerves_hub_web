@@ -450,6 +450,50 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "firmware_versions/1" do
+    setup %{org: org, user: user, firmware: firmware} do
+      product = Fixtures.product_fixture(user, org, %{name: "Firmware Versions Product"})
+
+      running = fn version ->
+        {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+
+        Fixtures.device_fixture(org, product, firmware, %{
+          firmware_metadata: Map.put(metadata, :version, version)
+        })
+      end
+
+      %{product: product, running: running}
+    end
+
+    test "returns the distinct versions devices are running, newest first", %{
+      product: product,
+      running: running
+    } do
+      for version <- ["1.9.0", "1.10.0", "1.10.0-rc1", "1.9.0"], do: running.(version)
+
+      assert Devices.firmware_versions(product.id) == ["1.10.0", "1.10.0-rc1", "1.9.0"]
+    end
+
+    test "is scoped to the given product", %{product: product, running: running} do
+      # setup already created three devices in the other product
+      running.("1.9.0")
+
+      assert Devices.firmware_versions(product.id) == ["1.9.0"]
+    end
+
+    test "ignores devices which haven't reported firmware", %{
+      org: org,
+      product: product,
+      firmware: firmware,
+      running: running
+    } do
+      running.("1.9.0")
+      _ = Fixtures.device_fixture(org, product, firmware, %{firmware_metadata: nil})
+
+      assert Devices.firmware_versions(product.id) == ["1.9.0"]
+    end
+  end
+
   describe "disable_updates_for_devices/2" do
     test "can disable updates for multiple devices", %{
       user: user,
@@ -3141,6 +3185,81 @@ defmodule NervesHub.DevicesTest do
 
       filtered.latest_health
     end
+  end
+
+  describe "firmware_version_counts/1" do
+    test "counts devices by their reported firmware version, largest group first", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      # the setup already puts three devices on the fixture firmware's version
+      device_on_version(org, product, firmware, "2.0.0")
+      device_on_version(org, product, firmware, "2.0.0")
+      device_on_version(org, product, firmware, "1.5.0")
+
+      assert [
+               %{version: setup_version, count: 3},
+               %{version: "2.0.0", count: 2},
+               %{version: "1.5.0", count: 1}
+             ] = Devices.firmware_version_counts(product)
+
+      assert setup_version == firmware.version
+    end
+
+    test "breaks ties on equal counts by version, newest first", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      device_on_version(org, product, firmware, "1.5.0")
+      device_on_version(org, product, firmware, "2.0.0")
+      device_on_version(org, product, firmware, "1.9.0")
+
+      versions =
+        product
+        |> Devices.firmware_version_counts()
+        |> Enum.filter(&(&1.count == 1))
+        |> Enum.map(& &1.version)
+
+      assert versions == ["2.0.0", "1.9.0", "1.5.0"]
+    end
+
+    test "groups devices without firmware metadata under a nil version", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      Fixtures.device_fixture(org, product, firmware, %{firmware_metadata: nil})
+
+      counts = Devices.firmware_version_counts(product)
+
+      assert %{version: nil, count: 1} in counts
+    end
+
+    test "excludes deleted devices", %{org: org, product: product, firmware: firmware} do
+      device = device_on_version(org, product, firmware, "9.9.9")
+      {:ok, _} = Devices.delete_device(device)
+
+      refute Enum.any?(Devices.firmware_version_counts(product), &(&1.version == "9.9.9"))
+    end
+
+    test "is scoped to the product", %{user: user, org: org, tmp_dir: tmp_dir} do
+      other_product = Fixtures.product_fixture(user, org, %{name: "Other Product"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      other_firmware = Fixtures.firmware_fixture(org_key, other_product, %{dir: tmp_dir})
+      _ = Fixtures.device_fixture(org, other_product, other_firmware)
+
+      assert [%{count: 1}] = Devices.firmware_version_counts(other_product)
+    end
+  end
+
+  defp device_on_version(org, product, firmware, version) do
+    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+
+    Fixtures.device_fixture(org, product, firmware, %{
+      firmware_metadata: %{metadata | version: version}
+    })
   end
 
   def to_device_info(device) do

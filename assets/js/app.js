@@ -16,6 +16,7 @@ import CopyToClipboard from "./hooks/copyToClipboard.js"
 import CrossFadeOnUpdate from "./hooks/crossFadeOnUpdate.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
+import DonutChart from "./hooks/donutChart.js"
 import Flash from "./hooks/flash.js"
 import HighlightCode from "./hooks/highlightCode.js"
 import { LiveFlowHook } from "live_flow"
@@ -68,6 +69,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     CrossFadeOnUpdate,
     DeviceLocationMap,
     DeviceLocationMapWithGeocoder,
+    DonutChart,
     Flash,
     HighlightCode,
     LiveFlow: LiveFlowHook,

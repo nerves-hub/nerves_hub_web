@@ -390,6 +390,25 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> refute_has("a", text: device2.identifier)
     end
 
+    test "the firmware dropdown only lists versions devices are running", %{
+      conn: conn,
+      fixture: fixture,
+      tmp_dir: tmp_dir
+    } do
+      %{device: device, org: org, product: product, user: user} = fixture
+
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      # uploaded to the product, but no device is running it
+      _unused = Fixtures.firmware_fixture(org_key, product, %{version: "9.9.9", dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+      |> assert_has("#input_firmware_version option", text: device.firmware_metadata.version, timeout: 1000)
+      |> refute_has("#input_firmware_version option", text: "9.9.9")
+    end
+
     # `Devices.filter/3` preloads only the columns behind the health icon and its
     # tooltip, so this asserts the tooltip still has what it renders from.
     test "renders the health tooltip from the trimmed preload", %{conn: conn, fixture: fixture} do
@@ -675,6 +694,30 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
       |> refute_has("div a", text: device2.identifier)
+    end
+
+    test "by firmware validation status", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      validated = Fixtures.device_fixture(org, product, firmware, %{})
+      not_validated = Fixtures.device_fixture(org, product, firmware, %{})
+
+      set_validation_status(validated, :validated)
+      set_validation_status(not_validated, :not_validated)
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "3", timeout: 1000)
+      |> select("Firmware Validation", option: "Validated")
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: validated.identifier)
+      |> select("Firmware Validation", option: "Not validated")
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: not_validated.identifier)
+      # the fixture device has never reported, so it reads as unknown
+      |> select("Firmware Validation", option: "Unknown")
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: device.identifier)
     end
 
     test "by several tags", %{conn: conn, fixture: fixture} do
@@ -1795,6 +1838,23 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> refute_has("div a", text: device.identifier)
     end
 
+    test "a firmware validation query filters the device list", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      not_validated = Fixtures.device_fixture(org, product, firmware, %{})
+      set_validation_status(not_validated, :not_validated)
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> unwrap(fn view ->
+        render_hook(view, "apply-advanced-query", %{"query" => ~s|firmware_validation_status = "not_validated"|})
+      end)
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> assert_has("div a", text: not_validated.identifier)
+      |> refute_has("div a", text: device.identifier)
+    end
+
     test "an invalid query shows an inline error and does not change the filter", %{conn: conn, fixture: fixture} do
       %{device: device} = fixture
 
@@ -1873,5 +1933,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     }
 
     {:ok, _stored} = Metrics.record(device_info, metrics, timestamp)
+  end
+
+  defp set_validation_status(device, status) do
+    {1, _} = Repo.update_all(where(Device, id: ^device.id), set: [firmware_validation_status: status])
+    :ok
   end
 end
