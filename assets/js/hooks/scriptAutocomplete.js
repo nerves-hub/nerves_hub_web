@@ -3,7 +3,7 @@
 // Used in place of a native <select> when a product has many support
 // scripts, so the list can be filtered by typing. The wrapper element
 // carries:
-//   - `data-scripts`: a JSON array of `{ id, name }` objects
+//   - `data-scripts`: a JSON array of `{ id, name, language }` objects
 //   - `data-selected-id`: the id of the currently selected script
 // and contains:
 //   - an `<input data-script-search>` the user types into
@@ -82,11 +82,23 @@ export default {
 
     matches.forEach((script) => {
       const li = document.createElement("li")
-      li.textContent = script.name
       li.setAttribute("role", "option")
       li.dataset.id = script.id
       li.className =
-        "cursor-pointer px-2 py-1.5 text-sm text-base-300 hover:bg-base-800"
+        "flex cursor-pointer items-baseline justify-between gap-2 px-2 py-1.5 text-sm text-base-300 hover:bg-base-800"
+
+      const name = document.createElement("span")
+      name.textContent = script.name
+      li.appendChild(name)
+
+      // Which runtime the script targets decides whether it will run at all on
+      // this device, so it belongs next to the name rather than behind a click.
+      if (script.language) {
+        const language = document.createElement("span")
+        language.textContent = script.language
+        language.className = "text-xs text-base-500"
+        li.appendChild(language)
+      }
       // Use mousedown so the selection happens before the input's blur.
       li.addEventListener("mousedown", (event) => {
         event.preventDefault()

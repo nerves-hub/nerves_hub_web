@@ -19,11 +19,20 @@
           <div class="flex w-1/2 flex-col gap-6">
             <.input field={@form[:name]} label="Name" placeholder="System Debugging" phx-debounce="blur" />
             <.tag_input field={@form[:tags]} label="Tags" placeholder="info, action" available_tags={@available_tags} />
+            <.input
+              field={@form[:language]}
+              label="Language"
+              type="select"
+              options={Enum.map(Script.languages(), &{Script.language_label(&1), &1})}
+              hint="Elixir runs on devices using NervesHubLink. Shell runs on devices using the Linux agent."
+            />
           </div>
 
           <div class="flex w-1/2 flex-col gap-2">
             <.input field={@form[:text]} label="Script code" type="textarea" rows="10" phx-debounce="2000" />
-            <div class="text-base-400 text-xs tracking-wide">Make sure this is valid Elixir and will not crash the device</div>
+            <div class="text-base-400 text-xs tracking-wide">
+              {syntax_hint(@form[:language].value)}
+            </div>
             <div class="text-base-400 text-xs">
               Last updated by {@script.last_editor_name} on {Calendar.strftime(@script.updated_at, "%Y-%m-%d at %I:%M %p UTC")}
             </div>
