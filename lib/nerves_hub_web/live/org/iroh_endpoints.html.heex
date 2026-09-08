@@ -145,10 +145,7 @@
               {if identity.source == :device_reported, do: "reported by device", else: "registered"}
             </span>
             <span :if={identity.last_reported_at}>
-              <span class="text-base-500">Last seen:</span> {Calendar.strftime(
-                identity.last_reported_at,
-                "%Y-%m-%d %H:%M UTC"
-              )}
+              <span class="text-base-500">Last seen:</span> <.local_datetime at={identity.last_reported_at} time_zone={@time_zone} format={:short_timestamp} />
             </span>
           </div>
         </div>

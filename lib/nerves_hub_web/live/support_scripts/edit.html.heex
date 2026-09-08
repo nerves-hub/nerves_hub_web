@@ -34,7 +34,7 @@
               {syntax_hint(@form[:language].value)}
             </div>
             <div class="text-base-400 text-xs">
-              Last updated by {@script.last_editor_name} on {Calendar.strftime(@script.updated_at, "%Y-%m-%d at %I:%M %p UTC")}
+              Last updated by {@script.last_editor_name} on <.local_datetime at={@script.updated_at} time_zone={@time_zone} />
             </div>
           </div>
         </div>

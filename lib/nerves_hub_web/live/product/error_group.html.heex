@@ -175,7 +175,7 @@
         </colgroup>
         <thead>
           <tr class="border-base-700 text-base-400 border-b text-left font-extralight">
-            <th class="px-5 py-2 font-normal">Timestamp (UTC)</th>
+            <th class="px-5 py-2 font-normal">Timestamp ({zone_abbr(@time_zone)})</th>
             <th class="py-2 pr-6 font-normal">Firmware</th>
             <th class="py-2 pr-5 font-normal">Reason</th>
           </tr>
@@ -183,7 +183,7 @@
         <tbody>
           <tr :for={occurrence <- @occurrences} class="border-base-800 hover:bg-base-900 border-b align-top">
             <td class="text-base-300 px-5 py-2 font-mono whitespace-nowrap">
-              {Calendar.strftime(occurrence.timestamp, "%Y-%m-%d %H:%M:%S")}
+              <.local_datetime at={occurrence.timestamp} time_zone={@time_zone} format={:timestamp} zone_label={false} />
             </td>
             <td class="text-base-400 truncate py-2 pr-6 font-mono text-xs" title={occurrence.firmware_uuid}>
               {occurrence.firmware_uuid}

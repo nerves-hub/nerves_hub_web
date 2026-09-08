@@ -101,9 +101,10 @@
       id="deployment_group_releases"
       deployment_group={@deployment_group}
       current_scope={@current_scope}
+      time_zone={@time_zone}
     />
 
-    <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_group_activity" deployment_group={@deployment_group} current_scope={@current_scope} />
+    <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_group_activity" deployment_group={@deployment_group} current_scope={@current_scope} time_zone={@time_zone} />
 
     <.live_component :if={@tab == :settings} module={SettingsTab} id="deployment_group_settings" deployment_group={@deployment_group} current_scope={@current_scope} />
   </div>

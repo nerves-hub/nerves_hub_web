@@ -298,7 +298,7 @@
                           {device.firmware_metadata.version}
                         <% end %>
                       </span>
-                      <DeviceUpdateStatus.render :if={not is_nil(device.deployment_id)} device={device} />
+                      <DeviceUpdateStatus.render :if={not is_nil(device.deployment_id)} device={device} time_zone={@time_zone} />
                     </div>
                   </td>
 

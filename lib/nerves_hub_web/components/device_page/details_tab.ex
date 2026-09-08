@@ -262,7 +262,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   phx-hook="UpdatingTimeAgo"
                   datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.disconnected_at, :second)), " ", "T")}
                 >
-                  {NaiveDateTime.to_string(@device.latest_connection.disconnected_at)}
+                  {Timex.from_now(@device.latest_connection.disconnected_at)}
                 </time>
               </span>
             </div>
@@ -275,7 +275,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                   phx-hook="UpdatingTimeAgo"
                   datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.established_at, :second)), " ", "T")}
                 >
-                  {NaiveDateTime.to_string(@device.latest_connection.established_at)}
+                  {Timex.from_now(@device.latest_connection.established_at)}
                 </time>
               </span>
             </div>
