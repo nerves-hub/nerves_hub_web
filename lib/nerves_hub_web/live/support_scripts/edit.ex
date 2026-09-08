@@ -65,4 +65,14 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
         |> noreply()
     end
   end
+
+  # The form posts the language as a string while it is being edited, and as an
+  # atom when it comes back from the struct.
+  defp syntax_hint(language) when language in [:shell, "shell"] do
+    "Make sure this is valid shell and will not crash the device"
+  end
+
+  defp syntax_hint(_elixir) do
+    "Make sure this is valid Elixir and will not crash the device"
+  end
 end
