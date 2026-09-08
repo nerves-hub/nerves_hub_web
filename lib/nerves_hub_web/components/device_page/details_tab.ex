@@ -16,6 +16,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Products
   alias NervesHub.Products.HealthProfiles
   alias NervesHub.Scripts
+  alias NervesHub.Scripts.Script
   alias NervesHubWeb.Components.DeviceHealth.MetricLabels
   alias NervesHubWeb.Components.DeviceLocation
   alias NervesHubWeb.Components.DeviceNetworkIdentities
@@ -593,7 +594,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 >
                   <option value="" selected={is_nil(@selected_support_script)}>Select a support script</option>
                   <option :for={script <- @support_scripts} value={script.id} selected={@selected_support_script && script.id == @selected_support_script.id}>
-                    {script.name}
+                    {script.name} ({Script.language_label(script.language)})
                   </option>
                 </select>
               </form>
@@ -603,7 +604,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 id="script-autocomplete"
                 class="relative grow"
                 phx-hook="ScriptAutocomplete"
-                data-scripts={Jason.encode!(Enum.map(@support_scripts, &%{id: &1.id, name: &1.name}))}
+                data-scripts={Jason.encode!(Enum.map(@support_scripts, &%{id: &1.id, name: &1.name, language: Script.language_label(&1.language)}))}
                 data-selected-id={@selected_support_script && @selected_support_script.id}
               >
                 <label for="script_search" class="hidden">Search support scripts</label>

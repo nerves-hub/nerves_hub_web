@@ -71,9 +71,9 @@ defmodule NervesHub.ScriptsTest do
         Scripts.update(script, user, %{name: "New Name"})
 
       {:ok, script} =
-        Scripts.update(script, user2, %{text: "New text"})
+        Scripts.update(script, user2, %{text: "Nerves.Runtime.reboot()"})
 
-      assert script.text == "New text"
+      assert script.text == "Nerves.Runtime.reboot()"
       assert script.last_updated_by_id == user2.id
     end
   end
@@ -109,7 +109,7 @@ defmodule NervesHub.ScriptsTest do
       {:ok, _script} =
         Scripts.create(product, user, %{
           name: "Another script",
-          text: "Some code",
+          text: "Some.code()",
           tags: "world"
         })
 

@@ -50,6 +50,9 @@
               <Sorting.sort_icon text="Updated by" field="last_updated_by" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
             <th>
+              Language
+            </th>
+            <th>
               Tags
             </th>
           </tr>
@@ -66,6 +69,9 @@
             </td>
             <td>
               {script.last_editor_name}
+            </td>
+            <td>
+              {Script.language_label(script.language)}
             </td>
             <td>
               <div class="flex items-center gap-[4px] text-nowrap">
