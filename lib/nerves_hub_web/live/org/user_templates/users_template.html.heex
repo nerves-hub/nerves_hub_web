@@ -64,7 +64,7 @@
             <td>{org_user.user.email}</td>
             <td class="text-base-400 capitalize">{org_user.role}</td>
             <td class="text-base-400">
-              <div phx-hook="SimpleDate" id={"user-#{org_user.id}-date"} class="date-time">{org_user.user.inserted_at}</div>
+              <div><.local_datetime at={org_user.user.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} /></div>
             </td>
             <td class="text-right">
               <div class="flex justify-end gap-2">

@@ -16,7 +16,11 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
         updates_blocked_until: future(3600)
       }
 
-      rendered = Phoenix.LiveViewTest.rendered_to_string(DeviceUpdateStatus.render(%{device: device}))
+      rendered =
+        Phoenix.LiveViewTest.rendered_to_string(
+          DeviceUpdateStatus.render(%{device: device, time_zone: "Pacific/Auckland"})
+        )
+
       assert String.contains?(rendered, "stroke-warning")
     end
 
@@ -27,7 +31,11 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
         updates_blocked_until: nil
       }
 
-      rendered = Phoenix.LiveViewTest.rendered_to_string(DeviceUpdateStatus.render(%{device: device}))
+      rendered =
+        Phoenix.LiveViewTest.rendered_to_string(
+          DeviceUpdateStatus.render(%{device: device, time_zone: "Pacific/Auckland"})
+        )
+
       assert String.contains?(rendered, "stroke-success")
     end
 
@@ -38,52 +46,72 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatusTest do
         updates_blocked_until: nil
       }
 
-      rendered = Phoenix.LiveViewTest.rendered_to_string(DeviceUpdateStatus.render(%{device: device}))
+      rendered =
+        Phoenix.LiveViewTest.rendered_to_string(
+          DeviceUpdateStatus.render(%{device: device, time_zone: "Pacific/Auckland"})
+        )
+
       assert String.contains?(rendered, "stroke-alert")
     end
   end
 
-  describe "friendly_blocked_until/1" do
+  describe "friendly_blocked_until/2" do
     test "< 60s → 'for less than a minute'" do
-      assert DeviceUpdateStatus.friendly_blocked_until(future(30)) == "for less than a minute"
+      assert DeviceUpdateStatus.friendly_blocked_until(future(30), "Pacific/Auckland") == "for less than a minute"
     end
 
     test "~90s (between 60s and 2 min) → 'for around a minute'" do
-      assert DeviceUpdateStatus.friendly_blocked_until(future(90)) == "for around a minute"
+      assert DeviceUpdateStatus.friendly_blocked_until(future(90), "Pacific/Auckland") == "for around a minute"
     end
 
     test "~5 minutes → 'for 5 minutes'" do
-      assert DeviceUpdateStatus.friendly_blocked_until(future(5 * 60 + 5)) == "for 5 minutes"
+      assert DeviceUpdateStatus.friendly_blocked_until(future(5 * 60 + 5), "Pacific/Auckland") == "for 5 minutes"
     end
 
     test "~57 minutes (between 55 and 60 min) → 'for less than an hour'" do
-      assert DeviceUpdateStatus.friendly_blocked_until(future(57 * 60 + 5)) == "for less than an hour"
+      assert DeviceUpdateStatus.friendly_blocked_until(future(57 * 60 + 5), "Pacific/Auckland") ==
+               "for less than an hour"
     end
 
     test "~61 minutes (between 60 and 63 min) → 'for an hour'" do
-      assert DeviceUpdateStatus.friendly_blocked_until(future(61 * 60 + 5)) == "for an hour"
+      assert DeviceUpdateStatus.friendly_blocked_until(future(61 * 60 + 5), "Pacific/Auckland") == "for an hour"
     end
 
     test "~75 minutes (between 63 and 80 min) → 'for just over an hour'" do
-      assert DeviceUpdateStatus.friendly_blocked_until(future(75 * 60 + 5)) == "for just over an hour"
+      assert DeviceUpdateStatus.friendly_blocked_until(future(75 * 60 + 5), "Pacific/Auckland") ==
+               "for just over an hour"
     end
 
     test "~95 minutes (between 80 and 100 min) → 'for an hour and a half'" do
-      assert DeviceUpdateStatus.friendly_blocked_until(future(95 * 60 + 5)) == "for an hour and a half"
+      assert DeviceUpdateStatus.friendly_blocked_until(future(95 * 60 + 5), "Pacific/Auckland") ==
+               "for an hour and a half"
     end
 
     test "~105 minutes (between 100 and 110 min) → 'for around 2 hours'" do
-      assert DeviceUpdateStatus.friendly_blocked_until(future(105 * 60 + 5)) == "for around 2 hours"
+      assert DeviceUpdateStatus.friendly_blocked_until(future(105 * 60 + 5), "Pacific/Auckland") == "for around 2 hours"
     end
 
     test "~5 hours (between 2h and 24h) → 'for 5 hours'" do
-      assert DeviceUpdateStatus.friendly_blocked_until(future(5 * 3600 + 5)) == "for 5 hours"
+      assert DeviceUpdateStatus.friendly_blocked_until(future(5 * 3600 + 5), "Pacific/Auckland") == "for 5 hours"
     end
 
     test "2+ days → 'until <formatted date>'" do
       blocked_until = future(3 * 24 * 3600)
-      result = DeviceUpdateStatus.friendly_blocked_until(blocked_until)
+      result = DeviceUpdateStatus.friendly_blocked_until(blocked_until, "Pacific/Auckland")
       assert String.starts_with?(result, "until ")
+    end
+
+    test "the date is given in the viewer's time zone, not UTC" do
+      # Far enough out to reach the "until <date>" clause. 09:00 UTC is the 2nd
+      # in Auckland but still the 1st in Los Angeles, so the two zones disagree
+      # on the date as well as the time.
+      blocked_until = ~U[2099-01-02 05:00:00Z]
+
+      assert DeviceUpdateStatus.friendly_blocked_until(blocked_until, "Pacific/Auckland") ==
+               "until January 2, 2099 6:00 PM NZDT"
+
+      assert DeviceUpdateStatus.friendly_blocked_until(blocked_until, "America/Los_Angeles") ==
+               "until January 1, 2099 9:00 PM PST"
     end
   end
 end

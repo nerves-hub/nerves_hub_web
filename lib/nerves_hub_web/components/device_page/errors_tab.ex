@@ -215,7 +215,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
               <th class="py-2 pr-6 font-normal">Status</th>
               <th class="py-2 pr-6 font-normal">Error</th>
               <th class="py-2 pr-6 font-normal">Count</th>
-              <th class="py-2 pr-6 font-normal">Last seen (UTC)</th>
+              <th class="py-2 pr-6 font-normal">Last seen ({zone_abbr(@time_zone)})</th>
               <th class="py-2 font-normal"></th>
             </tr>
           </thead>
@@ -241,7 +241,7 @@ defmodule NervesHubWeb.Components.DevicePage.ErrorsTab do
                 </td>
                 <td class="text-base-300 py-2 pr-6">{entry.device_occurrence_count}</td>
                 <td class="text-base-300 py-2 pr-6 whitespace-nowrap">
-                  {Calendar.strftime(entry.last_seen_at, "%Y-%m-%d %H:%M:%S")}
+                  <.local_datetime at={entry.last_seen_at} time_zone={@time_zone} format={:timestamp} zone_label={false} />
                 </td>
                 <td class="py-2">
                   <%!-- A real button, not just the clickable row: a row with a

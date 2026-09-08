@@ -194,12 +194,12 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
                 <div class="text-base-400 text-xs tracking-wide">
                   <span>Not before:</span>
-                  <span>{Calendar.strftime(certificate.not_before, "%Y-%m-%d")}</span>
+                  <.local_datetime at={certificate.not_before} time_zone={@time_zone} format={:date} zone_label={false} />
                 </div>
 
                 <div class="text-base-400 text-xs tracking-wide">
                   <span>Not after:</span>
-                  <span>{Calendar.strftime(certificate.not_after, "%Y-%m-%d")}</span>
+                  <.local_datetime at={certificate.not_after} time_zone={@time_zone} format={:date} zone_label={false} />
                 </div>
               </div>
             </div>

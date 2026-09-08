@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
   use NervesHubWeb, :component
 
   alias NervesHub.Devices.Updates
+  alias NervesHubWeb.Components.DateTimes
 
   def render(%{device: device} = assigns) do
     cond do
@@ -17,7 +18,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
             />
           </svg>
           <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border px-2 py-1.5 text-xs">
-            Updates blocked {friendly_blocked_until(@device.updates_blocked_until)}
+            Updates blocked {friendly_blocked_until(@device.updates_blocked_until, @time_zone)}
             <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
           </div>
         </div>
@@ -55,25 +56,25 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
     end
   end
 
-  def friendly_blocked_until(blocked_until) do
+  def friendly_blocked_until(blocked_until, time_zone) do
     now = DateTime.utc_now()
     seconds_diff = DateTime.diff(blocked_until, now, :second)
     minutes_diff = DateTime.diff(blocked_until, now, :minute)
     hours_diff = DateTime.diff(blocked_until, now, :hour)
 
-    format_time_duration(seconds_diff, minutes_diff, hours_diff, blocked_until)
+    format_time_duration(seconds_diff, minutes_diff, hours_diff, blocked_until, time_zone)
   end
 
-  defp format_time_duration(s, _m, _h, _b_u) when s < 60, do: "for less than a minute"
-  defp format_time_duration(_s, m, _h, _b_u) when m < 2, do: "for around a minute"
-  defp format_time_duration(_s, m, _h, _b_u) when m < 55, do: "for #{m} minutes"
-  defp format_time_duration(_s, m, _h, _b_u) when m < 60, do: "for less than an hour"
-  defp format_time_duration(_s, m, _h, _b_u) when m < 63, do: "for an hour"
-  defp format_time_duration(_s, m, _h, _b_u) when m < 80, do: "for just over an hour"
-  defp format_time_duration(_s, m, _h, _b_u) when m < 100, do: "for an hour and a half"
-  defp format_time_duration(_s, m, _h, _b_u) when m < 110, do: "for around 2 hours"
-  defp format_time_duration(_s, _m, h, _b_u) when h < 24, do: "for #{h} hours"
+  defp format_time_duration(s, _m, _h, _b_u, _tz) when s < 60, do: "for less than a minute"
+  defp format_time_duration(_s, m, _h, _b_u, _tz) when m < 2, do: "for around a minute"
+  defp format_time_duration(_s, m, _h, _b_u, _tz) when m < 55, do: "for #{m} minutes"
+  defp format_time_duration(_s, m, _h, _b_u, _tz) when m < 60, do: "for less than an hour"
+  defp format_time_duration(_s, m, _h, _b_u, _tz) when m < 63, do: "for an hour"
+  defp format_time_duration(_s, m, _h, _b_u, _tz) when m < 80, do: "for just over an hour"
+  defp format_time_duration(_s, m, _h, _b_u, _tz) when m < 100, do: "for an hour and a half"
+  defp format_time_duration(_s, m, _h, _b_u, _tz) when m < 110, do: "for around 2 hours"
+  defp format_time_duration(_s, _m, h, _b_u, _tz) when h < 24, do: "for #{h} hours"
 
-  defp format_time_duration(_s, _m, _h, blocked_until),
-    do: "until #{Calendar.strftime(blocked_until, "%B %-d, %Y %-I:%M %p %Z")}"
+  defp format_time_duration(_s, _m, _h, blocked_until, time_zone),
+    do: "until #{DateTimes.to_local_string(blocked_until, time_zone, :long_datetime)}"
 end

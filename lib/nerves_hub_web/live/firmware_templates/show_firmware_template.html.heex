@@ -75,7 +75,7 @@
 
             <div class="flex min-h-7 items-center gap-4 px-4">
               <span class="text-base-500 text-sm">Uploaded on:</span>
-              <span class="text-base-300 text-sm">{Calendar.strftime(@firmware.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}</span>
+              <span class="text-base-300 text-sm"><.local_datetime at={@firmware.inserted_at} time_zone={@time_zone} /></span>
             </div>
           </div>
         </div>

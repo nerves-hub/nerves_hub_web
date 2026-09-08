@@ -45,7 +45,7 @@
               <th>Architecture</th>
               <th>Signing Key</th>
               <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
-                <Sorting.sort_icon text="Uploaded on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+                <Sorting.sort_icon text={"Uploaded on (#{zone_abbr(@time_zone)})"} field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
               </th>
             </tr>
           </thead>
@@ -83,7 +83,7 @@
                 <%= if is_nil(archive.inserted_at) do %>
                   Never
                 <% else %>
-                  {Calendar.strftime(archive.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}
+                  <.local_datetime at={archive.inserted_at} time_zone={@time_zone} zone_label={false} />
                 <% end %>
               </td>
 

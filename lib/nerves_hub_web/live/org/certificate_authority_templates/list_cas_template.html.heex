@@ -43,10 +43,10 @@
               <% end %>
             </td>
             <td class="text-base-400">
-              <div phx-hook="SimpleDate" id={"#{cert.id}-not-before"} class="date-time">{cert.not_before}</div>
+              <div><.local_datetime at={cert.not_before} time_zone={@time_zone} format={:long_date} zone_label={false} /></div>
             </td>
             <td class="text-base-400">
-              <div phx-hook="SimpleDate" id={"#{cert.id}-not-after"} class="date-time">{cert.not_after}</div>
+              <div><.local_datetime at={cert.not_after} time_zone={@time_zone} format={:long_date} zone_label={false} /></div>
             </td>
             <td class="text-base-400">
               {if cert.check_expiration, do: "yes", else: "no"}

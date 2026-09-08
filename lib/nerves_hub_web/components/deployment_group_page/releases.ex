@@ -89,8 +89,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                 <div class="flex w-full">
                   <div class="text-base-300 w-44 px-4 py-3 text-sm">
                     <div class="flex flex-col">
-                      <span>{Calendar.strftime(release.inserted_at, "%B %d, %Y")}</span>
-                      <span class="text-base-500 text-xs">{Calendar.strftime(release.inserted_at, "%I:%M %p")} UTC</span>
+                      <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} />
+                      <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:time} class="text-base-500 text-xs" />
                     </div>
                   </div>
 
