@@ -118,8 +118,24 @@
  *   • It is a themed box-shadow: Tailwind inlines @theme --shadow-* values into
  *     the generated utility, so a [data-theme] override would be ignored. The
  *     @utility rules below read these at runtime instead.
+ *   • It is a chart series colour: it is only ever read through var() — from an
+ *     interpolated inline style, or by a chart hook off the document root — so
+ *     Tailwind would tree-shake it out of @theme for want of a matching utility.
  */
 :root {
+  /* Categorical chart series — a fixed slot order, assigned by position and
+     never cycled. Stepped for the dark card surface (#1c1c1f); the light
+     overrides below are the same six hues re-stepped for white, not a flip.
+     `chart-other` is the de-emphasis neutral for a folded "Other" slice and is
+     deliberately outside the categorical set. */
+  --color-chart-1: #3987e5;
+  --color-chart-2: #d95926;
+  --color-chart-3: #199e70;
+  --color-chart-4: #c98500;
+  --color-chart-5: #d55181;
+  --color-chart-6: #008300;
+  --color-chart-other: #71717a;
+
   --primary-rgb: 99 102 241;
   --success-rgb: 16 185 129;
   --warning-rgb: 245 158 11;
@@ -176,6 +192,14 @@
   --color-warning-soft: var(--color-amber-100);
   --color-alert-content: var(--color-red-900);
   --color-alert-soft: var(--color-red-50);
+
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #eb6834;
+  --color-chart-3: #1baf7a;
+  --color-chart-4: #eda100;
+  --color-chart-5: #e87ba4;
+  --color-chart-6: #008300;
+  --color-chart-other: #a1a1aa;
 
   /* Semantic roles + neutral veil flip on the light canvas */
   --color-content-strong: var(--color-zinc-900); /* zinc-900 */

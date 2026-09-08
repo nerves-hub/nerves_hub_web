@@ -76,6 +76,20 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
       assert d2.identifier in v2_ids
       refute d1.identifier in v2_ids
     end
+
+    test "Unknown matches only devices which haven't reported a firmware version", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      unreported = Fixtures.device_fixture(org, product, firmware, %{firmware_metadata: nil})
+      reported = Fixtures.device_fixture(org, product, firmware)
+
+      result = DeviceFiltering.filter(base_query(product), %{}, :firmware_version, "Unknown") |> identifiers()
+
+      assert unreported.identifier in result
+      refute reported.identifier in result
+    end
   end
 
   describe "filter/4 :tags" do
@@ -319,6 +333,11 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
       })
   end
 
+  defp set_validation_status(device, status) do
+    {1, _} = Repo.update_all(where(Device, id: ^device.id), set: [firmware_validation_status: status])
+    :ok
+  end
+
   describe "filter/4 :health_status" do
     test "filters devices by health status", %{org: org, product: product, firmware: firmware} do
       healthy = Fixtures.device_fixture(org, product, firmware)
@@ -346,6 +365,40 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
       result = DeviceFiltering.filter(query, %{}, :health_status, "unknown") |> identifiers()
       assert no_health.identifier in result
       refute healthy.identifier in result
+    end
+  end
+
+  describe "filter/4 :firmware_validation_status" do
+    test "filters devices by reported validation status", %{org: org, product: product, firmware: firmware} do
+      validated = Fixtures.device_fixture(org, product, firmware)
+      not_validated = Fixtures.device_fixture(org, product, firmware)
+      set_validation_status(validated, :validated)
+      set_validation_status(not_validated, :not_validated)
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :firmware_validation_status, "validated") |> identifiers()
+      assert validated.identifier in result
+      refute not_validated.identifier in result
+    end
+
+    test "unknown matches devices that have never reported", %{org: org, product: product, firmware: firmware} do
+      never_reported = Fixtures.device_fixture(org, product, firmware)
+      validated = Fixtures.device_fixture(org, product, firmware)
+      set_validation_status(validated, :validated)
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :firmware_validation_status, "unknown") |> identifiers()
+      assert never_reported.identifier in result
+      refute validated.identifier in result
+    end
+
+    test "unknown value returns query unchanged", %{org: org, product: product, firmware: firmware} do
+      device = Fixtures.device_fixture(org, product, firmware)
+      set_validation_status(device, :validated)
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :firmware_validation_status, "bogus") |> identifiers()
+      assert device.identifier in result
     end
   end
 

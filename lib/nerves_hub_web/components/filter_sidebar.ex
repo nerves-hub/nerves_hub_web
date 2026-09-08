@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Components.FilterSidebar do
     attr(:label, :string, required: true)
     attr(:type, :atom, required: true)
     attr(:values, :list)
+    attr(:hint, :string, doc: "Explanatory text shown in a tooltip beside the label")
   end
 
   def render(assigns) do
@@ -51,7 +52,16 @@ defmodule NervesHubWeb.Components.FilterSidebar do
           <div class="flex flex-1 flex-col pb-4">
             <form id="filter-form" class="grow px-4" phx-change={@on_update}>
               <div :for={filter <- @filter} class="mt-6">
-                <label class="sidebar-label" for={"input_#{filter.attr}"}>{filter.label}</label>
+                <div class="flex items-center justify-between gap-2">
+                  <label class="sidebar-label" for={"input_#{filter.attr}"}>{filter.label}</label>
+                  <div :if={filter[:hint]} class="relative z-20 flex items-center" id={"filter-hint-#{filter.attr}"} phx-hook="ToolTip" data-placement="left">
+                    <.icon name="info" class="stroke-base-400" />
+                    <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-56 rounded border px-2 py-1.5 text-xs">
+                      {filter.hint}
+                      <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+                    </div>
+                  </div>
+                </div>
                 <%= case filter.type do %>
                   <% :text -> %>
                     <input class="sidebar-text-input" type="text" name={filter.attr} id={"input_#{filter.attr}"} value={@current_filters[filter.attr]} phx-debounce="500" />

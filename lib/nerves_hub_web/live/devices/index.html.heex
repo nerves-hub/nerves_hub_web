@@ -405,7 +405,24 @@
         {"Disabled", "disabled"}
       ]}
     />
-    <:filter attr="firmware_version" label="Firmware" type={:select} values={[{"All", ""} | Enum.map(@firmware_versions, &{&1, &1})]} />
+    <:filter
+      attr="firmware_version"
+      label="Firmware"
+      type={:select}
+      values={[{"All", ""} | Enum.map(@firmware_versions, &{&1, &1})] ++ [{"Unknown", "Unknown"}]}
+      hint="Only versions currently running on devices in this product are listed. Uploaded firmware which no device is running won't appear."
+    />
+    <:filter
+      attr="firmware_validation_status"
+      label="Firmware Validation"
+      type={:select}
+      values={[
+        {"All", ""},
+        {"Validated", "validated"},
+        {"Not validated", "not_validated"},
+        {"Unknown", "unknown"}
+      ]}
+    />
     <:filter attr="platform" label="Platform" type={:select} values={[{"All", ""} | Enum.map(@platforms, &{if(&1, do: &1, else: "Unknown"), &1})]} />
     <:filter attr="tags" label="Tags" type={:text} />
     <:filter attr="has_no_tags" label="Untagged" type={:select} values={[{"All", "false"}, {"Only untagged", "true"}]} />
