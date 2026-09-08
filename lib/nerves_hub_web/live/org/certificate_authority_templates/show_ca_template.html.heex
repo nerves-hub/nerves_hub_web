@@ -60,15 +60,7 @@
         </div>
         <div class="flex items-center justify-between gap-4">
           <dt class="text-base-400 flex items-center gap-2">
-            Check expiration <%!-- The hover tooltip the filter sidebar uses; `CAHelpers.check_expiration_tooltip/1`
-                  has no CSS behind its classes and renders as always-on text. --%>
-            <div class="relative z-20 flex items-center" id="check-expiration-hint" phx-hook="ToolTip" data-placement="right">
-              <.icon name="info" class="stroke-base-400" />
-              <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-72 rounded border px-2 py-1.5 text-xs">
-                By default, the time validity of CA certificates is unchecked. You can toggle this to check expiration to prevent device certificates from being created from an expired signing CA certificate.
-                <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
-              </div>
-            </div>
+            Check expiration <CAHelpers.check_expiration_tooltip />
           </dt>
           <dd class="text-base-300">{if @certificate.check_expiration, do: "Yes", else: "No"}</dd>
         </div>
