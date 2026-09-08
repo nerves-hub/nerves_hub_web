@@ -6,6 +6,7 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
 
   alias NervesHub.Devices.AdvancedQuery.Compiler
   alias NervesHub.Devices.AdvancedQuery.Parser
+  alias NervesHub.Devices.AdvancedQuery.Schema
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -193,6 +194,38 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
     test "health_status unknown matches devices with no health record", %{product: product} do
       assert run(product, ~s|health_status = "unknown"|) == ["never_connected", "untagged"]
       assert run(product, ~s|health_status != "unknown"|) == ["connected", "tagged"]
+    end
+
+    test "signer_ca matches devices whose certificate that CA signed", %{
+      product: product,
+      org: org,
+      tagged: tagged,
+      untagged: untagged
+    } do
+      ca = Fixtures.ca_certificate_fixture(org)
+      other_ca = Fixtures.ca_certificate_fixture(org)
+
+      Fixtures.device_certificate_fixture_for_ca(tagged, ca)
+      Fixtures.device_certificate_fixture_for_ca(untagged, other_ca)
+
+      assert run(product, ~s|signer_ca = "#{ca.db_cert.serial}"|) == ["tagged"]
+
+      assert run(product, ~s|signer_ca != "#{ca.db_cert.serial}"|) ==
+               ["connected", "never_connected", "untagged"]
+    end
+
+    test "signer_ca not set matches devices with no certificate from a registered CA", %{
+      product: product,
+      org: org,
+      tagged: tagged
+    } do
+      ca = Fixtures.ca_certificate_fixture(org)
+      Fixtures.device_certificate_fixture_for_ca(tagged, ca)
+
+      not_set = Schema.not_set_value()
+
+      assert run(product, ~s|signer_ca = "#{not_set}"|) == ["connected", "never_connected", "untagged"]
+      assert run(product, ~s|signer_ca != "#{not_set}"|) == ["tagged"]
     end
 
     test "health_status inequality includes devices with no health record", %{product: product} do

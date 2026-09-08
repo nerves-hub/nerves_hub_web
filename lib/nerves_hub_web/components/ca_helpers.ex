@@ -1,6 +1,18 @@
 defmodule NervesHubWeb.Components.CAHelpers do
   use NervesHubWeb, :component
 
+  alias NervesHub.Devices.CACertificate
+  alias NervesHubWeb.Components.Utils
+
+  @doc """
+  How to refer to a CA in a sentence: its description, or its formatted serial
+  when it has none (the description is optional).
+  """
+  @spec label(CACertificate.t()) :: String.t()
+  def label(%CACertificate{description: description, serial: serial}) do
+    if description in [nil, ""], do: Utils.format_serial(serial), else: description
+  end
+
   def check_expiration_tooltip(assigns) do
     ~H"""
     <span class="tooltip-info"></span>

@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
+  alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
@@ -718,6 +719,29 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> select("Firmware Validation", option: "Unknown")
       |> assert_has("#device-count", text: "1", timeout: 1_000)
       |> assert_has("div a", text: device.identifier)
+    end
+
+    test "by signer CA", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      ca = Fixtures.ca_certificate_fixture(org)
+      {:ok, ca_cert} = CACertificates.update_ca_certificate(ca.db_cert, %{description: "Factory signer"})
+
+      signed = Fixtures.device_fixture(org, product, firmware, %{})
+      Fixtures.device_certificate_fixture_for_ca(signed, ca)
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "2", timeout: 1000)
+      |> select("Signer CA", option: ca_cert.description)
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: signed.identifier)
+      |> refute_has("div a", text: device.identifier)
+      # the fixture device's certificate was signed by a CA which isn't registered
+      |> select("Signer CA", option: "No known CA")
+      |> assert_has("#device-count", text: "1", timeout: 1_000)
+      |> assert_has("div a", text: device.identifier)
+      |> refute_has("div a", text: signed.identifier)
     end
 
     test "by several tags", %{conn: conn, fixture: fixture} do

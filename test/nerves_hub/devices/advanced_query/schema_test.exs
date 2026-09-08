@@ -3,6 +3,7 @@ defmodule NervesHub.Devices.AdvancedQuery.SchemaTest do
 
   alias NervesHub.AdvancedQueryFixtures
   alias NervesHub.Devices.AdvancedQuery.Schema
+  alias NervesHub.Fixtures
 
   # No product needed: these only exercise the static whitelist.
   describe "column?/1" do
@@ -10,6 +11,7 @@ defmodule NervesHub.Devices.AdvancedQuery.SchemaTest do
       assert Schema.column?("platform")
       assert Schema.column?("tags")
       assert Schema.column?("deployment_group")
+      assert Schema.column?("signer_ca")
       assert Schema.column?("search")
       refute Schema.column?("bogus")
       refute Schema.column?("")
@@ -29,6 +31,7 @@ defmodule NervesHub.Devices.AdvancedQuery.SchemaTest do
       assert Schema.operators("tags") == ["contains", "not_contains"]
       assert Schema.operators("update_status") == ["is", "is not"]
       assert Schema.operators("firmware_validation_status") == ["=", "!="]
+      assert Schema.operators("signer_ca") == ["=", "!="]
       assert Schema.operators("identifier") == ["like", "not like"]
       assert Schema.operators("search") == ["like", "not like"]
     end
@@ -103,11 +106,27 @@ defmodule NervesHub.Devices.AdvancedQuery.SchemaTest do
       refute Schema.value?("firmware", "00000000-0000-0000-0000-000000000000", product.id)
     end
 
+    test "validates signer_ca against the CAs which signed the product's devices", %{
+      product: product,
+      org: org,
+      tagged: tagged
+    } do
+      used = Fixtures.ca_certificate_fixture(org)
+      unused = Fixtures.ca_certificate_fixture(org)
+      Fixtures.device_certificate_fixture_for_ca(tagged, used)
+
+      assert Schema.value?("signer_ca", used.db_cert.serial, product.id)
+      refute Schema.value?("signer_ca", unused.db_cert.serial, product.id)
+      refute Schema.value?("signer_ca", "nope", product.id)
+    end
+
     test "the not-set sentinel is valid for nullable columns", %{product: product} do
       assert Schema.value?("tags", ":not_set", product.id)
       assert Schema.value?("deployment_group", ":not_set", product.id)
+      assert Schema.value?("signer_ca", ":not_set", product.id)
       assert Schema.not_set_value() in Schema.values("tags", product.id)
       assert Schema.not_set_value() in Schema.values("deployment_group", product.id)
+      assert Schema.not_set_value() in Schema.values("signer_ca", product.id)
     end
   end
 end
