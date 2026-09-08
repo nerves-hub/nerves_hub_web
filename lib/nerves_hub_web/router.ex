@@ -33,6 +33,7 @@ defmodule NervesHubWeb.Router do
   alias NervesHubWeb.Plugs.Redirector
   alias NervesHubWeb.Plugs.ServerAuth
   alias NervesHubWeb.Plugs.SetLocale
+  alias NervesHubWeb.Plugs.Timezone
   alias OpenApiSpex.Plug.PutApiSpec
   alias Plug.Swoosh.MailboxPreview
 
@@ -40,6 +41,7 @@ defmodule NervesHubWeb.Router do
     plug(:accepts, ["html", "json"])
     plug(PruneDuplicateSessionCookie)
     plug(:fetch_session)
+    plug(Timezone)
     plug(:fetch_flash)
     plug(:fetch_live_flash)
     plug(:put_root_layout, html: {NervesHubWeb.Layouts, :root})
@@ -330,6 +332,7 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/settings/certificates", CertificateAuthorities, :index)
       live("/org/:org_name/settings/certificates/new", CertificateAuthorities, :new)
+      live("/org/:org_name/settings/certificates/:serial", CertificateAuthorities, :show)
       live("/org/:org_name/settings/delete", Delete)
 
       live(

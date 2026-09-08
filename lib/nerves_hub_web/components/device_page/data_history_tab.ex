@@ -241,7 +241,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
           </colgroup>
           <thead>
             <tr class="border-base-700 text-base-400 border-b text-left font-extralight">
-              <th class="py-2 pr-6 font-normal">Timestamp (UTC)</th>
+              <th class="py-2 pr-6 font-normal">Timestamp ({zone_abbr(@time_zone)})</th>
               <th class="py-2 pr-6 font-normal">Direction</th>
               <th class="py-2 pr-6 font-normal">Channel</th>
               <th class="py-2 pr-6 font-normal">Event</th>
@@ -251,7 +251,7 @@ defmodule NervesHubWeb.Components.DevicePage.DataHistoryTab do
           <tbody id="device-messages" phx-update="stream">
             <tr :for={{dom_id, message} <- @streams.messages} id={dom_id} class="border-base-800 hover:bg-base-900 border-b align-top">
               <td class="text-base-300 py-2 pr-6 whitespace-nowrap">
-                {Calendar.strftime(message.timestamp, "%Y-%m-%d %H:%M:%S")}
+                <.local_datetime at={message.timestamp} time_zone={@time_zone} format={:timestamp} zone_label={false} />
               </td>
               <td class="py-2 pr-6">
                 <span class={[

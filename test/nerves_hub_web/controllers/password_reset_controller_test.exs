@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.PasswordResetControllerTest do
   use NervesHubWeb.ConnCase, async: true
 
+  import NervesHub.Support.Emails
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
@@ -25,6 +26,8 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
 
       assert html_response(reset_conn, 200) =~
                "If your email is recognized, you will receive instructions to reset your password shortly."
+
+      send_queued_emails()
 
       assert_email_sent(subject: "NervesHub: Reset your password")
     end

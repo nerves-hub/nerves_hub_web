@@ -308,7 +308,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       |> tap(fn conn ->
         for ss <- Products.load_shared_secret_auth(product).shared_secret_auths do
           refute is_nil(ss.deactivated_at)
-          assert_has(conn, "span", text: Date.to_string(ss.deactivated_at))
+          assert_has(conn, "time", text: Date.to_string(ss.deactivated_at))
         end
       end)
     end

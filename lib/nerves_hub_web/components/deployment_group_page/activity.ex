@@ -82,7 +82,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
                     </svg>
                   </div>
                   <div class="text-base-400 text-xs tracking-wide">
-                    {Calendar.strftime(entry.inserted_at, "%Y-%m-%d at %I:%M:%S %p UTC")}
+                    <.local_datetime at={entry.inserted_at} time_zone={@time_zone} format={:datetime_seconds} />
                   </div>
                 </div>
               </div>

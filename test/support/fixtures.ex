@@ -509,6 +509,19 @@ defmodule NervesHub.Fixtures do
     %{db_cert: device_cert, cert: cert}
   end
 
+  @doc """
+  A device certificate signed by the CA built by `ca_certificate_fixture/2`, so
+  the certificate's AKI is the CA's SKI - the way the two are tied together.
+  """
+  def device_certificate_fixture_for_ca(%Devices.Device{} = device, %{cert: ca_cert, key: ca_key}) do
+    otp_cert =
+      X509.PrivateKey.new_ec(:secp256r1)
+      |> X509.PublicKey.derive()
+      |> X509.Certificate.new("/CN=#{device.identifier}", ca_cert, ca_key)
+
+    device_certificate_fixture(device, otp_cert)
+  end
+
   def device_certificate_fixture_without_der(%Devices.Device{} = device, cert) do
     fixture = device_certificate_fixture(device, cert)
 

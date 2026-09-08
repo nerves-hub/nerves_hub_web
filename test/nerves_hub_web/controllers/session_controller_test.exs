@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.SessionControllerTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
+  import NervesHub.Support.Emails
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
@@ -28,6 +29,8 @@ defmodule NervesHubWeb.SessionControllerTest do
       |> assert_path(~p"/orgs")
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
+
+      send_queued_emails()
 
       assert_email_sent(fn email ->
         assert email.subject == "#{platform_name}: Welcome Sgt Pepper!"
@@ -66,6 +69,8 @@ defmodule NervesHubWeb.SessionControllerTest do
       )
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
+
+      send_queued_emails()
 
       assert_email_sent(fn email ->
         assert email.subject == "#{platform_name}: Confirm your account"

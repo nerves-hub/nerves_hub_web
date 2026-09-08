@@ -1068,6 +1068,56 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> refute_has("#script-autocomplete")
     end
 
+    test "the picker shows which language each script is written in", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, elixir_script} =
+        NervesHub.Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      {:ok, shell_script} =
+        NervesHub.Scripts.create(product, user, %{
+          name: "Disk usage",
+          text: "df -h",
+          language: :shell
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("select#script_id option[value=\"#{elixir_script.id}\"]", text: "MOTD (Elixir)")
+      |> assert_has("select#script_id option[value=\"#{shell_script.id}\"]", text: "Disk usage (Shell)")
+    end
+
+    test "the searchable picker is given each script's language", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      for i <- 1..10 do
+        {:ok, _} = NervesHub.Scripts.create(product, user, %{name: "Script #{i}", text: "ignored"})
+      end
+
+      {:ok, _} =
+        NervesHub.Scripts.create(product, user, %{
+          name: "Disk usage",
+          text: "df -h",
+          language: :shell
+        })
+
+      # The hook renders the suggestion list from this attribute, so it is where
+      # the language has to reach the browser.
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has(~s(#script-autocomplete[data-scripts*='"language":"Shell"']))
+      |> assert_has(~s(#script-autocomplete[data-scripts*='"language":"Elixir"']))
+      |> assert_has(~s(#script-autocomplete[data-scripts*='"name":"Disk usage"']))
+    end
+
     test "more than 10 scripts switches to a searchable autocomplete", %{
       conn: conn,
       org: org,

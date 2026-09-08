@@ -169,9 +169,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
         <div class="relative size-full pb-10">
           <div id="log_lines" phx-update="stream" class="scrollable-inner flex h-full max-w-0 min-w-full flex-col items-start gap-3 overflow-x-auto overflow-y-visible px-12 pt-10">
             <div :for={{dom_id, line} <- @streams.log_lines} id={dom_id} phx-mounted={@log_inserted && fade_in()} class="flex w-full flex-row gap-2 font-mono text-sm">
-              <div id={"#{DateTime.to_unix(line.timestamp, :microsecond)}-log-line-localtime"} phx-hook="LogLineLocalTime" class="min-w-fit">
-                {line.timestamp}
-              </div>
+              <.local_datetime at={line.timestamp} time_zone={@time_zone} format={:log} class="min-w-fit" />
               <div
                 data-log-level={line.level}
                 class="data-[log-level=alert]:text-alert data-[log-level=critical]:text-alert data-[log-level=emergency]:text-alert data-[log-level=error]:text-alert data-[log-level=debug]:text-blue-500 data-[log-level=warn]:text-orange-500 data-[log-level=warning]:text-orange-500"

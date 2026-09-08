@@ -21,13 +21,10 @@ import Flash from "./hooks/flash.js"
 import HighlightCode from "./hooks/highlightCode.js"
 import { LiveFlowHook } from "live_flow"
 import LocalShell from "./hooks/localShell.js"
-import LocalTime from "./hooks/localTime.js"
-import LogLineLocalTime from "./hooks/logLineLocalTime.js"
 import PageVisible from "./hooks/pageVisible.js"
 import ScriptAutocomplete from "./hooks/scriptAutocomplete.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
 import SidebarToggle from "./hooks/sidebarToggle.js"
-import SimpleDate from "./hooks/simpleDate.js"
 import SupportScriptOutput from "./hooks/supportScriptOutput.js"
 import TagAutocomplete from "./hooks/tagAutocomplete.js"
 import ThemeSwitcher from "./hooks/themeSwitcher.js"
@@ -36,7 +33,6 @@ import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
 import WorkflowDiagramFit from "./hooks/workflowDiagramFit.js"
 import WorldMap from "./hooks/worldMap.js"
 
-import dates from "./helpers/dates"
 
 TimeAgo.addDefaultLocale(en)
 
@@ -52,6 +48,12 @@ let csrfToken = document
 
 let time_zone = Intl.DateTimeFormat().resolvedOptions().timeZone
 let timezone_offset = -(new Date().getTimezoneOffset() / 60)
+
+// The connect params only reach the server once the LiveView connects, so the
+// static first render has no idea what zone to use. Persisting it here lets
+// NervesHubWeb.Plugs.Timezone put it in the session, and the first paint is
+// already local rather than UTC that flips an instant later.
+document.cookie = `time_zone=${encodeURIComponent(time_zone)}; path=/; max-age=31536000; SameSite=Lax`
 
 let liveSocket = new LiveSocket("/live", Socket, {
   params: {
@@ -74,13 +76,10 @@ let liveSocket = new LiveSocket("/live", Socket, {
     HighlightCode,
     LiveFlow: LiveFlowHook,
     LocalShell,
-    LocalTime,
-    LogLineLocalTime,
     PageVisible,
     SharedSecretClipboardClick,
     SidebarToggle,
     ScriptAutocomplete,
-    SimpleDate,
     SupportScriptOutput,
     TagAutocomplete,
     ThemeSwitcher,
@@ -145,10 +144,6 @@ const delayedConnectionClosedAlert = () => {
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
-
-document.querySelectorAll(".date-time").forEach((d) => {
-  d.innerHTML = dates.formatDateTime(d.innerHTML)
-})
 
 window.addEventListener("ca:edit:jitp", () => {
   const checked = document.getElementById("jitp_toggle_ui").checked

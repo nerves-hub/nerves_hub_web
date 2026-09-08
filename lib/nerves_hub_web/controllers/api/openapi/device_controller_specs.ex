@@ -54,6 +54,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
           * `health_status != "healthy" or alarm_status = "with"`
           * `metric:battery_soc < 20 and updates = "enabled"`
           * `firmware_validation_status = "not_validated"`
+          * `signer_ca = "1234567890"`
           """,
           example: ~s|metric:cpu_temp > 70 and connection = "connected"|
         },
@@ -67,6 +68,12 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
           enum: ["validated", "not_validated", "unknown"]
         },
         firmware_version: %OpenApiSpex.Schema{type: :string, example: "1.10.0"},
+        signer_ca: %OpenApiSpex.Schema{
+          type: :string,
+          description:
+            "The serial of the CA which signed the device's certificate, or `:not_set` for devices with no certificate from a registered CA.",
+          example: "1234567890"
+        },
         has_no_tags: %OpenApiSpex.Schema{type: :string, enum: ["true", "false"]},
         health_status: %OpenApiSpex.Schema{
           type: :string,

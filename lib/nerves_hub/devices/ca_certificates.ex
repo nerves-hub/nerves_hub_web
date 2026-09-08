@@ -12,6 +12,8 @@ defmodule NervesHub.Devices.CACertificates do
   alias NervesHub.Accounts.Org
   alias NervesHub.Certificate
   alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
 
   @spec create_ca_certificate(Org.t(), map()) ::
@@ -92,6 +94,91 @@ defmodule NervesHub.Devices.CACertificates do
       preload: [jitp: :product]
     )
     |> Repo.fetch()
+  end
+
+  @doc """
+  Counts the devices in the org whose certificates were signed by each of its
+  CAs, keyed by the CA's SKI.
+
+  A device certificate records its signer's key id as its AKI, so a CA's SKI is
+  what ties the two together. Devices with more than one certificate from the
+  same CA are only counted once, and soft deleted devices are left out so the
+  count matches what the device list shows by default.
+  """
+  @spec device_counts_by_ski(Org.t()) :: %{binary() => non_neg_integer()}
+  def device_counts_by_ski(%Org{id: org_id}) do
+    from(dc in DeviceCertificate,
+      join: d in assoc(dc, :device),
+      where: dc.org_id == ^org_id,
+      where: is_nil(d.deleted_at),
+      group_by: dc.aki,
+      select: {dc.aki, count(dc.device_id, :distinct)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
+  The products which have devices signed by the CA, along with each product's
+  device count, ordered by product name.
+
+  The device list is scoped to a single product, so this is what a "devices
+  using this CA" link has to be broken down by.
+  """
+  @spec device_counts_by_product(CACertificate.t()) ::
+          [%{product: Product.t(), device_count: non_neg_integer()}]
+  def device_counts_by_product(%CACertificate{ski: ski, org_id: org_id}) do
+    from(dc in DeviceCertificate,
+      join: d in assoc(dc, :device),
+      join: p in assoc(d, :product),
+      where: dc.aki == ^ski,
+      where: dc.org_id == ^org_id,
+      where: is_nil(d.deleted_at),
+      where: is_nil(p.deleted_at),
+      group_by: p.id,
+      order_by: p.name,
+      select: %{product: p, device_count: count(d.id, :distinct)}
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  The org's CAs which signed a certificate held by a device in the product,
+  ordered by description then serial.
+
+  Built from the devices rather than from the org's CA list so the device list's
+  signer CA filter only offers CAs that can actually match something.
+  """
+  @spec signer_cas_for_product(pos_integer()) :: [CACertificate.t()]
+  def signer_cas_for_product(product_id) do
+    from(ca in CACertificate,
+      join: dc in DeviceCertificate,
+      on: dc.aki == ca.ski,
+      join: d in assoc(dc, :device),
+      where: d.product_id == ^product_id,
+      where: ca.org_id == d.org_id,
+      distinct: true,
+      order_by: [asc: ca.description, asc: ca.serial],
+      select: ca
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  The org's CAs matching the given SKIs, keyed by SKI.
+
+  Scoped to the org so a certificate signed by another org's CA reads as
+  unknown rather than exposing that CA.
+  """
+  @spec by_ski(Org.t() | pos_integer(), [binary()]) :: %{binary() => CACertificate.t()}
+  def by_ski(%Org{id: org_id}, skis), do: by_ski(org_id, skis)
+
+  def by_ski(org_id, skis) when is_integer(org_id) do
+    skis = Enum.reject(skis, &is_nil/1)
+
+    from(ca in CACertificate, where: ca.org_id == ^org_id and ca.ski in ^skis)
+    |> Repo.all()
+    |> Map.new(&{&1.ski, &1})
   end
 
   def update_ca_certificate(%CACertificate{} = certificate, params) do

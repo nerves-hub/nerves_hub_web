@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.AccountControllerTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  import NervesHub.Support.Emails
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
@@ -41,6 +42,8 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
 
+      send_queued_emails()
+
       assert_email_sent(fn email ->
         assert email.subject == "#{platform_name}: Confirm your account"
         assert to_string(email.text_body) =~ "Thanks for creating an account with NervesHub."
@@ -60,6 +63,8 @@ defmodule NervesHubWeb.AccountControllerTest do
       |> submit()
       |> assert_path(~p"/register")
       |> assert_has("p", with: "can't be blank", times: 3)
+
+      send_queued_emails()
 
       refute_email_sent()
     end
@@ -83,6 +88,8 @@ defmodule NervesHubWeb.AccountControllerTest do
       |> assert_path(~p"/orgs")
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
+
+      send_queued_emails()
 
       assert_email_sent(fn email ->
         assert email.subject == "#{platform_name}: Welcome Sgt Pepper!"
@@ -122,6 +129,8 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
 
+      send_queued_emails()
+
       assert_email_sent(fn email ->
         assert email.subject == "#{platform_name}: Confirm your account"
         assert to_string(email.text_body) =~ "Please use the link below to confirm your account:"
@@ -146,6 +155,8 @@ defmodule NervesHubWeb.AccountControllerTest do
       |> assert_path(~p"/orgs")
       |> assert_has("h1", with: "Welcome to NervesHub!")
       |> assert_has("div", with: org.name)
+
+      send_queued_emails()
 
       # don't send email to admin who added the user
       refute_email_sent(subject: "NervesHub: Sgt Pepper has been added to Jeff")

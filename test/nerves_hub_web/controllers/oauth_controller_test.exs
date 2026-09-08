@@ -2,6 +2,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
   use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
 
+  import NervesHub.Support.Emails
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts.User
@@ -37,6 +38,8 @@ defmodule NervesHubWeb.OAuthControllerTest do
       |> assert_path("/orgs")
       |> assert_has("div", with: "Welcome back!")
 
+      send_queued_emails()
+
       assert_email_sent(subject: "NervesHub: Welcome Jane Person!")
     end
 
@@ -66,6 +69,8 @@ defmodule NervesHubWeb.OAuthControllerTest do
       |> submit()
       |> assert_path(~p"/password-reset")
       |> assert_has("h1", with: "Time to check your email")
+
+      send_queued_emails()
 
       assert_email_sent(subject: "NervesHub: Login with Google")
     end

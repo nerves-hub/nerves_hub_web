@@ -114,6 +114,7 @@ config :nerves_hub, Oban,
   ],
   queues: [
     default: 1,
+    email: 5,
     firmware: 5,
     delete_file: 3,
     cleanup: 2,

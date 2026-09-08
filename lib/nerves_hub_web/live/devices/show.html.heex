@@ -117,7 +117,7 @@
                 />
               </svg>
               <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max rounded border px-2 py-1.5 text-xs">
-                Updates blocked {DeviceUpdateStatus.friendly_blocked_until(@device.updates_blocked_until)}
+                Updates blocked {DeviceUpdateStatus.friendly_blocked_until(@device.updates_blocked_until, @time_zone)}
                 <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
               </div>
             </div>

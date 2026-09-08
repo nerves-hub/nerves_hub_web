@@ -3,10 +3,12 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Certificates
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Updates
   alias NervesHub.Extensions
+  alias NervesHubWeb.Components.CAHelpers
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
@@ -28,7 +30,15 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
   def render(assigns) do
     device = Certificates.preload_device_certificates(assigns.device, force: true)
 
-    assigns = Map.put(assigns, :device, device)
+    # A device certificate names its signer by key id (its AKI, the CA's SKI)
+    # rather than by a foreign key, and the signer may never have been
+    # registered - so the lookup can come up empty.
+    signer_cas = CACertificates.by_ski(device.org_id, Enum.map(device.device_certificates, & &1.aki))
+
+    assigns =
+      assigns
+      |> Map.put(:device, device)
+      |> Map.put(:signer_cas, signer_cas)
 
     ~H"""
     <div
@@ -194,12 +204,17 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
                 <div class="text-base-400 text-xs tracking-wide">
                   <span>Not before:</span>
-                  <span>{Calendar.strftime(certificate.not_before, "%Y-%m-%d")}</span>
+                  <.local_datetime at={certificate.not_before} time_zone={@time_zone} format={:date} zone_label={false} />
                 </div>
 
                 <div class="text-base-400 text-xs tracking-wide">
                   <span>Not after:</span>
-                  <span>{Calendar.strftime(certificate.not_after, "%Y-%m-%d")}</span>
+                  <.local_datetime at={certificate.not_after} time_zone={@time_zone} format={:date} zone_label={false} />
+                </div>
+
+                <div class="text-base-400 text-xs tracking-wide">
+                  <span>Signer CA:</span>
+                  <.signer_ca signer_ca={@signer_cas[certificate.aki]} org={@org} />
                 </div>
               </div>
             </div>
@@ -306,6 +321,23 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         </div>
       </div>
     </div>
+    """
+  end
+
+  attr(:signer_ca, :any, required: true)
+  attr(:org, :map, required: true)
+
+  defp signer_ca(%{signer_ca: nil} = assigns) do
+    ~H"""
+    <span>Unknown</span>
+    """
+  end
+
+  defp signer_ca(assigns) do
+    ~H"""
+    <.link navigate={~p"/org/#{@org}/settings/certificates/#{@signer_ca}"} class="hover:text-base-300 underline">
+      {CAHelpers.label(@signer_ca)}
+    </.link>
     """
   end
 

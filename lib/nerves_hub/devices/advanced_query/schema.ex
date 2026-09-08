@@ -10,6 +10,7 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.CACertificates
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
 
@@ -64,6 +65,12 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
     "firmware_validation_status" => %{
       operators: ["=", "!="],
       values: &__MODULE__.firmware_validation_status_values/1
+    },
+    # The value is the signer CA's serial (or the not-set sentinel); the live
+    # view's schema JSON shows the CA's description in the autosuggest.
+    "signer_ca" => %{
+      operators: ["=", "!="],
+      values: &__MODULE__.signer_ca_values/1
     },
     "connection" => %{
       operators: ["=", "!="],
@@ -241,6 +248,14 @@ defmodule NervesHub.Devices.AdvancedQuery.Schema do
 
   @doc false
   def tag_values(product_id), do: Devices.distinct_tags(product_id) ++ [@not_set_value]
+
+  @doc false
+  def signer_ca_values(product_id) do
+    product_id
+    |> CACertificates.signer_cas_for_product()
+    |> Enum.map(& &1.serial)
+    |> Kernel.++([@not_set_value])
+  end
 
   @doc false
   def deployment_group_values(product_id) do
