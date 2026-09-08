@@ -59,6 +59,10 @@ Prod only. Configures `NervesHubWeb.Endpoint`, and is only read when
 | `WEB_FORWARDED_IP_TRAILING_HOPS` | `0` | How many entries at the end of that header were added by infrastructure rather than by the device. The address is counted from the right, so this decides which entry is read. Fly.io appends two, the address it observed and then the app's own anycast address, so it needs `1`; a proxy that appends only its own observation needs `0`. Confirm it against a real request, because the wrong count records a plausible looking address belonging to the wrong machine. |
 | `WEB_RATE_LIMIT_BY_FORWARDED_IP` | `false` | Whether the API rate limiter buckets by `WEB_FORWARDED_IP_HEADER` rather than by the socket's peer. Separate from naming the header because the two carry different risk: an address that is only recorded can be wrong without consequence, while one the limiter believes lets a caller forge a header and pick its own bucket. Until this is on, `NervesHubWeb.Plugs.Attack` throttles by the peer, which behind a load balancer is one shared bucket for every caller. Set it once something in front is known to overwrite the header. Raises at boot if set while the header is `none`. |
 
+Devices that reach this endpoint rather than the device endpoint upgrade to a
+websocket here, so [Websocket compression](#websocket-compression) is applied to
+this listener as well.
+
 ## Device endpoint
 
 Prod only. Configures `NervesHubWeb.DeviceEndpoint`, and is only read when
@@ -85,6 +89,31 @@ is how a device's own address survives the hop.
 | `DEVICE_ENDPOINT_REDIRECT` | `https://docs.nerves-hub.org/` | Where a plain browser request to the device endpoint is redirected. |
 | `DEVICE_CONNECT_RATE_LIMIT` | `100` | Maximum device connections accepted per second. Read in every environment. |
 | `DEVICE_PROXY_PROTOCOL` | — | Set to `v2` when a load balancer passes TLS through to this endpoint and announces the device with a PROXY protocol v2 header, which is read before the TLS handshake. Only `v2` is supported; version 1 cannot be read without risking a read into the handshake that follows it, and any other value raises at boot. Turning it on is a flag day: a balancer sending the header to a listener that is not expecting it looks like a malformed ClientHello, and a listener expecting one that never arrives waits until it times out. On Fly.io keep it in `fly.toml` `[env]` beside the `proxy_proto` handler so each machine picks up the pair together — `fly secrets set` without `--stage` restarts the fleet before the handler exists. |
+
+### Websocket compression
+
+Prod only. Devices reach either endpoint, so these are read once and applied to
+both listeners.
+
+Per-message deflate is negotiated when the socket asks for it and the listener
+allows it. The device sockets always ask, so these variables decide what
+happens. Devices need no change either way: a client that offers the extension
+to a listener that does not answer with it sends uncompressed frames instead.
+
+Compression is not free. Bandit holds a zlib deflate and inflate context per
+connection for as long as the device stays connected, which measured end to end
+is 271KB per device at zlib's `mem_level` of 8, or around 375MB of
+`:erlang.memory(:system)` on a node holding 1400 devices.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DEVICE_WEBSOCKET_COMPRESSION` | `true` | Whether the listener negotiates per-message deflate at all. Turning it off gives back the zlib contexts and spends more bandwidth instead. |
+| `DEVICE_WEBSOCKET_DEFLATE_LEVEL` | `6` | zlib compression level, `0` to `9`. `6` is the level zlib's own default resolves to, so leaving it unset changes nothing. |
+| `DEVICE_WEBSOCKET_DEFLATE_MEM_LEVEL` | `4` | zlib memory level, `1` to `9`, which sizes the deflate hash table. Lower than zlib's own default of 8 because device frames are small and repetitive: over a representative mix of heartbeats, progress and health reports, `4` emits byte-identical output and costs 121KB less per connection. |
+
+Both levels are checked at boot. zlib does not reject an out of range value
+until a device upgrades to a websocket, so an unchecked one would fail every
+device connection instead of failing the boot.
 
 ### Socket drainer
 
