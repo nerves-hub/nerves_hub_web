@@ -158,12 +158,12 @@ defmodule NervesHub.Accounts do
   end
 
   @doc ~S"""
-  Delivers an email confirming that a users password has been updated.
+  Queues an email confirming that a users password has been updated.
 
   ## Examples
 
       iex> deliver_user_password_updated(user, &url(~p"/reset-password/#{&1}"))
-      {:ok, %{to: ..., body: ...}}
+      {:ok, %Oban.Job{}}
 
   """
   def deliver_user_password_updated(%User{} = user, reset_url_fun) when is_function(reset_url_fun, 1) do
@@ -961,12 +961,12 @@ defmodule NervesHub.Accounts do
   ## Confirmation
 
   @doc ~S"""
-  Delivers the confirmation email instructions to the given user.
+  Queues the confirmation email instructions for the given user.
 
   ## Examples
 
       iex> deliver_user_confirmation_instructions(user, &url(~p"/confirm/#{&1}"))
-      {:ok, %{to: ..., body: ...}}
+      {:ok, %Oban.Job{}}
 
       iex> deliver_user_confirmation_instructions(confirmed_user, &url(~p"/confirm/#{&1}"))
       {:error, :already_confirmed}
@@ -1010,12 +1010,12 @@ defmodule NervesHub.Accounts do
   ## Reset password
 
   @doc ~S"""
-  Delivers the reset password email to the given user, unless they have logged in with Google auth.
+  Queues the reset password email for the given user, unless they have logged in with Google auth.
 
   ## Examples
 
       iex> deliver_user_reset_password_instructions(user, &url(~p"/password-reset/#{&1}"))
-      {:ok, %{to: ..., body: ...}}
+      {:ok, %Oban.Job{}}
 
   """
   def deliver_user_reset_password_instructions(%User{google_id: google_id} = user, _reset_password_url_fun, login_url)

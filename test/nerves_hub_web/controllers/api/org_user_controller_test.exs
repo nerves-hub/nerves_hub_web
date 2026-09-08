@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.API.OrgUserControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
+  import NervesHub.Support.Emails
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
@@ -64,6 +65,8 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       conn = get(conn, Routes.api_org_user_path(conn, :show, org.name, user2.email))
       assert json_response(conn, 200)["data"]["name"] == user2.name
 
+      send_queued_emails()
+
       # don't send email to admin who added the user
       refute_email_sent()
     end
@@ -78,6 +81,8 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       org_user = %{"email" => "bogus@example.com", "role" => "manage"}
       conn = post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
       assert response(conn, 204)
+
+      send_queued_emails()
 
       assert_email_sent()
     end
@@ -107,6 +112,8 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       org_user = %{"email" => "bogus@example.com", "role" => "manage"}
       conn = post(conn, Routes.api_org_user_path(conn, :invite, org.name), org_user)
       assert response(conn, 204)
+
+      send_queued_emails()
 
       assert_email_sent()
     end
@@ -150,6 +157,8 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
 
       conn = delete(conn, Routes.api_org_user_path(conn, :remove, org.name, user.email))
       assert response(conn, 204)
+
+      send_queued_emails()
 
       # don't send email to admin who added the user
       refute_email_sent()
