@@ -1,45 +1,9 @@
 import { Socket } from "phoenix"
-import { Terminal } from "@xterm/xterm"
-import { WebglAddon } from "@xterm/addon-webgl"
-import { WebLinksAddon } from "@xterm/addon-web-links"
-import { FitAddon } from "@xterm/addon-fit"
-
-const defaultTermOptions = {
-  cursorBlink: true,
-  cursorStyle: "bar",
-  macOptionIsMeta: true,
-  fontFamily: "Ubuntu Mono, courier-new, courier, monospace",
-  fontSize: 14,
-  theme: {
-    foreground: "#FFFAF4",
-    background: "#0E1019",
-    selectionBackground: "#48B9C7",
-    black: "#232323",
-    brightBlack: "#444444",
-    red: "#D82036",
-    brightRed: "#FF2740",
-    green: "#8CE10B",
-    brightGreen: "#ABE15B",
-    yellow: "#FFB900",
-    brightYellow: "#FFD242",
-    blue: "#007AD8",
-    brightBlue: "#0092FF",
-    magenta: "#6D43A6",
-    brightMagenta: "#9A5FEB",
-    cyan: "#00D8EB",
-    brightCyan: "#67FFF0",
-    white: "#FFFFFF",
-    brightWhite: "#FFFFFF"
-  }
-}
-
-const debounce = (func, time = 100) => {
-  let timer
-  return function(event) {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(func, time, event)
-  }
-}
+import {
+  createTerminal,
+  debounce,
+  setupOptionAsMetaToggle
+} from "../helpers/terminal.js"
 
 const resizeContent = (term, channel) => {
   channel.push("window_size", { rows: term.rows, cols: term.cols })
@@ -59,24 +23,9 @@ export default {
       {},
     )
 
-    // init terminal, load addons
-    // use previous scrollback if available, default to 1000 lines
-    const storedScrollback = parseInt(localStorage.getItem("scrollback"))
-    const scrollback = Number.isSafeInteger(storedScrollback)
-      ? storedScrollback
-      : 1000
+    const { term, fitAddon } = createTerminal("local-shell")
 
-    const term = new Terminal({ ...defaultTermOptions, scrollback })
-
-    const fitAddon = new FitAddon()
-    term.loadAddon(fitAddon)
-    term.loadAddon(new WebglAddon())
-    term.loadAddon(new WebLinksAddon())
-
-    term.open(document.getElementById("local-shell"))
-
-    fitAddon.fit()
-    term.focus()
+    this.teardownOptionAsMetaToggle = setupOptionAsMetaToggle(term)
 
     this.resizeEventListener = () => {
       fitAddon.fit()
@@ -129,6 +78,7 @@ export default {
   },
   destroyed() {
     window.removeEventListener("resize", this.resizeEventListener)
+    this.teardownOptionAsMetaToggle()
     this.socket.disconnect()
   }
 }
