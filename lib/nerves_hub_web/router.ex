@@ -260,23 +260,34 @@ defmodule NervesHubWeb.Router do
 
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
-    get("/confirm/:token", SessionController, :confirm)
 
     get("/register", AccountController, :new)
     post("/register", AccountController, :create)
 
     get("/password-reset", PasswordResetController, :new)
     post("/password-reset", PasswordResetController, :create)
-    get("/password-reset/:token", PasswordResetController, :edit)
-    put("/password-reset/:token", PasswordResetController, :update)
-
-    get("/invite/:token", AccountController, :invite)
-    post("/invite/:token", AccountController, :accept_invite)
 
     scope "/auth" do
       get("/:provider", OAuthController, :request)
       get("/:provider/callback", OAuthController, :callback)
     end
+  end
+
+  scope "/", NervesHubWeb do
+    # Routes driven by a mailed token, plus invites. These have to work whoever
+    # holds the session: a signed in visitor may still be unconfirmed, or be
+    # finishing something they started in another browser.
+    pipe_through([:browser])
+
+    get("/confirm/:token", SessionController, :confirm)
+
+    get("/password-reset/:token", PasswordResetController, :edit)
+    put("/password-reset/:token", PasswordResetController, :update)
+
+    get("/invite/:token", AccountController, :invite)
+    post("/invite/:token", AccountController, :register_from_invite)
+    post("/invite/:token/accept", AccountController, :accept_invite)
+    post("/invite/:token/decline", AccountController, :decline_invite)
   end
 
   scope "/org/:org_name/:product_name", NervesHubWeb do

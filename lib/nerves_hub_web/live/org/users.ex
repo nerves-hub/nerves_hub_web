@@ -4,7 +4,6 @@ defmodule NervesHubWeb.Live.Org.Users do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Invite
   alias NervesHub.Accounts.Org
-  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.UserNotifier
   alias NervesHubWeb.Components.Utils
 
@@ -54,11 +53,11 @@ defmodule NervesHubWeb.Live.Org.Users do
 
     authorized!(:"org_user:invite", scope)
 
-    case Accounts.add_or_invite_to_org(invite_params, org, invited_by) do
+    case Accounts.invite(invite_params, org, invited_by) do
       {:ok, %Invite{} = invite} ->
-        invite_url = url(~p"/invite/#{invite.token}")
+        has_account? = match?({:ok, _user}, Accounts.get_user_by_email(invite.email))
 
-        _ = UserNotifier.deliver_user_invite(invite.email, org, invited_by, invite_url)
+        _ = UserNotifier.deliver_user_invite(invite.email, org, invited_by, invite_url(invite), has_account?)
         _ = UserNotifier.deliver_all_tell_org_user_invited(org, invited_by, invite.email)
 
         socket
@@ -66,17 +65,42 @@ defmodule NervesHubWeb.Live.Org.Users do
         |> push_patch(to: ~p"/org/#{org}/settings/users")
         |> noreply()
 
-      {:ok, %OrgUser{} = org_user} ->
-        _ = UserNotifier.deliver_all_tell_org_user_added(org, invited_by, org_user.user)
-        _ = UserNotifier.deliver_org_user_added(org, invited_by, org_user.user)
-
-        socket
-        |> put_flash(:info, "User has been added to #{org.name}")
-        |> push_patch(to: ~p"/org/#{org}/settings/users")
-        |> noreply()
-
       {:error, changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
+    end
+  end
+
+  def handle_event("resend_invite", %{"invite_token" => invite_token}, socket) do
+    %{org: org, current_scope: scope} = socket.assigns
+
+    authorized!(:"org_user:invite:resend", scope)
+
+    case Accounts.resend_invite(org, invite_token) do
+      {:ok, invite} ->
+        has_account? = match?({:ok, _user}, Accounts.get_user_by_email(invite.email))
+
+        _ =
+          UserNotifier.deliver_user_invite(
+            invite.email,
+            org,
+            invite.invited_by,
+            invite_url(invite),
+            has_account?
+          )
+
+        socket
+        |> org_invites()
+        |> put_flash(:info, "Invite resent to #{invite.email}")
+        |> noreply()
+
+      {:error, :not_found} ->
+        socket
+        |> org_invites()
+        |> put_flash(:error, "Invite couldn't be resent as it is no longer outstanding.")
+        |> noreply()
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Invite failed to resend")}
     end
   end
 
@@ -157,6 +181,17 @@ defmodule NervesHubWeb.Live.Org.Users do
   defp org_invites(socket) do
     assign(socket, :invites, Accounts.get_invites_for_org(socket.assigns.org))
   end
+
+  # Only ever rendered for someone allowed to manage invites - the token is the
+  # invite's credential, so it must not reach anybody else's DOM.
+  defp invite_url(invite), do: url(~p"/invite/#{invite.token}")
+
+  # `invited_by_id` predates being required, so old invites can still be orphaned
+  defp invited_by_name(%{invited_by: %{name: name}}), do: name
+  defp invited_by_name(_invite), do: "-"
+
+  defp invite_action_title(true, description), do: description
+  defp invite_action_title(false, _description), do: "Only org admins can manage invites"
 
   defp can_remove!(org_user, current_scope, admin_count) do
     can_remove?(org_user, current_scope, admin_count) || raise NervesHubWeb.UnauthorizedError

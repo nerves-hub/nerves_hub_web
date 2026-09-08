@@ -657,17 +657,12 @@ defmodule NervesHub.Accounts do
     OrgKey.update_changeset(org_key, params)
   end
 
-  @spec add_or_invite_to_org(%{required(String.t()) => String.t()}, Org.t(), User.t()) ::
-          {:ok, Invite.t()}
-          | {:ok, OrgUser.t()}
-          | {:error, Changeset.t()}
-  def add_or_invite_to_org(%{"email" => email} = params, org, invited_by) do
-    case get_user_by_email(email) do
-      {:error, :not_found} -> invite(params, org, invited_by)
-      {:ok, user} -> add_org_user(org, user, %{role: params["role"]})
-    end
-  end
+  @doc """
+  Invites someone to join an org.
 
+  Invitations always need to be accepted by the invitee, whether or not they
+  already have an account on the platform.
+  """
   @spec invite(map(), Org.t(), User.t()) :: {:ok, Invite.t()} | {:error, Changeset.t()}
   def invite(params, org, invited_by) do
     params =
@@ -679,7 +674,53 @@ defmodule NervesHub.Accounts do
 
     %Invite{}
     |> Invite.changeset(params)
+    |> validate_invitee_is_not_a_member(org)
+    |> validate_invite_is_not_pending(org)
     |> Repo.insert()
+  end
+
+  defp validate_invitee_is_not_a_member(changeset, org) do
+    with email when is_binary(email) <- Changeset.get_field(changeset, :email),
+         {:ok, user} <- get_user_by_email(email),
+         {:ok, _org_user} <- get_org_user(org, user) do
+      Changeset.add_error(changeset, :email, "is already a member of this organization")
+    else
+      _ -> changeset
+    end
+  end
+
+  defp validate_invite_is_not_pending(changeset, org) do
+    email = Changeset.get_field(changeset, :email)
+
+    if is_binary(email) and pending_invite_exists?(org, email) do
+      Changeset.add_error(changeset, :email, "has already been invited to this organization")
+    else
+      changeset
+    end
+  end
+
+  defp pending_invite_exists?(org, email) do
+    Invite
+    |> where([i], i.org_id == ^org.id)
+    |> where([i], i.email == ^email)
+    |> pending()
+    |> Repo.exists?()
+  end
+
+  # An invite is live for 48 hours after it was last sent. Keying off
+  # `updated_at` rather than `inserted_at` is what lets a resend put an expired
+  # invite back in play - an invite that has never been resent has the two
+  # timestamps set to the same value.
+  defp pending(query) do
+    query
+    |> unaccepted()
+    |> where([i], i.updated_at >= fragment("NOW() - INTERVAL '48 hours'"))
+  end
+
+  defp unaccepted(query) do
+    query
+    |> where([i], i.accepted == false)
+    |> where([i], is_nil(i.declined_at))
   end
 
   @doc """
@@ -693,8 +734,7 @@ defmodule NervesHub.Accounts do
   def get_valid_invite(token) do
     Invite
     |> where(token: ^token)
-    |> where(accepted: false)
-    |> where([i], i.inserted_at >= fragment("NOW() - INTERVAL '48 hours'"))
+    |> pending()
     |> preload(:invited_by)
     |> Repo.one()
     |> case do
@@ -706,8 +746,37 @@ defmodule NervesHub.Accounts do
   def get_invites_for_org(org) do
     Invite
     |> where([i], i.org_id == ^org.id)
-    |> where([i], i.accepted == false)
+    |> unaccepted()
+    |> preload(:invited_by)
     |> Repo.all()
+  end
+
+  @doc """
+  Rotates an outstanding invite's token so it can be sent again.
+
+  The previous link stops working, and the 48 hour window starts over - which
+  is the point, since an invite is usually resent because it expired or went
+  astray. An expired invite can still be resent.
+  """
+  @spec resend_invite(Org.t(), String.t()) ::
+          {:ok, Invite.t()} | {:error, :not_found} | {:error, Changeset.t()}
+  def resend_invite(org, token) do
+    query =
+      Invite
+      |> where([i], i.org_id == ^org.id)
+      |> where([i], i.token == ^token)
+      |> unaccepted()
+      |> preload(:invited_by)
+
+    case Repo.one(query) do
+      nil ->
+        {:error, :not_found}
+
+      %Invite{} = invite ->
+        invite
+        |> Invite.changeset(%{token: Ecto.UUID.generate()})
+        |> Repo.update()
+    end
   end
 
   def delete_invite(org, token) do
@@ -715,7 +784,7 @@ defmodule NervesHub.Accounts do
       Invite
       |> where([i], i.org_id == ^org.id)
       |> where([i], i.token == ^token)
-      |> where([i], i.accepted == false)
+      |> unaccepted()
 
     with %Invite{} = invite <- Repo.one(query),
          {:ok, invite} <- Repo.delete(invite) do
@@ -779,6 +848,48 @@ defmodule NervesHub.Accounts do
     user
     |> change_user(user_params)
     |> Repo.update()
+  end
+
+  @doc """
+  Accepts an invite on behalf of a user who already has an account.
+
+  The invite is only accepted if it was addressed to that user's email.
+  """
+  @spec accept_invite(Invite.t(), User.t()) ::
+          {:ok, OrgUser.t()}
+          | {:error, :email_mismatch}
+          | {:error, :org_not_found}
+          | {:error, Ecto.Changeset.t()}
+  def accept_invite(%Invite{} = invite, %User{} = user) do
+    if invite_addressed_to?(invite, user) do
+      Repo.transact(fn ->
+        with {:ok, org} <- get_org(invite.org_id),
+             {:ok, org_user} <- add_org_user(org, user, %{role: invite.role}),
+             {:ok, _invite} <- set_invite_accepted(invite) do
+          {:ok, org_user}
+        end
+      end)
+    else
+      {:error, :email_mismatch}
+    end
+  end
+
+  @doc """
+  Declines an invite, taking it out of the org's outstanding invites.
+  """
+  @spec decline_invite(Invite.t()) :: {:ok, Invite.t()} | {:error, Ecto.Changeset.t()}
+  def decline_invite(%Invite{} = invite) do
+    invite
+    |> Invite.changeset(%{declined_at: DateTime.utc_now()})
+    |> Repo.update()
+  end
+
+  @doc """
+  Whether an invite was addressed to the given user.
+  """
+  @spec invite_addressed_to?(Invite.t(), User.t()) :: boolean()
+  def invite_addressed_to?(%Invite{email: email}, %User{email: user_email}) do
+    String.downcase(email) == String.downcase(user_email)
   end
 
   @spec set_invite_accepted(Invite.t()) :: {:ok, Invite.t()} | {:error, Ecto.Changeset.t()}

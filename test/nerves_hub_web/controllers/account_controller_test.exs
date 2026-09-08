@@ -6,6 +6,7 @@ defmodule NervesHubWeb.AccountControllerTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Fixtures
   alias NervesHub.Repo
 
   describe "new" do
@@ -140,7 +141,7 @@ defmodule NervesHubWeb.AccountControllerTest do
   end
 
   describe "invite" do
-    test "- accept an invite and log in the user", %{org: org, user: user} do
+    test "- registering from an invite joins the org and logs the user in", %{org: org, user: user} do
       {:ok, invite} =
         Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, org, user)
 
@@ -149,6 +150,7 @@ defmodule NervesHubWeb.AccountControllerTest do
       build_conn()
       |> visit(~p"/invite/#{invite.token}")
       |> assert_has("h1", with: "You've been invited to join #{org.name} on #{platform_name}")
+      |> refute_has("body", text: "joe@example.com")
       |> fill_in("Name", with: "Sgt Pepper")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
@@ -161,5 +163,90 @@ defmodule NervesHubWeb.AccountControllerTest do
       # don't send email to admin who added the user
       refute_email_sent(subject: "NervesHub: Sgt Pepper has been added to Jeff")
     end
+
+    test "- an invitee with an account is asked to sign in first", %{org: org, user: user} do
+      invitee = Fixtures.user_fixture(%{name: "Ringo"})
+
+      {:ok, invite} = Accounts.invite(%{"email" => invitee.email, "role" => "view"}, org, user)
+
+      build_conn()
+      |> visit(~p"/invite/#{invite.token}")
+      |> assert_has("p", text: "Sign in with the invited email address to accept this invitation.")
+      |> refute_has("button", text: "Register")
+      # the link is a bearer token, so don't tell whoever holds it who was invited
+      |> refute_has("body", text: invitee.email)
+
+      assert Accounts.get_org_user(org, invitee) == {:error, :not_found}
+    end
+
+    test "- a signed in invitee accepts the invite", %{org: org, user: user} do
+      invitee = Fixtures.user_fixture(%{name: "Ringo"})
+
+      {:ok, invite} = Accounts.invite(%{"email" => invitee.email, "role" => "manage"}, org, user)
+
+      invitee
+      |> signed_in_conn()
+      |> visit(~p"/invite/#{invite.token}")
+      |> click_button("Join #{org.name}")
+      |> assert_path(~p"/org/#{org.name}")
+
+      assert {:ok, %{role: :manage}} = Accounts.get_org_user(org, invitee)
+      assert Repo.reload(invite).accepted
+    end
+
+    test "- a signed in invitee declines the invite", %{org: org, user: user} do
+      invitee = Fixtures.user_fixture(%{name: "Ringo"})
+
+      {:ok, invite} = Accounts.invite(%{"email" => invitee.email, "role" => "view"}, org, user)
+
+      invitee
+      |> signed_in_conn()
+      |> visit(~p"/invite/#{invite.token}")
+      |> click_button("Decline")
+      |> assert_path(~p"/orgs")
+
+      assert Accounts.get_org_user(org, invitee) == {:error, :not_found}
+      assert Repo.reload(invite).declined_at
+      assert Accounts.get_invites_for_org(org) == []
+    end
+
+    test "- someone signed in as another user is told who the invite is for", %{
+      org: org,
+      user: user
+    } do
+      someone_else = Fixtures.user_fixture(%{name: "Ringo"})
+
+      {:ok, invite} =
+        Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, org, user)
+
+      someone_else
+      |> signed_in_conn()
+      |> visit(~p"/invite/#{invite.token}")
+      |> assert_has("p",
+        text: "This invitation was sent to a different email address. You're signed in as #{someone_else.email}."
+      )
+      |> refute_has("body", text: "joe@example.com")
+
+      assert Accounts.get_org_user(org, someone_else) == {:error, :not_found}
+    end
+
+    test "- an accepted invite can't be used again", %{org: org, user: user} do
+      invitee = Fixtures.user_fixture(%{name: "Ringo"})
+
+      {:ok, invite} = Accounts.invite(%{"email" => invitee.email, "role" => "view"}, org, user)
+      {:ok, _org_user} = Accounts.accept_invite(invite, invitee)
+
+      build_conn()
+      |> visit(~p"/invite/#{invite.token}")
+      |> assert_path(~p"/login")
+      |> assert_has("div", text: "Invalid or expired invite")
+    end
+  end
+
+  defp signed_in_conn(user) do
+    token = Accounts.create_user_session_token(user)
+
+    build_conn()
+    |> init_test_session(%{"user_token" => token})
   end
 end
