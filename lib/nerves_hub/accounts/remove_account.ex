@@ -12,8 +12,9 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceFirmware
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.PinnedDevice
-  alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareTransfer
@@ -21,6 +22,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Scripts.Script
+  alias NervesHub.Workers.DeleteFirmware
 
   def remove_account(user_id) do
     Multi.new()
@@ -34,6 +36,11 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.delete_all(:firmware_deltas, &query_firmware_deltas/1)
     |> Multi.delete_all(:firmware_transfers, &query_by_org_id(FirmwareTransfer, &1))
     |> Multi.delete_all(:pinned_devices, &query_by_user_id(PinnedDevice, &1))
+    # Devices are only soft deleted below, so nothing cascades their firmware
+    # history or in-flight updates away. Both reference `firmwares`, and the
+    # rows have to go before the firmware they name can.
+    |> Multi.delete_all(:device_firmwares, &query_device_firmwares/1)
+    |> Multi.delete_all(:inflight_updates, &query_inflight_updates/1)
     |> Multi.merge(&delete_firmwares/1)
     |> Multi.delete_all(:org_keys, &query_by_org_id(OrgKey, &1))
     |> Multi.delete_all(:org_metrics, &query_by_org_id(OrgMetric, &1))
@@ -78,16 +85,44 @@ defmodule NervesHub.Accounts.RemoveAccount do
     {:ok, repo.all(query)}
   end
 
-  defp delete_firmwares(%{firmware_ids: firmware_ids}) do
-    Enum.reduce(firmware_ids, Multi.new(), fn firmware_id, multi ->
-      multi_key = "delete_firmware_#{firmware_id}"
+  defp query_device_firmwares(%{org_ids: org_ids}) do
+    from(
+      device_firmware in DeviceFirmware,
+      join: device in assoc(device_firmware, :device),
+      where: device.org_id in ^org_ids
+    )
+  end
 
-      Multi.run(multi, multi_key, fn _, _ ->
+  defp query_inflight_updates(%{org_ids: org_ids}) do
+    from(
+      inflight_update in InflightUpdate,
+      join: device in assoc(inflight_update, :device),
+      where: device.org_id in ^org_ids
+    )
+  end
+
+  # Closing an account destroys the firmware outright rather than soft deleting
+  # it the way `NervesHub.Firmwares.delete_firmware/2` does. A soft delete keeps
+  # the row so device history survives, but nothing here is meant to survive —
+  # and a surviving row would hold the org keys, which are deleted next.
+  #
+  # Firmware already soft deleted has had its file queued once; queueing it again
+  # would put the worker to work on a file that is not there.
+  defp delete_firmwares(%{firmware_ids: firmware_ids}) do
+    Multi.new()
+    |> Multi.run(:queue_firmware_file_deletions, fn repo, _ ->
+      jobs =
         Firmware
-        |> Repo.get(firmware_id)
-        |> Firmwares.delete_firmware()
-      end)
+        |> where([f], f.id in ^firmware_ids)
+        |> where([f], is_nil(f.deleted_at))
+        |> select([f], f.upload_metadata)
+        |> repo.all()
+        |> Enum.map(&DeleteFirmware.new/1)
+        |> Oban.insert_all()
+
+      {:ok, jobs}
     end)
+    |> Multi.delete_all(:firmwares, where(Firmware, [f], f.id in ^firmware_ids))
   end
 
   defp truncated_utc_now() do

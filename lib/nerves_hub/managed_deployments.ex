@@ -541,7 +541,9 @@ defmodule NervesHub.ManagedDeployments do
     DeploymentRelease
     |> where([r], r.deployment_group_id == ^deployment_group_id)
     |> order_by([r], desc: r.inserted_at, desc: r.id)
-    |> preload([:firmware, :created_by, :archive])
+    # `deleted_by` because release history outlives the firmware it names: a
+    # deleted release firmware is badged with who retired it.
+    |> preload([:created_by, :archive, firmware: :deleted_by])
     |> Repo.all()
   end
 

@@ -1,13 +1,18 @@
 defmodule NervesHubWeb.Live.Firmware do
   use NervesHubWeb, :live_view
 
+  import NervesHubWeb.Helpers.FirmwareDeletion, only: [deleted_summary: 2]
+
   alias NervesHub.Accounts
+  alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.Upload
   alias NervesHub.Products
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
+  alias NervesHubWeb.Helpers.FirmwareDeletion
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -60,14 +65,27 @@ defmodule NervesHubWeb.Live.Firmware do
   defp apply_action(%{assigns: %{current_scope: scope, product: product}} = socket, :show, %{
          "firmware_uuid" => firmware_uuid
        }) do
-    firmware = Firmwares.get_firmware_by_uuid!(scope, firmware_uuid)
+    firmware =
+      scope
+      |> Firmwares.get_firmware_by_uuid!(firmware_uuid, include_deleted: true)
+      |> Firmwares.preload_deleted_by()
 
     socket
     |> page_title("Firmware #{firmware_uuid} - #{product.name}")
     |> sidebar_tab(:firmware)
     |> assign(:firmware, firmware)
+    |> assign_deletion_state(firmware)
     |> assign(:org_keys, Accounts.list_org_keys(scope))
     |> render_with(&show_firmware_template/1)
+  end
+
+  # Why the delete button is disabled, and what to warn about before it is
+  # clicked. Both are recomputed whenever the firmware is reloaded — a
+  # deployment group can start rolling this firmware out while the page is open.
+  defp assign_deletion_state(socket, firmware) do
+    socket
+    |> assign(:deletion_blockers, Firmwares.deletion_blockers(firmware))
+    |> assign(:deletion_warnings, Firmwares.deletion_warnings(firmware))
   end
 
   # A phx-change handler is required when using live uploads.
@@ -119,17 +137,40 @@ defmodule NervesHubWeb.Live.Firmware do
     {:noreply, socket}
   end
 
+  # Deleted firmware is off by default and lives in the URL, so the view is
+  # shareable and survives a reload. Turning it off drops the param rather than
+  # writing `include_deleted=false`, and either way the page count changes, so
+  # go back to page 1.
+  def handle_event("toggle-deleted-firmware", _params, socket) do
+    include_deleted = if !socket.assigns.include_deleted, do: "true"
+
+    params = %{"include_deleted" => include_deleted, "page_number" => 1}
+
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
+  end
+
   # the delete handler for the list page
   def handle_event("delete-firmware", %{"firmware_uuid" => uuid}, socket) do
-    authorized!(:"firmware:delete", socket.assigns.current_scope)
+    %{current_scope: scope, product: product} = socket.assigns
 
-    {:ok, firmware} = Firmwares.get_firmware_by_uuid(socket.assigns.current_scope, uuid)
+    authorized!(:"firmware:delete", scope)
 
-    case Firmwares.delete_firmware(firmware) do
+    {:ok, firmware} = Firmwares.get_firmware_by_uuid(scope, uuid, include_deleted: true)
+
+    case Firmwares.delete_firmware(firmware, scope.user) do
       {:ok, _} ->
+        _ = ProductTemplates.audit_firmware_deleted(scope.user, product, firmware)
+
         socket
-        |> assign(:firmware, Firmwares.get_firmwares_by_product(socket.assigns.product.id))
+        |> assign(:firmware, Firmwares.get_firmwares_by_product(product.id))
         |> put_flash(:info, "Firmware successfully deleted")
+        |> noreply()
+
+      {:error, {:blocked, blockers}} ->
+        socket
+        |> put_flash(:error, FirmwareDeletion.blockers_message(blockers))
         |> noreply()
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -144,13 +185,23 @@ defmodule NervesHubWeb.Live.Firmware do
 
     %{current_scope: scope, firmware: firmware} = socket.assigns
 
-    {:ok, firmware} = Firmwares.get_firmware_by_uuid(scope, firmware.uuid)
+    {:ok, firmware} = Firmwares.get_firmware_by_uuid(scope, firmware.uuid, include_deleted: true)
 
-    case Firmwares.delete_firmware(firmware) do
+    case Firmwares.delete_firmware(firmware, scope.user) do
       {:ok, _} ->
+        _ = ProductTemplates.audit_firmware_deleted(scope.user, scope.product, firmware)
+
         socket
         |> put_flash(:info, "Firmware successfully deleted")
         |> push_patch(to: ~p"/org/#{scope.org}/#{scope.product}/firmware")
+        |> noreply()
+
+      # Something started using this firmware between the page rendering and the
+      # click. Re-assign so the button disables itself and the tooltip explains.
+      {:error, {:blocked, blockers}} ->
+        socket
+        |> assign(:deletion_blockers, blockers)
+        |> put_flash(:error, FirmwareDeletion.blockers_message(blockers))
         |> noreply()
 
       {:error, changeset} ->
@@ -197,6 +248,23 @@ defmodule NervesHubWeb.Live.Firmware do
     |> noreply()
   end
 
+  def handle_info(
+        %Broadcast{topic: "product:" <> _product_id, event: "firmware/deleted", payload: %{firmware: deleted}},
+        %{assigns: %{live_action: :show, current_scope: scope, firmware: firmware}} = socket
+      )
+      when deleted.id == firmware.id do
+    firmware =
+      scope
+      |> Firmwares.get_firmware_by_uuid!(firmware.uuid, include_deleted: true)
+      |> Firmwares.preload_deleted_by()
+
+    socket
+    |> assign(:firmware, firmware)
+    |> assign_deletion_state(firmware)
+    |> put_flash(:notice, "This firmware has been deleted by another user.")
+    |> noreply()
+  end
+
   # Ignore all other broadcasts
   def handle_info(_broadcast, socket) do
     {:noreply, socket}
@@ -223,12 +291,14 @@ defmodule NervesHubWeb.Live.Firmware do
     %{assigns: %{product: product, params: params}} = socket
 
     pagination_opts = Map.take(params, @pagination_opts)
+    include_deleted? = params["include_deleted"] == "true"
 
     opts = %{
       page: pagination_opts["page_number"],
       page_size: pagination_opts["page_size"],
       sort: pagination_opts["sort"] || "inserted_at",
-      sort_direction: pagination_opts["sort_direction"]
+      sort_direction: pagination_opts["sort_direction"],
+      include_deleted: include_deleted?
     }
 
     {entries, pager_meta} = Firmwares.filter(product, opts)
@@ -236,6 +306,7 @@ defmodule NervesHubWeb.Live.Firmware do
     socket
     |> assign(:current_sort, opts.sort)
     |> assign(:sort_direction, opts.sort_direction)
+    |> assign(:include_deleted, include_deleted?)
     |> assign(:firmware, entries)
     |> assign(:pager_meta, pager_meta)
   end
@@ -248,6 +319,8 @@ defmodule NervesHubWeb.Live.Firmware do
     params =
       stringify_keys(new_params)
       |> Enum.into(current_params)
+      # A nil value means "drop this param" rather than "set it to nothing".
+      |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
     ~p"/org/#{socket.assigns.current_scope.org}/#{socket.assigns.product}/firmware?#{params}"
   end
@@ -417,6 +490,19 @@ defmodule NervesHubWeb.Live.Firmware do
 
   defp error_feedback(socket, message, _opts) do
     put_flash(socket, :error, message)
+  end
+
+  # Deleting firmware cannot be undone and the file goes with it, so the confirm
+  # says so — and adds whatever `deletion_warnings/1` turned up, which today is
+  # the deltas built from this firmware going away with it.
+  defp delete_confirmation(firmware, warnings) do
+    [
+      "Delete firmware #{firmware.version} (#{firmware.uuid})?",
+      FirmwareDeletion.warnings_message(warnings),
+      "This cannot be undone."
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
   end
 
   defp format_file_size(size) do

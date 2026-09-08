@@ -13,28 +13,63 @@
         </h1>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div :if={!Firmware.deleted?(@firmware)} class="flex items-center gap-2">
         <.button type="link" href={~p"/org/#{@current_scope.org}/#{@product}/firmware/#{@firmware}/download"} download>
           <.icon name="download" />Download
         </.button>
 
-        <button
-          class="bg-base-800 border-alert disabled:text-base-500 text-base-300 box-content flex h-5 items-center justify-center gap-2 rounded border px-3 py-1.5 text-sm font-medium"
-          aria-label="Delete firmware"
-          type="button"
-          phx-click="delete-firmware"
+        <%!-- The ToolTip hook reads its own `.tooltip-content` on mouseover, so it
+        is only attached when there is a reason to show one. --%>
+        <div
+          class="relative z-20 flex items-center"
+          id="delete-firmware-tooltip"
+          phx-hook={@deletion_blockers != [] && "ToolTip"}
+          data-placement="bottom"
         >
-          <svg class="stroke-alert size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
-              stroke-width="1.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-          <span class="text-alert text-sm font-medium">Delete</span>
-        </button>
+          <button
+            class="bg-base-800 border-alert disabled:border-base-700 disabled:text-base-500 text-base-300 box-content flex h-5 items-center justify-center gap-2 rounded border px-3 py-1.5 text-sm font-medium hover:cursor-pointer disabled:cursor-not-allowed"
+            aria-label="Delete firmware"
+            type="button"
+            disabled={@deletion_blockers != []}
+            phx-click={@deletion_blockers == [] && "delete-firmware"}
+            data-confirm={@deletion_blockers == [] && delete_confirmation(@firmware, @deletion_warnings)}
+          >
+            <svg
+              class={["size-5", if(@deletion_blockers == [], do: "stroke-alert", else: "stroke-base-500")]}
+              viewBox="0 0 20 20"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
+                stroke-width="1.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span class={["text-sm font-medium", if(@deletion_blockers == [], do: "text-alert", else: "text-base-500")]}>
+              Delete
+            </span>
+          </button>
+          <div
+            :if={@deletion_blockers != []}
+            role="tooltip"
+            class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-max max-w-72 rounded border px-2 py-1.5 text-xs"
+          >
+            {FirmwareDeletion.blockers_message(@deletion_blockers)}
+            <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+          </div>
+        </div>
       </div>
+    </div>
+
+    <div :if={Firmware.deleted?(@firmware)} class="border-base-700 flex shrink-0 items-center gap-2 border-b px-6 py-3">
+      <.icon name="trash" class="stroke-base-400" />
+      <span class="text-base-300 text-sm">
+        This firmware was deleted<span :if={@firmware.deleted_by}> by {@firmware.deleted_by.name}</span>
+        on <.local_datetime at={@firmware.deleted_at} time_zone={@time_zone} />. The firmware file is gone; this page is
+        kept so device history and past deployment releases still resolve.
+      </span>
     </div>
 
     <div class="flex h-full items-start justify-between gap-4 p-6">

@@ -802,15 +802,19 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   def hooked_event("select-firmware-version", %{"uuid" => uuid}, socket) do
     %{product: product, device: device} = socket.assigns
 
-    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
+    case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+      {:error, :not_found} ->
+        unavailable_firmware_error(socket)
 
-    firmware_delta_updatable? = Firmwares.delta_updatable?(device, firmware)
-    delta_complete? = Firmwares.delta_ready?(device, firmware)
+      {:ok, firmware} ->
+        firmware_delta_updatable? = Firmwares.delta_updatable?(device, firmware)
+        delta_complete? = Firmwares.delta_ready?(device, firmware)
 
-    socket
-    |> assign(:delta_available?, firmware_delta_updatable? && delta_complete?)
-    |> assign(:selected_firmware, uuid)
-    |> halt()
+        socket
+        |> assign(:delta_available?, firmware_delta_updatable? && delta_complete?)
+        |> assign(:selected_firmware, uuid)
+        |> halt()
+    end
   end
 
   def hooked_event("push-update", %{"uuid" => uuid}, socket) when uuid == "" do
@@ -824,26 +828,30 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     %{product: product, device: device, user: user, org: org} = socket.assigns
 
-    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
+    case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+      {:error, :not_found} ->
+        unavailable_firmware_error(socket)
 
-    Logger.info("Manually sending full firmware",
-      firmware_uuid: firmware.uuid,
-      device_identifier: device.identifier
-    )
+      {:ok, firmware} ->
+        Logger.info("Manually sending full firmware",
+          firmware_uuid: firmware.uuid,
+          device_identifier: device.identifier
+        )
 
-    opts =
-      if proxy_url = get_in(org.settings.firmware_proxy_url) do
-        [firmware_proxy_url: proxy_url]
-      else
-        []
-      end
+        opts =
+          if proxy_url = get_in(org.settings.firmware_proxy_url) do
+            [firmware_proxy_url: proxy_url]
+          else
+            []
+          end
 
-    {:ok, device} = DeviceEvents.manual_update(device, firmware, user, opts)
+        {:ok, device} = DeviceEvents.manual_update(device, firmware, user, opts)
 
-    socket
-    |> assign(:device, device)
-    |> put_flash(:info, "Firmware update request requested.")
-    |> halt()
+        socket
+        |> assign(:device, device)
+        |> put_flash(:info, "Firmware update request requested.")
+        |> halt()
+    end
   end
 
   def hooked_event("push-delta", %{"uuid" => uuid}, socket) when uuid == "" do
@@ -857,28 +865,32 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     %{product: product, device: device, user: user, org: org} = socket.assigns
 
-    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
+    case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+      {:error, :not_found} ->
+        unavailable_firmware_error(socket)
 
-    Logger.info(
-      "Manually sending firmware delta",
-      source_uuid: device.firmware_metadata.uuid,
-      target_uuid: firmware.uuid,
-      device_identifier: device.identifier
-    )
+      {:ok, firmware} ->
+        Logger.info(
+          "Manually sending firmware delta",
+          source_uuid: device.firmware_metadata.uuid,
+          target_uuid: firmware.uuid,
+          device_identifier: device.identifier
+        )
 
-    opts =
-      if proxy_url = get_in(org.settings.firmware_proxy_url) do
-        [firmware_proxy_url: proxy_url]
-      else
-        []
-      end
+        opts =
+          if proxy_url = get_in(org.settings.firmware_proxy_url) do
+            [firmware_proxy_url: proxy_url]
+          else
+            []
+          end
 
-    {:ok, device} = DeviceEvents.manual_update(device, firmware, user, opts ++ [delta: true])
+        {:ok, device} = DeviceEvents.manual_update(device, firmware, user, opts ++ [delta: true])
 
-    socket
-    |> assign(:device, device)
-    |> put_flash(:info, "Sending firmware update request.")
-    |> halt()
+        socket
+        |> assign(:device, device)
+        |> put_flash(:info, "Sending firmware update request.")
+        |> halt()
+    end
   end
 
   def hooked_event("remove-from-deployment-group", _, %{assigns: %{device: device}} = socket) do
@@ -1137,6 +1149,15 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       </div>
     </div>
     """
+  end
+
+  # The dropdown is built from firmware that still exists, so a request naming
+  # firmware the lookup cannot find comes from a page left open while someone
+  # else deleted it. Nothing to send a device to.
+  defp unavailable_firmware_error(socket) do
+    socket
+    |> put_flash(:error, "That firmware is no longer available and cannot be sent to a device.")
+    |> halt()
   end
 
   # A count reason's value is the observation itself; a share reason's main
