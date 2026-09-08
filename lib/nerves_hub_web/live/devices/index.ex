@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Devices.AdvancedQuery
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.BulkActions
+  alias NervesHub.Devices.CACertificates
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Metrics
@@ -19,6 +20,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Tracker
   alias NervesHubWeb.Components.AdvancedSearch
   alias NervesHubWeb.Components.BulkActionsSidebar
+  alias NervesHubWeb.Components.CAHelpers
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.HealthStatus
@@ -66,6 +68,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:sort_direction, "asc")
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:firmware_versions, [])
+    |> assign(:signer_cas, [])
     |> assign(:platforms, [])
     |> assign(:architectures, [])
     |> assign(:advanced_query_tags, [])
@@ -723,6 +726,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
         metrics_keys: Enum.sort(Enum.uniq(Metrics.default_metrics() ++ distinct_metric_keys)),
         deployment_groups: ManagedDeployments.get_deployment_groups_by_product(product),
         firmware_versions: Devices.firmware_versions(product.id),
+        signer_cas: CACertificates.signer_cas_for_product(product.id),
         platforms: Devices.platforms(product.id),
         architectures: Devices.architectures(product.id),
         advanced_query_tags: Devices.distinct_tags(product.id),
@@ -773,9 +777,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
         "deleted" => AdvancedQuery.Schema.boolean_values(nil),
         "update_status" => AdvancedQuery.Schema.update_status_values(nil),
         "firmware" => firmware_suggestion_values(assigns.advanced_query_firmwares),
-        "deployment_group" => Enum.map(assigns.deployment_groups, & &1.name) ++ [AdvancedQuery.Schema.not_set_value()]
+        "deployment_group" => Enum.map(assigns.deployment_groups, & &1.name) ++ [AdvancedQuery.Schema.not_set_value()],
+        "signer_ca" => signer_ca_suggestion_values(assigns.signer_cas)
       }
     })
+  end
+
+  # Signer CA autosuggest shows the CA's description (falling back to its
+  # formatted serial), but the query value is the serial.
+  defp signer_ca_suggestion_values(signer_cas) do
+    Enum.map(signer_cas, &%{label: CAHelpers.label(&1), value: &1.serial}) ++
+      [AdvancedQuery.Schema.not_set_value()]
   end
 
   # Firmware autosuggest shows a friendly "<version> - <short uuid>" label, but

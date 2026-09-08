@@ -2,6 +2,8 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.CACertificates
+  alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHubWeb.Components.Utils
 
@@ -74,6 +76,34 @@ defmodule NervesHubWeb.Live.Devices.Show.SettingsTabTest do
       device = Repo.preload(device, :device_certificates, force: true)
 
       assert Enum.empty?(device.device_certificates)
+    end
+
+    test "shows the signer CA when it is registered with the org", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      ca = Fixtures.ca_certificate_fixture(org)
+      {:ok, ca_cert} = CACertificates.update_ca_certificate(ca.db_cert, %{description: "Factory signer"})
+      Fixtures.device_certificate_fixture_for_ca(device, ca)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> assert_has("div", text: "Signer CA:")
+      |> assert_has("a[href='/org/#{org.name}/settings/certificates/#{ca_cert.serial}']", text: "Factory signer")
+    end
+
+    test "shows the signer CA as unknown when it was never registered", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      # The fixture device's certificate is signed by a CA which isn't in the DB.
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices/#{device}/settings")
+      |> assert_has("div", text: "Signer CA: Unknown")
     end
 
     test "can download certificate", %{conn: conn, org: org, product: product, device: device} do

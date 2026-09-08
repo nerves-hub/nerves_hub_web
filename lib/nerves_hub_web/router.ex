@@ -332,6 +332,7 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/settings/certificates", CertificateAuthorities, :index)
       live("/org/:org_name/settings/certificates/new", CertificateAuthorities, :new)
+      live("/org/:org_name/settings/certificates/:serial", CertificateAuthorities, :show)
       live("/org/:org_name/settings/delete", Delete)
 
       live(

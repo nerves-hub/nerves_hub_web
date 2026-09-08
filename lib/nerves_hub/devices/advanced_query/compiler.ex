@@ -111,6 +111,27 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
     )
   end
 
+  defp signer_ca_exists() do
+    dynamic(
+      [d],
+      fragment(
+        "EXISTS (SELECT 1 FROM device_certificates dc JOIN ca_certificates ca ON ca.ski = dc.aki WHERE dc.device_id = ?)",
+        d.id
+      )
+    )
+  end
+
+  defp signer_ca_exists(serial) do
+    dynamic(
+      [d],
+      fragment(
+        "EXISTS (SELECT 1 FROM device_certificates dc JOIN ca_certificates ca ON ca.ski = dc.aki WHERE dc.device_id = ? AND ca.serial = ?)",
+        d.id,
+        ^serial
+      )
+    )
+  end
+
   # `like`/`not like` use SQL ILIKE (case-insensitive); the value is the user's
   # pattern, so they supply `%`/`_` wildcards themselves.
   defp comparison_dynamic("identifier", "like", value), do: dynamic([d], ilike(d.identifier, ^value))
@@ -163,6 +184,20 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
         [d],
         fragment("NOT EXISTS (SELECT 1 FROM deployments dg WHERE dg.id = ? AND dg.name = ?)", d.deployment_id, ^name)
       )
+
+  # A device certificate records its signer's key id as its AKI, which is the
+  # CA's SKI - so the join is on that rather than a foreign key. The not-set
+  # sentinel matches devices holding no certificate from a registered CA, which
+  # covers shared secret authenticated devices as well as certificates whose
+  # signer was never registered.
+  defp comparison_dynamic("signer_ca", "=", @not_set_value), do: dynamic([d], not (^signer_ca_exists()))
+
+  defp comparison_dynamic("signer_ca", "!=", @not_set_value), do: signer_ca_exists()
+
+  # CA serials are globally unique, so the serial alone identifies the CA.
+  defp comparison_dynamic("signer_ca", "=", serial), do: signer_ca_exists(serial)
+
+  defp comparison_dynamic("signer_ca", "!=", serial), do: dynamic([d], not (^signer_ca_exists(serial)))
 
   defp comparison_dynamic("architecture", "=", value), do: dynamic([d], d.firmware_metadata["architecture"] == ^value)
 

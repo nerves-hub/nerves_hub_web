@@ -3,6 +3,7 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
 
   import Ecto.Query
 
+  alias NervesHub.Devices.AdvancedQuery.Schema
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Health
@@ -399,6 +400,57 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
       query = base_query(product)
       result = DeviceFiltering.filter(query, %{}, :firmware_validation_status, "bogus") |> identifiers()
       assert device.identifier in result
+    end
+  end
+
+  describe "filter/4 :signer_ca" do
+    test "filters devices by the CA which signed their certificate", %{org: org, product: product, firmware: firmware} do
+      ca = Fixtures.ca_certificate_fixture(org)
+      other_ca = Fixtures.ca_certificate_fixture(org)
+
+      signed = Fixtures.device_fixture(org, product, firmware)
+      Fixtures.device_certificate_fixture_for_ca(signed, ca)
+
+      other = Fixtures.device_fixture(org, product, firmware)
+      Fixtures.device_certificate_fixture_for_ca(other, other_ca)
+
+      no_certificate = Fixtures.device_fixture(org, product, firmware)
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :signer_ca, ca.db_cert.serial) |> identifiers()
+
+      assert signed.identifier in result
+      refute other.identifier in result
+      refute no_certificate.identifier in result
+    end
+
+    test "the not set sentinel matches devices with no certificate from a registered CA", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      ca = Fixtures.ca_certificate_fixture(org)
+
+      signed = Fixtures.device_fixture(org, product, firmware)
+      Fixtures.device_certificate_fixture_for_ca(signed, ca)
+
+      no_certificate = Fixtures.device_fixture(org, product, firmware)
+
+      query = base_query(product)
+      result = DeviceFiltering.filter(query, %{}, :signer_ca, Schema.not_set_value()) |> identifiers()
+
+      assert no_certificate.identifier in result
+      refute signed.identifier in result
+    end
+
+    test "an unknown serial matches nothing", %{org: org, product: product, firmware: firmware} do
+      ca = Fixtures.ca_certificate_fixture(org)
+      device = Fixtures.device_fixture(org, product, firmware)
+      Fixtures.device_certificate_fixture_for_ca(device, ca)
+
+      query = base_query(product)
+
+      assert DeviceFiltering.filter(query, %{}, :signer_ca, "nope") |> identifiers() == []
     end
   end
 

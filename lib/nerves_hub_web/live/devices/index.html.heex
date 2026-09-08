@@ -423,6 +423,16 @@
         {"Unknown", "unknown"}
       ]}
     />
+    <:filter
+      attr="signer_ca"
+      label="Signer CA"
+      type={:select}
+      hint="Only certificate authorities which signed a certificate held by a device in this product are listed."
+      values={
+        [{"All", ""} | Enum.map(@signer_cas, &{CAHelpers.label(&1), &1.serial})] ++
+          [{"No known CA", AdvancedQuery.Schema.not_set_value()}]
+      }
+    />
     <:filter attr="platform" label="Platform" type={:select} values={[{"All", ""} | Enum.map(@platforms, &{if(&1, do: &1, else: "Unknown"), &1})]} />
     <:filter attr="tags" label="Tags" type={:text} />
     <:filter attr="has_no_tags" label="Untagged" type={:select} values={[{"All", "false"}, {"Only untagged", "true"}]} />

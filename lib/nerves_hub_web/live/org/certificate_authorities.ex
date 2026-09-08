@@ -49,6 +49,28 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     |> render_with(&new_ca_template/1)
   end
 
+  defp apply_action(socket, :show, %{"serial" => serial}) do
+    org = socket.assigns.org
+
+    case CACertificates.get_ca_certificate_by_org_and_serial(org, serial) do
+      {:ok, cert} ->
+        device_counts = CACertificates.device_counts_by_product(cert)
+
+        socket
+        |> page_title("#{CAHelpers.label(cert)} - #{org.name}")
+        |> assign(:certificate, cert)
+        |> assign(:device_counts, device_counts)
+        |> assign(:device_count, Enum.sum_by(device_counts, & &1.device_count))
+        |> sidebar_tab(:certificates)
+        |> render_with(&show_ca_template/1)
+
+      {:error, :not_found} ->
+        socket
+        |> put_flash(:error, "Certificate Authority not found")
+        |> push_navigate(to: ~p"/org/#{org}/settings/certificates")
+    end
+  end
+
   defp apply_action(%{assigns: %{current_scope: scope}} = socket, :edit, %{"serial" => serial}) do
     products = Products.get_products(scope)
 
@@ -81,7 +103,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
          {:ok, _ca_certificate} <- CACertificates.delete_ca_certificate(ca_certificate) do
       socket
       |> put_flash(:info, "Certificate successfully deleted")
-      |> list_certificates()
+      |> push_navigate(to: ~p"/org/#{socket.assigns.org}/settings/certificates")
       |> noreply()
     else
       _ ->
@@ -102,7 +124,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
          {:ok, _cert} <- CACertificates.update_ca_certificate(cert, params) do
       socket
       |> put_flash(:info, "Certificate Authority updated")
-      |> push_patch(to: ~p"/org/#{socket.assigns.org}/settings/certificates")
+      |> push_patch(to: ~p"/org/#{socket.assigns.org}/settings/certificates/#{socket.assigns.serial}")
       |> noreply()
     else
       {:error, :not_found} ->
@@ -184,7 +206,11 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
 
   defp list_certificates(socket) do
     certificates = CACertificates.get_ca_certificates(socket.assigns.org)
-    assign(socket, :certificates, certificates)
+    device_counts = CACertificates.device_counts_by_ski(socket.assigns.org)
+
+    socket
+    |> assign(:certificates, certificates)
+    |> assign(:device_counts, device_counts)
   end
 
   defp uploaded_cert(socket) do
