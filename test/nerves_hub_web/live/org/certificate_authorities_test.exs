@@ -351,6 +351,40 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> assert_path("/org/#{org.name}/settings/certificates")
       |> assert_has("div", text: "Certificate Authority not found")
     end
+
+    test "redirects when the CA belongs to another org", %{conn: conn, org: org} do
+      # CA serials are unique across the whole install, so a serial is a
+      # guessable handle on someone else's CA unless the lookup is scoped.
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user, %{name: "someone-else"})
+      %{db_cert: %{serial: serial}} = Fixtures.ca_certificate_fixture(other_org)
+
+      conn
+      |> visit("/org/#{org.name}/settings/certificates/#{serial}/edit")
+      |> assert_path("/org/#{org.name}/settings/certificates")
+      |> assert_has("div", text: "Certificate Authority not found")
+    end
+
+    test "does not update a CA belonging to another org", %{conn: conn, org: org} do
+      %{db_cert: %{serial: serial}} = Fixtures.ca_certificate_fixture(org)
+
+      other_user = Fixtures.user_fixture()
+      other_org = Fixtures.org_fixture(other_user, %{name: "someone-else"})
+      %{db_cert: other_ca} = Fixtures.ca_certificate_fixture(other_org)
+
+      {:ok, view, _html} = live(conn, "/org/#{org.name}/settings/certificates/#{serial}/edit")
+
+      # The edit page refuses to load another org's CA, so the serial the update
+      # event is applied to never becomes one from another org.
+      render_patch(view, "/org/#{org.name}/settings/certificates/#{other_ca.serial}/edit")
+
+      render_submit(view, "update_certificate_authority", %{
+        "ca_certificate" => %{"description" => "not yours"}
+      })
+
+      assert {:ok, %{description: nil}} =
+               CACertificates.get_ca_certificate_by_org_and_serial(other_org, other_ca.serial)
+    end
   end
 
   defp upload_file(view, file_name, file_path, form_field) do
