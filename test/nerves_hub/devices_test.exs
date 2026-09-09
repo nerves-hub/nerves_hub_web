@@ -421,6 +421,151 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "add_tags/3" do
+    test "keeps the tags the device already has", %{user: user, device: device} do
+      assert device.tags == ["beta", "beta-edge"]
+
+      assert {:ok, device} = Devices.add_tags(device, user, ["moussaka"])
+
+      assert device.tags == ["beta", "beta-edge", "moussaka"]
+    end
+
+    test "accepts a comma separated string", %{user: user, device: device} do
+      assert {:ok, device} = Devices.add_tags(device, user, "moussaka, dolmades")
+
+      assert device.tags == ["beta", "beta-edge", "moussaka", "dolmades"]
+    end
+
+    test "skips tags the device already has", %{user: user, device: device} do
+      assert {:ok, device} = Devices.add_tags(device, user, ["beta", "moussaka"])
+
+      assert device.tags == ["beta", "beta-edge", "moussaka"]
+    end
+
+    test "adds a repeated tag once", %{user: user, device: device} do
+      assert {:ok, device} = Devices.add_tags(device, user, "moussaka,moussaka")
+
+      assert device.tags == ["beta", "beta-edge", "moussaka"]
+    end
+
+    test "leaves a device that gains nothing untouched", %{user: user, device: device} do
+      assert {:ok, unchanged} = Devices.add_tags(device, user, ["beta", "beta-edge"])
+
+      assert unchanged.tags == device.tags
+      assert AuditLogs.logs_for(device) == []
+    end
+
+    test "records who added which tags", %{user: user, device: device} do
+      {:ok, _device} = Devices.add_tags(device, user, ["moussaka"])
+
+      assert [audit_log] = AuditLogs.logs_for(device)
+      assert audit_log.description == "User #{user.name} added the tags moussaka to device #{device.identifier}"
+    end
+
+    test "rejects tags containing spaces", %{user: user, device: device} do
+      assert {:error, :update_with_audit, changeset, _} = Devices.add_tags(device, user, ["not a tag"])
+
+      assert "tags cannot contain spaces" in errors_on(changeset).tags
+      assert Repo.reload(device).tags == ["beta", "beta-edge"]
+    end
+  end
+
+  describe "remove_tags/3" do
+    test "leaves the device's other tags alone", %{user: user, device: device} do
+      assert {:ok, device} = Devices.remove_tags(device, user, ["beta"])
+
+      assert device.tags == ["beta-edge"]
+    end
+
+    test "accepts a comma separated string", %{user: user, device: device} do
+      assert {:ok, device} = Devices.remove_tags(device, user, "beta, beta-edge")
+
+      assert device.tags == []
+    end
+
+    test "leaves a device without any of the tags untouched", %{user: user, device: device} do
+      assert {:ok, unchanged} = Devices.remove_tags(device, user, ["moussaka"])
+
+      assert unchanged.tags == device.tags
+      assert AuditLogs.logs_for(device) == []
+    end
+
+    test "records who removed which tags", %{user: user, device: device} do
+      {:ok, _device} = Devices.remove_tags(device, user, ["beta", "moussaka"])
+
+      assert [audit_log] = AuditLogs.logs_for(device)
+      assert audit_log.description == "User #{user.name} removed the tags beta from device #{device.identifier}"
+    end
+  end
+
+  describe "add_tags_to_devices/3" do
+    test "adds the tags to every device", %{user: user, device: device, device2: device2, device3: device3} do
+      {:ok, device} = Devices.tag_device(device, user, ["unique-to-me"])
+
+      %{ok: devices, error: []} = BulkActions.add_tags_to_devices([device, device2, device3], user, "moussaka")
+
+      assert Enum.sort_by(devices, & &1.id) |> Enum.map(& &1.tags) == [
+               ["unique-to-me", "moussaka"],
+               ["beta", "beta-edge", "moussaka"],
+               ["beta", "beta-edge", "moussaka"]
+             ]
+    end
+
+    test "supports an Ecto.Query for the first argument", %{
+      user: user,
+      device: device,
+      device2: device2,
+      device3: device3
+    } do
+      devices = [device, device2, device3]
+      device_ids = Enum.map(devices, & &1.id)
+
+      %{ok: count, error: 0} =
+        Device
+        |> where([d], d.id in ^device_ids)
+        |> BulkActions.add_tags_to_devices(user, "moussaka")
+
+      assert count == 3
+
+      assert Enum.all?(devices, fn device ->
+               Repo.reload(device).tags == ["beta", "beta-edge", "moussaka"]
+             end)
+    end
+  end
+
+  describe "remove_tags_from_devices/3" do
+    test "removes the tags from every device", %{user: user, device: device, device2: device2, device3: device3} do
+      {:ok, device} = Devices.tag_device(device, user, ["unique-to-me"])
+
+      %{ok: devices, error: []} = BulkActions.remove_tags_from_devices([device, device2, device3], user, "beta")
+
+      assert Enum.sort_by(devices, & &1.id) |> Enum.map(& &1.tags) == [
+               ["unique-to-me"],
+               ["beta-edge"],
+               ["beta-edge"]
+             ]
+    end
+
+    test "supports an Ecto.Query for the first argument", %{
+      user: user,
+      device: device,
+      device2: device2,
+      device3: device3
+    } do
+      devices = [device, device2, device3]
+      device_ids = Enum.map(devices, & &1.id)
+
+      %{ok: count, error: 0} =
+        Device
+        |> where([d], d.id in ^device_ids)
+        |> BulkActions.remove_tags_from_devices(user, "beta,beta-edge")
+
+      assert count == 3
+
+      assert Enum.all?(devices, fn device -> Repo.reload(device).tags == [] end)
+    end
+  end
+
   describe "distinct_tags_for_product/1" do
     test "returns the sorted, distinct union of device tags for the product", %{
       org: org,
