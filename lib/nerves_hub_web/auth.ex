@@ -280,7 +280,7 @@ defmodule NervesHubWeb.Auth do
   Used for routes that require the user to not be authenticated.
   """
   def redirect_if_user_is_authenticated(conn, _opts) do
-    if conn.assigns[:user] do
+    if conn.assigns[:current_scope] && conn.assigns.current_scope.user do
       conn
       |> redirect(to: signed_in_path(conn))
       |> halt()

@@ -17,6 +17,7 @@ defmodule NervesHub.Accounts.Invite do
     field(:email, :string)
     field(:token, Ecto.UUID)
     field(:accepted, :boolean)
+    field(:declined_at, :utc_datetime)
     field(:role, Ecto.Enum, values: Ecto.Enum.values(OrgUser, :role))
 
     timestamps()
@@ -24,7 +25,7 @@ defmodule NervesHub.Accounts.Invite do
 
   def changeset(%Invite{} = invite, params) do
     invite
-    |> cast(params, [:email, :token, :org_id, :accepted, :role, :invited_by_id])
+    |> cast(params, [:email, :token, :org_id, :accepted, :declined_at, :role, :invited_by_id])
     |> validate_required([:email, :token, :org_id, :role, :invited_by_id])
   end
 end
