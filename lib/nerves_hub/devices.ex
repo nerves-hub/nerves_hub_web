@@ -22,6 +22,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Extensions
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
   alias NervesHub.Products.Product
@@ -452,8 +453,28 @@ defmodule NervesHub.Devices do
     end
   end
 
+  @doc """
+  Permanently remove a device and everything hanging off it.
+
+  The schema's associations cover alarms, certificates, connections, network
+  identities and update stats. These two are not associations of `Device`, so
+  nothing cascades to them, and both reference `devices` with no action of their
+  own — a device with either kind of row could not be destroyed at all.
+  """
+  @spec destroy_device(Device.t()) :: {:ok, Device.t()} | {:error, any()}
   def destroy_device(%Device{} = device) do
-    Repo.delete(device)
+    shared_secrets_query = from(ssa in SharedSecretAuth, where: ssa.device_id == ^device.id)
+    inflight_checks_query = from(c in InflightDeploymentCheck, where: c.device_id == ^device.id)
+
+    Multi.new()
+    |> Multi.delete_all(:shared_secret_auths, shared_secrets_query)
+    |> Multi.delete_all(:inflight_deployment_checks, inflight_checks_query)
+    |> Multi.delete(:device, device)
+    |> Repo.transact()
+    |> case do
+      {:ok, %{device: device}} -> {:ok, device}
+      error -> error
+    end
   end
 
   def clean_up_soft_deleted_devices() do
