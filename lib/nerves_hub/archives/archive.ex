@@ -81,4 +81,20 @@ defmodule NervesHub.Archives.Archive do
       end
     end)
   end
+
+  @doc """
+  Refuses to delete an archive that a deployment release still names.
+
+  Release history keeps pointing at the archive it shipped with, so the archive
+  outlives the decision to stop using it. Without this the delete raised a bare
+  foreign key violation.
+  """
+  def delete_changeset(%__MODULE__{} = archive) do
+    archive
+    |> change()
+    |> foreign_key_constraint(:deployment_releases,
+      name: :deployment_releases_archive_id_fkey,
+      message: "Deployment releases exist which use the Archive"
+    )
+  end
 end
