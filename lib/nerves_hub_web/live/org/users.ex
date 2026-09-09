@@ -93,10 +93,10 @@ defmodule NervesHubWeb.Live.Org.Users do
         |> put_flash(:info, "Invite resent to #{invite.email}")
         |> noreply()
 
-      {:error, :not_found} ->
+      {:error, reason} when is_atom(reason) ->
         socket
         |> org_invites()
-        |> put_flash(:error, "Invite couldn't be resent as it is no longer outstanding.")
+        |> put_flash(:error, "Invite couldn't be resent as #{invite_unavailable(reason)}.")
         |> noreply()
 
       {:error, _changeset} ->
@@ -114,11 +114,11 @@ defmodule NervesHubWeb.Live.Org.Users do
          |> org_invites()
          |> put_flash(:info, "Invite rescinded")}
 
-      {:error, :not_found} ->
+      {:error, reason} when is_atom(reason) ->
         {:noreply,
          socket
          |> org_invites()
-         |> put_flash(:error, "Invite couldn't be rescinded as the invite has been accepted.")}
+         |> put_flash(:error, "Invite couldn't be rescinded as #{invite_unavailable(reason)}.")}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Invite failed to rescind")}
@@ -189,6 +189,12 @@ defmodule NervesHubWeb.Live.Org.Users do
   # `invited_by_id` predates being required, so old invites can still be orphaned
   defp invited_by_name(%{invited_by: %{name: name}}), do: name
   defp invited_by_name(_invite), do: "-"
+
+  # An invite that has been accepted and one that has been declined both leave
+  # the admin looking at a stale row, and they mean opposite things.
+  defp invite_unavailable(:accepted), do: "it has already been accepted"
+  defp invite_unavailable(:declined), do: "it has already been declined"
+  defp invite_unavailable(:not_found), do: "it no longer exists"
 
   defp invite_action_title(true, description), do: description
   defp invite_action_title(false, _description), do: "Only org admins can manage invites"

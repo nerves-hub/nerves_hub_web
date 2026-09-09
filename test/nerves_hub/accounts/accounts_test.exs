@@ -372,6 +372,37 @@ defmodule NervesHub.AccountsTest do
       assert "has already been invited to this organization" in errors_on(changeset).email
     end
 
+    test "the pending invite check ignores the case of the email", %{user: user} do
+      org = Fixtures.org_fixture(user)
+
+      {:ok, _} = Accounts.invite(%{"email" => "Josh@Example.com", "role" => "view"}, org, user)
+
+      {:error, changeset} =
+        Accounts.invite(%{"email" => "josh@example.com", "role" => "view"}, org, user)
+
+      assert "has already been invited to this organization" in errors_on(changeset).email
+      assert length(Accounts.get_invites_for_org(org)) == 1
+    end
+
+    test "rescinding and resending tell an accepted invite from a declined one", %{user: user} do
+      org = Fixtures.org_fixture(user)
+
+      {:ok, accepted} = Accounts.invite(%{"email" => "accepted@test.org", "role" => "view"}, org, user)
+      {:ok, declined} = Accounts.invite(%{"email" => "declined@test.org", "role" => "view"}, org, user)
+
+      invitee = Fixtures.user_fixture(%{email: "accepted@test.org"})
+      {:ok, _org_user} = Accounts.accept_invite(accepted, invitee)
+      {:ok, _} = Accounts.decline_invite(declined)
+
+      assert Accounts.delete_invite(org, accepted.token) == {:error, :accepted}
+      assert Accounts.delete_invite(org, declined.token) == {:error, :declined}
+      assert Accounts.delete_invite(org, Ecto.UUID.generate()) == {:error, :not_found}
+
+      assert Accounts.resend_invite(org, accepted.token) == {:error, :accepted}
+      assert Accounts.resend_invite(org, declined.token) == {:error, :declined}
+      assert Accounts.resend_invite(org, Ecto.UUID.generate()) == {:error, :not_found}
+    end
+
     test "an invitee can be re-invited once a previous invite was declined", %{user: user} do
       org = Fixtures.org_fixture(user)
 

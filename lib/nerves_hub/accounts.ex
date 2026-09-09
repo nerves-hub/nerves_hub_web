@@ -22,6 +22,12 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
 
+  @typedoc """
+  Why an invite can't be rescinded or resent: it was accepted, it was declined,
+  or no invite with that token belongs to the org.
+  """
+  @type invite_unavailable() :: :not_found | :accepted | :declined
+
   @spec create_org(User.t(), map) ::
           {:ok, Org.t()}
           | {:error, Changeset.t()}
@@ -759,42 +765,41 @@ defmodule NervesHub.Accounts do
   astray. An expired invite can still be resent.
   """
   @spec resend_invite(Org.t(), String.t()) ::
-          {:ok, Invite.t()} | {:error, :not_found} | {:error, Changeset.t()}
+          {:ok, Invite.t()} | {:error, invite_unavailable()} | {:error, Changeset.t()}
   def resend_invite(org, token) do
-    query =
-      Invite
-      |> where([i], i.org_id == ^org.id)
-      |> where([i], i.token == ^token)
-      |> unaccepted()
-      |> preload(:invited_by)
-
-    case Repo.one(query) do
-      nil ->
-        {:error, :not_found}
-
-      %Invite{} = invite ->
-        invite
-        |> Invite.changeset(%{token: Ecto.UUID.generate()})
-        |> Repo.update()
+    with {:ok, invite} <- fetch_outstanding_invite(org, token, [:invited_by]) do
+      invite
+      |> Invite.changeset(%{token: Ecto.UUID.generate()})
+      |> Repo.update()
     end
   end
 
+  @spec delete_invite(Org.t(), String.t()) ::
+          {:ok, Invite.t()} | {:error, invite_unavailable()} | {:error, Changeset.t()}
   def delete_invite(org, token) do
-    query =
-      Invite
-      |> where([i], i.org_id == ^org.id)
-      |> where([i], i.token == ^token)
-      |> unaccepted()
+    with {:ok, invite} <- fetch_outstanding_invite(org, token) do
+      Repo.delete(invite)
+    end
+  end
 
-    with %Invite{} = invite <- Repo.one(query),
-         {:ok, invite} <- Repo.delete(invite) do
-      {:ok, invite}
-    else
-      nil ->
-        {:error, :not_found}
-
-      {:error, changeset} ->
-        {:error, changeset}
+  # Rescinding and resending both need an invite that is still outstanding.
+  # Looking it up without `unaccepted/1` is what lets the caller tell an invite
+  # that was accepted from one that was declined - filtering both out of the
+  # query reports them alike, and the two mean very different things to the
+  # admin who is looking at a stale page.
+  @spec fetch_outstanding_invite(Org.t(), String.t(), list(atom())) ::
+          {:ok, Invite.t()} | {:error, invite_unavailable()}
+  defp fetch_outstanding_invite(org, token, preloads \\ []) do
+    Invite
+    |> where([i], i.org_id == ^org.id)
+    |> where([i], i.token == ^token)
+    |> preload(^preloads)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      %Invite{accepted: true} -> {:error, :accepted}
+      %Invite{declined_at: nil} = invite -> {:ok, invite}
+      %Invite{} -> {:error, :declined}
     end
   end
 

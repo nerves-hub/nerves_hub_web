@@ -275,6 +275,30 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       refute_email_sent()
     end
 
+    test "displays an error if you rescind an invite after it was declined", %{
+      conn: conn,
+      org: org,
+      user: user
+    } do
+      {:ok, invite} =
+        Accounts.invite(%{"email" => "josh@mrjosh.com", "role" => "view"}, org, user)
+
+      conn =
+        conn
+        |> visit("/org/#{org.name}/settings/users")
+        |> assert_has("td", text: "josh@mrjosh.com")
+
+      # the invitee declines while the admin still has the page open
+      {:ok, _} = Accounts.decline_invite(invite)
+
+      conn
+      |> click_button("Rescind")
+      |> refute_has("td", text: "josh@mrjosh.com")
+      |> assert_has("div", text: "Invite couldn't be rescinded as it has already been declined.")
+
+      refute_email_sent()
+    end
+
     test "displays an error if you rescind an invite after it was accepted", %{
       conn: conn,
       org: org,
@@ -296,7 +320,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       conn
       |> click_button("Rescind")
       |> refute_has("td", text: "josh@mrjosh.com")
-      |> assert_has("div", text: "Invite couldn't be rescinded as the invite has been accepted.")
+      |> assert_has("div", text: "Invite couldn't be rescinded as it has already been accepted.")
 
       send_queued_emails()
 
