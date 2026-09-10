@@ -1,7 +1,9 @@
 defmodule NervesHub.Accounts.OrgKeyTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Fixtures
   alias NervesHub.Support.EspIdf
   alias NervesHub.Support.Fwup
 
@@ -163,6 +165,32 @@ defmodule NervesHub.Accounts.OrgKeyTest do
       changeset = OrgKey.delete_changeset(org_key, %{})
 
       assert changeset.data == org_key
+    end
+
+    @tag :tmp_dir
+    test "refuses a key that firmware uses", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      _firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      assert {:error, changeset} = Accounts.delete_org_key(org_key)
+      assert "Firmware exists which uses the Signing Key" in errors_on(changeset).firmwares
+    end
+
+    @tag :tmp_dir
+    test "refuses a key that an archive uses", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      _archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
+
+      # Archives are signed with the same keys as firmware, and used to raise
+      # here rather than coming back as an error.
+      assert {:error, changeset} = Accounts.delete_org_key(org_key)
+      assert "Archives exist which use the Signing Key" in errors_on(changeset).archives
     end
   end
 end

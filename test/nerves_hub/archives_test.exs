@@ -3,6 +3,7 @@ defmodule NervesHub.ArchivesTest do
 
   alias NervesHub.Archives
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Support
   alias NervesHub.Workers.DeleteArchive
 
@@ -69,6 +70,26 @@ defmodule NervesHub.ArchivesTest do
       )
 
       assert {:error, :not_found} = Archives.get(product, archive.uuid)
+    end
+
+    test "refuses an archive that a deployment release uses", %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
+
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+      {:ok, _} =
+        ManagedDeployments.create_deployment_release(deployment_group, firmware, archive, user, %{})
+
+      assert {:error, %Ecto.Changeset{} = changeset} = Archives.delete_archive(archive)
+
+      assert "Deployment releases exist which use the Archive" in errors_on(changeset).deployment_releases
+
+      assert {:ok, _} = Archives.get(product, archive.uuid)
     end
   end
 end
