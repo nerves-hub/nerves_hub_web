@@ -57,18 +57,17 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
   end
 
   describe "add user" do
-    test "renders org_user when data is valid", %{conn: conn, org: org, user2: user2} do
+    test "invites an existing user rather than adding them", %{conn: conn, org: org, user2: user2} do
       org_user = %{"email" => user2.email, "role" => "manage"}
       conn = post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
-      assert json_response(conn, 201)["data"]
+      assert response(conn, 204)
 
-      conn = get(conn, Routes.api_org_user_path(conn, :show, org.name, user2.email))
-      assert json_response(conn, 200)["data"]["name"] == user2.name
+      # they only become a member once they accept
+      assert Accounts.get_org_user(org, user2) == {:error, :not_found}
 
       send_queued_emails()
 
-      # don't send email to admin who added the user
-      refute_email_sent()
+      assert_email_sent(subject: "NervesHub: You have been invited to join #{org.name}")
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, user2: user2} do
@@ -126,14 +125,23 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       assert %{"role" => ["is invalid"]} = json_response(conn, 422)["errors"]
     end
 
-    test "add the user to the org if the user has an account", %{conn: conn, org: org, user2: user2} do
+    test "invites the user if they already have an account", %{conn: conn, org: org, user2: user2} do
       org_user = %{"email" => user2.email, "role" => "admin"}
 
       conn = post(conn, Routes.api_org_user_path(conn, :invite, org.name), org_user)
 
-      assert json_response(conn, 201)["data"]["name"] == user2.name
-      assert json_response(conn, 201)["data"]["email"] == user2.email
-      assert json_response(conn, 201)["data"]["role"] == "admin"
+      assert response(conn, 204)
+      assert Accounts.get_org_user(org, user2) == {:error, :not_found}
+    end
+
+    test "renders errors when the user is already a member", %{conn: conn, org: org, user2: user2} do
+      {:ok, _org_user} = Accounts.add_org_user(org, user2, %{role: :view})
+
+      org_user = %{"email" => user2.email, "role" => "manage"}
+      conn = post(conn, Routes.api_org_user_path(conn, :invite, org.name), org_user)
+
+      assert %{"email" => ["is already a member of this organization"]} =
+               json_response(conn, 422)["errors"]
     end
 
     for role <- [:manage, :view] do
