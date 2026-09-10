@@ -159,6 +159,7 @@ through `health` instead.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `CLICKHOUSE_URL` | — | ClickHouse connection URL. Setting it enables analytics. |
+| `CLICKHOUSE_CA_PEM` | — | Base64-encoded PEM bundle of CA certificates to verify ClickHouse against. Replaces the system CA store for those connections rather than adding to it, so set it only for a ClickHouse behind a private CA, such as Scaleway Data Warehouse. |
 | `ANALYTICS_POOL_SIZE` | `10` | Connections per pool. |
 | `ANALYTICS_POOL_COUNT` | `1` | Number of pools. |
 | `ANALYTICS_AUTO_MIGRATOR` | `true` | Run pending ClickHouse migrations on boot. |
