@@ -460,6 +460,27 @@ if config_env() == :prod do
       pool_count: String.to_integer(System.get_env("ANALYTICS_POOL_COUNT", "1")),
       queue_target: 3_000
 
+    # Without this, TLS verifies ClickHouse against the system CA store, which is
+    # right for ClickHouse Cloud. A managed ClickHouse behind a private CA fails
+    # that with "Unknown CA" -- Scaleway's Data Warehouse signs each deployment
+    # with its own, and exposes no plain-HTTP port to fall back to. So the CA can
+    # be supplied, the way DATABASE_PEM supplies Postgres's.
+    #
+    # It replaces the system store for these connections rather than adding to
+    # it. Mint only falls back to the system store when no :cacerts are given,
+    # and keeps verify_peer and the hostname check either way, so this narrows
+    # trust to exactly the supplied CA. The second `config` for the same key
+    # merges into the one above.
+    if clickhouse_ca_pem = System.get_env("CLICKHOUSE_CA_PEM") do
+      clickhouse_cacerts =
+        clickhouse_ca_pem
+        |> Base.decode64!()
+        |> :public_key.pem_decode()
+        |> Enum.map(fn {_, der, _} -> der end)
+
+      config :nerves_hub, NervesHub.AnalyticsRepo, transport_opts: [cacerts: clickhouse_cacerts]
+    end
+
     config :nerves_hub, :analytics_buffer,
       max_batch_size: String.to_integer(System.get_env("ANALYTICS_BUFFER_MAX_BATCH_SIZE", "1000")),
       max_delay: to_timeout(millisecond: String.to_integer(System.get_env("ANALYTICS_BUFFER_MAX_DELAY_MS", "500"))),
