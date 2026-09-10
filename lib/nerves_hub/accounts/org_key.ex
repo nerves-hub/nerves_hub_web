@@ -66,6 +66,13 @@ defmodule NervesHub.Accounts.OrgKey do
       name: :firmwares_tenant_key_id_fkey,
       message: "Firmware exists which uses the Signing Key"
     )
+    # Archives are signed with the same keys as firmware, and were missing here:
+    # a key used only by an archive raised a bare foreign key violation instead
+    # of coming back as an error the page could show.
+    |> foreign_key_constraint(:archives,
+      name: :archives_org_key_id_fkey,
+      message: "Archives exist which use the Signing Key"
+    )
   end
 
   @doc """

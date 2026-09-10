@@ -26,6 +26,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Devices.PubSub
+  alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -33,6 +34,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentRelease
+  alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.Products
   alias NervesHub.Products.Notification
   alias NervesHub.Repo
@@ -380,6 +382,27 @@ defmodule NervesHub.DevicesTest do
 
     assert is_nil(Repo.get(Device, device.id))
     refute Repo.exists?(where(DeviceHealth, device_id: ^device.id))
+  end
+
+  test "destroy_device takes rows that are not associations with it", %{
+    device: device,
+    deployment_group: deployment_group
+  } do
+    {:ok, _auth} = Devices.create_shared_secret_auth(device)
+
+    Repo.insert!(%InflightDeploymentCheck{
+      device_id: device.id,
+      deployment_id: deployment_group.id,
+      inserted_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    })
+
+    # Neither is an association of `Device`, and both reference `devices` with
+    # no action of their own.
+    assert {:ok, _device} = Devices.destroy_device(device)
+
+    assert is_nil(Repo.get(Device, device.id))
+    refute Repo.exists?(where(SharedSecretAuth, device_id: ^device.id))
+    refute Repo.exists?(where(InflightDeploymentCheck, device_id: ^device.id))
   end
 
   describe "tag_devices/3" do

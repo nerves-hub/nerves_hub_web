@@ -15,7 +15,9 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentGroup.Conditions
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Orchestrator
+  alias NervesHub.Repo
   alias NervesHub.Workers.FirmwareDeltaBuilder
   alias Phoenix.Socket.Broadcast
 
@@ -603,6 +605,36 @@ defmodule NervesHub.ManagedDeploymentsTest do
       {:ok, _deleted} = ManagedDeployments.delete_deployment_group(deployment_group)
 
       # Verify releases are deleted
+      assert ManagedDeployments.list_deployment_releases(deployment_group) == []
+    end
+
+    test "a deployment group with a workflow can be deleted", %{
+      user: user,
+      deployment_group: deployment_group,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      definition = %{
+        "version" => 1,
+        "steps" => [%{"name" => "Canary"}, %{"name" => "Sign-off", "type" => "approval_required"}]
+      }
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{workflow_definition: definition}, user)
+
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "2.0.0"})
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{})
+
+      # The releases carry workflow steps, and `deployment_workflow_steps`
+      # references them with no action of its own.
+      assert Repo.aggregate(DeploymentWorkflowStep, :count) > 0
+
+      assert {:ok, _deleted} = ManagedDeployments.delete_deployment_group(deployment_group)
+
+      assert Repo.aggregate(DeploymentWorkflowStep, :count) == 0
       assert ManagedDeployments.list_deployment_releases(deployment_group) == []
     end
   end

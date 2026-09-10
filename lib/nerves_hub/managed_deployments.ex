@@ -14,6 +14,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
+  alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -227,6 +228,8 @@ defmodule NervesHub.ManagedDeployments do
       changeset = Ecto.Changeset.change(deployment_group, current_deployment_release_id: nil)
 
       with {:ok, deployment_group} <- Repo.update(changeset) do
+        :ok = delete_workflow_steps(deployment_group)
+
         Repo.delete(deployment_group)
       end
       |> case do
@@ -239,6 +242,24 @@ defmodule NervesHub.ManagedDeployments do
           {:ok, deployment_group}
       end
     end)
+  end
+
+  # Deleting the group takes its releases with it, via the `on_delete:
+  # :delete_all` on `deployment_releases`. That is a bulk delete, so nothing
+  # cascades from it to the workflow steps hanging off each release, and
+  # `deployment_workflow_steps` references `deployment_releases` with no action
+  # of its own — which made a group with any workflow at all undeletable.
+  defp delete_workflow_steps(%DeploymentGroup{id: deployment_group_id}) do
+    release_ids =
+      DeploymentRelease
+      |> where([r], r.deployment_group_id == ^deployment_group_id)
+      |> select([r], r.id)
+
+    DeploymentWorkflowStep
+    |> where([s], s.deployment_release_id in subquery(release_ids))
+    |> Repo.delete_all()
+
+    :ok
   end
 
   @doc """
