@@ -14,13 +14,24 @@ defmodule NervesHubWeb.Endpoint do
     Application.get_env(:nerves_hub, __MODULE__)[:live_view][:signing_salt]
   end
 
+  @default_session_cookie_key "_nerves_hub_key"
+
+  # The session cookie's name, from SESSION_COOKIE_KEY. Two NervesHub instances
+  # on hosts under a shared parent domain need different names: a browser holding
+  # both cookies sends both, the server reads the first, and the one it cannot
+  # decrypt leaves the request with no session.
+  def session_cookie_key() do
+    Application.get_env(:nerves_hub, :session_cookie_key, @default_session_cookie_key)
+  end
+
   # Set SESSION_COOKIE_DOMAIN (e.g. ".example.com") to scope the session cookie
   # to a parent domain so it is shared with nerves_hub_mcp running on a sibling
-  # subdomain (SSO). Compile-time — set it before compiling.
+  # subdomain (SSO). Read per request by runtime_session/2, so this and
+  # SESSION_COOKIE_KEY both take effect at boot without recompiling.
   def session_options() do
     [
       store: :cookie,
-      key: "_nerves_hub_key",
+      key: session_cookie_key(),
       signing_salt: {__MODULE__, :fetch_signing_salt, []}
     ] ++
       case Application.get_env(:nerves_hub, :session_cookie_domain) do

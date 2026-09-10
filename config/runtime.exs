@@ -28,6 +28,13 @@ if domain = System.get_env("SESSION_COOKIE_DOMAIN") do
   config :nerves_hub, session_cookie_domain: domain
 end
 
+# The session cookie's name. Set it when this instance shares a parent domain
+# with another NervesHub that scopes its cookie to that parent: otherwise both
+# cookies share a name, and whichever the browser sends first wins.
+if key = System.get_env("SESSION_COOKIE_KEY") do
+  config :nerves_hub, session_cookie_key: key
+end
+
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
   batch_interval: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_INTERVAL", "4000")),
