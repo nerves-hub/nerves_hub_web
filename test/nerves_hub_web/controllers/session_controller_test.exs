@@ -9,6 +9,47 @@ defmodule NervesHubWeb.SessionControllerTest do
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
+  describe "already signed in" do
+    test "visiting the login page redirects to the signed in landing page", %{conn: conn} do
+      conn
+      |> visit(~p"/login")
+      |> assert_path(~p"/orgs")
+    end
+
+    test "visiting the registration page redirects to the signed in landing page", %{conn: conn} do
+      Application.put_env(:nerves_hub, :open_for_registrations, true)
+
+      conn
+      |> visit(~p"/register")
+      |> assert_path(~p"/orgs")
+    end
+
+    test "confirming an account still works, since a session says nothing about being confirmed" do
+      Application.put_env(:nerves_hub, :open_for_registrations, true)
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          name: "Sgt Pepper",
+          email: "confirm-while-signed-in@geocities.com",
+          password: "JohnRingoPaulGeorge"
+        })
+
+      {encoded_token, user_token} = UserToken.build_hashed_token(user, "confirm", nil)
+      Repo.insert!(user_token)
+
+      # signed in as somebody else entirely
+      someone_else = Fixtures.user_fixture()
+      session_token = Accounts.create_user_session_token(someone_else)
+
+      build_conn()
+      |> init_test_session(%{"user_token" => session_token})
+      |> visit(~p"/confirm/#{encoded_token}")
+      |> assert_path(~p"/orgs")
+
+      assert Repo.reload(user).confirmed_at
+    end
+  end
+
   describe "confirm account" do
     test "and log in user" do
       Application.put_env(:nerves_hub, :open_for_registrations, true)

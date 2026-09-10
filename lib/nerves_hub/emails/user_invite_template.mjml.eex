@@ -9,12 +9,22 @@
         <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">You've been invited to join the <strong><%= @org_name %></strong> organization on <strong><%= @platform_name %></strong> by <strong><%= @invited_by_name %></strong>.</mj-text>
 
         <mj-text font-size="20px" font-family="sans-serif" padding-left="25px" padding-right="25px" padding-top="20px">
-          Please click the button below to setup your account.
+          <%= if @has_account do %>
+            Please click the button below to accept the invitation. You'll be asked to sign in first.
+          <% else %>
+            Please click the button below to setup your account and accept the invitation.
+          <% end %>
         </mj-text>
 
         <mj-button align="left" padding-top="20px" inner-padding="8px 10px 5px 10px" href="<%= @invite_url %>" font-size="18px" background-color="#6366f1" border-radius="4px" color="#fafafa" font-family="sans-serif">
-          Create an account with <%= @platform_name %>
+          <%= if @has_account do %>
+            Accept the invitation
+          <% else %>
+            Create an account with <%= @platform_name %>
+          <% end %>
         </mj-button>
+
+        <mj-text font-size="16px" font-family="sans-serif" padding-top="20px">This invitation expires in 48 hours. If you weren't expecting it, you can ignore this email or decline the invitation from the link above.</mj-text>
       </mj-column>
     </mj-section>
 
