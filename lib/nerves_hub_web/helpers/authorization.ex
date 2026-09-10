@@ -18,6 +18,7 @@ defmodule NervesHubWeb.Helpers.Authorization do
 
   def authorized?(:"org_user:invite", role), do: role_check(:admin, role)
   def authorized?(:"org_user:invite:rescind", role), do: role_check(:admin, role)
+  def authorized?(:"org_user:invite:resend", role), do: role_check(:admin, role)
 
   # Registering a key nobody has proven is a privileged act: it decides which
   # organisation that key answers for, and a key belonging to someone else would

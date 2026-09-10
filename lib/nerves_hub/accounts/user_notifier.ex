@@ -18,7 +18,6 @@ defmodule NervesHub.Accounts.UserNotifier do
   alias NervesHub.Accounts.User
   alias NervesHub.Emails.ConfirmationTemplate
   alias NervesHub.Emails.LoginWithGoogleReminderTemplate
-  alias NervesHub.Emails.OrgUserAddedTemplate
   alias NervesHub.Emails.PasswordResetConfirmationTemplate
   alias NervesHub.Emails.PasswordResetTemplate
   alias NervesHub.Emails.PasswordUpdatedTemplate
@@ -61,22 +60,19 @@ defmodule NervesHub.Accounts.UserNotifier do
     Oban.insert(job("welcome", user, %{user_name: user.name}))
   end
 
-  def deliver_user_invite(email, org, invited_by, invite_url) do
+  @doc """
+  Emails an invitee the link they use to accept an org invitation.
+
+  `has_account?` tells the invitee whether they'll be signing in or registering
+  when they follow the link.
+  """
+  def deliver_user_invite(email, org, invited_by, invite_url, has_account?) do
     Oban.insert(
       job("user_invite", email, %{
         org_name: org.name,
         invited_by_name: invited_by.name,
-        invite_url: invite_url
-      })
-    )
-  end
-
-  def deliver_org_user_added(org, invited_by, user) do
-    Oban.insert(
-      job("org_user_added", user, %{
-        user_name: user.name,
-        invited_by_name: invited_by.name,
-        org_name: org.name
+        invite_url: invite_url,
+        has_account: has_account?
       })
     )
   end
@@ -207,7 +203,6 @@ defmodule NervesHub.Accounts.UserNotifier do
 
   defp template_module("confirmation"), do: ConfirmationTemplate
   defp template_module("login_with_google_reminder"), do: LoginWithGoogleReminderTemplate
-  defp template_module("org_user_added"), do: OrgUserAddedTemplate
   defp template_module("password_reset"), do: PasswordResetTemplate
   defp template_module("password_reset_confirmation"), do: PasswordResetConfirmationTemplate
   defp template_module("password_updated"), do: PasswordUpdatedTemplate
@@ -221,9 +216,6 @@ defmodule NervesHub.Accounts.UserNotifier do
   defp subject_for("confirmation", _assigns), do: "#{platform_name()}: Confirm your account"
 
   defp subject_for("login_with_google_reminder", _assigns), do: "#{platform_name()}: Login with Google"
-
-  defp subject_for("org_user_added", %{org_name: org_name}),
-    do: "#{platform_name()}: You have been added to #{org_name}"
 
   defp subject_for("password_reset", _assigns), do: "#{platform_name()}: Reset your password"
 

@@ -130,7 +130,18 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       assert_email_sent(subject: "NervesHub: You have been invited to join Jeff")
     end
 
-    test "adds user if they are already registered", %{conn: conn, org: org, user: user} do
+    test "the pending invite lists the role and who sent it", %{conn: conn, org: org, user: user} do
+      {:ok, _} = Accounts.invite(%{"email" => "josh@mrjosh.com", "role" => "manage"}, org, user)
+
+      conn
+      |> visit("/org/#{org.name}/settings/users")
+      |> assert_has("h2", text: "Outstanding Invites")
+      |> assert_has("td", text: "josh@mrjosh.com")
+      |> assert_has("td", text: "manage")
+      |> assert_has("td", text: user.name)
+    end
+
+    test "invites, rather than adds, a user who is already registered", %{conn: conn, org: org} do
       josh_again = Fixtures.user_fixture(%{name: "Josh Again"})
 
       conn
@@ -139,22 +150,99 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> fill_in("Email", with: josh_again.email)
       |> click_button("Send Invitation")
       |> assert_path("/org/#{org.name}/settings/users")
-      |> assert_has("div", text: "User has been added to #{org.name}")
-      |> refute_has("h1", text: "Outstanding Invites")
+      |> assert_has("div", text: "User has been invited")
+      |> assert_has("h2", text: "Outstanding Invites")
       |> assert_has("td", text: josh_again.email)
+
+      # they are not a member until they accept
+      assert Accounts.get_org_user(org, josh_again) == {:error, :not_found}
 
       send_queued_emails()
 
-      # don't send email to admin who added the user
-      tell_org_subject = "NervesHub: Josh Again has been added to #{org.name}"
-      refute_email_sent(subject: ^tell_org_subject)
+      assert_email_sent(subject: "NervesHub: You have been invited to join Jeff")
+    end
 
-      # the "you're in" email goes to the added user, and names the admin who added them
-      assert_email_sent(fn email ->
-        assert email.subject == "NervesHub: You have been added to #{org.name}"
-        assert email.to == [{"", josh_again.email}]
-        assert email.html_body =~ "organization by <strong>#{user.name}</strong>"
-      end)
+    test "displays an error when the invitee already has a pending invite", %{
+      conn: conn,
+      org: org,
+      user: user
+    } do
+      {:ok, _} = Accounts.invite(%{"email" => "josh@mrjosh.com", "role" => "view"}, org, user)
+
+      conn
+      |> visit("/org/#{org.name}/settings/users/invite")
+      |> fill_in("Email", with: "josh@mrjosh.com")
+      |> click_button("Send Invitation")
+      |> assert_path("/org/#{org.name}/settings/users/invite")
+      |> assert_has("span", text: "has already been invited to this organization")
+
+      send_queued_emails()
+
+      refute_email_sent()
+    end
+
+    test "an admin can copy the invite link and resend the invite", %{conn: conn, org: org, user: user} do
+      {:ok, invite} = Accounts.invite(%{"email" => "josh@mrjosh.com", "role" => "view"}, org, user)
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/settings/users")
+        |> assert_has("h2", text: "Outstanding Invites")
+        # the link rides on the copy button rather than being printed in the page
+        |> refute_has("code", text: invite.token)
+        |> assert_has("button[data-copy-value$='/invite/#{invite.token}']", text: "Copy invite link")
+
+      session
+      |> click_button("Resend invite")
+      |> assert_has("div", text: "Invite resent to josh@mrjosh.com")
+
+      # resending rotates the token, so the link that leaked stops working
+      resent = Repo.reload(invite)
+      refute resent.token == invite.token
+      assert Accounts.get_valid_invite(invite.token) == {:error, :invite_not_found}
+      assert {:ok, _} = Accounts.get_valid_invite(resent.token)
+
+      send_queued_emails()
+
+      assert_email_sent(subject: "NervesHub: You have been invited to join #{org.name}")
+    end
+
+    test "resending puts an expired invite back in play", %{org: org, user: user} do
+      {:ok, invite} = Accounts.invite(%{"email" => "josh@mrjosh.com", "role" => "view"}, org, user)
+
+      three_days_ago = NaiveDateTime.add(NaiveDateTime.utc_now(:second), -3, :day)
+
+      {1, _} =
+        Accounts.Invite
+        |> where([i], i.id == ^invite.id)
+        |> Repo.update_all(set: [inserted_at: three_days_ago, updated_at: three_days_ago])
+
+      assert Accounts.get_valid_invite(invite.token) == {:error, :invite_not_found}
+
+      {:ok, resent} = Accounts.resend_invite(org, invite.token)
+
+      assert {:ok, _} = Accounts.get_valid_invite(resent.token)
+    end
+
+    test "a non admin gets disabled invite actions and never sees the token", %{org: org, user: user} do
+      {:ok, invite} = Accounts.invite(%{"email" => "josh@mrjosh.com", "role" => "view"}, org, user)
+
+      viewer = Fixtures.user_fixture(%{name: "Nosy Parker"})
+      {:ok, _} = Accounts.add_org_user(org, viewer, %{role: :view})
+      token = Accounts.create_user_session_token(viewer)
+
+      build_conn()
+      |> init_test_session(%{"user_token" => token})
+      |> visit("/org/#{org.name}/settings/users")
+      |> assert_has("h2", text: "Outstanding Invites")
+      |> assert_has("button[disabled]", text: "Copy invite link")
+      |> assert_has("button[disabled]", text: "Resend invite")
+      |> assert_has("button[disabled]", text: "Rescind")
+      # the invite token is the credential, and it hides in attributes rather
+      # than in the text, so check the attributes that would carry it
+      |> refute_has("[data-copy-value]")
+      |> refute_has("[phx-value-invite_token]")
+      |> refute_has("body", text: invite.token)
     end
 
     test "rescind unaccepted invite", %{conn: conn, org: org, user: user} do
@@ -180,9 +268,33 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> click_button("Send Invitation")
       |> assert_path("/org/#{org.name}/settings/users/invite")
       |> assert_has("p", text: "Something went wrong, please check the errors below.")
-      |> assert_has("span", text: "is already member")
+      |> assert_has("span", text: "is already a member of this organization")
 
       send_queued_emails()
+
+      refute_email_sent()
+    end
+
+    test "displays an error if you rescind an invite after it was declined", %{
+      conn: conn,
+      org: org,
+      user: user
+    } do
+      {:ok, invite} =
+        Accounts.invite(%{"email" => "josh@mrjosh.com", "role" => "view"}, org, user)
+
+      conn =
+        conn
+        |> visit("/org/#{org.name}/settings/users")
+        |> assert_has("td", text: "josh@mrjosh.com")
+
+      # the invitee declines while the admin still has the page open
+      {:ok, _} = Accounts.decline_invite(invite)
+
+      conn
+      |> click_button("Rescind")
+      |> refute_has("td", text: "josh@mrjosh.com")
+      |> assert_has("div", text: "Invite couldn't be rescinded as it has already been declined.")
 
       refute_email_sent()
     end
@@ -208,7 +320,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       conn
       |> click_button("Rescind")
       |> refute_has("td", text: "josh@mrjosh.com")
-      |> assert_has("div", text: "Invite couldn't be rescinded as the invite has been accepted.")
+      |> assert_has("div", text: "Invite couldn't be rescinded as it has already been accepted.")
 
       send_queued_emails()
 
