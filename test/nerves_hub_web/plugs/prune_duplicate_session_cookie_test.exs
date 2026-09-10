@@ -49,6 +49,38 @@ defmodule NervesHubWeb.Plugs.PruneDuplicateSessionCookieTest do
     end
   end
 
+  describe "with a custom :session_cookie_key" do
+    setup do
+      previous_domain = Application.get_env(:nerves_hub, :session_cookie_domain)
+      previous_key = Application.get_env(:nerves_hub, :session_cookie_key)
+      Application.put_env(:nerves_hub, :session_cookie_domain, ".example.com")
+      Application.put_env(:nerves_hub, :session_cookie_key, "_custom_key")
+
+      on_exit(fn ->
+        restore(:session_cookie_domain, previous_domain)
+        restore(:session_cookie_key, previous_key)
+      end)
+    end
+
+    test "prunes duplicates of the configured name" do
+      conn = with_cookie("_custom_key=aaa; _custom_key=bbb")
+
+      assert [set_cookie] = set_cookies(conn)
+      assert set_cookie =~ "_custom_key=;"
+      refute set_cookie =~ @cookie
+    end
+
+    test "leaves a same-named cookie from another instance alone" do
+      # The browser sends another NervesHub's parent-domain cookie alongside ours.
+      # It has a different name here, so it is not a duplicate of our session and
+      # must not be deleted.
+      assert set_cookies(with_cookie("#{@cookie}=theirs; _custom_key=ours")) == []
+    end
+  end
+
+  defp restore(key, nil), do: Application.delete_env(:nerves_hub, key)
+  defp restore(key, value), do: Application.put_env(:nerves_hub, key, value)
+
   test "does nothing when :session_cookie_domain is not configured" do
     previous = Application.get_env(:nerves_hub, :session_cookie_domain)
     Application.delete_env(:nerves_hub, :session_cookie_domain)

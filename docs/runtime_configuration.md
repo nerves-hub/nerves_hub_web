@@ -223,6 +223,7 @@ sent. The addresses and names below are read in every environment.
 | `GOOGLE_CLIENT_ID` | — | Setting it enables "Sign in with Google". |
 | `GOOGLE_CLIENT_SECRET` | — | OAuth client secret. |
 | `SESSION_COOKIE_DOMAIN` | — | Scopes the session cookie to a parent domain, e.g. `.example.com`, so a sibling subdomain can read it. Used for shared-session SSO between apps. |
+| `SESSION_COOKIE_KEY` | `_nerves_hub_key` | Name of the session cookie. Set it when another NervesHub on a sibling host scopes its cookie to a shared parent domain: the browser sends both, the server reads the first, and forms fail CSRF with a 403 whenever it picks the other instance's. |
 | `LOGIN_RETURN_URLS_ALLOWED_LIST` | — | Comma-separated URLs that login is allowed to return to. Anything not listed is refused. |
 
 ## Device data retention and housekeeping
