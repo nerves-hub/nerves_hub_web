@@ -282,7 +282,7 @@ defmodule NervesHub.AccountsTest do
     org = Fixtures.org_fixture(user)
 
     {:ok, %Invite{} = invite} =
-      Accounts.add_or_invite_to_org(
+      Accounts.invite(
         %{"email" => "accepted_invite@test.org", "role" => "view"},
         org,
         user
@@ -299,7 +299,7 @@ defmodule NervesHub.AccountsTest do
     org = Fixtures.org_fixture(user)
 
     {:ok, %Invite{} = invite} =
-      Accounts.add_or_invite_to_org(
+      Accounts.invite(
         %{"email" => "failed_accepted_invite@test.org", "role" => "view"},
         org,
         user
@@ -310,21 +310,110 @@ defmodule NervesHub.AccountsTest do
     assert "can't be blank" in errors_on(changeset).name
   end
 
-  test "invite existing user", %{user: user} do
-    org = Fixtures.org_fixture(user)
-    new_user = Fixtures.user_fixture()
+  describe "org invitations" do
+    test "an existing user is invited rather than added", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      new_user = Fixtures.user_fixture()
 
-    assert {:ok, %OrgUser{}} =
-             Accounts.add_or_invite_to_org(
-               %{"email" => new_user.email, "role" => "view"},
-               org,
-               user
-             )
+      assert {:ok, %Invite{} = invite} =
+               Accounts.invite(%{"email" => new_user.email, "role" => "view"}, org, user)
 
-    {:error, changeset} =
-      Accounts.add_or_invite_to_org(%{"email" => new_user.email, "role" => "view"}, org, user)
+      assert Accounts.get_org_user(org, new_user) == {:error, :not_found}
 
-    assert "is already member" in errors_on(changeset).org_users
+      assert {:ok, %OrgUser{role: :view}} = Accounts.accept_invite(invite, new_user)
+      assert {:ok, %OrgUser{}} = Accounts.get_org_user(org, new_user)
+
+      assert Repo.reload(invite).accepted
+    end
+
+    test "an invite can only be accepted by the user it was sent to", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      someone_else = Fixtures.user_fixture()
+
+      {:ok, invite} =
+        Accounts.invite(%{"email" => "invited@test.org", "role" => "view"}, org, user)
+
+      assert Accounts.accept_invite(invite, someone_else) == {:error, :email_mismatch}
+      assert Accounts.get_org_user(org, someone_else) == {:error, :not_found}
+    end
+
+    test "a declined invite is no longer valid or outstanding", %{user: user} do
+      org = Fixtures.org_fixture(user)
+
+      {:ok, invite} =
+        Accounts.invite(%{"email" => "declined@test.org", "role" => "view"}, org, user)
+
+      assert {:ok, _} = Accounts.get_valid_invite(invite.token)
+
+      assert {:ok, declined} = Accounts.decline_invite(invite)
+      assert declined.declined_at
+
+      assert Accounts.get_valid_invite(invite.token) == {:error, :invite_not_found}
+      assert Accounts.get_invites_for_org(org) == []
+    end
+
+    test "a member of the org cannot be invited again", %{user: user} do
+      org = Fixtures.org_fixture(user)
+
+      {:error, changeset} =
+        Accounts.invite(%{"email" => user.email, "role" => "view"}, org, user)
+
+      assert "is already a member of this organization" in errors_on(changeset).email
+    end
+
+    test "an invitee with a pending invite cannot be invited again", %{user: user} do
+      org = Fixtures.org_fixture(user)
+
+      {:ok, _} = Accounts.invite(%{"email" => "invited@test.org", "role" => "view"}, org, user)
+
+      {:error, changeset} =
+        Accounts.invite(%{"email" => "invited@test.org", "role" => "manage"}, org, user)
+
+      assert "has already been invited to this organization" in errors_on(changeset).email
+    end
+
+    test "the pending invite check ignores the case of the email", %{user: user} do
+      org = Fixtures.org_fixture(user)
+
+      {:ok, _} = Accounts.invite(%{"email" => "Josh@Example.com", "role" => "view"}, org, user)
+
+      {:error, changeset} =
+        Accounts.invite(%{"email" => "josh@example.com", "role" => "view"}, org, user)
+
+      assert "has already been invited to this organization" in errors_on(changeset).email
+      assert length(Accounts.get_invites_for_org(org)) == 1
+    end
+
+    test "rescinding and resending tell an accepted invite from a declined one", %{user: user} do
+      org = Fixtures.org_fixture(user)
+
+      {:ok, accepted} = Accounts.invite(%{"email" => "accepted@test.org", "role" => "view"}, org, user)
+      {:ok, declined} = Accounts.invite(%{"email" => "declined@test.org", "role" => "view"}, org, user)
+
+      invitee = Fixtures.user_fixture(%{email: "accepted@test.org"})
+      {:ok, _org_user} = Accounts.accept_invite(accepted, invitee)
+      {:ok, _} = Accounts.decline_invite(declined)
+
+      assert Accounts.delete_invite(org, accepted.token) == {:error, :accepted}
+      assert Accounts.delete_invite(org, declined.token) == {:error, :declined}
+      assert Accounts.delete_invite(org, Ecto.UUID.generate()) == {:error, :not_found}
+
+      assert Accounts.resend_invite(org, accepted.token) == {:error, :accepted}
+      assert Accounts.resend_invite(org, declined.token) == {:error, :declined}
+      assert Accounts.resend_invite(org, Ecto.UUID.generate()) == {:error, :not_found}
+    end
+
+    test "an invitee can be re-invited once a previous invite was declined", %{user: user} do
+      org = Fixtures.org_fixture(user)
+
+      {:ok, invite} =
+        Accounts.invite(%{"email" => "invited@test.org", "role" => "view"}, org, user)
+
+      {:ok, _} = Accounts.decline_invite(invite)
+
+      assert {:ok, %Invite{}} =
+               Accounts.invite(%{"email" => "invited@test.org", "role" => "view"}, org, user)
+    end
   end
 
   test "can create a valid base 62 encoded user token", %{user: user} do

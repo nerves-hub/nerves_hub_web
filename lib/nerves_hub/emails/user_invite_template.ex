@@ -10,9 +10,12 @@ defmodule NervesHub.Emails.UserInviteTemplate do
 
     You've been invited to join the {@org_name} organization on {@platform_name} by {@invited_by_name}.
 
-    To get started, click on the link below to register your account:
+    <%= if @has_account do %>To accept the invitation, click on the link below and sign in:<% else %>To accept the invitation, click on the link below to register your account:<% end %>
 
     {@invite_url}
+
+    This invitation expires in 48 hours. If you weren't expecting it, you can ignore this email
+    or decline the invitation from the link above.
 
     <ClosingBlock.text_support_section />
     """noformat

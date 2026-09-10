@@ -324,6 +324,24 @@ defmodule NervesHubWeb.CoreComponents do
     """
   end
 
+  def button(%{type: "link", style: "primary"} = assigns) do
+    ~H"""
+    <.link
+      class={[
+        "phx-submit-loading:opacity-75 flex items-center justify-center gap-2 rounded px-3 py-1.5",
+        "focus-visible:outline-focus-ring focus-visible:outline-2 focus-visible:outline-offset-2",
+        "active:bg-primary-active bg-primary hover:bg-primary-hover",
+        "stroke-primary-content text-primary-content text-sm font-medium",
+        "light:active:bg-indigo-700 light:bg-indigo-600 light:hover:bg-indigo-500",
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </.link>
+    """
+  end
+
   def button(%{type: "link", style: "danger"} = assigns) do
     ~H"""
     <.link

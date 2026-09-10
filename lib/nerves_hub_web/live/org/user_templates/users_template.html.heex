@@ -7,41 +7,68 @@
     </.button>
   </:header>
 
-  <%= if !Enum.empty?(@invites) do %>
-    <h2 class="text-base-50 px-4 py-2 text-base font-semibold">Outstanding Invites</h2>
-    <div class="listing">
-      <table>
-        <thead>
-          <tr>
-            <th>Email</th>
-            <th>Invite Link</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <%= for invite <- @invites do %>
-            <tr class="border-base-800 isolate border-b">
-              <td class="text-base-400">{invite.email}</td>
-              <td class="text-base-400">
-                <code class="bg-base-900 text-base-400 rounded px-2 py-1 text-xs">{Routes.account_url(@socket, :invite, invite.token)}</code>
-              </td>
-              <td :if={authorized?(:"org_user:invite:rescind", @current_scope)} class="text-base-400">
-                <button
-                  class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-3 py-1.5 text-sm font-medium"
+  <h2 :if={Enum.any?(@invites)} class="text-base-50 px-4 py-2 text-base font-semibold">Outstanding Invites</h2>
+  <div :if={Enum.any?(@invites)} class="listing grow-0! pb-10">
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Invited by</th>
+          <th class="w-px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <%= for invite <- @invites do %>
+          <tr class="border-base-800 isolate border-b">
+            <td class="text-base-400">{invite.email}</td>
+            <td class="text-base-400 capitalize">{invite.role}</td>
+            <td class="text-base-400">{invited_by_name(invite)}</td>
+            <td class="w-px text-right whitespace-nowrap">
+              <div class="flex justify-end gap-2">
+                <.button
+                  id={"copy-invite-#{invite.id}"}
+                  style="secondary"
+                  type="button"
+                  phx-hook="CopyToClipboard"
+                  data-copy-value={authorized?(:"org_user:invite:resend", @current_scope) && invite_url(invite)}
+                  disabled={!authorized?(:"org_user:invite:resend", @current_scope)}
+                  title={invite_action_title(authorized?(:"org_user:invite:resend", @current_scope), "Copy the invite link")}
+                >
+                  <span data-icon="copy" class="lucide-copy--light size-4"></span>
+                  <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span> Copy invite link
+                </.button>
+                <.button
+                  style="secondary"
+                  type="button"
+                  phx-click="resend_invite"
+                  phx-value-invite_token={authorized?(:"org_user:invite:resend", @current_scope) && invite.token}
+                  disabled={!authorized?(:"org_user:invite:resend", @current_scope)}
+                  title={invite_action_title(authorized?(:"org_user:invite:resend", @current_scope), "Send the invitation email again")}
+                  data-confirm={"Resend the invitation to #{invite.email}? This sends a new link and stops the previous one working."}
+                >
+                  <span class="lucide-mail--light size-4"></span> Resend invite
+                </.button>
+                <.button
+                  style="danger"
+                  type="button"
                   phx-click="rescind_invite"
-                  phx-value-invite_token={invite.token}
+                  phx-value-invite_token={authorized?(:"org_user:invite:rescind", @current_scope) && invite.token}
+                  disabled={!authorized?(:"org_user:invite:rescind", @current_scope)}
+                  title={invite_action_title(authorized?(:"org_user:invite:rescind", @current_scope), "Withdraw the invitation")}
                   data-confirm="Are you sure you want to rescind the invite?"
                 >
                   Rescind
-                </button>
-              </td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  <% end %>
+                </.button>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
 
+  <h2 :if={Enum.any?(@invites)} class="text-base-50 px-4 py-2 text-base font-semibold">Active Memberships</h2>
   <div class="listing">
     <table>
       <thead>
