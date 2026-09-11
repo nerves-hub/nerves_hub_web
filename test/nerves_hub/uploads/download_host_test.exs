@@ -4,6 +4,7 @@ defmodule NervesHub.Uploads.DownloadHostTest do
 
   alias NervesHub.Firmwares.Upload.S3, as: FirmwareUpload
   alias NervesHub.Uploads.DownloadHost
+  alias NervesHub.Uploads.S3
 
   @bucket "mybucket"
   @key "firmware/1/abcdef.fw"
@@ -19,6 +20,8 @@ defmodule NervesHub.Uploads.DownloadHostTest do
     )
 
     Application.put_env(:nerves_hub, FirmwareUpload, bucket: @bucket, presigned_url_opts: [])
+    # Archives go through NervesHub.Uploads.S3, which keeps its own bucket key.
+    Application.put_env(:nerves_hub, S3, bucket: @bucket)
 
     if host = context[:download_host] do
       Application.put_env(:nerves_hub, :s3_download_host, host)
@@ -27,6 +30,7 @@ defmodule NervesHub.Uploads.DownloadHostTest do
     on_exit(fn ->
       Application.delete_env(:ex_aws, :s3)
       Application.delete_env(:nerves_hub, FirmwareUpload)
+      Application.delete_env(:nerves_hub, S3)
       Application.delete_env(:nerves_hub, :s3_download_host)
     end)
 
@@ -43,9 +47,34 @@ defmodule NervesHub.Uploads.DownloadHostTest do
       assert DownloadHost.presign_opts(expires_in: 60) == [expires_in: 60]
     end
 
-    test "download_file/1 serves from the bucket's own endpoint" do
+    test "download_file/1 is byte-identical to presigning without any of this" do
       {:ok, url} = FirmwareUpload.download_file(firmware())
+
+      assert url == presigned_as_before(url, [])
       assert URI.parse(url).host == "s3.fr-par.scw.cloud"
+    end
+
+    test "download_file/1 is unchanged under S3_BUCKET_AS_HOST too" do
+      # The shape a Tigris custom domain uses: the bucket IS the hostname.
+      opts = [virtual_host: true, bucket_as_host: true]
+      Application.put_env(:nerves_hub, FirmwareUpload, bucket: @bucket, presigned_url_opts: opts)
+
+      {:ok, url} = FirmwareUpload.download_file(firmware())
+
+      assert url == presigned_as_before(url, opts)
+      assert URI.parse(url).host == @bucket
+    end
+
+    test "archive URLs are byte-identical too" do
+      url = S3.url(@key, signed: [expires_in: 3600])
+
+      {:ok, expected} =
+        ExAws.S3.presigned_url(ExAws.Config.new(:s3), :get, @bucket, @key,
+          expires_in: 3600,
+          start_datetime: signed_at(URI.parse(url))
+        )
+
+      assert url == expected
     end
   end
 
@@ -78,6 +107,13 @@ defmodule NervesHub.Uploads.DownloadHostTest do
       assert uri.path == "/#{@key}"
     end
 
+    test "archive URLs get the same treatment" do
+      uri = URI.parse(S3.url(@key, signed: [expires_in: 3600]))
+
+      assert uri.host == "firmware.example.com"
+      assert uri.path == "/#{@key}"
+    end
+
     test "download_file/1 signs for the bucket, not for our host" do
       {:ok, url} = FirmwareUpload.download_file(firmware())
       uri = URI.parse(url)
@@ -101,6 +137,19 @@ defmodule NervesHub.Uploads.DownloadHostTest do
   end
 
   defp firmware(), do: %{upload_metadata: %{"s3_key" => @key}}
+
+  # Rebuilds the URL the way the code did before S3_DOWNLOAD_HOST existed, at the
+  # moment the given URL was signed, so the two can be compared exactly.
+  defp presigned_as_before(url, presigned_url_opts) do
+    opts =
+      Keyword.merge(presigned_url_opts,
+        expires_in: @validity,
+        start_datetime: signed_at(URI.parse(url))
+      )
+
+    {:ok, expected} = ExAws.S3.presigned_url(ExAws.Config.new(:s3), :get, @bucket, @key, opts)
+    expected
+  end
 
   # "20260101T000000Z" -> ~N[2026-01-01 00:00:00]
   defp signed_at(uri) do
