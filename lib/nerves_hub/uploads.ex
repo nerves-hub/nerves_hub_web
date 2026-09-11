@@ -23,6 +23,62 @@ defmodule NervesHub.Uploads do
   end
 end
 
+defmodule NervesHub.Uploads.DownloadHost do
+  @moduledoc """
+  Serves presigned download URLs from a hostname other than the bucket's.
+
+  A CDN or proxy in front of the bucket gives downloads a hostname you control
+  and a certificate you manage, but it cannot re-sign the request. It forwards
+  the presigned query string and addresses the bucket itself, so the signature
+  has to match what the *bucket* receives rather than what the client dialled.
+
+  So a URL is signed for the bucket's virtual-hosted endpoint, which is the form
+  those proxies send upstream, and only then has its host replaced. Signing for
+  the public hostname instead fails with `SignatureDoesNotMatch`.
+
+  With `S3_DOWNLOAD_HOST` unset, nothing here changes a URL.
+  """
+
+  @doc """
+  The configured public hostname, or `nil` when downloads come straight from the
+  bucket.
+  """
+  @spec host() :: String.t() | nil
+  def host(), do: Application.get_env(:nerves_hub, :s3_download_host)
+
+  @doc """
+  Presign options that put the bucket in the host rather than the path.
+
+  Left alone when no download host is configured, so a deployment without one
+  keeps whichever addressing style it already uses.
+  """
+  @spec presign_opts(keyword()) :: keyword()
+  def presign_opts(opts) do
+    case host() do
+      nil -> opts
+      _host -> Keyword.put(opts, :virtual_host, true)
+    end
+  end
+
+  @doc """
+  Swaps the bucket's hostname for the public one, leaving the path and the query
+  (and therefore the signature) untouched.
+  """
+  @spec rewrite(String.t()) :: String.t()
+  def rewrite(url) do
+    case host() do
+      nil ->
+        url
+
+      host ->
+        url
+        |> URI.parse()
+        |> Map.merge(%{scheme: "https", host: host, port: 443, authority: nil, userinfo: nil})
+        |> URI.to_string()
+    end
+  end
+end
+
 defmodule NervesHub.Uploads.File do
   @behaviour NervesHub.Uploads
 
@@ -76,6 +132,7 @@ defmodule NervesHub.Uploads.S3 do
   @behaviour NervesHub.Uploads
 
   alias ExAws.S3
+  alias NervesHub.Uploads.DownloadHost
 
   @upload_timeout to_timeout(minute: 1)
 
@@ -113,8 +170,9 @@ defmodule NervesHub.Uploads.S3 do
     case Keyword.has_key?(opts, :signed) do
       true ->
         config = ExAws.Config.new(:s3)
-        {:ok, url} = S3.presigned_url(config, :get, bucket(), key, opts[:signed])
-        url
+        signed_opts = DownloadHost.presign_opts(opts[:signed])
+        {:ok, url} = S3.presigned_url(config, :get, bucket(), key, signed_opts)
+        DownloadHost.rewrite(url)
 
       false ->
         "https://s3.amazonaws.com/#{bucket()}#{key}"
