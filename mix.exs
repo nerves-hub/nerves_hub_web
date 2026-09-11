@@ -161,7 +161,7 @@ defmodule NervesHub.MixProject do
       {:gettext, "~> 0.26.2"},
       {:group, "~> 0.2.0"},
       {:hackney, "~> 1.16"},
-      {:hammer, "~> 7.4.0"},
+      {:hammer, "~> 7.5.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},
       {:hlclock, "~> 1.0"},
       {:process_hub, "~> 0.7.0"},
