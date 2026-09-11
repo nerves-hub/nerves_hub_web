@@ -544,6 +544,24 @@ if config_env() == :prod do
         config :nerves_hub, S3, presigned_url_opts: []
       end
 
+      # Hand out download URLs on a hostname of our own, for a CDN or proxy in
+      # front of the bucket. Such a proxy forwards the presigned query string
+      # but addresses the bucket itself, so the URL is signed for the bucket and
+      # only then rewritten. See `NervesHub.Uploads.DownloadHost`.
+      if download_host = System.get_env("S3_DOWNLOAD_HOST") do
+        if System.get_env("S3_BUCKET_AS_HOST", "false") == "true" do
+          raise """
+          S3_DOWNLOAD_HOST and S3_BUCKET_AS_HOST cannot both be set.
+
+          S3_BUCKET_AS_HOST signs for the bucket name as the hostname, which is
+          not what a proxy in front of the bucket sends upstream, so every
+          download would fail with SignatureDoesNotMatch. Use one or the other.
+          """
+        end
+
+        config :nerves_hub, :s3_download_host, download_host
+      end
+
       config :ex_aws, :s3, bucket: System.fetch_env!("S3_BUCKET_NAME")
 
       if region = System.get_env("S3_REGION") do

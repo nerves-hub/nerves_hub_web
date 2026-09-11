@@ -195,6 +195,7 @@ environment.
 | `S3_REGION` | ex_aws default | Bucket region. |
 | `S3_HOST` | ex_aws default | Endpoint host, for S3-compatible services. |
 | `S3_BUCKET_AS_HOST` | `false` | Generate presigned URLs with the bucket as the host, for providers that address buckets that way. |
+| `S3_DOWNLOAD_HOST` | — | Hostname to hand out in presigned download URLs, for a CDN or proxy in front of the bucket. The URL is signed for the bucket's virtual-hosted endpoint and only then rewritten to this host, because such a proxy forwards the query string but addresses the bucket itself. Refuses to boot alongside `S3_BUCKET_AS_HOST`. |
 
 ## Email
 
