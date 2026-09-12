@@ -3,6 +3,7 @@ defmodule NervesHub.Firmwares.Upload.S3 do
 
   alias ExAws.S3
   alias NervesHub.Firmwares.Upload
+  alias NervesHub.Uploads.DownloadHost
 
   # Provide URLs to devices that are valid for a day
   @firmware_url_validity_time 60 * 60 * 24
@@ -25,13 +26,16 @@ defmodule NervesHub.Firmwares.Upload.S3 do
   def download_file(firmware) do
     s3_key = firmware.upload_metadata["s3_key"]
 
-    opts = Keyword.put(presigned_url_opts(), :expires_in, @firmware_url_validity_time)
+    opts =
+      presigned_url_opts()
+      |> Keyword.put(:expires_in, @firmware_url_validity_time)
+      |> DownloadHost.presign_opts()
 
     ExAws.Config.new(:s3)
     |> S3.presigned_url(:get, bucket(), s3_key, opts)
     |> case do
       {:ok, url} ->
-        {:ok, url}
+        {:ok, DownloadHost.rewrite(url)}
 
       error ->
         error

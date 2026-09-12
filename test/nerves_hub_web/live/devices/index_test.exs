@@ -1270,6 +1270,65 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("span", text: "moussaka", timeout: 1_000)
     end
 
+    test "adds tags to the selected devices", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("span", text: "beta-edge")
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => device.id})
+      end)
+      |> within("form#bulk-tag-input", fn session ->
+        session
+        |> select("Update tags", option: "Add tags")
+        |> fill_in("Tags", with: "moussaka")
+        |> submit()
+      end)
+      |> assert_has("div", text: "Tags added to all selected device(s).", timeout: 1_000)
+
+      assert Repo.reload(device).tags == ["beta", "beta-edge", "moussaka"]
+    end
+
+    test "removes tags from the selected devices", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("span", text: "beta-edge")
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => device.id})
+      end)
+      |> within("form#bulk-tag-input", fn session ->
+        session
+        |> select("Update tags", option: "Remove tags")
+        |> fill_in("Tags", with: "beta")
+        |> submit()
+      end)
+      |> assert_has("div", text: "Tags removed from all selected device(s).", timeout: 1_000)
+
+      assert Repo.reload(device).tags == ["beta-edge"]
+    end
+
+    test "keeps the typed tags when the operation changes", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => device.id})
+      end)
+      |> within("form#bulk-tag-input", fn session ->
+        session
+        |> fill_in("Tags", with: "moussaka")
+        |> select("Update tags", option: "Remove tags")
+      end)
+      |> assert_has("#input_set_tags[value='moussaka']")
+    end
+
     test "users with the :view role cannot change tags", %{conn: conn, fixture: fixture} do
       %{org: org, product: product, user: user} = fixture
 
@@ -1574,9 +1633,61 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         render_submit(view, "tag-devices", %{"tags" => "moussaka"})
       end)
       |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
-      |> assert_has("div", text: "All selected devices (26) tagged successfully.", timeout: 3_000)
+      |> assert_has("div", text: "Tags updated on all selected devices (26).", timeout: 3_000)
 
       assert Repo.reload(devices) |> Enum.all?(fn device -> device.tags == ["moussaka"] end)
+    end
+
+    test "adds tags", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, firmware: firmware} = fixture
+
+      Repo.delete_all(Device)
+
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
+      |> check("Select all devices", exact: false)
+      |> click_button("Select all")
+      |> assert_has("h4", "All devices selected")
+      |> within("form#bulk-tag-input", fn session ->
+        session
+        |> select("Update tags", option: "Add tags")
+        |> fill_in("Tags", with: "moussaka")
+        |> submit()
+      end)
+      |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
+      |> assert_has("div", text: "Tags added to all selected devices (26).", timeout: 3_000)
+
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.tags == ["beta", "beta-edge", "moussaka"] end)
+    end
+
+    test "removes tags", %{conn: conn, fixture: fixture} do
+      %{org: org, product: product, firmware: firmware} = fixture
+
+      Repo.delete_all(Device)
+
+      devices = Enum.map(1..26, fn _ -> Fixtures.device_fixture(org, product, firmware) end)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      |> assert_has("h1", text: "Devices", timeout: 1_000)
+      |> assert_has("#device-count", text: "26", timeout: 1_000)
+      |> check("Select all devices", exact: false)
+      |> click_button("Select all")
+      |> assert_has("h4", "All devices selected")
+      |> within("form#bulk-tag-input", fn session ->
+        session
+        |> select("Update tags", option: "Remove tags")
+        |> fill_in("Tags", with: "beta")
+        |> submit()
+      end)
+      |> assert_has("div", text: "Updating devices, please wait...", timeout: 1_000)
+      |> assert_has("div", text: "Tags removed from all selected devices (26).", timeout: 3_000)
+
+      assert Repo.reload(devices) |> Enum.all?(fn device -> device.tags == ["beta-edge"] end)
     end
 
     test "enables updates", %{conn: conn, fixture: fixture} do
