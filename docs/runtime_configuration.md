@@ -195,6 +195,7 @@ environment.
 | `S3_REGION` | ex_aws default | Bucket region. |
 | `S3_HOST` | ex_aws default | Endpoint host, for S3-compatible services. |
 | `S3_BUCKET_AS_HOST` | `false` | Generate presigned URLs with the bucket as the host, for providers that address buckets that way. |
+| `S3_DOWNLOAD_HOST` | — | Hostname to hand out in presigned download URLs, for a CDN or proxy in front of the bucket. The URL is signed for the bucket's virtual-hosted endpoint and only then rewritten to this host, because such a proxy forwards the query string but addresses the bucket itself. Refuses to boot alongside `S3_BUCKET_AS_HOST`. |
 
 ## Email
 
@@ -223,6 +224,7 @@ sent. The addresses and names below are read in every environment.
 | `GOOGLE_CLIENT_ID` | — | Setting it enables "Sign in with Google". |
 | `GOOGLE_CLIENT_SECRET` | — | OAuth client secret. |
 | `SESSION_COOKIE_DOMAIN` | — | Scopes the session cookie to a parent domain, e.g. `.example.com`, so a sibling subdomain can read it. Used for shared-session SSO between apps. |
+| `SESSION_COOKIE_KEY` | `_nerves_hub_key` | Name of the session cookie. Set it when another NervesHub on a sibling host scopes its cookie to a shared parent domain: the browser sends both, the server reads the first, and forms fail CSRF with a 403 whenever it picks the other instance's. |
 | `LOGIN_RETURN_URLS_ALLOWED_LIST` | — | Comma-separated URLs that login is allowed to return to. Anything not listed is refused. |
 
 ## Device data retention and housekeeping
