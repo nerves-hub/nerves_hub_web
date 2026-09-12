@@ -491,6 +491,18 @@ defmodule NervesHub.DevicesTest do
       assert "tags cannot contain spaces" in errors_on(changeset).tags
       assert Repo.reload(device).tags == ["beta", "beta-edge"]
     end
+
+    # `Ecto.Changeset.cast/4` resolves a nil before the Tag type sees it, so
+    # without the guard this would empty the device's tags instead of failing.
+    # Called through `apply/3` to keep it away from the type checker, which
+    # rejects the direct call outright. That rejection is the other half of what
+    # the guard buys us, and it is why the test cannot be written the plain way.
+    test "refuses tags that are neither a list nor a string", %{user: user, device: device} do
+      # credo:disable-for-next-line Credo.Check.Refactor.Apply
+      assert_raise FunctionClauseError, fn -> apply(Devices, :add_tags, [device, user, nil]) end
+
+      assert Repo.reload(device).tags == ["beta", "beta-edge"]
+    end
   end
 
   describe "remove_tags/3" do
@@ -518,6 +530,15 @@ defmodule NervesHub.DevicesTest do
 
       assert [audit_log] = AuditLogs.logs_for(device)
       assert audit_log.description == "User #{user.name} removed the tags beta from device #{device.identifier}"
+    end
+
+    # See `add_tags/3` for why a nil would otherwise strip every tag off the device.
+    test "refuses tags that are neither a list nor a string", %{user: user, device: device} do
+      # credo:disable-for-lines:2 Credo.Check.Refactor.Apply
+      assert_raise FunctionClauseError, fn -> apply(Devices, :remove_tags, [device, user, nil]) end
+      assert_raise FunctionClauseError, fn -> apply(Devices, :tag_device, [device, user, nil]) end
+
+      assert Repo.reload(device).tags == ["beta", "beta-edge"]
     end
   end
 

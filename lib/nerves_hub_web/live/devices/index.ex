@@ -337,7 +337,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
       with {:devices, devices} when is_list(devices) and devices != [] <-
              {:devices, Devices.get_devices_by_id(scope, selected_devices)},
-           result = apply(BulkActions, bulk_action, [devices, scope.user, tags]),
+           result = bulk_update_tags(bulk_action, devices, scope.user, tags),
            {:successful, true} <- {:successful, Enum.any?(result[:ok])},
            {:has_errors, false, _result} <- {:has_errors, Enum.any?(result[:error]), result} do
         socket
@@ -1021,6 +1021,20 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp tag_bulk_action("add"), do: :add_tags_to_devices
   defp tag_bulk_action("remove"), do: :remove_tags_from_devices
   defp tag_bulk_action("set"), do: :tag_devices
+
+  # Dispatched by hand rather than through `apply/3`, so the compiler sees the
+  # calls and a rename of one of them can't slip through.
+  defp bulk_update_tags(:tag_devices, devices, user, tags) do
+    BulkActions.tag_devices(devices, user, tags)
+  end
+
+  defp bulk_update_tags(:add_tags_to_devices, devices, user, tags) do
+    BulkActions.add_tags_to_devices(devices, user, tags)
+  end
+
+  defp bulk_update_tags(:remove_tags_from_devices, devices, user, tags) do
+    BulkActions.remove_tags_from_devices(devices, user, tags)
+  end
 
   # `{what was applied, what was attempted}`, so one set of messages covers
   # setting, adding and removing tags.

@@ -674,9 +674,9 @@ defmodule NervesHub.Devices do
     |> where([p], p.user_id not in subquery(users_in_org))
   end
 
-  @spec tag_device(Device.t() | [Device.t()], User.t(), list(String.t())) ::
+  @spec tag_device(Device.t() | [Device.t()], User.t(), list(String.t()) | String.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def tag_device(%Device{} = device, user, tags) do
+  def tag_device(%Device{} = device, user, tags) when is_list(tags) or is_binary(tags) do
     description = "User #{user.name} updated device #{device.identifier} tags"
     params = %{tags: tags}
     update_device_with_audit(device, params, user, description)
@@ -725,10 +725,14 @@ defmodule NervesHub.Devices do
   Tagging a fleet in bulk lands on devices with all sorts of existing tags, so a
   tag the device already carries is a no-op rather than an error, and a device
   that gains nothing is left untouched instead of writing an audit entry.
+
+  The guard is load-bearing: `Ecto.Changeset.cast/4` resolves a `nil` before it
+  reaches `NervesHub.Types.Tag`, so handing `nil` to the changeset would empty
+  the device's tags rather than fail.
   """
   @spec add_tags(Device.t(), User.t(), list(String.t()) | String.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def add_tags(%Device{} = device, user, tags) do
+  def add_tags(%Device{} = device, user, tags) when is_list(tags) or is_binary(tags) do
     current_tags = device.tags || []
 
     case cast_tags(tags) do
@@ -757,7 +761,7 @@ defmodule NervesHub.Devices do
   """
   @spec remove_tags(Device.t(), User.t(), list(String.t()) | String.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def remove_tags(%Device{} = device, user, tags) do
+  def remove_tags(%Device{} = device, user, tags) when is_list(tags) or is_binary(tags) do
     current_tags = device.tags || []
 
     case cast_tags(tags) do
