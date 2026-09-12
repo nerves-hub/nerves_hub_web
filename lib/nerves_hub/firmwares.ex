@@ -330,11 +330,24 @@ defmodule NervesHub.Firmwares do
   end
 
   defp get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid, opts \\ []) do
-    Firmware
-    |> with_product()
-    |> where([f], f.uuid == ^uuid)
-    |> where([f, p], p.id == ^product_id)
-    |> maybe_exclude_deleted(opts)
+    query =
+      Firmware
+      |> with_product()
+      |> where([f], f.uuid == ^uuid)
+      |> where([f, p], p.id == ^product_id)
+
+    if opts[:include_deleted] do
+      # `firmwares_product_id_uuid_index` covers live firmware only, so the same
+      # uuid can name both a live row and the deleted row whose place it took —
+      # deleting a build and uploading it again is the whole point of the index
+      # being partial. Prefer the live one, and fall back to the deleted row when
+      # that is all there is, so a uuid still resolves to exactly one firmware.
+      query
+      |> order_by([f], asc_nulls_first: f.deleted_at)
+      |> limit(1)
+    else
+      Repo.exclude_deleted(query)
+    end
   end
 
   defp maybe_exclude_deleted(query, opts) do

@@ -240,6 +240,68 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
+  describe "re-uploading a deleted firmware" do
+    test "the same uuid can be uploaded again once the firmware is deleted", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      path = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir})
+      firmware = Fixtures.firmware_fixture_from_file(org, path)
+
+      {:ok, _} = Firmwares.delete_firmware(firmware, user)
+
+      # The uuid belongs to the build, so the same file carries it back in. Only
+      # live firmware is covered by `firmwares_product_id_uuid_index`.
+      reuploaded = Fixtures.firmware_fixture_from_file(org, path)
+
+      assert reuploaded.uuid == firmware.uuid
+      refute reuploaded.id == firmware.id
+
+      # One uuid, two rows. Anything asking for history gets the live one...
+      assert {:ok, resolved} =
+               Firmwares.get_firmware_by_product_and_uuid(product, firmware.uuid, include_deleted: true)
+
+      assert resolved.id == reuploaded.id
+
+      # ...and the deleted row stays put, still holding device history.
+      assert Repo.reload(firmware).deleted_at
+    end
+
+    test "a live firmware's uuid still cannot be uploaded twice", %{
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      path = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir})
+      _firmware = Fixtures.firmware_fixture_from_file(org, path)
+
+      assert {:error, %Ecto.Changeset{errors: errors}} = Firmwares.create_firmware(org, path)
+      assert {"has already been taken", _} = errors[:uuid]
+    end
+
+    test "the deleted row is the fallback when nothing live carries the uuid", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      path = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir})
+      firmware = Fixtures.firmware_fixture_from_file(org, path)
+
+      {:ok, _} = Firmwares.delete_firmware(firmware, user)
+
+      assert {:ok, resolved} =
+               Firmwares.get_firmware_by_product_and_uuid(product, firmware.uuid, include_deleted: true)
+
+      assert resolved.id == firmware.id
+    end
+  end
+
   describe "deletion_warnings/1" do
     test "reports the deltas built from this firmware without blocking", %{
       user: user,
