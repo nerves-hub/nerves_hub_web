@@ -4,13 +4,15 @@ defmodule NervesHub.FirmwaresTest do
 
   import Ecto.Query
 
-  alias Ecto.Changeset
+  alias NervesHub.Devices.DeviceFirmwares
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.UpdateTool.Fwup, as: UpdateToolDefault
   alias NervesHub.Firmwares.Upload.File, as: UploadFile
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias NervesHub.Support.Fwup
   alias NervesHub.Workers.DeleteFirmware
@@ -97,10 +99,20 @@ defmodule NervesHub.FirmwaresTest do
     end
   end
 
-  describe "delete_firmware/1" do
-    test "delete firmware", %{org: org, org_key: org_key, product: product, tmp_dir: tmp_dir} do
+  describe "delete_firmware/2" do
+    test "marks the firmware deleted and queues the file for removal", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      {:ok, _} = Firmwares.delete_firmware(firmware)
+
+      assert {:ok, deleted} = Firmwares.delete_firmware(firmware, user)
+
+      assert deleted.deleted_at
+      assert deleted.deleted_by_id == user.id
 
       assert_enqueued(
         worker: DeleteFirmware,
@@ -110,21 +122,205 @@ defmodule NervesHub.FirmwaresTest do
         }
       )
 
+      # The row survives, so history can still resolve it when it asks to...
+      assert {:ok, %Firmware{}} =
+               Firmwares.get_firmware_by_product_and_uuid(product, firmware.uuid, include_deleted: true)
+
+      # ...but every getter that has not asked hides it.
       assert {:error, :not_found} = Firmwares.get_firmware(org, firmware.id)
+      assert {:error, :not_found} = Firmwares.get_firmware_by_product_and_uuid(product, firmware.uuid)
+      refute firmware.id in Enum.map(Firmwares.get_firmwares_by_product(product.id), & &1.id)
     end
 
-    test "cannot delete firmware when it is referenced by deployment", %{
+    test "deletes firmware a device has run", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+      {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+
+      {:ok, _} = DeviceFirmwares.add_reported_firmware(device, metadata, :validated, false)
+
+      # `device_firmwares` references firmwares with ON DELETE NO ACTION, which
+      # is what made deleting any firmware that shipped impossible.
+      assert {:ok, _} = Firmwares.delete_firmware(firmware, user)
+    end
+
+    test "refuses firmware backing a deployment group's current release", %{
       user: user,
       org_key: org_key,
       product: product,
       tmp_dir: tmp_dir
     } do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
-      assert File.exists?(firmware.upload_metadata[:local_path])
 
-      Fixtures.deployment_group_fixture(firmware, %{name: "a deployment", user: user})
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{name: "a deployment", user: user})
 
-      assert {:error, %Changeset{}} = Firmwares.delete_firmware(firmware)
+      assert {:error, {:blocked, [{:current_release, [blocking_group]}]}} =
+               Firmwares.delete_firmware(firmware, user)
+
+      assert blocking_group.id == deployment_group.id
+      assert is_nil(Repo.reload(firmware).deleted_at)
+    end
+
+    test "allows firmware that only a past release references", %{
+      user: user,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      newer = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{name: "a deployment", user: user})
+
+      {:ok, _} = ManagedDeployments.create_deployment_release(deployment_group, newer, nil, user, %{})
+
+      assert {:ok, _} = Firmwares.delete_firmware(firmware, user)
+    end
+
+    test "refuses firmware with an update in flight", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, _} = Repo.insert(InflightUpdate.manual_requested_changeset(device.id, firmware))
+
+      assert {:error, {:blocked, [{:inflight_updates, 1}]}} = Firmwares.delete_firmware(firmware, user)
+    end
+
+    test "refuses firmware that is already deleted", %{
+      user: user,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, deleted} = Firmwares.delete_firmware(firmware, user)
+
+      assert {:error, {:blocked, [:already_deleted]}} = Firmwares.delete_firmware(deleted, user)
+    end
+
+    test "takes its deltas and their files with it", %{
+      user: user,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      other = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+
+      from_it = Fixtures.firmware_delta_fixture(firmware, other)
+      to_it = Fixtures.firmware_delta_fixture(other, firmware)
+
+      assert {:ok, _} = Firmwares.delete_firmware(firmware, user)
+
+      assert {:error, :not_found} = Firmwares.get_firmware_delta(from_it.id)
+      assert {:error, :not_found} = Firmwares.get_firmware_delta(to_it.id)
+
+      for delta <- [from_it, to_it] do
+        assert_enqueued(
+          worker: DeleteFirmware,
+          args: %{
+            "local_path" => delta.upload_metadata[:local_path],
+            "public_path" => delta.upload_metadata[:public_path]
+          }
+        )
+      end
+    end
+  end
+
+  describe "re-uploading a deleted firmware" do
+    test "the same uuid can be uploaded again once the firmware is deleted", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      path = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir})
+      firmware = Fixtures.firmware_fixture_from_file(org, path)
+
+      {:ok, _} = Firmwares.delete_firmware(firmware, user)
+
+      # The uuid belongs to the build, so the same file carries it back in. Only
+      # live firmware is covered by `firmwares_product_id_uuid_index`.
+      reuploaded = Fixtures.firmware_fixture_from_file(org, path)
+
+      assert reuploaded.uuid == firmware.uuid
+      refute reuploaded.id == firmware.id
+
+      # One uuid, two rows. Anything asking for history gets the live one...
+      assert {:ok, resolved} =
+               Firmwares.get_firmware_by_product_and_uuid(product, firmware.uuid, include_deleted: true)
+
+      assert resolved.id == reuploaded.id
+
+      # ...and the deleted row stays put, still holding device history.
+      assert Repo.reload(firmware).deleted_at
+    end
+
+    test "a live firmware's uuid still cannot be uploaded twice", %{
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      path = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir})
+      _firmware = Fixtures.firmware_fixture_from_file(org, path)
+
+      assert {:error, %Ecto.Changeset{errors: errors}} = Firmwares.create_firmware(org, path)
+      assert {"has already been taken", _} = errors[:uuid]
+    end
+
+    test "the deleted row is the fallback when nothing live carries the uuid", %{
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      path = Fixtures.firmware_file_fixture(org_key, product, %{dir: tmp_dir})
+      firmware = Fixtures.firmware_fixture_from_file(org, path)
+
+      {:ok, _} = Firmwares.delete_firmware(firmware, user)
+
+      assert {:ok, resolved} =
+               Firmwares.get_firmware_by_product_and_uuid(product, firmware.uuid, include_deleted: true)
+
+      assert resolved.id == firmware.id
+    end
+  end
+
+  describe "deletion_warnings/1" do
+    test "reports the deltas built from this firmware without blocking", %{
+      user: user,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      target = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+
+      _delta = Fixtures.firmware_delta_fixture(firmware, target)
+
+      assert Firmwares.deletion_warnings(firmware) == [{:delta_source, 1}]
+      assert Firmwares.deletable?(firmware)
+      assert {:ok, _} = Firmwares.delete_firmware(firmware, user)
+    end
+
+    test "says nothing when no deltas are built from it", %{firmware: firmware} do
+      assert Firmwares.deletion_warnings(firmware) == []
     end
   end
 

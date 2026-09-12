@@ -404,4 +404,57 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilderTest do
       assert :discard = FirmwareDeltaBuilder.perform(job)
     end
   end
+
+  describe "perform/1 with deleted firmware" do
+    setup %{org_key: org_key, product: product, tmp_dir: tmp_dir, user: user} do
+      source = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+      target = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+      job = fn ->
+        %Oban.Job{
+          id: Ecto.UUID.generate(),
+          attempt: 1,
+          args: %{"source_id" => source.id, "target_id" => target.id}
+        }
+      end
+
+      %{source: source, target: target, job: job, user: user}
+    end
+
+    test "cancels when the source firmware has been deleted", %{source: source, job: job, user: user} do
+      {:ok, _} = Firmwares.delete_firmware(source, user)
+
+      assert {:cancel, reason} = FirmwareDeltaBuilder.perform(job.())
+      assert reason =~ source.uuid
+      assert reason =~ "source firmware"
+    end
+
+    test "cancels when the target firmware has been deleted", %{target: target, job: job, user: user} do
+      {:ok, _} = Firmwares.delete_firmware(target, user)
+
+      assert {:cancel, reason} = FirmwareDeltaBuilder.perform(job.())
+      assert reason =~ target.uuid
+      assert reason =~ "target firmware"
+    end
+
+    test "cancels rather than raising when the delta goes mid-build", %{
+      source: source,
+      target: target,
+      job: job,
+      user: user
+    } do
+      {:ok, _delta} = Firmwares.start_firmware_delta(source.id, target.id)
+
+      # The build fails, and by the time it reloads the delta to mark it failed,
+      # deleting the firmware has taken that row away. Reloading returns nil,
+      # which used to reach `fail_firmware_delta/1` and raise FunctionClauseError.
+      stub(Firmwares, :generate_firmware_delta, fn _delta, _source, _target ->
+        {:ok, _} = Firmwares.delete_firmware(target, user)
+        {:error, :boom}
+      end)
+
+      assert {:cancel, reason} = FirmwareDeltaBuilder.perform(job.())
+      assert reason =~ "deleted while building"
+    end
+  end
 end

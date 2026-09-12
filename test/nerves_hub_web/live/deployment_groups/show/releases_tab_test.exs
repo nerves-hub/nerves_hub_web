@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
 
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
 
   setup context do
     %{
@@ -156,5 +157,33 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
 
   test "shows created releases", %{conn: conn} do
     assert_has(conn, "div", text: "Firmware: 1.0.0")
+  end
+
+  test "badges a release whose firmware has been deleted", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    product: product,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    # Move the group on so the original firmware stops being the current
+    # release, which is what makes it deletable at all.
+    replacement = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+
+    {:ok, _} =
+      ManagedDeployments.create_deployment_release(deployment_group, replacement, nil, user, %{})
+
+    old_firmware = deployment_group.current_release.firmware
+    {:ok, _} = Firmwares.delete_firmware(old_firmware, user)
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/releases")
+    # The history still names it, and still links to it...
+    |> assert_has("div", text: "Firmware: #{old_firmware.version}")
+    |> assert_has("a", text: String.slice(old_firmware.uuid, 0..7))
+    # ...but says the firmware itself is gone.
+    |> assert_has("span", text: "Deleted")
   end
 end

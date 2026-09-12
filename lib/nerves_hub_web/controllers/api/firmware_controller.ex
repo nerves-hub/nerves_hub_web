@@ -2,6 +2,7 @@ defmodule NervesHubWeb.API.FirmwareController do
   use NervesHubWeb, :api_controller
   use OpenApiSpex.ControllerSpecs
 
+  alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.Firmwares
   alias NervesHubWeb.API.OpenAPI.SchemaHelpers
   alias NervesHubWeb.API.Schemas.ErrorSchemas
@@ -123,9 +124,11 @@ defmodule NervesHubWeb.API.FirmwareController do
       ] ++ @auth_error_responses
   )
 
-  def delete(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
+  def delete(%{assigns: %{current_scope: %{user: user}, product: product}} = conn, %{"uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
-         {:ok, _} <- Firmwares.delete_firmware(firmware) do
+         {:ok, _} <- Firmwares.delete_firmware(firmware, user) do
+      _ = ProductTemplates.audit_firmware_deleted(user, product, firmware)
+
       send_resp(conn, :no_content, "")
     end
   end
