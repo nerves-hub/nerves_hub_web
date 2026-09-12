@@ -56,6 +56,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     total_pages: :integer
   }
 
+  @tag_bulk_actions [:tag_devices, :add_tags_to_devices, :remove_tags_from_devices]
+
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     product = Products.load_shared_secret_auth(scope.product)
 
@@ -84,6 +86,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:progress, %{})
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
+    |> assign(:tag_operation, "set")
     |> assign(:available_tags, Devices.distinct_tags_for_product(product))
     |> assign(:total_entries, 0)
     |> assign(:visible?, true)
@@ -314,28 +317,31 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_event("validate-tags", %{"tags" => tags}, socket) do
-    if String.contains?(tags, " ") do
-      {:noreply, assign(socket, valid_tags: false, device_tags: tags)}
-    else
-      {:noreply, assign(socket, valid_tags: true, device_tags: tags)}
-    end
+  def handle_event("validate-tags", %{"tags" => tags} = params, socket) do
+    socket
+    |> assign(:valid_tags, not String.contains?(tags, " "))
+    |> assign(:device_tags, tags)
+    |> assign(:tag_operation, tag_operation(params))
+    |> noreply()
   end
 
   @decorate requires_permission(:"device:update")
-  def handle_event("tag-devices", %{"tags" => tags}, socket) do
+  def handle_event("tag-devices", %{"tags" => tags} = params, socket) do
+    bulk_action = tag_bulk_action(tag_operation(params))
+
     if socket.assigns.select_all_matching do
-      start_bulk_async(socket, :tag_devices, [socket.assigns.current_scope.user, tags])
+      start_bulk_async(socket, bulk_action, [socket.assigns.current_scope.user, tags])
     else
       %{selected_devices: selected_devices, current_scope: scope} = socket.assigns
+      {applied, attempted} = tag_action_wording(bulk_action)
 
       with {:devices, devices} when is_list(devices) and devices != [] <-
              {:devices, Devices.get_devices_by_id(scope, selected_devices)},
-           result = BulkActions.tag_devices(devices, scope.user, tags),
+           result = bulk_update_tags(bulk_action, devices, scope.user, tags),
            {:successful, true} <- {:successful, Enum.any?(result[:ok])},
            {:has_errors, false, _result} <- {:has_errors, Enum.any?(result[:error]), result} do
         socket
-        |> put_flash(:info, "Tagged all selected device(s).")
+        |> put_flash(:info, "#{applied} all selected device(s).")
         |> assign_display_devices()
         |> noreply()
       else
@@ -343,13 +349,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
           {:noreply, put_flash(socket, :error, "You haven't selected any devices")}
 
         {:successful, false} ->
-          {:noreply, put_flash(socket, :error, "No devices were successfully tagged")}
+          {:noreply, put_flash(socket, :error, "#{attempted} failed for all selected device(s).")}
 
         {:has_errors, true, result} ->
           socket
           |> put_flash(
             :info,
-            "#{Enum.count(result[:ok])} devices were successfully tagged and #{Enum.count(result[:error])} devices had errors."
+            "#{applied} #{Enum.count(result[:ok])} devices, #{Enum.count(result[:error])} devices had errors."
           )
           |> assign(selected_devices: Enum.map(result[:ok], & &1.id))
           |> assign_display_devices()
@@ -915,27 +921,29 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_async(:tag_devices, {:ok, results}, socket) do
+  def handle_async(bulk_action, {:ok, results}, socket) when bulk_action in @tag_bulk_actions do
+    {applied, attempted} = tag_action_wording(bulk_action)
+
     case results do
       %{ok: successful_count, error: 0} ->
         put_flash(
           socket,
           :info,
-          "All selected devices (#{number_to_delimited(successful_count, precision: 0)}) tagged successfully."
+          "#{applied} all selected devices (#{number_to_delimited(successful_count, precision: 0)})."
         )
 
       %{ok: 0, error: unsuccessful_count} ->
         put_flash(
           socket,
           :error,
-          "All selected devices (#{number_to_delimited(unsuccessful_count, precision: 0)}) failed updating with new tags."
+          "#{attempted} failed for all selected devices (#{number_to_delimited(unsuccessful_count, precision: 0)})."
         )
 
       %{ok: successful_count, error: unsuccessful_count} ->
         put_flash(
           socket,
           :notice,
-          "#{number_to_delimited(successful_count, precision: 0)} devices were successfully tagged and #{number_to_delimited(unsuccessful_count, precision: 0)} devices had errors."
+          "#{applied} #{number_to_delimited(successful_count, precision: 0)} devices, #{number_to_delimited(unsuccessful_count, precision: 0)} devices had errors."
         )
     end
     |> assign_display_devices()
@@ -1006,6 +1014,33 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign_display_devices()
     |> noreply()
   end
+
+  defp tag_operation(%{"tag_operation" => operation}) when operation in ~w(set add remove), do: operation
+  defp tag_operation(_params), do: "set"
+
+  defp tag_bulk_action("add"), do: :add_tags_to_devices
+  defp tag_bulk_action("remove"), do: :remove_tags_from_devices
+  defp tag_bulk_action("set"), do: :tag_devices
+
+  # Dispatched by hand rather than through `apply/3`, so the compiler sees the
+  # calls and a rename of one of them can't slip through.
+  defp bulk_update_tags(:tag_devices, devices, user, tags) do
+    BulkActions.tag_devices(devices, user, tags)
+  end
+
+  defp bulk_update_tags(:add_tags_to_devices, devices, user, tags) do
+    BulkActions.add_tags_to_devices(devices, user, tags)
+  end
+
+  defp bulk_update_tags(:remove_tags_from_devices, devices, user, tags) do
+    BulkActions.remove_tags_from_devices(devices, user, tags)
+  end
+
+  # `{what was applied, what was attempted}`, so one set of messages covers
+  # setting, adding and removing tags.
+  defp tag_action_wording(:tag_devices), do: {"Tags updated on", "Updating tags"}
+  defp tag_action_wording(:add_tags_to_devices), do: {"Tags added to", "Adding tags"}
+  defp tag_action_wording(:remove_tags_from_devices), do: {"Tags removed from", "Removing tags"}
 
   defp start_bulk_async(socket, name, args) do
     ecto_query = filter_query(socket)

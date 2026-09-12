@@ -27,6 +27,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+  alias NervesHub.Types.Tag
 
   @doc """
   Pair counted analytics results with their devices, in the order given.
@@ -673,9 +674,9 @@ defmodule NervesHub.Devices do
     |> where([p], p.user_id not in subquery(users_in_org))
   end
 
-  @spec tag_device(Device.t() | [Device.t()], User.t(), list(String.t())) ::
+  @spec tag_device(Device.t() | [Device.t()], User.t(), list(String.t()) | String.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
-  def tag_device(%Device{} = device, user, tags) do
+  def tag_device(%Device{} = device, user, tags) when is_list(tags) or is_binary(tags) do
     description = "User #{user.name} updated device #{device.identifier} tags"
     params = %{tags: tags}
     update_device_with_audit(device, params, user, description)
@@ -704,13 +705,10 @@ defmodule NervesHub.Devices do
     if tag == "" or String.contains?(tag, " ") do
       {:error, "Tags cannot be empty or contain spaces."}
     else
-      current_tags = device.tags || []
-
-      if tag in current_tags do
+      if tag in (device.tags || []) do
         {:error, "Tag \"#{tag}\" already exists on this device."}
       else
-        new_tags = current_tags ++ [tag]
-        tag_device(device, user, new_tags)
+        add_tags(device, user, [tag])
       end
     end
   end
@@ -718,10 +716,77 @@ defmodule NervesHub.Devices do
   @spec remove_tag(Device.t(), User.t(), String.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def remove_tag(%Device{} = device, user, tag) do
-    current_tags = device.tags || []
-    new_tags = List.delete(current_tags, tag)
+    remove_tags(device, user, [tag])
+  end
 
-    tag_device(device, user, new_tags)
+  @doc """
+  Add tags to a device, keeping the tags it already has.
+
+  Tagging a fleet in bulk lands on devices with all sorts of existing tags, so a
+  tag the device already carries is a no-op rather than an error, and a device
+  that gains nothing is left untouched instead of writing an audit entry.
+
+  The guard is load-bearing: `Ecto.Changeset.cast/4` resolves a `nil` before it
+  reaches `NervesHub.Types.Tag`, so handing `nil` to the changeset would empty
+  the device's tags rather than fail.
+  """
+  @spec add_tags(Device.t(), User.t(), list(String.t()) | String.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
+  def add_tags(%Device{} = device, user, tags) when is_list(tags) or is_binary(tags) do
+    current_tags = device.tags || []
+
+    case cast_tags(tags) do
+      {:ok, tags} ->
+        case Enum.reject(Enum.uniq(tags), &(&1 in current_tags)) do
+          [] ->
+            {:ok, device}
+
+          added ->
+            description = "User #{user.name} added the tags #{Enum.join(added, ", ")} to device #{device.identifier}"
+            update_device_with_audit(device, %{tags: current_tags ++ added}, user, description)
+        end
+
+      :error ->
+        # Hand the unusable tags to the changeset, so callers get the error they
+        # would get from any other bad update rather than a shape of their own.
+        tag_device(device, user, tags)
+    end
+  end
+
+  @doc """
+  Remove tags from a device, leaving the rest of its tags alone.
+
+  See `add_tags/3` for why a device that doesn't carry any of the tags is left
+  untouched.
+  """
+  @spec remove_tags(Device.t(), User.t(), list(String.t()) | String.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
+  def remove_tags(%Device{} = device, user, tags) when is_list(tags) or is_binary(tags) do
+    current_tags = device.tags || []
+
+    case cast_tags(tags) do
+      {:ok, tags} ->
+        case Enum.split_with(current_tags, &(&1 in tags)) do
+          {[], _remaining} ->
+            {:ok, device}
+
+          {removed, remaining} ->
+            description =
+              "User #{user.name} removed the tags #{Enum.join(removed, ", ")} from device #{device.identifier}"
+
+            update_device_with_audit(device, %{tags: remaining}, user, description)
+        end
+
+      :error ->
+        tag_device(device, user, tags)
+    end
+  end
+
+  defp cast_tags(tags) do
+    case Tag.cast(tags) do
+      {:ok, tags} -> {:ok, tags}
+      _ -> :error
+    end
   end
 
   @doc """

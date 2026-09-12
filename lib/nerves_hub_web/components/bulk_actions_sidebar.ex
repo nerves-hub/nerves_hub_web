@@ -132,8 +132,14 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
             </form>
 
             <form id="bulk-tag-input" class="flex flex-col gap-2" phx-submit="tag-devices" phx-change="validate-tags">
-              <label class="sidebar-label" for="input_set_tags">Set tags</label>
+              <label class="sidebar-label" for="tag_operation">Update tags</label>
+              <select name="tag_operation" id="tag_operation" class="sidebar-select">
+                <option value="set" selected={@tag_operation == "set"}>Set tags (replaces existing tags)</option>
+                <option value="add" selected={@tag_operation == "add"}>Add tags</option>
+                <option value="remove" selected={@tag_operation == "remove"}>Remove tags</option>
+              </select>
               <div class="flex gap-2">
+                <label for="input_set_tags" class="hidden">Tags</label>
                 <div
                   id="bulk-tag-autocomplete"
                   class="relative grow"
@@ -145,7 +151,7 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
                     class="sidebar-text-input w-full"
                     name="tags"
                     id="input_set_tags"
-                    value={@current_filters[:tag]}
+                    value={@device_tags}
                     autocomplete="off"
                     data-tag-input
                     phx-debounce="500"
@@ -161,8 +167,8 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
                   </ul>
                 </div>
 
-                <.button style="primary" type="submit" data-confirm="This will update tags on all selected devices" {if @valid_tags && @device_tags != "", do: [], else: [disabled: true]}>
-                  Set
+                <.button style="primary" type="submit" data-confirm={tag_confirmation(@tag_operation)} {if @valid_tags && @device_tags != "", do: [], else: [disabled: true]}>
+                  {tag_submit_label(@tag_operation)}
                 </.button>
               </div>
               <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
@@ -245,6 +251,19 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
 
   defp target_selected?(%{name: name}, value) when name == value, do: [selected: true]
   defp target_selected?(_, _), do: []
+
+  defp tag_submit_label("add"), do: "Add"
+  defp tag_submit_label("remove"), do: "Remove"
+  defp tag_submit_label(_set), do: "Set"
+
+  defp tag_confirmation("add"), do: "This will add the tags to all selected devices. Would you like to continue?"
+
+  defp tag_confirmation("remove"),
+    do: "This will remove the tags from all selected devices. Would you like to continue?"
+
+  defp tag_confirmation(_set),
+    do:
+      "This will replace the tags on all selected devices, discarding the tags they already have. Would you like to continue?"
 
   defp move_alert(nil), do: ""
 
