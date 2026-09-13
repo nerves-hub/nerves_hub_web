@@ -572,6 +572,21 @@ if config_env() == :prod do
         config :ex_aws, :s3, host: s3_host
       end
 
+      # hackney negotiates HTTP/2 with any endpoint that offers it, and its
+      # HTTP/2 client is still new, so S3 requests stay on HTTP/1.1 unless a
+      # deployment opts in. Setting :hackney_opts replaces ExAws's defaults,
+      # which is why its 30 second receive timeout is repeated here.
+      s3_http_protocols =
+        if System.get_env("S3_HTTP2_ENABLED", "false") == "true" do
+          [:http2, :http1]
+        else
+          [:http1]
+        end
+
+      config :ex_aws, :hackney_opts,
+        recv_timeout: to_timeout(second: 30),
+        protocols: s3_http_protocols
+
       config :ex_aws,
         json_codec: Jason
 
