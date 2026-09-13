@@ -194,6 +194,7 @@ environment.
 | `S3_SECRET_ACCESS_KEY` | — (**required** if `S3_ACCESS_KEY_ID` is set) | Secret key. |
 | `S3_REGION` | ex_aws default | Bucket region. |
 | `S3_HOST` | ex_aws default | Endpoint host, for S3-compatible services. |
+| `S3_HTTP2_ENABLED` | `false` | Let uploads and deletes use HTTP/2 with endpoints that offer it (Scaleway Object Storage and Tigris do, AWS S3 does not). Off by default, so they use HTTP/1.1. Devices downloading firmware through presigned URLs are unaffected. |
 | `S3_BUCKET_AS_HOST` | `false` | Generate presigned URLs with the bucket as the host, for providers that address buckets that way. |
 | `S3_DOWNLOAD_HOST` | — | Hostname to hand out in presigned download URLs, for a CDN or proxy in front of the bucket. The URL is signed for the bucket's virtual-hosted endpoint and only then rewritten to this host, because such a proxy forwards the query string but addresses the bucket itself. Refuses to boot alongside `S3_BUCKET_AS_HOST`. |
 
