@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware")
-      |> assert_has("span", text: "#{product.name} doesn’t have any firmware yet")
+      |> assert_has("span", text: "#{product.name} doesn’t have any available firmware.")
     end
 
     test "lists all firmwares", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
@@ -143,7 +143,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> click_button("Delete")
       |> assert_path("/org/#{org.name}/#{product.name}/firmware")
       |> assert_has("div", text: "Firmware successfully deleted")
-      |> assert_has("span", text: "#{product.name} doesn’t have any firmware yet")
+      |> assert_has("span", text: "#{product.name} doesn’t have any available firmware.")
     end
 
     test "error deleting firmware when it has associated deployments", %{

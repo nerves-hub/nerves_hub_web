@@ -106,7 +106,7 @@ defmodule NervesHubWeb.SessionControllerTest do
       |> visit(~p"/confirm/#{encoded_token}")
       |> assert_path(~p"/confirm/#{encoded_token}")
       |> assert_has("p",
-        with: "It looks like your confirmation link has expired. A new link has been sent to your email."
+        text: "It looks like your confirmation link has expired. A new link has been sent to your email."
       )
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
@@ -118,6 +118,37 @@ defmodule NervesHubWeb.SessionControllerTest do
         assert to_string(email.text_body) =~ "Please use the link below to confirm your account:"
         assert email.html_body =~ "Please click the button below to confirm your account:"
       end)
+    end
+  end
+
+  describe "login page" do
+    setup do
+      previous = Application.fetch_env(:nerves_hub, :open_for_registrations)
+
+      on_exit(fn ->
+        case previous do
+          {:ok, value} -> Application.put_env(:nerves_hub, :open_for_registrations, value)
+          :error -> Application.delete_env(:nerves_hub, :open_for_registrations)
+        end
+      end)
+    end
+
+    test "links to sign up when registrations are open" do
+      Application.put_env(:nerves_hub, :open_for_registrations, true)
+
+      build_conn()
+      |> visit(~p"/login")
+      |> assert_has("a[href='/register']", text: "Sign up for free")
+      |> refute_has("p", text: "Please contact your platform admin.")
+    end
+
+    test "points to the platform admin instead of sign up when registrations are closed" do
+      Application.put_env(:nerves_hub, :open_for_registrations, false)
+
+      build_conn()
+      |> visit(~p"/login")
+      |> assert_has("p", text: "Don't have an account? Please contact your platform admin.")
+      |> refute_has("a[href='/register']")
     end
   end
 
@@ -133,7 +164,7 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("h1", with: "Sign in to your account")
+      |> assert_has("h1", text: "Sign in to your account")
       |> fill_in("Email address", with: "sgtpepper@geocities.com")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
@@ -151,7 +182,7 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/orgs/new")
-      |> assert_has("h1", with: "Sign in to your account")
+      |> assert_has("h1", text: "Sign in to your account")
       |> fill_in("Email address", with: "sgtpepper@geocities.com")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()

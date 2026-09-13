@@ -15,7 +15,7 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       build_conn()
       |> visit(~p"/register")
-      |> assert_has("h1", with: "Create a new account")
+      |> assert_has("h1", text: "Create a new account")
     end
 
     test "redirects to /login with a flash when registrations are disabled" do
@@ -24,6 +24,7 @@ defmodule NervesHubWeb.AccountControllerTest do
       build_conn()
       |> visit(~p"/register")
       |> assert_path(~p"/login")
+      |> assert_has("[role='alert']", text: "Please contact support for an invite to this platform.")
     end
   end
 
@@ -33,13 +34,13 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       build_conn()
       |> visit(~p"/register")
-      |> assert_has("h1", with: "Create a new account")
+      |> assert_has("h1", text: "Create a new account")
       |> fill_in("Name", with: "Sgt Pepper")
       |> fill_in("Email address", with: "sgtpepper@geocities.com")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
-      |> assert_has("h1", with: "Please confirm your email")
-      |> assert_has("p", with: "Your new account was created successfully!")
+      |> assert_has("h1", text: "Please confirm your email")
+      |> assert_has("p", text: "Your new account was created successfully!")
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
 
@@ -57,13 +58,33 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       build_conn()
       |> visit(~p"/register")
-      |> assert_has("h1", with: "Create a new account")
+      |> assert_has("h1", text: "Create a new account")
       |> fill_in("Name", with: "")
       |> fill_in("Email address", with: "")
       |> fill_in("Password", with: "")
       |> submit()
       |> assert_path(~p"/register")
-      |> assert_has("p", with: "can't be blank", times: 3)
+      |> assert_has("p", text: "can't be blank", count: 3)
+
+      send_queued_emails()
+
+      refute_email_sent()
+    end
+
+    test "doesn't register an account when registrations are disabled" do
+      Application.put_env(:nerves_hub, :open_for_registrations, false)
+
+      conn =
+        post(build_conn(), ~p"/register", %{
+          "user" => %{
+            "name" => "Sgt Pepper",
+            "email" => "sgtpepper@geocities.com",
+            "password" => "JohnRingoPaulGeorge"
+          }
+        })
+
+      assert redirected_to(conn) == ~p"/login"
+      assert Accounts.get_user_by_email("sgtpepper@geocities.com") == {:error, :not_found}
 
       send_queued_emails()
 
@@ -125,7 +146,7 @@ defmodule NervesHubWeb.AccountControllerTest do
       |> visit(~p"/confirm/#{encoded_token}")
       |> assert_path(~p"/confirm/#{encoded_token}")
       |> assert_has("p",
-        with: "It looks like your confirmation link has expired. A new link has been sent to your email."
+        text: "It looks like your confirmation link has expired. A new link has been sent to your email."
       )
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
@@ -149,14 +170,14 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       build_conn()
       |> visit(~p"/invite/#{invite.token}")
-      |> assert_has("h1", with: "You've been invited to join #{org.name} on #{platform_name}")
+      |> assert_has("h1", text: "You've been invited to join #{org.name} on #{platform_name}")
       |> refute_has("body", text: "joe@example.com")
       |> fill_in("Name", with: "Sgt Pepper")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
       |> assert_path(~p"/orgs")
-      |> assert_has("h1", with: "Welcome to NervesHub!")
-      |> assert_has("div", with: org.name)
+      |> assert_has("[role='alert']", text: "Welcome to NervesHub!")
+      |> assert_has("div", text: org.name)
 
       send_queued_emails()
 
