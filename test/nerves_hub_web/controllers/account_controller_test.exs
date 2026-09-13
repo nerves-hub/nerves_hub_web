@@ -15,7 +15,7 @@ defmodule NervesHubWeb.AccountControllerTest do
 
       build_conn()
       |> visit(~p"/register")
-      |> assert_has("h1", with: "Create a new account")
+      |> assert_has("h1", text: "Create a new account")
     end
 
     test "redirects to /login with a flash when registrations are disabled" do
@@ -24,6 +24,7 @@ defmodule NervesHubWeb.AccountControllerTest do
       build_conn()
       |> visit(~p"/register")
       |> assert_path(~p"/login")
+      |> assert_has("[role='alert']", text: "Please contact support for an invite to this platform.")
     end
   end
 
@@ -64,6 +65,26 @@ defmodule NervesHubWeb.AccountControllerTest do
       |> submit()
       |> assert_path(~p"/register")
       |> assert_has("p", with: "can't be blank", times: 3)
+
+      send_queued_emails()
+
+      refute_email_sent()
+    end
+
+    test "doesn't register an account when registrations are disabled" do
+      Application.put_env(:nerves_hub, :open_for_registrations, false)
+
+      conn =
+        post(build_conn(), ~p"/register", %{
+          "user" => %{
+            "name" => "Sgt Pepper",
+            "email" => "sgtpepper@geocities.com",
+            "password" => "JohnRingoPaulGeorge"
+          }
+        })
+
+      assert redirected_to(conn) == ~p"/login"
+      assert Accounts.get_user_by_email("sgtpepper@geocities.com") == {:error, :not_found}
 
       send_queued_emails()
 

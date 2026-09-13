@@ -121,6 +121,37 @@ defmodule NervesHubWeb.SessionControllerTest do
     end
   end
 
+  describe "login page" do
+    setup do
+      previous = Application.fetch_env(:nerves_hub, :open_for_registrations)
+
+      on_exit(fn ->
+        case previous do
+          {:ok, value} -> Application.put_env(:nerves_hub, :open_for_registrations, value)
+          :error -> Application.delete_env(:nerves_hub, :open_for_registrations)
+        end
+      end)
+    end
+
+    test "links to sign up when registrations are open" do
+      Application.put_env(:nerves_hub, :open_for_registrations, true)
+
+      build_conn()
+      |> visit(~p"/login")
+      |> assert_has("a[href='/register']", text: "Sign up for free")
+      |> refute_has("p", text: "Please contact your platform admin.")
+    end
+
+    test "points to the platform admin instead of sign up when registrations are closed" do
+      Application.put_env(:nerves_hub, :open_for_registrations, false)
+
+      build_conn()
+      |> visit(~p"/login")
+      |> assert_has("p", text: "Don't have an account? Please contact your platform admin.")
+      |> refute_has("a[href='/register']")
+    end
+  end
+
   describe "create session" do
     test "redirected to the orgs page when logging in" do
       %{

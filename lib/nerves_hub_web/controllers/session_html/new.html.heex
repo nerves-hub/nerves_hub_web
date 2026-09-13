@@ -2,8 +2,11 @@
   <:title>
     Sign in to your account
   </:title>
-  <:subheader>
+  <:subheader :if={Application.get_env(:nerves_hub, :open_for_registrations)}>
     Don't have an account? <.link href="/register" class="hover:text-primary-hover text-primary font-semibold">Sign up for free</.link>
+  </:subheader>
+  <:subheader :if={!Application.get_env(:nerves_hub, :open_for_registrations)}>
+    Don't have an account? Please contact your platform admin.
   </:subheader>
 
   <div :if={assigns[:error_message]} role="alert" class="bg-alert-soft fill-alert ring-alert text-alert-content mt-4 mr-2 w-full rounded-sm p-3 shadow-md ring-1">
