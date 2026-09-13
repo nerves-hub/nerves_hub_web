@@ -21,9 +21,9 @@ defmodule NervesHubWeb.OAuthControllerTest do
     test "shows google auth button if enabled" do
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("h1", with: "Sign in to your account")
-      |> assert_has("span", with: "Or create a new account with")
-      |> assert_has("span", with: "Google")
+      |> assert_has("h1", text: "Sign in to your account")
+      |> assert_has("span", text: "Or create a new account with")
+      |> assert_has("span", text: "Google")
     end
 
     test "create new account successfully" do
@@ -36,7 +36,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
       build_conn()
       |> visit(~p"/auth/google/callback?state=dummy&code=dummy&scope=email+profile&prompt=none")
       |> assert_path("/orgs")
-      |> assert_has("div", with: "Welcome back!")
+      |> assert_has("div", text: "Welcome back!")
 
       send_queued_emails()
 
@@ -51,7 +51,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
 
       build_conn()
       |> visit(~p"/auth/google/callback?state=dummy&code=dummy&scope=email+profile&prompt=none")
-      |> assert_has("h1", with: "We were unable to sign you in.")
+      |> assert_has("h1", text: "We were unable to sign you in.")
     end
 
     test "doesn't send a reset password email if the user logged in with Google" do
@@ -64,11 +64,11 @@ defmodule NervesHubWeb.OAuthControllerTest do
 
       build_conn()
       |> visit(~p"/password-reset")
-      |> assert_has("h1", with: "Reset your password")
+      |> assert_has("h1", text: "Reset your password")
       |> fill_in("Email", with: user.email)
       |> submit()
       |> assert_path(~p"/password-reset")
-      |> assert_has("h1", with: "Time to check your email")
+      |> assert_has("h1", text: "Time to check your email")
 
       send_queued_emails()
 
@@ -84,7 +84,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
     test "does not show google auth button if not enabled" do
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("h1", with: "Sign in to your account")
+      |> assert_has("h1", text: "Sign in to your account")
       |> refute_has("span", text: "Or create a new account with")
       |> refute_has("span", text: "Google")
     end

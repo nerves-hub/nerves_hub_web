@@ -106,7 +106,7 @@ defmodule NervesHubWeb.SessionControllerTest do
       |> visit(~p"/confirm/#{encoded_token}")
       |> assert_path(~p"/confirm/#{encoded_token}")
       |> assert_has("p",
-        with: "It looks like your confirmation link has expired. A new link has been sent to your email."
+        text: "It looks like your confirmation link has expired. A new link has been sent to your email."
       )
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
@@ -164,7 +164,7 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/login")
-      |> assert_has("h1", with: "Sign in to your account")
+      |> assert_has("h1", text: "Sign in to your account")
       |> fill_in("Email address", with: "sgtpepper@geocities.com")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
@@ -182,7 +182,7 @@ defmodule NervesHubWeb.SessionControllerTest do
 
       build_conn()
       |> visit(~p"/orgs/new")
-      |> assert_has("h1", with: "Sign in to your account")
+      |> assert_has("h1", text: "Sign in to your account")
       |> fill_in("Email address", with: "sgtpepper@geocities.com")
       |> fill_in("Password", with: "JohnRingoPaulGeorge")
       |> submit()
