@@ -1,140 +1,139 @@
 <NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
-  <div class="h-0 flex-1 overflow-y-auto" phx-drop-target={@uploads.archive.ref}>
-    <div class="border-base-700 h-header flex items-center gap-4 border-b px-6 py-7 text-sm font-medium">
-      <h1 class="text-base-50 text-xl leading-[30px] font-semibold">All Archives</h1>
-      <div class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs">
-        {@pager_meta.total_count}
-      </div>
-
-      <div :for={entry <- @uploads.archive.entries} class="flex w-2/5 flex-col items-center pr-2 pl-4">
-        <div class="mb-1 flex justify-between">
-          <span class="text-primary text-sm dark:text-white">Uploading archive... </span>
-          <span class="text-primary text-sm dark:text-white">{entry.progress}%</span>
-        </div>
-        <div class="h-2.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-          <div class="bg-primary h-2.5 animate-pulse rounded-full" style={"width: #{entry.progress}%"}></div>
-        </div>
-      </div>
-
-      <form id="archive-form" phx-change="validate-firmware" class={[Enum.any?(@uploads.archive.entries) && "hidden"]}>
-        <div class="bg-base-800 border-base-600 flex gap-2 rounded border px-3 py-1.5 hover:cursor-pointer">
-          <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
-            <path
-              d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
-              stroke="#A1A1AA"
-              stroke-width="1.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-          <label for={@uploads.archive.ref} class="text-base-300 text-sm font-medium hover:cursor-pointer">Upload Archive</label>
-          <.live_file_input upload={@uploads.archive} class="hidden" />
-        </div>
-      </form>
+  <:header>
+    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">All Archives</h1>
+    <div class="bg-base-800 text-base-300 mr-auto rounded-sm px-1.5 py-0.5 text-xs">
+      {@pager_meta.total_count}
     </div>
-    <%= if Enum.any?(@archives) do %>
-      <div class="listing">
-        <table>
-          <thead>
-            <tr>
-              <th>UUID</th>
-              <th phx-click="sort" phx-value-sort="version" class="cursor-pointer">
-                <Sorting.sort_icon text="Version" field="version" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-              <th>Platform</th>
-              <th>Architecture</th>
-              <th>Signing Key</th>
-              <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
-                <Sorting.sort_icon text={"Uploaded on (#{zone_abbr(@time_zone)})"} field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={archive <- @archives} class="border-base-800 border-b">
-              <td>
-                <div class="flex items-center gap-2">
-                  <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/archives/#{archive}"}>
-                    {archive.uuid}
-                  </.link>
-                </div>
-              </td>
 
-              <td>
-                <div class="flex items-center gap-2">
-                  {archive.version}
-                </div>
-              </td>
+    <div :for={entry <- @uploads.archive.entries} class="flex w-2/5 flex-col items-center pr-2 pl-4">
+      <div class="mb-1 flex justify-between">
+        <span class="text-primary text-sm dark:text-white">Uploading archive... </span>
+        <span class="text-primary text-sm dark:text-white">{entry.progress}%</span>
+      </div>
+      <div class="h-2.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+        <div class="bg-primary h-2.5 animate-pulse rounded-full" style={"width: #{entry.progress}%"}></div>
+      </div>
+    </div>
 
-              <td>
-                {archive.platform}
-              </td>
+    <form id="archive-form" phx-change="validate-firmware" class={[Enum.any?(@uploads.archive.entries) && "hidden"]}>
+      <div class="bg-base-800 border-base-600 flex gap-2 rounded border px-3 py-1.5 hover:cursor-pointer">
+        <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+          <path
+            d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
+            stroke="#A1A1AA"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <label for={@uploads.archive.ref} class="text-base-300 text-sm font-medium hover:cursor-pointer">Upload Archive</label>
+        <.live_file_input upload={@uploads.archive} class="hidden" />
+      </div>
+    </form>
+  </:header>
 
-              <td>
-                {archive.architecture}
-              </td>
-
-              <td>
-                <span class="bg-base-800 border-base-700 inline-flex gap-1 rounded-full border py-0.5 pr-3 pl-2.5">
-                  <code class="text-base-300 text-xs">{format_signed(archive, @org_keys)}</code>
-                </span>
-              </td>
-
-              <td>
-                <%= if is_nil(archive.inserted_at) do %>
-                  Never
-                <% else %>
-                  <.local_datetime at={archive.inserted_at} time_zone={@time_zone} zone_label={false} />
-                <% end %>
-              </td>
-
-              <%!-- <td class="actions">
-              <div class="">
-                <a class="" data-target="#" id={"actions-#{device.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" phx-click={show_menu("actions-menu-#{device.id}")}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path
-                      d="M9.1665 10C9.1665 10.2211 9.2543 10.433 9.41058 10.5893C9.56686 10.7456 9.77882 10.8334 9.99984 10.8334C10.2209 10.8334 10.4328 10.7456 10.5891 10.5893C10.7454 10.433 10.8332 10.2211 10.8332 10C10.8332 9.77903 10.7454 9.56707 10.5891 9.41079C10.4328 9.2545 10.2209 9.16671 9.99984 9.16671C9.77882 9.16671 9.56686 9.2545 9.41058 9.41079C9.2543 9.56707 9.1665 9.77903 9.1665 10ZM9.1665 15.8334C9.1665 16.0544 9.2543 16.2663 9.41058 16.4226C9.56686 16.5789 9.77882 16.6667 9.99984 16.6667C10.2209 16.6667 10.4328 16.5789 10.5891 16.4226C10.7454 16.2663 10.8332 16.0544 10.8332 15.8334C10.8332 15.6124 10.7454 15.4004 10.5891 15.2441C10.4328 15.0878 10.2209 15 9.99984 15C9.77882 15 9.56686 15.0878 9.41058 15.2441C9.2543 15.4004 9.1665 15.6124 9.1665 15.8334ZM9.1665 4.16671C9.1665 4.38772 9.2543 4.59968 9.41058 4.75596C9.56686 4.91224 9.77882 5.00004 9.99984 5.00004C10.2209 5.00004 10.4328 4.91224 10.5891 4.75596C10.7454 4.59968 10.8332 4.38772 10.8332 4.16671C10.8332 3.94569 10.7454 3.73373 10.5891 3.57745C10.4328 3.42117 10.2209 3.33337 9.99984 3.33337C9.77882 3.33337 9.56686 3.42117 9.41058 3.57745C9.2543 3.73373 9.1665 3.94569 9.1665 4.16671Z"
-                      stroke="#A1A1AA"
-                      stroke-width="1.2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </a>
-                <div class="hidden absolute right-6 menu-box" id={"actions-menu-#{device.id}"} phx-click-away={hide_menu("actions-menu-#{device.id}")} phx-key="escape" )}>
-                  <.link phx-click="reboot-device" phx-value-device_identifier={device.identifier} class="dropdown-item">
-                    Reboot
-                  </.link>
-                  <div class="dropdown-divider"></div>
-                  <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device.identifier}/console"} class="dropdown-item">
-                    Console
-                  </.link>
-                  <div class="dropdown-divider"></div>
-                  <div class="dropdown-divider"></div>
-                  <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
-                    <span>
-                      <%= if device.update_mode != :off, do: "Disable Updates", else: "Enable Updates" %>
-                    </span>
-                  </.link>
-
-                  <div class="dropdown-divider"></div>
-
-                  <%= link to: Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier), class: "dropdown-item", aria: [label: "Download Audit Logs"] do %>
-                    <div class="button-icon download"></div>
-                    <span class="action-text">Download Audit Logs</span>
-                  <% end %>
-                </div>
+  <div class="h-0 flex-1 overflow-y-auto" phx-drop-target={@uploads.archive.ref}>
+    <div :if={Enum.any?(@archives)} class="listing">
+      <table>
+        <thead>
+          <tr>
+            <th>UUID</th>
+            <th phx-click="sort" phx-value-sort="version" class="cursor-pointer">
+              <Sorting.sort_icon text="Version" field="version" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th>Platform</th>
+            <th>Architecture</th>
+            <th>Signing Key</th>
+            <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
+              <Sorting.sort_icon text={"Uploaded on (#{zone_abbr(@time_zone)})"} field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={archive <- @archives} class="border-base-800 border-b">
+            <td>
+              <div class="flex items-center gap-2">
+                <.link navigate={~p"/org/#{@current_scope.org}/#{@product}/archives/#{archive}"}>
+                  {archive.uuid}
+                </.link>
               </div>
-            </td> --%>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    <% else %>
-      <div class="flex h-full items-center justify-center pb-16">
-        <span class="text-base-50 text-xl font-medium">{@product.name} doesn't have any available archives.</span>
-      </div>
-    <% end %>
+            </td>
+
+            <td>
+              <div class="flex items-center gap-2">
+                {archive.version}
+              </div>
+            </td>
+
+            <td>
+              {archive.platform}
+            </td>
+
+            <td>
+              {archive.architecture}
+            </td>
+
+            <td>
+              <span class="bg-base-800 border-base-700 inline-flex gap-1 rounded-full border py-0.5 pr-3 pl-2.5">
+                <code class="text-base-300 text-xs">{format_signed(archive, @org_keys)}</code>
+              </span>
+            </td>
+
+            <td>
+              <%= if is_nil(archive.inserted_at) do %>
+                Never
+              <% else %>
+                <.local_datetime at={archive.inserted_at} time_zone={@time_zone} zone_label={false} />
+              <% end %>
+            </td>
+
+            <%!-- <td class="actions">
+            <div class="">
+              <a class="" data-target="#" id={"actions-#{device.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" phx-click={show_menu("actions-menu-#{device.id}")}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path
+                    d="M9.1665 10C9.1665 10.2211 9.2543 10.433 9.41058 10.5893C9.56686 10.7456 9.77882 10.8334 9.99984 10.8334C10.2209 10.8334 10.4328 10.7456 10.5891 10.5893C10.7454 10.433 10.8332 10.2211 10.8332 10C10.8332 9.77903 10.7454 9.56707 10.5891 9.41079C10.4328 9.2545 10.2209 9.16671 9.99984 9.16671C9.77882 9.16671 9.56686 9.2545 9.41058 9.41079C9.2543 9.56707 9.1665 9.77903 9.1665 10ZM9.1665 15.8334C9.1665 16.0544 9.2543 16.2663 9.41058 16.4226C9.56686 16.5789 9.77882 16.6667 9.99984 16.6667C10.2209 16.6667 10.4328 16.5789 10.5891 16.4226C10.7454 16.2663 10.8332 16.0544 10.8332 15.8334C10.8332 15.6124 10.7454 15.4004 10.5891 15.2441C10.4328 15.0878 10.2209 15 9.99984 15C9.77882 15 9.56686 15.0878 9.41058 15.2441C9.2543 15.4004 9.1665 15.6124 9.1665 15.8334ZM9.1665 4.16671C9.1665 4.38772 9.2543 4.59968 9.41058 4.75596C9.56686 4.91224 9.77882 5.00004 9.99984 5.00004C10.2209 5.00004 10.4328 4.91224 10.5891 4.75596C10.7454 4.59968 10.8332 4.38772 10.8332 4.16671C10.8332 3.94569 10.7454 3.73373 10.5891 3.57745C10.4328 3.42117 10.2209 3.33337 9.99984 3.33337C9.77882 3.33337 9.56686 3.42117 9.41058 3.57745C9.2543 3.73373 9.1665 3.94569 9.1665 4.16671Z"
+                    stroke="#A1A1AA"
+                    stroke-width="1.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </a>
+              <div class="hidden absolute right-6 menu-box" id={"actions-menu-#{device.id}"} phx-click-away={hide_menu("actions-menu-#{device.id}")} phx-key="escape" )}>
+                <.link phx-click="reboot-device" phx-value-device_identifier={device.identifier} class="dropdown-item">
+                  Reboot
+                </.link>
+                <div class="dropdown-divider"></div>
+                <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device.identifier}/console"} class="dropdown-item">
+                  Console
+                </.link>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-divider"></div>
+                <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
+                  <span>
+                    <%= if device.update_mode != :off, do: "Disable Updates", else: "Enable Updates" %>
+                  </span>
+                </.link>
+
+                <div class="dropdown-divider"></div>
+
+                <%= link to: Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier), class: "dropdown-item", aria: [label: "Download Audit Logs"] do %>
+                  <div class="button-icon download"></div>
+                  <span class="action-text">Download Audit Logs</span>
+                <% end %>
+              </div>
+            </div>
+          </td> --%>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div :if={Enum.empty?(@archives)} class="flex h-full items-center justify-center pb-16">
+      <span class="text-content-muted font-mono text-xl font-medium">{@current_scope.product.name} doesn't have any available archives.</span>
+    </div>
   </div>
 
-  <Pager.render_with_page_sizes pager={@pager_meta} page_sizes={[25, 50, 100]} />
+  <:pagination pager={@pager_meta} page_sizes={[25, 50, 100]} />
 </NervesHubWeb.Layouts.sidebar>
