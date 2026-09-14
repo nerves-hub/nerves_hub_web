@@ -351,6 +351,21 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
       assert current_release["required"] == true
     end
 
+    test "refuses a release with the current release's firmware and archive", %{
+      conn: conn,
+      deployment_group: deployment_group,
+      org: org,
+      product: product
+    } do
+      path = Routes.api_deployment_group_path(conn, :update, org.name, product.name, deployment_group.name)
+
+      conn = put(conn, path, deployment: %{"firmware" => deployment_group.current_release.firmware.uuid})
+
+      assert json_response(conn, 422)["errors"]["firmware"] == [
+               "The current release already has this firmware and archive"
+             ]
+    end
+
     test "doesn't give the release a firmware change creates the group's connecting code", %{
       conn: conn,
       deployment_group: deployment_group,

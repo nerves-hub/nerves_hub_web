@@ -46,21 +46,21 @@ defmodule NervesHub.ManagedDeployments.ReleaseConnectingCodeTest do
 
   describe "the code a device runs when it connects" do
     test "runs a release's code after the group's by default, and the device's own last", context do
-      _ = add_release(context, context.firmware, %{connecting_code: "release"})
+      _ = add_release(context, context.next_firmware, %{connecting_code: "release"})
 
-      assert connecting_code(device_on(context, context.firmware)) == ["group", "release", "device"]
+      assert connecting_code(device_on(context, context.next_firmware)) == ["group", "release", "device"]
     end
 
     test "can run a release's code before the group's", context do
-      _ = add_release(context, context.firmware, %{connecting_code: "release", connecting_code_mode: "first"})
+      _ = add_release(context, context.next_firmware, %{connecting_code: "release", connecting_code_mode: "first"})
 
-      assert connecting_code(device_on(context, context.firmware)) == ["release", "group", "device"]
+      assert connecting_code(device_on(context, context.next_firmware)) == ["release", "group", "device"]
     end
 
     test "can override the group's code with a release's", context do
-      _ = add_release(context, context.firmware, %{connecting_code: "release", connecting_code_mode: "override"})
+      _ = add_release(context, context.next_firmware, %{connecting_code: "release", connecting_code_mode: "override"})
 
-      assert connecting_code(device_on(context, context.firmware)) == ["release", "device"]
+      assert connecting_code(device_on(context, context.next_firmware)) == ["release", "device"]
     end
 
     test "comes from the release the device is running", context do
@@ -78,16 +78,16 @@ defmodule NervesHub.ManagedDeployments.ReleaseConnectingCodeTest do
     end
 
     test "leaves the group's code alone when the release has none, whatever its mode", context do
-      _ = add_release(context, context.firmware, %{connecting_code: "  ", connecting_code_mode: "override"})
+      _ = add_release(context, context.next_firmware, %{connecting_code: "  ", connecting_code_mode: "override"})
 
-      assert connecting_code(device_on(context, context.firmware)) == ["group", "device"]
+      assert connecting_code(device_on(context, context.next_firmware)) == ["group", "device"]
     end
   end
 
   describe "update_deployment_release_connecting_code/3" do
     test "changes the code devices get next time they connect, and audits it", context do
-      release = add_release(context, context.firmware, %{connecting_code: "release"})
-      device = device_on(context, context.firmware)
+      release = add_release(context, context.next_firmware, %{connecting_code: "release"})
+      device = device_on(context, context.next_firmware)
 
       assert {:ok, release} =
                ManagedDeployments.update_deployment_release_connecting_code(
@@ -104,7 +104,7 @@ defmodule NervesHub.ManagedDeployments.ReleaseConnectingCodeTest do
     end
 
     test "refuses a run order it doesn't know", context do
-      release = add_release(context, context.firmware, %{connecting_code: "release"})
+      release = add_release(context, context.next_firmware, %{connecting_code: "release"})
 
       assert {:error, changeset} =
                ManagedDeployments.update_deployment_release_connecting_code(
