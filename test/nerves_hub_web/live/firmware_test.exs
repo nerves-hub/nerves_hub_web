@@ -119,6 +119,51 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       )
       |> refute_has("a", text: new_firmware.uuid)
     end
+
+    test "hides deleted firmware until the toggle asks for it", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "ShowDeletedProduct"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      kept = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+      removed = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+
+      {:ok, _} = Firmwares.delete_firmware(removed, user)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> assert_has("a", text: kept.uuid)
+      |> refute_has("a", text: removed.uuid)
+      |> check("Show deleted")
+      |> assert_has("a", text: removed.uuid)
+      |> assert_has("span", text: "Deleted")
+      # Still there, and still linked, so history does not dead-end.
+      |> assert_has("a", text: kept.uuid)
+    end
+
+    test "keeps the deleted firmware toggle in the url", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "DeletedToggleUrlProduct"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      _firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware")
+      |> check("Show deleted")
+      |> assert_path("/org/#{org.name}/#{product.name}/firmware",
+        query_params: %{include_deleted: "true", page_number: "1"}
+      )
+      # Turning it back off drops the param rather than writing `false`.
+      |> uncheck("Show deleted")
+      |> refute_has("input[type='checkbox'][checked]")
+    end
   end
 
   describe "show" do
@@ -146,7 +191,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("span", text: "#{product.name} doesn’t have any firmware yet")
     end
 
-    test "error deleting firmware when it has associated deployments", %{
+    test "the delete button is disabled, with a reason, when a deployment group is on this firmware", %{
       conn: conn,
       user: user,
       org: org,
@@ -156,18 +201,19 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      # Create a deployment from the firmware
-      Fixtures.deployment_group_fixture(firmware, %{user: user})
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
       |> assert_has("h1", text: firmware.uuid)
-      |> click_button("Delete")
-      |> assert_path("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
-      |> assert_has("div", text: "Firmware has associated deployment releases")
+      |> assert_has("button[aria-label='Delete firmware'][disabled]")
+      |> assert_has("div[role='tooltip']",
+        text: "This firmware is the current release of #{deployment_group.name}",
+        exact: false
+      )
     end
 
-    test "error deleting firmware when it has associated deployment releases", %{
+    test "deletes firmware that only a past release references", %{
       conn: conn,
       user: user,
       org: org,
@@ -178,19 +224,39 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       firmware2 = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      # Create a deployment from the firmware
       deployment = Fixtures.deployment_group_fixture(firmware, %{user: user})
 
-      ManagedDeployments.update_deployment_group(deployment, %{firmware_id: firmware2.id}, user)
+      # A second release moves the group on, leaving the first firmware
+      # referenced only by history.
+      {:ok, _} = ManagedDeployments.create_deployment_release(deployment, firmware2, nil, user, %{})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
       |> assert_has("h1", text: firmware.uuid)
+      |> refute_has("button[aria-label='Delete firmware'][disabled]")
       |> click_button("Delete")
-      |> assert_path("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
-      |> assert_has("p",
-        text: "Error deleting firmware: Firmware has associated deployment releases"
-      )
+      |> assert_path("/org/#{org.name}/#{product.name}/firmware")
+      |> assert_has("div", text: "Firmware successfully deleted")
+    end
+
+    test "a deleted firmware's page says who deleted it, and offers no download", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      {:ok, _} = Firmwares.delete_firmware(firmware, user)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware/#{firmware.uuid}")
+      |> assert_has("h1", text: firmware.uuid)
+      |> assert_has("span", text: "This firmware was deleted by #{user.name}", exact: false)
+      |> refute_has("button[aria-label='Delete firmware']")
+      |> refute_has("a", text: "Download")
     end
 
     test "no flash is shown when new firmware is uploaded",
@@ -488,7 +554,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      stub(Firmwares, :delete_firmware, fn _ ->
+      stub(Firmwares, :delete_firmware, fn _firmware, _user ->
         {:error,
          %Ecto.Changeset{
            errors: [base: {"firmware has deployments", []}],
