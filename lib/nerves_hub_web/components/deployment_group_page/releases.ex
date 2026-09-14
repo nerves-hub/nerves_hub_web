@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.CoreComponents
   alias Phoenix.HTML.Form
+  alias Phoenix.LiveView.JS
 
   @impl Phoenix.LiveComponent
   def update(%{event: {:firmware_created, firmware}}, socket) do
@@ -99,7 +100,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                     </div>
                   </div>
 
-                  <div class="flex grow flex-col gap-2 px-4 py-3 text-sm">
+                  <div class="flex min-w-0 grow flex-col gap-2 px-4 py-3 text-sm">
                     <div class="flex">
                       <span :if={release.description} class="text-base-300 grow font-semibold">
                         {release.description}
@@ -131,7 +132,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                       </CoreComponents.modal>
                     </div>
 
-                    <div class="flex gap-4">
+                    <div class="flex flex-wrap gap-x-4 gap-y-1">
                       <div>
                         <span class="text-base-400">Firmware:</span>
                         <span class="text-base-300 font-medium">
@@ -172,13 +173,33 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                         <span :if={!release.connecting_code} class="text-base-400 font-medium">
                           None
                         </span>
+                        <.link
+                          :if={authorized?(:"deployment_group:update", @current_scope)}
+                          id={"release-#{release.id}-edit-connecting-code"}
+                          phx-click={edit_connecting_code(release, @myself)}
+                          class="text-base-300 ml-2 font-medium underline decoration-dashed hover:decoration-solid"
+                        >
+                          Edit
+                        </.link>
                         <CoreComponents.modal :if={release.connecting_code} id={"release-connecting-code-#{release.id}"}>
-                          <div class="p-4">
-                            <h2 class="text-base-300 pb-2 text-lg font-semibold">Connecting code</h2>
-                            <p class="text-base-400 pb-5 text-sm">
+                          <div class="flex flex-col gap-5 p-4">
+                            <h2 class="text-base-300 text-lg font-semibold">Connecting code</h2>
+                            <p class="text-base-400 text-sm">
                               {connecting_code_mode_summary(release.connecting_code_mode)}. Devices running this release run it when they connect.
                             </p>
                             <pre class="bg-base-800/50 text-base-300 overflow-x-auto p-5 text-sm">{release.connecting_code}</pre>
+                            <div :if={authorized?(:"deployment_group:update", @current_scope)}>
+                              <.button
+                                style="secondary"
+                                type="button"
+                                phx-click={
+                                  Phoenix.LiveView.JS.exec("data-cancel", to: "#release-connecting-code-#{release.id}")
+                                  |> edit_connecting_code(release, @myself)
+                                }
+                              >
+                                Edit connecting code
+                              </.button>
+                            </div>
                           </div>
                         </CoreComponents.modal>
                       </div>
@@ -195,18 +216,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                     </span>
                   </div>
 
-                  <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex items-center gap-2 px-4 py-3">
-                    <.button
-                      id={"release-#{release.id}-edit-connecting-code"}
-                      style="secondary"
-                      type="button"
-                      phx-click={
-                        Phoenix.LiveView.JS.push("edit-connecting-code", value: %{release_id: release.id}, target: @myself)
-                        |> CoreComponents.show_modal("edit-connecting-code")
-                      }
-                    >
-                      Edit connecting code
-                    </.button>
+                  <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex items-center px-4 py-3">
                     <.button
                       id={"release-#{release.id}-toggle-required"}
                       style="secondary"
@@ -325,8 +335,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   attr(:form, Form, required: true)
 
-  # The run order only means something once there's code to run, so it's only
-  # offered then.
   defp connecting_code_inputs(assigns) do
     ~H"""
     <div class="flex w-2/3 flex-col gap-6">
@@ -337,13 +345,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
       </.input>
     </div>
 
-    <div :if={present?(@form[:connecting_code].value)} class="flex w-1/2 flex-col gap-6">
+    <div class="flex w-1/2 flex-col gap-6">
       <.input
         field={@form[:connecting_code_mode]}
         type="select"
         options={connecting_code_mode_options()}
         label="Run order"
-        hint="Device specific connecting code still runs last."
+        hint="Where this code runs relative to the deployment group's connecting code. Device specific connecting code always runs last."
       />
     </div>
     """
@@ -502,7 +510,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   defp connecting_code_mode_summary(:first), do: "Runs before the group's code"
   defp connecting_code_mode_summary(:override), do: "Overrides the group's code"
 
-  defp present?(value), do: is_binary(value) and String.trim(value) != ""
+  defp edit_connecting_code(js \\ %JS{}, release, myself) do
+    js
+    |> JS.push("edit-connecting-code", value: %{release_id: release.id}, target: myself)
+    |> CoreComponents.show_modal("edit-connecting-code")
+  end
 
   defp required_confirmation(%{required: true}) do
     "Devices will no longer be held at this release on their way to newer ones. Continue?"

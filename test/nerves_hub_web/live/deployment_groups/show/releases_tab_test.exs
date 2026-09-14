@@ -220,7 +220,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     |> within("#release-form", fn session ->
       session
       |> select("Firmware version", option: "#{new_firmware.version}", exact_option: false)
-      |> refute_has("label", text: "Run order")
       |> fill_in("Connecting code", with: ~s/IO.puts("hello")/)
       |> select("Run order", option: "Before the deployment group's code")
       |> submit()
@@ -242,7 +241,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     conn
     |> assert_has("#release-#{release.id}-edit-connecting-code")
     |> refute_has("#release-#{release.id}-connecting-code")
-    |> click_button("#release-#{release.id}-edit-connecting-code", "Edit connecting code")
+    |> click_link("#release-#{release.id}-edit-connecting-code", "Edit")
     |> within("#connecting-code-form", fn session ->
       session
       |> fill_in("Connecting code", with: "dbg(:hello)")
