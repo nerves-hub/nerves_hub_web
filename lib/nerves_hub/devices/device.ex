@@ -19,8 +19,6 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Products.Product
   alias NervesHub.Types.Tag
 
-  @derive {Flop.Schema, filterable: [], sortable: []}
-
   @type t :: %__MODULE__{}
 
   @type firmware_validation_statuses :: :validated | :not_validated | :unknown
