@@ -10,7 +10,6 @@ defmodule NervesHubWeb.Live.Firmware do
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHub.Firmwares.Upload
   alias NervesHub.Products
-  alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.Helpers.FirmwareDeletion
   alias Phoenix.Socket.Broadcast
