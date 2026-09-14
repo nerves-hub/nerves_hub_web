@@ -7,18 +7,12 @@ defmodule NervesHubWeb.Components.DeviceComponents do
   topology assigns to it, plus action buttons and mode dropdowns. The topology
   is device-supplied and already sanitized (`NervesHub.Devices.Components`),
   so everything here is rendered as text; identifiers are only ever echoed
-  back to the device, never interpreted.
-
-  Actions and modes fire the `components-run-action` / `components-set-mode`
-  LiveView events, which both the Details and Networks tabs route through
-  `NervesHubWeb.Components.DevicePage.SharedComponentsHandlers`.
-
-  Names are always the human ones: labels, or humanized identifiers and
-  metric keys. For peers there is one extra praxis — a network fronting
-  several devices of one type keys their metrics per device
-  (`battery_pct_leak_sensor_2878f`), so the biggest suffix shared by a peer's
-  metrics is trimmed before display; inside that peer's box it only repeats
-  the title.
+  back to the device, never interpreted. Actions and modes fire the
+  `components-run-action` / `components-set-mode` LiveView events, routed
+  through `NervesHubWeb.Components.DevicePage.SharedComponentsHandlers`.
+  Names shown are always human ones: labels, or humanized identifiers and
+  metric keys; a peer's metrics also drop the per-device suffix a network
+  keys them with (see `shared_metric_suffix/1`).
   """
 
   use NervesHubWeb, :component
