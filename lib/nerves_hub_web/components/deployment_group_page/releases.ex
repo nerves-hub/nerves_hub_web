@@ -52,9 +52,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     |> assign(:form, to_form(changeset))
     |> assign(:releases, releases)
     |> assign(:show_rollout_options, false)
-    # Kept across updates from the parent, which would otherwise clear a
-    # connecting code edit that's still open
-    |> assign_new(:connecting_code_release, fn -> nil end)
+    # Kept across updates from the parent, which would otherwise clear a release
+    # edit that's still open
+    |> assign_new(:editing_release, fn -> nil end)
     |> assign_new(:connecting_code_form, fn -> nil end)
     |> ok()
   end
@@ -173,14 +173,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                         <span :if={!release.connecting_code} class="text-base-400 font-medium">
                           None
                         </span>
-                        <.link
-                          :if={authorized?(:"deployment_group:update", @current_scope)}
-                          id={"release-#{release.id}-edit-connecting-code"}
-                          phx-click={edit_connecting_code(release, @myself)}
-                          class="text-base-300 ml-2 font-medium underline decoration-dashed hover:decoration-solid"
-                        >
-                          Edit
-                        </.link>
                         <CoreComponents.modal :if={release.connecting_code} id={"release-connecting-code-#{release.id}"}>
                           <div class="flex flex-col gap-5 p-4">
                             <h2 class="text-base-300 text-lg font-semibold">Connecting code</h2>
@@ -188,18 +180,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                               {connecting_code_mode_summary(release.connecting_code_mode)}. Devices running this release run it when they connect.
                             </p>
                             <pre class="bg-base-800/50 text-base-300 overflow-x-auto p-5 text-sm">{release.connecting_code}</pre>
-                            <div :if={authorized?(:"deployment_group:update", @current_scope)}>
-                              <.button
-                                style="secondary"
-                                type="button"
-                                phx-click={
-                                  Phoenix.LiveView.JS.exec("data-cancel", to: "#release-connecting-code-#{release.id}")
-                                  |> edit_connecting_code(release, @myself)
-                                }
-                              >
-                                Edit connecting code
-                              </.button>
-                            </div>
                           </div>
                         </CoreComponents.modal>
                       </div>
@@ -217,16 +197,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                   </div>
 
                   <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex items-center px-4 py-3">
-                    <.button
-                      id={"release-#{release.id}-toggle-required"}
-                      style="secondary"
-                      type="button"
-                      phx-click="toggle-release-required"
-                      phx-value-release_id={release.id}
-                      phx-target={@myself}
-                      data-confirm={required_confirmation(release)}
-                    >
-                      {if release.required, do: "Unmark required", else: "Mark required"}
+                    <.button id={"release-#{release.id}-edit"} style="secondary" type="button" phx-click={edit_release(release, @myself)}>
+                      Edit
                     </.button>
                   </div>
                 </div>
@@ -304,30 +276,63 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
         </.form>
       </CoreComponents.modal>
 
-      <CoreComponents.modal id="edit-connecting-code">
-        <.form
-          :let={f}
-          :if={@connecting_code_form}
-          id="connecting-code-form"
-          for={@connecting_code_form}
-          phx-change="validate-connecting-code"
-          phx-submit="save-connecting-code"
-          phx-target={@myself}
-        >
+      <CoreComponents.modal id="edit-release">
+        <div :if={@editing_release}>
           <div class="border-base-700 flex h-14 items-center justify-between border-b px-4">
-            <div class="text-base-50 text-base font-medium">Connecting code for release {@connecting_code_release.number}</div>
+            <div class="text-base-50 text-base font-medium">Edit release {@editing_release.number}</div>
           </div>
 
-          <div class="flex flex-col gap-6 p-4">
-            <.connecting_code_inputs form={f} />
-
+          <div class="border-base-700 flex flex-col gap-3 border-b p-4">
+            <div class="text-base-50 text-sm font-medium">Required release</div>
+            <p class="text-base-400 text-sm">
+              {if @editing_release.required, do: "This release is required.", else: "This release isn't required."} Devices that haven't reached a required release are updated to it before any newer release.
+            </p>
             <div>
-              <.button style="primary" type="submit">
-                <.icon name="save" /> Save connecting code
+              <.button
+                id="edit-release-toggle-required"
+                style="secondary"
+                type="button"
+                phx-click="toggle-release-required"
+                phx-value-release_id={@editing_release.id}
+                phx-target={@myself}
+                data-confirm={required_confirmation(@editing_release)}
+              >
+                {if @editing_release.required, do: "Unmark required", else: "Mark required"}
               </.button>
             </div>
           </div>
-        </.form>
+
+          <.form
+            :let={f}
+            id="connecting-code-form"
+            for={@connecting_code_form}
+            phx-change="validate-connecting-code"
+            phx-submit="save-connecting-code"
+            phx-target={@myself}
+          >
+            <div class="flex flex-col gap-6 p-4">
+              <.connecting_code_inputs form={f} />
+
+              <div class="flex gap-2">
+                <.button style="primary" type="submit">
+                  <.icon name="save" /> Save connecting code
+                </.button>
+
+                <.button
+                  :if={@editing_release.connecting_code}
+                  id="edit-release-remove-connecting-code"
+                  style="secondary"
+                  type="button"
+                  phx-click="remove-connecting-code"
+                  phx-target={@myself}
+                  data-confirm="Devices running this release will no longer run its connecting code when they connect. Continue?"
+                >
+                  Remove connecting code
+                </.button>
+              </div>
+            </div>
+          </.form>
+        </div>
       </CoreComponents.modal>
     </div>
     """
@@ -438,7 +443,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
             else: "Release #{updated.number} is no longer required"
 
         socket
-        |> assign(:releases, ManagedDeployments.list_deployment_releases(socket.assigns.deployment_group))
+        |> reload_releases()
         |> send_flash(:info, message)
         |> noreply()
 
@@ -449,7 +454,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     end
   end
 
-  def handle_event("edit-connecting-code", %{"release_id" => release_id}, socket) do
+  def handle_event("edit-release", %{"release_id" => release_id}, socket) do
     %{current_scope: scope, releases: releases} = socket.assigns
 
     authorized!(:"deployment_group:update", scope)
@@ -460,7 +465,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
       release ->
         socket
-        |> assign(:connecting_code_release, release)
+        |> assign(:editing_release, release)
         |> assign(:connecting_code_form, connecting_code_form(release, %{}))
         |> noreply()
     end
@@ -468,21 +473,29 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
   def handle_event("validate-connecting-code", %{"release_connecting_code" => params}, socket) do
     socket
-    |> assign(:connecting_code_form, connecting_code_form(socket.assigns.connecting_code_release, params, :validate))
+    |> assign(:connecting_code_form, connecting_code_form(socket.assigns.editing_release, params, :validate))
     |> noreply()
   end
 
   def handle_event("save-connecting-code", %{"release_connecting_code" => params}, socket) do
-    %{current_scope: scope, connecting_code_release: release} = socket.assigns
+    save_connecting_code(socket, params, &"Connecting code for release #{&1.number} saved")
+  end
+
+  def handle_event("remove-connecting-code", _params, socket) do
+    save_connecting_code(socket, %{"connecting_code" => nil}, &"Connecting code removed from release #{&1.number}")
+  end
+
+  defp save_connecting_code(socket, params, flash_message) do
+    %{current_scope: scope, editing_release: release} = socket.assigns
 
     authorized!(:"deployment_group:update", scope)
 
     case ManagedDeployments.update_deployment_release_connecting_code(release, params, scope.user) do
       {:ok, release} ->
         socket
-        |> assign(:releases, ManagedDeployments.list_deployment_releases(socket.assigns.deployment_group))
-        |> push_event("close-modal", %{id: "edit-connecting-code"})
-        |> send_flash(:info, "Connecting code for release #{release.number} saved")
+        |> reload_releases()
+        |> push_event("close-modal", %{id: "edit-release"})
+        |> send_flash(:info, flash_message.(release))
         |> noreply()
 
       {:error, changeset} ->
@@ -490,6 +503,21 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
         |> assign(:connecting_code_form, to_form(changeset, as: :release_connecting_code))
         |> noreply()
     end
+  end
+
+  # The release being edited is refreshed along with the list, so an open edit
+  # modal shows the change. Its connecting code form is left alone, keeping
+  # anything typed there that hasn't been saved.
+  defp reload_releases(socket) do
+    releases = ManagedDeployments.list_deployment_releases(socket.assigns.deployment_group)
+
+    editing_release =
+      socket.assigns.editing_release &&
+        Enum.find(releases, socket.assigns.editing_release, &(&1.id == socket.assigns.editing_release.id))
+
+    socket
+    |> assign(:releases, releases)
+    |> assign(:editing_release, editing_release)
   end
 
   defp connecting_code_form(release, params, action \\ nil) do
@@ -510,10 +538,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   defp connecting_code_mode_summary(:first), do: "Runs before the group's code"
   defp connecting_code_mode_summary(:override), do: "Overrides the group's code"
 
-  defp edit_connecting_code(js \\ %JS{}, release, myself) do
-    js
-    |> JS.push("edit-connecting-code", value: %{release_id: release.id}, target: myself)
-    |> CoreComponents.show_modal("edit-connecting-code")
+  defp edit_release(release, myself) do
+    %JS{}
+    |> JS.push("edit-release", value: %{release_id: release.id}, target: myself)
+    |> CoreComponents.show_modal("edit-release")
   end
 
   defp required_confirmation(%{required: true}) do
