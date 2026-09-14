@@ -92,6 +92,15 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                       <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} />
                       <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:time} class="text-base-500 text-xs" />
                     </div>
+
+                    <span
+                      :if={release.required}
+                      id={"release-#{release.id}-required"}
+                      class="bg-base-800 border-base-700 text-base-300 mt-2 flex h-6 w-fit items-center rounded-full border px-2.5 text-xs font-medium"
+                      title="Devices that haven't reached this release are updated to it before any newer release"
+                    >
+                      Required
+                    </span>
                   </div>
 
                   <div class="flex grow flex-col gap-2 px-4 py-3 text-sm">
@@ -101,15 +110,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                       </span>
                       <span :if={!release.description} class="text-base-400 grow font-medium">
                         No description
-                      </span>
-
-                      <span
-                        :if={release.required}
-                        id={"release-#{release.id}-required"}
-                        class="bg-base-800 border-base-700 text-base-300 mr-4 flex h-6 items-center rounded-full border px-2.5 text-xs font-medium"
-                        title="Devices that haven't reached this release are updated to it before any newer release"
-                      >
-                        Required
                       </span>
 
                       <.link :if={release.notes} phx-click={CoreComponents.show_modal("release-notes-#{release.id}")} class="text-base-300 font-medium underline decoration-dashed hover:decoration-solid">
