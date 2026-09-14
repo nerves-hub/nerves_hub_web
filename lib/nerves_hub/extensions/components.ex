@@ -2,15 +2,12 @@ defmodule NervesHub.Extensions.Components do
   @moduledoc """
   Lets a device report its hardware topology and take requests against it.
 
-  On attach the platform asks once, and the device answers with everything it
-  is: assemblies of components and networks of peers, each naming the health
-  metrics and metadata that belong to it, plus the actions and modes it
-  exposes. See `NervesHub.Devices.Components` for what is kept and why.
-
-  There is no interval. A topology is long-lived by construction, so polling
-  for it would be noise. A device whose topology has moved (a peer joined its
-  Z-Wave network, a board was hot-plugged) pushes `report` again without being
-  asked.
+  On attach the platform asks once; the device answers with assemblies of
+  components and networks of peers, each naming the health metrics/metadata
+  that belong to it plus the actions and modes it exposes (see
+  `NervesHub.Devices.Components` for what is kept and why). There is no
+  interval — a topology is long-lived, so a device only pushes `report` again
+  when it changes (a peer joins, a board is hot-plugged).
 
   Action and mode requests do not originate here — they are explicit
   operator-triggered messages sent through
