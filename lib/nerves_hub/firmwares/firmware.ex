@@ -7,6 +7,7 @@ defmodule NervesHub.Firmwares.Firmware do
   alias __MODULE__
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.User
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -52,6 +53,7 @@ defmodule NervesHub.Firmwares.Firmware do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:org_key, OrgKey)
+    belongs_to(:deleted_by, User)
 
     has_many(:deployment_releases, DeploymentRelease)
 
@@ -78,6 +80,8 @@ defmodule NervesHub.Firmwares.Firmware do
 
     field(:checksum, :string)
     field(:partials_checksums, {:array, :string}, default: [])
+
+    field(:deleted_at, :utc_datetime)
 
     field(:install_count, :integer, virtual: true)
 
@@ -147,12 +151,18 @@ defmodule NervesHub.Firmwares.Firmware do
       f.product_id == ^product_id and f.platform == ^platform and
         f.architecture == ^architecture and f.version == ^version
     )
+    |> Repo.exclude_deleted()
     |> Repo.exists?()
   end
 
-  def delete_changeset(%Firmware{} = firmware) do
-    firmware
-    |> change()
-    |> no_assoc_constraint(:deployment_releases, message: "Firmware has associated deployment releases")
-  end
+  @doc """
+  Whether this firmware has been deleted.
+
+  Deleting firmware is a soft delete: the row stays so that device firmware
+  history and past deployment releases keep resolving, and only the file behind
+  it is removed. See `NervesHub.Firmwares.delete_firmware/2`.
+  """
+  @spec deleted?(t()) :: boolean()
+  def deleted?(%Firmware{deleted_at: nil}), do: false
+  def deleted?(%Firmware{}), do: true
 end

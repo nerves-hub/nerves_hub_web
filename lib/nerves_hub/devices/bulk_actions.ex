@@ -92,6 +92,47 @@ defmodule NervesHub.Devices.BulkActions do
   end
 
   @doc """
+  Add tags to many devices, keeping the tags each device already has.
+
+  `tag_devices/3` replaces the tags on every device it touches, which is no use
+  for putting one shared tag on a fleet of individually tagged devices.
+  """
+  @spec add_tags_to_devices([Device.t()] | Ecto.Query.t(), User.t(), list(String.t()) | String.t()) ::
+          %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
+          | %{ok: non_neg_integer(), error: non_neg_integer()}
+  def add_tags_to_devices(devices, user, tags) when is_list(devices) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, Devices, :add_tags, [&1, user, tags]))
+    |> Task.await_many(20_000)
+    |> Enum.reduce(%{ok: [], error: []}, fn
+      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
+      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
+    end)
+  end
+
+  def add_tags_to_devices(%Ecto.Query{} = devices_query, user, tags) do
+    stream_processing(devices_query, {Devices, :add_tags, [user, tags]})
+  end
+
+  @doc """
+  Remove tags from many devices, leaving the rest of each device's tags alone.
+  """
+  @spec remove_tags_from_devices([Device.t()] | Ecto.Query.t(), User.t(), list(String.t()) | String.t()) ::
+          %{ok: [Device.t()], error: [{Ecto.Multi.name(), any()}]}
+          | %{ok: non_neg_integer(), error: non_neg_integer()}
+  def remove_tags_from_devices(devices, user, tags) when is_list(devices) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, Devices, :remove_tags, [&1, user, tags]))
+    |> Task.await_many(20_000)
+    |> Enum.reduce(%{ok: [], error: []}, fn
+      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
+      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
+    end)
+  end
+
+  def remove_tags_from_devices(%Ecto.Query{} = devices_query, user, tags) do
+    stream_processing(devices_query, {Devices, :remove_tags, [user, tags]})
+  end
+
+  @doc """
   Remove multiple devices from their deployment groups.
 
   Returns `{:ok, count}` with the number of devices updated.
