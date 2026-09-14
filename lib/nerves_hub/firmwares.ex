@@ -534,12 +534,30 @@ defmodule NervesHub.Firmwares do
     |> Repo.exists?()
   end
 
-  @spec get_delta_or_firmware(Device.t(), DeploymentGroup.t()) ::
+  @doc """
+  The delta or full firmware that takes the device to `target_firmware`, which
+  defaults to the deployment group's current release firmware.
+
+  A delta is only used when the group allows them, the target supports them, and
+  one from the device's running firmware is ready.
+  """
+  @spec get_delta_or_firmware(Device.t(), DeploymentGroup.t(), Firmware.t() | nil) ::
           {:ok, Firmware.t()} | {:ok, FirmwareDelta.t()}
-  def get_delta_or_firmware(%Device{firmware_metadata: %{uuid: source_uuid}} = device, %DeploymentGroup{
-        delta_updatable: true,
-        current_release: %DeploymentRelease{firmware: %Firmware{delta_updatable: true} = target_firmware}
-      }) do
+  def get_delta_or_firmware(device, deployment_group, target_firmware \\ nil)
+
+  def get_delta_or_firmware(
+        device,
+        %DeploymentGroup{current_release: %DeploymentRelease{firmware: %Firmware{} = target}} = deployment_group,
+        nil
+      ) do
+    get_delta_or_firmware(device, deployment_group, target)
+  end
+
+  def get_delta_or_firmware(
+        %Device{firmware_metadata: %{uuid: source_uuid}} = device,
+        %DeploymentGroup{delta_updatable: true},
+        %Firmware{delta_updatable: true} = target_firmware
+      ) do
     case get_firmware_by_product_id_and_uuid(device.product_id, source_uuid) do
       {:ok, source_firmware} ->
         case get_delta_if_ready(device, source_firmware, target_firmware) do
@@ -555,7 +573,7 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  def get_delta_or_firmware(%Device{}, %DeploymentGroup{current_release: %{firmware: target}}), do: {:ok, target}
+  def get_delta_or_firmware(%Device{}, %DeploymentGroup{}, %Firmware{} = target_firmware), do: {:ok, target_firmware}
 
   @doc """
   The delta that takes the device from the firmware it is running to `firmware`.

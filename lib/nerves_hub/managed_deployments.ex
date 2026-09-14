@@ -172,8 +172,7 @@ defmodule NervesHub.ManagedDeployments do
   # The `steps` join is only added alongside its preload. `steps` is a has_many, so
   # the left join multiplies the parent rows; Ecto collapses them again when the
   # preload is expressed through the join, but a caller that only joins for
-  # filtering (see `Devices.Updates.available_for_update/2`) would get one row per
-  # step for every device.
+  # filtering would get one row per step for every row it selects.
   def join_current_release(query, preload_firmware \\ false) do
     query
     |> join(:inner, [deployment_group: dg], dr in assoc(dg, :current_release), as: :current_release)
@@ -386,19 +385,20 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  Recalculates the status of a deployment group based on the firmware deltas associated with the
-  firmware of the deployment group's current release.
+  Recalculates the status of a deployment group based on the firmware deltas its devices need:
+  from the firmware each device is running to the firmware of the release it is headed for next.
   """
   def recalculate_deployment_group_status(deployment_group) do
-    source_ids =
-      deployment_group.id
-      |> Deployments.get_device_firmware_for_delta_generation_by_deployment_group()
-      |> Enum.map(fn {source_id, _target_id} -> source_id end)
+    firmware_pairs = Deployments.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
 
-    if Enum.any?(source_ids) do
+    if Enum.any?(firmware_pairs) do
+      pairs_filter =
+        Enum.reduce(firmware_pairs, dynamic(false), fn {source_id, target_id}, filter ->
+          dynamic([fd], ^filter or (fd.source_id == ^source_id and fd.target_id == ^target_id))
+        end)
+
       FirmwareDelta
-      |> where([fd], fd.source_id in ^source_ids)
-      |> where([fd], fd.target_id == ^deployment_group.current_release.firmware_id)
+      |> where(^pairs_filter)
       |> Repo.all()
       |> Enum.map(fn firmware_delta ->
         firmware_delta.status
@@ -552,6 +552,159 @@ defmodule NervesHub.ManagedDeployments do
     Ecto.Changeset.change(deployment_group)
     |> Ecto.Changeset.put_change(:current_deployment_release_id, release.id)
     |> Repo.update()
+  end
+
+  @doc """
+  Join the release each device should be updated to next, as `:target_release`.
+
+  That is normally the deployment group's current release. A required release
+  changes it for a device that has not reached it yet: the device is sent the
+  earliest required release it is behind, and only moves on once it is running it.
+
+  How far a device has got is the newest release in the group whose firmware it
+  is running. A device running firmware that belongs to no release in the group
+  cannot be placed that way, so for it a required release is skipped only when
+  its version is already at or beyond the release's; a version that is not
+  semver cannot be compared, and the release still applies.
+
+  The query must have `:device` and `:deployment_group` named bindings. The
+  joined row carries the release's `id`, `number` and `firmware_id`.
+
+  This works the release out for every device row, which a query over a large
+  group should only pay for when the group has a required release to consider;
+  `join_target_release/2` checks that first.
+  """
+  @spec join_target_release(Ecto.Query.t()) :: Ecto.Query.t()
+  def join_target_release(query) do
+    device_release =
+      DeploymentRelease
+      |> join(:inner, [r], f in assoc(r, :firmware), as: :firmware)
+      |> where([r], r.deployment_group_id == parent_as(:deployment_group).id)
+      |> where([firmware: f], f.uuid == fragment("? #>> '{\"uuid\"}'", parent_as(:device).firmware_metadata))
+      |> select([r], %{number: max(r.number)})
+
+    target_release =
+      DeploymentRelease
+      |> join(:inner, [r], f in assoc(r, :firmware), as: :firmware)
+      |> where([r], r.deployment_group_id == parent_as(:deployment_group).id)
+      |> where(
+        [r, firmware: f],
+        r.id == parent_as(:deployment_group).current_deployment_release_id or
+          (r.required and r.number > coalesce(parent_as(:device_release).number, 0) and
+             (not is_nil(parent_as(:device_release).number) or
+                fragment(
+                  ~s|coalesce(semver_sort_key(? #>> '{"version"}') COLLATE "C" < semver_sort_key(?) COLLATE "C", true)|,
+                  parent_as(:device).firmware_metadata,
+                  f.version
+                )))
+      )
+      |> order_by([r], asc: r.number)
+      |> limit(1)
+      |> select([r], %{id: r.id, number: r.number, firmware_id: r.firmware_id})
+
+    query
+    |> join(:inner_lateral, [], dr in subquery(device_release), on: true, as: :device_release)
+    |> join(:inner_lateral, [], tr in subquery(target_release), on: true, as: :target_release)
+  end
+
+  @doc """
+  `join_target_release/1`, for a query over the devices of one deployment group.
+
+  A group with no required release before its current one sends every device
+  the current release, so that is joined as `:target_release` directly, without
+  working it out per device.
+  """
+  @spec join_target_release(Ecto.Query.t(), DeploymentGroup.t() | integer()) :: Ecto.Query.t()
+  def join_target_release(query, deployment_group) do
+    if earlier_required_release?(deployment_group) do
+      join_target_release(query)
+    else
+      join(query, :inner, [deployment_group: dg], tr in DeploymentRelease,
+        on: tr.id == dg.current_deployment_release_id,
+        as: :target_release
+      )
+    end
+  end
+
+  @doc """
+  Whether a release before the deployment group's current one is marked required.
+
+  Until one is, the current release is where every device is headed. The current
+  release is read from the database rather than the struct, which the
+  orchestrator holds for the life of a release and can be behind.
+  """
+  @spec earlier_required_release?(DeploymentGroup.t() | integer()) :: boolean()
+  def earlier_required_release?(%DeploymentGroup{id: id}), do: earlier_required_release?(id)
+
+  def earlier_required_release?(deployment_group_id) do
+    DeploymentRelease
+    |> join(:inner, [r], dg in assoc(r, :deployment_group))
+    |> where([r, dg], dg.id == ^deployment_group_id)
+    |> where([r, dg], r.required and r.id != dg.current_deployment_release_id)
+    |> Repo.exists?()
+  end
+
+  @doc """
+  The release a device should be updated to next. See `join_target_release/1`.
+
+  A device already running the current release's firmware is up to date, and gets
+  the current release back without a query.
+  """
+  @spec target_release(DeploymentGroup.t(), Device.t()) :: DeploymentRelease.t()
+  def target_release(%DeploymentGroup{} = deployment_group, %Device{} = device) do
+    deployment_group = load_current_release(deployment_group)
+    current_release = deployment_group.current_release
+
+    if get_in(device.firmware_metadata.uuid) == current_release.firmware.uuid do
+      current_release
+    else
+      target_release_id =
+        Device
+        |> from(as: :device)
+        |> where([device: d], d.id == ^device.id)
+        |> join(:inner, [], dg in DeploymentGroup, on: dg.id == ^deployment_group.id, as: :deployment_group)
+        |> join_target_release()
+        |> select([target_release: tr], tr.id)
+        |> Repo.one()
+
+      if target_release_id in [nil, current_release.id] do
+        current_release
+      else
+        DeploymentRelease
+        |> Repo.get!(target_release_id)
+        |> Repo.preload([:firmware, :archive])
+      end
+    end
+  end
+
+  @doc """
+  Mark or unmark a release as required.
+
+  Changing it changes which firmware some devices are sent next, so the deltas
+  those devices need are queued, the group's status is recalculated against them,
+  and the orchestrator is told to look again.
+  """
+  @spec set_deployment_release_required(DeploymentRelease.t(), boolean(), User.t()) ::
+          {:ok, DeploymentRelease.t()} | {:error, Changeset.t() | :not_found | :delta_generation_failed}
+  def set_deployment_release_required(%DeploymentRelease{} = release, required, %User{} = user)
+      when is_boolean(required) do
+    Repo.transact(fn ->
+      with {:ok, release} <- Repo.update(DeploymentRelease.required_changeset(release, required)),
+           {:ok, deployment_group} <- get_deployment_group(release.deployment_group_id),
+           :ok <- DeploymentGroupTemplates.audit_release_required_changed(user, deployment_group, release),
+           {:ok, _} <- maybe_trigger_delta_generation(deployment_group, release),
+           {:ok, deployment_group} <- recalculate_deployment_group_status(deployment_group) do
+        {:ok, {release, deployment_group}}
+      end
+    end)
+    |> case do
+      {:ok, {release, deployment_group}} ->
+        :ok = broadcast(deployment_group, "deployments/update")
+        {:ok, release}
+
+      {:error, _} = error ->
+        error
+    end
   end
 
   @doc """
