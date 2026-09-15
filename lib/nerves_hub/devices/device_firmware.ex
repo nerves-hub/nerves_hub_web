@@ -36,7 +36,9 @@ defmodule NervesHub.Devices.DeviceFirmware do
     |> cast(params, [:device_id, :firmware_validation_status, :firmware_auto_revert_detected])
     |> cast_embed(:firmware_metadata)
     |> prepare_changes(fn changeset ->
-      Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, get_in(firmware_metadata.uuid))
+      Firmwares.get_firmware_by_product_id_and_uuid(device.product_id, get_in(firmware_metadata.uuid),
+        include_deleted: true
+      )
       |> case do
         {:ok, firmware} -> put_change(changeset, :firmware_id, firmware.id)
         {:error, _} -> changeset

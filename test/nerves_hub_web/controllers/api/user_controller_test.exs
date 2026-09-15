@@ -1,7 +1,8 @@
 defmodule NervesHubWeb.API.UserControllerTest do
   use NervesHubWeb.APIConnCase, async: false
 
-  import PhoenixTest
+  import NervesHub.Support.PhoenixTestAssertions
+  import PhoenixTest, except: [assert_has: 3, assert_has: 4, refute_has: 3, refute_has: 4]
 
   alias NervesHub.Fixtures
   alias NervesHub.PlugAttack.Storage, as: PlugAttackStorage
