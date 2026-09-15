@@ -187,13 +187,13 @@ defmodule NervesHub.Devices.UpdateStats do
           }
   defp get_byte_stats(%FirmwareDelta{size: delta_size}, product_id, target_firmware_uuid) do
     {:ok, target_firmware} =
-      Firmwares.get_firmware_by_product_id_and_uuid(product_id, target_firmware_uuid)
+      Firmwares.get_firmware_by_product_id_and_uuid(product_id, target_firmware_uuid, include_deleted: true)
 
     %{update_bytes: delta_size, saved_bytes: target_firmware.size - delta_size}
   end
 
   defp get_byte_stats(nil, product_id, target_firmware_uuid) do
-    case Firmwares.get_firmware_by_product_id_and_uuid(product_id, target_firmware_uuid) do
+    case Firmwares.get_firmware_by_product_id_and_uuid(product_id, target_firmware_uuid, include_deleted: true) do
       {:ok, target_firmware} ->
         %{update_bytes: target_firmware.size, saved_bytes: 0}
 

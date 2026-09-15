@@ -1519,9 +1519,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("option", text: firmware.version, exact_option: false)
-      |> refute_has("option", text: mismatched_architecture_firmware.version, exact_option: false)
-      |> refute_has("option", text: mismatched_platform_firmware.version, exact_option: false)
+      |> assert_has("option", text: firmware.version)
+      |> refute_has("option", text: mismatched_architecture_firmware.version)
+      |> refute_has("option", text: mismatched_platform_firmware.version)
     end
 
     test "cannot send when device is disconnected", %{

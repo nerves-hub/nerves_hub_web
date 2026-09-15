@@ -9,6 +9,7 @@ defmodule NervesHubWeb.API.FallbackController do
   alias NervesHub.Firmwares.UpdateTool
   alias NervesHubWeb.API.ChangesetJSON
   alias NervesHubWeb.API.ErrorJSON
+  alias NervesHubWeb.Helpers.FirmwareDeletion
 
   require Logger
 
@@ -17,6 +18,13 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_status_from_changeset(changeset)
     |> put_view(ChangesetJSON)
     |> render(:error, changeset: changeset)
+  end
+
+  def call(conn, {:error, {:blocked, blockers}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(ErrorJSON)
+    |> render(:"422", %{reason: FirmwareDeletion.blockers_message(blockers)})
   end
 
   def call(conn, {:error, {:product_mismatch, declared, expected}}) do

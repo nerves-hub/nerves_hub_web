@@ -192,23 +192,25 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   def upgrade(%{assigns: %{device: device, current_scope: scope}} = conn, %{"uuid" => uuid}) do
-    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(device.product, uuid)
+    # Firmware that has been deleted no longer resolves here, which is the point
+    # — its file is gone, and a device told to fetch it would fail the update.
+    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(device.product, uuid) do
+      Logger.info("Manually sending full firmware",
+        firmware_uuid: firmware.uuid,
+        device_identifier: device.identifier
+      )
 
-    Logger.info("Manually sending full firmware",
-      firmware_uuid: firmware.uuid,
-      device_identifier: device.identifier
-    )
+      opts =
+        if proxy_url = get_in(scope.org.settings.firmware_proxy_url) do
+          [firmware_proxy_url: proxy_url]
+        else
+          []
+        end
 
-    opts =
-      if proxy_url = get_in(scope.org.settings.firmware_proxy_url) do
-        [firmware_proxy_url: proxy_url]
-      else
-        []
-      end
+      {:ok, _device} = DeviceEvents.manual_update(device, firmware, scope.user, opts)
 
-    {:ok, _device} = DeviceEvents.manual_update(device, firmware, scope.user, opts)
-
-    send_resp(conn, :no_content, "")
+      send_resp(conn, :no_content, "")
+    end
   end
 
   def penalty(%{assigns: %{device: device, current_scope: %{user: user}}} = conn, _params) do
