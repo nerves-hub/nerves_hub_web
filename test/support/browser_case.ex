@@ -12,8 +12,9 @@ defmodule NervesHubWeb.ConnCase.Browser do
       use DefaultMocks
       use ConnCase, unquote(opts)
 
+      import NervesHub.Support.PhoenixTestAssertions
       import Phoenix.LiveViewTest
-      import PhoenixTest
+      import PhoenixTest, except: [assert_has: 3, assert_has: 4, refute_has: 3, refute_has: 4]
       import Test
 
       @moduletag :tmp_dir

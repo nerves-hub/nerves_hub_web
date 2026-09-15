@@ -2,6 +2,7 @@ defmodule NervesHub.AuditLogs.ProductTemplates do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.ErrorReports.ErrorGroup
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.Product
   alias NervesHub.Scripts.Script
 
@@ -25,6 +26,14 @@ defmodule NervesHub.AuditLogs.ProductTemplates do
   def audit_script_deleted(user, product, script) do
     description =
       "User #{user.name} removed script named #{script.name} from product #{product.name}"
+
+    AuditLogs.audit!(user, product, description)
+  end
+
+  @spec audit_firmware_deleted(User.t(), Product.t(), Firmware.t()) :: :ok
+  def audit_firmware_deleted(user, product, firmware) do
+    description =
+      "User #{user.name} deleted firmware #{firmware.version} (#{firmware.uuid}) from product #{product.name}"
 
     AuditLogs.audit!(user, product, description)
   end
