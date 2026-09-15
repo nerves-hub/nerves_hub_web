@@ -184,7 +184,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     assert release.required
   end
 
-  test "marks and unmarks an existing release as required", %{
+  test "marks and unmarks an existing release as required from its edit modal", %{
     conn: conn,
     deployment_group: deployment_group
   } do
@@ -192,17 +192,97 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
 
     conn
     |> refute_has("#release-#{release.id}-required")
-    |> click_button("#release-#{release.id}-toggle-required", "Mark required")
+    |> click_button("#release-#{release.id}-edit", "Edit")
+    |> assert_has("#edit-release-content", text: "This release isn't required.")
+    |> click_button("#edit-release-toggle-required", "Mark required")
     |> assert_has("p", text: "Release #{release.number} is now required")
     |> assert_has("#release-#{release.id}-required", text: "Required")
-    |> click_button("#release-#{release.id}-toggle-required", "Unmark required")
+    |> assert_has("#edit-release-content", text: "This release is required.")
+    |> click_button("#edit-release-toggle-required", "Unmark required")
     |> assert_has("p", text: "Release #{release.number} is no longer required")
     |> refute_has("#release-#{release.id}-required")
 
     refute Repo.reload(release).required
   end
 
-  test "doesn't offer the required toggle to a user who can't update the group", %{
+  test "creates a release with connecting code", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+    new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> within("#release-form", fn session ->
+      session
+      |> select("Firmware version", option: "#{new_firmware.version}", exact_option: false)
+      |> fill_in("Connecting code", with: ~s/IO.puts("hello")/)
+      |> select("Run order", option: "Before the deployment group's code")
+      |> submit()
+    end)
+    |> assert_has("div", text: "Release settings updated")
+
+    [release | _] = ManagedDeployments.list_deployment_releases(deployment_group)
+    assert release.firmware_id == new_firmware.id
+    assert release.connecting_code == ~s/IO.puts("hello")/
+    assert release.connecting_code_mode == :first
+  end
+
+  test "edits a release's connecting code from the history", %{
+    conn: conn,
+    deployment_group: deployment_group
+  } do
+    [release] = ManagedDeployments.list_deployment_releases(deployment_group)
+
+    conn
+    |> refute_has("#release-#{release.id}-connecting-code")
+    |> click_button("#release-#{release.id}-edit", "Edit")
+    |> refute_has("#edit-release-remove-connecting-code")
+    |> within("#connecting-code-form", fn session ->
+      session
+      |> fill_in("Connecting code", with: "dbg(:hello)")
+      |> select("Run order", option: "Override the deployment group's code")
+      |> submit()
+    end)
+    |> assert_has("p", text: "Connecting code for release #{release.number} saved")
+    |> assert_has("#release-#{release.id}-connecting-code", text: "Overrides the group's code")
+
+    release = Repo.reload(release)
+    assert release.connecting_code == "dbg(:hello)"
+    assert release.connecting_code_mode == :override
+  end
+
+  test "removes a release's connecting code from its edit modal", %{
+    conn: conn,
+    org: org,
+    product: product,
+    user: user,
+    deployment_group: deployment_group
+  } do
+    [release] = ManagedDeployments.list_deployment_releases(deployment_group)
+
+    {:ok, release} =
+      ManagedDeployments.update_deployment_release_connecting_code(release, %{"connecting_code" => "dbg(:hello)"}, user)
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> assert_has("#release-#{release.id}-connecting-code", text: "Runs after the group's code")
+    |> click_button("#release-#{release.id}-edit", "Edit")
+    |> click_button("#edit-release-remove-connecting-code", "Remove connecting code")
+    |> assert_has("p", text: "Connecting code removed from release #{release.number}")
+    |> refute_has("#release-#{release.id}-connecting-code")
+
+    assert is_nil(Repo.reload(release).connecting_code)
+  end
+
+  test "doesn't offer release actions to a user who can't update the group", %{
     conn: conn,
     org: org,
     product: product,
@@ -219,7 +299,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     conn
     |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
     |> assert_has("div", text: "Release History")
-    |> refute_has("#release-#{release.id}-toggle-required")
+    |> refute_has("#release-#{release.id}-edit")
   end
 
   test "shows created releases", %{conn: conn} do

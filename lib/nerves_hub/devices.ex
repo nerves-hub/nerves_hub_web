@@ -22,6 +22,8 @@ defmodule NervesHub.Devices do
   alias NervesHub.Extensions
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
@@ -894,11 +896,31 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
+  @doc """
+  The connecting code that applies to a device: its own, its deployment group's,
+  and that of the release it is running (see
+  `NervesHub.ManagedDeployments.join_running_release/1`), with where the
+  release's code runs relative to the group's.
+  """
+  @spec fetch_connecting_code(pos_integer()) :: %{
+          device: String.t() | nil,
+          deployment_group: String.t() | nil,
+          release: String.t() | nil,
+          release_mode: DeploymentRelease.connecting_code_mode() | nil
+        }
   def fetch_connecting_code(device_id) do
     Device
-    |> join(:left, [d], dp in assoc(d, :deployment_group))
-    |> select([d, dp], {d.connecting_code, dp.connecting_code})
-    |> where(id: ^device_id)
+    |> from(as: :device)
+    |> join(:left, [device: d], dg in assoc(d, :deployment_group), as: :deployment_group)
+    |> ManagedDeployments.join_running_release()
+    |> join(:left, [running_release: rr], r in DeploymentRelease, on: r.id == rr.id, as: :release)
+    |> where([device: d], d.id == ^device_id)
+    |> select([device: d, deployment_group: dg, release: r], %{
+      device: d.connecting_code,
+      deployment_group: dg.connecting_code,
+      release: r.connecting_code,
+      release_mode: r.connecting_code_mode
+    })
     |> Repo.one!()
   end
 

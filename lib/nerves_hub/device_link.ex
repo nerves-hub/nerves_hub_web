@@ -615,17 +615,33 @@ defmodule NervesHub.DeviceLink do
     }
   end
 
+  @doc """
+  The code a device runs when it connects, in the order it runs.
+
+  The deployment group's code comes first and the device's own code last. The
+  release the device is running can add code before the group's, after it, or in
+  its place.
+  """
   @spec fetch_connecting_code(DeviceInfo.t()) :: list(binary()) | nil
   def fetch_connecting_code(device_info) do
-    {device_connecting_code, deployment_connecting_code} = Devices.fetch_connecting_code(device_info.device_id)
+    connecting_code = Devices.fetch_connecting_code(device_info.device_id)
 
-    [deployment_connecting_code, device_connecting_code]
+    connecting_code.release
+    |> order_release_connecting_code(connecting_code.release_mode, connecting_code.deployment_group)
+    |> Enum.concat([connecting_code.device])
     |> Enum.filter(&(not is_nil(&1) and byte_size(&1) > 0))
     |> case do
       list when list == [] -> nil
       list -> list
     end
   end
+
+  # A release without code of its own leaves the deployment group's code alone,
+  # whatever its mode says. Casting stores blank code, whitespace included, as nil.
+  defp order_release_connecting_code(release_code, _mode, group_code) when release_code in [nil, ""], do: [group_code]
+  defp order_release_connecting_code(release_code, :override, _group_code), do: [release_code]
+  defp order_release_connecting_code(release_code, :first, group_code), do: [release_code, group_code]
+  defp order_release_connecting_code(release_code, :last, group_code), do: [group_code, release_code]
 
   @spec update_connection_metadata(reference_id :: String.t(), metadata :: map()) :: :ok | {:error, any()}
   def update_connection_metadata(reference_id, metadata) do

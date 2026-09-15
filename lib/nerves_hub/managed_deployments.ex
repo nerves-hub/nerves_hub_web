@@ -571,9 +571,9 @@ defmodule NervesHub.ManagedDeployments do
   changes it for a device that has not reached it yet: the device is sent the
   earliest required release it is behind, and only moves on once it is running it.
 
-  How far a device has got is the newest release in the group whose firmware it
-  is running. A device running firmware that belongs to no release in the group
-  cannot be placed that way, so for it a required release is skipped only when
+  How far a device has got is the release it is running (see
+  `join_running_release/1`). A device running firmware that belongs to no release
+  in the group cannot be placed that way, so for it a required release is skipped only when
   its version is already at or beyond the release's; a version that is not
   semver cannot be compared, and the release still applies.
 
@@ -586,13 +586,6 @@ defmodule NervesHub.ManagedDeployments do
   """
   @spec join_target_release(Ecto.Query.t()) :: Ecto.Query.t()
   def join_target_release(query) do
-    device_release =
-      DeploymentRelease
-      |> join(:inner, [r], f in assoc(r, :firmware), as: :firmware)
-      |> where([r], r.deployment_group_id == parent_as(:deployment_group).id)
-      |> where([firmware: f], f.uuid == fragment("? #>> '{\"uuid\"}'", parent_as(:device).firmware_metadata))
-      |> select([r], %{number: max(r.number)})
-
     target_release =
       DeploymentRelease
       |> join(:inner, [r], f in assoc(r, :firmware), as: :firmware)
@@ -600,8 +593,8 @@ defmodule NervesHub.ManagedDeployments do
       |> where(
         [r, firmware: f],
         r.id == parent_as(:deployment_group).current_deployment_release_id or
-          (r.required and r.number > coalesce(parent_as(:device_release).number, 0) and
-             (not is_nil(parent_as(:device_release).number) or
+          (r.required and r.number > coalesce(parent_as(:running_release).number, 0) and
+             (not is_nil(parent_as(:running_release).number) or
                 fragment(
                   ~s|coalesce(semver_sort_key(? #>> '{"version"}') COLLATE "C" < semver_sort_key(?) COLLATE "C", true)|,
                   parent_as(:device).firmware_metadata,
@@ -613,8 +606,37 @@ defmodule NervesHub.ManagedDeployments do
       |> select([r], %{id: r.id, number: r.number, firmware_id: r.firmware_id})
 
     query
-    |> join(:inner_lateral, [], dr in subquery(device_release), on: true, as: :device_release)
+    |> join_running_release()
     |> join(:inner_lateral, [], tr in subquery(target_release), on: true, as: :target_release)
+  end
+
+  @doc """
+  Join the release each device is running, as `:running_release`.
+
+  That is the newest release in the device's deployment group whose firmware the
+  device is running. A device on firmware that belongs to no release in its group,
+  or in no group at all, is running none, and the joined `id` and `number` are nil.
+
+  The query must have `:device` and `:deployment_group` named bindings. Joining
+  twice is harmless, so callers building on `join_target_release/1` can join it
+  themselves.
+  """
+  @spec join_running_release(Ecto.Query.t()) :: Ecto.Query.t()
+  def join_running_release(query) do
+    if has_named_binding?(query, :running_release) do
+      query
+    else
+      running_release =
+        DeploymentRelease
+        |> join(:inner, [r], f in assoc(r, :firmware), as: :firmware)
+        |> where([r], r.deployment_group_id == parent_as(:deployment_group).id)
+        |> where([firmware: f], f.uuid == fragment("? #>> '{\"uuid\"}'", parent_as(:device).firmware_metadata))
+        |> order_by([r], desc: r.number)
+        |> limit(1)
+        |> select([r], %{id: r.id, number: r.number})
+
+      join(query, :left_lateral, [], rr in subquery(running_release), on: true, as: :running_release)
+    end
   end
 
   @doc """
@@ -723,6 +745,25 @@ defmodule NervesHub.ManagedDeployments do
       {:error, _} = error ->
         error
     end
+  end
+
+  @doc """
+  Change the code a release's devices run when they connect, and where it runs
+  relative to the deployment group's connecting code.
+
+  Devices get the change the next time they connect.
+  """
+  @spec update_deployment_release_connecting_code(DeploymentRelease.t(), map(), User.t()) ::
+          {:ok, DeploymentRelease.t()} | {:error, Changeset.t()}
+  def update_deployment_release_connecting_code(%DeploymentRelease{} = release, params, %User{} = user) do
+    Repo.transact(fn ->
+      with {:ok, release} <- Repo.update(DeploymentRelease.connecting_code_changeset(release, params)) do
+        deployment_group = Repo.get!(DeploymentGroup, release.deployment_group_id)
+        :ok = DeploymentGroupTemplates.audit_release_connecting_code_changed(user, deployment_group, release)
+
+        {:ok, release}
+      end
+    end)
   end
 
   @doc """

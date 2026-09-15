@@ -3,6 +3,7 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
   describe "index" do
@@ -348,6 +349,25 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
       current_release = json_response(conn, 200)["data"]["current_release"]
       assert current_release["firmware"]["uuid"] == new_firmware.uuid
       assert current_release["required"] == true
+    end
+
+    test "doesn't give the release a firmware change creates the group's connecting code", %{
+      conn: conn,
+      deployment_group: deployment_group,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      path = Routes.api_deployment_group_path(conn, :update, org.name, product.name, deployment_group.name)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1", dir: tmp_dir})
+
+      conn = put(conn, path, deployment: %{"firmware" => new_firmware.uuid, "connecting_code" => "dbg(:group)"})
+      assert json_response(conn, 200)["data"]["firmware_uuid"] == new_firmware.uuid
+
+      [release | _] = ManagedDeployments.list_deployment_releases(deployment_group)
+      assert release.firmware_id == new_firmware.id
+      assert is_nil(release.connecting_code)
     end
 
     test "gracefully handles unknown firmware uuid in update", %{
