@@ -201,51 +201,77 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       assert [] = Updates.available_for_update(deployment_group, 10)
     end
 
-    test "works out the group's status from the deltas its devices need", context do
-      %{deployment_group: deployment_group} = add_releases(context)
+    test "works out a release's delta status from the deltas its own devices need", context do
+      %{deployment_group: deployment_group, release2: release2} = add_releases(context)
       _ = connected_device(context, deployment_group, context.fw1)
 
+      # The device is headed for release 2, so a delta to the current release's
+      # firmware is nothing release 2 is waiting on
       _ = Fixtures.firmware_delta_fixture(context.fw1, context.fw3, %{status: :processing})
-      assert {:ok, %{status: :ready}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
+      assert {:ok, %{delta_status: :ready}} = ManagedDeployments.recalculate_release_delta_status(release2)
 
       delta = Fixtures.firmware_delta_fixture(context.fw1, context.fw2, %{status: :processing})
-      assert {:ok, %{status: :preparing}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
+      assert {:ok, %{delta_status: :preparing}} = ManagedDeployments.recalculate_release_delta_status(release2)
 
       {:ok, _} = delta |> Ecto.Changeset.change(status: :completed) |> Repo.update()
-      assert {:ok, %{status: :ready}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
+      assert {:ok, %{delta_status: :ready}} = ManagedDeployments.recalculate_release_delta_status(release2)
     end
 
-    test "a delta built for a required release brings its group out of preparing", context do
-      %{deployment_group: deployment_group} = add_releases(context)
+    test "a delta built for a required release brings that release out of preparing", context do
+      %{deployment_group: deployment_group, release2: release2} = add_releases(context)
       _ = connected_device(context, deployment_group, context.fw1)
 
       delta = Fixtures.firmware_delta_fixture(context.fw1, context.fw2, %{status: :processing})
-      assert {:ok, %{status: :preparing}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
+      assert {:ok, %{delta_status: :preparing}} = ManagedDeployments.recalculate_release_delta_status(release2)
+      assert ManagedDeployments.delta_status(deployment_group) == :preparing
 
       {:ok, _} = delta |> Ecto.Changeset.change(status: :completed) |> Repo.update()
 
       # The delta builder only knows the firmware it built for, which here belongs
       # to a required release rather than the current one
-      assert {:ok, results} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(context.fw2.id)
-      assert [{:ok, updated}] = Enum.filter(results, fn {_, dg} -> dg.id == deployment_group.id end)
-      assert updated.status == :ready
+      assert {:ok, releases} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(context.fw2.id)
+      assert [%{delta_status: :ready}] = Enum.filter(releases, &(&1.id == release2.id))
+      assert ManagedDeployments.delta_status(deployment_group) == :ready
     end
 
-    test "waits while one delta builds, whatever the others did", context do
-      %{deployment_group: deployment_group} = add_releases(context)
+    test "keeps each release's delta status to itself", context do
+      %{deployment_group: deployment_group, release2: release2, release3: release3} = add_releases(context)
       _ = connected_device(context, deployment_group, context.fw1)
       _ = connected_device(context, deployment_group, context.fw2)
 
       _ = Fixtures.firmware_delta_fixture(context.fw1, context.fw2, %{status: :completed})
       building = Fixtures.firmware_delta_fixture(context.fw2, context.fw3, %{status: :processing})
 
-      assert {:ok, %{status: :preparing}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
+      assert {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+      assert Repo.reload(release2).delta_status == :ready
+      assert Repo.reload(release3).delta_status == :preparing
+      assert ManagedDeployments.delta_status(deployment_group) == :preparing
 
       {:ok, _} = building |> Ecto.Changeset.change(status: :failed) |> Repo.update()
-      assert {:ok, %{status: :deltas_failed}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
+      assert {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+      assert Repo.reload(release2).delta_status == :ready
+      assert Repo.reload(release3).delta_status == :failed
+      assert ManagedDeployments.delta_status(deployment_group) == :failed
 
       {:ok, _} = building |> Ecto.Changeset.change(status: :completed) |> Repo.update()
-      assert {:ok, %{status: :ready}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
+      assert {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+      assert ManagedDeployments.delta_status(deployment_group) == :ready
+    end
+
+    test "holds back only the devices headed for a release whose deltas aren't ready", context do
+      %{deployment_group: deployment_group, release2: release2} = add_releases(context)
+
+      %{id: behind_id} = connected_device(context, deployment_group, context.fw1)
+      %{id: on_required_id} = connected_device(context, deployment_group, context.fw2)
+
+      assert deployment_group |> Updates.available_for_update(10) |> Enum.map(& &1.id) |> Enum.sort() ==
+               Enum.sort([behind_id, on_required_id])
+
+      {:ok, _} = release2 |> Ecto.Changeset.change(delta_status: :preparing) |> Repo.update()
+
+      # Only the device headed for release 2 waits; the one already on it carries
+      # on to the current release
+      assert [%{id: ^on_required_id}] = Updates.available_for_update(deployment_group, 10)
     end
 
     test "asks for deltas to the firmware each device is headed for", context do

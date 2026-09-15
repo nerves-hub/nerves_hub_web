@@ -45,6 +45,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> sidebar_tab(:deployments)
     |> selected_tab()
     |> assign(:deployment_group, deployment_group)
+    |> assign(:delta_status, ManagedDeployments.delta_status(deployment_group))
     |> schedule_inflight_updates_updater()
     |> ok()
   end
@@ -330,20 +331,24 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     socket
     |> follow_release_steps(deployment_group, updated_deployment)
     |> assign(:deployment_group, updated_deployment)
+    |> assign(:delta_status, ManagedDeployments.delta_status(updated_deployment))
     |> assign(:firmware, updated_deployment.current_release.firmware)
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "status/updated"}, socket) do
+  # A release's deltas finished, failed, or started building
+  def handle_info(%Broadcast{event: "release/delta_status"}, socket) do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
     updated_deployment =
       ManagedDeployments.get_by_product_and_name!(deployment_group.product, deployment_group.name, true)
 
     send_update(SummaryTab, id: "deployment_group_summary", updated_deployment: updated_deployment)
+    send_update(ReleasesTab, id: "deployment_group_releases", event: :delta_status_updated)
 
     socket
     |> assign(:deployment_group, updated_deployment)
+    |> assign(:delta_status, ManagedDeployments.delta_status(updated_deployment))
     |> noreply()
   end
 

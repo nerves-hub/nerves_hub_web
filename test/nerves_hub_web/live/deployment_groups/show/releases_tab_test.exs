@@ -326,6 +326,39 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     |> refute_has("#release-#{release.id}-edit")
   end
 
+  test "shows a release's deltas, and retries a failed one", %{
+    conn: conn,
+    org: org,
+    org_key: org_key,
+    product: product,
+    user: user,
+    firmware: firmware,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    next_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    {:ok, {release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{})
+
+    # A device on the older firmware is what makes the release need a delta
+    _ = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+    _ = Fixtures.firmware_delta_fixture(firmware, next_firmware, %{status: :failed})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> assert_has("#release-#{release.id}-deltas", text: "1")
+    |> assert_has("div", text: "(1 failed)")
+    |> click_link("#release-#{release.id}-deltas", "1")
+    |> assert_has("td", text: firmware.version)
+    |> assert_has("div", text: "Failed")
+    |> click_link("Retry")
+    |> assert_has("p", text: "Building the delta from #{firmware.version} again")
+    |> assert_has("div", text: "Processing")
+
+    assert [%{status: :processing}] = ManagedDeployments.release_deltas(Repo.reload(release))
+  end
+
   test "shows created releases", %{conn: conn} do
     assert_has(conn, "div", text: "Firmware: 1.0.0")
   end
