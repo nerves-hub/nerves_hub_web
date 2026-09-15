@@ -1004,27 +1004,30 @@ defmodule NervesHubWeb.DeviceChannelTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
 
-    ManagedDeployments.create_deployment_release(
-      deployment_group,
-      firmware,
-      archive,
-      user,
-      %{}
-    )
+    {:ok, _} =
+      ManagedDeployments.create_deployment_release(
+        deployment_group,
+        firmware,
+        archive,
+        user,
+        %{}
+      )
 
-    {device, _firmware, _deployment_group} =
-      device_fixture(user, %{identifier: "123", deployment_id: deployment_group.id}, tmp_dir)
+    # An archive belongs to the release it was added to, so it only goes to a
+    # device running that release's firmware.
+    device =
+      Fixtures.device_fixture(org, product, firmware, %{
+        identifier: "123",
+        deployment_id: deployment_group.id,
+        tags: ["beta", "beta-edge"]
+      })
 
     %{db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 
     params =
       for {k, v} <- Map.from_struct(device.firmware_metadata),
-          into: %{"device_api_version" => "2.0.1"} do
-        case k do
-          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
-          _ -> {"nerves_fw_#{k}", v}
-        end
-      end
+          into: %{"device_api_version" => "2.0.1"},
+          do: {"nerves_fw_#{k}", v}
 
     %{device: device, certificate: certificate, params: params, archive_uuid: archive_uuid}
   end

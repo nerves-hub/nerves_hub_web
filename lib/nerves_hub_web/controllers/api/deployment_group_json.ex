@@ -28,6 +28,7 @@ defmodule NervesHubWeb.API.DeploymentGroupJSON do
   defp current_release(release) do
     %{
       number: release.number,
+      required: release.required,
       firmware: firmware(release.firmware),
       inserted_at: release.inserted_at,
       updated_at: release.updated_at

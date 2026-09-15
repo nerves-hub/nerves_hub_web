@@ -6,6 +6,7 @@ defmodule NervesHub.AuditLogs.DeploymentGroupTemplates do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
 
   @spec audit_deployment_created(User.t(), DeploymentGroup.t()) :: :ok
@@ -17,6 +18,16 @@ defmodule NervesHub.AuditLogs.DeploymentGroupTemplates do
   @spec audit_new_deployment_release(User.t(), DeploymentGroup.t()) :: :ok
   def audit_new_deployment_release(user, deployment_group) do
     description = "User #{user.name} created a new release for deployment group #{deployment_group.name}"
+    AuditLogs.audit!(user, deployment_group, description)
+  end
+
+  @spec audit_release_required_changed(User.t(), DeploymentGroup.t(), DeploymentRelease.t()) :: :ok
+  def audit_release_required_changed(user, deployment_group, release) do
+    change = if release.required, do: "marked", else: "unmarked"
+
+    description =
+      "User #{user.name} #{change} release #{release.number} as required for deployment group #{deployment_group.name}"
+
     AuditLogs.audit!(user, deployment_group, description)
   end
 

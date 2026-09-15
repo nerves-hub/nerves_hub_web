@@ -82,13 +82,17 @@ defmodule NervesHub.Devices.InflightUpdate do
     |> unique_constraint(:device_id, name: :inflight_updates_device_id_index)
   end
 
-  def deployment_requested_changeset(deployment_group, device_id, priority_queue) do
+  # `target_release` is the release the device is being sent, when a required
+  # release puts that ahead of the current one.
+  def deployment_requested_changeset(deployment_group, device_id, priority_queue, target_release \\ nil) do
+    target_release = target_release || deployment_group.current_release
+
     %InflightUpdate{}
     |> change(%{
       device_id: device_id,
       deployment_id: deployment_group.id,
-      firmware_id: deployment_group.current_release.firmware_id,
-      firmware_uuid: deployment_group.current_release.firmware.uuid,
+      firmware_id: target_release.firmware_id,
+      firmware_uuid: target_release.firmware.uuid,
       priority_queue: priority_queue
     })
     |> validate_required([:device_id, :deployment_id, :firmware_id, :firmware_uuid])

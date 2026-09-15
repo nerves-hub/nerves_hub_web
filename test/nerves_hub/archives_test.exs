@@ -7,6 +7,42 @@ defmodule NervesHub.ArchivesTest do
   alias NervesHub.Support
   alias NervesHub.Workers.DeleteArchive
 
+  describe "archive_for_deployment_group/2" do
+    setup %{tmp_dir: tmp_dir} do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.0", dir: tmp_dir})
+      next_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
+
+      deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+      {:ok, {_release, deployment_group}} =
+        ManagedDeployments.create_deployment_release(deployment_group, next_firmware, archive, user, %{})
+
+      %{deployment_group: deployment_group, firmware: firmware, next_firmware: next_firmware, archive: archive}
+    end
+
+    test "goes to a device running the current release's firmware", context do
+      %{archive: archive, deployment_group: deployment_group, next_firmware: next_firmware} = context
+
+      assert %{id: archive_id} = Archives.archive_for_deployment_group(deployment_group.id, next_firmware.uuid)
+      assert archive_id == archive.id
+    end
+
+    # A device on its way through a required release is not on the release the
+    # archive belongs to yet, and gets it on the connection after it lands there.
+    test "is held back from a device still on older firmware", context do
+      %{deployment_group: deployment_group, firmware: firmware} = context
+
+      assert is_nil(Archives.archive_for_deployment_group(deployment_group.id, firmware.uuid))
+      assert is_nil(Archives.archive_for_deployment_group(deployment_group.id, nil))
+      assert is_nil(Archives.archive_for_deployment_group(nil, firmware.uuid))
+    end
+  end
+
   describe "creating archives" do
     test "success: on a product", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture(%{name: "user"})
