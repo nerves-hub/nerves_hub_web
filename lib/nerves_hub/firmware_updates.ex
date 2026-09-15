@@ -9,6 +9,7 @@ defmodule NervesHub.FirmwareUpdates do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.PubSub
+  alias NervesHub.Devices.UpdateHistory
   alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Helpers.Logging
@@ -52,6 +53,13 @@ defmodule NervesHub.FirmwareUpdates do
 
       _ = UpdateStats.log_update(device, previous_metadata)
 
+      _ =
+        UpdateHistory.record(device, :succeeded,
+          deployment_id: inflight_field(device.inflight_update, :deployment_id),
+          source_firmware_uuid: firmware_uuid(previous_metadata),
+          target_firmware_uuid: device.firmware_metadata.uuid
+        )
+
       device
       |> Device.clear_updates_information_changeset()
       |> Repo.update()
@@ -81,6 +89,8 @@ defmodule NervesHub.FirmwareUpdates do
 
         DeviceTemplates.audit_firmware_upgrade_ignored(device, deployment_group, info["reason"])
 
+        _ = record_outcome(device, :ignored, info["reason"])
+
         clear_inflight_update(device_id)
       end,
       preload: :deployment
@@ -92,6 +102,8 @@ defmodule NervesHub.FirmwareUpdates do
     payload = %{blocked_until: blocked_until, reason: info["reason"]}
 
     callback = fn device ->
+      _ = record_outcome(device, :rescheduled, info["reason"])
+
       clear_inflight_update(device_id)
 
       DeviceTemplates.audit_firmware_upgrade_rescheduled(
@@ -114,6 +126,8 @@ defmodule NervesHub.FirmwareUpdates do
       "failed",
       %{reason: info["reason"]},
       fn device ->
+        _ = record_outcome(device, :failed, info["reason"])
+
         clear_inflight_update(device_id)
 
         if deployment_group = deployment_group(device) do
@@ -207,16 +221,67 @@ defmodule NervesHub.FirmwareUpdates do
     |> Repo.delete_all()
   end
 
+  @doc """
+  Ends the device's update because it came back without having taken it.
+
+  `clear_inflight_update/1` with a name for what it means. A device that rejoins
+  while it is not downloading anything, still running the firmware it had, did
+  not do what it was asked — and says nothing about why, which is why this
+  outcome has to be inferred here rather than reported like a `failed` or an
+  `ignored`. On a fleet that is failing to update it is usually the common case.
+
+  Returns `:ok` whether or not there was an update to end, so a device joining
+  with nothing inflight is not an error.
+  """
+  @spec abandon_inflight_update(Device.t()) :: :ok
+  def abandon_inflight_update(%Device{} = device) do
+    InflightUpdate
+    |> where([iu], iu.device_id == ^device.id)
+    |> select([iu], %{deployment_id: iu.deployment_id, firmware_uuid: iu.firmware_uuid})
+    |> Repo.delete_all()
+    |> case do
+      {0, _} ->
+        :ok
+
+      {_count, abandoned} ->
+        Enum.each(abandoned, fn inflight_update ->
+          UpdateHistory.record(device, :abandoned,
+            deployment_id: inflight_update.deployment_id,
+            source_firmware_uuid: firmware_uuid(device.firmware_metadata),
+            target_firmware_uuid: inflight_update.firmware_uuid
+          )
+        end)
+    end
+  end
+
   @spec delete_expired_inflight_updates() :: integer
   def delete_expired_inflight_updates() do
     {counts, results} =
       InflightUpdate
       |> join(:inner, [iu], d in assoc(iu, :device))
       |> where([iu], iu.updated_at < fragment("NOW() - INTERVAL '30 minutes'"))
-      |> select([iu, d], %{device_id: d.id})
+      |> select([iu, d], %{
+        device_id: d.id,
+        org_id: d.org_id,
+        product_id: d.product_id,
+        # Read straight out of the jsonb rather than loading the embed, so a
+        # `DELETE ... RETURNING` hands back a plain string.
+        source_firmware_uuid: fragment("? #>> '{\"uuid\"}'", d.firmware_metadata),
+        deployment_id: iu.deployment_id,
+        target_firmware_uuid: iu.firmware_uuid
+      })
       |> Repo.delete_all()
 
     Enum.each(results, fn result ->
+      _ =
+        UpdateHistory.record(
+          %{id: result.device_id, org_id: result.org_id, product_id: result.product_id},
+          :expired,
+          deployment_id: result.deployment_id,
+          source_firmware_uuid: result.source_firmware_uuid,
+          target_firmware_uuid: result.target_firmware_uuid
+        )
+
       update_inflight_update(result.device_id, "expired", nil, false)
     end)
 
@@ -310,6 +375,28 @@ defmodule NervesHub.FirmwareUpdates do
 
   defp maybe_update_update_attempts(device), do: device
 
+  # The device's update ended. Reads the deployment group and the firmware it
+  # was being moved to off the inflight row, which every caller is about to
+  # delete, and the firmware it is running off the device itself.
+  defp record_outcome(device, status, reason) do
+    UpdateHistory.record(device, status,
+      deployment_id: inflight_field(device.inflight_update, :deployment_id),
+      source_firmware_uuid: firmware_uuid(device.firmware_metadata),
+      target_firmware_uuid: inflight_field(device.inflight_update, :firmware_uuid),
+      reason: reason
+    )
+  end
+
+  # Total rather than a field access: a device can join with no firmware
+  # metadata at all, and an update can be recorded before it has any.
+  defp firmware_uuid(%{uuid: uuid}), do: uuid
+  defp firmware_uuid(_), do: nil
+
+  # Likewise for the inflight row: a firmware update can succeed without one,
+  # when the device took firmware nobody here asked it to take.
+  defp inflight_field(nil, _field), do: nil
+  defp inflight_field(inflight_update, field), do: Map.get(inflight_update, field)
+
   defp fetch_device(device_id, opts) do
     Device
     |> join(:left, [d], ifu in assoc(d, :inflight_update))
@@ -322,7 +409,15 @@ defmodule NervesHub.FirmwareUpdates do
         preload(query, [d, ifu], inflight_update: ifu)
       end
     end)
-    |> select([d, ifu], [:id, :identifier, :product_id, :org_id, :update_attempts, :updates_blocked_until])
+    |> select([d, ifu], [
+      :id,
+      :identifier,
+      :product_id,
+      :org_id,
+      :firmware_metadata,
+      :update_attempts,
+      :updates_blocked_until
+    ])
     |> where([d], d.id == ^device_id)
     |> Repo.one!()
     |> case do

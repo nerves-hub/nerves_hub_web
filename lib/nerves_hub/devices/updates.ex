@@ -30,6 +30,7 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Workflows
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
 
   require Logger
@@ -610,6 +611,45 @@ defmodule NervesHub.Devices.Updates do
     description = "User #{user.name} disabled updates for device #{device.identifier}"
     params = %{update_mode: :off}
     Devices.update_device_with_audit(device, params, user, description)
+  end
+
+  @doc """
+  The product's devices whose updates are blocked right now, worst first.
+
+  "Worst" is the device's consecutive failure count — how many update attempts
+  in a row have ended badly since it last took firmware — so the devices at the
+  top are the ones stuck in the loop rather than the ones that happened to fail
+  once this afternoon. Ties break on the device that failed most recently.
+
+  Reads PostgreSQL alone, so it answers in a deployment with no analytics, and
+  answers exactly: the count is a column maintained beside the ClickHouse
+  history rather than something summed out of it. See
+  `NervesHub.Devices.UpdateHistory`.
+  """
+  @spec in_penalty_box(Product.t(), non_neg_integer(), DateTime.t()) :: [Device.t()]
+  def in_penalty_box(%Product{} = product, limit \\ 10, now \\ DateTime.utc_now()) do
+    product
+    |> in_penalty_box_query(now)
+    |> order_by([d], desc: d.consecutive_failed_updates, desc_nulls_last: d.last_update_failure_at)
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
+  @doc """
+  How many of the product's devices have their updates blocked right now.
+  """
+  @spec in_penalty_box_count(Product.t(), DateTime.t()) :: non_neg_integer()
+  def in_penalty_box_count(%Product{} = product, now \\ DateTime.utc_now()) do
+    product
+    |> in_penalty_box_query(now)
+    |> Repo.aggregate(:count)
+  end
+
+  defp in_penalty_box_query(%Product{id: product_id}, now) do
+    Device
+    |> where([d], d.product_id == ^product_id)
+    |> where([d], not is_nil(d.updates_blocked_until) and d.updates_blocked_until > ^now)
+    |> Repo.exclude_deleted()
   end
 
   def clear_penalty_box(%Device{} = device, user) do

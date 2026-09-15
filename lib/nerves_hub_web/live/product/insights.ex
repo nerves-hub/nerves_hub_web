@@ -4,14 +4,22 @@ defmodule NervesHubWeb.Live.Product.Insights do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Health
+  alias NervesHub.Devices.UpdateHistory
+  alias NervesHub.Devices.Updates
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
+  alias NervesHubWeb.Components.DeviceUpdateStatus
 
   @graph_periods ~w(twenty_four_hours fourteen_days four_weeks)
 
   # A donut is only readable at a glance with a handful of colours, so the
   # long tail of versions is folded into a single "Other" slice past this.
   @firmware_version_slices 6
+
+  # The penalty box list is a "look at these" list, not a device index — past
+  # about this many the panel stops being scannable and the link to the filtered
+  # device list is the better answer.
+  @penalty_box_list_size 8
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
@@ -21,6 +29,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> assign(:product, product)
     |> update_information()
     |> maybe_assign_device_connections_graph()
+    |> maybe_assign_update_outcomes_graph()
     |> assign_firmware_version_distribution()
     |> fleet_health_information()
     |> assign_notifications()
@@ -58,6 +67,18 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> noreply()
   end
 
+  def handle_event("select-update-graph-time-period", %{"period" => period}, socket) when period in @graph_periods do
+    socket
+    |> maybe_assign_update_outcomes_graph(String.to_existing_atom(period))
+    |> noreply()
+  end
+
+  def handle_event("select-update-graph-time-period", _params, socket) do
+    socket
+    |> put_flash(:error, "Invalid graph period selected")
+    |> noreply()
+  end
+
   def handle_event(
         "view-devices-with-firmware-version",
         %{"version" => version},
@@ -87,6 +108,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> assign(:polling_pid, polling_pid)
     |> assign(:updated_at, DateTime.utc_now())
     |> assign(:fleet_size, Devices.total_count(product))
+    |> assign_penalty_box()
     |> assign_async(:online_count, fn -> {:ok, %{online_count: Devices.online_count(product)}} end)
     |> assign_async(:offline_count, fn -> {:ok, %{offline_count: Devices.offline_count(product)}} end)
     |> assign_async(:not_seen_in_7_days, fn ->
@@ -158,6 +180,67 @@ defmodule NervesHubWeb.Live.Product.Insights do
       {:ok, now} -> {time_zone, now}
       {:error, _} -> {"Etc/UTC", DateTime.utc_now()}
     end
+  end
+
+  defp maybe_assign_update_outcomes_graph(socket, period \\ :fourteen_days)
+
+  defp maybe_assign_update_outcomes_graph(%{assigns: %{current_scope: scope}} = socket, period) do
+    # Gated the same way as the connections graph above, and for the same two
+    # reasons: the dead render has no client timezone yet, and the history it
+    # reads only exists where analytics is enabled.
+    if connected?(socket) and Application.get_env(:nerves_hub, :analytics_enabled) do
+      {from, to, unit, buckets} = update_outcomes_graph(scope, socket.assigns.time_zone, period)
+
+      socket
+      |> assign(:update_outcomes_graph_enabled, true)
+      |> assign(:update_outcomes_graph_from, from)
+      |> assign(:update_outcomes_graph_to, to)
+      |> assign(:update_outcomes_graph_unit, unit)
+      |> assign(:update_outcomes_graph_data, buckets)
+      |> assign(:update_outcomes_succeeded, Enum.sum_by(buckets, & &1.succeeded))
+      |> assign(:update_outcomes_failed, Enum.sum_by(buckets, & &1.failed))
+      |> assign(:update_outcomes_period, period)
+    else
+      assign(socket, :update_outcomes_graph_enabled, false)
+    end
+  end
+
+  defp update_outcomes_graph(scope, time_zone, :twenty_four_hours) do
+    {time_zone, now} = local_now(time_zone)
+
+    # Snapped to the top of the local hour, as the connections graph is, so the
+    # bars sit flush against the axis bounds.
+    to = %{now | minute: 0, second: 0, microsecond: {0, 0}}
+    from = DateTime.add(to, -24, :hour)
+    buckets = UpdateHistory.update_outcomes_by_hour(scope.org.id, scope.product.id, from, to, time_zone)
+
+    {from, to, "hour", buckets}
+  end
+
+  defp update_outcomes_graph(scope, time_zone, :four_weeks),
+    do: update_outcomes_graph_by_day(scope, time_zone, 28)
+
+  defp update_outcomes_graph(scope, time_zone, :fourteen_days),
+    do: update_outcomes_graph_by_day(scope, time_zone, 14)
+
+  defp update_outcomes_graph_by_day(scope, time_zone, days) do
+    {time_zone, now} = local_now(time_zone)
+
+    to = DateTime.to_date(now)
+    from = Date.add(to, -days)
+    buckets = UpdateHistory.update_outcomes_by_date(scope.org.id, scope.product.id, from, to, time_zone)
+
+    {from, to, "day", buckets}
+  end
+
+  # PostgreSQL alone, so unlike the graph above this panel is there whether or
+  # not the deployment runs analytics. A device sitting in the penalty box is an
+  # operational fact rather than a statistic, and the count beside it has to be
+  # exact — see `NervesHub.Devices.UpdateHistory`.
+  defp assign_penalty_box(%{assigns: %{current_scope: scope}} = socket) do
+    socket
+    |> assign(:penalty_box_devices, Updates.in_penalty_box(scope.product, @penalty_box_list_size))
+    |> assign(:penalty_box_count, Updates.in_penalty_box_count(scope.product))
   end
 
   defp maybe_assign_flapping_health(%{assigns: %{current_scope: scope}} = socket) do
@@ -251,6 +334,17 @@ defmodule NervesHubWeb.Live.Product.Insights do
   palette the chart hook reads off the document root.
   """
   def firmware_version_color(index), do: "var(--color-chart-#{index + 1})"
+
+  @doc """
+  The device's consecutive failure count, as the penalty box list phrases it.
+
+  A zero is "none recorded" rather than "0 failed": the count runs from the
+  device's last successful update, so one already blocked when the platform
+  started counting has nothing to show until it fails again — and "0 failed"
+  beside a blocked device reads as a bug rather than as an absent record.
+  """
+  def consecutive_failures(%{consecutive_failed_updates: 0}), do: "none recorded"
+  def consecutive_failures(%{consecutive_failed_updates: count}), do: "#{count} failed"
 
   defp onboarding_nhl_host() do
     Application.get_env(:nerves_hub, :devices_websocket_url) || URI.parse(NervesHubWeb.Endpoint.url()).host

@@ -845,9 +845,11 @@ defmodule NervesHub.DeviceLink do
   defp maybe_clear_inflight_update(_device, %{"currently_downloading_uuid" => uuid})
        when is_binary(uuid) and byte_size(uuid) > 0, do: :ok
 
+  # Anything left inflight when the device joins without downloading is an
+  # update it did not take: a success has already deleted its own row by this
+  # point, in `firmware_update_successful/2` above.
   defp maybe_clear_inflight_update(device, _) do
-    FirmwareUpdates.clear_inflight_update(device)
-    :ok
+    FirmwareUpdates.abandon_inflight_update(device)
   end
 
   # The device answers by joining the `extensions` topic, declaring one version
