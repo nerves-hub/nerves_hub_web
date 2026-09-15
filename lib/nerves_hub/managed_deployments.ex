@@ -360,18 +360,26 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  Recalculates the status of all deployment groups whose current release is associated with a given firmware ID
+  Recalculates the status of every deployment group sending devices to a given firmware.
+
+  That is the groups whose current release carries it, and the groups where a
+  required release does: a delta built for a required release says as much about
+  whether its group is ready as one built for the current release.
   """
   @spec recalculate_deployment_group_status_by_firmware_id(pos_integer()) ::
           {:ok, [DeploymentGroup.t()]} | {:error, String.t()}
   def recalculate_deployment_group_status_by_firmware_id(firmware_id) do
+    releases_with_firmware =
+      DeploymentRelease
+      |> where([r], r.deployment_group_id == parent_as(:deployment_group).id)
+      |> where([r], r.firmware_id == ^firmware_id)
+      |> where([r], r.required or r.id == parent_as(:deployment_group).current_deployment_release_id)
+      |> select([r], 1)
+
     updated_deployment_groups =
       DeploymentGroup
       |> from(as: :deployment_group)
-      |> join(:inner, [deployment_group: dg], dr in assoc(dg, :current_release), as: :current_release)
-      |> join(:inner, [current_release: cr], f in assoc(cr, :firmware), as: :firmware)
-      |> preload([current_release: cr, firmware: f], current_release: {cr, firmware: f})
-      |> where([current_release: cr], cr.firmware_id == ^firmware_id)
+      |> where([], exists(releases_with_firmware))
       |> Repo.all()
       |> Enum.map(fn deployment_group ->
         recalculate_deployment_group_status(deployment_group)
@@ -403,12 +411,14 @@ defmodule NervesHub.ManagedDeployments do
       |> Enum.map(fn firmware_delta ->
         firmware_delta.status
       end)
+      # Devices can be headed for more than one release at a time, so their deltas
+      # can be in more than one state. The group waits while any is still being
+      # built, and reports the failures once nothing is left to wait for.
       |> then(fn statuses ->
         cond do
-          Enum.all?(statuses, &(&1 == :completed)) -> :ready
-          Enum.all?(statuses, &(&1 == :failed || &1 == :timed_out)) -> :deltas_failed
-          Enum.all?(statuses, &(&1 == :processing)) -> :preparing
-          true -> :unknown_error
+          Enum.any?(statuses, &(&1 == :processing)) -> :preparing
+          Enum.any?(statuses, &(&1 in [:failed, :timed_out])) -> :deltas_failed
+          true -> :ready
         end
       end)
       |> then(fn status ->
@@ -669,15 +679,17 @@ defmodule NervesHub.ManagedDeployments do
   @doc """
   The release a device should be updated to next. See `join_target_release/1`.
 
-  A device already running the current release's firmware is up to date, and gets
-  the current release back without a query.
+  Two cases skip working it out: a device already running the current release's
+  firmware is up to date, and a group with no earlier required release sends
+  every device the current release.
   """
   @spec target_release(DeploymentGroup.t(), Device.t()) :: DeploymentRelease.t()
   def target_release(%DeploymentGroup{} = deployment_group, %Device{} = device) do
     deployment_group = load_current_release(deployment_group)
     current_release = deployment_group.current_release
 
-    if get_in(device.firmware_metadata.uuid) == current_release.firmware.uuid do
+    if get_in(device.firmware_metadata.uuid) == current_release.firmware.uuid or
+         not earlier_required_release?(deployment_group) do
       current_release
     else
       target_release_id =
@@ -707,16 +719,22 @@ defmodule NervesHub.ManagedDeployments do
   and the orchestrator is told to look again.
   """
   @spec set_deployment_release_required(DeploymentRelease.t(), boolean(), User.t()) ::
-          {:ok, DeploymentRelease.t()} | {:error, Changeset.t() | :not_found | :delta_generation_failed}
+          {:ok, DeploymentRelease.t()} | {:error, Changeset.t() | :not_found}
   def set_deployment_release_required(%DeploymentRelease{} = release, required, %User{} = user)
       when is_boolean(required) do
     Repo.transact(fn ->
       with {:ok, release} <- Repo.update(DeploymentRelease.required_changeset(release, required)),
            {:ok, deployment_group} <- get_deployment_group(release.deployment_group_id),
-           :ok <- DeploymentGroupTemplates.audit_release_required_changed(user, deployment_group, release),
-           {:ok, _} <- maybe_trigger_delta_generation(deployment_group, release),
-           {:ok, deployment_group} <- recalculate_deployment_group_status(deployment_group) do
-        {:ok, {release, deployment_group}}
+           :ok <- DeploymentGroupTemplates.audit_release_required_changed(user, deployment_group, release) do
+        # Queueing the deltas can fail on its own, and says so in the log and in
+        # Sentry. The release is still required either way, devices that have no
+        # delta are sent the whole firmware, and the group's status below reports
+        # whatever the deltas did.
+        _ = maybe_trigger_delta_generation(deployment_group, release)
+
+        with {:ok, deployment_group} <- recalculate_deployment_group_status(deployment_group) do
+          {:ok, {release, deployment_group}}
+        end
       end
     end)
     |> case do
