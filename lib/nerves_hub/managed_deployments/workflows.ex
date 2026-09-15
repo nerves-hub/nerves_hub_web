@@ -120,7 +120,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   def claim_devices(_deployment_group, %DeploymentWorkflowStep{type: :catch_all}), do: 0
 
   def claim_devices(deployment_group, step) do
-    case remaining_match_limit(step) do
+    case remaining_match_limit(deployment_group, step) do
       0 ->
         0
 
@@ -142,19 +142,21 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   end
 
   @doc """
-  How many devices a step has recorded a claim on.
+  How many devices a step is working on.
 
-  A `catch_all` records none — its devices are whatever the other steps did not
-  take — so this is zero for one. `step_devices_query/2` is what answers "which
-  devices does this step cover" for either kind.
+  A `catch_all` records no claims — its devices are whatever the other steps did
+  not take — so this is zero for one. A device that has left the group, and a
+  device with a required release to take first, are left out: the step neither
+  updates nor waits for those, so they should not take up its match limit or
+  count towards its failure tolerance.
   """
-  @spec claimed_device_count(DeploymentWorkflowStep.t()) :: non_neg_integer()
-  def claimed_device_count(%DeploymentWorkflowStep{type: :catch_all}), do: 0
+  @spec claimed_device_count(DeploymentGroup.t(), DeploymentWorkflowStep.t()) :: non_neg_integer()
+  def claimed_device_count(_deployment_group, %DeploymentWorkflowStep{type: :catch_all}), do: 0
 
-  def claimed_device_count(step) do
-    @join_table
-    |> from(as: :step_device)
-    |> where([step_device: sd], sd.deployment_workflow_step_id == ^step.id)
+  def claimed_device_count(deployment_group, step) do
+    deployment_group
+    |> step_devices_query(step)
+    |> maybe_exclude_devices_needing_required_release(deployment_group, step)
     |> Repo.aggregate(:count)
   end
 
@@ -207,7 +209,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   """
   @spec step_failed?(DeploymentGroup.t(), DeploymentWorkflowStep.t()) :: boolean()
   def step_failed?(deployment_group, step) do
-    case failure_limit(step, claimed_device_count(step)) do
+    case failure_limit(step, claimed_device_count(deployment_group, step)) do
       :never -> false
       limit -> failed_device_count(deployment_group, step) >= limit
     end
@@ -320,7 +322,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   # Once the match limit is reached there is nothing more for the step to take,
   # however many devices it still matches: that is what the limit means.
   defp more_to_claim?(deployment_group, step) do
-    case remaining_match_limit(step) do
+    case remaining_match_limit(deployment_group, step) do
       0 ->
         false
 
@@ -628,12 +630,16 @@ defmodule NervesHub.ManagedDeployments.Workflows do
     |> select([step_device: sd], sd.device_id)
   end
 
-  defp remaining_match_limit(%DeploymentWorkflowStep{matching_conditions: nil}), do: :unlimited
+  defp remaining_match_limit(_deployment_group, %DeploymentWorkflowStep{matching_conditions: nil}), do: :unlimited
 
-  defp remaining_match_limit(%DeploymentWorkflowStep{matching_conditions: %{match_limit: nil}}), do: :unlimited
+  defp remaining_match_limit(_deployment_group, %DeploymentWorkflowStep{matching_conditions: %{match_limit: nil}}),
+    do: :unlimited
 
-  defp remaining_match_limit(%DeploymentWorkflowStep{matching_conditions: %{match_limit: limit}} = step) do
-    max(limit - claimed_device_count(step), 0)
+  defp remaining_match_limit(
+         deployment_group,
+         %DeploymentWorkflowStep{matching_conditions: %{match_limit: limit}} = step
+       ) do
+    max(limit - claimed_device_count(deployment_group, step), 0)
   end
 
   defp maybe_limit(query, :unlimited), do: query
