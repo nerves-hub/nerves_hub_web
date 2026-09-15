@@ -316,6 +316,7 @@ defmodule NervesHub.ManagedDeployments do
 
   def create_deployment_release(deployment_group, firmware, archive, user, params, opts \\ []) do
     Repo.transact(fn ->
+      deployment_group = lock_current_release(deployment_group)
       dr_changeset = DeploymentRelease.new_changeset(deployment_group, firmware, archive, params, user)
 
       with {:ok, release} <- Repo.insert(dr_changeset),
@@ -349,6 +350,23 @@ defmodule NervesHub.ManagedDeployments do
       error ->
         error
     end
+  end
+
+  # A new release is checked against the current one, which the caller's copy of
+  # the deployment group can be behind on: its `current_deployment_release_id` is
+  # what a preload follows. The row is locked so that two identical releases
+  # created at once can't both pass the check.
+  defp lock_current_release(%DeploymentGroup{id: id} = deployment_group) do
+    current_deployment_release_id =
+      DeploymentGroup
+      |> where([dg], dg.id == ^id)
+      |> lock("FOR UPDATE")
+      |> select([dg], dg.current_deployment_release_id)
+      |> Repo.one()
+
+    deployment_group
+    |> Map.put(:current_deployment_release_id, current_deployment_release_id)
+    |> load_current_release(force: true)
   end
 
   defp maybe_audit_new_deployment_release(user, deployment_group, opts) do

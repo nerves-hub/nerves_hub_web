@@ -53,6 +53,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     |> validate_length(:notes, max: 1_000)
     |> validate_required([:firmware])
     |> validate_firmware(deployment_group)
+    |> validate_differs_from_current_release(deployment_group)
     |> validate_change(:created_by, fn :created_by, created_by_assoc ->
       created_by = created_by_assoc.data
 
@@ -97,6 +98,26 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     release
     |> cast(params, [:connecting_code, :connecting_code_mode])
     |> validate_required([:connecting_code_mode])
+  end
+
+  # A release with the same firmware and archive as the current one would send
+  # devices nothing new. Required and connecting code are changed on the
+  # release itself, so they're no reason to create another.
+  defp validate_differs_from_current_release(changeset, %DeploymentGroup{current_release: %__MODULE__{} = current}) do
+    if assoc_id(changeset, :firmware) == current.firmware_id and assoc_id(changeset, :archive) == current.archive_id do
+      add_error(changeset, :firmware, "The current release already has this firmware and archive")
+    else
+      changeset
+    end
+  end
+
+  defp validate_differs_from_current_release(changeset, _deployment_group), do: changeset
+
+  defp assoc_id(changeset, field) do
+    case get_field(changeset, field) do
+      %{id: id} -> id
+      _ -> nil
+    end
   end
 
   defp validate_firmware(changeset, deployment_group) do
