@@ -160,7 +160,7 @@ defmodule NervesHub.MixProject do
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
       {:group, "~> 0.2.0"},
-      {:hackney, "~> 1.16"},
+      {:hackney, "~> 4.7"},
       {:hammer, "~> 7.5.0"},
       {:igniter, "~> 0.8", only: [:dev, :test]},
       {:hlclock, "~> 1.0"},
@@ -224,7 +224,7 @@ defmodule NervesHub.MixProject do
       {:unzip, "~> 0.12"},
       {:uuidv7, "~> 1.0"},
       {:x509, "~> 0.5.1 or ~> 0.6"},
-      {:flop, "~> 0.28.0"}
+      {:flop, "~> 0.29.0"}
     ]
   end
 
