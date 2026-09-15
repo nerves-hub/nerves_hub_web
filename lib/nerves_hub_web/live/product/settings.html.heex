@@ -192,9 +192,16 @@
                 </td>
                 <td>
                   <div :if={is_nil(auth.deactivated_at)} class="flex h-full items-center justify-start gap-3">
-                    <input type="hidden" id={"shared-secret-#{auth.id}"} value={auth.secret} />
+                    <%!-- Left out rather than disabled: the secret lets a device connect and register itself, so it is only sent to members who could manage it. --%>
+                    <input :if={authorized?(:"product:update", @current_scope)} type="hidden" id={"shared-secret-#{auth.id}"} value={auth.secret} />
 
-                    <.button value={auth.id} id={"shared-secret-#{auth.id}-button"} phx-hook="SharedSecretClipboardClick" aria-label="Copy secret">
+                    <.button
+                      :if={authorized?(:"product:update", @current_scope)}
+                      value={auth.id}
+                      id={"shared-secret-#{auth.id}-button"}
+                      phx-hook="SharedSecretClipboardClick"
+                      aria-label="Copy secret"
+                    >
                       Copy secret
                     </.button>
 
@@ -203,7 +210,7 @@
                       phx-value-shared_secret_id={auth.id}
                       disabled={!authorized?(:"product:update", @current_scope)}
                       data-confirm="Are you sure you want to deactivate this shared secret?"
-                      aria-label="Copy secret"
+                      aria-label="Deactivate secret"
                     >
                       Deactivate
                     </.button>
