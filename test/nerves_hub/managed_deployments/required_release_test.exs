@@ -1,5 +1,6 @@
 defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
   use NervesHub.DataCase, async: true
+  use Mimic
 
   import Ecto.Query, only: [select: 3]
 
@@ -214,6 +215,39 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       assert {:ok, %{status: :ready}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
     end
 
+    test "a delta built for a required release brings its group out of preparing", context do
+      %{deployment_group: deployment_group} = add_releases(context)
+      _ = connected_device(context, deployment_group, context.fw1)
+
+      delta = Fixtures.firmware_delta_fixture(context.fw1, context.fw2, %{status: :processing})
+      assert {:ok, %{status: :preparing}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
+
+      {:ok, _} = delta |> Ecto.Changeset.change(status: :completed) |> Repo.update()
+
+      # The delta builder only knows the firmware it built for, which here belongs
+      # to a required release rather than the current one
+      assert {:ok, results} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(context.fw2.id)
+      assert [{:ok, updated}] = Enum.filter(results, fn {_, dg} -> dg.id == deployment_group.id end)
+      assert updated.status == :ready
+    end
+
+    test "waits while one delta builds, whatever the others did", context do
+      %{deployment_group: deployment_group} = add_releases(context)
+      _ = connected_device(context, deployment_group, context.fw1)
+      _ = connected_device(context, deployment_group, context.fw2)
+
+      _ = Fixtures.firmware_delta_fixture(context.fw1, context.fw2, %{status: :completed})
+      building = Fixtures.firmware_delta_fixture(context.fw2, context.fw3, %{status: :processing})
+
+      assert {:ok, %{status: :preparing}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
+
+      {:ok, _} = building |> Ecto.Changeset.change(status: :failed) |> Repo.update()
+      assert {:ok, %{status: :deltas_failed}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
+
+      {:ok, _} = building |> Ecto.Changeset.change(status: :completed) |> Repo.update()
+      assert {:ok, %{status: :ready}} = ManagedDeployments.recalculate_deployment_group_status(deployment_group)
+    end
+
     test "asks for deltas to the firmware each device is headed for", context do
       %{deployment_group: deployment_group} = add_releases(context)
       _ = connected_device(context, deployment_group, context.fw1)
@@ -228,6 +262,23 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
   end
 
   describe "set_deployment_release_required/3" do
+    test "goes through even when the deltas it asks for can't be queued", context do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(context.deployment_group, %{delta_updatable: true}, context.user)
+
+      %{deployment_group: deployment_group, release2: release2} =
+        add_releases(%{context | deployment_group: deployment_group}, [])
+
+      _ = connected_device(context, deployment_group, context.fw1)
+
+      stub(Firmwares, :attempt_firmware_delta, fn _source, _target, _recalculate ->
+        {:error, :failed_to_insert_delta}
+      end)
+
+      assert {:ok, release2} = ManagedDeployments.set_deployment_release_required(release2, true, context.user)
+      assert release2.required
+    end
+
     test "changes where devices are sent, and audits it", context do
       %{deployment_group: deployment_group, release2: release2, release3: release3} = add_releases(context, [])
       device = connected_device(context, deployment_group, context.fw1)
@@ -359,6 +410,7 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       device = connected_device(context, deployment_group, context.fw1, %{tags: ["canary"]})
 
       assert Workflows.claim_devices(deployment_group, canary_step) == 1
+      assert Workflows.claimed_device_count(deployment_group, canary_step) == 1
       assert [_] = Updates.available_for_workflow_step(deployment_group, canary_step, 10)
       refute Workflows.step_complete?(deployment_group, canary_step)
 
@@ -367,6 +419,10 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       assert step_device_ids(deployment_group, canary_step) == [device.id]
       assert Updates.available_for_workflow_step(deployment_group, canary_step, 10) == []
       assert Workflows.step_complete?(deployment_group, canary_step)
+
+      # The step neither updates nor waits for it, so it doesn't fill the step's
+      # match limit or count towards its failure tolerance either
+      assert Workflows.claimed_device_count(deployment_group, canary_step) == 0
     end
   end
 end

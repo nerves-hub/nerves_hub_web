@@ -773,6 +773,9 @@ defmodule NervesHub.DeviceLink do
     FirmwareUpdates.update_inflight_update(device_info.device_id, stage, percent, persist_progress?)
   end
 
+  defp firmware_uuid(%{firmware_metadata: %{uuid: uuid}}), do: uuid
+  defp firmware_uuid(_device_info), do: nil
+
   @spec maybe_send_archive(
           device_info :: DeviceInfo.t(),
           device_api_version :: String.t(),
@@ -792,7 +795,7 @@ defmodule NervesHub.DeviceLink do
     version_match = Version.match?(device_api_version, ">= 2.0.0")
 
     if updates_enabled && version_match do
-      if archive = Archives.archive_for_deployment_group(device_info.deployment_id) do
+      if archive = Archives.archive_for_deployment_group(device_info.deployment_id, firmware_uuid(device_info)) do
         if opts[:audit_log],
           do:
             DeviceTemplates.audit_device_archive_update_triggered(
