@@ -38,7 +38,7 @@ defmodule NervesHub.Devices.Deployments do
     |> join(:inner, [device: d], dg in DeploymentGroup, on: dg.id == d.deployment_id, as: :deployment_group)
     |> where([deployment_group: dg], dg.id == ^deployment_id)
     |> join(:inner, [device: d], f in Firmware,
-      on: f.uuid == fragment("?->>'uuid'", d.firmware_metadata),
+      on: f.product_id == d.product_id and f.uuid == fragment("?->>'uuid'", d.firmware_metadata),
       as: :firmware
     )
     |> ManagedDeployments.join_target_release(deployment_id)

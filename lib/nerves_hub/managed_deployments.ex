@@ -533,7 +533,7 @@ defmodule NervesHub.ManagedDeployments do
     |> join(:inner, [device: d], dg in DeploymentGroup, on: dg.id == d.deployment_id, as: :deployment_group)
     |> where([deployment_group: dg], dg.id == ^deployment_group_id)
     |> join(:inner, [device: d], f in Firmware,
-      on: f.uuid == fragment("?->>'uuid'", d.firmware_metadata),
+      on: f.product_id == d.product_id and f.uuid == fragment("?->>'uuid'", d.firmware_metadata),
       as: :firmware
     )
     |> join_target_release(deployment_group_id)
@@ -729,6 +729,8 @@ defmodule NervesHub.ManagedDeployments do
         DeploymentRelease
         |> join(:inner, [r], f in assoc(r, :firmware), as: :firmware)
         |> where([r], r.deployment_group_id == parent_as(:deployment_group).id)
+        # Paired with the uuid so the lookup can use `firmwares_product_id_uuid_all_index`
+        |> where([firmware: f], f.product_id == parent_as(:device).product_id)
         |> where([firmware: f], f.uuid == fragment("? #>> '{\"uuid\"}'", parent_as(:device).firmware_metadata))
         |> order_by([r], desc: r.number)
         |> limit(1)
