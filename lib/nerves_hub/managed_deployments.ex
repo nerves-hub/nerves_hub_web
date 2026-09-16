@@ -788,21 +788,24 @@ defmodule NervesHub.ManagedDeployments do
          not earlier_required_release?(deployment_group) do
       current_release
     else
-      target_release_id =
-        Device
-        |> from(as: :device)
-        |> where([device: d], d.id == ^device.id)
-        |> join(:inner, [], dg in DeploymentGroup, on: dg.id == ^deployment_group.id, as: :deployment_group)
-        |> join_target_release()
-        |> select([target_release: tr], tr.id)
-        |> Repo.one()
+      current_release_id = current_release.id
 
-      if target_release_id in [nil, current_release.id] do
-        current_release
-      else
-        DeploymentRelease
-        |> Repo.get!(target_release_id)
-        |> Repo.preload([:firmware, :archive])
+      Device
+      |> from(as: :device)
+      |> where([device: d], d.id == ^device.id)
+      |> join(:inner, [], dg in DeploymentGroup, on: dg.id == ^deployment_group.id, as: :deployment_group)
+      |> join_target_release()
+      |> join(:inner, [target_release: tr], r in DeploymentRelease, on: r.id == tr.id, as: :release)
+      |> join(:inner, [release: r], f in assoc(r, :firmware), as: :firmware)
+      |> join(:left, [release: r], a in assoc(r, :archive), as: :archive)
+      |> select([release: r, firmware: f, archive: a], {r, f, a})
+      |> Repo.one()
+      |> case do
+        # The current release is already loaded, with its steps, which the query
+        # above leaves out
+        nil -> current_release
+        {%DeploymentRelease{id: ^current_release_id}, _firmware, _archive} -> current_release
+        {release, firmware, archive} -> %{release | firmware: firmware, archive: archive}
       end
     end
   end
