@@ -8,7 +8,6 @@ defmodule NervesHubWeb.Live.Product.Insights do
   alias NervesHub.Devices.Updates
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
-  alias NervesHubWeb.Components.DeviceUpdateStatus
 
   @graph_periods ~w(twenty_four_hours fourteen_days four_weeks)
 

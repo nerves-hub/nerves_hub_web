@@ -393,10 +393,8 @@
             >
               <div class="group flex items-center gap-3 py-3">
                 <span class="text-content-body min-w-0 flex-1 truncate font-mono text-sm group-hover:underline">{device.identifier}</span>
-                <span class="text-content-strong shrink-0 text-right font-mono text-sm">{consecutive_failures(device)}</span>
-                <span class="text-content-muted min-w-0 truncate text-right font-mono text-xs">
-                  {DeviceUpdateStatus.friendly_blocked_until(device.updates_blocked_until, @time_zone)}
-                </span>
+                <span class="text-content-strong w-32 shrink-0 text-right font-mono text-sm">{consecutive_failures(device)}</span>
+                <span class="text-content-muted w-24 shrink-0 truncate text-right font-mono text-xs">{Timex.from_now(device.updates_blocked_until)}</span>
               </div>
             </.link>
             <div :if={Enum.empty?(@penalty_box_devices)} class="inline-flex h-20 items-center justify-center">
