@@ -627,18 +627,32 @@ defmodule NervesHub.DeviceLink do
     connecting_code = Devices.fetch_connecting_code(device_info.device_id)
 
     connecting_code.release
-    |> order_release_connecting_code(connecting_code.release_mode, connecting_code.deployment_group)
-    |> Enum.concat([connecting_code.device])
-    |> Enum.filter(&(not is_nil(&1) and byte_size(&1) > 0))
+    |> blank_to_nil()
+    |> order_release_connecting_code(connecting_code.release_mode, blank_to_nil(connecting_code.deployment_group))
+    |> Enum.concat([blank_to_nil(connecting_code.device)])
+    |> Enum.reject(&is_nil/1)
     |> case do
       list when list == [] -> nil
       list -> list
     end
   end
 
+  # Casting stores blank code as nil, but a row written any other way can still
+  # hold whitespace, and code that is only whitespace is code a device shouldn't
+  # be sent -- nor should it count as a release having code of its own, which
+  # would drop the deployment group's code in `:override` mode.
+  defp blank_to_nil(nil), do: nil
+
+  defp blank_to_nil(code) do
+    case String.trim(code) do
+      "" -> nil
+      _ -> code
+    end
+  end
+
   # A release without code of its own leaves the deployment group's code alone,
-  # whatever its mode says. Casting stores blank code, whitespace included, as nil.
-  defp order_release_connecting_code(release_code, _mode, group_code) when release_code in [nil, ""], do: [group_code]
+  # whatever its mode says.
+  defp order_release_connecting_code(release_code, _mode, group_code) when is_nil(release_code), do: [group_code]
   defp order_release_connecting_code(release_code, :override, _group_code), do: [release_code]
   defp order_release_connecting_code(release_code, :first, group_code), do: [release_code, group_code]
   defp order_release_connecting_code(release_code, :last, group_code), do: [group_code, release_code]
