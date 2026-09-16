@@ -7,6 +7,7 @@ defmodule NervesHub.ManagedDeployments.ReleaseConnectingCodeTest do
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Repo
 
   setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
@@ -81,6 +82,30 @@ defmodule NervesHub.ManagedDeployments.ReleaseConnectingCodeTest do
       _ = add_release(context, context.next_firmware, %{connecting_code: "  ", connecting_code_mode: "override"})
 
       assert connecting_code(device_on(context, context.next_firmware)) == ["group", "device"]
+    end
+
+    test "ignores a release's code that is only whitespace, however the row was written", context do
+      release = add_release(context, context.firmware, %{connecting_code: "release", connecting_code_mode: "override"})
+
+      # Casting treats blank code as no code, so this is the only way to hold
+      # whitespace -- an `insert_all` or a changeset that doesn't cast would too
+      {:ok, _} = release |> Ecto.Changeset.change(connecting_code: " \n\t ") |> Repo.update()
+
+      assert connecting_code(device_on(context, context.firmware)) == ["group", "device"]
+    end
+
+    test "keeps the whitespace inside code that has something in it", context do
+      _ = add_release(context, context.firmware, %{connecting_code: "  release\n  more\n"})
+
+      assert connecting_code(device_on(context, context.firmware)) == ["group", "  release\n  more\n", "device"]
+    end
+
+    test "reads the device, group and release code in one query, the mode as an atom", context do
+      _ = add_release(context, context.firmware, %{connecting_code: "release", connecting_code_mode: "first"})
+      device = device_on(context, context.firmware)
+
+      assert %{device: "device", deployment_group: "group", release: "release", release_mode: :first} =
+               Devices.fetch_connecting_code(device.id)
     end
   end
 
