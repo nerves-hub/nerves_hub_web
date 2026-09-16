@@ -3,12 +3,14 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
 
   import Phoenix.LiveViewTest
 
+  alias NervesHub.Accounts
   alias NervesHub.Analytics.Buffer
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.DeviceHealthHistory
   alias NervesHub.Devices.Health
   alias NervesHub.Fixtures
   alias NervesHub.ProductNotifications
+  alias NervesHub.Products
 
   setup %{user: user, org: org, org_key: org_key, tmp_dir: tmp_dir} do
     product = Fixtures.product_fixture(user, org, %{name: "Fleet Insights"})
@@ -82,6 +84,35 @@ defmodule NervesHubWeb.Live.Product.InsightsTest do
       assigns = :sys.get_state(view.pid).socket.assigns
       assert assigns.fleet_size == 0
       assert assigns.online_count.result == 0
+    end
+
+    test "the onboarding message includes the shared secret for manage members", %{
+      conn: conn,
+      org: org,
+      user: user,
+      product: product
+    } do
+      {:ok, shared_secret} = Products.create_shared_secret_auth(product)
+      {:ok, _} = Accounts.change_org_user_role(Accounts.get_org_user!(org, user.id), :manage)
+
+      {:ok, _view, html} = live(conn, insights_path(org, product))
+
+      assert html =~ shared_secret.secret
+    end
+
+    test "the onboarding message leaves out the shared secret for view-only members", %{
+      conn: conn,
+      org: org,
+      user: user,
+      product: product
+    } do
+      {:ok, shared_secret} = Products.create_shared_secret_auth(product)
+      {:ok, _} = Accounts.change_org_user_role(Accounts.get_org_user!(org, user.id), :view)
+
+      {:ok, _view, html} = live(conn, insights_path(org, product))
+
+      assert html =~ "have any devices yet"
+      refute html =~ shared_secret.secret
     end
 
     test "renders when devices exist but have no health records", %{
