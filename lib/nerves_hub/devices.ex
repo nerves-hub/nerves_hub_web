@@ -913,13 +913,12 @@ defmodule NervesHub.Devices do
     |> from(as: :device)
     |> join(:left, [device: d], dg in assoc(d, :deployment_group), as: :deployment_group)
     |> ManagedDeployments.join_running_release()
-    |> join(:left, [running_release: rr], r in DeploymentRelease, on: r.id == rr.id, as: :release)
     |> where([device: d], d.id == ^device_id)
-    |> select([device: d, deployment_group: dg, release: r], %{
+    |> select([device: d, deployment_group: dg, running_release: rr], %{
       device: d.connecting_code,
       deployment_group: dg.connecting_code,
-      release: r.connecting_code,
-      release_mode: r.connecting_code_mode
+      release: rr.connecting_code,
+      release_mode: rr.connecting_code_mode
     })
     |> Repo.one!()
   end

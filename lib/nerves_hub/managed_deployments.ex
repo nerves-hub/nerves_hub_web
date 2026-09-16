@@ -615,7 +615,10 @@ defmodule NervesHub.ManagedDeployments do
 
   That is the newest release in the device's deployment group whose firmware the
   device is running. A device on firmware that belongs to no release in its group,
-  or in no group at all, is running none, and the joined `id` and `number` are nil.
+  or in no group at all, is running none, and the joined fields are all nil.
+
+  The release's connecting code comes along so a caller needing it has it without
+  joining the release a second time.
 
   The query must have `:device` and `:deployment_group` named bindings. Joining
   twice is harmless, so callers building on `join_target_release/1` can join it
@@ -633,7 +636,12 @@ defmodule NervesHub.ManagedDeployments do
         |> where([firmware: f], f.uuid == fragment("? #>> '{\"uuid\"}'", parent_as(:device).firmware_metadata))
         |> order_by([r], desc: r.number)
         |> limit(1)
-        |> select([r], %{id: r.id, number: r.number})
+        |> select([r], %{
+          id: r.id,
+          number: r.number,
+          connecting_code: r.connecting_code,
+          connecting_code_mode: r.connecting_code_mode
+        })
 
       join(query, :left_lateral, [], rr in subquery(running_release), on: true, as: :running_release)
     end
