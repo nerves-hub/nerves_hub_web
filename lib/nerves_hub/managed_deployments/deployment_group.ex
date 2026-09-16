@@ -86,6 +86,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     field(:release_tags, Tag, default: [])
 
+    # Set by `ManagedDeployments.load_earlier_required_release/1` for the length of
+    # one piece of work, so several per-device queries share the one answer
+    field(:earlier_required_release, :boolean, virtual: true)
     field(:releases_count, :integer, virtual: true)
     field(:device_count, :integer, virtual: true)
 

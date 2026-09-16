@@ -772,6 +772,9 @@ defmodule NervesHub.ManagedDeployments do
   orchestrator holds for the life of a release and can be behind.
   """
   @spec earlier_required_release?(DeploymentGroup.t() | integer()) :: boolean()
+  def earlier_required_release?(%DeploymentGroup{earlier_required_release: required?}) when is_boolean(required?),
+    do: required?
+
   def earlier_required_release?(%DeploymentGroup{id: id}), do: earlier_required_release?(id)
 
   def earlier_required_release?(deployment_group_id) do
@@ -780,6 +783,20 @@ defmodule NervesHub.ManagedDeployments do
     |> where([r, dg], dg.id == ^deployment_group_id)
     |> where([r, dg], r.required and r.id != dg.current_deployment_release_id)
     |> Repo.exists?()
+  end
+
+  @doc """
+  Record on a deployment group whether a release before its current one is
+  required, so work that runs several per-device queries asks once rather than
+  once per query.
+
+  The answer is a snapshot, and a group carrying one goes on answering from it,
+  so load it for the length of one piece of work rather than onto a struct that
+  is held longer. A group that has not been through here reads the database.
+  """
+  @spec load_earlier_required_release(DeploymentGroup.t()) :: DeploymentGroup.t()
+  def load_earlier_required_release(%DeploymentGroup{} = deployment_group) do
+    %{deployment_group | earlier_required_release: earlier_required_release?(deployment_group.id)}
   end
 
   @doc """

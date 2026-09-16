@@ -153,6 +153,22 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       assert ManagedDeployments.earlier_required_release?(deployment_group)
     end
 
+    test "asks the database once when the answer is loaded onto the group", context do
+      %{deployment_group: deployment_group, release2: release2} = add_releases(context, [])
+      refute ManagedDeployments.earlier_required_release?(deployment_group)
+
+      loaded = ManagedDeployments.load_earlier_required_release(deployment_group)
+      refute ManagedDeployments.earlier_required_release?(loaded)
+
+      {:ok, _} = ManagedDeployments.set_deployment_release_required(release2, true, context.user)
+
+      # The loaded group answers from its snapshot, which is what keeps a pass
+      # over a workflow's steps from asking the same question for every step
+      refute ManagedDeployments.earlier_required_release?(loaded)
+      assert ManagedDeployments.earlier_required_release?(deployment_group)
+      assert ManagedDeployments.earlier_required_release?(ManagedDeployments.load_earlier_required_release(loaded))
+    end
+
     test "still applies when the device's version can't be compared", context do
       %{deployment_group: deployment_group, release2: release2} = add_releases(context)
 
