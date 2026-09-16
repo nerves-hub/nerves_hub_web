@@ -45,7 +45,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> sidebar_tab(:deployments)
     |> selected_tab()
     |> assign(:deployment_group, deployment_group)
-    |> assign(:delta_status, ManagedDeployments.delta_status(deployment_group))
     |> schedule_inflight_updates_updater()
     |> ok()
   end
@@ -331,7 +330,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     socket
     |> follow_release_steps(deployment_group, updated_deployment)
     |> assign(:deployment_group, updated_deployment)
-    |> assign(:delta_status, ManagedDeployments.delta_status(updated_deployment))
     |> assign(:firmware, updated_deployment.current_release.firmware)
     |> noreply()
   end
@@ -348,7 +346,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     socket
     |> assign(:deployment_group, updated_deployment)
-    |> assign(:delta_status, ManagedDeployments.delta_status(updated_deployment))
     |> noreply()
   end
 

@@ -64,6 +64,12 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
     device
   end
 
+  # The banner on the group page reads this straight off the preloaded release
+  defp delta_status(deployment_group) do
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(deployment_group)
+    deployment_group.current_release.delta_status
+  end
+
   defp run_unknown_firmware(device, version) do
     metadata = Map.from_struct(%{device.firmware_metadata | uuid: Ecto.UUID.generate(), version: version})
     {:ok, device} = Devices.update_firmware_metadata(device, metadata, :unknown, false)
@@ -223,7 +229,6 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
 
       delta = Fixtures.firmware_delta_fixture(context.fw1, context.fw2, %{status: :processing})
       assert {:ok, %{delta_status: :preparing}} = ManagedDeployments.recalculate_release_delta_status(release2)
-      assert ManagedDeployments.delta_status(deployment_group) == :preparing
 
       {:ok, _} = delta |> Ecto.Changeset.change(status: :completed) |> Repo.update()
 
@@ -231,7 +236,30 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       # to a required release rather than the current one
       assert {:ok, releases} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(context.fw2.id)
       assert [%{delta_status: :ready}] = Enum.filter(releases, &(&1.id == release2.id))
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+    end
+
+    test "the group's delta status keeps to the current release", context do
+      %{deployment_group: deployment_group, release2: release2, release3: release3} = add_releases(context)
+      _ = connected_device(context, deployment_group, context.fw1)
+      _ = connected_device(context, deployment_group, context.fw2)
+
+      # The device on fw1 is headed for the required release and waits on this
+      # delta, but the group is about the release every device ends up on
+      _ = Fixtures.firmware_delta_fixture(context.fw1, context.fw2, %{status: :processing})
+      assert {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+      assert Repo.reload(release2).delta_status == :preparing
+      assert delta_status(deployment_group) == :ready
+
+      delta = Fixtures.firmware_delta_fixture(context.fw2, context.fw3, %{status: :failed})
+      assert {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+      assert Repo.reload(release3).delta_status == :failed
+      assert delta_status(deployment_group) == :failed
+
+      # The required release is still preparing, and still not the group's concern
+      {:ok, _} = delta |> Ecto.Changeset.change(status: :completed) |> Repo.update()
+      assert {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+      assert Repo.reload(release2).delta_status == :preparing
+      assert delta_status(deployment_group) == :ready
     end
 
     test "keeps each release's delta status to itself", context do
@@ -245,17 +273,17 @@ defmodule NervesHub.ManagedDeployments.RequiredReleaseTest do
       assert {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
       assert Repo.reload(release2).delta_status == :ready
       assert Repo.reload(release3).delta_status == :preparing
-      assert ManagedDeployments.delta_status(deployment_group) == :preparing
+      assert delta_status(deployment_group) == :preparing
 
       {:ok, _} = building |> Ecto.Changeset.change(status: :failed) |> Repo.update()
       assert {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
       assert Repo.reload(release2).delta_status == :ready
       assert Repo.reload(release3).delta_status == :failed
-      assert ManagedDeployments.delta_status(deployment_group) == :failed
+      assert delta_status(deployment_group) == :failed
 
       {:ok, _} = building |> Ecto.Changeset.change(status: :completed) |> Repo.update()
       assert {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
     end
 
     test "holds back only the devices headed for a release whose deltas aren't ready", context do

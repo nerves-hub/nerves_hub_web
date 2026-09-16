@@ -32,7 +32,7 @@
         {@deployment_group.name}
       </h1>
       <div
-        :if={@delta_status == :preparing}
+        :if={@deployment_group.current_release.delta_status == :preparing}
         phx-remove={JS.hide(transition: {"ease-in duration-1000", "opacity-100", "opacity-0"}, blocking: false)}
         class="bg-notice border-base-700 pulsing-div flex items-center gap-1 rounded-full border py-0.5 pr-3 pl-2.5"
       >
@@ -40,7 +40,7 @@
       </div>
 
       <div
-        :if={@delta_status == :failed}
+        :if={@deployment_group.current_release.delta_status == :failed}
         class="bg-base-800 border-alert text-alert rounded border px-2 py-1 text-xs"
       >
         Error: Deltas failed to generate

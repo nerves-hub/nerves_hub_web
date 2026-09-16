@@ -466,31 +466,6 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  Where a deployment group stands on deltas: the worst of the statuses of the
-  releases its devices are headed for.
-
-  It waits while any of them is still building deltas, and reports a failure once
-  nothing is left to wait for.
-  """
-  @spec delta_status(DeploymentGroup.t()) :: DeploymentRelease.delta_status()
-  def delta_status(%DeploymentGroup{} = deployment_group) do
-    statuses =
-      DeploymentRelease
-      |> from(as: :release)
-      |> join(:inner, [release: r], dg in assoc(r, :deployment_group), as: :deployment_group)
-      |> where([deployment_group: dg], dg.id == ^deployment_group.id)
-      |> where([release: r, deployment_group: dg], r.required or r.id == dg.current_deployment_release_id)
-      |> select([release: r], r.delta_status)
-      |> Repo.all()
-
-    cond do
-      Enum.any?(statuses, &(&1 == :preparing)) -> :preparing
-      Enum.any?(statuses, &(&1 == :failed)) -> :failed
-      true -> :ready
-    end
-  end
-
-  @doc """
   The deltas the devices headed for a release need, oldest source firmware first.
   """
   @spec release_deltas(DeploymentRelease.t()) :: [FirmwareDelta.t()]

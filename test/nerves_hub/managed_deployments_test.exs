@@ -340,12 +340,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
       user: user,
       deployment_group: deployment_group
     } do
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true, delta_updatable: true}, user)
 
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
     end
 
     test "sets its release's delta status to :preparing when turning on deltas and deltas need to be generated", %{
@@ -360,14 +360,14 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       deployment_group = Fixtures.deployment_group_fixture(new_firmware, %{name: "Delta Time", user: user})
 
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
 
       _device = Fixtures.device_fixture(org, product, old_firmware, %{deployment_id: deployment_group.id})
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true, delta_updatable: true}, user)
 
-      assert ManagedDeployments.delta_status(deployment_group) == :preparing
+      assert delta_status(deployment_group) == :preparing
     end
 
     test "sets its release's delta status to :ready when deltas are enabled and a new release but their are no devices which require an update",
@@ -387,12 +387,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
         |> Ecto.Changeset.put_change(:is_active, true)
         |> Repo.update()
 
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware2.id}, user)
 
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
     end
 
     test "sets its release's delta status to :ready when deltas are enabled and a new release and deltas already exist",
@@ -417,12 +417,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
         |> Ecto.Changeset.change(%{delta_updatable: true, is_active: true})
         |> Repo.update()
 
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: new_firmware.id}, user)
 
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
     end
 
     test "sets its release's delta status to :preparing when deltas are enabled and a new release is created and their are devices on older firmware versions",
@@ -444,14 +444,14 @@ defmodule NervesHub.ManagedDeploymentsTest do
           user: user
         })
 
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
 
       _device = Fixtures.device_fixture(org, product, old_firmware, %{deployment_id: deployment_group.id})
 
       {:ok, {_release, deployment_group}} =
         ManagedDeployments.create_deployment_release(deployment_group, new_firmware, nil, user, %{})
 
-      assert ManagedDeployments.delta_status(deployment_group) == :preparing
+      assert delta_status(deployment_group) == :preparing
     end
 
     test "doesn't set its release's delta status to :preparing when deltas are enabled and other information is updated, but no release is created",
@@ -465,12 +465,12 @@ defmodule NervesHub.ManagedDeploymentsTest do
         |> Ecto.Changeset.put_change(:delta_updatable, true)
         |> Repo.update()
 
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
 
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{name: "Chase Waterfalls"}, user)
 
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
     end
 
     test "sets its release's delta status to :ready when turning off deltas", %{
@@ -483,7 +483,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       {:ok, deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: false}, user)
 
-      assert ManagedDeployments.delta_status(deployment_group) == :ready
+      assert delta_status(deployment_group) == :ready
     end
 
     test "creates release record when either firmware or archive change", %{
@@ -1642,5 +1642,11 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert deployment_group.id in ids
       assert other_dg.id in ids
     end
+  end
+
+  # The banner on the group page reads this straight off the preloaded release
+  defp delta_status(deployment_group) do
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group(deployment_group)
+    deployment_group.current_release.delta_status
   end
 end
