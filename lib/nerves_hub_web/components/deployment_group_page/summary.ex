@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
+  alias NervesHubWeb.CoreComponents
   alias NimbleCSV.RFC4180, as: CSV
   alias Phoenix.Naming
 
@@ -620,16 +621,23 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
             <div :if={@deployment_group.priority_queue_enabled} class="border-base-700 border-b"></div>
 
-            <div :if={is_nil(@deployment_group.connecting_code)} class="flex items-center gap-4">
+            <div class="flex items-center gap-4">
               <span class="text-base-500 text-sm">Code sent on device connection:</span>
-              <span class="text-base-300 text-sm">No code configured</span>
+              <span :if={not connecting_code?(@deployment_group)} class="text-base-300 text-sm">No code configured</span>
+              <.link
+                :if={connecting_code?(@deployment_group)}
+                phx-click={CoreComponents.show_modal("connecting-code")}
+                class="text-base-300 text-sm font-medium underline decoration-dashed hover:decoration-solid"
+              >
+                View code
+              </.link>
             </div>
-            <div :if={not is_nil(@deployment_group.connecting_code)} class="flex items-start gap-2">
-              <span class="text-base-500 text-sm">Code sent on device connection:</span>
-              <pre class="text-base-300 text-sm">
-    {@deployment_group.connecting_code}
-              </pre>
-            </div>
+            <CoreComponents.modal :if={connecting_code?(@deployment_group)} id="connecting-code">
+              <div class="p-4">
+                <h2 class="text-base-300 pb-5 text-lg font-semibold">Code sent on device connection</h2>
+                <pre class="bg-base-800/50 text-base-300 overflow-x-auto p-5 font-mono text-sm">{@deployment_group.connecting_code}</pre>
+              </div>
+            </CoreComponents.modal>
 
             <div :if={not is_nil(@deployment_group.notes) and @deployment_group.notes != ""} class="border-base-700 border-t pt-4">
               <div class="flex flex-col gap-1">
@@ -789,6 +797,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
       </div>
     </div>
     """
+  end
+
+  defp connecting_code?(%{connecting_code: connecting_code}) do
+    not is_nil(connecting_code) and connecting_code != ""
   end
 
   defp deployment_group_percentage(0, 0), do: 0.0

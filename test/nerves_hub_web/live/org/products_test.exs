@@ -55,6 +55,30 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> assert_has("code", text: "product_key: \"#{shared_secret.key}\"", timeout: 1000)
       |> assert_has("code", text: "product_secret: \"#{shared_secret.secret}\"", timeout: 1000)
     end
+
+    test "view-only members are pointed at the documentation instead of the shared secret", %{
+      conn: conn,
+      org: org,
+      user: user
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "Boop"})
+      {:ok, shared_secret} = NervesHub.Products.create_shared_secret_auth(product)
+
+      org_user = NervesHub.Accounts.get_org_user!(org, user.id)
+      {:ok, _} = NervesHub.Accounts.change_org_user_role(org_user, :view)
+
+      conn
+      |> visit(~p"/org/#{org}/#{product}/devices")
+      # The device list loads asynchronously, so wait for the empty state
+      # before checking what it rendered.
+      |> assert_has("h2", text: "#{product.name} doesn't have any devices yet.", timeout: 1000)
+      |> unwrap(fn view ->
+        html = render(view)
+        refute html =~ shared_secret.secret
+        html
+      end)
+      |> assert_has("p", text: "Check the nerves_hub_link documentation for how to connect your first device.")
+    end
   end
 
   describe "list products" do
