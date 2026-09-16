@@ -133,9 +133,13 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:on_cancel, JS, default: %JS{})
   slot(:inner_block, required: true)
 
+  # The root is absolute so it stays out of flow once shown. Showing it sets
+  # `display: block`, and in a flex parent that would make it a flex item and
+  # add a gap, nudging the page around behind the overlay. Everything visible
+  # is `fixed`, so it resolves against the viewport either way.
   def modal(assigns) do
     ~H"""
-    <div id={@id} phx-mounted={@show && show_modal(@id)} phx-remove={hide_modal(@id)} data-cancel={JS.exec(@on_cancel, "phx-remove")} class="relative z-50 hidden">
+    <div id={@id} phx-mounted={@show && show_modal(@id)} phx-remove={hide_modal(@id)} data-cancel={JS.exec(@on_cancel, "phx-remove")} class="absolute z-50 hidden">
       <div id={"#{@id}-bg"} class="bg-base-200/90 fixed inset-0 transition-opacity" aria-hidden="true" />
       <div class="fixed inset-0 overflow-y-auto" aria-labelledby={"#{@id}-title"} aria-describedby={"#{@id}-description"} role="dialog" aria-modal="true" tabindex="0">
         <div class="flex min-h-full items-center justify-center">
