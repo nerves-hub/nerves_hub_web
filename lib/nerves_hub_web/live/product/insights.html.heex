@@ -364,21 +364,21 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center">
               <div class="text-base-50 leading-6 font-medium">
-                Penalty Box <span class="border-b-default ml-2.5 inline-flex items-center gap-1.5 rounded-full border py-0.5 pr-2.5 pl-2 text-xs/4 tracking-tight">{@penalty_box_count}</span>
+                Failed Firmware Updates <span class="border-b-default ml-2.5 inline-flex items-center gap-1.5 rounded-full border py-0.5 pr-2.5 pl-2 text-xs/4 tracking-tight">{@failing_count}</span>
               </div>
-              <div class="relative z-20 ml-4" id="penalty-box-tooltip" phx-hook="ToolTip" data-placement="top">
+              <div class="relative z-20 ml-4" id="failing-updates-tooltip" phx-hook="ToolTip" data-placement="top">
                 <span class="lucide-info--light size-4" />
                 <div class="bg-surface-muted border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden w-72 rounded border px-2 py-1.5 text-xs">
-                  <p class="pb-2">Devices whose firmware updates are blocked right now, because too many attempts in a row failed.</p>
-                  <p class="pb-2">Each stays blocked for its deployment group's penalty timeout, and is tried again after that.</p>
-                  <p>The count is failed attempts since the device last took firmware successfully, so the ones at the top are stuck in a loop.</p>
+                  <p class="pb-2">Devices that are failing to take their firmware, and are blocked from trying again for now.</p>
+                  <p class="pb-2">The count is attempts in a row that ended without the device running the firmware it was sent, since the last time it did.</p>
+                  <p>Beside it is how long that run has been going: an afternoon is bad luck, a fortnight is a device that will not fix itself.</p>
                   <div class="bg-surface-muted border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
                 </div>
               </div>
             </div>
 
             <.link
-              :if={Enum.any?(@penalty_box_devices)}
+              :if={Enum.any?(@failing_devices)}
               navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?updates=penalty-box"}
               class="text-content-muted flex items-center gap-1.5 text-xs"
             >
@@ -388,17 +388,17 @@
 
           <div class="divide-b-subtle flex flex-col divide-y">
             <.link
-              :for={device <- @penalty_box_devices}
+              :for={device <- @failing_devices}
               navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices/#{device.identifier}"}
             >
               <div class="group flex items-center gap-3 py-3">
                 <span class="text-content-body min-w-0 flex-1 truncate font-mono text-sm group-hover:underline">{device.identifier}</span>
-                <span class="text-content-strong w-32 shrink-0 text-right font-mono text-sm">{consecutive_failures(device)}</span>
-                <span class="text-content-muted w-24 shrink-0 truncate text-right font-mono text-xs">{Timex.from_now(device.updates_blocked_until)}</span>
+                <span class="text-content-strong w-24 shrink-0 text-right font-mono text-sm">{device.consecutive_failed_updates} failed</span>
+                <span class="text-content-muted w-32 shrink-0 truncate text-right font-mono text-xs">{failing_for(device)}</span>
               </div>
             </.link>
-            <div :if={Enum.empty?(@penalty_box_devices)} class="inline-flex h-20 items-center justify-center">
-              <span class="text-content-faint font-mono">No devices in the penalty box</span>
+            <div :if={Enum.empty?(@failing_devices)} class="inline-flex h-20 items-center justify-center">
+              <span class="text-content-faint font-mono">No devices are failing to update</span>
             </div>
           </div>
         </div>

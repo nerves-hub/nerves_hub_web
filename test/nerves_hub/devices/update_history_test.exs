@@ -129,7 +129,7 @@ defmodule NervesHub.Devices.UpdateHistoryTest do
       assert reload(device).consecutive_failed_updates == 1
     end
 
-    test "is cleared by a success, along with the last failure time", %{device: device} do
+    test "is cleared by a success, along with both failure times", %{device: device} do
       :ok = UpdateHistory.record(device, :failed)
       :ok = UpdateHistory.record(device, :expired)
 
@@ -140,7 +140,37 @@ defmodule NervesHub.Devices.UpdateHistoryTest do
       device = reload(device)
 
       assert device.consecutive_failed_updates == 0
+      assert is_nil(device.first_update_failure_at)
       assert is_nil(device.last_update_failure_at)
+    end
+
+    test "remembers when the run of failures started, not just the latest one", %{device: device} do
+      # truncated, because the column is second precision and the write floors it
+      started = DateTime.utc_now() |> DateTime.add(-3, :day) |> DateTime.truncate(:second)
+
+      :ok = UpdateHistory.record(device, :failed, timestamp: started)
+      :ok = UpdateHistory.record(device, :expired)
+      :ok = UpdateHistory.record(device, :abandoned)
+
+      device = reload(device)
+
+      assert device.consecutive_failed_updates == 3
+      # the first failure pins the start; the later ones only move the end
+      assert DateTime.diff(device.first_update_failure_at, started, :second) == 0
+      assert DateTime.after?(device.last_update_failure_at, device.first_update_failure_at)
+    end
+
+    test "starts a fresh run after a success", %{device: device} do
+      :ok = UpdateHistory.record(device, :failed, timestamp: DateTime.add(DateTime.utc_now(), -3, :day))
+      :ok = UpdateHistory.record(device, :succeeded)
+
+      recent = DateTime.utc_now() |> DateTime.add(-1, :hour) |> DateTime.truncate(:second)
+      :ok = UpdateHistory.record(device, :failed, timestamp: recent)
+
+      device = reload(device)
+
+      assert device.consecutive_failed_updates == 1
+      assert DateTime.diff(device.first_update_failure_at, recent, :second) == 0
     end
 
     test "is kept whether or not the history row can be written", %{device: device} do

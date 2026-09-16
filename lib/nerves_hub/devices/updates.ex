@@ -614,41 +614,47 @@ defmodule NervesHub.Devices.Updates do
   end
 
   @doc """
-  The product's devices whose updates are blocked right now, worst first.
+  The product's devices whose firmware updates are failing, worst first.
 
-  "Worst" is the device's consecutive failure count — how many update attempts
-  in a row have ended badly since it last took firmware — so the devices at the
-  top are the ones stuck in the loop rather than the ones that happened to fail
-  once this afternoon. Ties break on the device that failed most recently.
+  A device qualifies on two counts: its updates are blocked right now, and it
+  has a run of failures behind it. The second is what makes this a list of
+  devices in trouble rather than a list of blocked devices — a device that
+  asked to be rescheduled is blocked too, and has failed at nothing.
+
+  "Worst" is the consecutive failure count, how many attempts in a row have
+  ended without the device taking its firmware since it last did, so the top of
+  the list is the devices stuck in the loop rather than the ones that happened
+  to fail once this afternoon. Ties break on the longest-running failure.
 
   Reads PostgreSQL alone, so it answers in a deployment with no analytics, and
   answers exactly: the count is a column maintained beside the ClickHouse
   history rather than something summed out of it. See
   `NervesHub.Devices.UpdateHistory`.
   """
-  @spec in_penalty_box(Product.t(), non_neg_integer(), DateTime.t()) :: [Device.t()]
-  def in_penalty_box(%Product{} = product, limit \\ 10, now \\ DateTime.utc_now()) do
+  @spec failing_updates(Product.t(), non_neg_integer(), DateTime.t()) :: [Device.t()]
+  def failing_updates(%Product{} = product, limit \\ 10, now \\ DateTime.utc_now()) do
     product
-    |> in_penalty_box_query(now)
-    |> order_by([d], desc: d.consecutive_failed_updates, desc_nulls_last: d.last_update_failure_at)
+    |> failing_updates_query(now)
+    |> order_by([d], desc: d.consecutive_failed_updates, asc_nulls_last: d.first_update_failure_at)
     |> limit(^limit)
     |> Repo.all()
   end
 
   @doc """
-  How many of the product's devices have their updates blocked right now.
+  How many of the product's devices are failing to take their firmware.
   """
-  @spec in_penalty_box_count(Product.t(), DateTime.t()) :: non_neg_integer()
-  def in_penalty_box_count(%Product{} = product, now \\ DateTime.utc_now()) do
+  @spec failing_updates_count(Product.t(), DateTime.t()) :: non_neg_integer()
+  def failing_updates_count(%Product{} = product, now \\ DateTime.utc_now()) do
     product
-    |> in_penalty_box_query(now)
+    |> failing_updates_query(now)
     |> Repo.aggregate(:count)
   end
 
-  defp in_penalty_box_query(%Product{id: product_id}, now) do
+  defp failing_updates_query(%Product{id: product_id}, now) do
     Device
     |> where([d], d.product_id == ^product_id)
     |> where([d], not is_nil(d.updates_blocked_until) and d.updates_blocked_until > ^now)
+    |> where([d], d.consecutive_failed_updates > 0)
     |> Repo.exclude_deleted()
   end
 

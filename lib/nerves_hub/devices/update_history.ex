@@ -160,22 +160,32 @@ defmodule NervesHub.Devices.UpdateHistory do
     :ok
   end
 
-  # A success ends the run of failures, so the count goes back to zero and the
-  # timestamp with it — a device that has taken firmware is not "last failed at"
-  # anything. A reschedule moves neither.
+  # A success ends the run of failures, so the count goes back to zero and both
+  # timestamps with it — a device that has taken firmware is neither "failing
+  # since" nor "last failed at" anything. A reschedule moves none of them.
   defp move_counter(device, :succeeded, _timestamp) do
     Device
     |> where(id: ^device.id)
-    |> Repo.update_all(set: [consecutive_failed_updates: 0, last_update_failure_at: nil])
+    |> Repo.update_all(set: [consecutive_failed_updates: 0, first_update_failure_at: nil, last_update_failure_at: nil])
   end
 
   defp move_counter(device, status, timestamp) when status in @failure_statuses do
-    Device
-    |> where(id: ^device.id)
-    |> Repo.update_all(
-      inc: [consecutive_failed_updates: 1],
-      set: [last_update_failure_at: DateTime.truncate(timestamp, :second)]
+    at = DateTime.truncate(timestamp, :second)
+
+    from(d in Device,
+      where: d.id == ^device.id,
+      update: [
+        inc: [consecutive_failed_updates: 1],
+        set: [
+          last_update_failure_at: ^at,
+          # The run began at its first failure, so the COALESCE leaves this
+          # alone once set. Done in the statement rather than by reading the
+          # row back first, so concurrent failures cannot race the run's start.
+          first_update_failure_at: fragment("COALESCE(?, ?)", d.first_update_failure_at, type(^at, :utc_datetime))
+        ]
+      ]
     )
+    |> Repo.update_all([])
   end
 
   defp move_counter(_device, :rescheduled, _timestamp), do: {0, nil}

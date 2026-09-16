@@ -225,14 +225,14 @@ defmodule NervesHubWeb.Live.Product.InsightsUpdateHistoryTest do
       refute :sys.get_state(view.pid).socket.assigns.update_outcomes_graph_enabled
     end
 
-    test "the penalty box panel is still there, because it does not need analytics", %{
+    test "the failing updates panel is still there, because it does not need analytics", %{
       conn: conn,
       org: org,
       product: product
     } do
       {:ok, _view, html} = live(conn, insights_path(org, product))
 
-      assert html =~ "Penalty Box"
+      assert html =~ "Failed Firmware Updates"
     end
   end
 end

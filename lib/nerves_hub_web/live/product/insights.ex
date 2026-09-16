@@ -15,10 +15,10 @@ defmodule NervesHubWeb.Live.Product.Insights do
   # long tail of versions is folded into a single "Other" slice past this.
   @firmware_version_slices 6
 
-  # The penalty box list is a "look at these" list, not a device index — past
-  # about this many the panel stops being scannable and the link to the filtered
-  # device list is the better answer.
-  @penalty_box_list_size 8
+  # The failing updates list is a "look at these" list, not a device index —
+  # past about this many the panel stops being scannable and the link to the
+  # filtered device list is the better answer.
+  @failing_updates_list_size 8
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
@@ -107,7 +107,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> assign(:polling_pid, polling_pid)
     |> assign(:updated_at, DateTime.utc_now())
     |> assign(:fleet_size, Devices.total_count(product))
-    |> assign_penalty_box()
+    |> assign_failing_updates()
     |> assign_async(:online_count, fn -> {:ok, %{online_count: Devices.online_count(product)}} end)
     |> assign_async(:offline_count, fn -> {:ok, %{offline_count: Devices.offline_count(product)}} end)
     |> assign_async(:not_seen_in_7_days, fn ->
@@ -231,13 +231,13 @@ defmodule NervesHubWeb.Live.Product.Insights do
   end
 
   # PostgreSQL alone, so unlike the graph above this panel is there whether or
-  # not the deployment runs analytics. A device sitting in the penalty box is an
-  # operational fact rather than a statistic, and the count beside it has to be
-  # exact — see `NervesHub.Devices.UpdateHistory`.
-  defp assign_penalty_box(%{assigns: %{current_scope: scope}} = socket) do
+  # not the deployment runs analytics. A device failing to take its firmware is
+  # an operational fact rather than a statistic, and the count beside it has to
+  # be exact — see `NervesHub.Devices.UpdateHistory`.
+  defp assign_failing_updates(%{assigns: %{current_scope: scope}} = socket) do
     socket
-    |> assign(:penalty_box_devices, Updates.in_penalty_box(scope.product, @penalty_box_list_size))
-    |> assign(:penalty_box_count, Updates.in_penalty_box_count(scope.product))
+    |> assign(:failing_devices, Updates.failing_updates(scope.product, @failing_updates_list_size))
+    |> assign(:failing_count, Updates.failing_updates_count(scope.product))
   end
 
   defp maybe_assign_flapping_health(%{assigns: %{current_scope: scope}} = socket) do
@@ -333,15 +333,32 @@ defmodule NervesHubWeb.Live.Product.Insights do
   def firmware_version_color(index), do: "var(--color-chart-#{index + 1})"
 
   @doc """
-  The device's consecutive failure count, as the penalty box list phrases it.
+  How long the device has been failing, as the failing updates list phrases it.
 
-  A zero is "none recorded" rather than "0 failed": the count runs from the
-  device's last successful update, so one already blocked when the platform
-  started counting has nothing to show until it fails again — and "0 failed"
-  beside a blocked device reads as a bug rather than as an absent record.
+  The span from the first failure of the current run to now, rounded to one
+  unit — the question the list answers is "has this been going on for an
+  afternoon or a fortnight", which a single unit answers and a precise duration
+  only clutters.
+
+  `first_update_failure_at` is set on the failure that takes the count from
+  zero, so every device this list can show has one; the nil clause is for a
+  device whose run predates the column.
   """
-  def consecutive_failures(%{consecutive_failed_updates: 0}), do: "none recorded"
-  def consecutive_failures(%{consecutive_failed_updates: count}), do: "#{count} failed"
+  def failing_for(%{first_update_failure_at: nil}), do: "—"
+
+  def failing_for(%{first_update_failure_at: started_at}) do
+    seconds = DateTime.diff(DateTime.utc_now(), started_at, :second)
+
+    cond do
+      seconds < 60 -> "for under a minute"
+      seconds < 3600 -> failing_for_unit(div(seconds, 60), "minute")
+      seconds < 86_400 -> failing_for_unit(div(seconds, 3600), "hour")
+      true -> failing_for_unit(div(seconds, 86_400), "day")
+    end
+  end
+
+  defp failing_for_unit(1, unit), do: "for 1 #{unit}"
+  defp failing_for_unit(count, unit), do: "for #{count} #{unit}s"
 
   defp onboarding_nhl_host() do
     Application.get_env(:nerves_hub, :devices_websocket_url) || URI.parse(NervesHubWeb.Endpoint.url()).host
