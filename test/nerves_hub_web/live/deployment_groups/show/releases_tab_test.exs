@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
   import Ecto.Query, only: [where: 3]
 
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.AuditLogs
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
@@ -75,6 +76,27 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     |> assert_has("div", text: "All the snoots need some boops")
     |> assert_has("div", text: "Firmware: #{new_firmware.version} (#{String.slice(new_firmware.uuid, 0..7)})")
     |> assert_has("div", text: "Release settings updated")
+  end
+
+  test "audits a new release once", %{
+    conn: conn,
+    org: org,
+    org_key: org_key,
+    product: product,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+    audit_logs_before = AuditLogs.logs_for(deployment_group)
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> select("Firmware version", option: "#{new_firmware.version}", exact_option: false)
+    |> submit()
+    |> assert_has("div", text: "Release settings updated")
+
+    assert [audit_log] = AuditLogs.logs_for(deployment_group) -- audit_logs_before
+    assert audit_log.description =~ "created a new release"
   end
 
   test "release description can't be longer than 100 characters", %{
