@@ -335,7 +335,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
   @doc """
   How long the device has been failing, as the failing updates list phrases it.
 
-  The span from the first failure of the current run to now, rounded to one
+  The span from the first failure of the current run to now, floored to one
   unit — the question the list answers is "has this been going on for an
   afternoon or a fortnight", which a single unit answers and a precise duration
   only clutters.
@@ -344,21 +344,24 @@ defmodule NervesHubWeb.Live.Product.Insights do
   zero, so every device this list can show has one; the nil clause is for a
   device whose run predates the column.
   """
-  def failing_for(%{first_update_failure_at: nil}), do: "—"
+  def failing_duration(%{first_update_failure_at: nil}), do: "—"
 
-  def failing_for(%{first_update_failure_at: started_at}) do
+  def failing_duration(%{first_update_failure_at: started_at}) do
     seconds = DateTime.diff(DateTime.utc_now(), started_at, :second)
 
     cond do
-      seconds < 60 -> "for under a minute"
-      seconds < 3600 -> failing_for_unit(div(seconds, 60), "minute")
-      seconds < 86_400 -> failing_for_unit(div(seconds, 3600), "hour")
-      true -> failing_for_unit(div(seconds, 86_400), "day")
+      seconds < 60 -> "under a minute"
+      seconds < 3600 -> failing_duration_unit(div(seconds, 60), "minute")
+      seconds < 86_400 -> failing_duration_unit(div(seconds, 3600), "hour")
+      true -> failing_duration_unit(div(seconds, 86_400), "day")
     end
   end
 
-  defp failing_for_unit(1, unit), do: "for 1 #{unit}"
-  defp failing_for_unit(count, unit), do: "for #{count} #{unit}s"
+  # "over", not "for": the span is floored to a whole unit, so a device twelve
+  # and a half days into a run has been failing over twelve days rather than
+  # for exactly twelve.
+  defp failing_duration_unit(1, unit), do: "over 1 #{unit}"
+  defp failing_duration_unit(count, unit), do: "over #{count} #{unit}s"
 
   defp onboarding_nhl_host() do
     Application.get_env(:nerves_hub, :devices_websocket_url) || URI.parse(NervesHubWeb.Endpoint.url()).host

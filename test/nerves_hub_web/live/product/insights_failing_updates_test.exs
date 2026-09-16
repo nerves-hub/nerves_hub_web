@@ -69,7 +69,7 @@ defmodule NervesHubWeb.Live.Product.InsightsFailingUpdatesTest do
 
       {:ok, _view, html} = live(conn, insights_path(org, product))
 
-      assert html =~ "for 14 days"
+      assert html =~ "over 14 days"
     end
 
     test "leaves out a device that is blocked but has not failed", %{

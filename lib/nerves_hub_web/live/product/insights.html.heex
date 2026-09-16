@@ -394,7 +394,7 @@
               <div class="group flex items-center gap-3 py-3">
                 <span class="text-content-body min-w-0 flex-1 truncate font-mono text-sm group-hover:underline">{device.identifier}</span>
                 <span class="text-content-strong w-24 shrink-0 text-right font-mono text-sm">{device.consecutive_failed_updates} failed</span>
-                <span class="text-content-muted w-32 shrink-0 truncate text-right font-mono text-xs">{failing_for(device)}</span>
+                <span class="text-content-muted w-32 shrink-0 truncate text-right font-mono text-xs">{failing_duration(device)}</span>
               </div>
             </.link>
             <div :if={Enum.empty?(@failing_devices)} class="inline-flex h-20 items-center justify-center">
