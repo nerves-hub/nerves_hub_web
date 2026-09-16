@@ -54,7 +54,13 @@ defmodule NervesHub.Devices.UpdateHistory do
   alias NervesHub.Devices.DeviceUpdateHistory
   alias NervesHub.Repo
 
-  @type status :: :succeeded | :failed | :ignored | :rescheduled | :expired | :abandoned
+  @typedoc """
+  An outcome that means the device did not end up running the firmware it was
+  sent. See the module documentation for why `:rescheduled` is not one.
+  """
+  @type failure_status :: :failed | :ignored | :expired | :abandoned
+
+  @type status :: :succeeded | :rescheduled | failure_status()
 
   @typedoc """
   What `record/3` needs of a device: enough to find its row and to scope the
@@ -89,7 +95,7 @@ defmodule NervesHub.Devices.UpdateHistory do
   @doc """
   Every status an update attempt can end with.
   """
-  @spec statuses() :: [status()]
+  @spec statuses() :: [status(), ...]
   def statuses(), do: @statuses
 
   @doc """
@@ -97,7 +103,7 @@ defmodule NervesHub.Devices.UpdateHistory do
 
   `:rescheduled` is not one of them — see the module documentation.
   """
-  @spec failure_statuses() :: [status()]
+  @spec failure_statuses() :: [failure_status(), ...]
   def failure_statuses(), do: @failure_statuses
 
   @doc """
