@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
+  alias NervesHub.Accounts
   alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHub.Repo
@@ -311,6 +312,42 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
           assert_has(conn, "time", text: Date.to_string(ss.deactivated_at))
         end
       end)
+    end
+
+    # A shared secret lets a device connect and register itself, which a
+    # view-only member cannot otherwise do.
+    test "view-only members see the key but not the secret", %{conn: conn, org: org, user: user} do
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
+
+      product = Fixtures.product_fixture(user, org)
+      {:ok, auth} = Products.create_shared_secret_auth(product)
+
+      {:ok, _} = Accounts.change_org_user_role(Accounts.get_org_user!(org, user.id), :view)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> assert_has("td", text: auth.key)
+      |> unwrap(fn view ->
+        html = render(view)
+        refute html =~ auth.secret
+        html
+      end)
+      |> refute_has("button", text: "Copy secret")
+    end
+
+    test "manage members can copy the secret", %{conn: conn, org: org, user: user} do
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
+
+      product = Fixtures.product_fixture(user, org)
+      {:ok, auth} = Products.create_shared_secret_auth(product)
+
+      {:ok, _} = Accounts.change_org_user_role(Accounts.get_org_user!(org, user.id), :manage)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      # The hook copies from the input whose id ends in the button's value.
+      |> assert_has("button[phx-hook='SharedSecretClipboardClick'][value='#{auth.id}']", text: "Copy secret")
+      |> assert_has("#shared-secret-#{auth.id}", value: auth.secret)
     end
   end
 end

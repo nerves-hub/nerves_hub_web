@@ -134,8 +134,6 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
              user,
              deployment_group_params
            ) do
-      DeploymentGroupTemplates.audit_new_deployment_release(user, deployment_group)
-
       render(conn, :show, deployment_group: updated_deployment_group)
     end
   end

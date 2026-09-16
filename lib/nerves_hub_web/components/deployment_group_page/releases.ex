@@ -4,7 +4,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   import NervesHubWeb.Helpers.FirmwareDeletion, only: [deleted_summary: 2]
 
   alias NervesHub.Archives
-  alias NervesHub.AuditLogs
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
@@ -307,12 +306,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
     case ManagedDeployments.create_deployment_release(deployment_group, firmware, archive, scope.user, params) do
       {:ok, {_release, deployment_group}} ->
-        AuditLogs.audit!(
-          scope.user,
-          deployment_group,
-          "User #{scope.user.name} updated deployment group #{deployment_group.name}"
-        )
-
         releases = ManagedDeployments.list_deployment_releases(deployment_group)
         changeset = DeploymentRelease.new_changeset(deployment_group)
 

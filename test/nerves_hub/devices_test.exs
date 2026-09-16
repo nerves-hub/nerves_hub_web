@@ -27,6 +27,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.NetworkIdentities
   alias NervesHub.Devices.PubSub
   alias NervesHub.Devices.SharedSecretAuth
+  alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Devices.Updates
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -3029,6 +3030,24 @@ defmodule NervesHub.DevicesTest do
 
       # confirm that the firmware url is the delta firmware url
       assert delta_url == update_payload.firmware_url
+    end
+
+    test "returns no update for a device that has not reported its firmware yet", %{
+      org: org,
+      product: product,
+      firmware: firmware,
+      deployment_group: deployment_group
+    } do
+      # a device given a deployment group before it ever connected is like this
+      # between its socket connecting and its channel join recording its firmware
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{
+          status: :provisioned,
+          deployment_id: deployment_group.id,
+          firmware_metadata: nil
+        })
+
+      assert %UpdatePayload{update_available: false} = Updates.resolve_update(device)
     end
   end
 

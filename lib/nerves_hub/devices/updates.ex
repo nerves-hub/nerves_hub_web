@@ -256,6 +256,11 @@ defmodule NervesHub.Devices.Updates do
 
   def resolve_update(%Device{deployment_id: nil}, nil, _), do: %UpdatePayload{update_available: false}
 
+  # A device is provisioned as soon as its socket connects, but its firmware is
+  # only recorded when its channel join lands. Until then there is nothing to
+  # compare the deployment group's firmware against.
+  def resolve_update(%Device{firmware_metadata: nil}, nil, _), do: %UpdatePayload{update_available: false}
+
   def resolve_update(%Device{firmware_metadata: fw_meta} = device, nil, _) do
     Logger.metadata(device_id: device.id, source_firmware_uuid: Map.get(fw_meta, :uuid))
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(device)
