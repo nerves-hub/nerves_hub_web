@@ -12,8 +12,8 @@ defmodule NervesHub.Devices.UpdateOutcomesTest do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.InflightUpdate
-  alias NervesHub.FirmwareUpdates
   alias NervesHub.Firmwares
+  alias NervesHub.FirmwareUpdates
   alias NervesHub.Fixtures
 
   setup %{tmp_dir: tmp_dir} do

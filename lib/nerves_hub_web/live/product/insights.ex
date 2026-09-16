@@ -217,11 +217,9 @@ defmodule NervesHubWeb.Live.Product.Insights do
     {from, to, "hour", buckets}
   end
 
-  defp update_outcomes_graph(scope, time_zone, :four_weeks),
-    do: update_outcomes_graph_by_day(scope, time_zone, 28)
+  defp update_outcomes_graph(scope, time_zone, :four_weeks), do: update_outcomes_graph_by_day(scope, time_zone, 28)
 
-  defp update_outcomes_graph(scope, time_zone, :fourteen_days),
-    do: update_outcomes_graph_by_day(scope, time_zone, 14)
+  defp update_outcomes_graph(scope, time_zone, :fourteen_days), do: update_outcomes_graph_by_day(scope, time_zone, 14)
 
   defp update_outcomes_graph_by_day(scope, time_zone, days) do
     {time_zone, now} = local_now(time_zone)

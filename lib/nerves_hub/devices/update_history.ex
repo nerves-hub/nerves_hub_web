@@ -122,7 +122,15 @@ defmodule NervesHub.Devices.UpdateHistory do
   """
   @spec record(device(), status(), keyword()) :: :ok
   def record(device, status, opts \\ []) when status in @statuses do
-    timestamp = Keyword.get_lazy(opts, :timestamp, &DateTime.utc_now/0)
+    timestamp =
+      opts
+      |> Keyword.get_lazy(:timestamp, &DateTime.utc_now/0)
+      # `DateTime64(6)` is `:utc_datetime_usec` to Ecto, which refuses anything
+      # coarser than microseconds. Adding zero of them relabels the precision
+      # without moving the instant. Worth doing rather than trusting callers:
+      # a rejected row fails the whole buffer batch, so a second-precision
+      # timestamp here would take unrelated rows down with it.
+      |> DateTime.add(0, :microsecond)
 
     _ = move_counter(device, status, timestamp)
 

@@ -81,6 +81,18 @@ defmodule NervesHub.Devices.UpdateHistoryTest do
       assert String.length(row.reason) == 200
     end
 
+    test "records a timestamp given at second precision", %{device: device} do
+      # `DateTime64(6)` refuses anything coarser than microseconds, and a
+      # rejected row fails the whole buffer batch rather than only itself.
+      at = DateTime.new!(~D[2026-02-03], ~T[04:05:06], "Etc/UTC")
+
+      :ok = UpdateHistory.record(device, :expired, timestamp: at)
+
+      assert_eventually([row] = history_for(device))
+
+      assert DateTime.compare(row.timestamp, at) == :eq
+    end
+
     test "every status is recordable", %{device: device} do
       for status <- UpdateHistory.statuses() do
         :ok = UpdateHistory.record(device, status)
