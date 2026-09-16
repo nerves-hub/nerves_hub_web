@@ -146,7 +146,7 @@ defmodule NervesHubWeb.Live.Product.InsightsConnectionsGraphTest do
       {:ok, view, _html} = live(conn, insights_path(org, product))
 
       view
-      |> element(~s(button[phx-value-period="four_weeks"]))
+      |> element(~s(#connected-devices-period button[phx-value-period="four_weeks"]))
       |> render_click()
 
       assigns = :sys.get_state(view.pid).socket.assigns
@@ -168,7 +168,7 @@ defmodule NervesHubWeb.Live.Product.InsightsConnectionsGraphTest do
       {:ok, view, _html} = live(conn, insights_path(org, product))
 
       view
-      |> element(~s(button[phx-value-period="twenty_four_hours"]))
+      |> element(~s(#connected-devices-period button[phx-value-period="twenty_four_hours"]))
       |> render_click()
 
       assigns = :sys.get_state(view.pid).socket.assigns
@@ -191,7 +191,7 @@ defmodule NervesHubWeb.Live.Product.InsightsConnectionsGraphTest do
 
       html =
         view
-        |> element(~s(button[phx-value-period="four_weeks"]))
+        |> element(~s(#connected-devices-period button[phx-value-period="four_weeks"]))
         |> render_click()
 
       # the chart's id is keyed on the active period, forcing the hook to remount

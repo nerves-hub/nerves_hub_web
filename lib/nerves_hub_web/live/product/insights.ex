@@ -4,6 +4,8 @@ defmodule NervesHubWeb.Live.Product.Insights do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Health
+  alias NervesHub.Devices.UpdateHistory
+  alias NervesHub.Devices.Updates
   alias NervesHub.ProductNotifications
   alias NervesHub.Products
 
@@ -13,6 +15,11 @@ defmodule NervesHubWeb.Live.Product.Insights do
   # long tail of versions is folded into a single "Other" slice past this.
   @firmware_version_slices 6
 
+  # The failing updates list is a "look at these" list, not a device index —
+  # past about this many the panel stops being scannable and the link to the
+  # filtered device list is the better answer.
+  @failing_updates_list_size 8
+
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{current_scope: scope}} = socket) do
     product = Products.load_shared_secret_auth(scope.product)
@@ -21,6 +28,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> assign(:product, product)
     |> update_information()
     |> maybe_assign_device_connections_graph()
+    |> maybe_assign_update_outcomes_graph()
     |> assign_firmware_version_distribution()
     |> fleet_health_information()
     |> assign_notifications()
@@ -58,6 +66,18 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> noreply()
   end
 
+  def handle_event("select-update-graph-time-period", %{"period" => period}, socket) when period in @graph_periods do
+    socket
+    |> maybe_assign_update_outcomes_graph(String.to_existing_atom(period))
+    |> noreply()
+  end
+
+  def handle_event("select-update-graph-time-period", _params, socket) do
+    socket
+    |> put_flash(:error, "Invalid graph period selected")
+    |> noreply()
+  end
+
   def handle_event(
         "view-devices-with-firmware-version",
         %{"version" => version},
@@ -87,6 +107,7 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> assign(:polling_pid, polling_pid)
     |> assign(:updated_at, DateTime.utc_now())
     |> assign(:fleet_size, Devices.total_count(product))
+    |> assign_failing_updates()
     |> assign_async(:online_count, fn -> {:ok, %{online_count: Devices.online_count(product)}} end)
     |> assign_async(:offline_count, fn -> {:ok, %{offline_count: Devices.offline_count(product)}} end)
     |> assign_async(:not_seen_in_7_days, fn ->
@@ -158,6 +179,65 @@ defmodule NervesHubWeb.Live.Product.Insights do
       {:ok, now} -> {time_zone, now}
       {:error, _} -> {"Etc/UTC", DateTime.utc_now()}
     end
+  end
+
+  defp maybe_assign_update_outcomes_graph(socket, period \\ :fourteen_days)
+
+  defp maybe_assign_update_outcomes_graph(%{assigns: %{current_scope: scope}} = socket, period) do
+    # Gated the same way as the connections graph above, and for the same two
+    # reasons: the dead render has no client timezone yet, and the history it
+    # reads only exists where analytics is enabled.
+    if connected?(socket) and Application.get_env(:nerves_hub, :analytics_enabled) do
+      {from, to, unit, buckets} = update_outcomes_graph(scope, socket.assigns.time_zone, period)
+
+      socket
+      |> assign(:update_outcomes_graph_enabled, true)
+      |> assign(:update_outcomes_graph_from, from)
+      |> assign(:update_outcomes_graph_to, to)
+      |> assign(:update_outcomes_graph_unit, unit)
+      |> assign(:update_outcomes_graph_data, buckets)
+      |> assign(:update_outcomes_succeeded, Enum.sum_by(buckets, & &1.succeeded))
+      |> assign(:update_outcomes_failed, Enum.sum_by(buckets, & &1.failed))
+      |> assign(:update_outcomes_period, period)
+    else
+      assign(socket, :update_outcomes_graph_enabled, false)
+    end
+  end
+
+  defp update_outcomes_graph(scope, time_zone, :twenty_four_hours) do
+    {time_zone, now} = local_now(time_zone)
+
+    # Snapped to the top of the local hour, as the connections graph is, so the
+    # bars sit flush against the axis bounds.
+    to = %{now | minute: 0, second: 0, microsecond: {0, 0}}
+    from = DateTime.add(to, -24, :hour)
+    buckets = UpdateHistory.update_outcomes_by_hour(scope.org.id, scope.product.id, from, to, time_zone)
+
+    {from, to, "hour", buckets}
+  end
+
+  defp update_outcomes_graph(scope, time_zone, :four_weeks), do: update_outcomes_graph_by_day(scope, time_zone, 28)
+
+  defp update_outcomes_graph(scope, time_zone, :fourteen_days), do: update_outcomes_graph_by_day(scope, time_zone, 14)
+
+  defp update_outcomes_graph_by_day(scope, time_zone, days) do
+    {time_zone, now} = local_now(time_zone)
+
+    to = DateTime.to_date(now)
+    from = Date.add(to, -days)
+    buckets = UpdateHistory.update_outcomes_by_date(scope.org.id, scope.product.id, from, to, time_zone)
+
+    {from, to, "day", buckets}
+  end
+
+  # PostgreSQL alone, so unlike the graph above this panel is there whether or
+  # not the deployment runs analytics. A device failing to take its firmware is
+  # an operational fact rather than a statistic, and the count beside it has to
+  # be exact — see `NervesHub.Devices.UpdateHistory`.
+  defp assign_failing_updates(%{assigns: %{current_scope: scope}} = socket) do
+    socket
+    |> assign(:failing_devices, Updates.failing_updates(scope.product, @failing_updates_list_size))
+    |> assign(:failing_count, Updates.failing_updates_count(scope.product))
   end
 
   defp maybe_assign_flapping_health(%{assigns: %{current_scope: scope}} = socket) do
@@ -251,6 +331,37 @@ defmodule NervesHubWeb.Live.Product.Insights do
   palette the chart hook reads off the document root.
   """
   def firmware_version_color(index), do: "var(--color-chart-#{index + 1})"
+
+  @doc """
+  How long the device has been failing, as the failing updates list phrases it.
+
+  The span from the first failure of the current run to now, floored to one
+  unit — the question the list answers is "has this been going on for an
+  afternoon or a fortnight", which a single unit answers and a precise duration
+  only clutters.
+
+  `first_update_failure_at` is set on the failure that takes the count from
+  zero, so every device this list can show has one; the nil clause is for a
+  device whose run predates the column.
+  """
+  def failing_duration(%{first_update_failure_at: nil}), do: "—"
+
+  def failing_duration(%{first_update_failure_at: started_at}) do
+    seconds = DateTime.diff(DateTime.utc_now(), started_at, :second)
+
+    cond do
+      seconds < 60 -> "under a minute"
+      seconds < 3600 -> failing_duration_unit(div(seconds, 60), "minute")
+      seconds < 86_400 -> failing_duration_unit(div(seconds, 3600), "hour")
+      true -> failing_duration_unit(div(seconds, 86_400), "day")
+    end
+  end
+
+  # "over", not "for": the span is floored to a whole unit, so a device twelve
+  # and a half days into a run has been failing over twelve days rather than
+  # for exactly twelve.
+  defp failing_duration_unit(1, unit), do: "over 1 #{unit}"
+  defp failing_duration_unit(count, unit), do: "over #{count} #{unit}s"
 
   defp onboarding_nhl_host() do
     Application.get_env(:nerves_hub, :devices_websocket_url) || URI.parse(NervesHubWeb.Endpoint.url()).host
