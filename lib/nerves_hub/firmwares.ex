@@ -5,7 +5,9 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
@@ -29,6 +31,19 @@ defmodule NervesHub.Firmwares do
 
   @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
 
+  # Firmware is soft deleted (see `delete_firmware/2`), so every getter here
+  # excludes deleted firmware unless it is explicitly asked not to. Defaulting
+  # the other way puts the burden on each call site to remember that the file
+  # behind the row is gone, and a call site added later would inherit the wrong
+  # answer silently.
+  #
+  # `include_deleted: true` is for the handful of callers that want history
+  # rather than something to act on: the firmware show page, which renders a
+  # deleted state; `DeviceFirmware.create_changeset/4`, which resolves a
+  # reporting device's firmware by uuid and should keep pointing at the right row
+  # rather than recording a bare `nil`; and the update statistics, which are
+  # about firmware that has already shipped.
+
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
 
   @spec get_by_id(Product.t() | DeploymentGroup.t(), pos_integer()) :: Firmware.t() | nil
@@ -40,6 +55,7 @@ defmodule NervesHub.Firmwares do
     |> where([f], f.architecture == ^deployment_group.architecture)
     |> where([f], f.product_id == ^deployment_group.product_id)
     |> where([f], f.id == ^firmware_id)
+    |> Repo.exclude_deleted()
     |> Repo.one()
   end
 
@@ -47,6 +63,7 @@ defmodule NervesHub.Firmwares do
     Firmware
     |> where([f], f.product_id == ^product.id)
     |> where([f], f.id == ^firmware_id)
+    |> Repo.exclude_deleted()
     |> Repo.one()
   end
 
@@ -72,6 +89,7 @@ defmodule NervesHub.Firmwares do
   def count(product) do
     Firmware
     |> where([f], f.product_id == ^product.id)
+    |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
   end
 
@@ -81,6 +99,7 @@ defmodule NervesHub.Firmwares do
     |> select([f], f.platform)
     |> distinct(true)
     |> where([f], f.product_id == ^product.id)
+    |> Repo.exclude_deleted()
     |> Repo.all()
   end
 
@@ -90,6 +109,7 @@ defmodule NervesHub.Firmwares do
     |> select([f], f.architecture)
     |> distinct(true)
     |> where([f], f.product_id == ^product.id)
+    |> Repo.exclude_deleted()
     |> Repo.all()
   end
 
@@ -97,6 +117,7 @@ defmodule NervesHub.Firmwares do
   def get_firmwares_by_product(product_id) do
     Firmware
     |> where([f], f.product_id == ^product_id)
+    |> Repo.exclude_deleted()
     |> order_by_latest_version()
     |> with_product()
     |> Repo.all()
@@ -107,6 +128,7 @@ defmodule NervesHub.Firmwares do
     Firmware
     |> where([f], f.product_id == ^product.id)
     |> where([f], f.platform == ^platform)
+    |> Repo.exclude_deleted()
     |> order_by_latest_version()
     |> limit(25)
     |> Repo.all()
@@ -118,11 +140,19 @@ defmodule NervesHub.Firmwares do
     |> where([f], f.product_id == ^product.id)
     |> where([f], f.platform == ^platform)
     |> where([f], f.architecture == ^architecture)
+    |> Repo.exclude_deleted()
     |> order_by_latest_version()
     |> limit(25)
     |> Repo.all()
   end
 
+  @doc """
+  A page of the product's firmware, for the firmware list.
+
+  Deleted firmware is left out unless `opts` carries `include_deleted: true` —
+  the list page offers that as a toggle so an operator can see what was retired
+  and who retired it.
+  """
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
@@ -151,6 +181,8 @@ defmodule NervesHub.Firmwares do
     Firmware
     |> join(:left, [f], d in subquery(subquery), on: d.firmware_uuid == f.uuid)
     |> where([f], f.product_id == ^product.id)
+    |> maybe_exclude_deleted(include_deleted: opts[:include_deleted] == true)
+    |> preload(:deleted_by)
     |> sort_firmware(sort_opts)
     |> select_merge([_f, d], %{install_count: d.install_count})
     |> Flop.run(flop)
@@ -188,6 +220,7 @@ defmodule NervesHub.Firmwares do
     |> where([f], f.product_id == ^deployment_group.product_id)
     |> where([f], f.platform == ^deployment_group.platform)
     |> where([f], f.architecture == ^deployment_group.architecture)
+    |> Repo.exclude_deleted()
     |> order_by_latest_version()
     |> with_product()
     |> Repo.all()
@@ -199,6 +232,7 @@ defmodule NervesHub.Firmwares do
   def firmware_versions_and_uuids(product_id) do
     Firmware
     |> where([f], f.product_id == ^product_id)
+    |> Repo.exclude_deleted()
     |> order_by_latest_version()
     |> select([f], %{version: f.version, uuid: f.uuid})
     |> Repo.all()
@@ -216,6 +250,7 @@ defmodule NervesHub.Firmwares do
     |> with_product()
     |> where([f], f.id == ^id)
     |> where([f, p], p.org_id == ^org_id)
+    |> Repo.exclude_deleted()
     |> Repo.fetch()
   end
 
@@ -223,6 +258,7 @@ defmodule NervesHub.Firmwares do
     Firmware
     |> where([f], f.id == ^id)
     |> where([f], f.product_id == ^product_id)
+    |> Repo.exclude_deleted()
     |> Repo.fetch()
   end
 
@@ -233,6 +269,11 @@ defmodule NervesHub.Firmwares do
   """
   def preload_product(%Firmware{} = firmware), do: Repo.preload(firmware, :product)
 
+  @doc """
+  Preloads the user who deleted this firmware, if anyone has.
+  """
+  def preload_deleted_by(%Firmware{} = firmware), do: Repo.preload(firmware, :deleted_by)
+
   def get_firmware_for_device(%Device{firmware_metadata: nil}), do: []
 
   def get_firmware_for_device(device) do
@@ -241,6 +282,7 @@ defmodule NervesHub.Firmwares do
     |> where([f], f.architecture == ^device.firmware_metadata.architecture)
     |> where([f], f.org_id == ^device.org_id)
     |> where([f], f.product_id == ^device.product_id)
+    |> Repo.exclude_deleted()
     |> order_by_latest_version()
     |> Repo.all()
   end
@@ -250,45 +292,66 @@ defmodule NervesHub.Firmwares do
     Firmware
     |> with_product()
     |> where([f, p], p.org_id == ^org_id)
+    |> Repo.exclude_deleted()
     |> Repo.all()
   end
 
-  @spec get_firmware_by_product_id_and_uuid(integer(), String.t() | nil) ::
+  @spec get_firmware_by_product_id_and_uuid(integer(), String.t() | nil, keyword()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
-  def get_firmware_by_product_id_and_uuid(_product_id, nil) do
+  def get_firmware_by_product_id_and_uuid(product_id, uuid, opts \\ [])
+
+  def get_firmware_by_product_id_and_uuid(_product_id, nil, _opts) do
     {:error, :not_found}
   end
 
-  def get_firmware_by_product_id_and_uuid(product_id, uuid) do
-    get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid)
+  def get_firmware_by_product_id_and_uuid(product_id, uuid, opts) do
+    get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid, opts)
     |> Repo.fetch()
   end
 
-  @spec get_firmware_by_uuid(Scope.t(), String.t()) :: {:ok, Firmware.t()} | {:error, :not_found}
-  def get_firmware_by_uuid(%Scope{} = scope, uuid) do
-    get_firmware_by_product_and_uuid(scope.product, uuid)
+  @spec get_firmware_by_uuid(Scope.t(), String.t(), keyword()) :: {:ok, Firmware.t()} | {:error, :not_found}
+  def get_firmware_by_uuid(%Scope{} = scope, uuid, opts \\ []) do
+    get_firmware_by_product_and_uuid(scope.product, uuid, opts)
   end
 
-  @spec get_firmware_by_uuid!(Scope.t(), String.t()) :: Firmware.t()
-  def get_firmware_by_uuid!(%Scope{} = scope, uuid) do
-    get_firmware_by_product_and_uuid_query(scope.product, uuid)
+  @spec get_firmware_by_uuid!(Scope.t(), String.t(), keyword()) :: Firmware.t()
+  def get_firmware_by_uuid!(%Scope{} = scope, uuid, opts \\ []) do
+    get_firmware_by_product_and_uuid_query(scope.product, uuid, opts)
     |> Repo.one!()
   end
 
-  @spec get_firmware_by_product_and_uuid(Product.t(), String.t()) ::
+  @spec get_firmware_by_product_and_uuid(Product.t(), String.t(), keyword()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
-  def get_firmware_by_product_and_uuid(%Product{} = product, uuid) do
-    get_firmware_by_product_and_uuid_query(product, uuid)
+  def get_firmware_by_product_and_uuid(%Product{} = product, uuid, opts \\ []) do
+    get_firmware_by_product_and_uuid_query(product, uuid, opts)
     |> Repo.fetch()
   end
 
-  defp get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid) do
-    Firmware
-    |> with_product()
-    |> where([f], f.uuid == ^uuid)
-    |> where([f, p], p.id == ^product_id)
+  defp get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid, opts \\ []) do
+    query =
+      Firmware
+      |> with_product()
+      |> where([f], f.uuid == ^uuid)
+      |> where([f, p], p.id == ^product_id)
+
+    if opts[:include_deleted] do
+      # `firmwares_product_id_uuid_index` covers live firmware only, so the same
+      # uuid can name both a live row and the deleted row whose place it took —
+      # deleting a build and uploading it again is the whole point of the index
+      # being partial. Prefer the live one, and fall back to the deleted row when
+      # that is all there is, so a uuid still resolves to exactly one firmware.
+      query
+      |> order_by([f], asc_nulls_first: f.deleted_at)
+      |> limit(1)
+    else
+      Repo.exclude_deleted(query)
+    end
+  end
+
+  defp maybe_exclude_deleted(query, opts) do
+    if opts[:include_deleted], do: query, else: Repo.exclude_deleted(query)
   end
 
   @doc """
@@ -336,15 +399,121 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  @spec delete_firmware(Firmware.t()) ::
-          {:ok, Firmware.t()} | {:error, Ecto.Changeset.t()} | none()
-  def delete_firmware(%Firmware{} = firmware) do
-    changeset = Firmware.delete_changeset(firmware)
-    delete_firmware_job = DeleteFirmware.new(firmware.upload_metadata)
+  @typedoc """
+  A reason firmware cannot be deleted.
 
+  `:current_release` carries the deployment groups pinning it, so the caller can
+  name them. `:inflight_updates` carries how many devices are mid-update.
+  """
+  @type deletion_blocker ::
+          :already_deleted
+          | {:current_release, [DeploymentGroup.t()]}
+          | {:inflight_updates, pos_integer()}
+
+  @typedoc """
+  Something a user should know before deleting firmware, but which does not stop
+  them. `:delta_source` carries how many deltas are built from this firmware.
+  """
+  @type deletion_warning :: {:delta_source, pos_integer()}
+
+  @doc """
+  Why this firmware cannot be deleted, or `[]` if it can.
+
+  Deleting firmware removes the file behind it, so the two things that block it
+  are the two that would leave a device reaching for a file that is gone: being
+  the current release of a deployment group, and having updates in flight.
+
+  Being a delta *source* is deliberately not a blocker — losing delta generation
+  costs bandwidth, it does not break an update. See `deletion_warnings/1`.
+  """
+  @spec deletion_blockers(Firmware.t()) :: [deletion_blocker()]
+  def deletion_blockers(%Firmware{} = firmware) do
+    if Firmware.deleted?(firmware) do
+      [:already_deleted]
+    else
+      current_release_blockers(firmware) ++ inflight_update_blockers(firmware)
+    end
+  end
+
+  @doc """
+  Whether this firmware can be deleted right now.
+  """
+  @spec deletable?(Firmware.t()) :: boolean()
+  def deletable?(%Firmware{} = firmware), do: deletion_blockers(firmware) == []
+
+  defp current_release_blockers(firmware) do
+    DeploymentGroup
+    |> from(as: :deployment_group)
+    |> join(:inner, [deployment_group: dg], dr in assoc(dg, :current_release), as: :current_release)
+    |> where([current_release: cr], cr.firmware_id == ^firmware.id)
+    |> Repo.all()
+    |> case do
+      [] -> []
+      deployment_groups -> [{:current_release, deployment_groups}]
+    end
+  end
+
+  # Every `inflight_updates` row is an active one — reaching an outcome deletes
+  # it, see `NervesHub.Devices.InflightUpdate` — but say so in the query rather
+  # than depending on it.
+  defp inflight_update_blockers(firmware) do
+    InflightUpdate
+    |> where([iu], iu.firmware_id == ^firmware.id)
+    |> where([iu], iu.status in ^InflightUpdate.active_statuses())
+    |> Repo.aggregate(:count)
+    |> case do
+      0 -> []
+      count -> [{:inflight_updates, count}]
+    end
+  end
+
+  @doc """
+  What a user should be told before deleting this firmware.
+
+  Deltas built *from* this firmware go with it, so devices running it lose their
+  small updates and fall back to downloading whole firmware. Worth saying out
+  loud; not worth refusing over.
+  """
+  @spec deletion_warnings(Firmware.t()) :: [deletion_warning()]
+  def deletion_warnings(%Firmware{} = firmware) do
+    FirmwareDelta
+    |> where([fd], fd.source_id == ^firmware.id)
+    |> Repo.aggregate(:count)
+    |> case do
+      0 -> []
+      count -> [{:delta_source, count}]
+    end
+  end
+
+  @doc """
+  Delete firmware, keeping the row and removing the file.
+
+  This is a soft delete. `device_firmwares`, `inflight_updates` and
+  `deployment_releases` all reference `firmwares` with `ON DELETE NO ACTION`, and
+  the first of those holds a row for every device that has ever reported the
+  firmware — so destroying the row would mean destroying the history of what
+  devices ran, which is why deleting shipped firmware was impossible before.
+  The row stays, marked with who deleted it and when, and only the file goes.
+
+  Deltas referencing the firmware are deleted outright: they are derived data,
+  useless without both endpoints, and their files are queued for removal too.
+
+  Closing an account does not come through here — see
+  `NervesHub.Accounts.RemoveAccount`, which destroys firmware rather than
+  retiring it.
+  """
+  @spec delete_firmware(Firmware.t(), User.t() | nil) ::
+          {:ok, Firmware.t()} | {:error, {:blocked, [deletion_blocker()]} | Ecto.Changeset.t()}
+  def delete_firmware(%Firmware{} = firmware, user \\ nil) do
     Repo.transact(fn ->
-      with {:ok, firmware} <- Repo.delete(changeset),
-           {:ok, _} <- Oban.insert(delete_firmware_job) do
+      with :ok <- check_deletable(firmware),
+           {:ok, delta_upload_metadata} <- delete_deltas_for_firmware(firmware),
+           {:ok, firmware} <- soft_delete_firmware(firmware, user) do
+        _ =
+          [firmware.upload_metadata | delta_upload_metadata]
+          |> Enum.map(&DeleteFirmware.new/1)
+          |> Oban.insert_all()
+
         {:ok, firmware}
       end
     end)
@@ -357,6 +526,46 @@ defmodule NervesHub.Firmwares do
       {:error, error} ->
         {:error, error}
     end
+  end
+
+  # Re-checked inside the transaction on purpose. Once the row survives deletion
+  # the foreign keys no longer refuse anything, so this is the only thing
+  # standing between a user's click and firmware that a deployment group started
+  # rolling out a moment ago.
+  defp check_deletable(firmware) do
+    case deletion_blockers(firmware) do
+      [] -> :ok
+      blockers -> {:error, {:blocked, blockers}}
+    end
+  end
+
+  defp delete_deltas_for_firmware(firmware) do
+    query = where(FirmwareDelta, [fd], fd.source_id == ^firmware.id or fd.target_id == ^firmware.id)
+
+    deltas = query |> select([fd], %{target_id: fd.target_id, upload_metadata: fd.upload_metadata}) |> Repo.all()
+
+    {_count, _} = Repo.delete_all(query)
+
+    # A deployment group's status is derived from the deltas feeding its current
+    # release, and some of those just went away. The firmware being deleted is
+    # skipped: it cannot be anyone's current release, or a blocker would have
+    # stopped us getting here.
+    deltas
+    |> Enum.map(& &1.target_id)
+    |> Enum.uniq()
+    |> Enum.reject(&(&1 == firmware.id))
+    |> Enum.each(fn target_id ->
+      {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(target_id)
+    end)
+
+    {:ok, Enum.map(deltas, & &1.upload_metadata)}
+  end
+
+  defp soft_delete_firmware(firmware, user) do
+    firmware
+    |> Repo.soft_delete_changeset()
+    |> Changeset.put_change(:deleted_by_id, user && user.id)
+    |> Repo.update()
   end
 
   @spec delete_firmware_delta(FirmwareDelta.t()) ::

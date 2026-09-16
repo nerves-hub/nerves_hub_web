@@ -2,8 +2,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
 
+  alias NervesHub.AuditLogs
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
 
   setup context do
     %{
@@ -70,6 +72,27 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     |> assert_has("div", text: "All the snoots need some boops")
     |> assert_has("div", text: "Firmware: #{new_firmware.version} (#{String.slice(new_firmware.uuid, 0..7)})")
     |> assert_has("div", text: "Release settings updated")
+  end
+
+  test "audits a new release once", %{
+    conn: conn,
+    org: org,
+    org_key: org_key,
+    product: product,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+    audit_logs_before = AuditLogs.logs_for(deployment_group)
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> select("Firmware version", option: "#{new_firmware.version}", exact_option: false)
+    |> submit()
+    |> assert_has("div", text: "Release settings updated")
+
+    assert [audit_log] = AuditLogs.logs_for(deployment_group) -- audit_logs_before
+    assert audit_log.description =~ "created a new release"
   end
 
   test "release description can't be longer than 100 characters", %{
@@ -156,5 +179,33 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
 
   test "shows created releases", %{conn: conn} do
     assert_has(conn, "div", text: "Firmware: 1.0.0")
+  end
+
+  test "badges a release whose firmware has been deleted", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    product: product,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    # Move the group on so the original firmware stops being the current
+    # release, which is what makes it deletable at all.
+    replacement = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, version: "1.0.1"})
+
+    {:ok, _} =
+      ManagedDeployments.create_deployment_release(deployment_group, replacement, nil, user, %{})
+
+    old_firmware = deployment_group.current_release.firmware
+    {:ok, _} = Firmwares.delete_firmware(old_firmware, user)
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/releases")
+    # The history still names it, and still links to it...
+    |> assert_has("div", text: "Firmware: #{old_firmware.version}")
+    |> assert_has("a", text: String.slice(old_firmware.uuid, 0..7))
+    # ...but says the firmware itself is gone.
+    |> assert_has("span", text: "Deleted")
   end
 end

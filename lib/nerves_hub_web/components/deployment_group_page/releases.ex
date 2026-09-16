@@ -1,8 +1,9 @@
 defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   use NervesHubWeb, :live_component
 
+  import NervesHubWeb.Helpers.FirmwareDeletion, only: [deleted_summary: 2]
+
   alias NervesHub.Archives
-  alias NervesHub.AuditLogs
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
@@ -117,8 +118,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                       </CoreComponents.modal>
                     </div>
 
-                    <div class="flex gap-4">
-                      <div>
+                    <%!-- Wraps rather than squashes: this column is narrow, and a deleted
+                    release's firmware carries an extra badge. --%>
+                    <div class="flex flex-wrap gap-x-4 gap-y-1">
+                      <div class="flex items-center gap-1.5">
                         <span class="text-base-400">Firmware:</span>
                         <span class="text-base-300 font-medium">
                           {release.firmware.version}
@@ -128,9 +131,19 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                             ({String.slice(release.firmware.uuid, 0..7)})
                           </.link>
                         </span>
+                        <%!-- Release history outlives the firmware it names. The link still
+                        resolves — the firmware page renders its own deleted state — but
+                        without this the history reads as though the firmware is still there. --%>
+                        <span
+                          :if={Firmware.deleted?(release.firmware)}
+                          class="bg-base-800 border-base-700 text-base-400 rounded-full border px-2 py-0.5 text-xs"
+                          title={deleted_summary(release.firmware, @time_zone)}
+                        >
+                          Deleted
+                        </span>
                       </div>
 
-                      <div class="text-sm">
+                      <div class="text-sm whitespace-nowrap">
                         <span class="text-base-400">Archive:</span>
                         <span :if={release.archive} class="text-base-300 font-medium">
                           {release.archive.version}
@@ -262,12 +275,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
     case ManagedDeployments.create_deployment_release(deployment_group, firmware, archive, scope.user, params) do
       {:ok, {_release, deployment_group}} ->
-        AuditLogs.audit!(
-          scope.user,
-          deployment_group,
-          "User #{scope.user.name} updated deployment group #{deployment_group.name}"
-        )
-
         releases = ManagedDeployments.list_deployment_releases(deployment_group)
         changeset = DeploymentRelease.new_changeset(deployment_group)
 
