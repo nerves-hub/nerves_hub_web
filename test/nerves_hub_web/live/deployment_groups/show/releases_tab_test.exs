@@ -418,7 +418,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
     :ok = Firmwares.PubSub.broadcast_delta_status(second)
 
-    assert_has(session, "div", text: "(2 failed)")
+    # The delta topic delivers asynchronously, so give the LiveView a moment to
+    # take the message rather than racing it under a loaded suite
+    assert_has(session, "div", text: "(2 failed)", timeout: 1000)
   end
 
   test "shows created releases", %{conn: conn} do
