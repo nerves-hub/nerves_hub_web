@@ -20,6 +20,8 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
 
+  require Logger
+
   @spec should_run_orchestrator() :: [DeploymentGroup.t()]
   def should_run_orchestrator() do
     full_deployment_group_query()
@@ -279,9 +281,9 @@ defmodule NervesHub.ManagedDeployments do
 
         deployment_group = load_current_release(deployment_group, force: true)
 
-        with {:ok, _releases} <- recalculate_release_delta_statuses(deployment_group) do
-          {:ok, deployment_group}
-        end
+        {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
+
+        {:ok, deployment_group}
       end
     end)
     |> case do
@@ -378,14 +380,10 @@ defmodule NervesHub.ManagedDeployments do
   required release says as much about whether its devices can move as one built
   for the current release.
   """
-  @spec recalculate_release_delta_statuses_by_firmware_id(pos_integer()) ::
-          {:ok, [DeploymentRelease.t()]} | {:error, String.t()}
+  @spec recalculate_release_delta_statuses_by_firmware_id(pos_integer()) :: {:ok, [DeploymentRelease.t()]}
   def recalculate_release_delta_statuses_by_firmware_id(firmware_id) do
-    DeploymentRelease
-    |> from(as: :release)
-    |> join(:inner, [release: r], dg in assoc(r, :deployment_group), as: :deployment_group)
+    releases_devices_are_headed_for_query()
     |> where([release: r], r.firmware_id == ^firmware_id)
-    |> where([release: r, deployment_group: dg], r.required or r.id == dg.current_deployment_release_id)
     |> Repo.all()
     |> recalculate_delta_statuses()
   end
@@ -394,26 +392,62 @@ defmodule NervesHub.ManagedDeployments do
   Recalculate the delta status of the releases a deployment group's devices are
   headed for: its current release, and any release marked required.
   """
-  @spec recalculate_release_delta_statuses(DeploymentGroup.t()) ::
-          {:ok, [DeploymentRelease.t()]} | {:error, String.t()}
+  @spec recalculate_release_delta_statuses(DeploymentGroup.t()) :: {:ok, [DeploymentRelease.t()]}
   def recalculate_release_delta_statuses(%DeploymentGroup{} = deployment_group) do
-    DeploymentRelease
-    |> from(as: :release)
-    |> join(:inner, [release: r], dg in assoc(r, :deployment_group), as: :deployment_group)
+    releases_devices_are_headed_for_query()
     |> where([deployment_group: dg], dg.id == ^deployment_group.id)
-    |> where([release: r, deployment_group: dg], r.required or r.id == dg.current_deployment_release_id)
     |> Repo.all()
     |> recalculate_delta_statuses()
   end
 
-  defp recalculate_delta_statuses(releases) do
-    results = Enum.map(releases, &recalculate_release_delta_status/1)
+  @doc """
+  The firmware a deployment group's devices are headed for.
 
-    if Enum.any?(results, &match?({:error, _}, &1)) do
-      {:error, "Failed to recalculate release delta statuses"}
-    else
-      {:ok, Enum.map(results, fn {:ok, release} -> release end)}
-    end
+  Every delta the group is waiting on is built towards one of these, so a page
+  showing what the deltas are doing watches these firmware for build news. Deltas
+  towards the firmware of a release no device is headed for say nothing about
+  this group.
+  """
+  @spec delta_target_firmware_ids(DeploymentGroup.t()) :: [pos_integer()]
+  def delta_target_firmware_ids(%DeploymentGroup{} = deployment_group) do
+    releases_devices_are_headed_for_query()
+    |> where([deployment_group: dg], dg.id == ^deployment_group.id)
+    |> select([release: r], r.firmware_id)
+    |> distinct(true)
+    |> Repo.all()
+  end
+
+  # The releases a group's devices are headed for: its current release, and any
+  # release marked required. Everything about deltas is scoped to these.
+  defp releases_devices_are_headed_for_query() do
+    DeploymentRelease
+    |> from(as: :release)
+    |> join(:inner, [release: r], dg in assoc(r, :deployment_group), as: :deployment_group)
+    |> where([release: r, deployment_group: dg], r.required or r.id == dg.current_deployment_release_id)
+  end
+
+  # Recording where a release stands on deltas is bookkeeping about the deltas,
+  # not part of the change that prompted it, so a release that won't take its new
+  # status is logged and left rather than rolling back the release that was just
+  # marked required or the deployment group that was just updated. Every delta
+  # event recalculates again, so the next one settles it. Until then the release
+  # holds whatever it last recorded, and a release still reading `:preparing`
+  # holds its own devices back.
+  defp recalculate_delta_statuses(releases) do
+    {updated, failed} =
+      releases
+      |> Enum.map(&recalculate_release_delta_status/1)
+      |> Enum.split_with(&match?({:ok, _}, &1))
+
+    Enum.each(failed, fn {:error, changeset} ->
+      Logger.error("Could not record a release's delta status",
+        deployment_release_id: changeset.data.id,
+        deployment_id: changeset.data.deployment_group_id,
+        errors: inspect(changeset.errors)
+      )
+    end)
+
+    {:ok, Enum.map(updated, fn {:ok, release} -> release end)}
   end
 
   @doc """
@@ -858,9 +892,9 @@ defmodule NervesHub.ManagedDeployments do
         # whatever the deltas did.
         _ = maybe_trigger_delta_generation(deployment_group, release)
 
-        with {:ok, _releases} <- recalculate_release_delta_statuses(deployment_group) do
-          {:ok, {release, deployment_group}}
-        end
+        {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
+
+        {:ok, {release, deployment_group}}
       end
     end)
     |> case do

@@ -381,6 +381,46 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     assert [%{status: :processing}] = ManagedDeployments.release_deltas(Repo.reload(release))
   end
 
+  test "counts a second failure that leaves the release's status where it was", %{
+    conn: conn,
+    org: org,
+    org_key: org_key,
+    product: product,
+    user: user,
+    firmware: firmware,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    other_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.5.0", dir: tmp_dir})
+    next_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    {:ok, {release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{})
+
+    # Two devices on different firmware, so the release needs two deltas
+    _ = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+    _ = Fixtures.device_fixture(org, product, other_firmware, %{deployment_id: deployment_group.id})
+
+    _ = Fixtures.firmware_delta_fixture(firmware, next_firmware, %{status: :failed})
+    second = Fixtures.firmware_delta_fixture(other_firmware, next_firmware, %{status: :completed})
+
+    {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+
+    session =
+      conn
+      |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+      |> assert_has("#release-#{release.id}-deltas", text: "2")
+      |> assert_has("div", text: "(1 failed)")
+
+    # The release is already `:failed`, so this leaves its status alone and
+    # `release/delta_status` stays quiet -- the count still has to move
+    {:ok, second} = second |> Ecto.Changeset.change(status: :failed) |> Repo.update()
+    {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+    :ok = Firmwares.PubSub.broadcast_delta_status(second)
+
+    assert_has(session, "div", text: "(2 failed)")
+  end
+
   test "shows created releases", %{conn: conn} do
     assert_has(conn, "div", text: "Firmware: 1.0.0")
   end

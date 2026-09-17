@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.BulkActions
   alias NervesHub.Devices.Deployments
+  alias NervesHub.Firmwares
   alias NervesHub.FirmwareUpdates
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
@@ -39,6 +40,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     socket
     |> assign(%{org: org, product: product, user: user})
+    |> assign(:delta_target_firmware_ids, [])
+    |> follow_delta_targets(deployment_group)
     |> assign(:flow, parse_workflow(deployment_group.current_release.steps))
     |> assign_awaiting_approval(deployment_group)
     |> page_title("Deployment Group - #{deployment_group.name} - #{product.name}")
@@ -329,6 +332,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     socket
     |> follow_release_steps(deployment_group, updated_deployment)
+    |> follow_delta_targets(updated_deployment)
     |> assign(:deployment_group, updated_deployment)
     |> assign(:firmware, updated_deployment.current_release.firmware)
     |> noreply()
@@ -345,6 +349,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     send_update(ReleasesTab, id: "deployment_group_releases", event: :delta_status_updated)
 
     socket
+    |> follow_delta_targets(updated_deployment)
     |> assign(:deployment_group, updated_deployment)
     |> noreply()
   end
@@ -373,8 +378,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     {:noreply, socket}
   end
 
+  # One delta finishing or failing usually leaves every release's status where it
+  # was -- a second failure among several is still `:failed` -- so the counts have
+  # to follow the deltas themselves rather than `release/delta_status`, which only
+  # fires on a change.
   def handle_info(%Broadcast{topic: "firmware:" <> _, event: "delta/status_update"}, socket) do
     send_update(SummaryTab, id: "deployment_group_summary", event: :firmware_deltas_updated)
+    send_update(ReleasesTab, id: "deployment_group_releases", event: :delta_status_updated)
     {:noreply, socket}
   end
 
@@ -455,6 +465,25 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     socket
     |> assign(:flow, parse_workflow(updated.current_release.steps))
     |> assign_awaiting_approval(updated)
+  end
+
+  # Deltas are built towards firmware, and announced on the target firmware's own
+  # topic, so the page joins one per firmware its devices are headed for: the
+  # current release's, and that of any required release. The LiveView owns these
+  # rather than the tabs, because both tabs want the same news and a membership
+  # is per process -- one tab leaving would take the other's with it.
+  defp follow_delta_targets(socket, deployment_group) do
+    firmware_ids = ManagedDeployments.delta_target_firmware_ids(deployment_group)
+    previous = socket.assigns.delta_target_firmware_ids
+
+    if connected?(socket) and MapSet.new(previous) != MapSet.new(firmware_ids) do
+      Enum.each(previous -- firmware_ids, &(:ok = Firmwares.PubSub.unsubscribe_delta_target(&1)))
+      Enum.each(firmware_ids -- previous, &(:ok = Firmwares.PubSub.subscribe_delta_target(&1)))
+
+      assign(socket, :delta_target_firmware_ids, firmware_ids)
+    else
+      socket
+    end
   end
 
   defp workflow_step_action(socket, action, number) when is_binary(number) do
