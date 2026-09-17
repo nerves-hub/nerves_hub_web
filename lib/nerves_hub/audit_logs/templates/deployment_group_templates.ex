@@ -31,6 +31,14 @@ defmodule NervesHub.AuditLogs.DeploymentGroupTemplates do
     AuditLogs.audit!(user, deployment_group, description)
   end
 
+  @spec audit_release_connecting_code_changed(User.t(), DeploymentGroup.t(), DeploymentRelease.t()) :: :ok
+  def audit_release_connecting_code_changed(user, deployment_group, release) do
+    description =
+      "User #{user.name} changed the connecting code for release #{release.number} of deployment group #{deployment_group.name}"
+
+    AuditLogs.audit!(user, deployment_group, description)
+  end
+
   @spec audit_deployment_updated(User.t(), DeploymentGroup.t()) :: :ok
   def audit_deployment_updated(user, deployment_group) do
     description = "User #{user.name} updated deployment group #{deployment_group.name}"

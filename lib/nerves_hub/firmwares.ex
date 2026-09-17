@@ -555,7 +555,7 @@ defmodule NervesHub.Firmwares do
     |> Enum.uniq()
     |> Enum.reject(&(&1 == firmware.id))
     |> Enum.each(fn target_id ->
-      {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(target_id)
+      {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(target_id)
     end)
 
     {:ok, Enum.map(deltas, & &1.upload_metadata)}
@@ -575,7 +575,7 @@ defmodule NervesHub.Firmwares do
 
     Repo.transact(fn ->
       with {:ok, firmware} <- Repo.delete(delta),
-           {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(delta.target_id),
+           {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(delta.target_id),
            {:ok, _} <- Oban.insert(delete_delta_job) do
         {:ok, firmware}
       end
@@ -922,7 +922,7 @@ defmodule NervesHub.Firmwares do
     with {:ok, firmware_delta} <- Repo.update(changeset),
          :ok <- firmware_upload_config().upload_file(delta_file_metadata.filepath, upload_metadata),
          {:ok, _firmware_delta} <- notify_firmware_delta_target({:ok, firmware_delta}) do
-      {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
+      {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
 
       Logger.info("Created firmware delta successfully.")
 
@@ -1045,7 +1045,7 @@ defmodule NervesHub.Firmwares do
       {:ok, firmware_delta} ->
         _ =
           if recalculate_deployment_statuses do
-            {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(target_id)
+            {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(target_id)
           end
 
         {:ok, firmware_delta}
@@ -1064,7 +1064,7 @@ defmodule NervesHub.Firmwares do
       |> Repo.update()
       |> notify_firmware_delta_target()
 
-    {:ok, _} = ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
+    {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
 
     {:ok, firmware_delta}
   end
@@ -1079,7 +1079,7 @@ defmodule NervesHub.Firmwares do
       |> notify_firmware_delta_target()
 
     {:ok, _} =
-      ManagedDeployments.recalculate_deployment_group_status_by_firmware_id(firmware_delta.target_id)
+      ManagedDeployments.recalculate_release_delta_statuses_by_firmware_id(firmware_delta.target_id)
 
     {:ok, firmware_delta}
   end

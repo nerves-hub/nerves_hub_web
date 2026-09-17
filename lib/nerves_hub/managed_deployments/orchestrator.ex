@@ -95,11 +95,9 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
   @doc """
   Trigger an update for a deployments devices.
 
-  If deployment group's status is `:preparing`, check if deltas are still being
-  generated. If so, do nothing. If not, set the status to `:ready` and update devices.
-
-  If deployment group's status is `:ready`, attempt to generated deltas if deployment
-  group has them enabled. Then update devices.
+  A device is held back while the deltas for the release it is headed for are
+  still being built, or have failed; devices headed elsewhere carry on. That is
+  the release's own `delta_status`, checked by the query below.
 
   Finds devices matching:
 
@@ -118,12 +116,6 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
   @spec trigger_update(State.t()) :: DeploymentGroup.t()
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#noop-inactive")
   def trigger_update(%{deployment_group: %{is_active: false} = deployment_group}), do: deployment_group
-
-  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update#status-failed")
-  def trigger_update(%{deployment_group: %{status: status} = deployment_group})
-      when status in [:preparing, :deltas_failed, :unknown_error] do
-    deployment_group
-  end
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update")
   def trigger_update(state) do
@@ -222,12 +214,10 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
     })
   end
 
-  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:deployments/update")
-  def handle_info(
-        %Broadcast{topic: "deployment:" <> _, event: "status/updated", payload: payload},
-        %{deployment_group: deployment_group} = state
-      ) do
-    maybe_trigger_update(%{state | deployment_group: Map.put(deployment_group, :status, payload.to)})
+  # A release whose deltas have just turned ready has devices waiting on it.
+  @decorate with_span("ManagedDeployments.Distributed.Orchestrator.handle_info:release/delta_status")
+  def handle_info(%Broadcast{topic: "deployment:" <> _, event: "release/delta_status"}, state) do
+    maybe_trigger_update(state)
   end
 
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deleted"}, state) do
