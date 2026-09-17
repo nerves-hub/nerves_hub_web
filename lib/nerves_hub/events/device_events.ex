@@ -62,20 +62,23 @@ defmodule NervesHub.DeviceEvents do
 
     priority_queue = Keyword.get(opts, :priority_queue, false)
 
-    inflight_changeset =
-      InflightUpdate.deployment_requested_changeset(deployment_group, device_id, priority_queue)
-
     Repo.transact(fn ->
+      device = Devices.get_device(device_id)
+
+      # A required release can put different firmware ahead of the current release
+      target_release = ManagedDeployments.target_release(deployment_group, device)
+
+      inflight_changeset =
+        InflightUpdate.deployment_requested_changeset(deployment_group, device_id, priority_queue, target_release)
+
       # we might need to do an upsert here
       {:ok, inflight_update} = Repo.insert(inflight_changeset)
 
-      device = Devices.get_device(device_id)
-
       update_opts =
         if proxy_url = get_in(deployment_group.org.settings.firmware_proxy_url) do
-          [firmware_proxy_url: proxy_url]
+          [firmware_proxy_url: proxy_url, target_release: target_release]
         else
-          []
+          [target_release: target_release]
         end
 
       update_payload = Updates.resolve_update(device, deployment_group, update_opts)
@@ -84,15 +87,16 @@ defmodule NervesHub.DeviceEvents do
 
       cond do
         opts[:user] ->
-          DeviceTemplates.audit_pushed_available_update(opts[:user], device_id, deployment_group)
+          DeviceTemplates.audit_pushed_available_update(opts[:user], device, target_release.firmware)
 
         opts[:initiated_by] == :device ->
-          DeviceTemplates.audit_device_requested_update(device, device.deployment_group)
+          DeviceTemplates.audit_device_requested_update(device, deployment_group, target_release.firmware)
 
         true ->
           DeviceTemplates.audit_device_deployment_group_update_triggered(
             device,
-            device.deployment_group
+            deployment_group,
+            target_release.firmware
           )
       end
 

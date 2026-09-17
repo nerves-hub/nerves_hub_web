@@ -332,6 +332,24 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
       assert json_response(conn, 200)["data"]["releases_count"] == 2
     end
 
+    test "can release new firmware as a required release", %{
+      conn: conn,
+      deployment_group: deployment_group,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      path = Routes.api_deployment_group_path(conn, :update, org.name, product.name, deployment_group.name)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1", dir: tmp_dir})
+
+      conn = put(conn, path, deployment: %{"firmware" => new_firmware.uuid, "required" => true})
+
+      current_release = json_response(conn, 200)["data"]["current_release"]
+      assert current_release["firmware"]["uuid"] == new_firmware.uuid
+      assert current_release["required"] == true
+    end
+
     test "gracefully handles unknown firmware uuid in update", %{
       conn: conn,
       deployment_group: deployment_group,
@@ -452,6 +470,36 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
 
       [audit_log | _] = AuditLogs.logs_for(deployment_group)
       assert audit_log.resource_type == DeploymentGroup
+    end
+
+    test "audits a new release once", %{
+      conn: conn,
+      deployment_group: deployment_group,
+      org: org,
+      org_key: org_key,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      path =
+        Routes.api_deployment_group_path(
+          conn,
+          :update,
+          org.name,
+          product.name,
+          deployment_group.name
+        )
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1", dir: tmp_dir})
+
+      conn = put(conn, path, deployment: %{"firmware" => new_firmware.uuid})
+      assert json_response(conn, 200)["data"]["firmware_uuid"] == new_firmware.uuid
+
+      release_logs =
+        deployment_group
+        |> AuditLogs.logs_for()
+        |> Enum.filter(&(&1.description =~ "created a new release"))
+
+      assert [_release_log] = release_logs
     end
 
     test "renders errors when data is invalid", %{

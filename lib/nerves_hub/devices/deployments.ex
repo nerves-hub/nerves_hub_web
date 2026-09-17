@@ -25,17 +25,26 @@ defmodule NervesHub.Devices.Deployments do
   @type source_firmware_id() :: firmware_id()
   @type target_firmware_id() :: firmware_id()
 
-  @spec get_device_firmware_for_delta_generation_by_deployment_group(binary()) ::
+  @doc """
+  The firmware pairs a deployment group's devices need deltas for: each device's
+  running firmware, and the firmware of the release it is updating to next (see
+  `NervesHub.ManagedDeployments.join_target_release/1`).
+  """
+  @spec get_device_firmware_for_delta_generation_by_deployment_group(integer()) ::
           list({source_firmware_id(), target_firmware_id()})
   def get_device_firmware_for_delta_generation_by_deployment_group(deployment_id) do
-    DeploymentGroup
-    |> where([dep], dep.id == ^deployment_id)
-    |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
-    |> join(:inner, [dep], cr in assoc(dep, :current_release))
-    |> join(:inner, [_, dev], f in Firmware, on: f.uuid == fragment("?.firmware_metadata->>'uuid'", dev))
-    # Exclude the current firmware, we don't need to generate that one
-    |> where([_, _, cr, f], f.id != cr.firmware_id)
-    |> select([_, _, cr, f], {f.id, cr.firmware_id})
+    Device
+    |> from(as: :device)
+    |> join(:inner, [device: d], dg in DeploymentGroup, on: dg.id == d.deployment_id, as: :deployment_group)
+    |> where([deployment_group: dg], dg.id == ^deployment_id)
+    |> join(:inner, [device: d], f in Firmware,
+      on: f.uuid == fragment("?->>'uuid'", d.firmware_metadata),
+      as: :firmware
+    )
+    |> ManagedDeployments.join_target_release(deployment_id)
+    # Devices already on the firmware they are headed for need no delta
+    |> where([firmware: f, target_release: tr], f.id != tr.firmware_id)
+    |> select([firmware: f, target_release: tr], {f.id, tr.firmware_id})
     |> distinct(true)
     |> Repo.all()
   end

@@ -4,7 +4,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   import NervesHubWeb.Helpers.FirmwareDeletion, only: [deleted_summary: 2]
 
   alias NervesHub.Archives
-  alias NervesHub.AuditLogs
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
@@ -94,6 +93,15 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                       <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} />
                       <.local_datetime at={release.inserted_at} time_zone={@time_zone} format={:time} class="text-base-500 text-xs" />
                     </div>
+
+                    <span
+                      :if={release.required}
+                      id={"release-#{release.id}-required"}
+                      class="bg-base-800 border-base-700 text-base-300 mt-2 flex h-6 w-fit items-center rounded-full border px-2.5 text-xs font-medium"
+                      title="Devices that haven't reached this release are updated to it before any newer release"
+                    >
+                      Required
+                    </span>
                   </div>
 
                   <div class="flex grow flex-col gap-2 px-4 py-3 text-sm">
@@ -170,6 +178,20 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                       Unknown
                     </span>
                   </div>
+
+                  <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex items-center px-4 py-3">
+                    <.button
+                      id={"release-#{release.id}-toggle-required"}
+                      style="secondary"
+                      type="button"
+                      phx-click="toggle-release-required"
+                      phx-value-release_id={release.id}
+                      phx-target={@myself}
+                      data-confirm={required_confirmation(release)}
+                    >
+                      {if release.required, do: "Unmark required", else: "Mark required"}
+                    </.button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -224,6 +246,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
               />
             </div>
 
+            <div class="flex w-1/2 flex-col gap-6">
+              <.input field={f[:required]} type="checkbox" label="Required release">
+                <:rich_hint>
+                  Devices that haven't reached this release are updated to it before any newer release. This can be changed later from the release history.
+                </:rich_hint>
+              </.input>
+            </div>
+
             <.rollout_options show_rollout_options={@show_rollout_options} myself={@myself} />
 
             <div>
@@ -276,12 +306,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
 
     case ManagedDeployments.create_deployment_release(deployment_group, firmware, archive, scope.user, params) do
       {:ok, {_release, deployment_group}} ->
-        AuditLogs.audit!(
-          scope.user,
-          deployment_group,
-          "User #{scope.user.name} updated deployment group #{deployment_group.name}"
-        )
-
         releases = ManagedDeployments.list_deployment_releases(deployment_group)
         changeset = DeploymentRelease.new_changeset(deployment_group)
 
@@ -302,6 +326,40 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
         |> assign(:form, to_form(changeset))
         |> noreply()
     end
+  end
+
+  def handle_event("toggle-release-required", %{"release_id" => release_id}, socket) do
+    %{current_scope: scope, releases: releases} = socket.assigns
+
+    authorized!(:"deployment_group:update", scope)
+
+    release = Enum.find(releases, &(to_string(&1.id) == release_id))
+
+    case release && ManagedDeployments.set_deployment_release_required(release, !release.required, scope.user) do
+      {:ok, updated} ->
+        message =
+          if updated.required,
+            do: "Release #{updated.number} is now required",
+            else: "Release #{updated.number} is no longer required"
+
+        socket
+        |> assign(:releases, ManagedDeployments.list_deployment_releases(socket.assigns.deployment_group))
+        |> send_flash(:info, message)
+        |> noreply()
+
+      _ ->
+        socket
+        |> send_flash(:error, "The release could not be updated. Please try again.")
+        |> noreply()
+    end
+  end
+
+  defp required_confirmation(%{required: true}) do
+    "Devices will no longer be held at this release on their way to newer ones. Continue?"
+  end
+
+  defp required_confirmation(%{required: false}) do
+    "Devices that haven't reached this release will be updated to it before any newer release. Continue?"
   end
 
   defp firmware_or_archive_value(form_field, mod) do

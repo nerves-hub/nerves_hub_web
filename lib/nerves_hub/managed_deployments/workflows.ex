@@ -24,6 +24,17 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   without ever having tried it. Connectivity is a scheduling question, answered
   later by `NervesHub.Devices.Updates.available_for_workflow_step/3`.
 
+  ## Devices with a required release to take first
+
+  The steps ahead of the catch_all stage the current release. A device that must
+  take a required release before it (see
+  `NervesHub.ManagedDeployments.join_target_release/1`) is left out of them: it
+  is not claimed, not updated, and not waited for, including when it was claimed
+  before the release was marked required. Updating it would spend a stage's place
+  on a different release, and waiting for it would hold the stage open until it
+  had taken both. The catch_all takes it once it is reached, and sees it through
+  the required release and on to the current one.
+
   Every transition broadcasts `step/updated` on `deployment_release:<id>` so an
   open deployment group page can move the step along without polling.
   """
@@ -34,6 +45,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
   alias NervesHub.FirmwareUpdates
+  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
@@ -108,7 +120,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   def claim_devices(_deployment_group, %DeploymentWorkflowStep{type: :catch_all}), do: 0
 
   def claim_devices(deployment_group, step) do
-    case remaining_match_limit(step) do
+    case remaining_match_limit(deployment_group, step) do
       0 ->
         0
 
@@ -130,19 +142,21 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   end
 
   @doc """
-  How many devices a step has recorded a claim on.
+  How many devices a step is working on.
 
-  A `catch_all` records none — its devices are whatever the other steps did not
-  take — so this is zero for one. `step_devices_query/2` is what answers "which
-  devices does this step cover" for either kind.
+  A `catch_all` records no claims — its devices are whatever the other steps did
+  not take — so this is zero for one. A device that has left the group, and a
+  device with a required release to take first, are left out: the step neither
+  updates nor waits for those, so they should not take up its match limit or
+  count towards its failure tolerance.
   """
-  @spec claimed_device_count(DeploymentWorkflowStep.t()) :: non_neg_integer()
-  def claimed_device_count(%DeploymentWorkflowStep{type: :catch_all}), do: 0
+  @spec claimed_device_count(DeploymentGroup.t(), DeploymentWorkflowStep.t()) :: non_neg_integer()
+  def claimed_device_count(_deployment_group, %DeploymentWorkflowStep{type: :catch_all}), do: 0
 
-  def claimed_device_count(step) do
-    @join_table
-    |> from(as: :step_device)
-    |> where([step_device: sd], sd.deployment_workflow_step_id == ^step.id)
+  def claimed_device_count(deployment_group, step) do
+    deployment_group
+    |> step_devices_query(step)
+    |> maybe_exclude_devices_needing_required_release(deployment_group, step)
     |> Repo.aggregate(:count)
   end
 
@@ -157,6 +171,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
     deployment_group
     |> step_devices_query(step)
+    |> maybe_exclude_devices_needing_required_release(deployment_group, step)
     |> where(
       [device: d],
       is_nil(d.firmware_metadata) or fragment("? #>> '{\"uuid\"}'", d.firmware_metadata) != ^firmware_uuid
@@ -180,6 +195,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
     deployment_group
     |> step_devices_query(step)
+    |> maybe_exclude_devices_needing_required_release(deployment_group, step)
     |> where([device: d], not is_nil(d.updates_blocked_until) and d.updates_blocked_until > ^now)
     |> Repo.aggregate(:count)
   end
@@ -193,7 +209,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   """
   @spec step_failed?(DeploymentGroup.t(), DeploymentWorkflowStep.t()) :: boolean()
   def step_failed?(deployment_group, step) do
-    case failure_limit(step, claimed_device_count(step)) do
+    case failure_limit(step, claimed_device_count(deployment_group, step)) do
       :never -> false
       limit -> failed_device_count(deployment_group, step) >= limit
     end
@@ -306,7 +322,7 @@ defmodule NervesHub.ManagedDeployments.Workflows do
   # Once the match limit is reached there is nothing more for the step to take,
   # however many devices it still matches: that is what the limit means.
   defp more_to_claim?(deployment_group, step) do
-    case remaining_match_limit(step) do
+    case remaining_match_limit(deployment_group, step) do
       0 ->
         false
 
@@ -498,10 +514,34 @@ defmodule NervesHub.ManagedDeployments.Workflows do
 
   # Devices the step matches and nothing has claimed yet, whether or not they can
   # be updated this moment. This is what says there is still work in the step.
+  # Only steps ahead of the catch_all claim, so a device with a required release
+  # to take first is never one of them.
   defp unclaimed_matching_devices_query(deployment_group, step) do
     deployment_group
     |> matching_devices_query(step)
     |> where([device: d], d.id not in subquery(claimed_device_ids_query(step.deployment_release_id)))
+    |> exclude_devices_needing_required_release(deployment_group)
+  end
+
+  # The catch_all is where a device with a required release to take first is
+  # updated, so only the steps ahead of it leave those devices out.
+  defp maybe_exclude_devices_needing_required_release(query, _deployment_group, %{type: :catch_all}), do: query
+
+  defp maybe_exclude_devices_needing_required_release(query, deployment_group, _step) do
+    exclude_devices_needing_required_release(query, deployment_group)
+  end
+
+  # Checked up front so a group that has never marked a release required pays
+  # nothing for working out each device's next release.
+  defp exclude_devices_needing_required_release(query, deployment_group) do
+    if ManagedDeployments.earlier_required_release?(deployment_group) do
+      query
+      |> join(:inner, [device: d], dg in assoc(d, :deployment_group), as: :deployment_group)
+      |> ManagedDeployments.join_target_release()
+      |> where([deployment_group: dg, target_release: tr], tr.id == dg.current_deployment_release_id)
+    else
+      query
+    end
   end
 
   defp matching_devices_query(deployment_group, %DeploymentWorkflowStep{matching_conditions: nil}) do
@@ -590,12 +630,16 @@ defmodule NervesHub.ManagedDeployments.Workflows do
     |> select([step_device: sd], sd.device_id)
   end
 
-  defp remaining_match_limit(%DeploymentWorkflowStep{matching_conditions: nil}), do: :unlimited
+  defp remaining_match_limit(_deployment_group, %DeploymentWorkflowStep{matching_conditions: nil}), do: :unlimited
 
-  defp remaining_match_limit(%DeploymentWorkflowStep{matching_conditions: %{match_limit: nil}}), do: :unlimited
+  defp remaining_match_limit(_deployment_group, %DeploymentWorkflowStep{matching_conditions: %{match_limit: nil}}),
+    do: :unlimited
 
-  defp remaining_match_limit(%DeploymentWorkflowStep{matching_conditions: %{match_limit: limit}} = step) do
-    max(limit - claimed_device_count(step), 0)
+  defp remaining_match_limit(
+         deployment_group,
+         %DeploymentWorkflowStep{matching_conditions: %{match_limit: limit}} = step
+       ) do
+    max(limit - claimed_device_count(deployment_group, step), 0)
   end
 
   defp maybe_limit(query, :unlimited), do: query
