@@ -15,6 +15,13 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   @type t :: %__MODULE__{}
 
   @typedoc """
+  Whether the deltas a release's devices need are ready: one or more are still
+  being built (`:preparing`), one or more gave up (`:failed`), or there is
+  nothing left to wait for (`:ready`).
+  """
+  @type delta_status :: :ready | :preparing | :failed
+
+  @typedoc """
   Where a release's connecting code runs relative to its deployment group's:
   before it (`:first`), after it (`:last`), or instead of it (`:override`).
   """
@@ -36,6 +43,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
 
     field(:connecting_code, :string)
     field(:connecting_code_mode, Ecto.Enum, values: [:first, :last, :override], default: :last)
+
+    field(:delta_status, Ecto.Enum, values: [:ready, :preparing, :failed], default: :ready)
 
     timestamps()
   end
@@ -74,6 +83,16 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
       number = changeset.repo.aggregate(query, :count) + 1
       put_change(changeset, :number, number)
     end)
+  end
+
+  @doc """
+  Record whether the deltas this release's devices need are ready.
+  """
+  @spec delta_status_changeset(t(), delta_status()) :: Ecto.Changeset.t()
+  def delta_status_changeset(%__MODULE__{} = release, delta_status) do
+    release
+    |> cast(%{delta_status: delta_status}, [:delta_status])
+    |> validate_required([:delta_status])
   end
 
   @doc """

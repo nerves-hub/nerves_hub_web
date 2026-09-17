@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   alias NervesHubWeb.CoreComponents
   alias Phoenix.HTML.Form
   alias Phoenix.LiveView.JS
+  alias Phoenix.Naming
 
   @impl Phoenix.LiveComponent
   def update(%{event: {:firmware_created, firmware}}, socket) do
@@ -38,6 +39,13 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     |> ok()
   end
 
+  def update(%{event: :delta_status_updated}, socket) do
+    socket
+    |> assign(:delta_counts, ManagedDeployments.release_delta_counts(socket.assigns.deployment_group))
+    |> assign_shown_deltas()
+    |> ok()
+  end
+
   def update(assigns, socket) do
     archives = Archives.all_by_product(assigns.deployment_group.product)
     firmwares = Firmwares.get_firmwares_for_deployment_group(assigns.deployment_group)
@@ -52,7 +60,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     |> assign(:firmwares, firmwares)
     |> assign(:form, to_form(changeset))
     |> assign(:releases, releases)
+    |> assign(:delta_counts, ManagedDeployments.release_delta_counts(assigns.deployment_group))
     |> assign(:show_rollout_options, false)
+    |> assign_new(:deltas_release, fn -> nil end)
+    |> assign_new(:deltas, fn -> [] end)
     # Kept across updates from the parent, which would otherwise clear a release
     # edit that's still open
     |> assign_new(:editing_release, fn -> nil end)
@@ -173,6 +184,20 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
                         </span>
                       </div>
 
+                      <div :if={@delta_counts[release.id]} class="text-sm">
+                        <span class="text-base-400">Deltas:</span>
+                        <.link
+                          id={"release-#{release.id}-deltas"}
+                          phx-click={show_release_deltas(release, @myself)}
+                          class="text-base-300 font-medium underline decoration-dashed hover:decoration-solid"
+                        >
+                          {@delta_counts[release.id].total}
+                        </.link>
+                        <span :if={@delta_counts[release.id].failed > 0} class="text-alert font-medium">
+                          ({@delta_counts[release.id].failed} failed)
+                        </span>
+                      </div>
+
                       <div class="text-sm">
                         <span class="text-base-400">Connecting code:</span>
                         <.link
@@ -287,6 +312,71 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
             </div>
           </div>
         </.form>
+      </CoreComponents.modal>
+
+      <CoreComponents.modal id="release-deltas">
+        <div :if={@deltas_release} class="flex flex-col gap-5 p-4">
+          <h2 class="text-base-300 text-lg font-semibold">Deltas for release {@deltas_release.number}</h2>
+          <p class="text-base-400 text-sm">
+            What this release's devices download instead of the whole firmware, from what each of them is running now.
+          </p>
+
+          <div class="listing">
+            <table>
+              <thead>
+                <tr>
+                  <th class="rounded-tl">From</th>
+                  <th>Status</th>
+                  <th>Size</th>
+                  <th>Saving</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={delta <- @deltas} id={"release-delta-#{delta.id}"} class="border-base-800 border-b last:border-0">
+                  <td>{delta.source.version}</td>
+                  <td>
+                    <div
+                      data-status={delta.status}
+                      class="data-[status=failed]:text-alert data-[status=processing]:text-warning data-[status=timed_out]:text-alert"
+                    >
+                      {if delta.status == :completed, do: "Ready", else: Naming.humanize(delta.status)}
+                    </div>
+                  </td>
+                  <td>{if delta.status == :completed, do: Sizeable.filesize(delta.size), else: "-"}</td>
+                  <td>
+                    {if delta.status == :completed, do: Sizeable.filesize(delta.target_size - delta.size), else: "-"}
+                  </td>
+                  <td>
+                    <div :if={authorized?(:"deployment_group:update", @current_scope)} class="flex items-center gap-2">
+                      <.link
+                        :if={delta.status in [:failed, :timed_out]}
+                        class="text-base-300 cursor-pointer underline"
+                        phx-click="retry-delta"
+                        phx-value-id={delta.id}
+                        phx-target={@myself}
+                        data-confirm="Other deployment groups using this delta are affected as well. Continue?"
+                      >
+                        Retry
+                      </.link>
+                      <.link
+                        :if={delta.status in [:failed, :timed_out, :completed]}
+                        class="text-base-300 cursor-pointer underline"
+                        phx-click="delete-delta"
+                        phx-value-id={delta.id}
+                        phx-target={@myself}
+                        data-confirm="Other deployment groups using this delta are affected as well. Continue?"
+                      >
+                        Delete
+                      </.link>
+                      <span :if={delta.status == :processing}>-</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </CoreComponents.modal>
 
       <CoreComponents.modal id="edit-release">
@@ -461,6 +551,52 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
     end
   end
 
+  def handle_event("show-release-deltas", %{"release_id" => release_id}, socket) do
+    case Enum.find(socket.assigns.releases, &(to_string(&1.id) == to_string(release_id))) do
+      nil ->
+        noreply(socket)
+
+      release ->
+        socket
+        |> assign(:deltas_release, release)
+        |> assign(:deltas, ManagedDeployments.release_deltas(release))
+        |> noreply()
+    end
+  end
+
+  def handle_event("retry-delta", %{"id" => id}, socket) do
+    %{current_scope: scope, deltas: deltas} = socket.assigns
+
+    authorized!(:"deployment_group:update", scope)
+
+    delta = Enum.find(deltas, &(to_string(&1.id) == id))
+
+    # Deleting it first is what the summary tab does: a delta that failed is kept
+    # around to be seen, and generation starts from nothing.
+    {:ok, _} = Firmwares.delete_firmware_delta(delta)
+    {:ok, _} = Firmwares.attempt_firmware_delta(delta.source_id, delta.target_id)
+
+    socket
+    |> refresh_deltas()
+    |> send_flash(:info, "Building the delta from #{delta.source.version} again")
+    |> noreply()
+  end
+
+  def handle_event("delete-delta", %{"id" => id}, socket) do
+    %{current_scope: scope, deltas: deltas} = socket.assigns
+
+    authorized!(:"deployment_group:update", scope)
+
+    delta = Enum.find(deltas, &(to_string(&1.id) == id))
+
+    {:ok, _} = Firmwares.delete_firmware_delta(delta)
+
+    socket
+    |> refresh_deltas()
+    |> send_flash(:info, "Deleted the delta from #{delta.source.version}")
+    |> noreply()
+  end
+
   def handle_event("edit-release", %{"release_id" => release_id}, socket) do
     %{current_scope: scope, releases: releases} = socket.assigns
 
@@ -544,6 +680,25 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Releases do
   defp connecting_code_mode_summary(:last), do: "Runs after the group's code"
   defp connecting_code_mode_summary(:first), do: "Runs before the group's code"
   defp connecting_code_mode_summary(:override), do: "Overrides the group's code"
+
+  defp show_release_deltas(release, myself) do
+    %JS{}
+    |> JS.push("show-release-deltas", value: %{release_id: release.id}, target: myself)
+    |> CoreComponents.show_modal("release-deltas")
+  end
+
+  defp refresh_deltas(socket) do
+    socket
+    |> assign(:delta_counts, ManagedDeployments.release_delta_counts(socket.assigns.deployment_group))
+    |> assign_shown_deltas()
+  end
+
+  defp assign_shown_deltas(socket) do
+    case socket.assigns[:deltas_release] do
+      nil -> socket
+      release -> assign(socket, :deltas, ManagedDeployments.release_deltas(release))
+    end
+  end
 
   defp edit_release(release, myself) do
     %JS{}

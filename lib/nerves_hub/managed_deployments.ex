@@ -20,6 +20,8 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Repo
   alias Phoenix.Channel.Server, as: PhoenixChannelServer
 
+  require Logger
+
   @spec should_run_orchestrator() :: [DeploymentGroup.t()]
   def should_run_orchestrator() do
     full_deployment_group_query()
@@ -279,15 +281,9 @@ defmodule NervesHub.ManagedDeployments do
 
         deployment_group = load_current_release(deployment_group, force: true)
 
-        case recalculate_deployment_group_status_by_firmware_id(deployment_group.current_release.firmware_id) do
-          {:ok, updated_deployments} ->
-            {:ok, dg} = Enum.find(updated_deployments, fn {_, dg} -> dg.id == deployment_group.id end)
-            {:ok, Map.put(deployment_group, :status, dg.status)}
+        {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
 
-          {:error, message} ->
-            changeset = Ecto.Changeset.add_error(changeset, :firmware, message)
-            {:error, changeset}
-        end
+        {:ok, deployment_group}
       end
     end)
     |> case do
@@ -324,9 +320,8 @@ defmodule NervesHub.ManagedDeployments do
            deployment_group = load_current_release(deployment_group, force: true),
            :ok <- maybe_audit_new_deployment_release(user, deployment_group, opts),
            {:ok, _} <- maybe_trigger_delta_generation(deployment_group, release),
-           {:ok, updated_deployments} <- recalculate_deployment_group_status_by_firmware_id(release.firmware_id),
-           {:ok, dg} <- Enum.find(updated_deployments, fn {_, dg} -> dg.id == deployment_group.id end) do
-        {:ok, {release, Map.put(deployment_group, :status, dg.status)}}
+           {:ok, release} <- recalculate_release_delta_status(release) do
+        {:ok, {release, deployment_group}}
       else
         {:error, _} = error -> error
         {:update_deployment, _} -> {:error, "could not update deployment group current release information"}
@@ -378,73 +373,205 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   @doc """
-  Recalculates the status of every deployment group sending devices to a given firmware.
+  Recalculate the delta status of every release sending devices to a given firmware.
 
-  That is the groups whose current release carries it, and the groups where a
-  required release does: a delta built for a required release says as much about
-  whether its group is ready as one built for the current release.
+  A release is one of those while devices are headed for it, which means the
+  current release of its group and any required release. A delta built for a
+  required release says as much about whether its devices can move as one built
+  for the current release.
   """
-  @spec recalculate_deployment_group_status_by_firmware_id(pos_integer()) ::
-          {:ok, [DeploymentGroup.t()]} | {:error, String.t()}
-  def recalculate_deployment_group_status_by_firmware_id(firmware_id) do
-    releases_with_firmware =
-      DeploymentRelease
-      |> where([r], r.deployment_group_id == parent_as(:deployment_group).id)
-      |> where([r], r.firmware_id == ^firmware_id)
-      |> where([r], r.required or r.id == parent_as(:deployment_group).current_deployment_release_id)
-      |> select([r], 1)
+  @spec recalculate_release_delta_statuses_by_firmware_id(pos_integer()) :: {:ok, [DeploymentRelease.t()]}
+  def recalculate_release_delta_statuses_by_firmware_id(firmware_id) do
+    releases_devices_are_headed_for_query()
+    |> where([release: r], r.firmware_id == ^firmware_id)
+    |> Repo.all()
+    |> recalculate_delta_statuses()
+  end
 
-    updated_deployment_groups =
-      DeploymentGroup
-      |> from(as: :deployment_group)
-      |> where([], exists(releases_with_firmware))
+  @doc """
+  Recalculate the delta status of the releases a deployment group's devices are
+  headed for: its current release, and any release marked required.
+  """
+  @spec recalculate_release_delta_statuses(DeploymentGroup.t()) :: {:ok, [DeploymentRelease.t()]}
+  def recalculate_release_delta_statuses(%DeploymentGroup{} = deployment_group) do
+    releases_devices_are_headed_for_query()
+    |> where([deployment_group: dg], dg.id == ^deployment_group.id)
+    |> Repo.all()
+    |> recalculate_delta_statuses()
+  end
+
+  @doc """
+  The firmware a deployment group's devices are headed for.
+
+  Every delta the group is waiting on is built towards one of these, so a page
+  showing what the deltas are doing watches these firmware for build news. Deltas
+  towards the firmware of a release no device is headed for say nothing about
+  this group.
+  """
+  @spec delta_target_firmware_ids(DeploymentGroup.t()) :: [pos_integer()]
+  def delta_target_firmware_ids(%DeploymentGroup{} = deployment_group) do
+    releases_devices_are_headed_for_query()
+    |> where([deployment_group: dg], dg.id == ^deployment_group.id)
+    |> select([release: r], r.firmware_id)
+    |> distinct(true)
+    |> Repo.all()
+  end
+
+  # The releases a group's devices are headed for: its current release, and any
+  # release marked required. Everything about deltas is scoped to these.
+  defp releases_devices_are_headed_for_query() do
+    DeploymentRelease
+    |> from(as: :release)
+    |> join(:inner, [release: r], dg in assoc(r, :deployment_group), as: :deployment_group)
+    |> where([release: r, deployment_group: dg], r.required or r.id == dg.current_deployment_release_id)
+  end
+
+  # Recording where a release stands on deltas is bookkeeping about the deltas,
+  # not part of the change that prompted it, so a release that won't take its new
+  # status is logged and left rather than rolling back the release that was just
+  # marked required or the deployment group that was just updated. Every delta
+  # event recalculates again, so the next one settles it. Until then the release
+  # holds whatever it last recorded, and a release still reading `:preparing`
+  # holds its own devices back.
+  defp recalculate_delta_statuses(releases) do
+    {updated, failed} =
+      releases
+      |> Enum.map(&recalculate_release_delta_status/1)
+      |> Enum.split_with(&match?({:ok, _}, &1))
+
+    Enum.each(failed, fn {:error, changeset} ->
+      Logger.error("Could not record a release's delta status",
+        deployment_release_id: changeset.data.id,
+        deployment_id: changeset.data.deployment_group_id,
+        errors: inspect(changeset.errors)
+      )
+    end)
+
+    {:ok, Enum.map(updated, fn {:ok, release} -> release end)}
+  end
+
+  @doc """
+  Recalculate and record whether the deltas a release's devices need are ready.
+
+  The deltas that count are the ones its own devices need: from the firmware each
+  device headed for this release is running, to the release's firmware. A release
+  no device is headed for needs none, which counts as ready, and so does a group
+  with deltas turned off.
+  """
+  @spec recalculate_release_delta_status(DeploymentRelease.t()) ::
+          {:ok, DeploymentRelease.t()} | {:error, Changeset.t()}
+  def recalculate_release_delta_status(%DeploymentRelease{} = release) do
+    delta_status =
+      release
+      |> release_deltas_query()
+      |> select([firmware_delta: fd], fd.status)
       |> Repo.all()
-      |> Enum.map(fn deployment_group ->
-        recalculate_deployment_group_status(deployment_group)
+      # A release's devices can be running several different firmware versions,
+      # so its deltas can be in several states at once. It waits while any is
+      # still being built, and reports the failures once nothing is left to wait
+      # for.
+      |> then(fn statuses ->
+        cond do
+          Enum.any?(statuses, &(&1 == :processing)) -> :preparing
+          Enum.any?(statuses, &(&1 in [:failed, :timed_out])) -> :failed
+          true -> :ready
+        end
       end)
 
-    if Enum.any?(updated_deployment_groups, fn {res, _} -> res == :error end) do
-      {:error, "Failed to recalculate deployment group statuses"}
-    else
-      {:ok, updated_deployment_groups}
+    release
+    |> DeploymentRelease.delta_status_changeset(delta_status)
+    |> Repo.update()
+    |> case do
+      {:ok, updated} ->
+        if updated.delta_status != release.delta_status do
+          :ok =
+            broadcast(%DeploymentGroup{id: updated.deployment_group_id}, "release/delta_status", %{
+              release_id: updated.id,
+              from: release.delta_status,
+              to: updated.delta_status
+            })
+        end
+
+        {:ok, updated}
+
+      {:error, changeset} ->
+        {:error, changeset}
     end
   end
 
   @doc """
-  Recalculates the status of a deployment group based on the firmware deltas its devices need:
-  from the firmware each device is running to the firmware of the release it is headed for next.
+  The deltas the devices headed for a release need, oldest source firmware first.
   """
-  def recalculate_deployment_group_status(deployment_group) do
-    firmware_pairs = Deployments.get_device_firmware_for_delta_generation_by_deployment_group(deployment_group.id)
+  @spec release_deltas(DeploymentRelease.t()) :: [FirmwareDelta.t()]
+  def release_deltas(%DeploymentRelease{} = release) do
+    release
+    |> release_deltas_query()
+    |> select([firmware_delta: fd], fd)
+    |> Repo.all()
+    |> Repo.preload([:source, :target])
+    |> Enum.sort_by(& &1.source.version, {:asc, Version})
+  end
 
-    if Enum.any?(firmware_pairs) do
-      pairs_filter =
-        Enum.reduce(firmware_pairs, dynamic(false), fn {source_id, target_id}, filter ->
-          dynamic([fd], ^filter or (fd.source_id == ^source_id and fd.target_id == ^target_id))
-        end)
+  @doc """
+  How many deltas each of a group's releases is waiting on, and how many of those failed.
 
-      FirmwareDelta
-      |> where(^pairs_filter)
-      |> Repo.all()
-      |> Enum.map(fn firmware_delta ->
-        firmware_delta.status
-      end)
-      # Devices can be headed for more than one release at a time, so their deltas
-      # can be in more than one state. The group waits while any is still being
-      # built, and reports the failures once nothing is left to wait for.
-      |> then(fn statuses ->
-        cond do
-          Enum.any?(statuses, &(&1 == :processing)) -> :preparing
-          Enum.any?(statuses, &(&1 in [:failed, :timed_out])) -> :deltas_failed
-          true -> :ready
+  Only the releases devices are headed for have any, so the map covers the
+  current release and any required release with devices behind it.
+  """
+  @spec release_delta_counts(DeploymentGroup.t()) :: %{
+          integer() => %{total: non_neg_integer(), failed: non_neg_integer()}
+        }
+  def release_delta_counts(%DeploymentGroup{} = deployment_group) do
+    deployment_group
+    |> group_device_firmware_query()
+    |> join(:inner, [firmware: f, target_release: tr], fd in FirmwareDelta,
+      on: fd.source_id == f.id and fd.target_id == tr.firmware_id,
+      as: :firmware_delta
+    )
+    |> group_by([target_release: tr, firmware_delta: fd], [tr.id, fd.status])
+    |> select([target_release: tr, firmware_delta: fd], {tr.id, fd.status, count(fd.id, :distinct)})
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn {release_id, status, count}, counts ->
+      counts
+      |> Map.put_new(release_id, %{total: 0, failed: 0})
+      |> update_in([release_id, :total], &(&1 + count))
+      |> then(fn counts ->
+        if status in [:failed, :timed_out] do
+          update_in(counts, [release_id, :failed], &(&1 + count))
+        else
+          counts
         end
       end)
-      |> then(fn status ->
-        update_deployment_group_status(deployment_group, status)
-      end)
-    else
-      update_deployment_group_status(deployment_group, :ready)
-    end
+    end)
+  end
+
+  # The deltas belonging to one release: from the firmware its own devices run to
+  # the release's firmware. A device already on that firmware needs none.
+  defp release_deltas_query(%DeploymentRelease{} = release) do
+    %DeploymentGroup{id: release.deployment_group_id}
+    |> group_device_firmware_query()
+    |> where([target_release: tr], tr.id == ^release.id)
+    |> where([firmware: f], f.id != ^release.firmware_id)
+    |> join(:inner, [firmware: f], fd in FirmwareDelta,
+      on: fd.source_id == f.id and fd.target_id == ^release.firmware_id,
+      as: :firmware_delta
+    )
+    |> distinct(true)
+  end
+
+  # Every device in the group, with the firmware it is running and the release it
+  # is headed for.
+  defp group_device_firmware_query(%DeploymentGroup{id: deployment_group_id}) do
+    Device
+    |> from(as: :device)
+    |> join(:inner, [device: d], dg in DeploymentGroup, on: dg.id == d.deployment_id, as: :deployment_group)
+    |> where([deployment_group: dg], dg.id == ^deployment_group_id)
+    |> join(:inner, [device: d], f in Firmware,
+      on: f.product_id == d.product_id and f.uuid == fragment("?->>'uuid'", d.firmware_metadata),
+      as: :firmware
+    )
+    |> join_target_release(deployment_group_id)
+    |> Repo.exclude_deleted()
   end
 
   defp create_audit_logs!(deployment_group, changeset) do
@@ -524,22 +651,6 @@ defmodule NervesHub.ManagedDeployments do
     end)
   end
 
-  @spec update_deployment_group_status(DeploymentGroup.t(), atom()) ::
-          {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
-  def update_deployment_group_status(deployment_group, status) do
-    deployment_group
-    |> DeploymentGroup.update_status_changeset(%{status: status})
-    |> Repo.update()
-    |> case do
-      {:ok, updated_deployment_group} ->
-        :ok = broadcast(updated_deployment_group, "status/updated", %{from: deployment_group.status, to: status})
-        {:ok, updated_deployment_group}
-
-      {:error, changeset} ->
-        {:error, changeset}
-    end
-  end
-
   @spec new_deployment_group() :: Changeset.t()
   def new_deployment_group() do
     Ecto.Changeset.change(%DeploymentGroup{})
@@ -596,7 +707,8 @@ defmodule NervesHub.ManagedDeployments do
   semver cannot be compared, and the release still applies.
 
   The query must have `:device` and `:deployment_group` named bindings. The
-  joined row carries the release's `id`, `number` and `firmware_id`.
+  joined row carries the release's `id`, `number`, `firmware_id` and
+  `delta_status`.
 
   This works the release out for every device row, which a query over a large
   group should only pay for when the group has a required release to consider;
@@ -621,7 +733,7 @@ defmodule NervesHub.ManagedDeployments do
       )
       |> order_by([r], asc: r.number)
       |> limit(1)
-      |> select([r], %{id: r.id, number: r.number, firmware_id: r.firmware_id})
+      |> select([r], %{id: r.id, number: r.number, firmware_id: r.firmware_id, delta_status: r.delta_status})
 
     query
     |> join_running_release()
@@ -651,6 +763,8 @@ defmodule NervesHub.ManagedDeployments do
         DeploymentRelease
         |> join(:inner, [r], f in assoc(r, :firmware), as: :firmware)
         |> where([r], r.deployment_group_id == parent_as(:deployment_group).id)
+        # Paired with the uuid so the lookup can use `firmwares_product_id_uuid_all_index`
+        |> where([firmware: f], f.product_id == parent_as(:device).product_id)
         |> where([firmware: f], f.uuid == fragment("? #>> '{\"uuid\"}'", parent_as(:device).firmware_metadata))
         |> order_by([r], desc: r.number)
         |> limit(1)
@@ -692,6 +806,9 @@ defmodule NervesHub.ManagedDeployments do
   orchestrator holds for the life of a release and can be behind.
   """
   @spec earlier_required_release?(DeploymentGroup.t() | integer()) :: boolean()
+  def earlier_required_release?(%DeploymentGroup{earlier_required_release: required?}) when is_boolean(required?),
+    do: required?
+
   def earlier_required_release?(%DeploymentGroup{id: id}), do: earlier_required_release?(id)
 
   def earlier_required_release?(deployment_group_id) do
@@ -700,6 +817,20 @@ defmodule NervesHub.ManagedDeployments do
     |> where([r, dg], dg.id == ^deployment_group_id)
     |> where([r, dg], r.required and r.id != dg.current_deployment_release_id)
     |> Repo.exists?()
+  end
+
+  @doc """
+  Record on a deployment group whether a release before its current one is
+  required, so work that runs several per-device queries asks once rather than
+  once per query.
+
+  The answer is a snapshot, and a group carrying one goes on answering from it,
+  so load it for the length of one piece of work rather than onto a struct that
+  is held longer. A group that has not been through here reads the database.
+  """
+  @spec load_earlier_required_release(DeploymentGroup.t()) :: DeploymentGroup.t()
+  def load_earlier_required_release(%DeploymentGroup{} = deployment_group) do
+    %{deployment_group | earlier_required_release: earlier_required_release?(deployment_group.id)}
   end
 
   @doc """
@@ -718,21 +849,24 @@ defmodule NervesHub.ManagedDeployments do
          not earlier_required_release?(deployment_group) do
       current_release
     else
-      target_release_id =
-        Device
-        |> from(as: :device)
-        |> where([device: d], d.id == ^device.id)
-        |> join(:inner, [], dg in DeploymentGroup, on: dg.id == ^deployment_group.id, as: :deployment_group)
-        |> join_target_release()
-        |> select([target_release: tr], tr.id)
-        |> Repo.one()
+      current_release_id = current_release.id
 
-      if target_release_id in [nil, current_release.id] do
-        current_release
-      else
-        DeploymentRelease
-        |> Repo.get!(target_release_id)
-        |> Repo.preload([:firmware, :archive])
+      Device
+      |> from(as: :device)
+      |> where([device: d], d.id == ^device.id)
+      |> join(:inner, [], dg in DeploymentGroup, on: dg.id == ^deployment_group.id, as: :deployment_group)
+      |> join_target_release()
+      |> join(:inner, [target_release: tr], r in DeploymentRelease, on: r.id == tr.id, as: :release)
+      |> join(:inner, [release: r], f in assoc(r, :firmware), as: :firmware)
+      |> join(:left, [release: r], a in assoc(r, :archive), as: :archive)
+      |> select([release: r, firmware: f, archive: a], {r, f, a})
+      |> Repo.one()
+      |> case do
+        # The current release is already loaded, with its steps, which the query
+        # above leaves out
+        nil -> current_release
+        {%DeploymentRelease{id: ^current_release_id}, _firmware, _archive} -> current_release
+        {release, firmware, archive} -> %{release | firmware: firmware, archive: archive}
       end
     end
   end
@@ -758,9 +892,9 @@ defmodule NervesHub.ManagedDeployments do
         # whatever the deltas did.
         _ = maybe_trigger_delta_generation(deployment_group, release)
 
-        with {:ok, deployment_group} <- recalculate_deployment_group_status(deployment_group) do
-          {:ok, {release, deployment_group}}
-        end
+        {:ok, _releases} = recalculate_release_delta_statuses(deployment_group)
+
+        {:ok, {release, deployment_group}}
       end
     end)
     |> case do
