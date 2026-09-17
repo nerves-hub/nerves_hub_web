@@ -14,6 +14,12 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
 
   @type t :: %__MODULE__{}
 
+  @typedoc """
+  Where a release's connecting code runs relative to its deployment group's:
+  before it (`:first`), after it (`:last`), or instead of it (`:override`).
+  """
+  @type connecting_code_mode :: :first | :last | :override
+
   schema "deployment_releases" do
     belongs_to(:deployment_group, DeploymentGroup)
 
@@ -28,12 +34,15 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     field(:number, :integer)
     field(:required, :boolean, default: false)
 
+    field(:connecting_code, :string)
+    field(:connecting_code_mode, Ecto.Enum, values: [:first, :last, :override], default: :last)
+
     timestamps()
   end
 
   def new_changeset(deployment_group, firmware \\ nil, archive \\ nil, params \\ %{}, user \\ nil) do
     change(%__MODULE__{})
-    |> cast(params, [:description, :notes, :required])
+    |> cast(params, [:description, :notes, :required, :connecting_code, :connecting_code_mode])
     |> put_assoc(:deployment_group, deployment_group)
     |> put_assoc(:firmware, firmware)
     |> put_assoc(:archive, archive)
@@ -77,6 +86,17 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     release
     |> cast(%{required: required}, [:required])
     |> validate_required([:required])
+  end
+
+  @doc """
+  Change the code a release's devices run when they connect, and where it runs
+  relative to the deployment group's connecting code.
+  """
+  @spec connecting_code_changeset(t(), map()) :: Ecto.Changeset.t()
+  def connecting_code_changeset(%__MODULE__{} = release, params) do
+    release
+    |> cast(params, [:connecting_code, :connecting_code_mode])
+    |> validate_required([:connecting_code_mode])
   end
 
   defp validate_firmware(changeset, deployment_group) do
