@@ -26,13 +26,14 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     field(:description, :string)
     field(:notes, :string)
     field(:number, :integer)
+    field(:required, :boolean, default: false)
 
     timestamps()
   end
 
   def new_changeset(deployment_group, firmware \\ nil, archive \\ nil, params \\ %{}, user \\ nil) do
     change(%__MODULE__{})
-    |> cast(params, [:description, :notes])
+    |> cast(params, [:description, :notes, :required])
     |> put_assoc(:deployment_group, deployment_group)
     |> put_assoc(:firmware, firmware)
     |> put_assoc(:archive, archive)
@@ -63,6 +64,19 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
       number = changeset.repo.aggregate(query, :count) + 1
       put_change(changeset, :number, number)
     end)
+  end
+
+  @doc """
+  Mark or unmark a release as required.
+
+  A required release is one every device in the deployment group passes through:
+  a device that has not reached it yet is updated to it before anything newer.
+  """
+  @spec required_changeset(t(), boolean()) :: Ecto.Changeset.t()
+  def required_changeset(%__MODULE__{} = release, required) do
+    release
+    |> cast(%{required: required}, [:required])
+    |> validate_required([:required])
   end
 
   defp validate_firmware(changeset, deployment_group) do

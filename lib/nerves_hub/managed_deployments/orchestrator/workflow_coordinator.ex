@@ -92,7 +92,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
         deployment_id: deployment_group.id,
         step_number: step.number,
         failed_devices: failed_count,
-        tolerance: Workflows.failure_limit(step, Workflows.claimed_device_count(step))
+        tolerance: Workflows.failure_limit(step, Workflows.claimed_device_count(deployment_group, step))
       )
 
       announce_halt(deployment_group, step, {:failed, failed_count})

@@ -2,10 +2,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
 
+  import Ecto.Query, only: [where: 3]
+
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.AuditLogs
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Repo
 
   setup context do
     %{
@@ -175,6 +179,69 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
       text:
         "Firmware list has been updated. Firmware #{firmware_2.version} (#{String.slice(firmware_2.uuid, 0..7)}) has been deleted by another user."
     )
+  end
+
+  test "creates a required release", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+    new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> select("Firmware version", option: "#{new_firmware.version}", exact_option: false)
+    |> check("Required release")
+    |> submit()
+    |> assert_has("div", text: "Release settings updated")
+
+    [release | _] = ManagedDeployments.list_deployment_releases(deployment_group)
+    assert release.firmware_id == new_firmware.id
+    assert release.required
+  end
+
+  test "marks and unmarks an existing release as required", %{
+    conn: conn,
+    deployment_group: deployment_group
+  } do
+    [release] = ManagedDeployments.list_deployment_releases(deployment_group)
+
+    conn
+    |> refute_has("#release-#{release.id}-required")
+    |> click_button("#release-#{release.id}-toggle-required", "Mark required")
+    |> assert_has("p", text: "Release #{release.number} is now required")
+    |> assert_has("#release-#{release.id}-required", text: "Required")
+    |> click_button("#release-#{release.id}-toggle-required", "Unmark required")
+    |> assert_has("p", text: "Release #{release.number} is no longer required")
+    |> refute_has("#release-#{release.id}-required")
+
+    refute Repo.reload(release).required
+  end
+
+  test "doesn't offer the required toggle to a user who can't update the group", %{
+    conn: conn,
+    org: org,
+    product: product,
+    user: user,
+    deployment_group: deployment_group
+  } do
+    [release] = ManagedDeployments.list_deployment_releases(deployment_group)
+
+    {1, _} =
+      OrgUser
+      |> where([ou], ou.org_id == ^org.id and ou.user_id == ^user.id)
+      |> Repo.update_all(set: [role: :view])
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> assert_has("div", text: "Release History")
+    |> refute_has("#release-#{release.id}-toggle-required")
   end
 
   test "shows created releases", %{conn: conn} do
