@@ -181,6 +181,30 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
     )
   end
 
+  test "won't create a release with the current release's firmware and archive", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> within("#release-form", fn session ->
+      session
+      |> select("Firmware version", option: "#{firmware.version}", exact_option: false)
+      |> assert_has("p", text: "The current release already has this firmware and archive")
+      |> submit()
+    end)
+    |> assert_has("div", text: "An error occurred while updating the release settings")
+
+    assert [_first_release] = ManagedDeployments.list_deployment_releases(deployment_group)
+  end
+
   test "creates a required release", %{
     conn: conn,
     user: user,
