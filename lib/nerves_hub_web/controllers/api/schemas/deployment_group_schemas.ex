@@ -26,12 +26,17 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
       type: :object,
       properties: %{
         number: %Schema{type: :integer},
+        required: %Schema{
+          type: :boolean,
+          description: "Devices that have not reached a required release are updated to it before any newer release"
+        },
         firmware: Firmware,
         inserted_at: %Schema{type: :string, format: :"date-time"},
         updated_at: %Schema{type: :string, format: :"date-time"}
       },
       example: %{
         "number" => 3,
+        "required" => false,
         "firmware" => %{
           "version" => "1.0.0",
           "architecture" => "arm",
@@ -170,6 +175,11 @@ defmodule NervesHubWeb.API.Schemas.DeploymentGroupSchemas do
           type: :object,
           properties: %{
             firmware: %Schema{type: :string, description: "Firmware UUID"},
+            required: %Schema{
+              type: :boolean,
+              description:
+                "Mark the release created by a firmware change as required: devices that have not reached it are updated to it before any newer release"
+            },
             conditions: Conditions,
             state: %Schema{type: :string, enum: ["on", "off"]},
             delta_updatable: %Schema{type: :boolean},
