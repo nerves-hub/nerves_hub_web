@@ -14,6 +14,19 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
 
   @type t :: %__MODULE__{}
 
+  @typedoc """
+  Whether the deltas a release's devices need are ready: one or more are still
+  being built (`:preparing`), one or more gave up (`:failed`), or there is
+  nothing left to wait for (`:ready`).
+  """
+  @type delta_status :: :ready | :preparing | :failed
+
+  @typedoc """
+  Where a release's connecting code runs relative to its deployment group's:
+  before it (`:first`), after it (`:last`), or instead of it (`:override`).
+  """
+  @type connecting_code_mode :: :first | :last | :override
+
   schema "deployment_releases" do
     belongs_to(:deployment_group, DeploymentGroup)
 
@@ -26,13 +39,19 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     field(:description, :string)
     field(:notes, :string)
     field(:number, :integer)
+    field(:required, :boolean, default: false)
+
+    field(:connecting_code, :string)
+    field(:connecting_code_mode, Ecto.Enum, values: [:first, :last, :override], default: :last)
+
+    field(:delta_status, Ecto.Enum, values: [:ready, :preparing, :failed], default: :ready)
 
     timestamps()
   end
 
   def new_changeset(deployment_group, firmware \\ nil, archive \\ nil, params \\ %{}, user \\ nil) do
     change(%__MODULE__{})
-    |> cast(params, [:description, :notes])
+    |> cast(params, [:description, :notes, :required, :connecting_code, :connecting_code_mode])
     |> put_assoc(:deployment_group, deployment_group)
     |> put_assoc(:firmware, firmware)
     |> put_assoc(:archive, archive)
@@ -43,6 +62,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
     |> validate_length(:notes, max: 1_000)
     |> validate_required([:firmware])
     |> validate_firmware(deployment_group)
+    |> validate_differs_from_current_release(deployment_group)
     |> validate_change(:created_by, fn :created_by, created_by_assoc ->
       created_by = created_by_assoc.data
 
@@ -63,6 +83,60 @@ defmodule NervesHub.ManagedDeployments.DeploymentRelease do
       number = changeset.repo.aggregate(query, :count) + 1
       put_change(changeset, :number, number)
     end)
+  end
+
+  @doc """
+  Record whether the deltas this release's devices need are ready.
+  """
+  @spec delta_status_changeset(t(), delta_status()) :: Ecto.Changeset.t()
+  def delta_status_changeset(%__MODULE__{} = release, delta_status) do
+    release
+    |> cast(%{delta_status: delta_status}, [:delta_status])
+    |> validate_required([:delta_status])
+  end
+
+  @doc """
+  Mark or unmark a release as required.
+
+  A required release is one every device in the deployment group passes through:
+  a device that has not reached it yet is updated to it before anything newer.
+  """
+  @spec required_changeset(t(), boolean()) :: Ecto.Changeset.t()
+  def required_changeset(%__MODULE__{} = release, required) do
+    release
+    |> cast(%{required: required}, [:required])
+    |> validate_required([:required])
+  end
+
+  @doc """
+  Change the code a release's devices run when they connect, and where it runs
+  relative to the deployment group's connecting code.
+  """
+  @spec connecting_code_changeset(t(), map()) :: Ecto.Changeset.t()
+  def connecting_code_changeset(%__MODULE__{} = release, params) do
+    release
+    |> cast(params, [:connecting_code, :connecting_code_mode])
+    |> validate_required([:connecting_code_mode])
+  end
+
+  # A release with the same firmware and archive as the current one would send
+  # devices nothing new. Required and connecting code are changed on the
+  # release itself, so they're no reason to create another.
+  defp validate_differs_from_current_release(changeset, %DeploymentGroup{current_release: %__MODULE__{} = current}) do
+    if assoc_id(changeset, :firmware) == current.firmware_id and assoc_id(changeset, :archive) == current.archive_id do
+      add_error(changeset, :firmware, "The current release already has this firmware and archive")
+    else
+      changeset
+    end
+  end
+
+  defp validate_differs_from_current_release(changeset, _deployment_group), do: changeset
+
+  defp assoc_id(changeset, field) do
+    case get_field(changeset, field) do
+      %{id: id} -> id
+      _ -> nil
+    end
   end
 
   defp validate_firmware(changeset, deployment_group) do

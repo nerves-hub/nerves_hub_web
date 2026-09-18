@@ -112,10 +112,9 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
     end
   end
 
-  # Written straight to the column, since the changeset would reject it, and
-  # released against the firmware already to hand.
+  # Written straight to the column, since the changeset would reject it.
   defp steps_for_definition(context, definition) do
-    %{deployment_group: deployment_group, user: user, firmware: firmware} = context
+    %{deployment_group: deployment_group, user: user, org_key: org_key, product: product} = context
 
     deployment_group
     |> Ecto.Changeset.change(%{workflow_definition: definition})
@@ -123,8 +122,10 @@ defmodule NervesHub.ManagedDeployments.WorkflowsTest do
 
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group(deployment_group.id)
 
+    next_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "0.0.2"})
+
     {:ok, {release, _}} =
-      ManagedDeployments.create_deployment_release(deployment_group, firmware, nil, user, %{}, broadcast: false)
+      ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{}, broadcast: false)
 
     Repo.preload(release, :steps).steps
   end

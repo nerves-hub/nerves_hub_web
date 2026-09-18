@@ -470,6 +470,31 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.SummaryTabTest do
     |> refute_has("span", text: "Notes:")
   end
 
+  test "shows the connecting code in a modal when present", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    {:ok, deployment_group} =
+      ManagedDeployments.update_deployment_group(
+        deployment_group,
+        %{connecting_code: ~s|Logger.info("hello from the device")|},
+        nil
+      )
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("a", text: "View code")
+    |> assert_has("#connecting-code pre", text: ~s|Logger.info("hello from the device")|)
+  end
+
+  test "hides the connecting code link when absent", %{conn: conn} do
+    conn
+    |> assert_has("span", text: "No code configured")
+    |> refute_has("a", text: "View code")
+  end
+
   describe "CSV import" do
     test "imports devices by identifier from a valid CSV", %{
       conn: conn,

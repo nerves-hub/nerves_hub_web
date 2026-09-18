@@ -75,8 +75,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:delta_updatable, :boolean, default: true)
     field(:lock_device_membership, :boolean, default: false)
 
-    field(:status, Ecto.Enum, values: [:ready, :preparing, :deltas_failed, :unknown_error], default: :ready)
-
     field(:priority_queue_enabled, :boolean, default: false)
     field(:priority_queue_concurrent_updates, :integer, default: 5)
     field(:priority_queue_firmware_version_threshold, :string)
@@ -88,6 +86,9 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     field(:release_tags, Tag, default: [])
 
+    # Set by `ManagedDeployments.load_earlier_required_release/1` for the length of
+    # one piece of work, so several per-device queries share the one answer
+    field(:earlier_required_release, :boolean, virtual: true)
     field(:releases_count, :integer, virtual: true)
     field(:device_count, :integer, virtual: true)
 
@@ -247,7 +248,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> prepare_current_updated_devices()
     |> prepare_device_count()
-    |> prepare_status()
   end
 
   # Validated here rather than at the upload so that every path setting a
@@ -300,33 +300,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
       put_change(changeset, :device_count, device_count)
     end)
-  end
-
-  defp prepare_status(changeset) do
-    prepare_changes(changeset, fn changeset ->
-      cond do
-        # deployment is not active
-        not get_field(changeset, :is_active) ->
-          put_change(changeset, :status, :ready)
-
-        # deployment is has been switched to active
-        get_change(changeset, :is_active) ->
-          put_change(changeset, :status, :preparing)
-
-        # deltas have been turned on
-        get_change(changeset, :delta_updatable) ->
-          put_change(changeset, :status, :preparing)
-
-        true ->
-          changeset
-      end
-    end)
-  end
-
-  def update_status_changeset(%DeploymentGroup{} = deployment, params) do
-    deployment
-    |> cast(params, [:status])
-    |> validate_required([:status])
   end
 
   defp normalize_priority_queue_threshold(changeset) do

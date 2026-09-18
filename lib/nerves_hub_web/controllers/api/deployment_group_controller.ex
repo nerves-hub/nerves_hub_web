@@ -124,6 +124,11 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
     firmware = resolve_firmware(product, deployment_group_params)
     archive = resolve_archive(product, deployment_group_params)
 
+    # `connecting_code` in this body is the deployment group's. A release has
+    # connecting code of its own, so it isn't passed on to the release this
+    # creates, where it would be taken for the release's.
+    release_params = Map.drop(deployment_group_params, ["connecting_code", "connecting_code_mode"])
+
     with {:ok, deployment_group} <-
            ManagedDeployments.get_deployment_group_by_name(product, name),
          {:ok, {_deployment_release, updated_deployment_group}} <-
@@ -132,10 +137,8 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
              firmware,
              archive,
              user,
-             deployment_group_params
+             release_params
            ) do
-      DeploymentGroupTemplates.audit_new_deployment_release(user, deployment_group)
-
       render(conn, :show, deployment_group: updated_deployment_group)
     end
   end

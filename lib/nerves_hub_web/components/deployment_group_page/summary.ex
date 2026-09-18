@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
+  alias NervesHubWeb.CoreComponents
   alias NimbleCSV.RFC4180, as: CSV
   alias Phoenix.Naming
 
@@ -19,7 +20,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   def mount(socket) do
     {:ok,
      socket
-     |> assign(:delta_target_firmware_id, nil)
      |> allow_upload(:device_csv,
        accept: ~w(.csv),
        max_entries: 1,
@@ -620,16 +620,23 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
             <div :if={@deployment_group.priority_queue_enabled} class="border-base-700 border-b"></div>
 
-            <div :if={is_nil(@deployment_group.connecting_code)} class="flex items-center gap-4">
+            <div class="flex items-center gap-4">
               <span class="text-base-500 text-sm">Code sent on device connection:</span>
-              <span class="text-base-300 text-sm">No code configured</span>
+              <span :if={not connecting_code?(@deployment_group)} class="text-base-300 text-sm">No code configured</span>
+              <.link
+                :if={connecting_code?(@deployment_group)}
+                phx-click={CoreComponents.show_modal("connecting-code")}
+                class="text-base-300 text-sm font-medium underline decoration-dashed hover:decoration-solid"
+              >
+                View code
+              </.link>
             </div>
-            <div :if={not is_nil(@deployment_group.connecting_code)} class="flex items-start gap-2">
-              <span class="text-base-500 text-sm">Code sent on device connection:</span>
-              <pre class="text-base-300 text-sm">
-    {@deployment_group.connecting_code}
-              </pre>
-            </div>
+            <CoreComponents.modal :if={connecting_code?(@deployment_group)} id="connecting-code">
+              <div class="p-4">
+                <h2 class="text-base-300 pb-5 text-lg font-semibold">Code sent on device connection</h2>
+                <pre class="bg-base-800/50 text-base-300 overflow-x-auto p-5 font-mono text-sm">{@deployment_group.connecting_code}</pre>
+              </div>
+            </CoreComponents.modal>
 
             <div :if={not is_nil(@deployment_group.notes) and @deployment_group.notes != ""} class="border-base-700 border-t pt-4">
               <div class="flex flex-col gap-1">
@@ -791,6 +798,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     """
   end
 
+  defp connecting_code?(%{connecting_code: connecting_code}) do
+    not is_nil(connecting_code) and connecting_code != ""
+  end
+
   defp deployment_group_percentage(0, 0), do: 0.0
 
   defp deployment_group_percentage(up_to_date_count, waiting_for_update_count) do
@@ -809,36 +820,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   defp assign_deltas_and_stats(%{assigns: %{deployment_group: deployment_group}} = socket) do
-    socket
-    |> subscribe_to_firmware_deltas(deployment_group.current_release.firmware.id)
-    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
-  end
-
-  # `update/2` runs again on every parent re-render, and the firmware we want
-  # delta updates for changes whenever a new release is activated. Track the
-  # firmware we're subscribed to so we only re-join when the target actually
-  # moves, and leave the previous one when it does — otherwise memberships
-  # accumulate for the lifetime of the LiveView. The dead render has nothing to
-  # push an update to, so it doesn't join at all.
-  defp subscribe_to_firmware_deltas(socket, firmware_id) do
-    previous_firmware_id = socket.assigns.delta_target_firmware_id
-
-    cond do
-      not connected?(socket) ->
-        socket
-
-      previous_firmware_id == firmware_id ->
-        socket
-
-      true ->
-        if previous_firmware_id do
-          :ok = Firmwares.PubSub.unsubscribe_delta_target(previous_firmware_id)
-        end
-
-        :ok = Firmwares.PubSub.subscribe_delta_target(firmware_id)
-
-        assign(socket, :delta_target_firmware_id, firmware_id)
-    end
+    # The LiveView joins the delta topics for every firmware this group's devices
+    # are headed for and passes the news down, so both tabs see it and neither
+    # can drop the other's membership.
+    assign(socket, :deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.current_release.firmware))
   end
 
   defp send_flash(socket, type, message) do

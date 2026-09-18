@@ -152,7 +152,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       # The canary's own slot is spent, but a step that counts its claims is not
       # charged for a device belonging to another.
       assert Workflows.available_slots(deployment_group, canary) == 1
-      refute Workflows.claimed_device_count(catch_all) == 1
+      refute Workflows.claimed_device_count(deployment_group, catch_all) == 1
     end
 
     test "never goes below zero", context do
@@ -183,7 +183,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       canary = step(release, 1)
 
       # All five are covered by the step, but only two are told to update.
-      assert Workflows.claimed_device_count(canary) == 5
+      assert Workflows.claimed_device_count(deployment_group, canary) == 5
       assert FirmwareUpdates.count_inflight_updates_for_workflow_step(canary) == 2
 
       # A second pass adds nothing while those two are still going.
@@ -306,7 +306,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert Workflows.claim_devices(deployment_group, canary) == 1
       assert Workflows.claim_devices(deployment_group, canary) == 0
-      assert Workflows.claimed_device_count(canary) == 1
+      assert Workflows.claimed_device_count(deployment_group, canary) == 1
     end
   end
 
@@ -423,7 +423,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       canary = step(release, 1)
 
       assert canary.status == :in_progress
-      assert Workflows.claimed_device_count(canary) == 1
+      assert Workflows.claimed_device_count(deployment_group, canary) == 1
       assert covered_device_ids(deployment_group, canary) == [healthy.id]
 
       # And so it fails the step for nothing: the step only ever claimed devices
@@ -445,7 +445,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       %{deployment_group: deployment_group, release: release} = release_with(context, @canary_step)
 
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
-      assert Workflows.claimed_device_count(step(release, 1)) == 0
+      assert Workflows.claimed_device_count(deployment_group, step(release, 1)) == 0
 
       # The box expires. Reloaded first, or the in-memory struct still shows no
       # box and Ecto writes nothing.
@@ -456,7 +456,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
 
-      assert Workflows.claimed_device_count(step(release, 1)) == 1
+      assert Workflows.claimed_device_count(deployment_group, step(release, 1)) == 1
     end
   end
 
@@ -538,7 +538,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       catch_all = step(release, 2)
       assert catch_all.status == :in_progress
-      assert Workflows.claimed_device_count(step(release, 1)) == 0
+      assert Workflows.claimed_device_count(deployment_group, step(release, 1)) == 0
       assert covered_device_ids(deployment_group, catch_all) == [canary_device.id]
 
       topic = "device:#{canary_device.id}"
@@ -627,7 +627,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       _ = WorkflowCoordinator.schedule_updates(deployment_group)
 
       canary = step(release, 1)
-      assert Workflows.claimed_device_count(canary) == 4
+      assert Workflows.claimed_device_count(deployment_group, canary) == 4
       assert Workflows.failure_limit(canary, 4) == 2
 
       [first, second | _] = devices
@@ -858,7 +858,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
       assert released.update_attempts == []
 
       # It still holds its devices, so the workflow carries on where it stopped.
-      assert Workflows.claimed_device_count(step(release, 1)) == 1
+      assert Workflows.claimed_device_count(deployment_group, step(release, 1)) == 1
     end
 
     test "a step that has not failed cannot be retried", context do
@@ -958,7 +958,7 @@ defmodule NervesHub.ManagedDeployments.WorkflowCoordinatorTest do
 
       assert_receive %Broadcast{topic: ^topic, event: "update"}, 2_000
       assert step(release, 1).status == :in_progress
-      assert Workflows.claimed_device_count(step(release, 1)) == 1
+      assert Workflows.claimed_device_count(deployment_group, step(release, 1)) == 1
     end
 
     test "uses the default coordinator when the release has no steps", %{deployment_group: deployment_group} do
