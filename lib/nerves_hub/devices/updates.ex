@@ -30,6 +30,7 @@ defmodule NervesHub.Devices.Updates do
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Workflows
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
 
   require Logger
@@ -637,6 +638,51 @@ defmodule NervesHub.Devices.Updates do
     description = "User #{user.name} disabled updates for device #{device.identifier}"
     params = %{update_mode: :off}
     Devices.update_device_with_audit(device, params, user, description)
+  end
+
+  @doc """
+  The product's devices whose firmware updates are failing, worst first.
+
+  A device qualifies on two counts: its updates are blocked right now, and it
+  has a run of failures behind it. The second is what makes this a list of
+  devices in trouble rather than a list of blocked devices — a device that
+  asked to be rescheduled is blocked too, and has failed at nothing.
+
+  "Worst" is the consecutive failure count, how many attempts in a row have
+  ended without the device taking its firmware since it last did, so the top of
+  the list is the devices stuck in the loop rather than the ones that happened
+  to fail once this afternoon. Ties break on the longest-running failure.
+
+  Reads PostgreSQL alone, so it answers in a deployment with no analytics, and
+  answers exactly: the count is a column maintained beside the ClickHouse
+  history rather than something summed out of it. See
+  `NervesHub.Devices.UpdateHistory`.
+  """
+  @spec failing_updates(Product.t(), non_neg_integer(), DateTime.t()) :: [Device.t()]
+  def failing_updates(%Product{} = product, limit \\ 10, now \\ DateTime.utc_now()) do
+    product
+    |> failing_updates_query(now)
+    |> order_by([d], desc: d.consecutive_failed_updates, asc_nulls_last: d.first_update_failure_at)
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
+  @doc """
+  How many of the product's devices are failing to take their firmware.
+  """
+  @spec failing_updates_count(Product.t(), DateTime.t()) :: non_neg_integer()
+  def failing_updates_count(%Product{} = product, now \\ DateTime.utc_now()) do
+    product
+    |> failing_updates_query(now)
+    |> Repo.aggregate(:count)
+  end
+
+  defp failing_updates_query(%Product{id: product_id}, now) do
+    Device
+    |> where([d], d.product_id == ^product_id)
+    |> where([d], not is_nil(d.updates_blocked_until) and d.updates_blocked_until > ^now)
+    |> where([d], d.consecutive_failed_updates > 0)
+    |> Repo.exclude_deleted()
   end
 
   def clear_penalty_box(%Device{} = device, user) do

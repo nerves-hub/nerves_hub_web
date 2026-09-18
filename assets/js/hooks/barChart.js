@@ -1,70 +1,12 @@
 import Chart from "chart.js/auto"
-import { format } from "date-fns"
-
-// First letter of each weekday, indexed by `Date#getDay()` (0 = Sunday).
-const WEEKDAY_INITIALS = ["S", "M", "T", "W", "T", "F", "S"]
-
-// Formats an hour-of-day (0-23) as a friendly label, e.g. 0 -> "12am",
-// 12 -> "midday", 15 -> "3pm".
-function formatHour(hour) {
-  if (hour === 0) return "12am"
-  if (hour === 12) return "midday"
-  return `${hour % 12}${hour < 12 ? "am" : "pm"}`
-}
-
-// x-axis tick label for the hourly (24 hour) chart: only label ticks every
-// 3 hours (12am, 3am, 6am, 9am, midday, 3pm, 6pm, 9pm), hiding any others.
-function hourTickLabel(date) {
-  const hour = date.getHours()
-  return hour % 3 === 0 ? formatHour(hour) : null
-}
-
-// x-axis tick label for the 4 week chart: the day-of-week initial, except
-// Mondays which also show the date (e.g. "1 Jun") on a second line below the
-// initial to anchor each week. Returning an array renders a multi-line label.
-function fourWeekTickLabel(date) {
-  const initial = WEEKDAY_INITIALS[date.getDay()]
-  return date.getDay() === 1 ? [initial, format(date, "d MMM")] : initial
-}
-
-// Returns the x-axis tick label function for the given period.
-function tickLabelFor(period) {
-  switch (period) {
-    case "twenty_four_hours":
-      return (_value, index, ticks) => hourTickLabel(new Date(ticks[index].value))
-    case "four_weeks":
-      return (_value, index, ticks) => fourWeekTickLabel(new Date(ticks[index].value))
-    // 14 days: a label on every (daily) tick, e.g. "Jun 12".
-    default:
-      return (_value, index, ticks) => format(new Date(ticks[index].value), "MMM d")
-  }
-}
-
-// Replaces the x-axis ticks with one at every 3rd hour of the clock (00:00,
-// 03:00, ... 21:00) within the scale's range. Stepping via `setHours` keeps the
-// ticks aligned to the wall clock across a daylight-saving change.
-function buildThreeHourlyTicks(scale) {
-  const cursor = new Date(scale.min)
-  cursor.setMinutes(0, 0, 0)
-  while (cursor.getHours() % 3 !== 0) {
-    cursor.setHours(cursor.getHours() + 1)
-  }
-
-  const ticks = []
-  while (cursor.getTime() <= scale.max) {
-    ticks.push({ value: cursor.getTime() })
-    cursor.setHours(cursor.getHours() + 3)
-  }
-
-  scale.ticks = ticks
-}
+import { MONO_FONT_FAMILY, timeAxis } from "../helpers/timeAxis.js"
 
 const valueLabels = {
   id: "valueLabels",
   afterDatasetsDraw(chart, _args, opts) {
     const { ctx } = chart
     const o = {
-      font: "11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+      font: `11px ${MONO_FONT_FAMILY}`,
       color: "#71717a",
       offset: 10,
       formatter: (v) => v,
@@ -190,35 +132,12 @@ export default {
           },
         },
         scales: {
-          x: {
-            grid: {
-              display: false,
-              color: null,
-            },
-            border: {
-              display: false,
-            },
-            type: "time",
-            time: {
-              unit: unit,
-            },
-            // For the hourly chart, force a tick at every 3rd hour (12am, 3am,
-            // ... 9pm) instead of relying on chart.js's width-based spacing.
-            afterBuildTicks: unit === "hour" ? buildThreeHourlyTicks : undefined,
-            ticks: {
-              source: "auto",
-              display: true,
-              autoSkip: false,
-              callback: tickLabelFor(period),
-              font: {
-                family:
-                  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                size: 11,
-              },
-            },
+          x: timeAxis({
+            unit: unit,
+            period: period,
             min: minDate,
             max: maxDate,
-          },
+          }),
           y: {
             grid: {
               display: false,

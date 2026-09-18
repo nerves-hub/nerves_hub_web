@@ -305,6 +305,15 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
   defp comparison_dynamic("updates", "=", "penalty-box"),
     do: dynamic([d], d.updates_blocked_until > fragment("now() at time zone 'utc'"))
 
+  # Narrower than "penalty-box": blocked *and* with a run of failures behind it.
+  # A device that asked to be rescheduled is blocked and has failed at nothing,
+  # so it is in the penalty box but is not failing to update. Kept in step with
+  # `NervesHub.Devices.Updates.failing_updates/3`, which the Insights panel
+  # counts with and which this is the devices-list view of.
+  defp comparison_dynamic("updates", "=", "failed-updates"),
+    do:
+      dynamic([d], d.updates_blocked_until > fragment("now() at time zone 'utc'") and d.consecutive_failed_updates > 0)
+
   defp comparison_dynamic("updates", "!=", "enabled"), do: dynamic([d], d.update_mode == :off)
   defp comparison_dynamic("updates", "!=", "disabled"), do: dynamic([d], d.update_mode != :off)
   defp comparison_dynamic("updates", "!=", "automatic"), do: dynamic([d], d.update_mode != :automatic)
@@ -314,6 +323,14 @@ defmodule NervesHub.Devices.AdvancedQuery.Compiler do
   # Devices with no penalty-box timeout (the common case) are "not penalty-box".
   defp comparison_dynamic("updates", "!=", "penalty-box"),
     do: dynamic([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until <= fragment("now() at time zone 'utc'"))
+
+  defp comparison_dynamic("updates", "!=", "failed-updates"),
+    do:
+      dynamic(
+        [d],
+        is_nil(d.updates_blocked_until) or d.updates_blocked_until <= fragment("now() at time zone 'utc'") or
+          d.consecutive_failed_updates == 0
+      )
 
   # A device is soft deleted when it has a `deleted_at` timestamp. Note that
   # `NervesHub.Filtering` drops the default "exclude deleted" filter whenever the

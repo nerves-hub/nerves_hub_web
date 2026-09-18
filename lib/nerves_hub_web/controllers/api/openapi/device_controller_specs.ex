@@ -86,7 +86,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         tags: %OpenApiSpex.Schema{type: :string, example: "prod,staging"},
         updates: %OpenApiSpex.Schema{
           type: :string,
-          enum: ["enabled", "disabled", "automatic", "device-managed", "penalty-box"]
+          enum: ["enabled", "disabled", "automatic", "device-managed", "penalty-box", "failed-updates"]
         }
       }
     }

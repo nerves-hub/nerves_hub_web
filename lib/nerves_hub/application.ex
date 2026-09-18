@@ -8,6 +8,7 @@ defmodule NervesHub.Application do
   alias NervesHub.Devices.DeviceHealthHistory
   alias NervesHub.Devices.DeviceMessage
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.DeviceUpdateHistory
   alias NervesHub.Devices.LogLine
   alias NervesHub.ErrorReports.ErrorReport
   alias NervesHub.ErrorReports.GroupBuffer
@@ -184,6 +185,7 @@ defmodule NervesHub.Application do
         Buffer.child_spec([schema: DeviceMetric] ++ opts),
         Buffer.child_spec([schema: DeviceAlarmHistory] ++ opts),
         Buffer.child_spec([schema: DeviceHealthHistory] ++ opts),
+        Buffer.child_spec([schema: DeviceUpdateHistory] ++ opts),
         # Writes PostgreSQL, not ClickHouse, and is here anyway: it is the other
         # half of the same write path, and the extension that feeds it is gated
         # on the same flag. Started without a ClickHouse to pair with, it would

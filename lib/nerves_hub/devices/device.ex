@@ -33,6 +33,9 @@ defmodule NervesHub.Devices.Device do
     :deleted_at,
     :update_attempts,
     :updates_blocked_until,
+    :consecutive_failed_updates,
+    :first_update_failure_at,
+    :last_update_failure_at,
     :connecting_code,
     :deployment_id,
     :current_device_firmware_id,
@@ -104,6 +107,14 @@ defmodule NervesHub.Devices.Device do
     field(:updates_enabled, :boolean, default: true)
     field(:update_attempts, {:array, :utc_datetime}, default: [])
     field(:updates_blocked_until, :utc_datetime)
+
+    # Failed update attempts in a row since the device last took firmware
+    # successfully, and when that run started and last moved. Maintained by
+    # `NervesHub.Devices.UpdateHistory.record/3` alongside the ClickHouse row,
+    # and the only half of that pair a deployment without analytics still has.
+    field(:consecutive_failed_updates, :integer, default: 0)
+    field(:first_update_failure_at, :utc_datetime)
+    field(:last_update_failure_at, :utc_datetime)
 
     # To be removed in a migration in the next release
     # field(:priority_updates, :boolean, default: false)

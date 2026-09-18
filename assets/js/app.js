@@ -29,6 +29,7 @@ import SupportScriptOutput from "./hooks/supportScriptOutput.js"
 import TagAutocomplete from "./hooks/tagAutocomplete.js"
 import ThemeSwitcher from "./hooks/themeSwitcher.js"
 import ToolTip from "./hooks/toolTip.js"
+import UpdateOutcomesChart from "./hooks/updateOutcomesChart.js"
 import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
 import WorkflowDiagramFit from "./hooks/workflowDiagramFit.js"
 import WorldMap from "./hooks/worldMap.js"
@@ -84,6 +85,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     TagAutocomplete,
     ThemeSwitcher,
     ToolTip,
+    UpdateOutcomesChart,
     UpdatingTimeAgo,
     WorkflowDiagramFit,
     WorldMap,

@@ -206,7 +206,7 @@ defmodule NervesHub.Devices.DeviceFiltering do
   end
 
   def filter(query, _filters, :updates, value)
-      when value in ["enabled", "penalty-box", "disabled", "automatic", "device-managed"] do
+      when value in ["enabled", "penalty-box", "failed-updates", "disabled", "automatic", "device-managed"] do
     advanced(query, "updates", "=", value)
   end
 

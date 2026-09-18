@@ -67,8 +67,11 @@ when adding or removing one.
 
 - `accounts.ex` / `accounts/` — users, orgs, org-users, tokens, scopes.
 - `devices.ex` / `devices/` — device lifecycle, connections, health status,
-  metrics, and network identities (a device's identity on networks NervesHub
-  doesn't run, such as iroh or NetBird).
+  metrics, firmware update history (`update_history.ex` — how each update
+  attempt ended, split across both stores: the device's consecutive failure
+  count in Postgres, the history itself in ClickHouse), and network identities
+  (a device's identity on networks NervesHub doesn't run, such as iroh or
+  NetBird).
 - `managed_deployments.ex` / `managed_deployments/` — deployment groups and the
   `Distributed.Orchestrator` (one per deployment).
 - `firmwares.ex` / `firmwares/` and `archives.ex` / `archives/` — firmware and
