@@ -379,7 +379,7 @@
 
             <.link
               :if={Enum.any?(@failing_devices)}
-              navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?updates=penalty-box"}
+              navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/devices?updates=failed-updates"}
               class="text-content-muted flex items-center gap-1.5 text-xs"
             >
               All <span class="lucide-chevron-right--light size-4"></span>

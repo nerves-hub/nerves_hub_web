@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.Health
+  alias NervesHub.Devices.Updates
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
@@ -598,6 +599,65 @@ defmodule NervesHub.Devices.DeviceFilteringTest do
       result = DeviceFiltering.filter(query, %{}, :updates, "penalty-box") |> identifiers()
       assert penalized.identifier in result
       refute normal.identifier in result
+    end
+  end
+
+  describe "filter/4 :updates failed-updates" do
+    # Blocked with a run of failures behind it, which is what the Insights panel
+    # lists — narrower than the penalty box, which also holds devices that asked
+    # to be rescheduled and have failed at nothing.
+    setup %{org: org, product: product, firmware: firmware} do
+      blocked = fn device, failures ->
+        Repo.update_all(
+          where(Device, id: ^device.id),
+          set: [
+            updates_blocked_until: DateTime.add(DateTime.utc_now(), 1, :hour),
+            consecutive_failed_updates: failures
+          ]
+        )
+
+        device
+      end
+
+      failing = blocked.(Fixtures.device_fixture(org, product, firmware), 4)
+      rescheduled = blocked.(Fixtures.device_fixture(org, product, firmware), 0)
+
+      lapsed = Fixtures.device_fixture(org, product, firmware)
+
+      Repo.update_all(
+        where(Device, id: ^lapsed.id),
+        set: [
+          updates_blocked_until: DateTime.add(DateTime.utc_now(), -1, :hour),
+          consecutive_failed_updates: 9
+        ]
+      )
+
+      %{failing: failing, rescheduled: rescheduled, lapsed: lapsed}
+    end
+
+    test "matches only devices blocked with failures behind them", context do
+      %{product: product, failing: failing, rescheduled: rescheduled, lapsed: lapsed} = context
+
+      result = DeviceFiltering.filter(base_query(product), %{}, :updates, "failed-updates") |> identifiers()
+
+      assert failing.identifier in result
+      # blocked, but has failed at nothing
+      refute rescheduled.identifier in result
+      # has failures, but its block has lifted
+      refute lapsed.identifier in result
+    end
+
+    test "agrees with the list the Insights panel counts", context do
+      %{product: product, failing: failing} = context
+
+      filtered = DeviceFiltering.filter(base_query(product), %{}, :updates, "failed-updates") |> identifiers()
+      panel = Enum.sort(Enum.map(Updates.failing_updates(product, 100), & &1.identifier))
+
+      # The panel counts one population and this filter shows another; they are
+      # two expressions of the same predicate, so a change to either that does
+      # not change the other is a bug the "All →" link would surface.
+      assert filtered == panel
+      assert failing.identifier in panel
     end
   end
 

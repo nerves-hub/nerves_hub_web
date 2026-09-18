@@ -304,6 +304,17 @@ defmodule NervesHub.Devices.AdvancedQuery.CompilerTest do
       assert run(product, ~s|updates != "penalty-box"|) == ["connected", "tagged", "untagged"]
     end
 
+    test "updates failed-updates is narrower than the penalty box", %{product: product, never_connected: blocked} do
+      # Blocked, but nothing has failed yet — in the penalty box, not failing.
+      assert run(product, ~s|updates = "penalty-box"|) == ["never_connected"]
+      assert run(product, ~s|updates = "failed-updates"|) == []
+
+      {1, _} = Repo.update_all(where(Device, id: ^blocked.id), set: [consecutive_failed_updates: 3])
+
+      assert run(product, ~s|updates = "failed-updates"|) == ["never_connected"]
+      assert run(product, ~s|updates != "failed-updates"|) == ["connected", "tagged", "untagged"]
+    end
+
     test "alarm_status with/without", %{product: product} do
       assert run(product, ~s|alarm_status = "with"|) == ["tagged"]
       # empty alarms ("connected") and no health record ("never_connected"/"untagged") count as without

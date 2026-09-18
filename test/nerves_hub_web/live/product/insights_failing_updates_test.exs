@@ -127,7 +127,7 @@ defmodule NervesHubWeb.Live.Product.InsightsFailingUpdatesTest do
       assert :sys.get_state(view.pid).socket.assigns.failing_count == 0
     end
 
-    test "links to the penalty box filter on the devices list", %{
+    test "links to the devices list filtered to the same population it lists", %{
       conn: conn,
       org: org,
       product: product,
@@ -137,7 +137,9 @@ defmodule NervesHubWeb.Live.Product.InsightsFailingUpdatesTest do
 
       {:ok, _view, html} = live(conn, insights_path(org, product))
 
-      assert html =~ "devices?updates=penalty-box"
+      # Not `penalty-box`: that is a superset, so the link would have shown a
+      # different list from the count beside it.
+      assert html =~ "devices?updates=failed-updates"
     end
   end
 end
