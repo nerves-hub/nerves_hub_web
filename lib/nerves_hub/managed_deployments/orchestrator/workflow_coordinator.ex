@@ -28,6 +28,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices.Updates
+  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentWorkflowStep
   alias NervesHub.ManagedDeployments.Orchestrator.Coordinator
   alias NervesHub.ManagedDeployments.Workflows
@@ -48,8 +49,14 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
       false
     else
       case active_step(steps) do
-        nil -> false
-        step -> run_step(deployment_group, step)
+        nil ->
+          false
+
+        step ->
+          # One answer for the whole pass; a step asks for it several times over
+          deployment_group
+          |> ManagedDeployments.load_earlier_required_release()
+          |> run_step(step)
       end
     end
   end
@@ -92,7 +99,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator.WorkflowCoordinator do
         deployment_id: deployment_group.id,
         step_number: step.number,
         failed_devices: failed_count,
-        tolerance: Workflows.failure_limit(step, Workflows.claimed_device_count(step))
+        tolerance: Workflows.failure_limit(step, Workflows.claimed_device_count(deployment_group, step))
       )
 
       announce_halt(deployment_group, step, {:failed, failed_count})

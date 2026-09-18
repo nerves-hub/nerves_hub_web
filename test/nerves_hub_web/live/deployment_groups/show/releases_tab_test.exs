@@ -2,10 +2,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
   use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
 
+  import Ecto.Query, only: [where: 3]
+
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.AuditLogs
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.Repo
 
   setup context do
     %{
@@ -175,6 +179,248 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show.ReleasesTabTest do
       text:
         "Firmware list has been updated. Firmware #{firmware_2.version} (#{String.slice(firmware_2.uuid, 0..7)}) has been deleted by another user."
     )
+  end
+
+  test "won't create a release with the current release's firmware and archive", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> within("#release-form", fn session ->
+      session
+      |> select("Firmware version", option: "#{firmware.version}", exact_option: false)
+      |> assert_has("p", text: "The current release already has this firmware and archive")
+      |> submit()
+    end)
+    |> assert_has("div", text: "An error occurred while updating the release settings")
+
+    assert [_first_release] = ManagedDeployments.list_deployment_releases(deployment_group)
+  end
+
+  test "creates a required release", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+    new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> select("Firmware version", option: "#{new_firmware.version}", exact_option: false)
+    |> check("Required release")
+    |> submit()
+    |> assert_has("div", text: "Release settings updated")
+
+    [release | _] = ManagedDeployments.list_deployment_releases(deployment_group)
+    assert release.firmware_id == new_firmware.id
+    assert release.required
+  end
+
+  test "marks and unmarks an existing release as required from its edit modal", %{
+    conn: conn,
+    deployment_group: deployment_group
+  } do
+    [release] = ManagedDeployments.list_deployment_releases(deployment_group)
+
+    conn
+    |> refute_has("#release-#{release.id}-required")
+    |> click_button("#release-#{release.id}-edit", "Edit")
+    |> assert_has("#edit-release-content", text: "This release isn't required.")
+    |> click_button("#edit-release-toggle-required", "Mark required")
+    |> assert_has("p", text: "Release #{release.number} is now required")
+    |> assert_has("#release-#{release.id}-required", text: "Required")
+    |> assert_has("#edit-release-content", text: "This release is required.")
+    |> click_button("#edit-release-toggle-required", "Unmark required")
+    |> assert_has("p", text: "Release #{release.number} is no longer required")
+    |> refute_has("#release-#{release.id}-required")
+
+    refute Repo.reload(release).required
+  end
+
+  test "creates a release with connecting code", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(firmware, %{user: user})
+
+    new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> within("#release-form", fn session ->
+      session
+      |> select("Firmware version", option: "#{new_firmware.version}", exact_option: false)
+      |> fill_in("Connecting code", with: ~s/IO.puts("hello")/)
+      |> select("Run order", option: "Before the deployment group's code")
+      |> submit()
+    end)
+    |> assert_has("div", text: "Release settings updated")
+
+    [release | _] = ManagedDeployments.list_deployment_releases(deployment_group)
+    assert release.firmware_id == new_firmware.id
+    assert release.connecting_code == ~s/IO.puts("hello")/
+    assert release.connecting_code_mode == :first
+  end
+
+  test "edits a release's connecting code from the history", %{
+    conn: conn,
+    deployment_group: deployment_group
+  } do
+    [release] = ManagedDeployments.list_deployment_releases(deployment_group)
+
+    conn
+    |> refute_has("#release-#{release.id}-connecting-code")
+    |> click_button("#release-#{release.id}-edit", "Edit")
+    |> refute_has("#edit-release-remove-connecting-code")
+    |> within("#connecting-code-form", fn session ->
+      session
+      |> fill_in("Connecting code", with: "dbg(:hello)")
+      |> select("Run order", option: "Override the deployment group's code")
+      |> submit()
+    end)
+    |> assert_has("p", text: "Connecting code for release #{release.number} saved")
+    |> assert_has("#release-#{release.id}-connecting-code", text: "Overrides the group's code")
+
+    release = Repo.reload(release)
+    assert release.connecting_code == "dbg(:hello)"
+    assert release.connecting_code_mode == :override
+  end
+
+  test "removes a release's connecting code from its edit modal", %{
+    conn: conn,
+    org: org,
+    product: product,
+    user: user,
+    deployment_group: deployment_group
+  } do
+    [release] = ManagedDeployments.list_deployment_releases(deployment_group)
+
+    {:ok, release} =
+      ManagedDeployments.update_deployment_release_connecting_code(release, %{"connecting_code" => "dbg(:hello)"}, user)
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> assert_has("#release-#{release.id}-connecting-code", text: "Runs after the group's code")
+    |> click_button("#release-#{release.id}-edit", "Edit")
+    |> click_button("#edit-release-remove-connecting-code", "Remove connecting code")
+    |> assert_has("p", text: "Connecting code removed from release #{release.number}")
+    |> refute_has("#release-#{release.id}-connecting-code")
+
+    assert is_nil(Repo.reload(release).connecting_code)
+  end
+
+  test "doesn't offer release actions to a user who can't update the group", %{
+    conn: conn,
+    org: org,
+    product: product,
+    user: user,
+    deployment_group: deployment_group
+  } do
+    [release] = ManagedDeployments.list_deployment_releases(deployment_group)
+
+    {1, _} =
+      OrgUser
+      |> where([ou], ou.org_id == ^org.id and ou.user_id == ^user.id)
+      |> Repo.update_all(set: [role: :view])
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> assert_has("div", text: "Release History")
+    |> refute_has("#release-#{release.id}-edit")
+  end
+
+  test "shows a release's deltas, and retries a failed one", %{
+    conn: conn,
+    org: org,
+    org_key: org_key,
+    product: product,
+    user: user,
+    firmware: firmware,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    next_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    {:ok, {release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{})
+
+    # A device on the older firmware is what makes the release need a delta
+    _ = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+    _ = Fixtures.firmware_delta_fixture(firmware, next_firmware, %{status: :failed})
+
+    conn
+    |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+    |> assert_has("#release-#{release.id}-deltas", text: "1")
+    |> assert_has("div", text: "(1 failed)")
+    |> click_link("#release-#{release.id}-deltas", "1")
+    |> assert_has("td", text: firmware.version)
+    |> assert_has("div", text: "Failed")
+    |> click_link("Retry")
+    |> assert_has("p", text: "Building the delta from #{firmware.version} again")
+    |> assert_has("div", text: "Processing")
+
+    assert [%{status: :processing}] = ManagedDeployments.release_deltas(Repo.reload(release))
+  end
+
+  test "counts a second failure that leaves the release's status where it was", %{
+    conn: conn,
+    org: org,
+    org_key: org_key,
+    product: product,
+    user: user,
+    firmware: firmware,
+    deployment_group: deployment_group,
+    tmp_dir: tmp_dir
+  } do
+    other_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.5.0", dir: tmp_dir})
+    next_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0", dir: tmp_dir})
+
+    {:ok, {release, deployment_group}} =
+      ManagedDeployments.create_deployment_release(deployment_group, next_firmware, nil, user, %{})
+
+    # Two devices on different firmware, so the release needs two deltas
+    _ = Fixtures.device_fixture(org, product, firmware, %{deployment_id: deployment_group.id})
+    _ = Fixtures.device_fixture(org, product, other_firmware, %{deployment_id: deployment_group.id})
+
+    _ = Fixtures.firmware_delta_fixture(firmware, next_firmware, %{status: :failed})
+    second = Fixtures.firmware_delta_fixture(other_firmware, next_firmware, %{status: :completed})
+
+    {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+
+    session =
+      conn
+      |> visit(~p"/org/#{org}/#{product}/deployment_groups/#{deployment_group}/releases")
+      |> assert_has("#release-#{release.id}-deltas", text: "2")
+      |> assert_has("div", text: "(1 failed)")
+
+    # The release is already `:failed`, so this leaves its status alone and
+    # `release/delta_status` stays quiet -- the count still has to move
+    {:ok, second} = second |> Ecto.Changeset.change(status: :failed) |> Repo.update()
+    {:ok, _} = ManagedDeployments.recalculate_release_delta_statuses(deployment_group)
+    :ok = Firmwares.PubSub.broadcast_delta_status(second)
+
+    # The delta topic delivers asynchronously, so give the LiveView a moment to
+    # take the message rather than racing it under a loaded suite
+    assert_has(session, "div", text: "(2 failed)", timeout: 1000)
   end
 
   test "shows created releases", %{conn: conn} do

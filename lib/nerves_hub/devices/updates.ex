@@ -126,6 +126,7 @@ defmodule NervesHub.Devices.Updates do
     )
     |> ManagedDeployments.join_current_release()
     |> join_firmware()
+    |> ManagedDeployments.join_target_release(deployment_group)
     |> join_firmware_deltas()
     |> where([device: d], d.deployment_id == ^deployment_group.id)
     |> where([device: d], d.update_mode == :automatic)
@@ -133,7 +134,9 @@ defmodule NervesHub.Devices.Updates do
     |> where([device: d], d.firmware_validation_status in [:validated, :unknown])
     |> where([device: d], coalesce(d.updates_blocked_until, "1970-01-01 00:00:00") |> type(:naive_datetime) < ^now)
     |> where([deployment_group: dg], dg.is_active == true)
-    |> where([deployment_group: dg], dg.status == :ready)
+    # A release whose deltas are still being built, or have failed, holds back the
+    # devices headed for it — and only those.
+    |> where([target_release: tr], tr.delta_status == :ready)
     # this is a short circuit to avoid a race condition where a new deployment release is created by
     # the orchestrator is about to run this query before the orchestrator has refreshed its information
     |> where(
@@ -141,6 +144,9 @@ defmodule NervesHub.Devices.Updates do
       dg.current_deployment_release_id == ^deployment_group.current_deployment_release_id
     )
     |> where([latest_connection: lc], lc.status == :connected)
+    # A device not on the current release always has a release to take, whichever
+    # one `:target_release` says it is, so this can compare against the current
+    # release.
     |> where([firmware: f, current_release: cr], is_nil(f.id) or f.id != cr.firmware_id)
     |> where([inflight_update: ifu], is_nil(ifu))
     # Only include devices where: delta is completed OR no delta row exists
@@ -167,11 +173,16 @@ defmodule NervesHub.Devices.Updates do
     )
   end
 
+  # A step ahead of the catch_all leaves a device with a required release to take
+  # first to the catch_all, even one it claimed before that release was marked
+  # required. See `NervesHub.ManagedDeployments.Workflows`.
   defp maybe_limit_to_workflow_step(query, %DeploymentWorkflowStep{id: step_id}) do
-    join(query, :inner, [device: d], sd in "deployment_workflow_steps_devices",
+    query
+    |> join(:inner, [device: d], sd in "deployment_workflow_steps_devices",
       on: sd.device_id == d.id and sd.deployment_workflow_step_id == ^step_id,
       as: :workflow_step_device
     )
+    |> where([deployment_group: dg, target_release: tr], tr.id == dg.current_deployment_release_id)
   end
 
   defp join_firmware(query) do
@@ -182,8 +193,8 @@ defmodule NervesHub.Devices.Updates do
   end
 
   defp join_firmware_deltas(query) do
-    join(query, :left, [firmware: f, current_release: cr], fd in FirmwareDelta,
-      on: fd.source_id == f.id and fd.target_id == cr.firmware_id,
+    join(query, :left, [firmware: f, target_release: tr], fd in FirmwareDelta,
+      on: fd.source_id == f.id and fd.target_id == tr.firmware_id,
       as: :firmware_delta
     )
   end
@@ -234,6 +245,11 @@ defmodule NervesHub.Devices.Updates do
 
   @doc """
   Resolve an update for the device's deployment
+
+  The firmware offered is the release the device is headed for next, which is
+  the current release unless a required release comes first (see
+  `NervesHub.ManagedDeployments.join_target_release/1`). Pass `:target_release`
+  in `opts` when it has already been looked up.
   """
   @spec resolve_update(Device.t()) :: UpdatePayload.t()
   def resolve_update(device, deployment_group \\ nil, opts \\ [])
@@ -264,9 +280,11 @@ defmodule NervesHub.Devices.Updates do
   def resolve_update(device, deployment_group, opts) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
-        case Firmwares.get_delta_or_firmware(device, deployment_group) do
+        target_release = opts[:target_release] || ManagedDeployments.target_release(deployment_group, device)
+
+        case Firmwares.get_delta_or_firmware(device, deployment_group, target_release.firmware) do
           {:ok, firmware_or_delta} ->
-            {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.current_release.firmware)
+            {:ok, meta} = Firmwares.metadata_from_firmware(target_release.firmware)
 
             {:ok, url} = Firmwares.get_firmware_url(firmware_or_delta)
 
@@ -324,7 +342,8 @@ defmodule NervesHub.Devices.Updates do
 
     if deployment_group.is_active and not device_matches_deployment_group?(device, deployment_group) and
          not updates_blocked?(device, now) do
-      {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.current_release.firmware)
+      target_release = ManagedDeployments.target_release(deployment_group, device)
+      {:ok, meta} = Firmwares.metadata_from_firmware(target_release.firmware)
       %{available?: true, firmware_meta: meta}
     else
       %{available?: false, firmware_meta: nil}
@@ -418,11 +437,14 @@ defmodule NervesHub.Devices.Updates do
       |> DateTime.truncate(:second)
       |> DateTime.add(deployment_group.penalty_timeout_minutes * 60, :second)
 
-    :ok = DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device)
+    # The firmware the device kept failing to take, which a required release can
+    # make something other than the current release's.
+    target_release = ManagedDeployments.target_release(deployment_group, device)
+
+    :ok = DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device, target_release.firmware)
     _ = FirmwareUpdates.clear_inflight_update(device)
 
-    device =
-      Repo.preload(device, [:org, :product, :current_device_firmware, deployment_group: [current_release: :firmware]])
+    device = Repo.preload(device, [:org, :product, :current_device_firmware])
 
     Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}", %{
       identifier: device.identifier,
@@ -430,7 +452,7 @@ defmodule NervesHub.Devices.Updates do
       product: device.product.name,
       platform: deployment_group.platform,
       current_firmware_version: device.current_device_firmware.firmware_metadata.version,
-      upgrading_firmware_version: device.deployment_group.current_release.firmware.version,
+      upgrading_firmware_version: target_release.firmware.version,
       reason: reason
     })
 
@@ -629,7 +651,9 @@ defmodule NervesHub.Devices.Updates do
       |> DateTime.truncate(:second)
       |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
 
-    DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device)
+    target_release = ManagedDeployments.target_release(deployment, device)
+
+    DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device, target_release.firmware)
 
     Devices.update_device(device, %{updates_blocked_until: blocked_until})
   end

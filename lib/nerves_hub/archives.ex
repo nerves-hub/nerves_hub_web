@@ -6,6 +6,7 @@ defmodule NervesHub.Archives do
   import Ecto.Query
 
   alias NervesHub.Archives.Archive
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Fwup
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentRelease
@@ -78,14 +79,28 @@ defmodule NervesHub.Archives do
     |> Repo.one!()
   end
 
-  @spec archive_for_deployment_group(integer()) :: Archive.t() | nil
-  def archive_for_deployment_group(nil), do: nil
+  @doc """
+  The archive a device should have from its deployment group, if any.
 
-  def archive_for_deployment_group(deployment_id) do
+  An archive belongs to the release it was added to, so only a device already
+  running the current release's firmware is sent one. A device working its way
+  through a required release gets it on the connection after it lands on the
+  current release.
+  """
+  @spec archive_for_deployment_group(integer() | nil, String.t() | nil) :: Archive.t() | nil
+  def archive_for_deployment_group(deployment_id, firmware_uuid)
+
+  def archive_for_deployment_group(nil, _firmware_uuid), do: nil
+
+  def archive_for_deployment_group(_deployment_id, nil), do: nil
+
+  def archive_for_deployment_group(deployment_id, firmware_uuid) do
     Archive
     |> join(:inner, [a], dr in DeploymentRelease, on: dr.archive_id == a.id)
     |> join(:inner, [a, dr], dg in DeploymentGroup, on: dr.id == dg.current_deployment_release_id)
-    |> where([a, d, dg], dg.id == ^deployment_id)
+    |> join(:inner, [a, dr], f in Firmware, on: f.id == dr.firmware_id)
+    |> where([a, _dr, dg], dg.id == ^deployment_id)
+    |> where([a, _dr, _dg, f], f.uuid == ^firmware_uuid)
     |> Repo.one()
   end
 

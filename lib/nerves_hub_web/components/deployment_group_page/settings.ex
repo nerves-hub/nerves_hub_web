@@ -318,6 +318,9 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                   <p>
                     This will run before device specific first connect code.
                   </p>
+                  <p>
+                    A release can add code that runs before or after this, or instead of it, for the devices running that release.
+                  </p>
                 </:rich_hint>
               </.input>
             </div>
