@@ -208,14 +208,14 @@ defmodule NervesHubWeb.Live.Product.Settings do
           put_flash(
             socket,
             :info,
-            "The #{extension} extension was #{(value == "on" && "enabled") || "disabled"} successfully."
+            "The #{Extensions.display_name(extension)} extension was #{(value == "on" && "enabled") || "disabled"} successfully."
           )
 
         {:error, _changeset} ->
           socket
           |> put_flash(
             :error,
-            "Failed to update the #{extension} extension. Please contact support if this problem persists."
+            "Failed to update the #{Extensions.display_name(extension)} extension. Please contact support if this problem persists."
           )
       end
 

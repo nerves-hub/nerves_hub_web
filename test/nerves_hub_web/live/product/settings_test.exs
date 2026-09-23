@@ -220,6 +220,16 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
   end
 
   describe "extensions" do
+    test "lists extensions by display name", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> assert_has("div", text: "Local Shell")
+      |> assert_has("div", text: "Network Identity")
+      |> refute_has("div", text: "Local_shell")
+    end
+
     test "enables an extension", %{conn: conn, org: org, user: user} do
       product = Fixtures.product_fixture(user, org)
 
@@ -228,7 +238,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       |> unwrap(fn view ->
         render_click(view, "update-extension", %{"extension" => "health", "value" => "on"})
       end)
-      |> assert_has("div", text: "The health extension was enabled successfully.")
+      |> assert_has("div", text: "The Health extension was enabled successfully.")
     end
 
     test "disables an extension", %{conn: conn, org: org, user: user} do
@@ -239,7 +249,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       |> unwrap(fn view ->
         render_click(view, "update-extension", %{"extension" => "health", "value" => "off"})
       end)
-      |> assert_has("div", text: "The health extension was disabled successfully.")
+      |> assert_has("div", text: "The Health extension was disabled successfully.")
     end
 
     test "shows error when extension update fails", %{conn: conn, org: org, user: user} do
@@ -256,7 +266,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
         render_click(view, "update-extension", %{"extension" => "health", "value" => "on"})
       end)
       |> assert_has("div",
-        text: "Failed to update the health extension. Please contact support if this problem persists."
+        text: "Failed to update the Health extension. Please contact support if this problem persists."
       )
     end
   end
