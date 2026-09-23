@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.Updates
+  alias NervesHub.Extensions
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Products
@@ -1314,7 +1315,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         <div :if={@extension_overrides != []} class="flex min-h-7 items-center gap-4 px-4">
           <span class="text-base-500 text-sm">Disabled extensions:</span>
           <span class="flex gap-1">
-            <span :for={extension <- @extension_overrides} class="bg-base-800 border-base-800 text-alert rounded border px-2 py-1 text-sm" class="">{extension}</span>
+            <span :for={extension <- @extension_overrides} class="bg-base-800 border-base-800 text-alert rounded border px-2 py-1 text-sm">{Extensions.display_name(extension)}</span>
           </span>
         </div>
       </div>
