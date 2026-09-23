@@ -56,6 +56,20 @@ defmodule NervesHub.ExtensionsTest do
     end
   end
 
+  describe "display_name/1" do
+    test "turns a key into words a person can read" do
+      assert Extensions.display_name(:health) == "Health"
+      assert Extensions.display_name(:local_shell) == "Local Shell"
+      assert Extensions.display_name("network_identity") == "Network Identity"
+    end
+
+    test "has a name for every extension" do
+      for key <- Extensions.list() do
+        refute Extensions.display_name(key) =~ "_"
+      end
+    end
+  end
+
   describe "module/2" do
     test "serves the version the device declared" do
       assert Extensions.module(:logging, Version.parse!("0.0.1")) == Logging

@@ -90,6 +90,22 @@ defmodule NervesHub.Extensions do
   def list(), do: @supported_extensions
 
   @doc """
+  The name to show a person for an extension key, e.g. `"Local Shell"` for
+  `:local_shell`.
+
+  Takes the key as an atom or a string, since the dashboard handles both: atoms
+  from `list/0`, strings from LiveView events.
+  """
+  @spec display_name(extension() | String.t()) :: String.t()
+  def display_name(key) do
+    key
+    |> to_string()
+    |> Phoenix.Naming.humanize()
+    |> String.split()
+    |> Enum.map_join(" ", &String.capitalize/1)
+  end
+
+  @doc """
   Every version of `key` this platform implements, newest first.
   """
   @spec versions(extension()) :: [String.t()]
