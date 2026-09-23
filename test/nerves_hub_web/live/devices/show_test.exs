@@ -709,6 +709,43 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "No Alarms Received")
     end
 
+    test "alarms appear and clear while the page is open", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+        |> assert_has("div", text: "No Alarms Received")
+
+      :ok = Devices.Alarms.raise_alarm(to_device_info(device), "SomeAlarm", "Some description")
+
+      session = assert_has(session, "code", text: "SomeAlarm", timeout: 1000)
+
+      :ok = Devices.Alarms.clear_alarm(to_device_info(device), "SomeAlarm")
+
+      assert_has(session, "div", text: "No Alarms Received", timeout: 1000)
+    end
+
+    test "alarms show when only the alarms extension is on", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _} = Products.disable_extension_setting(product, "health")
+      {:ok, _} = Products.enable_extension_setting(product, "alarms")
+
+      Fixtures.device_alarms_fixture(device, %{"SomeAlarm" => "Some description"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Alarms")
+      |> assert_has("code", text: "SomeAlarm")
+    end
+
     test "full set of metrics", %{
       conn: conn,
       org: org,

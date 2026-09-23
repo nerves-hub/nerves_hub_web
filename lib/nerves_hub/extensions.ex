@@ -17,6 +17,7 @@ defmodule NervesHub.Extensions do
 
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceMessages
+  alias NervesHub.Extensions.Alarms
   alias NervesHub.Extensions.ErrorReports
   alias NervesHub.Extensions.Geo
   alias NervesHub.Extensions.Health
@@ -69,6 +70,7 @@ defmodule NervesHub.Extensions do
   @implementations [
     health: [{"0.0.1", "~> 0.0.1", Health}],
     metrics: [{"0.1.0", "~> 0.1.0", Metrics}],
+    alarms: [{"0.1.0", "~> 0.1.0", Alarms}],
     geo: [{"0.0.1", "~> 0.0.1", Geo}],
     local_shell: [{"0.0.1", "~> 0.0.1", LocalShell}],
     logging: [
@@ -81,7 +83,7 @@ defmodule NervesHub.Extensions do
 
   @supported_extensions Keyword.keys(@implementations)
   @type extension() ::
-          :health | :metrics | :geo | :local_shell | :logging | :network_identity | :error_reports
+          :health | :metrics | :alarms | :geo | :local_shell | :logging | :network_identity | :error_reports
 
   @doc """
   Get list of supported extensions as atoms with descriptive text.
@@ -140,13 +142,15 @@ defmodule NervesHub.Extensions do
   end
 
   @spec module(extension()) ::
-          NetworkIdentity
+          Alarms
+          | NetworkIdentity
           | ErrorReports
           | Geo
           | Health
           | LocalShell
           | Logging
           | Metrics
+  def module(:alarms), do: Alarms
   def module(:error_reports), do: ErrorReports
   def module(:geo), do: Geo
   def module(:health), do: Health

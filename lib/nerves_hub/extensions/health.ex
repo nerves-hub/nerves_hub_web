@@ -91,7 +91,7 @@ defmodule NervesHub.Extensions.Health do
     # out which of those are new and which have cleared. Server time rather
     # than anything the device sends: a clock behind NTP would date an alarm to
     # 1970, and when the platform heard about it is the honest answer anyway.
-    :ok = Alarms.sync(device_info, device_report["alarms"] || %{}, now)
+    :ok = sync_alarms(device_info, device_report, now)
 
     # Metadata rides the connection, not the health row: it describes the
     # device as this connection found it, and a reconnect resets it and is
@@ -159,6 +159,14 @@ defmodule NervesHub.Extensions.Health do
   end
 
   defp device_id(state), do: state.device_info.device_id
+
+  # A report with no `alarms` key is not saying anything about alarms, the same
+  # way one with no metadata leaves the connection alone. That is what lets a
+  # device on `NervesHub.Extensions.Alarms` leave them out of its health reports
+  # without every report resolving what the alarms extension raised. An empty
+  # map is still "none", and still resolves everything.
+  defp sync_alarms(device_info, %{"alarms" => alarms}, now), do: Alarms.sync(device_info, alarms || %{}, now)
+  defp sync_alarms(_device_info, _device_report, _now), do: :ok
 
   # Merged rather than replaced, so a report that carries only part of what the
   # device knows does not blank the rest. A report with no metadata at all

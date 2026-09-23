@@ -72,6 +72,12 @@ defmodule NervesHub.Devices.AlarmsTest do
       assert [%{alarm: "Real"}] = stored(device)
     end
 
+    test "drops a name too long for the column, and keeps the rest", %{device: device, info: info} do
+      :ok = Alarms.sync(info, %{String.duplicate("a", 256) => "too long", "Real" => "kept"})
+
+      assert [%{alarm: "Real"}] = stored(device)
+    end
+
     test "coerces a non-string description", %{device: device, info: info} do
       :ok = Alarms.sync(info, %{"HighTemp" => %{"celsius" => 91}})
 
@@ -96,6 +102,56 @@ defmodule NervesHub.Devices.AlarmsTest do
 
       assert [%{alarm: "HighTemp"}] = stored(%{id: info.device_id})
       assert stored(other) == []
+    end
+  end
+
+  describe "raise_alarm/4" do
+    test "raises one alarm and leaves the others", %{device: device, info: info} do
+      :ok = Alarms.sync(info, %{"LowDisk" => "nearly full"})
+      :ok = Alarms.raise_alarm(info, "HighTemp", "too hot")
+
+      assert [%{alarm: "HighTemp", description: "too hot"}, %{alarm: "LowDisk"}] = stored(device)
+    end
+
+    test "a repeat keeps raised_at and takes the new description", %{device: device, info: info} do
+      earlier = DateTime.add(DateTime.utc_now(), -30, :minute)
+
+      :ok = Alarms.raise_alarm(info, "HighTemp", "too hot", earlier)
+      [%{raised_at: raised_at}] = stored(device)
+
+      :ok = Alarms.raise_alarm(info, "HighTemp", "still too hot")
+
+      assert [%{raised_at: ^raised_at, description: "still too hot"}] = stored(device)
+    end
+
+    test "strips the Elixir. prefix and coerces the description", %{device: device, info: info} do
+      :ok = Alarms.raise_alarm(info, "Elixir.MyApp.HighTemp", %{"celsius" => 91})
+
+      assert [%{alarm: "MyApp.HighTemp", description: description}] = stored(device)
+      assert description =~ "celsius"
+    end
+
+    test "ignores a name that cannot be stored", %{device: device, info: info} do
+      :ok = Alarms.raise_alarm(info, "Elixir.", "empty once stripped")
+      :ok = Alarms.raise_alarm(info, String.duplicate("a", 256), "too long for the column")
+
+      assert stored(device) == []
+    end
+  end
+
+  describe "clear_alarm/3" do
+    test "clears one alarm and leaves the others", %{device: device, info: info} do
+      :ok = Alarms.sync(info, %{"HighTemp" => "too hot", "LowDisk" => "nearly full"})
+      :ok = Alarms.clear_alarm(info, "Elixir.HighTemp")
+
+      assert [%{alarm: "LowDisk"}] = stored(device)
+    end
+
+    test "clearing an alarm that is not raised does nothing", %{device: device, info: info} do
+      :ok = Alarms.sync(info, %{"LowDisk" => "nearly full"})
+      :ok = Alarms.clear_alarm(info, "HighTemp")
+
+      assert [%{alarm: "LowDisk"}] = stored(device)
     end
   end
 
