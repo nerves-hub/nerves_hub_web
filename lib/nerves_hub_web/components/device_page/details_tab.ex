@@ -556,10 +556,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       </div>
 
       <div class="flex w-1/2 flex-col gap-4">
-        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col items-start rounded border">
+        <div :if={show_location?(@product, @device)} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col items-start rounded border">
           <DeviceLocation.render
-            enabled_product={@product.extensions.geo}
-            enabled_device={@device.extensions.geo}
             location={extract_location_data(@device)}
             enable_location_editor={!!assigns[:enable_location_editor]}
           />
@@ -1052,6 +1050,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       enabled == false and product.extensions[extension]
     end)
     |> Enum.map(&elem(&1, 0))
+  end
+
+  # The map is left out entirely, rather than shown as a placeholder, when geo
+  # is switched off for the product or the device, or when the platform has no
+  # Mapbox token to draw it with.
+  defp show_location?(product, device) do
+    product.extensions.geo and device.extensions.geo and
+      not is_nil(Application.get_env(:nerves_hub, :mapbox_access_token))
   end
 
   defp extract_location_data(%{custom_location_coordinates: coordinates}) when not is_nil(coordinates) do
