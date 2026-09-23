@@ -77,6 +77,14 @@ defmodule NervesHub.Extensions.HealthReportTest do
              Connections.get_latest_for_device(device.id)
   end
 
+  test "a report without an alarms key leaves stored alarms alone", %{device: device, state: state} do
+    # What a device sends once the alarms extension carries its alarms.
+    :ok = report(state, %{"alarms" => %{"HighTemp" => "too hot"}})
+    :ok = report(state, %{"metrics" => %{"cpu_usage_percent" => 12.0}})
+
+    assert Alarms.current_alarms_for_device(device) == [{"HighTemp", "too hot"}]
+  end
+
   test "a report carrying neither alarms nor metadata still records status", %{device: device, state: state} do
     :ok = report(state, %{"metrics" => %{"cpu_usage_percent" => 12.0}})
 

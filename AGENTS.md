@@ -80,9 +80,9 @@ when adding or removing one.
   health profiles (the per-product thresholds behind device health status,
   evaluated in `devices/health_evaluation.ex`).
 - `extensions.ex` / `extensions/` — the device **extension framework**
-  (`health`, `geo`, `local_shell`, `logging`, `network_identity`,
-  `error_reports`); extensions attach per-device and exchange messages over the
-  extensions channel.
+  (`health`, `metrics`, `alarms`, `geo`, `local_shell`, `logging`,
+  `network_identity`, `error_reports`); extensions attach per-device and
+  exchange messages over the extensions channel.
 - `error_reports.ex` / `error_reports/` — exceptions devices report, grouped
   into issues. Split across both stores: the group in Postgres, the
   occurrences in ClickHouse. See [docs/error_reports.md](docs/error_reports.md).
