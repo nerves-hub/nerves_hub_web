@@ -170,7 +170,7 @@ defmodule NervesHub.Extensions.AlarmsTest do
     } do
       unbelievable = [
         "1970-01-01T00:00:00Z",
-        iso(ago(day: Alarms.max_age_days() + 1)),
+        iso(ago(hour: Alarms.max_age_hours() + 1)),
         iso(DateTime.add(DateTime.utc_now(), Alarms.max_future_skew_minutes() + 5, :minute)),
         "not a timestamp"
       ]
@@ -185,7 +185,7 @@ defmodule NervesHub.Extensions.AlarmsTest do
     end
 
     test "a time merely old or slightly ahead is kept", %{device: device, state: state} do
-      old = ago(day: Alarms.max_age_days() - 1)
+      old = ago(hour: Alarms.max_age_hours() - 1)
       ahead = DateTime.add(DateTime.utc_now(), Alarms.max_future_skew_minutes() - 5, :minute)
 
       {^state, []} = Alarms.handle_in("raised", %{"alarm" => "Old", "raised_at" => iso(old)}, state)

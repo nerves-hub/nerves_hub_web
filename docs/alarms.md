@@ -119,7 +119,8 @@ say 1970, or the time its firmware was built. So the platform uses a time only
 when it is believable:
 
 - no more than **1 hour** ahead of the platform's clock, and
-- no more than **90 days** in the past, which is how long alarm history is kept.
+- no more than **72 hours** in the past, which covers a device that has been
+  offline for a few days.
 
 Otherwise, and when the field is missing or unreadable, the platform uses the
 time the message arrived. Either way the event itself is applied: an alarm with

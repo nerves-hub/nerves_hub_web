@@ -55,13 +55,14 @@ defmodule NervesHub.Extensions.Alarms do
   A device's clock is not always right, though. One that has not caught up
   with NTP can say 1970, or the time its firmware was built. So a time is used
   only when it is believable -- no more than `max_future_skew_minutes/0` ahead
-  of the platform's clock and no older than `max_age_days/0` -- and arrival
+  of the platform's clock and no older than `max_age_hours/0` -- and arrival
   time stands in otherwise. Unlike a metric reading, whose timestamp is the
   whole of what places it, an alarm with a doubtful time is still true, so
   the event is applied either way; only its time is replaced.
 
-  The age limit is the alarm history's retention. An edge older than that
-  would be expired from ClickHouse as soon as it was written.
+  Seventy-two hours covers a device that has been offline for a few days. A
+  time older than that is more likely a clock that never synced than an alarm
+  that really is that old.
 
   ## Rate limit
 
@@ -92,7 +93,7 @@ defmodule NervesHub.Extensions.Alarms do
   @resync_delay_ms to_timeout(second: 10)
 
   @max_future_skew_minutes 60
-  @max_age_days 90
+  @max_age_hours 72
 
   @doc "How long after a denied message the platform asks for the whole set."
   def resync_delay_ms(), do: @resync_delay_ms
@@ -100,8 +101,8 @@ defmodule NervesHub.Extensions.Alarms do
   @doc "How far ahead of the platform's clock a device's time may be."
   def max_future_skew_minutes(), do: @max_future_skew_minutes
 
-  @doc "How old a device's time may be. The alarm history's retention."
-  def max_age_days(), do: @max_age_days
+  @doc "How old a device's time may be."
+  def max_age_hours(), do: @max_age_hours
 
   @impl NervesHub.Extensions
   def description() do
@@ -212,7 +213,7 @@ defmodule NervesHub.Extensions.Alarms do
   defp believable?(timestamp, now) do
     ahead = DateTime.diff(timestamp, now, :second)
 
-    ahead <= @max_future_skew_minutes * 60 and -ahead <= @max_age_days * 86_400
+    ahead <= @max_future_skew_minutes * 60 and -ahead <= @max_age_hours * 3600
   end
 
   defp charge(state, write) do
