@@ -139,7 +139,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             <div class="flex flex-col">
               <div class="flex gap-2">
                 <div class="text-base-300 font-medium">
-                  {format_key(key)}
+                  {Extensions.display_name(key)}
                 </div>
                 <div :if={Map.get(@device.product.extensions, key) != true} class="text-alert">
                   - Extension is disabled at the product level.
@@ -488,14 +488,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         put_flash(
           socket,
           :info,
-          "The #{format_key(extension)} extension was successfully #{(value == "on" && "enabled") || "disabled"}."
+          "The #{Extensions.display_name(extension)} extension was successfully #{(value == "on" && "enabled") || "disabled"}."
         )
 
       {:error, _changeset} ->
         put_flash(
           socket,
           :error,
-          "There was an unexpected error when updating the #{format_key(extension)} extension. Please contact support."
+          "There was an unexpected error when updating the #{Extensions.display_name(extension)} extension. Please contact support."
         )
     end
     |> halt()
@@ -549,12 +549,5 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     for extension <- Extensions.list(),
         into: %{},
         do: {extension, Extensions.module(extension).description()}
-  end
-
-  def format_key(key) do
-    to_string(key)
-    |> Phoenix.Naming.humanize()
-    |> String.split()
-    |> Enum.map_join(" ", &String.capitalize/1)
   end
 end
