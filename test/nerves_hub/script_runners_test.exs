@@ -24,7 +24,7 @@ defmodule NervesHub.ScriptRunnersTest do
   end
 
   defp create(ctx, params) do
-    ScriptRunners.create(ctx.product, ctx.user, Map.merge(%{text: "IO.puts(:hi)"}, params))
+    ScriptRunners.create(ctx.product, ctx.user, Map.merge(%{name: "Say hi", text: "IO.puts(:hi)"}, params))
   end
 
   defp targeted_device_ids(runner) do
@@ -236,11 +236,38 @@ defmodule NervesHub.ScriptRunnersTest do
 
       assert {:error, changeset} =
                ScriptRunners.create(ctx.product, ctx.user, %{
+                 name: "Nameless code",
                  filter_type: :tags,
                  filter: %{tags: ["production"], tag_operator: :or}
                })
 
       assert "can't be blank" in errors_on(changeset).text
+    end
+
+    test "requires a name", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      assert {:error, changeset} =
+               ScriptRunners.create(ctx.product, ctx.user, %{
+                 text: "IO.puts(:hi)",
+                 filter_type: :tags,
+                 filter: %{tags: ["production"], tag_operator: :or}
+               })
+
+      assert "can't be blank" in errors_on(changeset).name
+    end
+
+    test "refuses a name longer than the column", ctx do
+      _device = device(ctx, %{tags: ["production"]})
+
+      assert {:error, changeset} =
+               create(ctx, %{
+                 name: String.duplicate("a", 256),
+                 filter_type: :tags,
+                 filter: %{tags: ["production"], tag_operator: :or}
+               })
+
+      assert Enum.any?(errors_on(changeset).name, &(&1 =~ "should be at most"))
     end
   end
 
@@ -304,7 +331,7 @@ defmodule NervesHub.ScriptRunnersTest do
       logs = AuditLogs.logs_for(ctx.product)
 
       assert Enum.any?(logs, fn log ->
-               log.description =~ "ran a script with id #{runner.id} on 1 devices"
+               log.description =~ "ran a script named #{runner.name} with id #{runner.id} on 1 devices"
              end)
     end
 
@@ -319,6 +346,7 @@ defmodule NervesHub.ScriptRunnersTest do
 
       {:ok, runner, []} =
         ScriptRunners.create(scope, ctx.user, %{
+          name: "Say hi",
           text: "IO.puts(:hi)",
           filter_type: :tags,
           filter: %{tags: ["production"], tag_operator: :or}

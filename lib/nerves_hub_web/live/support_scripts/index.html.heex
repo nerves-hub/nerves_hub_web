@@ -27,6 +27,10 @@
     </.button>
   </:header>
 
+  <%!-- Separate LiveViews rather than actions of one, so these navigate. --%>
+  <:tabbed_nav path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts"} selected={@tab == :scripts} navigate={true} label="Support Scripts" />
+  <:tabbed_nav path={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/runs"} selected={@tab == :runs} navigate={true} label="Script Runs" />
+
   <div class="h-0 flex-1 overflow-y-auto">
     <div :if={Enum.any?(@scripts)} class="listing">
       <table>

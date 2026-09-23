@@ -43,6 +43,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
     |> assign(:current_filters, @default_filters)
     |> assign(:currently_filtering, false)
     |> sidebar_tab(:support_scripts)
+    |> assign(:tab, :scripts)
     |> ok()
   end
 
