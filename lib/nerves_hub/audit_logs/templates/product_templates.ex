@@ -34,8 +34,9 @@ defmodule NervesHub.AuditLogs.ProductTemplates do
   @spec audit_script_runner_created(User.t(), Product.t(), ScriptRunner.t()) :: :ok
   def audit_script_runner_created(user, product, script_runner) do
     description =
-      "User #{user.name} ran a script with id #{script_runner.id} on #{script_runner.device_count} devices " <>
-        "in product #{product.name}, targeted by #{ScriptRunner.filter_type_label(script_runner.filter_type)}"
+      "User #{user.name} ran a script named #{script_runner.name} with id #{script_runner.id} on " <>
+        "#{script_runner.device_count} devices in product #{product.name}, targeted by " <>
+        ScriptRunner.filter_type_label(script_runner.filter_type)
 
     AuditLogs.audit!(user, product, description)
   end

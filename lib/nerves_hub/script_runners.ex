@@ -23,6 +23,7 @@ defmodule NervesHub.ScriptRunners do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.Devices.Device
+  alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.ScriptRunners.ScriptRunner
@@ -180,6 +181,25 @@ defmodule NervesHub.ScriptRunners do
   # "Require all": the device carries every one of them.
   defp where_matching_tags(query, tags, :and) do
     where(query, [d], fragment("?::text[] <@ tags::text[]", ^tags))
+  end
+
+  @doc """
+  A product's runs, paginated and filtered for the listing page.
+
+  Sorted newest first unless asked otherwise: a run has no name to order by, and
+  the most recent one is nearly always what someone came to look at.
+  """
+  @spec filter(Scope.t() | Product.t(), map()) :: {[ScriptRunner.t()], Flop.Meta.t()}
+  def filter(scope_or_product, opts \\ %{})
+
+  def filter(%Scope{product: product}, opts), do: filter(product, opts)
+
+  def filter(%Product{} = product, opts) do
+    opts = Map.put_new(opts, :sort, {:desc, :inserted_at})
+
+    ScriptRunner
+    |> from()
+    |> CommonFiltering.filter(product, opts)
   end
 
   @doc """

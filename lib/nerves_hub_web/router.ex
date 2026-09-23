@@ -448,6 +448,11 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)
       live("/org/:org_name/:product_name/scripts/new", Live.SupportScripts.New)
+
+      # Before the `:script_id` route, or "runs" is read as a script id.
+      live("/org/:org_name/:product_name/scripts/runs", Live.ScriptRuns.Index)
+      live("/org/:org_name/:product_name/scripts/runs/new", Live.ScriptRuns.New)
+
       live("/org/:org_name/:product_name/scripts/:script_id/edit", Edit)
 
       live("/org/:org_name/:product_name/notifications", Notifications)

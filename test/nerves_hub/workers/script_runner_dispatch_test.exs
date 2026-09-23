@@ -38,6 +38,7 @@ defmodule NervesHub.Workers.ScriptRunnerDispatchTest do
 
     {:ok, runner, []} =
       ScriptRunners.create(ctx.product, ctx.user, %{
+        name: "Say hi",
         text: "IO.puts(:hi)",
         filter_type: :tags,
         filter: %{tags: [tag], tag_operator: :or}

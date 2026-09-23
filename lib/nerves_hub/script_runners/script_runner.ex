@@ -45,6 +45,11 @@ defmodule NervesHub.ScriptRunners.ScriptRunner do
 
     has_many(:script_runner_devices, ScriptRunnerDevice)
 
+    # What the listing shows. `text` is ad-hoc and often long, so it makes a poor
+    # label for the one column a person scans; the name is what the operator
+    # calls this run.
+    field(:name, :string)
+
     field(:text, :string)
     field(:language, Ecto.Enum, values: Script.languages(), default: :elixir)
 
@@ -120,8 +125,9 @@ defmodule NervesHub.ScriptRunners.ScriptRunner do
   @spec create_changeset(Product.t(), User.t(), map()) :: Ecto.Changeset.t()
   def create_changeset(product, created_by, params) do
     %__MODULE__{}
-    |> cast(params, [:text, :language, :filter_type, :device_count])
-    |> validate_required([:text, :filter_type])
+    |> cast(params, [:name, :text, :language, :filter_type, :device_count])
+    |> validate_required([:name, :text, :filter_type])
+    |> validate_length(:name, max: 255)
     |> cast_embed(:filter, required: true, with: &filter_changeset/2)
     |> validate_filter_for_type()
     |> put_assoc(:product, product)

@@ -10,6 +10,8 @@ defmodule NervesHub.Filtering do
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.DeploymentGroupFiltering
   alias NervesHub.Products.Product
+  alias NervesHub.ScriptRunners.ScriptRunner
+  alias NervesHub.ScriptRunners.ScriptRunnerFiltering
   alias NervesHub.Scripts.Script
   alias NervesHub.Scripts.ScriptFiltering
 
@@ -84,5 +86,11 @@ defmodule NervesHub.Filtering do
     query
     |> ScriptFiltering.sort(sorting_opts)
     |> ScriptFiltering.build_filters(filter_opts)
+  end
+
+  defp filter_and_sort(query, %{source: {_, ScriptRunner}}, sorting_opts, filter_opts, _product_id) do
+    query
+    |> ScriptRunnerFiltering.sort(sorting_opts)
+    |> ScriptRunnerFiltering.build_filters(filter_opts)
   end
 end
