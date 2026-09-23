@@ -47,6 +47,7 @@ defmodule NervesHub.Database.IndexTest do
     "pinned_devices.user_id",
     "product_shared_secret_auth.product_id",
     "product_users.user_id",
+    "script_runners.created_by_id",
     "scripts.created_by_id",
     "scripts.last_updated_by_id",
     "scripts.product_id",

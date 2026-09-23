@@ -4,6 +4,7 @@ defmodule NervesHub.AuditLogs.ProductTemplates do
   alias NervesHub.ErrorReports.ErrorGroup
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.Product
+  alias NervesHub.ScriptRunners.ScriptRunner
   alias NervesHub.Scripts.Script
 
   @spec audit_script_created(User.t(), Product.t(), Script.t()) :: :ok
@@ -26,6 +27,15 @@ defmodule NervesHub.AuditLogs.ProductTemplates do
   def audit_script_deleted(user, product, script) do
     description =
       "User #{user.name} removed script named #{script.name} from product #{product.name}"
+
+    AuditLogs.audit!(user, product, description)
+  end
+
+  @spec audit_script_runner_created(User.t(), Product.t(), ScriptRunner.t()) :: :ok
+  def audit_script_runner_created(user, product, script_runner) do
+    description =
+      "User #{user.name} ran a script with id #{script_runner.id} on #{script_runner.device_count} devices " <>
+        "in product #{product.name}, targeted by #{ScriptRunner.filter_type_label(script_runner.filter_type)}"
 
     AuditLogs.audit!(user, product, description)
   end
