@@ -39,6 +39,9 @@ defmodule NervesHub.StatsdMetricsReporter do
       counter("nerves_hub.devices.jitp.created.count", tags: [:env, :service]),
       counter("nerves_hub.device_certificates.created.count", tags: [:env, :service]),
       last_value("nerves_hub.devices.online.count", tags: [:env, :service, :node]),
+      # Tagged by status, so offline/timed_out/unsupported devices are visible
+      # separately from the scripts that actually ran.
+      counter("nerves_hub.script_runners.device.count", tags: [:env, :service, :status]),
       counter("nerves_hub.rate_limit.accepted.count", tags: [:env, :service]),
       counter("nerves_hub.rate_limit.pruned.count", tags: [:env, :service]),
       counter("nerves_hub.rate_limit.rejected.count", tags: [:env, :service]),

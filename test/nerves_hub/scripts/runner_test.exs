@@ -17,7 +17,7 @@ defmodule NervesHub.Scripts.RunnerTest do
     # `:normal` once the call returns, which a linked runner ignores.
     task = Task.async(fn -> Runner.send(device, %{text: "IO.puts(:hi)"}, timeout) end)
 
-    assert_receive {:run_script, runner, "IO.puts(:hi)"}, 1_000
+    assert_receive {:run_script, runner, "IO.puts(:hi)", ^timeout}, 1_000
 
     {task, runner}
   end
@@ -59,7 +59,7 @@ defmodule NervesHub.Scripts.RunnerTest do
           Runner.send(device, command, 2_000)
         end)
 
-      assert_receive {:run_script, runner_pid, "echo fallback"}, 1_000
+      assert_receive {:run_script, runner_pid, "echo fallback", _timeout}, 1_000
 
       send(runner_pid, {:error, :incompatible_version})
 
@@ -75,6 +75,25 @@ defmodule NervesHub.Scripts.RunnerTest do
       assert String.contains?(result, "line2")
     end
 
+    test "a caller that declined the console fallback is told the device cannot run scripts" do
+      device = device()
+
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+
+      task =
+        Task.async(fn ->
+          Runner.send(device, %{text: "echo nope"}, timeout: 2_000, console_fallback?: false)
+        end)
+
+      assert_receive {:run_script, runner_pid, "echo nope", _timeout}, 1_000
+
+      send(runner_pid, {:error, :incompatible_version})
+
+      # Answered rather than waited out: the bulk caller records `:unsupported`
+      # for this device instead of holding a slot open for the full deadline.
+      assert {:error, :unsupported} = Task.await(task, 1_000)
+    end
+
     test "buffers partial console output until [NERVESHUB:END] marker" do
       device_id = @device_id + 3
       device = %{id: device_id}
@@ -87,7 +106,7 @@ defmodule NervesHub.Scripts.RunnerTest do
           Runner.send(device, command, 2_000)
         end)
 
-      assert_receive {:run_script, runner_pid, "echo partial"}, 1_000
+      assert_receive {:run_script, runner_pid, "echo partial", _timeout}, 1_000
 
       send(runner_pid, {:error, :incompatible_version})
 

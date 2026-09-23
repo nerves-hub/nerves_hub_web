@@ -25,25 +25,64 @@ defmodule NervesHub.Scripts.Runner do
   @deadline_grace to_timeout(second: 1)
 
   defmodule State do
-    defstruct [:buffer, :device_channel, :device_id, :from, :text, :timeout]
+    defstruct [:buffer, :console_fallback?, :device_channel, :device_id, :from, :text, :timeout]
   end
 
-  def send(device, command, timeout \\ @default_timeout) do
-    {:ok, pid} = start_link(device, timeout)
-    {:ok, GenServer.call(pid, {:send, command.text}, timeout)}
+  @doc """
+  Run `command`'s text on `device` and wait for its output.
+
+  ## Options
+
+    * `:timeout` — how long the device has to answer. Also what the connection
+      holds its reference for, so the whole budget is honoured end to end.
+    * `:console_fallback?` — whether a device too old to run scripts should have
+      its console scraped for the output instead. Defaults to `true`, which is
+      what the single-device callers have always done. Bulk callers pass `false`:
+      the fallback takes over a device's console for the length of the script,
+      and doing that to hundreds of devices at once is not something to do
+      quietly on their behalf.
+  """
+  @spec send(map(), map(), timeout() | keyword()) ::
+          {:ok, String.t()} | {:error, String.t() | :unsupported}
+  def send(device, command, opts \\ [])
+
+  # Retains the original `send(device, command, timeout)` signature.
+  def send(device, command, timeout) when is_integer(timeout) do
+    send(device, command, timeout: timeout)
+  end
+
+  def send(device, command, opts) when is_list(opts) do
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+
+    {:ok, pid} = start_link(device, opts)
+
+    # The output paths reply with a bare binary; only the no-fallback
+    # incompatible-version path replies with an error tuple of its own.
+    case GenServer.call(pid, {:send, command.text}, timeout) do
+      {:error, reason} -> {:error, reason}
+      output -> {:ok, output}
+    end
   catch
-    :exit, _ -> {:error, "device did not respond in #{timeout} milliseconds"}
+    :exit, _ ->
+      {:error, "device did not respond in #{Keyword.get(opts, :timeout, @default_timeout)} milliseconds"}
   end
 
-  def start_link(device, timeout \\ @default_timeout) do
-    GenServer.start_link(__MODULE__, {device.id, timeout})
+  def start_link(device, opts \\ [])
+
+  def start_link(device, timeout) when is_integer(timeout) do
+    start_link(device, timeout: timeout)
   end
 
-  def init({device_id, timeout}) do
+  def start_link(device, opts) when is_list(opts) do
+    GenServer.start_link(__MODULE__, {device.id, opts})
+  end
+
+  def init({device_id, opts}) do
     state = %State{
       buffer: <<>>,
       from: nil,
-      timeout: timeout,
+      timeout: Keyword.get(opts, :timeout, @default_timeout),
+      console_fallback?: Keyword.get(opts, :console_fallback?, true),
       device_channel: "device:#{device_id}",
       device_id: device_id
     }
@@ -56,7 +95,7 @@ defmodule NervesHub.Scripts.Runner do
       NervesHub.PubSub,
       self(),
       state.device_channel,
-      {:run_script, self(), text}
+      {:run_script, self(), text, state.timeout}
     )
 
     # Nothing is guaranteed to answer: the device may be offline, so the
@@ -72,6 +111,15 @@ defmodule NervesHub.Scripts.Runner do
 
   def handle_info({:output, response}, state) do
     GenServer.reply(state.from, response)
+    {:stop, :normal, state}
+  end
+
+  # A device too old to run scripts. Callers that asked for the console fallback
+  # get the script typed into the console instead; the rest are told plainly, so
+  # they can record the outcome rather than wait out the deadline for output that
+  # was never coming.
+  def handle_info({:error, :incompatible_version}, %State{console_fallback?: false} = state) do
+    GenServer.reply(state.from, {:error, :unsupported})
     {:stop, :normal, state}
   end
 
