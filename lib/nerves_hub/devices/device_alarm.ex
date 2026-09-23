@@ -29,10 +29,11 @@ defmodule NervesHub.Devices.DeviceAlarm do
     field(:alarm, :string)
     field(:description, :string)
 
-    # When the alarm was first seen raised. Reports carry the device's whole
-    # current alarm set every time, so the upsert in `Alarms.sync/3`
-    # deliberately does not touch this column — otherwise it would track the
-    # last report rather than the start of the episode.
+    # When the alarm was raised: by the device's clock where the `alarms`
+    # extension was told, otherwise when the platform first saw it. Reports
+    # carry the device's whole current alarm set every time, so the upsert in
+    # `Alarms.sync/3` deliberately does not touch this column — otherwise it
+    # would track the last report rather than the start of the episode.
     field(:raised_at, :utc_datetime_usec)
   end
 end
