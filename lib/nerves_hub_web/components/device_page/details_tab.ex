@@ -245,197 +245,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
         </div>
 
-        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border pb-4">
-          <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
-            General Info
-          </div>
-          <div class="flex flex-col gap-3">
-            <div :if={not is_nil(@device.description) && @device.description != ""} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Description:</span>
-              <span class="text-base-300 text-sm">{@device.description}</span>
-            </div>
-
-            <div :if={@device.latest_connection && @device.latest_connection.status == :disconnected} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Last Seen:</span>
-              <span class="text-base-300 text-sm">
-                <time
-                  id="connection-established-at"
-                  phx-hook="UpdatingTimeAgo"
-                  datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.disconnected_at, :second)), " ", "T")}
-                >
-                  {Timex.from_now(@device.latest_connection.disconnected_at)}
-                </time>
-              </span>
-            </div>
-
-            <div :if={@device.latest_connection && @device.latest_connection.status != :disconnected} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Connected:</span>
-              <span class="text-base-300 text-sm">
-                <time
-                  id="connection-established-at"
-                  phx-hook="UpdatingTimeAgo"
-                  datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.established_at, :second)), " ", "T")}
-                >
-                  {Timex.from_now(@device.latest_connection.established_at)}
-                </time>
-              </span>
-            </div>
-
-            <div :if={@device.latest_connection && @device.latest_connection.ip_address} class="group/ip flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">IP Address:</span>
-              <div class="flex min-w-0 items-center gap-1.5">
-                <span class="text-base-300 font-mono text-sm">{@device.latest_connection.ip_address}</span>
-                <button
-                  id="copy-ip-address"
-                  type="button"
-                  phx-hook="CopyToClipboard"
-                  data-copy-value={@device.latest_connection.ip_address}
-                  aria-label="Copy IP address"
-                  title="Copy value"
-                  class="hover:text-base-200 text-base-500 inline-flex shrink-0 cursor-pointer items-center opacity-0 transition-opacity group-hover/ip:opacity-100 focus-visible:opacity-100"
-                >
-                  <span data-icon="copy" class="lucide-copy--light size-4"></span>
-                  <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
-                </button>
-              </div>
-            </div>
-
-            <div class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Added:</span>
-              <span class="text-base-300 text-sm">{@device.inserted_at |> NaiveDateTime.to_date() |> Date.to_string()}</span>
-            </div>
-
-            <div class="relative flex min-h-7 items-start gap-4 px-4">
-              <span class="text-base-500 pt-1 text-sm">Tags:</span>
-              <div class="flex flex-wrap items-center gap-1">
-                <span :if={is_nil(@device.tags) || Enum.empty?(@device.tags)} class="text-base-500 pt-1 text-sm">No Tags</span>
-                <span :for={tag <- @device.tags || []} class="bg-base-800 border-base-800 text-base-300 flex items-center gap-1 rounded border px-2 py-1 text-sm">
-                  {tag}
-                  <button
-                    type="button"
-                    phx-click="remove-tag"
-                    phx-value-tag={tag}
-                    aria-label={"Remove tag #{tag}"}
-                    class="hover:text-alert-content text-base-500 ml-1"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 20 20" fill="none">
-                      <path d="M10 10L6 6M10 10L14 14M10 10L14 6M10 10L6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </button>
-                </span>
-                <button
-                  id="add-tag-open"
-                  type="button"
-                  aria-label="Add tag"
-                  class="bg-base-800 border-base-700 hover:bg-base-700 hover:text-base-200 text-base-400 flex size-7 items-center justify-center rounded border"
-                  phx-click={
-                    JS.remove_class("hidden", to: "#add-tag-form")
-                    |> JS.add_class("inline-flex", to: "#add-tag-form")
-                    |> JS.show(to: "#add-tag-close")
-                    |> JS.hide(to: "#add-tag-open")
-                  }
-                >
-                  <span class="lucide-plus--light size-3.5" />
-                </button>
-                <button
-                  id="add-tag-close"
-                  type="button"
-                  aria-label="Cancel adding tag"
-                  style="display: none"
-                  class="bg-base-800 border-base-700 hover:bg-base-700 hover:text-alert-content text-base-500 flex size-7 items-center justify-center rounded border"
-                  phx-click={
-                    JS.remove_class("inline-flex", to: "#add-tag-form")
-                    |> JS.add_class("hidden", to: "#add-tag-form")
-                    |> JS.hide(to: "#add-tag-close")
-                    |> JS.show(to: "#add-tag-open")
-                  }
-                >
-                  <span class="lucide-x--light size-3.5" />
-                </button>
-                <form
-                  id="add-tag-form"
-                  phx-submit={
-                    JS.push("add-tag")
-                    |> JS.remove_class("inline-flex", to: "#add-tag-form")
-                    |> JS.add_class("hidden", to: "#add-tag-form")
-                    |> JS.hide(to: "#add-tag-close")
-                    |> JS.show(to: "#add-tag-open")
-                  }
-                  class="hidden items-center gap-1"
-                >
-                  <label for="add_tag_input" class="hidden">Add tag</label>
-                  <div
-                    id="add-tag-autocomplete"
-                    class="relative"
-                    phx-hook="TagAutocomplete"
-                    data-single
-                    data-available-tags={Jason.encode!(@addable_tags)}
-                  >
-                    <input
-                      type="text"
-                      id="add_tag_input"
-                      name="tag"
-                      placeholder="Add tag..."
-                      autocomplete="off"
-                      data-tag-input
-                      class="bg-base-900 border-base-600 focus:outline-focus-ring text-base-400 w-24 rounded border px-2 py-1 text-xs focus:outline focus:-outline-offset-1"
-                      phx-debounce="300"
-                    />
-                    <ul
-                      id="add_tag_input-suggestions"
-                      phx-update="ignore"
-                      data-tag-suggestions
-                      role="listbox"
-                      hidden
-                      class="bg-base-900 border-base-600 absolute z-10 mt-1 max-h-56 w-40 overflow-y-auto rounded border py-1 shadow-lg"
-                    >
-                    </ul>
-                  </div>
-                  <button type="submit" aria-label="Add tag" class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-2 py-1 text-xs">
-                    Add
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            <div :if={@metadata_entries != []} class="flex flex-col gap-2 px-4">
-              <span class="text-base-500 text-sm">Metadata:</span>
-              <div class="flex flex-col gap-1.5">
-                <div :for={{key, value} <- @metadata_entries} class="group/meta flex w-full min-w-0 items-center gap-1.5">
-                  <div id={"metadata-#{key}"} class="relative flex min-w-0" phx-hook={long_value?(value) && "ToolTip"} data-placement="top">
-                    <div class="border-base-700 flex min-w-0 items-stretch overflow-hidden rounded border text-xs">
-                      <span class="bg-base-700 text-base-300 shrink-0 px-2 py-0.5 tracking-wide">{key |> String.replace("_", " ") |> String.capitalize()}</span>
-                      <span class="bg-base-800 text-base-200 min-w-0 truncate px-2 py-0.5 font-mono">{value}</span>
-                    </div>
-                    <div :if={long_value?(value)} role="tooltip" class="bg-surface-overlay border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border px-2 py-1.5 shadow-lg">
-                      <span class="text-base-200 font-mono text-xs break-all">{value}</span>
-                      <div class="bg-surface-overlay border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
-                    </div>
-                  </div>
-                  <button
-                    id={"copy-metadata-#{key}"}
-                    type="button"
-                    phx-hook="CopyToClipboard"
-                    data-copy-value={value}
-                    aria-label={"Copy #{key} value"}
-                    title="Copy value"
-                    class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/meta:opacity-100 focus-visible:opacity-100"
-                  >
-                    <span data-icon="copy" class="lucide-copy--light size-4"></span>
-                    <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div :if={@extension_overrides != []} class="flex min-h-7 items-center gap-4 px-4">
-              <span class="text-base-500 text-sm">Disabled extensions:</span>
-              <span class="flex gap-1">
-                <span :for={extension <- @extension_overrides} class="bg-base-800 border-base-800 text-alert rounded border px-2 py-1 text-sm">{Extensions.display_name(extension)}</span>
-              </span>
-            </div>
-          </div>
-        </div>
+        <.general_info :if={show_location?(@product, @device)} device={@device} addable_tags={@addable_tags} metadata_entries={@metadata_entries} extension_overrides={@extension_overrides} />
 
         <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
           <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
@@ -557,10 +367,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       </div>
 
       <div class="flex w-1/2 flex-col gap-4">
-        <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col items-start rounded border">
+        <.general_info :if={!show_location?(@product, @device)} device={@device} addable_tags={@addable_tags} metadata_entries={@metadata_entries} extension_overrides={@extension_overrides} />
+
+        <div :if={show_location?(@product, @device)} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col items-start rounded border">
           <DeviceLocation.render
-            enabled_product={@product.extensions.geo}
-            enabled_device={@device.extensions.geo}
             location={extract_location_data(@device)}
             enable_location_editor={!!assigns[:enable_location_editor]}
           />
@@ -1055,6 +865,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> Enum.map(&elem(&1, 0))
   end
 
+  # The map is left out entirely, rather than shown as a placeholder, when geo
+  # is switched off for the product or the device, or when the platform has no
+  # Mapbox token to draw it with.
+  defp show_location?(product, device) do
+    product.extensions.geo and device.extensions.geo and
+      not is_nil(Application.get_env(:nerves_hub, :mapbox_access_token))
+  end
+
   defp extract_location_data(%{custom_location_coordinates: coordinates}) when not is_nil(coordinates) do
     %{
       "latitude" => List.first(coordinates),
@@ -1128,6 +946,209 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   # An engaged metric's tile: the level's tile treatment (colored bottom
   # border and tint), the current value, and how the level engaged.
+  # Sits at the top of the right-hand column when the location map is hidden,
+  # so that column doesn't start with the smaller boxes below the map.
+  attr(:device, Device, required: true)
+  attr(:addable_tags, :list, required: true)
+  attr(:metadata_entries, :list, required: true)
+  attr(:extension_overrides, :list, required: true)
+
+  defp general_info(assigns) do
+    ~H"""
+    <div class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border pb-4">
+      <div class="text-base-50 flex h-14 items-center pr-3 pl-4 leading-6 font-medium">
+        General Info
+      </div>
+      <div class="flex flex-col gap-3">
+        <div :if={not is_nil(@device.description) && @device.description != ""} class="flex min-h-7 items-center gap-4 px-4">
+          <span class="text-base-500 text-sm">Description:</span>
+          <span class="text-base-300 text-sm">{@device.description}</span>
+        </div>
+
+        <div :if={@device.latest_connection && @device.latest_connection.status == :disconnected} class="flex min-h-7 items-center gap-4 px-4">
+          <span class="text-base-500 text-sm">Last Seen:</span>
+          <span class="text-base-300 text-sm">
+            <time
+              id="connection-established-at"
+              phx-hook="UpdatingTimeAgo"
+              datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.disconnected_at, :second)), " ", "T")}
+            >
+              {Timex.from_now(@device.latest_connection.disconnected_at)}
+            </time>
+          </span>
+        </div>
+
+        <div :if={@device.latest_connection && @device.latest_connection.status != :disconnected} class="flex min-h-7 items-center gap-4 px-4">
+          <span class="text-base-500 text-sm">Connected:</span>
+          <span class="text-base-300 text-sm">
+            <time
+              id="connection-established-at"
+              phx-hook="UpdatingTimeAgo"
+              datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.latest_connection.established_at, :second)), " ", "T")}
+            >
+              {Timex.from_now(@device.latest_connection.established_at)}
+            </time>
+          </span>
+        </div>
+
+        <div :if={@device.latest_connection && @device.latest_connection.ip_address} class="group/ip flex min-h-7 items-center gap-4 px-4">
+          <span class="text-base-500 text-sm">IP Address:</span>
+          <div class="flex min-w-0 items-center gap-1.5">
+            <span class="text-base-300 font-mono text-sm">{@device.latest_connection.ip_address}</span>
+            <button
+              id="copy-ip-address"
+              type="button"
+              phx-hook="CopyToClipboard"
+              data-copy-value={@device.latest_connection.ip_address}
+              aria-label="Copy IP address"
+              title="Copy value"
+              class="hover:text-base-200 text-base-500 inline-flex shrink-0 cursor-pointer items-center opacity-0 transition-opacity group-hover/ip:opacity-100 focus-visible:opacity-100"
+            >
+              <span data-icon="copy" class="lucide-copy--light size-4"></span>
+              <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex min-h-7 items-center gap-4 px-4">
+          <span class="text-base-500 text-sm">Added:</span>
+          <span class="text-base-300 text-sm">{@device.inserted_at |> NaiveDateTime.to_date() |> Date.to_string()}</span>
+        </div>
+
+        <div class="relative flex min-h-7 items-start gap-4 px-4">
+          <span class="text-base-500 pt-1 text-sm">Tags:</span>
+          <div class="flex flex-wrap items-center gap-1">
+            <span :if={is_nil(@device.tags) || Enum.empty?(@device.tags)} class="text-base-500 pt-1 text-sm">No Tags</span>
+            <span :for={tag <- @device.tags || []} class="bg-base-800 border-base-800 text-base-300 flex items-center gap-1 rounded border px-2 py-1 text-sm">
+              {tag}
+              <button
+                type="button"
+                phx-click="remove-tag"
+                phx-value-tag={tag}
+                aria-label={"Remove tag #{tag}"}
+                class="hover:text-alert-content text-base-500 ml-1"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 20 20" fill="none">
+                  <path d="M10 10L6 6M10 10L14 14M10 10L14 6M10 10L6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </span>
+            <button
+              id="add-tag-open"
+              type="button"
+              aria-label="Add tag"
+              class="bg-base-800 border-base-700 hover:bg-base-700 hover:text-base-200 text-base-400 flex size-7 items-center justify-center rounded border"
+              phx-click={
+                JS.remove_class("hidden", to: "#add-tag-form")
+                |> JS.add_class("inline-flex", to: "#add-tag-form")
+                |> JS.show(to: "#add-tag-close")
+                |> JS.hide(to: "#add-tag-open")
+              }
+            >
+              <span class="lucide-plus--light size-3.5" />
+            </button>
+            <button
+              id="add-tag-close"
+              type="button"
+              aria-label="Cancel adding tag"
+              style="display: none"
+              class="bg-base-800 border-base-700 hover:bg-base-700 hover:text-alert-content text-base-500 flex size-7 items-center justify-center rounded border"
+              phx-click={
+                JS.remove_class("inline-flex", to: "#add-tag-form")
+                |> JS.add_class("hidden", to: "#add-tag-form")
+                |> JS.hide(to: "#add-tag-close")
+                |> JS.show(to: "#add-tag-open")
+              }
+            >
+              <span class="lucide-x--light size-3.5" />
+            </button>
+            <form
+              id="add-tag-form"
+              phx-submit={
+                JS.push("add-tag")
+                |> JS.remove_class("inline-flex", to: "#add-tag-form")
+                |> JS.add_class("hidden", to: "#add-tag-form")
+                |> JS.hide(to: "#add-tag-close")
+                |> JS.show(to: "#add-tag-open")
+              }
+              class="hidden items-center gap-1"
+            >
+              <label for="add_tag_input" class="hidden">Add tag</label>
+              <div
+                id="add-tag-autocomplete"
+                class="relative"
+                phx-hook="TagAutocomplete"
+                data-single
+                data-available-tags={Jason.encode!(@addable_tags)}
+              >
+                <input
+                  type="text"
+                  id="add_tag_input"
+                  name="tag"
+                  placeholder="Add tag..."
+                  autocomplete="off"
+                  data-tag-input
+                  class="bg-base-900 border-base-600 focus:outline-focus-ring text-base-400 w-24 rounded border px-2 py-1 text-xs focus:outline focus:-outline-offset-1"
+                  phx-debounce="300"
+                />
+                <ul
+                  id="add_tag_input-suggestions"
+                  phx-update="ignore"
+                  data-tag-suggestions
+                  role="listbox"
+                  hidden
+                  class="bg-base-900 border-base-600 absolute z-10 mt-1 max-h-56 w-40 overflow-y-auto rounded border py-1 shadow-lg"
+                >
+                </ul>
+              </div>
+              <button type="submit" aria-label="Add tag" class="bg-base-800 border-base-700 hover:bg-base-700 text-base-300 rounded border px-2 py-1 text-xs">
+                Add
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div :if={@metadata_entries != []} class="flex flex-col gap-2 px-4">
+          <span class="text-base-500 text-sm">Metadata:</span>
+          <div class="flex flex-col gap-1.5">
+            <div :for={{key, value} <- @metadata_entries} class="group/meta flex w-full min-w-0 items-center gap-1.5">
+              <div id={"metadata-#{key}"} class="relative flex min-w-0" phx-hook={long_value?(value) && "ToolTip"} data-placement="top">
+                <div class="border-base-700 flex min-w-0 items-stretch overflow-hidden rounded border text-xs">
+                  <span class="bg-base-700 text-base-300 shrink-0 px-2 py-0.5 tracking-wide">{key |> String.replace("_", " ") |> String.capitalize()}</span>
+                  <span class="bg-base-800 text-base-200 min-w-0 truncate px-2 py-0.5 font-mono">{value}</span>
+                </div>
+                <div :if={long_value?(value)} role="tooltip" class="bg-surface-overlay border-base-700 tooltip-content absolute top-0 left-0 z-20 hidden max-w-md rounded border px-2 py-1.5 shadow-lg">
+                  <span class="text-base-200 font-mono text-xs break-all">{value}</span>
+                  <div class="bg-surface-overlay border-base-700 tooltip-arrow absolute size-2 origin-center rotate-45"></div>
+                </div>
+              </div>
+              <button
+                id={"copy-metadata-#{key}"}
+                type="button"
+                phx-hook="CopyToClipboard"
+                data-copy-value={value}
+                aria-label={"Copy #{key} value"}
+                title="Copy value"
+                class="hover:text-base-200 text-base-500 shrink-0 cursor-pointer opacity-0 transition-opacity group-hover/meta:opacity-100 focus-visible:opacity-100"
+              >
+                <span data-icon="copy" class="lucide-copy--light size-4"></span>
+                <span data-icon="check" class="lucide-check--light text-success hidden size-4"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div :if={@extension_overrides != []} class="flex min-h-7 items-center gap-4 px-4">
+          <span class="text-base-500 text-sm">Disabled extensions:</span>
+          <span class="flex gap-1">
+            <span :for={extension <- @extension_overrides} class="bg-base-800 border-base-800 text-alert rounded border px-2 py-1 text-sm">{Extensions.display_name(extension)}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   attr(:level, :string, required: true, values: ["warning", "unhealthy"])
   attr(:metric_key, :string, required: true)
   attr(:reason, :map, required: true)

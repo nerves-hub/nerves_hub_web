@@ -4,9 +4,10 @@ defmodule NervesHubWeb.Components.DeviceLocation do
   alias Phoenix.LiveView.JS
 
   attr(:location, :any)
-  attr(:enabled_device, :any)
-  attr(:enabled_product, :any)
   attr(:enable_location_editor, :boolean)
+
+  # Only rendered when a Mapbox token is configured and the Geo extension is
+  # enabled for the product and device. The details tab checks that.
 
   # catch all to add the mapbox token
   def render(assigns) when not is_map_key(assigns, :mapbox_access_token) do
@@ -15,63 +16,6 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     assigns
     |> Map.put(:mapbox_access_token, token)
     |> render()
-  end
-
-  # mapbox token is nil, maps aren't enabled
-  def render(%{mapbox_access_token: nil} = assigns) do
-    ~H"""
-    <div class="flex h-[450px] w-full flex-col gap-4 p-4">
-      <div class="flex items-end justify-between">
-        <div class="text-base-50 leading-6 font-medium">Location</div>
-      </div>
-
-      <div class="relative flex size-full flex-col items-center justify-center">
-        <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
-        <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-base-300">Device maps haven't been enabled on your platform.</div>
-          <div class="text-base-300">Please contact your platform admin.</div>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  # disabled in product settings
-  def render(%{enabled_product: false} = assigns) do
-    ~H"""
-    <div class="flex h-[450px] w-full flex-col gap-4 p-4">
-      <div class="flex items-end justify-between">
-        <div class="text-base-50 leading-6 font-medium">Location</div>
-      </div>
-
-      <div class="relative flex size-full flex-col items-center justify-center">
-        <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
-        <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-base-300">Device maps have been disabled in your product settings.</div>
-          <div class="text-base-300">To enable this feature, please contact your product admin.</div>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  # disabled in device settings
-  def render(%{enabled_device: false} = assigns) do
-    ~H"""
-    <div class="flex h-[450px] w-full flex-col gap-4 p-4">
-      <div class="flex items-end justify-between">
-        <div class="text-base-50 leading-6 font-medium">Location</div>
-      </div>
-
-      <div class="relative flex size-full flex-col items-center justify-center">
-        <div class="bg-example-map-dark absolute bottom-0 left-0 z-10 size-full bg-cover bg-center blur-sm"></div>
-        <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-base-300">Device maps have been disabled for this device.</div>
-          <div class="text-base-300">To enable this feature, please contact your product admin.</div>
-        </div>
-      </div>
-    </div>
-    """
   end
 
   # yay, we have a location and map key, lets display a map

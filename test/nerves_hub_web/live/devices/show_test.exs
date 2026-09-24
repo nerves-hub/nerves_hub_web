@@ -543,14 +543,60 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       Application.put_env(:nerves_hub, :mapbox_access_token, "abc")
     end
 
-    test "mapbox not enabled", %{conn: conn, org: org, product: product, device: device} do
+    test "the map is hidden when mapbox isn't configured", %{conn: conn, org: org, product: product, device: device} do
       Application.put_env(:nerves_hub, :mapbox_access_token, nil)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("div", text: "Location")
-      |> assert_has("div", text: "Device maps haven't been enabled on your platform.")
+      |> refute_has("div", text: "Location", exact: true)
+    end
+
+    test "the map is hidden when geo is disabled for the product", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _product} = Products.disable_extension_setting(product, "geo")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> refute_has("div", text: "Location", exact: true)
+    end
+
+    test "the map is hidden when geo is disabled for the device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _device} = Devices.disable_extension_setting(device, "geo")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> refute_has("div", text: "Location", exact: true)
+    end
+
+    test "general info moves to the top of the right column when the map is hidden", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#details-tab > div:first-child div", text: "General Info", exact: true)
+      |> refute_has("#details-tab > div:last-child div", text: "General Info", exact: true)
+
+      {:ok, _device} = Devices.disable_extension_setting(device, "geo")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> refute_has("#details-tab > div:first-child div", text: "General Info", exact: true)
+      |> assert_has("#details-tab > div:last-child > div:first-child div", text: "General Info", exact: true)
     end
 
     test "location information is empty", %{
