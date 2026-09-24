@@ -44,15 +44,17 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
   @type t() :: %__MODULE__{}
 
   embedded_schema do
-    field(:device_list_columns, {:array, Ecto.Enum},
-      values: @all_device_list_columns,
-      default: nil
-    )
-
-    field(:deployment_group_list_columns, {:array, Ecto.Enum},
-      values: @all_deployment_group_list_columns,
-      default: nil
-    )
+    # The columns the user has chosen to show on the device and deployment
+    # group lists. Nil shows every column.
+    #
+    # Removing a column from `@all_device_list_columns` or
+    # `@all_deployment_group_list_columns` is safe: `KnownAtoms` skips names it
+    # no longer knows when loading, and the user's next change to their
+    # columns saves the list without them. Unlike `Ecto.Enum`, a stale name
+    # doesn't stop the user loading. To clear stale names from the database
+    # straight away, add an update to the PR that removes the column.
+    field(:device_list_columns, KnownAtoms, values: @all_device_list_columns, default: nil)
+    field(:deployment_group_list_columns, KnownAtoms, values: @all_deployment_group_list_columns, default: nil)
 
     # Where the user has dragged the details tab's boxes to, top to bottom.
     # Both nil until they first move one.
