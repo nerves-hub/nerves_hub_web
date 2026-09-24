@@ -2,11 +2,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
 
-  import Ecto.Query, only: [where: 2]
+  import Ecto.Query, only: [from: 2, where: 2]
   import Phoenix.ChannelTest
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
@@ -687,6 +688,178 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "Location")
       |> assert_has(~s(div#device-location-map[data-center-lat="-41.3159"]))
       |> assert_has(~s(div#device-location-map[data-center-lng="174.8185"]))
+    end
+  end
+
+  describe "arranging the details boxes" do
+    setup do
+      Application.put_env(:nerves_hub, :mapbox_access_token, "abc")
+    end
+
+    test "dropping a box saves the layout and renders it", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#device-details-left > #device-details-box-general_info")
+      |> unwrap(fn view ->
+        view
+        |> element("#device-details-left")
+        |> render_hook("arrange-device-details", %{
+          "left" => ["deployment", "health", "alarms"],
+          "right" => ["general_info", "location", "network_identities", "support_scripts"]
+        })
+      end)
+      |> assert_has("#device-details-right > #device-details-box-general_info:first-child")
+      |> assert_has("#device-details-left > #device-details-box-deployment:first-child")
+
+      assert %{
+               device_details_left: [:deployment, :health, :alarms],
+               device_details_right: [:general_info, :location | _]
+             } =
+               Accounts.get_user!(user.id).display_preferences
+    end
+
+    test "a hidden box keeps its place in the saved layout", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, _device} = Devices.disable_extension_setting(device, "geo")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> refute_has("#device-details-box-location")
+      |> unwrap(fn view ->
+        view
+        |> element("#device-details-right")
+        |> render_hook("arrange-device-details", %{
+          "left" => ["health", "alarms", "deployment"],
+          "right" => ["network_identities", "general_info", "support_scripts"]
+        })
+      end)
+
+      assert %{device_details_right: [:location, :network_identities, :general_info, :support_scripts]} =
+               Accounts.get_user!(user.id).display_preferences
+    end
+
+    test "hidden boxes in the same column go back in their old order", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, _user} =
+        Accounts.update_user_device_details_layout(
+          user,
+          [:health, :location, :alarms, :general_info],
+          [:deployment, :network_identities, :support_scripts]
+        )
+
+      # Hides both the map and alarms, which sit next to each other on the left.
+      {:ok, device} = Devices.disable_extension_setting(device, "geo")
+      {:ok, _device} = Devices.disable_extension_setting(device, "health")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> refute_has("#device-details-box-location")
+      |> refute_has("#device-details-box-alarms")
+      |> unwrap(fn view ->
+        view
+        |> element("#device-details-right")
+        |> render_hook("arrange-device-details", %{
+          "left" => ["health", "general_info"],
+          "right" => ["network_identities", "deployment", "support_scripts"]
+        })
+      end)
+
+      assert %{
+               device_details_left: [:health, :location, :alarms, :general_info],
+               device_details_right: [:network_identities, :deployment, :support_scripts]
+             } = Accounts.get_user!(user.id).display_preferences
+    end
+
+    test "a box name that's no longer known is skipped when the user loads", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      # As if a box had been removed after this layout was saved.
+      {1, _} =
+        Repo.update_all(
+          from(u in User,
+            where: u.id == ^user.id,
+            update: [
+              set: [
+                display_preferences:
+                  fragment(
+                    ~s|jsonb_build_object('device_details_left', '["retired_box", "general_info", "health"]'::jsonb, 'device_details_right', '["location"]'::jsonb)|
+                  )
+              ]
+            ]
+          ),
+          []
+        )
+
+      assert %{device_details_left: [:general_info, :health], device_details_right: [:location]} =
+               Accounts.get_user!(user.id).display_preferences
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#device-details-left > #device-details-box-general_info:first-child")
+    end
+
+    test "an arranged layout isn't rearranged when the map is hidden", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, _user} =
+        Accounts.update_user_device_details_layout(
+          user,
+          [:health, :alarms, :general_info, :deployment],
+          [:location, :network_identities, :support_scripts]
+        )
+
+      {:ok, _device} = Devices.disable_extension_setting(device, "geo")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#device-details-left > #device-details-box-general_info")
+      |> assert_has("#device-details-right > #device-details-box-network_identities:first-child")
+    end
+
+    test "unknown box names are ignored", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> unwrap(fn view ->
+        view
+        |> element("#device-details-left")
+        |> render_hook("arrange-device-details", %{
+          "left" => ["health", "weather", "alarms", "general_info", "deployment"],
+          "right" => ["location", "network_identities", "support_scripts"]
+        })
+      end)
+
+      assert %{device_details_left: [:health, :alarms, :general_info, :deployment]} =
+               Accounts.get_user!(user.id).display_preferences
     end
   end
 
