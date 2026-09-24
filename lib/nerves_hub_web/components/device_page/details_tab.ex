@@ -635,14 +635,18 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   # A hidden box isn't on the page to be dragged, so it goes back to where it
-  # was in the layout being replaced.
+  # was in the layout being replaced. Each column is restored from the top
+  # down: an insert shifts every box below it, so a box can only go back once
+  # the boxes above it are in place.
   defp restore_hidden_boxes({left, right}, {old_left, old_right}, hidden) do
-    Enum.reduce(hidden, {left -- hidden, right -- hidden}, fn box, {left, right} ->
-      case {Enum.find_index(old_left, &(&1 == box)), Enum.find_index(old_right, &(&1 == box))} do
-        {nil, index} -> {left, List.insert_at(right, index || -1, box)}
-        {index, _} -> {List.insert_at(left, index, box), right}
-      end
-    end)
+    restore = fn column, old_column ->
+      old_column
+      |> Enum.with_index()
+      |> Enum.filter(fn {box, _index} -> box in hidden end)
+      |> Enum.reduce(column -- hidden, fn {box, index}, column -> List.insert_at(column, index, box) end)
+    end
+
+    {restore.(left, old_left), restore.(right, old_right)}
   end
 
   # The map is left out entirely, rather than shown as a placeholder, when geo
@@ -1121,7 +1125,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   # Sits at the top of the right-hand column when the location map is hidden
-  # and the user hasn't arranged the boxes themselves. See `details_columns/4`.
+  # and the user hasn't arranged the boxes themselves. See `details_columns/3`.
   attr(:device, Device, required: true)
   attr(:addable_tags, :list, required: true)
   attr(:metadata_entries, :list, required: true)

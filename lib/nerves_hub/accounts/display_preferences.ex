@@ -4,6 +4,7 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
   import Ecto.Changeset
 
   alias NervesHub.Accounts.User.DisplayPreferences
+  alias NervesHub.Types.KnownAtoms
 
   @all_device_list_columns [
     :health,
@@ -55,8 +56,14 @@ defmodule NervesHub.Accounts.User.DisplayPreferences do
 
     # Where the user has dragged the details tab's boxes to, top to bottom.
     # Both nil until they first move one.
-    field(:device_details_left, {:array, Ecto.Enum}, values: @all_device_details_boxes, default: nil)
-    field(:device_details_right, {:array, Ecto.Enum}, values: @all_device_details_boxes, default: nil)
+    #
+    # Removing a box from `@default_device_details_layout` is safe: `KnownAtoms`
+    # skips names it no longer knows when loading, and the user's next drag
+    # saves their layout without them. Unlike `Ecto.Enum`, a stale name doesn't
+    # stop the user loading. To clear stale names from the database straight
+    # away, add an update to the PR that removes the box.
+    field(:device_details_left, KnownAtoms, values: @all_device_details_boxes, default: nil)
+    field(:device_details_right, KnownAtoms, values: @all_device_details_boxes, default: nil)
   end
 
   def changeset(%DisplayPreferences{} = preferences, attrs \\ %{}) do

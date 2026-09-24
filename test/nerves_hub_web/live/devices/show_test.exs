@@ -2,11 +2,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   use NervesHubWeb.ConnCase.Browser, async: true
   use Mimic
 
-  import Ecto.Query, only: [where: 2]
+  import Ecto.Query, only: [from: 2, where: 2]
   import Phoenix.ChannelTest
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
@@ -746,6 +747,75 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert %{device_details_right: [:location, :network_identities, :general_info, :support_scripts]} =
                Accounts.get_user!(user.id).display_preferences
+    end
+
+    test "hidden boxes in the same column go back in their old order", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      {:ok, _user} =
+        Accounts.update_user_device_details_layout(
+          user,
+          [:health, :location, :alarms, :general_info],
+          [:deployment, :network_identities, :support_scripts]
+        )
+
+      # Hides both the map and alarms, which sit next to each other on the left.
+      {:ok, device} = Devices.disable_extension_setting(device, "geo")
+      {:ok, _device} = Devices.disable_extension_setting(device, "health")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> refute_has("#device-details-box-location")
+      |> refute_has("#device-details-box-alarms")
+      |> unwrap(fn view ->
+        view
+        |> element("#device-details-right")
+        |> render_hook("arrange-device-details", %{
+          "left" => ["health", "general_info"],
+          "right" => ["network_identities", "deployment", "support_scripts"]
+        })
+      end)
+
+      assert %{
+               device_details_left: [:health, :location, :alarms, :general_info],
+               device_details_right: [:network_identities, :deployment, :support_scripts]
+             } = Accounts.get_user!(user.id).display_preferences
+    end
+
+    test "a box name that's no longer known is skipped when the user loads", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user
+    } do
+      # As if a box had been removed after this layout was saved.
+      {1, _} =
+        Repo.update_all(
+          from(u in User,
+            where: u.id == ^user.id,
+            update: [
+              set: [
+                display_preferences:
+                  fragment(
+                    ~s|jsonb_build_object('device_details_left', '["retired_box", "general_info", "health"]'::jsonb, 'device_details_right', '["location"]'::jsonb)|
+                  )
+              ]
+            ]
+          ),
+          []
+        )
+
+      assert %{device_details_left: [:general_info, :health], device_details_right: [:location]} =
+               Accounts.get_user!(user.id).display_preferences
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("#device-details-left > #device-details-box-general_info:first-child")
     end
 
     test "an arranged layout isn't rearranged when the map is hidden", %{
