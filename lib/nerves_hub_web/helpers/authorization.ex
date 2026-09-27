@@ -1,93 +1,36 @@
 defmodule NervesHubWeb.Helpers.Authorization do
+  @moduledoc """
+  Checks whether a member may do something in their organization.
+
+  Permissions and the roles that grant them are defined in
+  `NervesHub.Accounts.Permissions`.
+  """
+
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.Permissions
   alias NervesHub.Accounts.Scope
-  alias NervesHub.Accounts.User
 
-  def authorized!(org_user, permission) do
-    authorized?(org_user, permission) || raise NervesHubWeb.UnauthorizedError
+  def authorized!(permission, subject) do
+    authorized?(permission, subject) || raise NervesHubWeb.UnauthorizedError
   end
 
-  def authorized?(:"organization:update", role), do: role_check(:admin, role)
-  def authorized?(:"organization:delete", role), do: role_check(:admin, role)
+  @doc """
+  Whether `subject` holds `permission`.
 
-  def authorized?(:"signing_key:create", role), do: role_check(:manage, role)
-  def authorized?(:"signing_key:delete", role), do: role_check(:manage, role)
-
-  def authorized?(:"org_user:update", role), do: role_check(:admin, role)
-  def authorized?(:"org_user:delete", role), do: role_check(:admin, role)
-
-  def authorized?(:"org_user:invite", role), do: role_check(:admin, role)
-  def authorized?(:"org_user:invite:rescind", role), do: role_check(:admin, role)
-  def authorized?(:"org_user:invite:resend", role), do: role_check(:admin, role)
-
-  # Registering a key nobody has proven is a privileged act: it decides which
-  # organisation that key answers for, and a key belonging to someone else would
-  # place their machine on this organisation's network.
-  def authorized?(:"network_identity:view", role), do: role_check(:view, role)
-  def authorized?(:"network_identity:create", role), do: role_check(:manage, role)
-  def authorized?(:"network_identity:delete", role), do: role_check(:manage, role)
-
-  def authorized?(:"certificate_authority:create", role), do: role_check(:admin, role)
-  def authorized?(:"certificate_authority:update", role), do: role_check(:admin, role)
-  def authorized?(:"certificate_authority:delete", role), do: role_check(:admin, role)
-
-  def authorized?(:"product:create", role), do: role_check(:manage, role)
-  def authorized?(:"product:update", role), do: role_check(:manage, role)
-  def authorized?(:"product:delete", role), do: role_check(:manage, role)
-
-  def authorized?(:"product:notifications:dismiss", role), do: role_check(:manage, role)
-
-  def authorized?(:"error_group:update", role), do: role_check(:manage, role)
-
-  def authorized?(:"device:console", role), do: role_check(:manage, role)
-  def authorized?(:"device:create", role), do: role_check(:manage, role)
-  def authorized?(:"device:update", role), do: role_check(:manage, role)
-  def authorized?(:"device:view", role), do: role_check(:view, role)
-
-  def authorized?(:"device:set-deployment-group", role), do: role_check(:manage, role)
-
-  def authorized?(:"device:push-update", role), do: role_check(:manage, role)
-  def authorized?(:"device:toggle-updates", role), do: role_check(:manage, role)
-  def authorized?(:"device:clear-penalty-box", role), do: role_check(:manage, role)
-  def authorized?(:"device:identify", role), do: role_check(:manage, role)
-  def authorized?(:"device:reboot", role), do: role_check(:manage, role)
-  def authorized?(:"device:reconnect", role), do: role_check(:manage, role)
-  def authorized?(:"device:delete", role), do: role_check(:manage, role)
-  def authorized?(:"device:restore", role), do: role_check(:manage, role)
-  def authorized?(:"device:destroy", role), do: role_check(:manage, role)
-
-  def authorized?(:"device:extensions:local_shell", role), do: role_check(:manage, role)
-
-  def authorized?(:"firmware:upload", role), do: role_check(:manage, role)
-  def authorized?(:"firmware:delete", role), do: role_check(:manage, role)
-
-  def authorized?(:"archive:upload", role), do: role_check(:manage, role)
-  def authorized?(:"archive:delete", role), do: role_check(:manage, role)
-
-  def authorized?(:"deployment_group:create", role), do: role_check(:manage, role)
-  def authorized?(:"deployment_group:update", role), do: role_check(:manage, role)
-  def authorized?(:"deployment_group:toggle", role), do: role_check(:manage, role)
-
-  def authorized?(:"deployment_group:toggle_delta_updates", role), do: role_check(:manage, role)
-
-  def authorized?(:"deployment_group:delete", role), do: role_check(:manage, role)
-
-  def authorized?(:"support_script:create", role), do: role_check(:manage, role)
-  def authorized?(:"support_script:update", role), do: role_check(:manage, role)
-  def authorized?(:"support_script:delete", role), do: role_check(:manage, role)
-  def authorized?(:"support_script:run", role), do: role_check(:view, role)
-
-  defp role_check(required_role, %Scope{role: role}) do
-    role_check(required_role, role)
+  `subject` is a `Scope` with an org (its permissions were worked out when the
+  role was put on it), an `OrgUser` (with its custom role preloaded, if it has
+  one), or a built-in role. Raises `ArgumentError` for a permission that
+  doesn't exist.
+  """
+  def authorized?(permission, %Scope{permissions: permissions}) do
+    Permissions.granted?(permissions, permission)
   end
 
-  defp role_check(required_role, %OrgUser{role: role}) do
-    role_check(required_role, role)
+  def authorized?(permission, %OrgUser{} = org_user) do
+    Permissions.granted?(Permissions.for_role(OrgUser.assigned_role(org_user)), permission)
   end
 
-  defp role_check(required_role, user_role) do
-    required_role
-    |> User.role_or_higher()
-    |> Enum.any?(&(&1 == user_role))
+  def authorized?(permission, role) when is_atom(role) do
+    Permissions.granted?(Permissions.for_role(role), permission)
   end
 end

@@ -17,7 +17,28 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       conn = get(conn, Routes.api_org_user_path(conn, :index, org.name))
 
       assert json_response(conn, 200)["data"] ==
-               [%{"email" => user.email, "role" => "admin", "name" => user.name}]
+               [%{"email" => user.email, "role" => "admin", "custom_role" => nil, "name" => user.name}]
+    end
+
+    test "names the custom role of a member who holds one", %{conn: conn, org: org} do
+      role = Fixtures.org_role_fixture(org, %{name: "Release Manager"})
+      member = Fixtures.user_fixture()
+      {:ok, _} = Accounts.add_org_user(org, member, %{org_role_id: role.id})
+
+      conn = get(conn, Routes.api_org_user_path(conn, :index, org.name))
+
+      assert %{"role" => nil, "custom_role" => "Release Manager"} =
+               Enum.find(json_response(conn, 200)["data"], &(&1["email"] == member.email))
+    end
+
+    test "error: a custom role cannot list org members", %{conn2: conn, org: org, user2: user} do
+      role = Fixtures.org_role_fixture(org, %{permissions: Accounts.Permissions.custom_role_options()})
+      {:ok, _} = Accounts.add_org_user(org, user, %{org_role_id: role.id})
+
+      assert_error_sent(401, fn ->
+        get(conn, Routes.api_org_user_path(conn, :index, org.name))
+      end)
+      |> assert_authorization_error()
     end
 
     for role <- [:manage, :view] do
@@ -39,7 +60,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       conn = get(conn, Routes.api_org_user_path(conn, :show, org.name, user.email))
 
       assert json_response(conn, 200)["data"] ==
-               %{"email" => user.email, "role" => "admin", "name" => user.name}
+               %{"email" => user.email, "role" => "admin", "custom_role" => nil, "name" => user.name}
     end
 
     for role <- [:manage, :view] do

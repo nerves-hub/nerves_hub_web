@@ -3,7 +3,7 @@
     {"You've been invited to join #{@org.name} on #{platform_name()}"}
   </:title>
   <:subheader :if={@mode != :wrong_account}>
-    {@invite.invited_by.name} sent this invitation for the <span class="capitalize">{@invite.role}</span> role. It expires 48 hours after it was sent.
+    {@invite.invited_by.name} sent this invitation for the <span>{NervesHubWeb.Components.Utils.role_name(@invite)}</span> role. It expires 48 hours after it was sent.
   </:subheader>
 
   <div class="mt-6">

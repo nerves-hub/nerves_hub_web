@@ -42,7 +42,7 @@ defmodule NervesHub.Products do
       on: p.org_id == ou.org_id,
       where:
         p.org_id == ^org.id and ou.user_id == ^user.id and
-          ou.role in ^User.role_or_higher(:view),
+          (ou.role in ^User.role_or_higher(:view) or not is_nil(ou.org_role_id)),
       group_by: p.id
     )
     |> add_connected_devices_count(opts[:with_counts])
@@ -104,7 +104,7 @@ defmodule NervesHub.Products do
         on: p.org_id == ou.org_id,
         where:
           p.org_id == ^org_id and ou.user_id == ^user_id and
-            ou.role in ^User.role_or_higher(:view),
+            (ou.role in ^User.role_or_higher(:view) or not is_nil(ou.org_role_id)),
         group_by: p.id
       )
 

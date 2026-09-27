@@ -7,6 +7,8 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.OrgMetric
+  alias NervesHub.Accounts.OrgRole
+  alias NervesHub.Accounts.OrgRoles
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.Scope
@@ -193,20 +195,26 @@ defmodule NervesHub.Accounts do
 
   @doc """
   Adds a user to an org.
-  `params` are passed to `Org.add_user/2`.
+  `params` are passed to `Org.add_user/2`, and give the user a built-in `role`
+  or one of the org's custom roles as `org_role_id`.
   """
   @spec add_org_user(Org.t(), User.t(), map()) ::
           {:ok, OrgUser.t()} | {:error, Ecto.Changeset.t()}
   def add_org_user(%Org{} = org, %User{} = user, params) do
     org_user = %OrgUser{org_id: org.id, user_id: user.id}
 
+    changeset =
+      org_user
+      |> Org.add_user(params)
+      |> OrgRoles.validate_org_role()
+
     multi =
       Multi.new()
-      |> Multi.insert(:org_user, Org.add_user(org_user, params))
+      |> Multi.insert(:org_user, changeset)
 
     case Repo.transact(multi) do
       {:ok, result} ->
-        {:ok, Repo.preload(result.org_user, :user)}
+        {:ok, Repo.preload(result.org_user, [:user, :org_role])}
 
       {:error, :org_user, changeset, _} ->
         {:error, changeset}
@@ -239,11 +247,29 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @doc """
+  Gives a member a different role: a built-in role, by name or atom, or one of
+  their org's custom roles.
+  """
+  @spec change_org_user_role(OrgUser.t(), atom() | String.t() | OrgRole.t()) ::
+          {:ok, OrgUser.t()} | {:error, Changeset.t()}
+  def change_org_user_role(%OrgUser{} = ou, %OrgRole{} = org_role) do
+    ou
+    |> Org.change_user_role(%{role: nil, org_role_id: org_role.id})
+    |> OrgRoles.validate_org_role()
+    |> Repo.update()
+    |> preload_org_role()
+  end
+
   def change_org_user_role(%OrgUser{} = ou, role) do
     ou
-    |> Org.change_user_role(%{role: role})
+    |> Org.change_user_role(%{role: role, org_role_id: nil})
     |> Repo.update()
+    |> preload_org_role()
   end
+
+  defp preload_org_role({:ok, org_user}), do: {:ok, Repo.preload(org_user, :org_role, force: true)}
+  defp preload_org_role(error), do: error
 
   def get_org_user!(%Scope{org: org}, %User{} = user) do
     get_org_user_query(org, user.id)
@@ -274,7 +300,7 @@ defmodule NervesHub.Accounts do
     |> where([ou], ou.org_id == ^org.id)
     |> where([ou], ou.user_id == ^user_id)
     |> join(:inner, [ou], u in assoc(ou, :user), as: :user)
-    |> preload([ou, user: user], user: user)
+    |> preload([ou, user: user], [:org_role, user: user])
     |> Repo.exclude_deleted()
   end
 
@@ -282,10 +308,10 @@ defmodule NervesHub.Accounts do
     from(
       ou in OrgUser,
       where: ou.org_id == ^org.id,
-      order_by: [desc: ou.role]
+      order_by: [desc_nulls_last: ou.role]
     )
     |> join(:inner, [ou], u in assoc(ou, :user), as: :user)
-    |> preload([ou, user: user], user: user)
+    |> preload([ou, user: user], [:org_role, user: user])
     |> where([ou, user: user], is_nil(user.deleted_at))
     |> Repo.exclude_deleted()
     |> Repo.all()
@@ -304,13 +330,28 @@ defmodule NervesHub.Accounts do
     |> Repo.all()
   end
 
+  @doc """
+  Whether `user` holds `role` or a higher built-in role in `org`.
+
+  A custom role counts only as `:view` here: it makes someone a member, but
+  role-level checks can't tell what else it grants, so they refuse it rather
+  than guess.
+  """
   def has_org_role?(org, user, role) do
     OrgUser
     |> where(org_id: ^org.id)
     |> where(user_id: ^user.id)
-    |> where([ou], ou.role in ^User.role_or_higher(role))
+    |> where_role_or_higher(role)
     |> where([ou], is_nil(ou.deleted_at))
     |> Repo.exists?()
+  end
+
+  defp where_role_or_higher(query, :view) do
+    where(query, [ou], ou.role in ^User.role_or_higher(:view) or not is_nil(ou.org_role_id))
+  end
+
+  defp where_role_or_higher(query, role) do
+    where(query, [ou], ou.role in ^User.role_or_higher(role))
   end
 
   def get_user_orgs(%User{} = user, preloads \\ []) do
@@ -335,6 +376,7 @@ defmodule NervesHub.Accounts do
     |> where([_, _, _, d], d.id == ^device_id)
     |> where([ou], ou.user_id == ^user.id)
     |> where([ou], is_nil(ou.deleted_at))
+    |> preload(:org_role)
     |> Repo.one()
   end
 
@@ -346,6 +388,7 @@ defmodule NervesHub.Accounts do
     |> where([_, _, _, d], d.identifier == ^device_identifier)
     |> where([ou], ou.user_id == ^user.id)
     |> where([ou], is_nil(ou.deleted_at))
+    |> preload(:org_role)
     |> Repo.one()
   end
 
@@ -536,7 +579,7 @@ defmodule NervesHub.Accounts do
     |> where([_, _, o], is_nil(o.deleted_at))
     |> where([_, _, o], o.name == ^org_name)
     |> where([_, u], u.id == ^current_scope.user.id)
-    |> preload([_, u, o], org: o, user: u)
+    |> preload([_, u, o], [:org_role, org: o, user: u])
     |> Repo.one!()
   end
 
@@ -693,6 +736,7 @@ defmodule NervesHub.Accounts do
 
     %Invite{}
     |> Invite.changeset(params)
+    |> OrgRoles.validate_org_role()
     |> validate_invitee_is_not_a_member(org)
     |> validate_invite_is_not_pending(org)
     |> Repo.insert()
@@ -754,7 +798,7 @@ defmodule NervesHub.Accounts do
     Invite
     |> where(token: ^token)
     |> pending()
-    |> preload(:invited_by)
+    |> preload([:invited_by, :org_role])
     |> Repo.one()
     |> case do
       nil -> {:error, :invite_not_found}
@@ -766,7 +810,7 @@ defmodule NervesHub.Accounts do
     Invite
     |> where([i], i.org_id == ^org.id)
     |> unaccepted()
-    |> preload(:invited_by)
+    |> preload([:invited_by, :org_role])
     |> Repo.all()
   end
 
@@ -852,12 +896,14 @@ defmodule NervesHub.Accounts do
 
     Repo.transact(fn ->
       with {:ok, user} <- create_user(user_params),
-           {:ok, user} <- add_org_user(org, user, %{role: invite.role}),
+           {:ok, user} <- add_org_user(org, user, invited_role(invite)),
            {:ok, _invite} <- set_invite_accepted(invite) do
         {:ok, user}
       end
     end)
   end
+
+  defp invited_role(%Invite{role: role, org_role_id: org_role_id}), do: %{role: role, org_role_id: org_role_id}
 
   @spec update_user(User.t(), map) ::
           {:ok, User.t()}
@@ -882,7 +928,7 @@ defmodule NervesHub.Accounts do
     if invite_addressed_to?(invite, user) do
       Repo.transact(fn ->
         with {:ok, org} <- get_org(invite.org_id),
-             {:ok, org_user} <- add_org_user(org, user, %{role: invite.role}),
+             {:ok, org_user} <- add_org_user(org, user, invited_role(invite)),
              {:ok, _invite} <- set_invite_accepted(invite) do
           {:ok, org_user}
         end

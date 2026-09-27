@@ -22,7 +22,7 @@
         <%= for invite <- @invites do %>
           <tr class="border-base-800 isolate border-b">
             <td class="text-base-400">{invite.email}</td>
-            <td class="text-base-400 capitalize">{invite.role}</td>
+            <td class="text-base-400">{Utils.role_name(invite)}</td>
             <td class="text-base-400">{invited_by_name(invite)}</td>
             <td class="w-px text-right whitespace-nowrap">
               <div class="flex justify-end gap-2">
@@ -89,7 +89,7 @@
               </.link>
             </td>
             <td>{org_user.user.email}</td>
-            <td class="text-base-400 capitalize">{org_user.role}</td>
+            <td class="text-base-400">{Utils.role_name(org_user)}</td>
             <td class="text-base-400">
               <div><.local_datetime at={org_user.user.inserted_at} time_zone={@time_zone} format={:long_date} zone_label={false} /></div>
             </td>

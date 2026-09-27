@@ -3,6 +3,8 @@ defmodule NervesHubWeb.Mounts.EnrichSentryContext do
   Add user information to the Sentry context
   """
 
+  alias NervesHubWeb.Components.Utils
+
   def on_mount(_, _, _, socket) do
     with scope when not is_nil(scope) <- socket.assigns.current_scope,
          user when not is_nil(user) <- scope.user do
@@ -13,7 +15,7 @@ defmodule NervesHubWeb.Mounts.EnrichSentryContext do
 
       context =
         if org = scope.org do
-          Map.merge(context, %{org_id: org.id, org_name: org.name, role: scope.role})
+          Map.merge(context, %{org_id: org.id, org_name: org.name, role: Utils.role_name(scope.role)})
         else
           context
         end

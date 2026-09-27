@@ -5,6 +5,7 @@ defmodule NervesHub.Accounts.Invite do
 
   alias __MODULE__
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
 
@@ -13,6 +14,9 @@ defmodule NervesHub.Accounts.Invite do
   schema "invites" do
     belongs_to(:org, Org)
     belongs_to(:invited_by, User)
+
+    # Like a member, an invite offers a built-in `role` or a custom `org_role`.
+    belongs_to(:org_role, OrgRole)
 
     field(:email, :string)
     field(:token, Ecto.UUID)
@@ -25,7 +29,8 @@ defmodule NervesHub.Accounts.Invite do
 
   def changeset(%Invite{} = invite, params) do
     invite
-    |> cast(params, [:email, :token, :org_id, :accepted, :declined_at, :role, :invited_by_id])
-    |> validate_required([:email, :token, :org_id, :role, :invited_by_id])
+    |> cast(params, [:email, :token, :org_id, :accepted, :declined_at, :role, :org_role_id, :invited_by_id])
+    |> validate_required([:email, :token, :org_id, :invited_by_id])
+    |> OrgRole.validate_assignment()
   end
 end
