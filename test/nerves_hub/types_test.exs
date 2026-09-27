@@ -37,4 +37,33 @@ defmodule NervesHub.TypesTest do
       assert Types.Resource.load(to_string(User)) == {:ok, User}
     end
   end
+
+  describe "known atoms" do
+    setup do
+      %{params: Types.KnownAtoms.init(values: [:health, :location])}
+    end
+
+    test "cast accepts known values as atoms or strings", %{params: params} do
+      assert Types.KnownAtoms.cast(["health", :location], params) == {:ok, [:health, :location]}
+      assert Types.KnownAtoms.cast(nil, params) == {:ok, nil}
+    end
+
+    test "cast rejects an unknown value", %{params: params} do
+      assert Types.KnownAtoms.cast(["health", "weather"], params) == :error
+      assert Types.KnownAtoms.cast(["health", nil], params) == :error
+      assert Types.KnownAtoms.cast("health", params) == :error
+    end
+
+    test "load skips values it no longer knows", %{params: params} do
+      assert Types.KnownAtoms.load(["health", "retired_box", "location"], nil, params) ==
+               {:ok, [:health, :location]}
+
+      assert Types.KnownAtoms.load(nil, nil, params) == {:ok, nil}
+    end
+
+    test "dump stores strings", %{params: params} do
+      assert Types.KnownAtoms.dump([:health, :location], nil, params) == {:ok, ["health", "location"]}
+      assert Types.KnownAtoms.dump([:weather], nil, params) == :error
+    end
+  end
 end

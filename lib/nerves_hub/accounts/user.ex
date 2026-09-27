@@ -93,8 +93,10 @@ defmodule NervesHub.Accounts.User do
   end
 
   def update_selected_default_columns_changeset(user, column_set, selected_columns) do
-    attrs = %{column_set => selected_columns}
+    display_preferences_changeset(user, %{column_set => selected_columns})
+  end
 
+  def display_preferences_changeset(user, attrs) do
     user
     |> cast(%{display_preferences: attrs}, [])
     |> cast_embed(:display_preferences, required: true)

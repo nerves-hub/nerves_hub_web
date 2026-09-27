@@ -14,6 +14,7 @@ import CommandPalette from "./hooks/commandPalette.js"
 import Console from "./hooks/console.js"
 import CopyToClipboard from "./hooks/copyToClipboard.js"
 import CrossFadeOnUpdate from "./hooks/crossFadeOnUpdate.js"
+import DeviceDetailsLayout from "./hooks/deviceDetailsLayout.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
 import DonutChart from "./hooks/donutChart.js"
@@ -70,6 +71,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     Console,
     CopyToClipboard,
     CrossFadeOnUpdate,
+    DeviceDetailsLayout,
     DeviceLocationMap,
     DeviceLocationMapWithGeocoder,
     DonutChart,

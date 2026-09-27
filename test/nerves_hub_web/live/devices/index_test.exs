@@ -1,10 +1,11 @@
 defmodule NervesHubWeb.Live.Devices.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
-  import Ecto.Query, only: [where: 2]
+  import Ecto.Query, only: [from: 2, where: 2]
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Scope
+  alias NervesHub.Accounts.User
   alias NervesHub.DeviceEvents
   alias NervesHub.DeviceLink.DeviceInfo
   alias NervesHub.Devices
@@ -1052,6 +1053,50 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("th", text: "Connected for")
       |> assert_has("th", text: "Deployment Group")
       |> assert_has("th", text: "Tags")
+    end
+
+    test "a column name that's no longer known is skipped", %{conn: conn, fixture: fixture} do
+      %{user: user} = fixture
+
+      # As if a column had been removed after these preferences were saved.
+      {1, _} =
+        Repo.update_all(
+          from(u in User,
+            where: u.id == ^user.id,
+            update: [
+              set: [
+                display_preferences:
+                  fragment(
+                    ~s|jsonb_build_object('id', gen_random_uuid(), 'device_list_columns', '["retired_column", "health", "tags"]'::jsonb)|
+                  )
+              ]
+            ]
+          ),
+          []
+        )
+
+      assert %{device_list_columns: [:health, :tags]} = Accounts.get_user!(user.id).display_preferences
+
+      conn
+      |> visit(device_index_path(fixture))
+      |> assert_has("#device-count", text: "1", timeout: 1000)
+      |> assert_has("th", text: "Health")
+      |> assert_has("th", text: "Tags")
+      |> refute_has("th", text: "Firmware")
+      # the show settings button is shown using JS, so no `click_button` is needed
+      |> uncheck("Tags")
+      |> refute_has("th", text: "Tags", timeout: 1_000)
+
+      # Saving the columns again leaves the stale name behind.
+      assert %{device_list_columns: [:health]} = Accounts.get_user!(user.id).display_preferences
+
+      assert ["health"] =
+               Repo.one(
+                 from(u in User,
+                   where: u.id == ^user.id,
+                   select: fragment("?->'device_list_columns'", u.display_preferences)
+                 )
+               )
     end
 
     for {column, label} <- [

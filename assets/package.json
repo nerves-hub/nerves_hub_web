@@ -30,6 +30,7 @@
     "phoenix_live_view": "file:../deps/phoenix_live_view",
     "popper.js": "^1.16.1",
     "semver": "^7.7.4",
+    "sortablejs": "^1.15.7",
     "tailwind-scrollbar": "^4.0.2",
     "topbar": "^3.0.0"
   },
