@@ -59,8 +59,13 @@ Each entry has the same fields as an `alarms:raised` event, below.
 
 The platform replaces what it has stored with that set: anything new is raised,
 and anything stored that is missing is cleared. `{"alarms": []}` clears
-everything. An entry without a usable `alarm` is skipped and the rest of the
-set is applied, which means the platform treats that alarm as cleared.
+everything.
+
+A snapshot with any entry that isn't an object with a string `alarm` is
+rejected whole, and nothing changes. The set replaces what is stored, so
+applying the rest would treat the unreadable alarm as cleared. An entry whose
+name can't be stored (see [Names](#names)) is dropped, as it would be from a
+health report.
 
 `alarms:sync` goes out at other times too (see the rate limit below), and a
 device must answer every one the same way. A device may also send a snapshot

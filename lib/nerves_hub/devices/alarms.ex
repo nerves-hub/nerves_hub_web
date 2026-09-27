@@ -53,13 +53,11 @@ defmodule NervesHub.Devices.Alarms do
   Record the device's current alarm set, raising and resolving as the diff
   against the stored set requires.
 
-  `alarms` is either a health report's alarm map, `%{name => description}`, or
-  a list of `{name, description, raised_at}`, which is the `alarms`
-  extension's snapshot once it has been parsed. `raised_at` is when the device
-  says the alarm was raised, and `nil` means `at`; it only matters for an alarm
-  not already stored, since an alarm already raised keeps the start of its
-  episode. An empty map or list is meaningful: it resolves everything the
-  device had raised.
+  `alarms` is a health report's alarm map, `%{name => description}`, exactly
+  as the device sent it. An empty map is meaningful: it resolves everything
+  the device had raised. Anything that is not a map says nothing about alarms
+  and changes nothing; a device sending `["HighTemp"]` must not have every
+  alarm it had raised resolved.
 
   The diff and the writes happen in one transaction, so a device is never
   briefly seen with no alarms or a half-applied set — `current_alarms_count/1`
@@ -67,14 +65,34 @@ defmodule NervesHub.Devices.Alarms do
   afterwards, outside the transaction, because the buffer is a cast and a
   ClickHouse hiccup is no reason to lose the PostgreSQL write.
   """
-  @spec sync(DeviceInfo.t(), map() | [entry()], DateTime.t()) :: :ok
+  @spec sync(DeviceInfo.t(), map(), DateTime.t()) :: :ok
   def sync(device_info, alarms, at \\ DateTime.utc_now())
 
   def sync(%DeviceInfo{} = device_info, alarms, %DateTime{} = at) when is_map(alarms) do
-    sync(device_info, for({alarm, description} <- alarms, do: {alarm, description, nil}), at)
+    apply_set(device_info, for({alarm, description} <- alarms, do: {alarm, description, nil}), at)
   end
 
-  def sync(%DeviceInfo{} = device_info, alarms, %DateTime{} = at) when is_list(alarms) do
+  def sync(%DeviceInfo{}, _not_a_map, _at), do: :ok
+
+  @doc """
+  Record the `alarms` extension's snapshot: the device's current alarm set,
+  with when each alarm was raised.
+
+  `alarms` is the snapshot once `NervesHub.Extensions.Alarms` has parsed it, a
+  list of `{name, description, raised_at}`. Its own function rather than a
+  second shape `sync/3` accepts, so that nothing a device sends to health can
+  be read as one. `raised_at` of `nil` means `at`, and only matters for an
+  alarm not already stored, since an alarm already raised keeps the start of
+  its episode. An empty list resolves everything, as an empty map does for
+  `sync/3`.
+  """
+  @spec sync_snapshot(DeviceInfo.t(), [entry()], DateTime.t()) :: :ok
+  def sync_snapshot(%DeviceInfo{} = device_info, alarms, %DateTime{} = at) when is_list(alarms) do
+    apply_set(device_info, alarms, at)
+  end
+
+  defp apply_set(device_info, alarms, at) do
+    at = usec(at)
     current = normalize(alarms, at)
     names = Map.keys(current)
 
@@ -92,8 +110,6 @@ defmodule NervesHub.Devices.Alarms do
         :ok
     end
   end
-
-  def sync(%DeviceInfo{}, _not_a_map_or_list, _at), do: :ok
 
   @doc """
   Record one alarm the device has just raised.
@@ -114,7 +130,7 @@ defmodule NervesHub.Devices.Alarms do
 
   def raise_alarm(%DeviceInfo{} = device_info, alarm, description, %DateTime{} = at) do
     case normalize_name(alarm) do
-      {:ok, name} -> insert_or_describe(device_info, name, describe(description), at)
+      {:ok, name} -> insert_or_describe(device_info, name, describe(description), usec(at))
       :error -> :ok
     end
   end
@@ -133,7 +149,7 @@ defmodule NervesHub.Devices.Alarms do
     with {:ok, name} <- normalize_name(alarm),
          {1, _} <-
            Repo.delete_all(from(a in DeviceAlarm, where: a.device_id == ^device_info.device_id and a.alarm == ^name)) do
-      :ok = write_history(device_info, name, "resolved", nil, at)
+      :ok = write_history(device_info, name, "resolved", nil, usec(at))
       broadcast(device_info)
     else
       _ -> :ok
@@ -316,17 +332,29 @@ defmodule NervesHub.Devices.Alarms do
     for {alarm, description, raised_at} <- alarms,
         {:ok, name} <- [normalize_name(alarm)],
         into: %{} do
-      {name, {describe(description), raised_at || at}}
+      {name, {describe(description), usec(raised_at || at)}}
     end
   end
 
+  # Counted in code points, as PostgreSQL counts a varchar, rather than in
+  # graphemes: a name built from combining characters is fewer graphemes than
+  # it is characters, and would pass a grapheme count and still fail the write.
+  # A name that is not valid UTF-8 cannot be counted that way or stored at all.
   defp normalize_name(alarm) when is_binary(alarm) do
     name = String.trim_leading(alarm, @elixir_prefix)
 
-    if name != "" and String.length(name) <= @max_name_length, do: {:ok, name}, else: :error
+    if name != "" and String.valid?(name) and length(String.to_charlist(name)) <= @max_name_length,
+      do: {:ok, name},
+      else: :error
   end
 
   defp normalize_name(_alarm), do: :error
+
+  # `raised_at` is `:utc_datetime_usec`, and `insert_all` does not cast: a time
+  # with no fractional seconds, which is what a device sending
+  # `2026-09-24T02:11:09Z` parses to, raises instead of being padded, and
+  # takes every other alarm in the same write with it.
+  defp usec(%DateTime{microsecond: {microsecond, _precision}} = at), do: %{at | microsecond: {microsecond, 6}}
 
   defp describe(description) when is_binary(description), do: description
   defp describe(nil), do: nil

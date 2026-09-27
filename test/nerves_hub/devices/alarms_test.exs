@@ -89,7 +89,25 @@ defmodule NervesHub.Devices.AlarmsTest do
       :ok = Alarms.sync(info, %{"HighTemp" => "too hot"})
       :ok = Alarms.sync(info, "not a map")
 
+      # A list in particular: it is not a snapshot, and must not resolve
+      # everything as an empty set would.
+      :ok = Alarms.sync(info, ["HighTemp"])
+      :ok = Alarms.sync(info, [])
+
       assert [%{alarm: "HighTemp"}] = stored(device)
+    end
+
+    test "drops a name longer than the column in characters, however few graphemes", %{
+      device: device,
+      info: info
+    } do
+      # "e" and a combining acute accent: one grapheme, two characters.
+      combining = String.duplicate("e\u0301", 200)
+      assert String.length(combining) == 200
+
+      :ok = Alarms.sync(info, %{combining => "400 characters", "Real" => "kept"})
+
+      assert [%{alarm: "Real"}] = stored(device)
     end
 
     test "one device's alarms do not touch another's", %{org: org, product: product, firmware: firmware, info: info} do
@@ -102,6 +120,26 @@ defmodule NervesHub.Devices.AlarmsTest do
 
       assert [%{alarm: "HighTemp"}] = stored(%{id: info.device_id})
       assert stored(other) == []
+    end
+  end
+
+  describe "sync_snapshot/3" do
+    test "raises each alarm at its own time, and resolves what it leaves out", %{device: device, info: info} do
+      :ok = Alarms.sync(info, %{"Stale" => nil})
+      earlier = DateTime.add(DateTime.utc_now(), -1, :hour)
+
+      :ok = Alarms.sync_snapshot(info, [{"HighTemp", "too hot", earlier}, {"LowDisk", nil, nil}], DateTime.utc_now())
+
+      assert [%{alarm: "HighTemp", raised_at: ^earlier}, %{alarm: "LowDisk"}] = stored(device)
+    end
+
+    test "accepts times without fractional seconds", %{device: device, info: info} do
+      at = DateTime.truncate(DateTime.utc_now(), :second)
+
+      :ok = Alarms.sync_snapshot(info, [{"HighTemp", nil, at}], at)
+
+      assert [%{raised_at: raised_at}] = stored(device)
+      assert DateTime.compare(raised_at, at) == :eq
     end
   end
 
@@ -129,6 +167,15 @@ defmodule NervesHub.Devices.AlarmsTest do
 
       assert [%{alarm: "MyApp.HighTemp", description: description}] = stored(device)
       assert description =~ "celsius"
+    end
+
+    test "accepts a time without fractional seconds", %{device: device, info: info} do
+      at = DateTime.truncate(DateTime.utc_now(), :second)
+
+      :ok = Alarms.raise_alarm(info, "HighTemp", nil, at)
+
+      assert [%{raised_at: raised_at}] = stored(device)
+      assert DateTime.compare(raised_at, at) == :eq
     end
 
     test "ignores a name that cannot be stored", %{device: device, info: info} do

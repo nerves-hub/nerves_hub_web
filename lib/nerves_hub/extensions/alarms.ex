@@ -126,14 +126,24 @@ defmodule NervesHub.Extensions.Alarms do
 
   @impl NervesHub.Extensions
   def handle_in("snapshot", %{"alarms" => alarms}, state) when is_list(alarms) do
-    if allow?(state.device_info) do
-      now = DateTime.utc_now()
-      :ok = Store.sync(state.device_info, entries(alarms, now), now)
+    now = DateTime.utc_now()
+
+    with {:ok, entries} <- entries(alarms, now),
+         true <- allow?(state.device_info) do
+      :ok = Store.sync_snapshot(state.device_info, entries, now)
 
       # The device has just said everything a scheduled sync would ask for.
       cancel_resync(state)
     else
-      schedule_resync(state)
+      :malformed ->
+        Logger.warning(
+          "device #{state.device_info.device_id} sent an alarms snapshot with malformed entries: #{inspect(alarms, limit: 5)}"
+        )
+
+        {state, []}
+
+      false ->
+        schedule_resync(state)
     end
   end
 
@@ -186,13 +196,25 @@ defmodule NervesHub.Extensions.Alarms do
     end
   end
 
-  # A snapshot entry without a usable name is skipped, and its neighbours are
-  # not: a device that gets one entry wrong should not lose the rest of the set.
-  # That does mean a malformed entry for a raised alarm reads as "cleared",
-  # which is the price of the set being authoritative.
+  # All or nothing. The set is authoritative, so an entry that cannot be read
+  # would otherwise count as an alarm the device does not have, and a snapshot
+  # of nothing but unreadable entries would resolve every alarm the device has
+  # raised. Rejected whole, the stored set stays as it was, and costs no token:
+  # nothing was going to be written.
+  #
+  # A readable entry whose name cannot be stored (see `Store.sync/3`) is a
+  # different thing, and is dropped by the store, as it is from a health report.
   defp entries(alarms, now) do
-    for %{"alarm" => alarm} = entry <- alarms, is_binary(alarm) do
-      {alarm, entry["description"], device_time(entry["raised_at"], now)}
+    Enum.reduce_while(alarms, {:ok, []}, fn
+      %{"alarm" => alarm} = entry, {:ok, acc} when is_binary(alarm) ->
+        {:cont, {:ok, [{alarm, entry["description"], device_time(entry["raised_at"], now)} | acc]}}
+
+      _malformed, _acc ->
+        {:halt, :malformed}
+    end)
+    |> case do
+      {:ok, entries} -> {:ok, Enum.reverse(entries)}
+      :malformed -> :malformed
     end
   end
 

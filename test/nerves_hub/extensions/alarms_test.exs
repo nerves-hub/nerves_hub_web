@@ -101,11 +101,33 @@ defmodule NervesHub.Extensions.AlarmsTest do
   end
 
   describe "snapshots" do
-    test "an entry without a usable name is skipped, and its neighbours are not", %{device: device, state: state} do
+    test "a snapshot with a malformed entry is rejected whole, and costs nothing", %{device: device, state: state} do
+      {^state, []} = Alarms.handle_in("raised", %{"alarm" => "HighTemp"}, state)
+
+      # Applied, the readable entry would have resolved HighTemp; a snapshot of
+      # nothing but unreadable entries would have resolved everything.
+      for alarms <- [
+            [%{"name" => "Wrong"}, %{"alarm" => "LowDisk"}],
+            ["HighTemp"],
+            [%{"alarm" => 42}]
+          ] do
+        assert {^state, []} = Alarms.handle_in("snapshot", %{"alarms" => alarms}, state)
+      end
+
+      assert Store.current_alarms_for_device(device) == [{"HighTemp", nil}]
+
+      # One token spent, on the raise. The rejected snapshots cost nothing.
+      for _ <- 1..9, do: assert(Alarms.allow?(state.device_info))
+    end
+
+    test "a readable entry whose name cannot be stored is dropped, and the rest applied", %{
+      device: device,
+      state: state
+    } do
       {^state, []} =
         Alarms.handle_in(
           "snapshot",
-          %{"alarms" => [%{"name" => "Wrong"}, "HighTemp", %{"alarm" => 42}, %{"alarm" => "LowDisk"}]},
+          %{"alarms" => [%{"alarm" => String.duplicate("a", 256)}, %{"alarm" => "LowDisk"}]},
           state
         )
 
@@ -182,6 +204,34 @@ defmodule NervesHub.Extensions.AlarmsTest do
       alarms = stored(device)
       assert length(alarms) == length(unbelievable)
       assert Enum.all?(alarms, &(DateTime.diff(DateTime.utc_now(), &1.raised_at) < 60))
+    end
+
+    # `DateTime.from_iso8601/1` gives such a time no fractional digits, which the
+    # `:utc_datetime_usec` column refuses unless it is padded first.
+    test "a time without fractional seconds is kept", %{device: device, state: state} do
+      raised_at = ago(hour: 2) |> DateTime.truncate(:second)
+      cleared_at = ago(hour: 1) |> DateTime.truncate(:second)
+
+      {^state, []} =
+        Alarms.handle_in(
+          "snapshot",
+          %{"alarms" => [%{"alarm" => "FromSnapshot", "raised_at" => iso(raised_at)}]},
+          state
+        )
+
+      {^state, []} = Alarms.handle_in("raised", %{"alarm" => "FromEvent", "raised_at" => iso(raised_at)}, state)
+
+      assert [%{alarm: "FromEvent", raised_at: event_at}, %{alarm: "FromSnapshot", raised_at: snapshot_at}] =
+               stored(device)
+
+      assert DateTime.compare(event_at, raised_at) == :eq
+      assert DateTime.compare(snapshot_at, raised_at) == :eq
+
+      {^state, []} = Alarms.handle_in("cleared", %{"alarm" => "FromEvent", "cleared_at" => iso(cleared_at)}, state)
+
+      assert [%{alarm: "FromSnapshot"}] = stored(device)
+      assert %{timestamp: resolved_at} = Enum.find(history(device), &(&1.event == "resolved"))
+      assert DateTime.compare(resolved_at, cleared_at) == :eq
     end
 
     test "a time merely old or slightly ahead is kept", %{device: device, state: state} do
