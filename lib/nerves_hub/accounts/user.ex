@@ -214,8 +214,11 @@ defmodule NervesHub.Accounts.User do
     end
   end
 
+  # Name and email only. Passwords change through `password_changeset/2`, which
+  # checks the current password and the length and sends the notification email.
   def update_changeset(%User{} = user, params) do
-    changeset(user, params)
+    user
+    |> changeset(Map.drop(params, ["password", :password]))
     |> email_password_update_valid?(user, params)
   end
 

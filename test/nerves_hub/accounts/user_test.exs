@@ -152,6 +152,16 @@ defmodule NervesHub.Accounts.UserTest do
     assert changeset.errors[:current_password] != nil
   end
 
+  test "update_changeset/2 ignores a password, which only password_changeset/2 may change" do
+    user = Fixtures.user_fixture()
+
+    changeset = User.update_changeset(user, %{"name" => "New Name", "password" => "x"})
+
+    assert changeset.valid?
+    refute Map.has_key?(changeset.changes, :password)
+    refute Map.has_key?(changeset.changes, :password_hash)
+  end
+
   test "update_changeset/2 no email/password change with current_password does not add error" do
     user = Fixtures.user_fixture()
 

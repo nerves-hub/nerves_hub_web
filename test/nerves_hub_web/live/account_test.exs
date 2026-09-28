@@ -110,6 +110,23 @@ defmodule NervesHubWeb.Live.AccountTest do
 
       assert_email_sent(subject: "NervesHub: Your password has been updated")
     end
+
+    # The details form has no password field, but nothing stops a request
+    # adding one.
+    test "won't change the password through the details form", %{conn: conn, user: user} do
+      conn
+      |> visit("/account")
+      |> unwrap(fn view ->
+        view
+        |> element("#details-form")
+        |> render_submit(%{"user" => %{"password" => "x"}})
+      end)
+      |> assert_has("div", text: "Account updated")
+
+      {:ok, updated_user} = Accounts.get_user(user.id)
+
+      assert updated_user.password_hash == user.password_hash
+    end
   end
 
   describe "delete" do
