@@ -576,27 +576,40 @@ defmodule NervesHub.Accounts do
 
   @doc """
   When a device moves orgs, copy the signing keys for its current firmware into
-  the target org if they are not already present.
+  the target org if they are not already present, recorded as created by `user`.
+
+  `device` is the device as it was before the move, since its `org_id` is where
+  the keys are copied from.
+
+  Best effort: a key the target org cannot take, because it already has a
+  different key under the same name, is skipped. Conflicts are skipped by the
+  insert rather than raised, so the copy cannot abort a surrounding transaction.
+  `BulkActions.move_many/3` moves the devices of a query inside one.
   """
-  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}) do
+  @spec maybe_copy_firmware_keys(Device.t(), Org.t(), User.t()) :: :ok
+  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}, %User{} = user) do
     existing_target_keys = from(k in OrgKey, where: [org_id: ^target], select: k.key)
 
+    # More than one firmware can carry the uuid, one per product it was
+    # uploaded to, and each may have been signed with a different key.
     from(
       k in OrgKey,
       join: f in Firmware,
       on: [org_key_id: k.id],
       where: f.uuid == ^uuid and k.org_id == ^source,
       where: k.key not in subquery(existing_target_keys),
-      select: %{name: k.name, key: k.key, org_id: type(^target, :integer)}
+      distinct: true,
+      select: %{name: k.name, key: k.key, scheme: k.scheme}
     )
-    |> Repo.one()
-    |> case do
-      %{} = attrs -> create_org_key(attrs)
-      _ -> :ignore
-    end
+    |> Repo.all()
+    |> Enum.each(fn attrs ->
+      %OrgKey{}
+      |> OrgKey.changeset(Map.merge(attrs, %{org_id: target, created_by_id: user.id}))
+      |> Repo.insert(on_conflict: :nothing)
+    end)
   end
 
-  def maybe_copy_firmware_keys(_old, _updated), do: :ignore
+  def maybe_copy_firmware_keys(_device, _target, _user), do: :ok
 
   @spec list_org_keys(Scope.t() | pos_integer(), boolean()) :: [OrgKey.t()]
   def list_org_keys(scope_or_org_id, load_created_by \\ true)

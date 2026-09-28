@@ -601,9 +601,13 @@ defmodule NervesHub.Devices do
   @doc """
   Move a device to a different product
 
-  If the new target product is in a different organization, this will
-  attempt to also copy any signing keys the device might be expecting
-  to the new organization. However, it is best effort only.
+  If the new target product is in a different organization, the signing keys
+  the device's current firmware was signed with are copied to that
+  organization, recorded as created by `user`. The copy is made only once the
+  move has gone through, so a failed move leaves nothing behind in the target
+  organization. It is best effort: a key the target organization cannot take,
+  such as one whose name it already uses for a different key, is skipped and
+  the move still succeeds.
 
   Moving a device will also trigger a deployment check to see if there
   is an update available from the new product/org for the device. It is
@@ -620,8 +624,6 @@ defmodule NervesHub.Devices do
       product_id: product.id,
       deployment_id: nil
     }
-
-    _ = Accounts.maybe_copy_firmware_keys(device, product.org)
 
     description =
       "User #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
@@ -655,9 +657,14 @@ defmodule NervesHub.Devices do
     end)
     |> Repo.transact()
     |> case do
-      {:ok, %{move: device}} ->
-        DeviceEvents.moved_product(device)
-        {:ok, device}
+      {:ok, %{move: moved}} ->
+        # Copied from the device as it was before the move, whose org the keys
+        # come from, and ahead of the event: that disconnects the device, and
+        # on reconnect it is sent the keys of its new org.
+        Accounts.maybe_copy_firmware_keys(device, product.org, user)
+
+        DeviceEvents.moved_product(moved)
+        {:ok, moved}
 
       err ->
         err
