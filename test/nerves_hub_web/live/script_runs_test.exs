@@ -142,16 +142,13 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
       refute filtered =~ "Check uptime"
     end
 
-    test "search also reaches the code, for a run whose name is forgotten", ctx do
+    test "search does not reach the script contents", ctx do
       _uptime = create_run(ctx, name: "Check uptime", text: "System.cmd(\"uptime\", [])")
-      _reboot = create_run(ctx, name: "Reboot everything", text: "Nerves.Runtime.reboot()")
 
       {:ok, view, _html} = live(ctx.conn, runs_path(ctx))
 
-      filtered = render_change(view, "update-filters", %{"search" => "Nerves.Runtime"})
-
-      assert filtered =~ "Reboot everything"
-      refute filtered =~ "Check uptime"
+      assert render_change(view, "update-filters", %{"search" => "System.cmd"}) =~
+               "No Script Runs match the current filters."
     end
 
     test "shows a filter-specific message when nothing matches", ctx do

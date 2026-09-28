@@ -21,13 +21,10 @@ defmodule NervesHub.ScriptRunners.ScriptRunnerFiltering do
     query
   end
 
-  # Name first, since that is what the listing shows, but the code is searched
-  # too -- "which run was it that called reboot?" is a question people ask when
-  # they cannot remember what they named it.
   def filter(query, _filters, :search, value) do
     search_term = "%#{value}%"
 
-    where(query, [sr], ilike(sr.name, ^search_term) or ilike(sr.text, ^search_term))
+    where(query, [sr], ilike(sr.name, ^search_term))
   end
 
   # Ignore any undefined filter.
