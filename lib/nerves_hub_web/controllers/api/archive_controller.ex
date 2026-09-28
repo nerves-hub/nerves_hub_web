@@ -7,8 +7,9 @@ defmodule NervesHubWeb.API.ArchiveController do
   alias NervesHubWeb.API.Schemas.ArchiveSchemas
   alias NervesHubWeb.API.Schemas.ErrorSchemas
 
-  plug(:validate_role, [org: :manage] when action in [:create, :download])
-  plug(:validate_role, [org: :view] when action in [:index, :show])
+  plug(:require_membership when action in [:index, :show])
+  plug(:require_permission, :"archive:upload" when action in [:create])
+  plug(:require_permission, :"archive:download" when action in [:download])
 
   tags(["Archives"])
   security([%{"bearer_auth" => []}])

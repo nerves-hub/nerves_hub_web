@@ -407,39 +407,9 @@ defmodule NervesHub.Accounts do
   end
 
   @doc """
-  Whether the user is a current member of the org with at least `role`.
-
-  A custom role counts only as `:view` here: it makes someone a member, but
-  role-level checks can't tell what else it grants, so they refuse it rather
-  than guess.
-
-  A deleted org grants no role: deleting an org leaves its memberships in
-  place, so the org's own `deleted_at` is checked alongside the membership's.
-  """
-  @spec has_org_role?(Org.t(), User.t(), :view | :manage | :admin) :: boolean()
-  def has_org_role?(org, user, role) do
-    OrgUser
-    |> join(:inner, [ou], o in assoc(ou, :org))
-    |> where(org_id: ^org.id)
-    |> where(user_id: ^user.id)
-    |> where_role_or_higher(role)
-    |> where([ou], is_nil(ou.deleted_at))
-    |> where([_, o], is_nil(o.deleted_at))
-    |> Repo.exists?()
-  end
-
-  defp where_role_or_higher(query, :view) do
-    where(query, [ou], ou.role in ^User.role_or_higher(:view) or not is_nil(ou.org_role_id))
-  end
-
-  defp where_role_or_higher(query, role) do
-    where(query, [ou], ou.role in ^User.role_or_higher(role))
-  end
-
-  @doc """
   The ids of the orgs where the user is a current member with at least `role`.
 
-  Custom roles count as in `has_org_role?/3`, and deleted orgs are left out.
+  A custom role counts only as `:view`, and deleted orgs are left out.
   """
   @spec org_ids_with_role(User.t(), :view | :manage | :admin) :: [pos_integer()]
   def org_ids_with_role(%User{id: user_id}, role) do
@@ -451,6 +421,16 @@ defmodule NervesHub.Accounts do
     |> where([_, o], is_nil(o.deleted_at))
     |> select([ou], ou.org_id)
     |> Repo.all()
+  end
+
+  # A custom role makes someone a member, but a role-level check can't tell what
+  # else it grants, so it counts only as `:view`.
+  defp where_role_or_higher(query, :view) do
+    where(query, [ou], ou.role in ^User.role_or_higher(:view) or not is_nil(ou.org_role_id))
+  end
+
+  defp where_role_or_higher(query, role) do
+    where(query, [ou], ou.role in ^User.role_or_higher(role))
   end
 
   def get_user_orgs(%User{} = user, preloads \\ []) do

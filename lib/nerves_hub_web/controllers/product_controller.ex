@@ -8,7 +8,7 @@ defmodule NervesHubWeb.ProductController do
 
   @csv_header ["identifier", "description", "tags", "product", "org", "certificates"]
 
-  plug(:validate_role, [org: :view] when action in [:devices_export])
+  plug(:require_membership when action in [:devices_export])
 
   def devices_export(%{assigns: %{current_scope: scope}} = conn, params) do
     sort = DeviceFiltering.parse_sort(params)

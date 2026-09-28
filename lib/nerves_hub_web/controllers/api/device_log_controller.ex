@@ -29,7 +29,7 @@ defmodule NervesHubWeb.API.DeviceLogController do
   @default_limit 100
   @max_limit 1000
 
-  plug(:validate_role, [org: :view] when action in [:index])
+  plug(:require_membership when action in [:index])
 
   # OpenAPI specs for :index can be found in DeviceLogControllerSpecs, which
   # documents the product-scoped and the short device URL separately.

@@ -27,8 +27,9 @@ defmodule NervesHubWeb.API.IrohEndpointController do
 
   @service :iroh
 
-  plug(:validate_role, [org: :manage] when action in [:create, :delete])
-  plug(:validate_role, [org: :view] when action in [:index, :show])
+  plug(:require_membership when action in [:index, :show])
+  plug(:require_permission, :"network_identity:create" when action in [:create])
+  plug(:require_permission, :"network_identity:delete" when action in [:delete])
 
   @org_name_parameter [
     in: :path,
