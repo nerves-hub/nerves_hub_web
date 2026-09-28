@@ -27,9 +27,11 @@ defmodule NervesHubWeb.Helpers.Authorization do
   def authorized?(:"network_identity:create", role), do: role_check(:manage, role)
   def authorized?(:"network_identity:delete", role), do: role_check(:manage, role)
 
-  def authorized?(:"certificate_authority:create", role), do: role_check(:admin, role)
-  def authorized?(:"certificate_authority:update", role), do: role_check(:admin, role)
-  def authorized?(:"certificate_authority:delete", role), do: role_check(:admin, role)
+  # The API has always allowed manage here, and registering a CA still needs
+  # proof of holding its private key.
+  def authorized?(:"certificate_authority:create", role), do: role_check(:manage, role)
+  def authorized?(:"certificate_authority:update", role), do: role_check(:manage, role)
+  def authorized?(:"certificate_authority:delete", role), do: role_check(:manage, role)
 
   def authorized?(:"product:create", role), do: role_check(:manage, role)
   def authorized?(:"product:update", role), do: role_check(:manage, role)
