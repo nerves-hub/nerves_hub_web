@@ -80,6 +80,9 @@ defmodule NervesHubWeb.Helpers.Authorization do
 
   def authorized?(:"device:extensions:local_shell", role), do: role_check(:manage, role)
 
+  # Firmware images can carry secrets, so downloading one takes more than
+  # being able to see the product. The API requires the same.
+  def authorized?(:"firmware:download", role), do: role_check(:manage, role)
   def authorized?(:"firmware:upload", role), do: role_check(:manage, role)
   def authorized?(:"firmware:delete", role), do: role_check(:manage, role)
 
