@@ -16,8 +16,11 @@ defmodule NervesHubWeb.API.ScriptController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:validate_role, [org: :view] when action in [:index, :send])
-  plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
+  plug(:require_membership when action in [:index, :show])
+  plug(:require_permission, :"support_script:run" when action in [:send])
+  plug(:require_permission, :"support_script:create" when action in [:create])
+  plug(:require_permission, :"support_script:update" when action in [:update])
+  plug(:require_permission, :"support_script:delete" when action in [:delete])
 
   # OpenAPI specs for :index can be found in SupportScriptControllerSpecs
   operation(:index, [])

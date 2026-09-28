@@ -33,7 +33,7 @@ defmodule NervesHubWeb do
       use Phoenix.Controller, formats: [:html]
       use Gettext, backend: NervesHubWeb.Gettext
 
-      import NervesHubWeb.Helpers.RoleValidateHelpers
+      import NervesHubWeb.Helpers.PermissionPlugs
       import Plug.Conn
 
       # Routes generation with the ~p sigil
@@ -46,7 +46,7 @@ defmodule NervesHubWeb do
       use Phoenix.Controller, formats: [:json]
       use Gettext, backend: NervesHubWeb.Gettext
 
-      import NervesHubWeb.Helpers.RoleValidateHelpers
+      import NervesHubWeb.Helpers.PermissionPlugs
       import Phoenix.LiveView.Controller
       import Plug.Conn
 

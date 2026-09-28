@@ -8,7 +8,10 @@ defmodule NervesHubWeb.API.OrgUserController do
   alias NervesHubWeb.API.Schemas.ErrorSchemas
   alias NervesHubWeb.API.Schemas.OrgUserSchemas
 
-  plug(:validate_role, org: :admin)
+  plug(:require_membership when action in [:index, :show])
+  plug(:require_permission, :"org_user:invite" when action in [:add, :invite])
+  plug(:require_permission, :"org_user:update" when action in [:update])
+  plug(:require_permission, :"org_user:delete" when action in [:remove])
 
   security([%{"bearer_auth" => []}])
   tags(["Organization Members"])

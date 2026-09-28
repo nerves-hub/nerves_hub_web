@@ -8,12 +8,15 @@ defmodule NervesHub.Accounts.PermissionsTest do
   # hardcoded, plus the role permissions added alongside custom roles. Moving
   # the checks into a catalog must not change what a built-in role can do.
   # (`network_identity:view` was dropped then too: nothing ever checked it.)
+  # When the API moved to permissions, certificate authorities moved from admin
+  # to manage, and `firmware:download` was added at manage for both the API and
+  # the dashboard.
   @built_in_minimums %{
     "archive:delete": :manage,
     "archive:upload": :manage,
-    "certificate_authority:create": :admin,
-    "certificate_authority:delete": :admin,
-    "certificate_authority:update": :admin,
+    "certificate_authority:create": :manage,
+    "certificate_authority:delete": :manage,
+    "certificate_authority:update": :manage,
     "deployment_group:create": :manage,
     "deployment_group:delete": :manage,
     "deployment_group:toggle": :manage,
@@ -36,6 +39,7 @@ defmodule NervesHub.Accounts.PermissionsTest do
     "device:view": :view,
     "error_group:update": :manage,
     "firmware:delete": :manage,
+    "firmware:download": :manage,
     "firmware:upload": :manage,
     "network_identity:create": :manage,
     "network_identity:delete": :manage,

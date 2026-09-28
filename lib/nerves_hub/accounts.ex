@@ -330,30 +330,6 @@ defmodule NervesHub.Accounts do
     |> Repo.all()
   end
 
-  @doc """
-  Whether `user` holds `role` or a higher built-in role in `org`.
-
-  A custom role counts only as `:view` here: it makes someone a member, but
-  role-level checks can't tell what else it grants, so they refuse it rather
-  than guess.
-  """
-  def has_org_role?(org, user, role) do
-    OrgUser
-    |> where(org_id: ^org.id)
-    |> where(user_id: ^user.id)
-    |> where_role_or_higher(role)
-    |> where([ou], is_nil(ou.deleted_at))
-    |> Repo.exists?()
-  end
-
-  defp where_role_or_higher(query, :view) do
-    where(query, [ou], ou.role in ^User.role_or_higher(:view) or not is_nil(ou.org_role_id))
-  end
-
-  defp where_role_or_higher(query, role) do
-    where(query, [ou], ou.role in ^User.role_or_higher(role))
-  end
-
   def get_user_orgs(%User{} = user, preloads \\ []) do
     from(
       o in Org,

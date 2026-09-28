@@ -3,7 +3,7 @@ defmodule NervesHubWeb.NotFoundError do
 end
 
 defmodule NervesHubWeb.UnauthorizedError do
-  defexception message: "unauthorized", plug_status: 401, required_role: nil
+  defexception message: "unauthorized", plug_status: 401
 end
 
 defmodule NervesHubWeb.InvalidRequestError do

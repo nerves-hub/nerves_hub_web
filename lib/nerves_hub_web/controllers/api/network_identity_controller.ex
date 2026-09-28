@@ -21,7 +21,7 @@ defmodule NervesHubWeb.API.NetworkIdentityController do
 
   @auth_error_responses SchemaHelpers.auth_error_responses()
 
-  plug(:validate_role, [org: :view] when action in [:index])
+  plug(:require_membership when action in [:index])
 
   operation(:index,
     summary: "List the Network Identities a Device holds",

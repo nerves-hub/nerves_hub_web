@@ -48,7 +48,7 @@ defmodule NervesHubWeb.API.ProductControllerTest do
       name = "test"
       product = %{name: name}
 
-      Accounts.add_org_user(org, user, %{role: :admin})
+      Accounts.add_org_user(org, user, %{role: :manage})
 
       conn = post(conn, Routes.api_product_path(conn, :create, org.name), product)
       assert json_response(conn, 201)["data"]

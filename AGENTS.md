@@ -72,9 +72,10 @@ when adding or removing one.
   `accounts/org_roles.ex`), each a set of permissions from that catalog; a
   member holds a built-in role or a custom one, never both. A new
   `authorized?/2` check needs its permission added to the catalog first — an
-  unknown permission raises rather than quietly denying. The JSON API still
-  checks built-in role levels (`plug(:validate_role, org: :manage)`), where a
-  custom role counts only as `view`.
+  unknown permission raises rather than quietly denying. Controllers check the
+  same permissions with `plug(:require_permission, :"firmware:upload" when
+  action in [:create])`, and read-only actions with `plug(:require_membership)`
+  (`helpers/permission_plugs.ex`).
 - `devices.ex` / `devices/` — device lifecycle, connections, health status,
   metrics, firmware update history (`update_history.ex` — how each update
   attempt ended, split across both stores: the device's consecutive failure

@@ -6,10 +6,7 @@ defmodule NervesHubWeb.DeviceController do
 
   plug(Device)
 
-  plug(
-    :validate_role,
-    [org: :view] when action in [:download_certificate, :export_audit_logs]
-  )
+  plug(:require_membership when action in [:download_certificate, :export_audit_logs])
 
   def download_certificate(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
     case Enum.find(device.device_certificates, &(&1.serial == serial)) do
