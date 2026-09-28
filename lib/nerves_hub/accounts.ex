@@ -304,12 +304,21 @@ defmodule NervesHub.Accounts do
     |> Repo.all()
   end
 
+  @doc """
+  Whether the user is a current member of the org with at least `role`.
+
+  A deleted org grants no role: deleting an org leaves its memberships in
+  place, so the org's own `deleted_at` is checked alongside the membership's.
+  """
+  @spec has_org_role?(Org.t(), User.t(), :view | :manage | :admin) :: boolean()
   def has_org_role?(org, user, role) do
     OrgUser
+    |> join(:inner, [ou], o in assoc(ou, :org))
     |> where(org_id: ^org.id)
     |> where(user_id: ^user.id)
     |> where([ou], ou.role in ^User.role_or_higher(role))
     |> where([ou], is_nil(ou.deleted_at))
+    |> where([_, o], is_nil(o.deleted_at))
     |> Repo.exists?()
   end
 

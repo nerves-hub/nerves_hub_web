@@ -13,6 +13,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHubWeb.API.PaginationHelpers
+  alias NervesHubWeb.API.Plugs.RefuseDeletedDevice
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Helpers.RoleValidateHelpers
 
@@ -36,6 +37,8 @@ defmodule NervesHubWeb.API.DeviceController do
   )
 
   plug(:validate_role, [org: :view] when action in [:index, :show, :auth])
+
+  plug(RefuseDeletedDevice when action in [:reboot, :reconnect, :upgrade, :penalty, :code])
 
   def index(%{assigns: %{current_scope: %{org: org}, product: product}} = conn, params) do
     filters = Map.get(params, "filters", %{}) |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)

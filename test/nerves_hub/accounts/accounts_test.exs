@@ -58,6 +58,35 @@ defmodule NervesHub.AccountsTest do
     refute is_nil(Repo.reload(org).deleted_at)
   end
 
+  describe "has_org_role?/3" do
+    setup %{user: user} do
+      {:ok, org} = Accounts.create_org(user, %{name: "An_Org"})
+      member = Fixtures.user_fixture()
+      {:ok, _org_user} = Accounts.add_org_user(org, member, %{role: :manage})
+
+      %{org: org, member: member}
+    end
+
+    test "holds up to the member's role", %{org: org, member: member} do
+      assert Accounts.has_org_role?(org, member, :view)
+      assert Accounts.has_org_role?(org, member, :manage)
+      refute Accounts.has_org_role?(org, member, :admin)
+    end
+
+    test "is false for a removed member", %{org: org, member: member} do
+      :ok = Accounts.remove_org_user(org, member)
+
+      refute Accounts.has_org_role?(org, member, :view)
+    end
+
+    test "is false once the org is deleted, though the membership remains", %{org: org, member: member} do
+      {:ok, _org} = Accounts.soft_delete_org(org)
+
+      assert {:ok, %OrgUser{}} = Accounts.get_org_user(org, member)
+      refute Accounts.has_org_role?(org, member, :view)
+    end
+  end
+
   test "user cannot have two of the same org" do
     params = %{
       name: "Testy Smith  ",

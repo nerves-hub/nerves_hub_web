@@ -20,9 +20,12 @@ defmodule NervesHub.Devices.Pinning do
       |> where(user_id: ^user.id)
       |> select([:device_id])
 
+    # Removing a member or moving a device unpins it, but deleting an org
+    # doesn't, so its devices are left out here instead.
     Device
     |> where([d], d.id in subquery(query))
-    |> join(:left, [d], o in assoc(d, :org))
+    |> join(:inner, [d], o in assoc(d, :org))
+    |> where([d, o], is_nil(o.deleted_at))
     |> join(:left, [d, o], p in assoc(d, :product))
     |> join(:left, [d, o, lc], lc in assoc(d, :latest_connection))
     |> join(:left, [d, o, lc, lh], lh in assoc(d, :latest_health))

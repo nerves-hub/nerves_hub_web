@@ -1436,6 +1436,28 @@ defmodule NervesHub.DevicesTest do
     assert {:error, :not_found} = Devices.get_by_identifier(scope, "non existing identifier")
   end
 
+  test "get_device_by_identifier by membership alone leaves out a deleted org's devices", %{
+    user: user,
+    org: org,
+    device: device
+  } do
+    scope = Scope.for_user(user)
+    assert {:ok, _device} = Devices.get_by_identifier(scope, device.identifier)
+
+    {:ok, _org} = Accounts.soft_delete_org(org)
+
+    assert {:error, :not_found} = Devices.get_by_identifier(scope, device.identifier)
+  end
+
+  test "get_devices_by_id leaves out a deleted org's devices", %{user: user, org: org, device: device} do
+    scope = Scope.for_user(user)
+    assert [%Device{}] = Devices.get_devices_by_id(scope, [device.id])
+
+    {:ok, _org} = Accounts.soft_delete_org(org)
+
+    assert [] = Devices.get_devices_by_id(scope, [device.id])
+  end
+
   test "matches_deployment_group? works when device and/or deployment tags are nil", %{
     deployment_group: deployment_group,
     device: device
