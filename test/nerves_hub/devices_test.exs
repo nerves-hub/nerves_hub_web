@@ -2199,47 +2199,24 @@ defmodule NervesHub.DevicesTest do
       target_product: target_product,
       mover: mover
     } do
-      {:ok, existing} = create_key_with_name(target_org, user, org_key.name)
+      {other_public_key, _private_key} = :crypto.generate_key(:eddsa, :ed25519)
 
+      {:ok, existing} =
+        Accounts.create_org_key(%{
+          org_id: target_org.id,
+          created_by_id: user.id,
+          name: org_key.name,
+          key: Base.encode64(other_public_key)
+        })
+
+      # The copy runs in the move's transaction, so a unique violation raised
+      # here would abort the move rather than skip the key.
       assert {:ok, moved} = Devices.move(device, target_product, mover)
       assert moved.org_id == target_org.id
 
       assert [kept] = Accounts.list_org_keys(target_org.id, false)
       assert kept.id == existing.id
       assert kept.key == existing.key
-    end
-
-    # Moving the devices of a query runs every move inside one transaction, so
-    # a copy that raised a unique violation would abort the moves around it.
-    test "a key whose name the target org already uses does not stop a bulk move", %{
-      device: device,
-      device2: device2,
-      org_key: org_key,
-      user: user,
-      target_org: target_org,
-      target_product: target_product,
-      mover: mover
-    } do
-      {:ok, _} = create_key_with_name(target_org, user, org_key.name)
-
-      %{ok: 2} =
-        Device
-        |> where([d], d.id in [^device.id, ^device2.id])
-        |> BulkActions.move_many(target_product, mover)
-
-      assert Repo.reload!(device).org_id == target_org.id
-      assert Repo.reload!(device2).org_id == target_org.id
-    end
-
-    defp create_key_with_name(org, user, name) do
-      {public_key, _private_key} = :crypto.generate_key(:eddsa, :ed25519)
-
-      Accounts.create_org_key(%{
-        org_id: org.id,
-        created_by_id: user.id,
-        name: name,
-        key: Base.encode64(public_key)
-      })
     end
   end
 

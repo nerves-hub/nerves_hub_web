@@ -603,8 +603,8 @@ defmodule NervesHub.Devices do
 
   If the new target product is in a different organization, the signing keys
   the device's current firmware was signed with are copied to that
-  organization, recorded as created by `user`. The copy is made only once the
-  move has gone through, so a failed move leaves nothing behind in the target
+  organization, recorded as created by `user`. The copy is part of the move's
+  transaction, so a failed move leaves nothing behind in the target
   organization. It is best effort: a key the target organization cannot take,
   such as one whose name it already uses for a different key, is skipped and
   the move still succeeds.
@@ -646,6 +646,12 @@ defmodule NervesHub.Devices do
       from(ei in NetworkIdentity, where: ei.device_id == ^device.id),
       set: [org_id: product.org_id, updated_at: DateTime.utc_now(:second)]
     )
+    # From the device as it was before the move, whose org the keys come from.
+    # Committed before `DeviceEvents.moved_product/1` below disconnects the
+    # device, which is sent its new org's keys when it reconnects.
+    |> Multi.run(:signing_keys, fn _, _ ->
+      Accounts.maybe_copy_firmware_keys(device, product.org, user)
+    end)
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, description)
     end)
@@ -657,14 +663,9 @@ defmodule NervesHub.Devices do
     end)
     |> Repo.transact()
     |> case do
-      {:ok, %{move: moved}} ->
-        # Copied from the device as it was before the move, whose org the keys
-        # come from, and ahead of the event: that disconnects the device, and
-        # on reconnect it is sent the keys of its new org.
-        Accounts.maybe_copy_firmware_keys(device, product.org, user)
-
-        DeviceEvents.moved_product(moved)
-        {:ok, moved}
+      {:ok, %{move: device}} ->
+        DeviceEvents.moved_product(device)
+        {:ok, device}
 
       err ->
         err

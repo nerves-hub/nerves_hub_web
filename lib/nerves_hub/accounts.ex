@@ -579,14 +579,14 @@ defmodule NervesHub.Accounts do
   the target org if they are not already present, recorded as created by `user`.
 
   `device` is the device as it was before the move, since its `org_id` is where
-  the keys are copied from.
+  the keys are copied from. Returns the keys copied.
 
   Best effort: a key the target org cannot take, because it already has a
-  different key under the same name, is skipped. Conflicts are skipped by the
-  insert rather than raised, so the copy cannot abort a surrounding transaction.
-  `BulkActions.move_many/3` moves the devices of a query inside one.
+  different key under the same name, is skipped. The insert skips conflicts
+  rather than raising, because `Devices.move/3` runs this in the move's
+  transaction, and a unique violation would abort it.
   """
-  @spec maybe_copy_firmware_keys(Device.t(), Org.t(), User.t()) :: :ok
+  @spec maybe_copy_firmware_keys(Device.t(), Org.t(), User.t()) :: {:ok, [OrgKey.t()]}
   def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{id: target}, %User{} = user) do
     existing_target_keys = from(k in OrgKey, where: [org_id: ^target], select: k.key)
 
@@ -602,14 +602,20 @@ defmodule NervesHub.Accounts do
       select: %{name: k.name, key: k.key, scheme: k.scheme}
     )
     |> Repo.all()
-    |> Enum.each(fn attrs ->
+    |> Enum.flat_map(fn attrs ->
       %OrgKey{}
       |> OrgKey.changeset(Map.merge(attrs, %{org_id: target, created_by_id: user.id}))
       |> Repo.insert(on_conflict: :nothing)
+      |> case do
+        # A conflict inserts nothing, and leaves the returned key without an id.
+        {:ok, %OrgKey{id: id} = key} when not is_nil(id) -> [key]
+        _ -> []
+      end
     end)
+    |> then(&{:ok, &1})
   end
 
-  def maybe_copy_firmware_keys(_device, _target, _user), do: :ok
+  def maybe_copy_firmware_keys(_device, _target, _user), do: {:ok, []}
 
   @spec list_org_keys(Scope.t() | pos_integer(), boolean()) :: [OrgKey.t()]
   def list_org_keys(scope_or_org_id, load_created_by \\ true)
