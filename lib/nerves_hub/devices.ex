@@ -162,10 +162,8 @@ defmodule NervesHub.Devices do
     |> Flop.run(flop)
   end
 
-  # `nerves_hub_mcp` calls `get_devices_by_org_id_and_product_id_with_pager/3`
-  # over `:erpc` without `:visible_to`. It only lets built-in roles in, and
-  # they see every device, but it has to pass the user before it lets custom
-  # roles in.
+  # Without `:visible_to`, every device in the product is listed. That is only
+  # right for a caller that already knows its user sees all of them.
   defp maybe_where_visible(query, nil), do: query
   defp maybe_where_visible(query, %User{} = user), do: Visibility.where_visible(query, user)
 
