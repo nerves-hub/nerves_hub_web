@@ -47,6 +47,7 @@ targeted dispatch, so it is not worth paying membership replication for.
 | `device:<id>:extensions`, **device → web** (`health_check_report`) | `:group` | Members are LiveViews watching the device page. |
 | `device:<id>:extensions`, **web → device** (`health:check`, per-device `attach`/`detach`) | `Phoenix.PubSub` | The consumer is the device's own `ExtensionsChannel`, alive for the whole connection. `:group` would replicate a join per connect and a leave per disconnect across the fleet, to target a handful of operator-triggered messages. |
 | `product:<id>`, `firmware:<id>`, `product_notifications:<id>` | `:group` | Consumers are open LiveViews. |
+| `access:device/<id>`, `access:user/<id>` — "check your access again" | `:group` | Members are open consoles, shells, device event streams and device pages. Published when a device's tags or a user's role change. |
 | `orchestrator:deployment:<id>` | `:group` | A single consumer — the one orchestrator for that deployment group — fed by every device node. |
 | Rate-limit throttle sync, CLI-session cache | `:group`, `"web"` cluster | Web-only state that should not exist on device nodes at all. |
 | `product:<id>:extensions` | `Phoenix.PubSub` | One operator toggle must reach *every* online device in the product. Genuine dense fan-out. |
@@ -88,6 +89,7 @@ API:
 | `NervesHub.Consoles.PubSub` | Console and local-shell streams, and their liveness registries |
 | `NervesHub.Extensions.PubSub` | Per-device extension traffic, both directions, and the product-wide topic |
 | `NervesHub.Products.PubSub` | `product:<id>` |
+| `NervesHub.Accounts.PubSub` | `access:device/<id>`, `access:user/<id>` |
 | `NervesHub.Firmwares.PubSub` | Firmware delta build status |
 | `NervesHub.DeploymentOrchestratorEvents` | Orchestrator events |
 | `NervesHub.ProductNotifications` | Product notifications (in-module) |

@@ -10,6 +10,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.OrgRole
   alias NervesHub.Accounts.OrgRoles
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
@@ -244,7 +245,7 @@ defmodule NervesHub.Accounts do
     with {:ok, %{org_id: org_id, user_id: user_id}} <-
            Repo.soft_delete(org_user),
          {_, nil} <- Pinning.unpin_org_devices(user_id, org_id) do
-      :ok
+      AccessPubSub.broadcast_users_access_changed([user_id])
     end
   end
 
@@ -269,7 +270,13 @@ defmodule NervesHub.Accounts do
     |> preload_org_role()
   end
 
-  defp preload_org_role({:ok, org_user}), do: {:ok, Repo.preload(org_user, :org_role, force: true)}
+  # Whatever the member had open was opened under the old role.
+  defp preload_org_role({:ok, org_user}) do
+    :ok = AccessPubSub.broadcast_users_access_changed([org_user.user_id])
+
+    {:ok, Repo.preload(org_user, :org_role, force: true)}
+  end
+
   defp preload_org_role(error), do: error
 
   def get_org_user!(%Scope{org: org}, %User{} = user) do

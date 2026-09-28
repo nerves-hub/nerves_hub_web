@@ -96,6 +96,40 @@ defmodule NervesHubWeb.Live.TagRestrictedRolesTest do
     assert Devices.distinct_tags_for_product(product, user) == ["support"]
   end
 
+  describe "when access changes with the device page open" do
+    test "the page is left once the device stops matching the role", %{
+      conn: conn,
+      org: org,
+      product: product,
+      visible: visible
+    } do
+      session = visit(conn, "/org/#{org.name}/#{product.name}/devices/#{visible.identifier}")
+
+      {:ok, _} = Devices.update_device(visible, %{tags: ["production"]})
+
+      {path, flash} = assert_redirect(session.view, 1_000)
+      assert path == "/org/#{org.name}/#{product.name}/devices"
+      assert flash["error"] == "You no longer have access to this device."
+    end
+
+    test "the page picks up a role edit without reloading", %{
+      conn: conn,
+      org: org,
+      product: product,
+      visible: visible,
+      role: role
+    } do
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/devices/#{visible.identifier}")
+        |> refute_has("button[aria-label='Add tag']")
+
+      {:ok, _} = Accounts.OrgRoles.update_org_role(role, %{"permissions" => ["device:update", "device:tags"]})
+
+      assert_has(session, "button[aria-label='Add tag']", timeout: 1_000)
+    end
+  end
+
   describe "changing tags" do
     test "needs its own permission", %{conn: conn, org: org, product: product, visible: visible, role: role} do
       session =

@@ -1,6 +1,10 @@
 defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :live_view
 
+  alias NervesHub.Accounts
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
+  alias NervesHub.Accounts.Scope
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Consoles
   alias NervesHub.DeviceEvents
@@ -53,6 +57,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     if connected?(socket) do
       Logger.metadata(device_id: device.id, user_id: user.id, product_id: product.id)
       PubSub.subscribe(device.id)
+      AccessPubSub.subscribe_access(user.id, device.id)
       Consoles.PubSub.subscribe_console_watcher(device.id)
       Extensions.PubSub.subscribe_reports(device.id)
       Products.PubSub.subscribe(product.id)
@@ -193,6 +198,24 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> put_flash(:info, "Firmware validation received from the device")
     |> noreply()
+  end
+
+  # The device's tags or the user's role changed. The role is read again so the
+  # page's permissions are current, and the page is left if the device is now
+  # out of reach, which also closes any console or shell open in it.
+  def handle_info(:access_changed, %{assigns: %{current_scope: scope, device: device}} = socket) do
+    case Accounts.get_org_user(scope.org, scope.user) do
+      {:ok, org_user} ->
+        scope = Scope.put_role(scope, OrgUser.assigned_role(org_user))
+
+        case Devices.get_by_identifier(scope, device.identifier) do
+          {:ok, _device} -> {:noreply, assign(socket, :current_scope, scope)}
+          {:error, :not_found} -> leave_device(socket, ~p"/org/#{scope.org}/#{scope.product}/devices")
+        end
+
+      {:error, :not_found} ->
+        leave_device(socket, ~p"/orgs")
+    end
   end
 
   # Ignore unknown messages
@@ -511,5 +534,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
       to: "#update-mode-menu-container",
       transition: {"ease-out duration-150", "opacity-100", "opacity-0"}
     )
+  end
+
+  defp leave_device(socket, path) do
+    socket
+    |> put_flash(:error, "You no longer have access to this device.")
+    |> push_navigate(to: path)
+    |> noreply()
   end
 end

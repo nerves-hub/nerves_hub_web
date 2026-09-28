@@ -10,6 +10,7 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
   alias NervesHub.Devices
   alias NervesHub.Devices.PubSub
@@ -24,8 +25,9 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     case authorized_device(socket.assigns.user, device_identifier) do
       {:ok, device} ->
         :ok = PubSub.subscribe(device.id)
+        :ok = AccessPubSub.subscribe_access(socket.assigns.user.id, device.id)
 
-        {:ok, socket}
+        {:ok, assign(socket, :device_identifier, device_identifier)}
 
       :error ->
         {:error, %{reason: "unauthorized"}}
@@ -42,6 +44,15 @@ defmodule NervesHubWeb.DeviceEventsStreamChannel do
     push(socket, "firmware_update", %{percent: payload["progress"], stage: payload["stage"]})
 
     {:noreply, socket}
+  end
+
+  # The device's tags or the user's role changed. Checked the same way as on
+  # join; a user who couldn't subscribe now doesn't stay subscribed.
+  def handle_info(:access_changed, socket) do
+    case authorized_device(socket.assigns.user, socket.assigns.device_identifier) do
+      {:ok, _device} -> {:noreply, socket}
+      :error -> {:stop, {:shutdown, :closed}, socket}
+    end
   end
 
   def handle_info(msg, socket) do

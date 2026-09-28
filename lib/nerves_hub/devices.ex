@@ -6,6 +6,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.PubSub, as: AccessPubSub
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
@@ -596,6 +597,7 @@ defmodule NervesHub.Devices do
     case Repo.update(changeset) do
       {:ok, device} ->
         _ = maybe_broadcast_updated(device, opts)
+        _ = maybe_broadcast_access_changed(changeset, opts)
 
         {:ok, device}
 
@@ -667,6 +669,7 @@ defmodule NervesHub.Devices do
     |> case do
       {:ok, %{move: device}} ->
         DeviceEvents.moved_product(device)
+        :ok = AccessPubSub.broadcast_device_access_changed(device.id)
         {:ok, device}
 
       err ->
@@ -824,6 +827,7 @@ defmodule NervesHub.Devices do
     |> case do
       {:ok, %{update_with_audit: updated}} ->
         DeviceEvents.updated(device)
+        _ = if updated.tags != device.tags, do: AccessPubSub.broadcast_device_access_changed(device.id)
         {:ok, updated}
 
       err ->
@@ -840,6 +844,16 @@ defmodule NervesHub.Devices do
     |> where([d], d.id in ^ids)
     |> where([users: u], u.id == ^user.id)
     |> Repo.all()
+  end
+
+  # A device's tags decide which custom roles see it, so sessions open on it
+  # have to check again. Only once the change is committed, or they'd check
+  # against the old tags; a caller passing `broadcast: false` is in a
+  # transaction and does this itself afterwards.
+  defp maybe_broadcast_access_changed(changeset, opts) do
+    if Keyword.get(opts, :broadcast, true) and Ecto.Changeset.changed?(changeset, :tags) do
+      AccessPubSub.broadcast_device_access_changed(changeset.data.id)
+    end
   end
 
   defp maybe_broadcast_updated(device, opts) do
