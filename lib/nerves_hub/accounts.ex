@@ -844,14 +844,14 @@ defmodule NervesHub.Accounts do
     |> Repo.one()
     |> case do
       nil ->
-        {:ok, user} =
-          %User{}
-          |> User.oauth_changeset(auth)
-          |> Repo.insert()
+        with {:ok, user} <-
+               %User{}
+               |> User.oauth_changeset(auth)
+               |> Repo.insert() do
+          {:ok, _} = UserNotifier.deliver_welcome_email(user)
 
-        {:ok, _} = UserNotifier.deliver_welcome_email(user)
-
-        {:ok, user}
+          {:ok, user}
+        end
 
       %User{} = user ->
         user
