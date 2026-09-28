@@ -7,6 +7,12 @@ defmodule NervesHub.Accounts.OrgRole do
   `NervesHub.Accounts.Permissions.custom_role_options/0`. A member holds either
   a built-in role or a custom one, never both.
 
+  A custom role can also be limited to devices with certain tags, matched the
+  way deployment groups match them: all of the tags (`:and`), or any of them
+  (`:or`). Its members only see those devices, and it can only be given
+  `NervesHub.Accounts.Permissions.device_permissions/0`. See
+  `NervesHub.Devices.Visibility`.
+
   Custom roles are soft deleted, so the members and invites that once used one
   keep pointing at a row. A role can only be deleted once nobody holds it and
   no outstanding invite offers it.
@@ -17,6 +23,7 @@ defmodule NervesHub.Accounts.OrgRole do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.Permissions
+  alias NervesHub.Types.Tag
 
   @type t :: %__MODULE__{}
 
@@ -26,6 +33,8 @@ defmodule NervesHub.Accounts.OrgRole do
     field(:name, :string)
     field(:description, :string)
     field(:permissions, {:array, :string}, default: [])
+    field(:device_tags, Tag, default: [])
+    field(:device_tag_operator, Ecto.Enum, values: [:and, :or], default: :and)
     field(:deleted_at, :utc_datetime)
 
     timestamps()
@@ -36,14 +45,17 @@ defmodule NervesHub.Accounts.OrgRole do
   """
   def changeset(%__MODULE__{} = role, params) do
     role
-    |> cast(params, [:name, :description, :permissions])
+    |> cast(params, [:name, :description, :permissions, :device_tags, :device_tag_operator], empty_values: [nil])
     |> update_change(:name, &String.trim/1)
+    |> update_change(:description, &blank_to_nil/1)
     |> update_change(:permissions, &normalize_permissions/1)
+    |> update_change(:device_tags, &Enum.uniq/1)
     |> validate_required([:name])
     |> validate_length(:name, max: 50)
     |> validate_length(:description, max: 255)
     |> validate_not_built_in()
     |> validate_subset(:permissions, Permissions.custom_role_options())
+    |> validate_device_permissions()
     |> unique_constraint(:name,
       name: :org_roles_org_id_name_index,
       message: "is already used by another role"
@@ -73,6 +85,34 @@ defmodule NervesHub.Accounts.OrgRole do
     changeset
     |> foreign_key_constraint(:org_role_id)
     |> check_constraint(:role, name: "#{changeset.data.__meta__.source}_one_kind_of_role")
+  end
+
+  @doc """
+  Whether the role only sees devices with certain tags.
+  """
+  @spec limited_to_tags?(t()) :: boolean()
+  def limited_to_tags?(%__MODULE__{device_tags: tags}), do: tags != []
+
+  # A member who sees some of the org's devices can't be trusted with anything
+  # that acts on the rest, like a deployment group or the product itself.
+  defp validate_device_permissions(changeset) do
+    tags = get_field(changeset, :device_tags)
+    permissions = get_field(changeset, :permissions)
+
+    if tags != [] and not Enum.all?(permissions, &(&1 in Permissions.device_permissions())) do
+      add_error(changeset, :permissions, "can only act on single devices when the role is limited to tagged devices")
+    else
+      changeset
+    end
+  end
+
+  defp blank_to_nil(nil), do: nil
+
+  defp blank_to_nil(string) do
+    case String.trim(string) do
+      "" -> nil
+      trimmed -> trimmed
+    end
   end
 
   # The form posts an empty string so a role can be saved with nothing picked.

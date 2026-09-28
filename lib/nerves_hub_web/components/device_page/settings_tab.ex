@@ -17,7 +17,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
     socket
     |> assign(:settings_form, to_form(changeset))
-    |> assign(:available_tags, Devices.distinct_tags_for_product(socket.assigns.current_scope.product))
+    |> assign(
+      :available_tags,
+      Devices.distinct_tags_for_product(socket.assigns.current_scope.product, socket.assigns.current_scope.user)
+    )
     |> allow_upload(:certificate,
       accept: :any,
       auto_upload: true,
@@ -82,7 +85,13 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
               <.input field={@settings_form[:description]} label="Description" placeholder="eg. sensor hub at customer X" phx-debounce="blur" />
 
-              <.tag_input field={@settings_form[:tags]} label="Tags" placeholder="eg. batch-123" available_tags={@available_tags} />
+              <.tag_input
+                :if={authorized?(:"device:tags", @current_scope)}
+                field={@settings_form[:tags]}
+                label="Tags"
+                placeholder="eg. batch-123"
+                available_tags={@available_tags}
+              />
             </div>
 
             <div class="flex w-1/2 flex-col gap-2">
@@ -353,6 +362,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     authorized!(:"device:update", socket.assigns.current_scope)
 
     %{device: device, user: user} = socket.assigns
+
+    if Ecto.Changeset.changed?(Device.changeset(device, Map.take(device_params, ["tags"])), :tags) do
+      authorized!(:"device:tags", socket.assigns.current_scope)
+    end
 
     message = "User #{user.name} updated device #{device.identifier}"
 

@@ -20,6 +20,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Pinning
+  alias NervesHub.Devices.Visibility
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -356,18 +357,6 @@ defmodule NervesHub.Accounts do
     |> Repo.one()
   end
 
-  def find_org_user_with_device_identifier(user, device_identifier) do
-    OrgUser
-    |> join(:left, [ou], o in assoc(ou, :org))
-    |> join(:left, [ou, o], p in assoc(o, :products))
-    |> join(:left, [ou, o, p], d in assoc(p, :devices))
-    |> where([_, _, _, d], d.identifier == ^device_identifier)
-    |> where([ou], ou.user_id == ^user.id)
-    |> where([ou], is_nil(ou.deleted_at))
-    |> preload(:org_role)
-    |> Repo.one()
-  end
-
   @doc """
   Authenticates a user by their email and password. Returns the user if the
   user is found and the password is correct, otherwise nil.
@@ -450,8 +439,8 @@ defmodule NervesHub.Accounts do
     |> Repo.all()
   end
 
-  def get_org_device_counts(%Scope{}, org_id) do
-    products = products_subquery()
+  def get_org_device_counts(%Scope{user: user}, org_id) do
+    products = products_subquery(user)
 
     rows =
       Product
@@ -472,18 +461,21 @@ defmodule NervesHub.Accounts do
     %{org: {connected, disconnected}, products: product_counts}
   end
 
-  defp products_subquery() do
+  # Counts only the devices `user` can see.
+  defp products_subquery(user) do
     connected_devices_count =
-      DeviceConnection
-      |> join(:inner, [dc], d in Device, on: d.id == dc.device_id)
-      |> where([dc, _d], dc.product_id == parent_as(:product).id)
-      |> where([dc, _d], dc.status == :connected)
-      |> where([_dc, d], is_nil(d.deleted_at))
-      |> select([dc], %{count: count()})
+      Device
+      |> Visibility.where_visible(user)
+      |> join(:inner, [d], dc in DeviceConnection, on: d.id == dc.device_id)
+      |> where([_d, dc], dc.product_id == parent_as(:product).id)
+      |> where([_d, dc], dc.status == :connected)
+      |> where([d], is_nil(d.deleted_at))
+      |> select([d], %{count: count()})
 
     # Must join from Device so devices with no connection row are counted as disconnected
     disconnected_devices_count =
       Device
+      |> Visibility.where_visible(user)
       |> join(:left, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
       |> where([_d, lc], is_nil(lc) or lc.status != :connected)

@@ -131,7 +131,13 @@ defmodule NervesHubWeb.Components.BulkActionsSidebar do
               </div>
             </form>
 
-            <form id="bulk-tag-input" class="flex flex-col gap-2" phx-submit="tag-devices" phx-change="validate-tags">
+            <form
+              :if={NervesHubWeb.Helpers.Authorization.authorized?(:"device:tags", @current_scope)}
+              id="bulk-tag-input"
+              class="flex flex-col gap-2"
+              phx-submit="tag-devices"
+              phx-change="validate-tags"
+            >
               <label class="sidebar-label" for="tag_operation">Update tags</label>
               <select name="tag_operation" id="tag_operation" class="sidebar-select">
                 <option value="set" selected={@tag_operation == "set"}>Set tags (replaces existing tags)</option>

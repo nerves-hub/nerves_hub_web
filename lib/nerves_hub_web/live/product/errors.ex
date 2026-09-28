@@ -17,6 +17,9 @@ defmodule NervesHubWeb.Live.Product.Errors do
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.ErrorReports
   alias NervesHub.ErrorReports.ErrorGroup
+  alias NervesHubWeb.Mounts.RequireEveryDevice
+
+  on_mount(RequireEveryDevice)
 
   @statuses ~w(unresolved resolved muted)
   @sorts ~w(last_seen first_seen count)

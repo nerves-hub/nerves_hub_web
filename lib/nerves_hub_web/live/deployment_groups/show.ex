@@ -21,7 +21,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHubWeb.Components.DeploymentGroupPage.Settings, as: SettingsTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Summary, as: SummaryTab
   alias NervesHubWeb.Components.DeploymentGroupPage.WorkflowStepNode
+  alias NervesHubWeb.Mounts.RequireEveryDevice
   alias Phoenix.Socket.Broadcast
+
+  on_mount(RequireEveryDevice)
 
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do

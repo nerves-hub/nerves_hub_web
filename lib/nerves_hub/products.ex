@@ -11,6 +11,7 @@ defmodule NervesHub.Products do
   alias NervesHub.Accounts.Scope
   alias NervesHub.Accounts.User
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Visibility
   alias NervesHub.Extensions
   alias NervesHub.Products.CustomHealthMetricsLabel
   alias NervesHub.Products.HealthProfiles
@@ -45,15 +46,17 @@ defmodule NervesHub.Products do
           (ou.role in ^User.role_or_higher(:view) or not is_nil(ou.org_role_id)),
       group_by: p.id
     )
-    |> add_connected_devices_count(opts[:with_counts])
-    |> add_disconnected_devices_count(opts[:with_counts])
+    |> add_connected_devices_count(opts[:with_counts] && user)
+    |> add_disconnected_devices_count(opts[:with_counts] && user)
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
 
-  defp add_connected_devices_count(query, true) do
+  # Counts only the devices `user` can see.
+  defp add_connected_devices_count(query, %User{} = user) do
     connected_devices_count =
       Device
+      |> Visibility.where_visible(user)
       |> join(:inner, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
       |> where([_d, dc], dc.status == :connected)
@@ -67,10 +70,10 @@ defmodule NervesHub.Products do
     query
   end
 
-  def get_product_counts(%Scope{}, product_id) do
+  def get_product_counts(%Scope{user: user}, product_id) do
     from(p in Product, as: :product, where: p.id == ^product_id)
-    |> add_connected_devices_count(true)
-    |> add_disconnected_devices_count(true)
+    |> add_connected_devices_count(user)
+    |> add_disconnected_devices_count(user)
     |> Repo.exclude_deleted()
     |> Repo.one()
     |> case do
@@ -79,9 +82,10 @@ defmodule NervesHub.Products do
     end
   end
 
-  defp add_disconnected_devices_count(query, true) do
+  defp add_disconnected_devices_count(query, %User{} = user) do
     disconnected_devices_count =
       Device
+      |> Visibility.where_visible(user)
       |> join(:left, [d], lc in assoc(d, :latest_connection))
       |> where([d], d.product_id == parent_as(:product).id)
       |> where([_d, dc], is_nil(dc) or dc.status != :connected)

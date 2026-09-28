@@ -12,6 +12,9 @@
     <p class="text-base-400 mb-6 text-sm">
       {if is_atom(@role), do: built_in_description(@role), else: @role.description}
     </p>
+    <p :if={device_scope_label(@role)} id="device-scope" class="text-base-300 mb-6 text-sm">
+      {device_scope_label(@role)}.
+    </p>
 
     <div :for={{group, permissions} <- Permissions.grouped()} class="mb-6">
       <h2 class="text-base-50 mb-2 text-sm font-semibold">{group}</h2>

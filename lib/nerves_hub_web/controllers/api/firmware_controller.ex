@@ -11,6 +11,7 @@ defmodule NervesHubWeb.API.FirmwareController do
   require Logger
 
   plug(:require_membership when action in [:index, :show])
+  plug(:require_every_device)
   plug(:require_permission, :"firmware:upload" when action in [:create])
   plug(:require_permission, :"firmware:download" when action in [:download])
   plug(:require_permission, :"firmware:delete" when action in [:delete])

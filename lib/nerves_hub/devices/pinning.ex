@@ -11,6 +11,7 @@ defmodule NervesHub.Devices.Pinning do
   alias NervesHub.Accounts.Scope
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.PinnedDevice
+  alias NervesHub.Devices.Visibility
   alias NervesHub.Repo
 
   @spec get_pinned_devices(Scope.t()) :: [Device.t()]
@@ -20,7 +21,9 @@ defmodule NervesHub.Devices.Pinning do
       |> where(user_id: ^user.id)
       |> select([:device_id])
 
+    # Also drops a device pinned before the user's role stopped seeing it.
     Device
+    |> Visibility.where_visible(user)
     |> where([d], d.id in subquery(query))
     |> join(:left, [d], o in assoc(d, :org))
     |> join(:left, [d, o], p in assoc(d, :product))

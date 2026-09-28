@@ -39,7 +39,10 @@
               {role.name}
             </.link>
           </td>
-          <td class="text-base-400">{role.description}</td>
+          <td class="text-base-400">
+            <div>{role.description}</div>
+            <div :if={device_scope_label(role)} class="text-base-500 text-xs">{device_scope_label(role)}</div>
+          </td>
           <td class="text-base-400">{member_count(@member_counts, role)}</td>
           <td class="text-right">
             <div class="flex justify-end gap-2">
