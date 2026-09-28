@@ -111,6 +111,41 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       # don't send email to admin who added the user
       refute_email_sent()
     end
+
+    # Only the index page loads the admin count, so these check the event
+    # still works from the other pages of the same LiveView.
+    test "delete org user from the edit page", %{conn: conn, org: org} do
+      {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users/#{org_user.user_id}/edit")
+      |> unwrap(&render_click(&1, "delete_org_user", %{"user_id" => org_user.user_id}))
+      |> assert_has("div", text: "User removed")
+
+      assert Accounts.get_org_user(org, org_user.user) == {:error, :not_found}
+    end
+
+    test "delete org user from the invite page", %{conn: conn, org: org} do
+      {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
+
+      conn
+      |> visit("/org/#{org.name}/settings/users/invite")
+      |> unwrap(&render_click(&1, "delete_org_user", %{"user_id" => org_user.user_id}))
+      |> assert_has("div", text: "User removed")
+
+      assert Accounts.get_org_user(org, org_user.user) == {:error, :not_found}
+    end
+
+    test "the only admin can't remove themself from the edit page either", %{conn: conn, org: org, user: user} do
+      session = visit(conn, "/org/#{org.name}/settings/users/#{user.id}/edit")
+
+      Process.flag(:trap_exit, true)
+
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
+               catch_exit(render_click(session.view, "delete_org_user", %{"user_id" => user.id}))
+
+      assert {:ok, _} = Accounts.get_org_user(org, user)
+    end
   end
 
   describe "invites" do
