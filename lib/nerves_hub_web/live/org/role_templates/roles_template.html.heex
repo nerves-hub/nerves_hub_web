@@ -61,6 +61,7 @@
           </.link>
           <p :if={role.description not in [nil, ""]} class="text-xs wrap-anywhere text-content-muted">{role.description}</p>
           <p :if={role.description in [nil, ""]} class="text-xs text-content-faint">No description</p>
+          <p :if={device_scope_label(role)} class="text-xs text-content-faint">{device_scope_label(role)}</p>
         </div>
         <div role="cell" class="w-22.5 shrink-0 text-right text-[13px] text-content-body tabular-nums">
           {member_count(@member_counts, role)}

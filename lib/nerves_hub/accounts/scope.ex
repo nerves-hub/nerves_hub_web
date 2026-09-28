@@ -38,4 +38,17 @@ defmodule NervesHub.Accounts.Scope do
   def put_product(%__MODULE__{} = scope, %Product{} = product) do
     %{scope | product: product}
   end
+
+  @doc """
+  Whether the user sees only some of the org's devices: their custom role is
+  limited to tagged devices, or they have no role that could say otherwise.
+
+  Pages and endpoints built from all of a product's devices, like Insights or a
+  deployment group, are closed to them. Which devices they do see is decided
+  in the database; see `NervesHub.Devices.Visibility`.
+  """
+  @spec devices_limited?(t()) :: boolean()
+  def devices_limited?(%__MODULE__{role: role}) when role in [:admin, :manage, :view], do: false
+  def devices_limited?(%__MODULE__{role: %OrgRole{} = role}), do: OrgRole.limited_to_tags?(role)
+  def devices_limited?(%__MODULE__{}), do: true
 end

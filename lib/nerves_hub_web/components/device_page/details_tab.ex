@@ -121,8 +121,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   # Tags already on the device are excluded so the "add tag" suggestions only
   # offer tags that can actually be added.
-  defp assign_addable_tags(%{assigns: %{product: product, device: device}} = socket) do
-    addable_tags = Devices.distinct_tags_for_product(product) -- (device.tags || [])
+  defp assign_addable_tags(%{assigns: %{product: product, device: device, current_scope: scope}} = socket) do
+    addable_tags = Devices.distinct_tags_for_product(product, scope.user) -- (device.tags || [])
     assign(socket, :addable_tags, addable_tags)
   end
 
@@ -499,7 +499,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("add-tag", %{"tag" => tag}, socket) do
-    authorized!(:"device:update", socket.assigns.current_scope)
+    authorized!(:"device:tags", socket.assigns.current_scope)
 
     Devices.add_tag(socket.assigns.device, socket.assigns.user, tag)
     |> case do
@@ -518,7 +518,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event("remove-tag", %{"tag" => tag}, socket) do
-    authorized!(:"device:update", socket.assigns.current_scope)
+    authorized!(:"device:tags", socket.assigns.current_scope)
 
     Devices.remove_tag(socket.assigns.device, socket.assigns.user, tag)
     |> case do
@@ -1242,7 +1242,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <span :for={tag <- @device.tags || []} class="flex items-center gap-1 rounded border border-line-subtle bg-base-800 px-2 py-1 text-sm text-content-body">
               {tag}
               <button
-                :if={authorized?(:"device:update", @current_scope)}
+                :if={authorized?(:"device:tags", @current_scope)}
                 type="button"
                 phx-click="remove-tag"
                 phx-value-tag={tag}
@@ -1252,7 +1252,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 <span class="lucide-x--bold size-3" aria-hidden="true"></span>
               </button>
             </span>
-            <%= if authorized?(:"device:update", @current_scope) do %>
+            <%= if authorized?(:"device:tags", @current_scope) do %>
               <button
                 id="add-tag-open"
                 type="button"

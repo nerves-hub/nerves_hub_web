@@ -7,6 +7,7 @@ defmodule NervesHubWeb.DownloadController do
   # Any member can reach these pages; downloading needs the permission the
   # archive and firmware pages' download buttons check.
   plug(:require_membership)
+  plug(:require_every_device)
   plug(:require_permission, :"archive:download" when action in [:archive])
   plug(:require_permission, :"firmware:download" when action in [:firmware])
 

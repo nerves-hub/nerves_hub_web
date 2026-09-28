@@ -26,6 +26,20 @@ defmodule NervesHubWeb.Helpers.PermissionPlugs do
   def require_membership(_conn, _opts), do: raise(NervesHubWeb.UnauthorizedError)
 
   @doc """
+  Refuses the request if the user sees only some of the org's devices.
+
+  For endpoints built from, or acting on, all of a product's devices, such as
+  firmware and deployment groups. See `NervesHub.Accounts.Scope.devices_limited?/1`.
+  """
+  def require_every_device(%{assigns: %{current_scope: %Scope{org: org} = scope}} = conn, _opts) when not is_nil(org) do
+    if Scope.devices_limited?(scope), do: raise(NervesHubWeb.UnauthorizedError)
+
+    conn
+  end
+
+  def require_every_device(_conn, _opts), do: raise(NervesHubWeb.UnauthorizedError)
+
+  @doc """
   Refuses the request unless the user holds `permission` in the scope's org.
   """
   def require_permission(%{assigns: %{current_scope: %Scope{org: org} = scope}} = conn, permission)

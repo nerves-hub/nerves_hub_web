@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Layouts do
   use NervesHubWeb, :html
 
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.Scope
   alias NervesHubWeb.Components.Fleet
   alias NervesHubWeb.Components.Navigation
   alias NervesHubWeb.Components.Pager
@@ -101,7 +102,7 @@ defmodule NervesHubWeb.Layouts do
 
   # Each icon is spelled out in full, regular and bold, so Tailwind finds the
   # class names in this file.
-  defp org_tabs(%Org{} = org, counts) do
+  defp org_tabs(%Scope{org: %Org{} = org} = scope, counts) do
     [
       %{
         key: :products,
@@ -143,7 +144,8 @@ defmodule NervesHubWeb.Layouts do
         selected_icon: "lucide-shield-check--bold",
         count: counts.certificates
       },
-      Navigation.org_iroh_endpoints_ui_enabled?() &&
+      # Iroh endpoints span all of the org's devices.
+      Navigation.org_iroh_endpoints_ui_enabled?() && not Scope.devices_limited?(scope) &&
         %{
           key: :iroh_endpoints,
           label: "Iroh endpoints",

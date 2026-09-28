@@ -8,6 +8,7 @@ defmodule NervesHubWeb.API.ArchiveController do
   alias NervesHubWeb.API.Schemas.ErrorSchemas
 
   plug(:require_membership when action in [:index, :show])
+  plug(:require_every_device)
   plug(:require_permission, :"archive:upload" when action in [:create])
   plug(:require_permission, :"archive:download" when action in [:download])
 

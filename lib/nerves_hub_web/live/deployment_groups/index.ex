@@ -7,6 +7,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.ListSettingsSidebar
   alias NervesHubWeb.Components.Sorting
+  alias NervesHubWeb.Mounts.RequireEveryDevice
+
+  on_mount(RequireEveryDevice)
 
   @default_filters %{
     name: "",
