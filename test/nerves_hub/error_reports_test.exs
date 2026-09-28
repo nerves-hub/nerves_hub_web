@@ -15,6 +15,12 @@ defmodule NervesHub.ErrorReportsTest do
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
+  # `device_error_reports` has a 30 day TTL, and ClickHouse can drop an expired
+  # row as soon as it is inserted, so fixture times count back from the day the
+  # suite runs instead of being fixed dates. One `@today` per compile keeps a run
+  # that crosses midnight consistent with itself.
+  @today Date.utc_today()
+
   setup %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
@@ -51,13 +57,23 @@ defmodule NervesHub.ErrorReportsTest do
   defp report(overrides \\ %{}) do
     Map.merge(
       %{
-        "timestamp" => "2026-08-31T10:00:00.000000Z",
+        "timestamp" => at(1),
         "kind" => "error",
         "reason" => "** (RuntimeError) boom",
         "frames" => [%{"module" => "MyApp.Worker", "function" => "run/0", "file" => "w.ex", "line" => 3}]
       },
       overrides
     )
+  end
+
+  defp day(days_ago), do: Date.add(@today, -days_ago)
+
+  # An ISO 8601 timestamp, as a device sends it, on the day `days_ago` days back.
+  defp at(days_ago, time \\ ~T[10:00:00.000000]) do
+    days_ago
+    |> day()
+    |> DateTime.new!(time, "Etc/UTC")
+    |> DateTime.to_iso8601()
   end
 
   defp settle() do
@@ -91,7 +107,7 @@ defmodule NervesHub.ErrorReportsTest do
       {:ok, 2} =
         ErrorReports.record_batch(info, [
           report(%{"reason" => "boom in #PID<0.1.0>"}),
-          report(%{"reason" => "boom in #PID<0.2.0>", "timestamp" => "2026-08-31T10:00:01.000000Z"})
+          report(%{"reason" => "boom in #PID<0.2.0>", "timestamp" => at(1, ~T[10:00:01.000000])})
         ])
 
       settle()
@@ -177,9 +193,9 @@ defmodule NervesHub.ErrorReportsTest do
     setup %{device_info: info} do
       {:ok, 3} =
         ErrorReports.record_batch(info, [
-          report(%{"reason" => "alpha failure", "timestamp" => "2026-08-29T10:00:00.000000Z"}),
-          report(%{"reason" => "beta failure", "timestamp" => "2026-08-30T10:00:00.000000Z"}),
-          report(%{"reason" => "gamma failure", "timestamp" => "2026-08-31T10:00:00.000000Z"})
+          report(%{"reason" => "alpha failure", "timestamp" => at(3)}),
+          report(%{"reason" => "beta failure", "timestamp" => at(2)}),
+          report(%{"reason" => "gamma failure", "timestamp" => at(1)})
         ])
 
       settle()
@@ -225,8 +241,8 @@ defmodule NervesHub.ErrorReportsTest do
     test "sorts by occurrence count", %{device_info: info, product: product} do
       {:ok, 2} =
         ErrorReports.record_batch(info, [
-          report(%{"reason" => "alpha failure", "timestamp" => "2026-08-29T11:00:00.000000Z"}),
-          report(%{"reason" => "alpha failure", "timestamp" => "2026-08-29T12:00:00.000000Z"})
+          report(%{"reason" => "alpha failure", "timestamp" => at(3, ~T[11:00:00.000000])}),
+          report(%{"reason" => "alpha failure", "timestamp" => at(3, ~T[12:00:00.000000])})
         ])
 
       settle()
@@ -289,7 +305,7 @@ defmodule NervesHub.ErrorReportsTest do
       {:ok, 2} =
         ErrorReports.record_batch(info, [
           report(),
-          report(%{"timestamp" => "2026-08-31T10:00:01.000000Z"})
+          report(%{"timestamp" => at(1, ~T[10:00:01.000000])})
         ])
 
       {:ok, 1} = ErrorReports.record_batch(device_info(other_device), [report()])
@@ -330,15 +346,15 @@ defmodule NervesHub.ErrorReportsTest do
     setup %{device_info: info, device: device, other_device: other_device, product: product} do
       {:ok, 2} =
         ErrorReports.record_batch(info, [
-          report(%{"timestamp" => "2026-08-30T10:00:00.000000Z"}),
-          report(%{"timestamp" => "2026-08-31T10:00:00.000000Z", "message" => "the newest one"})
+          report(%{"timestamp" => at(2)}),
+          report(%{"timestamp" => at(1), "message" => "the newest one"})
         ])
 
       # Deliberately not sharing a timestamp with either of the above: "the
       # newest occurrence" has no single answer when two of them tie.
       {:ok, 1} =
         ErrorReports.record_batch(device_info(other_device), [
-          report(%{"timestamp" => "2026-08-29T10:00:00.000000Z"})
+          report(%{"timestamp" => at(3)})
         ])
 
       settle()
@@ -395,15 +411,15 @@ defmodule NervesHub.ErrorReportsTest do
     end
 
     test "occurrences_by_date/4 fills the quiet days", %{group: group} do
-      buckets = ErrorReports.occurrences_by_date(group, ~D[2026-08-28], ~D[2026-09-01], "Etc/UTC")
+      buckets = ErrorReports.occurrences_by_date(group, day(4), day(0), "Etc/UTC")
 
       assert length(buckets) == 5
-      assert Enum.map(buckets, & &1.date) |> List.first() == ~D[2026-08-28]
-      assert Enum.find(buckets, &(&1.date == ~D[2026-08-28])).count == 0
-      assert Enum.find(buckets, &(&1.date == ~D[2026-08-29])).count == 1
-      assert Enum.find(buckets, &(&1.date == ~D[2026-08-30])).count == 1
-      assert Enum.find(buckets, &(&1.date == ~D[2026-08-31])).count == 1
-      assert Enum.find(buckets, &(&1.date == ~D[2026-08-29])).device_count == 1
+      assert Enum.map(buckets, & &1.date) |> List.first() == day(4)
+      assert Enum.find(buckets, &(&1.date == day(4))).count == 0
+      assert Enum.find(buckets, &(&1.date == day(3))).count == 1
+      assert Enum.find(buckets, &(&1.date == day(2))).count == 1
+      assert Enum.find(buckets, &(&1.date == day(1))).count == 1
+      assert Enum.find(buckets, &(&1.date == day(3))).device_count == 1
     end
   end
 
