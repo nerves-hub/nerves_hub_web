@@ -167,7 +167,7 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
   test "tells subscribers the device finished", ctx do
     %{device: device, runner: runner} = run_for(ctx, %{})
 
-    :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, ScriptRunners.topic(runner))
+    :ok = ScriptRunners.subscribe(runner)
 
     assert :ok = perform(runner, device)
 

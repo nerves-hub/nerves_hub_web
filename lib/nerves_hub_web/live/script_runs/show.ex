@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Live.ScriptRuns.Show do
     run = ScriptRunners.get_by_id!(scope, id)
 
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, ScriptRunners.topic(run))
+      :ok = ScriptRunners.subscribe(run)
     end
 
     socket

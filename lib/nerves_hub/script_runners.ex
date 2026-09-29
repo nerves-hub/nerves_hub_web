@@ -26,6 +26,7 @@ defmodule NervesHub.ScriptRunners do
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+  alias NervesHub.ScriptRunners.PubSub
   alias NervesHub.ScriptRunners.ScriptRunner
   alias NervesHub.ScriptRunners.ScriptRunnerDevice
   alias NervesHub.ScriptRunners.ScriptRunnerDeviceFiltering
@@ -34,6 +35,15 @@ defmodule NervesHub.ScriptRunners do
   # One statement per chunk, so a run targeting a whole fleet does not build a
   # single multi-megabyte insert.
   @insert_chunk_size 5_000
+
+  # Matched against `oban_jobs.worker`, which stores the worker as a string.
+  @device_worker "NervesHub.Workers.ScriptRunnerDevice"
+  @dispatch_worker "NervesHub.Workers.ScriptRunnerDispatch"
+
+  # A job in one of these states can still run its device. Anything else --
+  # `completed`, `discarded`, `cancelled` -- never will, so the device's row is
+  # free to be released. See `release_stale_devices/2`.
+  @live_job_states ~w(available scheduled executing retryable)
 
   @doc """
   Create a run and queue its first pacing job.
@@ -345,6 +355,50 @@ defmodule NervesHub.ScriptRunners do
   end
 
   @doc """
+  Give a new dispatch job to any run that has lost its pacer.
+
+  A run's pacer is inserted once, inside the transaction that creates the run, and
+  `NervesHub.Workers.ScriptRunnerDispatch` keeps itself alive by snoozing. Nothing
+  re-creates it: if that job is discarded — five failed attempts, or `Oban.Lifeline`
+  rescuing an attempt-exhausted job — the run stops being worked through entirely.
+
+  Left alone it does not merely stall. An unfinished run keeps counting towards
+  `active_run_count/0`, which is what every other run's share of the ceiling is
+  divided by, so one stranded run halves the throughput of every run after it and
+  a handful of them throttle the whole fleet.
+
+  Returns how many runs were given a new pacer. Which runs need one is asked of
+  the database rather than inferred from what `Oban.insert/1` gives back, so the
+  count means what it says; the dispatch worker's own uniqueness is what stops a
+  duplicate if a run gains a pacer between the query and the insert.
+  """
+  @spec requeue_stranded_runs() :: non_neg_integer()
+  def requeue_stranded_runs() do
+    stranded =
+      ScriptRunner
+      |> where([sr], sr.status in [:pending, :running])
+      |> where([sr], sr.id not in subquery(paced_run_ids()))
+      |> select([sr], sr.id)
+      |> Repo.all()
+
+    jobs = Enum.map(stranded, &ScriptRunnerDispatch.new(%{script_runner_id: &1}))
+
+    _ = Oban.insert_all(jobs)
+
+    length(stranded)
+  end
+
+  # The runs that still have a pacer able to run. Queried the same way, and for
+  # the same reason, as `live_job_device_ids/1`.
+  defp paced_run_ids() do
+    from(j in "oban_jobs",
+      where: j.worker == ^@dispatch_worker,
+      where: j.state in ^@live_job_states,
+      select: type(fragment("(? ->> 'script_runner_id')::bigint", j.args), :integer)
+    )
+  end
+
+  @doc """
   Record that a run has begun.
   """
   @spec mark_running(ScriptRunner.t()) :: {:ok, ScriptRunner.t()} | {:error, Changeset.t()}
@@ -405,11 +459,22 @@ defmodule NervesHub.ScriptRunners do
   end
 
   @doc """
-  The topic a run's progress is broadcast on.
+  Watch a run's progress.
+
+  Delivers `{:script_runner, event, payload}` to the calling process until it
+  dies. See `NervesHub.ScriptRunners.PubSub` for why this is a `:group` topic
+  rather than a `Phoenix.PubSub` one.
   """
-  @spec topic(ScriptRunner.t() | integer()) :: String.t()
-  def topic(%ScriptRunner{id: id}), do: topic(id)
-  def topic(id) when is_integer(id), do: "script_runner:#{id}"
+  @spec subscribe(ScriptRunner.t() | integer()) :: :ok
+  def subscribe(%ScriptRunner{id: id}), do: subscribe(id)
+  def subscribe(id) when is_integer(id), do: PubSub.subscribe(id)
+
+  @doc """
+  Stop watching a run's progress.
+  """
+  @spec unsubscribe(ScriptRunner.t() | integer()) :: :ok
+  def unsubscribe(%ScriptRunner{id: id}), do: unsubscribe(id)
+  def unsubscribe(id) when is_integer(id), do: PubSub.unsubscribe(id)
 
   @doc """
   Tell subscribers a run moved on.
@@ -419,11 +484,7 @@ defmodule NervesHub.ScriptRunners do
   """
   @spec broadcast_progress(integer(), atom(), map()) :: :ok
   def broadcast_progress(runner_id, event, payload \\ %{}) do
-    Phoenix.PubSub.broadcast(
-      NervesHub.PubSub,
-      topic(runner_id),
-      {:script_runner, event, Map.put(payload, :script_runner_id, runner_id)}
-    )
+    PubSub.broadcast(runner_id, event, payload)
   end
 
   @doc """
@@ -440,7 +501,15 @@ defmodule NervesHub.ScriptRunners do
   Only rows older than `older_than` are touched, so devices genuinely mid-script
   are left alone. The default is a wide margin over the ~31s a device job can
   live for: `NervesHub.Scripts.Runner` stops itself a second after the caller's
-  timeout, so a row older than this has no job behind it either way.
+  timeout.
+
+  Age alone is not enough, though. A device job waits in the `script_runners`
+  queue before it runs, and on a saturated queue — or one paused through a deploy
+  — that wait can outlast the cutoff while the job is perfectly healthy.
+  Releasing such a row would put a second job in the queue for a device that
+  already has one, and the operator's script would run on it twice. So a row is
+  released only when no job is left to run it, which is what "abandoned" actually
+  means.
   """
   @spec release_stale_devices(integer(), pos_integer()) :: non_neg_integer()
   def release_stale_devices(runner_id, older_than \\ to_timeout(minute: 5)) do
@@ -450,8 +519,24 @@ defmodule NervesHub.ScriptRunners do
       ScriptRunnerDevice
       |> where([srd], srd.script_runner_id == ^runner_id and srd.status == :running)
       |> where([srd], srd.started_at < ^cutoff)
+      |> where([srd], srd.device_id not in subquery(live_job_device_ids(runner_id)))
       |> Repo.update_all(set: [status: :pending, started_at: nil, updated_at: naive_now()])
 
     count
+  end
+
+  # The devices this run still has a job for, in any state that can yet run it.
+  # `oban_jobs` is queried as a plain table rather than through `Oban.Job`, so
+  # nothing here depends on Oban's schema module.
+  #
+  # A `discarded` or `cancelled` job is deliberately not live: it will never run,
+  # which is exactly when its row needs releasing.
+  defp live_job_device_ids(runner_id) do
+    from(j in "oban_jobs",
+      where: j.worker == ^@device_worker,
+      where: j.state in ^@live_job_states,
+      where: fragment("(? ->> 'script_runner_id')::bigint = ?", j.args, ^runner_id),
+      select: type(fragment("(? ->> 'device_id')::bigint", j.args), :integer)
+    )
   end
 end

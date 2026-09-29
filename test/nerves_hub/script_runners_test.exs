@@ -618,5 +618,51 @@ defmodule NervesHub.ScriptRunnersTest do
       assert ScriptRunners.release_stale_devices(ctx.runner.id) == 0
       assert ScriptRunners.status_counts(ctx.runner)[:completed] == 1
     end
+
+    # A device whose job is still sitting in the queue has not been abandoned, it
+    # is waiting its turn. Releasing it would insert a second job for the same
+    # device, and the operator's script would run on it twice -- the thing
+    # `max_attempts: 1` on the device worker exists to prevent. A row is only
+    # stale when there is no job behind it.
+    test "leaves a device alone while its job is still queued", ctx do
+      [device_id | _] = ScriptRunners.claim_pending_devices(ctx.runner.id, 1)
+
+      {:ok, _job} =
+        Oban.insert(
+          NervesHub.Workers.ScriptRunnerDevice.new(%{
+            script_runner_id: ctx.runner.id,
+            device_id: device_id,
+            text: ctx.runner.text
+          })
+        )
+
+      # Long enough ago that the age check alone would release it: a saturated
+      # `script_runners` queue can leave a job waiting this long.
+      Repo.update_all(
+        from(srd in ScriptRunnerDevice,
+          where: srd.script_runner_id == ^ctx.runner.id and srd.device_id == ^device_id
+        ),
+        set: [started_at: DateTime.add(DateTime.utc_now(), -10, :minute)]
+      )
+
+      assert ScriptRunners.release_stale_devices(ctx.runner.id) == 0
+      assert ScriptRunners.status_counts(ctx.runner)[:running] == 1
+    end
+
+    # The opposite case, and the one the release exists for: the job is gone, so
+    # nothing is coming for this row and it has to go back in the queue.
+    test "releases a device whose job has left the queue", ctx do
+      [device_id | _] = ScriptRunners.claim_pending_devices(ctx.runner.id, 1)
+
+      Repo.update_all(
+        from(srd in ScriptRunnerDevice,
+          where: srd.script_runner_id == ^ctx.runner.id and srd.device_id == ^device_id
+        ),
+        set: [started_at: DateTime.add(DateTime.utc_now(), -10, :minute)]
+      )
+
+      assert ScriptRunners.release_stale_devices(ctx.runner.id) == 1
+      assert ScriptRunners.status_counts(ctx.runner)[:pending] == 2
+    end
   end
 end
