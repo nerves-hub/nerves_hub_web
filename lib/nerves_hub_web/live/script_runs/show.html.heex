@@ -1,0 +1,214 @@
+<NervesHubWeb.Layouts.sidebar flash={@flash} current_scope={@current_scope} sidebar_tab={@sidebar_tab}>
+  <:top_bar>
+    <.breadcrumb navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/runs"} root_label="All Script Runs">
+      <:crumb>{@script_run.name}</:crumb>
+    </.breadcrumb>
+  </:top_bar>
+
+  <:header>
+    <h1 class="text-base-50 text-xl leading-[30px] font-semibold">{@script_run.name}</h1>
+    <span class="tag mr-auto">{@script_run.status}</span>
+  </:header>
+
+  <div class="h-0 flex-1 overflow-y-auto">
+    <div class="flex flex-col gap-4 p-6">
+      <div class="flex gap-4">
+        <div class="bg-surface-raised border-base-700 flex w-1/2 flex-col gap-3 rounded border p-4">
+          <div class="text-base-50 leading-6 font-medium">Details</div>
+
+          <div class="flex items-center gap-4">
+            <span class="text-base-500 w-32 shrink-0 text-sm">Targeted by:</span>
+            <span class="text-base-300 text-sm">{ScriptRunner.filter_type_label(@script_run.filter_type)}</span>
+          </div>
+
+          <%!-- Each filter type stores different values, so each is shown on its
+                own terms rather than as a dump of the embed. --%>
+          <div :if={@script_run.filter_type == :tags} class="flex items-center gap-4">
+            <span class="text-base-500 w-32 shrink-0 text-sm">Tags:</span>
+            <span class="flex flex-wrap gap-1">
+              <span :for={tag <- @script_run.filter.tags} class="tag">{tag}</span>
+            </span>
+          </div>
+
+          <div :if={@script_run.filter_type == :tags} class="flex items-center gap-4">
+            <span class="text-base-500 w-32 shrink-0 text-sm">Tag matching:</span>
+            <span class="text-base-300 text-sm">{ScriptRunner.tag_operator_label(@script_run.filter.tag_operator)}</span>
+          </div>
+
+          <div :if={@script_run.filter_type == :identifiers} class="flex items-center gap-4">
+            <span class="text-base-500 w-32 shrink-0 text-sm">Identifiers:</span>
+            <span class="text-base-300 text-sm">
+              {length(@script_run.filter.identifiers)} named
+            </span>
+          </div>
+
+          <div :if={@script_run.filter_type == :deployment_groups} class="flex items-center gap-4">
+            <span class="text-base-500 w-32 shrink-0 text-sm">Deployment groups:</span>
+            <span class="text-base-300 text-sm">
+              {length(@script_run.filter.deployment_group_ids)} selected
+            </span>
+          </div>
+
+          <div class="border-base-700 border-b"></div>
+
+          <div class="flex items-center gap-4">
+            <span class="text-base-500 w-32 shrink-0 text-sm">Language:</span>
+            <span class="text-base-300 text-sm">{Script.language_label(@script_run.language)}</span>
+          </div>
+
+          <div class="flex items-center gap-4">
+            <span class="text-base-500 w-32 shrink-0 text-sm">Devices:</span>
+            <span class="text-base-300 text-sm">{@script_run.device_count} {devices(@script_run.device_count)}</span>
+          </div>
+
+          <div class="flex items-center gap-4">
+            <span class="text-base-500 w-32 shrink-0 text-sm">Started:</span>
+            <span class="text-base-300 text-sm">
+              <.local_datetime :if={@script_run.started_at} at={@script_run.started_at} time_zone={@time_zone} />
+              <span :if={is_nil(@script_run.started_at)} class="text-base-500">Not yet</span>
+            </span>
+          </div>
+
+          <div class="flex items-center gap-4">
+            <span class="text-base-500 w-32 shrink-0 text-sm">Finished:</span>
+            <span class="text-base-300 text-sm">
+              <.local_datetime :if={@script_run.finished_at} at={@script_run.finished_at} time_zone={@time_zone} />
+              <span :if={is_nil(@script_run.finished_at)} class="text-base-500">Still running</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="bg-surface-raised border-base-700 flex w-1/2 flex-col gap-3 rounded border p-4">
+          <div class="text-base-50 leading-6 font-medium">Script code</div>
+          <pre class="bg-base-800/50 text-base-300 overflow-x-auto rounded p-4 font-mono text-sm">{@script_run.text}</pre>
+        </div>
+      </div>
+
+      <div id="run-progress" class="bg-surface-raised border-base-700 flex flex-col gap-3 rounded border p-4">
+        <div class="flex items-center gap-2">
+          <div class="text-base-50 leading-6 font-medium">Progress</div>
+          <%!-- What has an outcome, over every device. `:pending` and `:running`
+                are the only statuses not counted in the numerator, so this reaches
+                the total exactly when the run is done. --%>
+          <div class="text-base-400 text-sm">
+            {finished_count(@status_counts)} / {total_count(@status_counts)}
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-x-8 gap-y-2">
+          <%!-- Only the statuses this run actually has, so a finished run is not a
+                list of zeroes. --%>
+          <div :for={status <- statuses()} :if={status_count(@status_counts, status) > 0} class="flex items-center gap-2">
+            <span class="text-base-500 text-sm">{status}:</span>
+            <span class="text-base-300 text-sm">{status_count(@status_counts, status)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="border-base-700 flex h-14 items-center justify-between border-y px-6">
+      <div id="devices-heading" class="flex items-center gap-2">
+        <div class="text-base-50 text-base font-medium">Devices</div>
+        <%!-- The filtered total rather than the run's own `device_count`, so it
+              agrees with the rows below it. --%>
+        <div class="bg-base-800 text-base-300 rounded-sm px-1.5 py-0.5 text-xs">
+          {@pager_meta.total_count}
+        </div>
+      </div>
+
+      <form id="device-results-filters-form" class="flex items-center gap-2" phx-change="update-filters">
+        <select
+          name="status"
+          id="device_result_status"
+          title="Filter by status"
+          class="bg-surface-muted border-base-600 text-base-400 block h-9 rounded border py-1 pr-8 pl-3 text-sm font-normal"
+        >
+          <option value="">Filter by status</option>
+          <option :for={status <- statuses()} value={status} selected={to_string(status) == @current_filters[:status]}>
+            {status}
+          </option>
+        </select>
+
+        <div class="grid grid-cols-1">
+          <input
+            type="text"
+            class="bg-surface-muted border-base-600 text-base-400 col-start-1 row-start-1 block h-9 w-64 gap-2 rounded border px-3 py-1 text-sm font-normal"
+            name="identifier"
+            id="device_result_search"
+            placeholder="Search by identifier..."
+            title="Search"
+            value={@current_filters[:identifier]}
+            phx-debounce="500"
+          />
+
+          <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path
+              d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
+              stroke="#A1A1AA"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+      </form>
+    </div>
+
+    <div :if={Enum.any?(@device_results)} id="device-results" class="listing">
+      <table>
+        <thead>
+          <tr>
+            <th phx-click="sort" phx-value-sort="identifier" class="cursor-pointer">
+              <Sorting.sort_icon text="Identifier" field="identifier" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th phx-click="sort" phx-value-sort="status" class="cursor-pointer">
+              <Sorting.sort_icon text="Status" field="status" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th phx-click="sort" phx-value-sort="finished_at" class="cursor-pointer">
+              <Sorting.sort_icon text={"Finished (#{zone_abbr(@time_zone)})"} field="finished_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <%!-- Each result is two rows: the result itself, and its output when the
+                row is open. --%>
+          <%= for result <- @device_results do %>
+            <tr class="border-base-800 cursor-pointer border-b" phx-click="toggle-output" phx-value-id={result.id}>
+              <td class="h-[52px]">
+                <div class="flex items-center gap-2">
+                  <.icon name={if @expanded_device_id == result.id, do: "unpinned", else: "open"} class="stroke-base-400" />
+                  {result.device.identifier}
+                </div>
+              </td>
+              <td>
+                <span class="tag w-fit">{result.status}</span>
+              </td>
+              <td>
+                <.local_datetime :if={result.finished_at} at={result.finished_at} time_zone={@time_zone} zone_label={false} />
+                <span :if={is_nil(result.finished_at)} class="text-base-500">-</span>
+              </td>
+            </tr>
+
+            <tr :if={@expanded_device_id == result.id} class="border-base-800 border-b">
+              <td colspan="3" class="py-3">
+                <pre :if={result.output} class="bg-base-800/50 text-base-300 overflow-x-auto rounded p-4 font-mono text-sm whitespace-pre-wrap">{result.output}</pre>
+                <span :if={is_nil(result.output)} class="text-base-500 text-sm">
+                  Nothing was recorded for this device.
+                </span>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <div :if={Enum.empty?(@device_results) && @currently_filtering} class="flex items-center justify-center py-16">
+      <span class="text-base-50 text-xl font-medium">No devices match the current filters.</span>
+    </div>
+
+    <div :if={Enum.empty?(@device_results) && !@currently_filtering} class="flex items-center justify-center py-16">
+      <span class="text-content-muted text-xl font-medium">This run has no devices.</span>
+    </div>
+  </div>
+
+  <:pagination pager={@pager_meta} page_sizes={[25, 50, 100]} />
+</NervesHubWeb.Layouts.sidebar>

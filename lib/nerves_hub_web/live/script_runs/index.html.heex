@@ -64,13 +64,15 @@
         <tbody>
           <tr :for={run <- @script_runs} class="border-base-800 border-b">
             <td class="h-[52px]">
-              {run.name}
+              <.link navigate={~p"/org/#{@current_scope.org}/#{@current_scope.product}/scripts/runs/#{run.id}"} class="underline decoration-dashed hover:decoration-solid">
+                {run.name}
+              </.link>
             </td>
             <td>
               <.local_datetime at={run.inserted_at} time_zone={@time_zone} zone_label={false} />
             </td>
             <td>
-              <span class="tag">{run.status}</span>
+              <span class="tag w-fit">{run.status}</span>
             </td>
             <td>
               {run.device_count}

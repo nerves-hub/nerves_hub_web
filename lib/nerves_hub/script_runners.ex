@@ -28,6 +28,7 @@ defmodule NervesHub.ScriptRunners do
   alias NervesHub.Repo
   alias NervesHub.ScriptRunners.ScriptRunner
   alias NervesHub.ScriptRunners.ScriptRunnerDevice
+  alias NervesHub.ScriptRunners.ScriptRunnerDeviceFiltering
   alias NervesHub.Workers.ScriptRunnerDispatch
 
   # One statement per chunk, so a run targeting a whole fleet does not build a
@@ -239,6 +240,32 @@ defmodule NervesHub.ScriptRunners do
   end
 
   @doc """
+  One run's device results, paginated, searchable by identifier and sortable.
+
+  Not routed through `NervesHub.Filtering` like the other listings: that helper
+  scopes every query with `product_id`, which `script_runner_devices` does not
+  have. The run is the scope here, and the run itself was already fetched within
+  the product's scope.
+  """
+  @spec filter_devices(ScriptRunner.t(), map()) :: {[ScriptRunnerDevice.t()], Flop.Meta.t()}
+  def filter_devices(%ScriptRunner{id: id}, opts \\ %{}) do
+    pagination = Map.get(opts, :pagination, %{})
+
+    flop = %Flop{
+      page: Map.get(pagination, :page, 1),
+      page_size: Map.get(pagination, :page_size, 25)
+    }
+
+    ScriptRunnerDevice
+    |> where([srd], srd.script_runner_id == ^id)
+    |> join(:inner, [srd], d in assoc(srd, :device), as: :device)
+    |> preload([device: d], device: d)
+    |> ScriptRunnerDeviceFiltering.build_filters(Map.get(opts, :filters, %{}))
+    |> ScriptRunnerDeviceFiltering.sort(Map.get(opts, :sort, {:asc, :identifier}))
+    |> Flop.run(flop)
+  end
+
+  @doc """
   How many of a run's devices are at each status.
   """
   @spec status_counts(ScriptRunner.t()) :: %{ScriptRunnerDevice.status() => non_neg_integer()}
@@ -433,10 +460,17 @@ defmodule NervesHub.ScriptRunners do
   Put a run's stuck devices back in the queue.
 
   A device is left at `:running` when the node executing it dies between claiming
-  the row and recording an answer. Oban retries or rescues its own job, but the
-  row it claimed is what stops the device being picked up again, so this releases
-  them. Only rows older than `older_than` are touched, so devices genuinely
-  mid-script are left alone.
+  the row and recording an answer. Nothing else recovers that row: the device
+  worker is `max_attempts: 1`, so Oban does not retry it, and `Oban.Lifeline`
+  marks an attempt-exhausted job `discarded` rather than making it available
+  again. The row is what `claim_pending_devices/2` looks at, so until it goes back
+  to `:pending` the device is never picked up again and the run never reaches
+  `:completed`.
+
+  Only rows older than `older_than` are touched, so devices genuinely mid-script
+  are left alone. The default is a wide margin over the ~31s a device job can
+  live for: `NervesHub.Scripts.Runner` stops itself a second after the caller's
+  timeout, so a row older than this has no job behind it either way.
   """
   @spec release_stale_devices(integer(), pos_integer()) :: non_neg_integer()
   def release_stale_devices(runner_id, older_than \\ to_timeout(minute: 5)) do

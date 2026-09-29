@@ -30,6 +30,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Types.Tag
+  alias NimbleCSV.RFC4180, as: CSV
 
   @doc """
   Pair counted analytics results with their devices, in the order given.
@@ -706,6 +707,46 @@ defmodule NervesHub.Devices do
     |> select([d], fragment("distinct unnest(?)", d.tags))
     |> Repo.all()
     |> Enum.sort()
+  end
+
+  @doc """
+  Read device identifiers from an uploaded CSV.
+
+  One column, headed `identifier`. Values are trimmed, blanks dropped and repeats
+  collapsed, so callers get the list a person meant rather than the file's exact
+  rows. Anything else — a different header, more than one column — is
+  `{:error, :invalid_csv}`; a file with only a header is `{:ok, []}`, which is a
+  different problem and worth a different message.
+
+  Shared by the pages that accept such a file: importing devices into a
+  deployment group, and choosing the devices for a script run.
+  """
+  @spec parse_identifier_csv(Path.t()) :: {:ok, [String.t()]} | {:error, :invalid_csv}
+  def parse_identifier_csv(path) do
+    path
+    |> File.stream!()
+    |> CSV.parse_stream(skip_headers: false)
+    |> Enum.reduce({nil, []}, fn
+      [header], {nil, []} ->
+        if String.trim(header) == "identifier", do: {:ok, []}, else: {:error, :bad_header}
+
+      [id], {:ok, acc} ->
+        {:ok, [String.trim(id) | acc]}
+
+      _unexpected_row, {:error, _reason} = error ->
+        error
+
+      # A row with more than one column, or a row before the header.
+      _unexpected_row, _acc ->
+        {:error, :bad_row}
+    end)
+    |> case do
+      {:ok, ids} ->
+        {:ok, ids |> Enum.reverse() |> Enum.reject(&(&1 == "")) |> Enum.uniq()}
+
+      _invalid ->
+        {:error, :invalid_csv}
+    end
   end
 
   @spec add_tag(Device.t(), User.t(), String.t()) :: {:ok, Device.t()} | {:error, any()} | {:error, any(), any(), any()}

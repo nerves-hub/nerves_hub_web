@@ -63,10 +63,13 @@ defmodule NervesHub.Workers.ScriptRunnerDevice do
   # since that would take over hundreds of consoles at once.
   defp classify({:error, :unsupported}), do: {:unsupported, nil}
 
-  # `Runner.send/3` turns its own call timeout into this message.
+  # `Runner.send/3` turns its own call timeout into this message. The message is
+  # only how a timeout is recognised, not something worth keeping: it says the
+  # device did not respond in so many milliseconds, which is what `:timed_out`
+  # already records. Nothing came back from the device, so there is no output.
   defp classify({:error, message}) when is_binary(message) do
     if String.contains?(message, "did not respond") do
-      {:timed_out, message}
+      {:timed_out, nil}
     else
       {:failed, message}
     end

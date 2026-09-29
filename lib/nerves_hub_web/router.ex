@@ -451,7 +451,9 @@ defmodule NervesHubWeb.Router do
 
       # Before the `:script_id` route, or "runs" is read as a script id.
       live("/org/:org_name/:product_name/scripts/runs", Live.ScriptRuns.Index)
+      # Before the `:script_run_id` route, or "new" is read as a run id.
       live("/org/:org_name/:product_name/scripts/runs/new", Live.ScriptRuns.New)
+      live("/org/:org_name/:product_name/scripts/runs/:script_run_id", Live.ScriptRuns.Show)
 
       live("/org/:org_name/:product_name/scripts/:script_id/edit", Edit)
 
