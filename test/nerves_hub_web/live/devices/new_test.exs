@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Live.Devices.NewTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.Devices
+
   describe "new device" do
     test "requires an identifier", %{conn: conn, org: org, product: product} do
       conn
@@ -34,6 +36,18 @@ defmodule NervesHubWeb.Live.Devices.NewTest do
       |> assert_has("div", text: "Device created successfully.")
       |> assert_has("span", text: "josh", timeout: 1000)
       |> assert_has("span", text: "lars")
+    end
+
+    test "creates a device with a first connect code", %{conn: conn, org: org, product: product} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/new")
+      |> fill_in("Identifier", with: "aaabbbccc111222333")
+      |> fill_in("First connect code", with: "IO.puts(\"hello\")")
+      |> click_button("Add Device")
+      |> assert_path("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("div", text: "Device created successfully.")
+
+      assert Devices.get_by_identifier!("aaabbbccc111222333").connecting_code == "IO.puts(\"hello\")"
     end
   end
 end
