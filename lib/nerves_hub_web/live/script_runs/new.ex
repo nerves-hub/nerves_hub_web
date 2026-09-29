@@ -28,7 +28,6 @@ defmodule NervesHubWeb.Live.ScriptRuns.New do
     |> page_title("Run a Script - #{scope.product.name}")
     |> sidebar_tab(:support_scripts)
     |> assign(:scripts, Scripts.all_by_product(scope.product))
-    |> assign(:available_tags, Devices.distinct_tags_for_product(scope.product))
     |> assign(:deployment_groups, ManagedDeployments.get_deployment_groups_by_product(scope.product))
     |> assign(:identifier_source, :typed)
     |> assign(:csv_identifiers, [])
@@ -57,6 +56,12 @@ defmodule NervesHubWeb.Live.ScriptRuns.New do
     |> assign(:csv_filename, nil)
     |> assign_form(params)
     |> noreply()
+  end
+
+  # The tag input asks for matches as the operator types rather than being handed
+  # every tag up front: a big product has thousands of device tags.
+  def handle_event("search-device-tags", %{"query" => query}, %{assigns: %{current_scope: scope}} = socket) do
+    {:reply, %{tags: Devices.search_tags_for_product(scope.product, query)}, socket}
   end
 
   def handle_event("remove-csv", _params, socket) do
