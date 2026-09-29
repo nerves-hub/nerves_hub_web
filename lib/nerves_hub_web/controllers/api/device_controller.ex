@@ -238,8 +238,10 @@ defmodule NervesHubWeb.API.DeviceController do
           |> assign(:device, device)
           |> render(:show)
 
-        {:error, changeset} ->
-          # fallback controller will render this
+        # `Devices.move/3` runs a Multi, so a failed step, such as updating a
+        # deleted device, comes back as a 4-tuple. The fallback controller
+        # renders the changeset.
+        {:error, _step, changeset, _changes} ->
           {:error, changeset}
       end
     end
