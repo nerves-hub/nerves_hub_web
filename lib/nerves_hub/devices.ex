@@ -718,9 +718,16 @@ defmodule NervesHub.Devices do
 
   Ranked by trigram similarity rather than returned alphabetically, so the closest
   tag comes first and a typo or transposition still finds it — `pg_trgm` is
-  already enabled, with a trigram index on `tags`. A blank query matches nothing:
-  a list of arbitrary tags is no help before the person has said anything about
-  what they want.
+  already enabled. A blank query matches nothing: a list of arbitrary tags is no
+  help before the person has said anything about what they want.
+
+  Devices are narrowed before their tags are unnested, using the same
+  `string_array_to_string` predicate the device tag filter uses. That is what
+  `devices_tags_index` is built on, so the match is served by the index; filtering
+  on the unnested value alone cannot use it, and unnests every device row in the
+  product on each keystroke. The unnested value is still matched afterwards,
+  because the indexed predicate tests the whole array joined into one string and
+  so admits devices whose other tags matched.
   """
   @spec search_tags_for_product(Product.t(), String.t(), pos_integer()) :: [String.t()]
   def search_tags_for_product(product, query, limit \\ 5)
@@ -737,6 +744,7 @@ defmodule NervesHub.Devices do
           Device
           |> where([d], d.product_id == ^product.id)
           |> where([d], not is_nil(d.tags))
+          |> where([d], fragment("string_array_to_string(?, ' ', ' ') ILIKE ?", d.tags, ^"%#{trimmed}%"))
           |> select([d], %{tag: fragment("distinct unnest(?)", d.tags)})
 
         from(t in subquery(tags),

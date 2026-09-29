@@ -67,6 +67,13 @@ defmodule NervesHub.Workers.ScriptRunnerDevice do
   # only how a timeout is recognised, not something worth keeping: it says the
   # device did not respond in so many milliseconds, which is what `:timed_out`
   # already records. Nothing came back from the device, so there is no output.
+  #
+  # The last clause over `Runner.send/3`'s three results, deliberately with
+  # nothing after it: anything else would mean that contract changed, and a
+  # catch-all would quietly record the new shape as a device failure. Failing here
+  # instead frees the row (see `NervesHub.ScriptRunners.release_stale_devices/2`)
+  # and says which device it was, rather than writing `inspect/1` output into a
+  # column an operator reads as their script's own.
   defp classify({:error, message}) when is_binary(message) do
     if String.contains?(message, "did not respond") do
       {:timed_out, nil}
@@ -74,6 +81,4 @@ defmodule NervesHub.Workers.ScriptRunnerDevice do
       {:failed, message}
     end
   end
-
-  defp classify(other), do: {:failed, inspect(other)}
 end

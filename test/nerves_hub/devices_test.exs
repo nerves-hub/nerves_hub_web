@@ -695,6 +695,31 @@ defmodule NervesHub.DevicesTest do
     test "tolerates a query that is not a string", %{search_product: product} do
       assert Devices.search_tags_for_product(product, nil) == []
     end
+
+    # Devices are narrowed by an indexed predicate over the whole tag array joined
+    # into one string, which admits a device because *some* tag matched. The tag
+    # actually returned still has to be one that matches, or a device carrying
+    # both "cellular" and "production" would offer "production" for a search of
+    # "cell".
+    test "returns only the tags that match, not every tag on a matching device", %{
+      org: org,
+      user: user,
+      firmware: firmware
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "Multi Tag Product"})
+      Fixtures.device_fixture(org, product, firmware, %{tags: ["cellular", "production"]})
+
+      assert Devices.search_tags_for_product(product, "cell") == ["cellular"]
+    end
+
+    # The indexed predicate joins tags with a space, so a query spanning that
+    # separator would match the joined string while matching no single tag.
+    test "does not match across the boundary between two tags", %{org: org, user: user, firmware: firmware} do
+      product = Fixtures.product_fixture(user, org, %{name: "Boundary Tag Product"})
+      Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha", "beta"]})
+
+      assert Devices.search_tags_for_product(product, "alpha beta") == []
+    end
   end
 
   describe "firmware_versions/1" do

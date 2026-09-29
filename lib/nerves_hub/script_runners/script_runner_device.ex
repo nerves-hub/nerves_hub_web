@@ -30,14 +30,16 @@ defmodule NervesHub.ScriptRunners.ScriptRunnerDevice do
   job dies, the row is released back to `:pending` and another node picks it up —
   see `NervesHub.ScriptRunners.release_stale_devices/2`.
   """
-  @type status ::
-          :pending
-          | :running
-          | :completed
-          | :failed
-          | :timed_out
-          | :offline
-          | :unsupported
+  @type status :: :pending | :running | terminal_status()
+
+  @typedoc """
+  A status a device row stops on.
+
+  Split out from `t:status/0` because the two statuses missing here, `:pending` and
+  `:running`, are exactly the ones a device can still move off — which is what
+  makes "finished" countable. See `terminal_statuses/0`.
+  """
+  @type terminal_status :: :completed | :failed | :timed_out | :offline | :unsupported
 
   @statuses [
     :pending,
@@ -67,7 +69,7 @@ defmodule NervesHub.ScriptRunners.ScriptRunnerDevice do
   @doc """
   Every status a device row can end on.
   """
-  @spec terminal_statuses() :: [status(), ...]
+  @spec terminal_statuses() :: [terminal_status(), ...]
   def terminal_statuses(), do: @terminal_statuses
 
   @doc """
