@@ -380,36 +380,6 @@ defmodule NervesHub.ScriptRunners do
     count
   end
 
-  @doc """
-  Mark devices as dispatched, in one statement.
-  """
-  @spec mark_devices_running(integer(), [integer()]) :: non_neg_integer()
-  def mark_devices_running(runner_id, device_ids) do
-    update_device_status(runner_id, device_ids, :running, started_at: DateTime.utc_now())
-  end
-
-  @doc """
-  Mark devices with a status nothing was sent for, in one statement.
-
-  Used for the devices a dispatch skips: `:offline` when they were not connected
-  when their turn came.
-  """
-  @spec mark_devices_skipped(integer(), [integer()], ScriptRunnerDevice.status()) :: non_neg_integer()
-  def mark_devices_skipped(runner_id, device_ids, status) do
-    update_device_status(runner_id, device_ids, status, finished_at: DateTime.utc_now())
-  end
-
-  defp update_device_status(_runner_id, [], _status, _extra), do: 0
-
-  defp update_device_status(runner_id, device_ids, status, extra) do
-    {count, nil} =
-      ScriptRunnerDevice
-      |> where([srd], srd.script_runner_id == ^runner_id and srd.device_id in ^device_ids)
-      |> Repo.update_all(set: [status: status, updated_at: naive_now()] ++ extra)
-
-    count
-  end
-
   # `timestamps()` here is the repo default `:naive_datetime`, and `update_all`
   # does not cast. The status timestamps are `:utc_datetime_usec` and take a
   # `DateTime` as normal.

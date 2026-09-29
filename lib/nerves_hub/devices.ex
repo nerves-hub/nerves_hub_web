@@ -710,6 +710,46 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
+  The device tags of a product that best match `query`, at most `limit` of them.
+
+  For autocomplete on products with too many tags to send to the browser: the
+  biggest have thousands, which is hundreds of kilobytes of markup and a dropdown
+  nobody can read. This answers one token at a time instead.
+
+  Ranked by trigram similarity rather than returned alphabetically, so the closest
+  tag comes first and a typo or transposition still finds it — `pg_trgm` is
+  already enabled, with a trigram index on `tags`. A blank query matches nothing:
+  a list of arbitrary tags is no help before the person has said anything about
+  what they want.
+  """
+  @spec search_tags_for_product(Product.t(), String.t(), pos_integer()) :: [String.t()]
+  def search_tags_for_product(product, query, limit \\ 5)
+
+  def search_tags_for_product(%Product{}, query, _limit) when not is_binary(query), do: []
+
+  def search_tags_for_product(%Product{} = product, query, limit) do
+    case String.trim(query) do
+      "" ->
+        []
+
+      trimmed ->
+        tags =
+          Device
+          |> where([d], d.product_id == ^product.id)
+          |> where([d], not is_nil(d.tags))
+          |> select([d], %{tag: fragment("distinct unnest(?)", d.tags)})
+
+        from(t in subquery(tags),
+          where: ilike(t.tag, ^"%#{trimmed}%"),
+          order_by: [desc: fragment("similarity(?, ?)", t.tag, ^trimmed), asc: t.tag],
+          limit: ^limit,
+          select: t.tag
+        )
+        |> Repo.all()
+    end
+  end
+
+  @doc """
   Read device identifiers from an uploaded CSV.
 
   One column, headed `identifier`. Values are trimmed, blanks dropped and repeats

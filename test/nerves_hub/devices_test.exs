@@ -641,6 +641,62 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "search_tags_for_product/3" do
+    setup %{org: org, user: user, firmware: firmware} do
+      product = Fixtures.product_fixture(user, org, %{name: "Tag Search Product"})
+
+      for tag <- ~w(sensor site-1-sensor site-2-sensor site-3-sensor site-4-sensor site-5-sensor cellular production) do
+        Fixtures.device_fixture(org, product, firmware, %{tags: [tag]})
+      end
+
+      %{search_product: product}
+    end
+
+    test "ranks the closest tag first", %{search_product: product} do
+      [closest | rest] = Devices.search_tags_for_product(product, "sensor")
+
+      assert closest == "sensor"
+      assert Enum.all?(rest, &String.contains?(&1, "sensor"))
+    end
+
+    test "caps the number of matches", %{search_product: product} do
+      # Six tags contain "sensor"; the default cap is five.
+      assert length(Devices.search_tags_for_product(product, "sensor")) == 5
+      assert length(Devices.search_tags_for_product(product, "sensor", 2)) == 2
+    end
+
+    test "matches regardless of case", %{search_product: product} do
+      assert "cellular" in Devices.search_tags_for_product(product, "CELL")
+    end
+
+    test "matches on part of a tag", %{search_product: product} do
+      assert Devices.search_tags_for_product(product, "duct") == ["production"]
+    end
+
+    # A list of arbitrary tags is no help before the person has said anything.
+    test "returns nothing for a blank query", %{search_product: product} do
+      assert Devices.search_tags_for_product(product, "") == []
+      assert Devices.search_tags_for_product(product, "   ") == []
+    end
+
+    test "returns nothing for a query that matches no tag", %{search_product: product} do
+      assert Devices.search_tags_for_product(product, "no-such-tag") == []
+    end
+
+    test "is scoped to the given product", %{search_product: product, org: org, user: user, firmware: firmware} do
+      other = Fixtures.product_fixture(user, org, %{name: "Another Tag Product"})
+      Fixtures.device_fixture(org, other, firmware, %{tags: ["sensor-elsewhere"]})
+
+      refute "sensor-elsewhere" in Devices.search_tags_for_product(product, "sensor")
+      assert Devices.search_tags_for_product(other, "sensor") == ["sensor-elsewhere"]
+    end
+
+    # The query reaches this straight from a JS hook's payload.
+    test "tolerates a query that is not a string", %{search_product: product} do
+      assert Devices.search_tags_for_product(product, nil) == []
+    end
+  end
+
   describe "firmware_versions/1" do
     setup %{org: org, user: user, firmware: firmware} do
       product = Fixtures.product_fixture(user, org, %{name: "Firmware Versions Product"})

@@ -636,19 +636,34 @@ defmodule NervesHubWeb.CoreComponents do
   @doc """
   Renders a comma-separated tags text input with an autocomplete dropdown.
 
-  Suggestions are filtered client-side (via the `TagAutocomplete` JS hook) from
-  the `available_tags` list, matching the token currently being typed after the
-  last comma. Tags already present in the input are excluded from suggestions.
+  Suggestions match the token currently being typed after the last comma, and
+  exclude tags already present in the input. They come from one of two places,
+  both handled by the `TagAutocomplete` JS hook:
+
+    * `available_tags` — every known tag, filtered in the browser. Right for the
+      small sets.
+    * `search_event` — the name of a LiveView event the hook pushes the typed
+      token to, which replies with `%{tags: [...]}`. Right for device tags, where
+      a big product has thousands: sending them all is hundreds of kilobytes of
+      markup and a dropdown nobody can read. Nothing is suggested until something
+      is typed. See `NervesHub.Devices.search_tags_for_product/3`.
 
   ## Examples
 
       <.tag_input field={@form[:tags]} label="Tags" available_tags={@available_tags} />
+      <.tag_input field={@form[:tags]} label="Device tags" search_event="search-device-tags" />
   """
   attr(:id, :any, default: nil)
   attr(:name, :any)
   attr(:label, :string, default: nil)
   attr(:value, :any)
   attr(:available_tags, :list, default: [], doc: "existing tags to offer as autocomplete suggestions")
+
+  attr(:search_event, :string,
+    default: nil,
+    doc: "a LiveView event to search for matches instead of filtering `available_tags` in the browser"
+  )
+
   attr(:field, FormField, doc: "a form field struct retrieved from the form, for example: @form[:tags]")
   attr(:errors, :list, default: [])
   attr(:rest, :global, include: ~w(placeholder))
@@ -670,11 +685,14 @@ defmodule NervesHubWeb.CoreComponents do
     ~H"""
     <div phx-feedback-for={@name}>
       <.label for={@id}>{@label}</.label>
+      <%!-- Only one source of suggestions is sent: a `search_event` input has no
+            use for the full list, which is the point of it. --%>
       <div
         id={"#{@id}-autocomplete"}
         class="relative mt-2"
         phx-hook="TagAutocomplete"
-        data-available-tags={Jason.encode!(@available_tags)}
+        data-tag-search={@search_event}
+        data-available-tags={!@search_event && Jason.encode!(@available_tags)}
       >
         <input
           type="text"

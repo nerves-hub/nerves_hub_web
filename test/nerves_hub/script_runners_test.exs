@@ -75,6 +75,16 @@ defmodule NervesHub.ScriptRunnersTest do
              "substring matching would target devices the operator did not ask for"
     end
 
+    # Deliberate, and worth stating: targeting is exact, so `production` does not
+    # reach a device tagged `Production`. Matching loosely would send a script to
+    # devices the operator did not name.
+    test "a tag is matched exactly, including its case", ctx do
+      _upper = device(ctx, %{tags: ["Production"]})
+
+      assert {:error, :no_devices} =
+               create(ctx, %{filter_type: :tags, filter: %{tags: ["production"], tag_operator: :or}})
+    end
+
     test "a device with no tags is never selected", ctx do
       _untagged = device(ctx, %{tags: []})
       tagged = device(ctx, %{tags: ["production"]})
@@ -135,8 +145,13 @@ defmodule NervesHub.ScriptRunnersTest do
     end
   end
 
+  # Both guarantees below hold for every filter type because `targetable_devices/1`
+  # applies them to all three. Each is asserted per filter rather than once: the
+  # filters are separate `resolve_targets/3` clauses, and one rewritten without the
+  # base query would run an operator's script on a fleet they cannot see — with the
+  # suite still green if only the tags path were covered.
   describe "create/3 scoping" do
-    test "never targets another product's devices", ctx do
+    test "tags never target another product's devices", ctx do
       other_product = Fixtures.product_fixture(ctx.user, ctx.org, %{name: "other"})
       other_key = Fixtures.org_key_fixture(ctx.org, ctx.user)
       other_firmware = Fixtures.firmware_fixture(other_key, other_product)
@@ -152,7 +167,7 @@ defmodule NervesHub.ScriptRunnersTest do
       assert targeted_device_ids(runner) == [mine.id]
     end
 
-    test "never targets a soft deleted device", ctx do
+    test "tags never target a soft deleted device", ctx do
       kept = device(ctx, %{tags: ["production"]})
       deleted = device(ctx, %{tags: ["production"]})
 
@@ -162,6 +177,84 @@ defmodule NervesHub.ScriptRunnersTest do
         create(ctx, %{filter_type: :tags, filter: %{tags: ["production"], tag_operator: :or}})
 
       assert targeted_device_ids(runner) == [kept.id]
+    end
+
+    # Naming a device outright is the filter most likely to reach across a product
+    # boundary, since an operator can paste any identifier at all.
+    test "identifiers never target another product's device, even when named", ctx do
+      other_product = Fixtures.product_fixture(ctx.user, ctx.org, %{name: "other-by-identifier"})
+      other_key = Fixtures.org_key_fixture(ctx.org, ctx.user)
+      other_firmware = Fixtures.firmware_fixture(other_key, other_product)
+
+      mine = device(ctx)
+      theirs = Fixtures.device_fixture(ctx.org, other_product, other_firmware)
+
+      {:ok, runner, unmatched} =
+        create(ctx, %{
+          filter_type: :identifiers,
+          filter: %{identifiers: "#{mine.identifier},#{theirs.identifier}"}
+        })
+
+      assert targeted_device_ids(runner) == [mine.id]
+
+      assert unmatched == [theirs.identifier],
+             "a device outside the product is as good as nonexistent, and is reported that way"
+    end
+
+    test "identifiers never target a soft deleted device, even when named", ctx do
+      kept = device(ctx)
+      deleted = device(ctx)
+
+      {:ok, _deleted} = NervesHub.Repo.soft_delete(deleted)
+
+      {:ok, runner, unmatched} =
+        create(ctx, %{
+          filter_type: :identifiers,
+          filter: %{identifiers: "#{kept.identifier},#{deleted.identifier}"}
+        })
+
+      assert targeted_device_ids(runner) == [kept.id]
+      assert unmatched == [deleted.identifier]
+    end
+
+    test "deployment groups never target a soft deleted device", ctx do
+      group = Fixtures.deployment_group_fixture(ctx.firmware, %{name: "group", user: ctx.user})
+
+      kept = device(ctx, %{deployment_id: group.id})
+      deleted = device(ctx, %{deployment_id: group.id})
+
+      {:ok, _deleted} = NervesHub.Repo.soft_delete(deleted)
+
+      {:ok, runner, []} =
+        create(ctx, %{filter_type: :deployment_groups, filter: %{deployment_group_ids: [group.id]}})
+
+      assert targeted_device_ids(runner) == [kept.id]
+    end
+
+    test "deployment groups never reach another product's group", ctx do
+      other_product = Fixtures.product_fixture(ctx.user, ctx.org, %{name: "other-by-group"})
+      other_key = Fixtures.org_key_fixture(ctx.org, ctx.user)
+      other_firmware = Fixtures.firmware_fixture(other_key, other_product)
+
+      their_group = Fixtures.deployment_group_fixture(other_firmware, %{name: "theirs", user: ctx.user})
+      _theirs = Fixtures.device_fixture(ctx.org, other_product, other_firmware, %{deployment_id: their_group.id})
+
+      # A device of our own, so the run failing is about the group rather than the
+      # product having nothing in it.
+      _mine = device(ctx)
+
+      assert {:error, :no_devices} =
+               create(ctx, %{
+                 filter_type: :deployment_groups,
+                 filter: %{deployment_group_ids: [their_group.id]}
+               })
+    end
+
+    test "a deployment group that does not exist targets nothing", ctx do
+      _mine = device(ctx)
+
+      assert {:error, :no_devices} =
+               create(ctx, %{filter_type: :deployment_groups, filter: %{deployment_group_ids: [0]}})
     end
   end
 

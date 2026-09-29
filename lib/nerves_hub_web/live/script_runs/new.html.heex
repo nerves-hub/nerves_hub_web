@@ -68,7 +68,7 @@
                 <%!-- Only the chosen filter type's fields are shown; the changeset
                       requires the values for that type and ignores the rest. --%>
                 <div :if={@filter_type == :tags} class="flex flex-col gap-6">
-                  <.tag_input field={filter[:tags]} label="Device tags" placeholder="production, cellular" available_tags={@available_tags} />
+                  <.tag_input field={filter[:tags]} label="Device tags" placeholder="production, cellular" search_event="search-device-tags" />
                   <.input
                     field={filter[:tag_operator]}
                     label="Tag matching"

@@ -240,6 +240,40 @@ defmodule NervesHubWeb.Live.ScriptRunsTest do
       end)
     end
 
+    # The biggest products have thousands of device tags, so the form asks for
+    # matches as they are typed rather than embedding the lot.
+    test "the device tags input searches rather than shipping every tag", ctx do
+      for tag <- ~w(cellular cell-backup production) do
+        Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: [tag]})
+      end
+
+      {:ok, view, html} = live(ctx.conn, new_path(ctx))
+
+      # The tags are not in the markup...
+      refute html =~ "cell-backup"
+
+      html = render_change(view, "validate", %{"script_runner" => %{"filter_type" => "tags"}})
+
+      refute html =~ "cell-backup"
+      assert html =~ ~s(data-tag-search="search-device-tags")
+
+      # ...they are asked for by the hook, which gets them as a reply. Both score
+      # the same on similarity, so the alphabetical tiebreak orders them.
+      render_hook(view, "search-device-tags", %{"query" => "cell"})
+
+      assert_reply(view, %{tags: ["cell-backup", "cellular"]})
+    end
+
+    test "searching device tags with nothing typed returns nothing", ctx do
+      Fixtures.device_fixture(ctx.org, ctx.product, ctx.firmware, %{tags: ["cellular"]})
+
+      {:ok, view, _html} = live(ctx.conn, new_path(ctx))
+
+      render_hook(view, "search-device-tags", %{"query" => ""})
+
+      assert_reply(view, %{tags: []})
+    end
+
     test "copying a support script fills in its code and name", ctx do
       Fixtures.support_script_fixture(ctx.product, ctx.user, %{
         name: "Reboot device",
