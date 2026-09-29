@@ -144,7 +144,9 @@ defmodule NervesHub.Workers.ScriptRunnerDeviceTest do
 
     result = result(runner)
     assert result.status == :timed_out
-    assert result.output =~ "did not respond"
+    # Nothing came back from the device, so there is nothing to record. The status
+    # already says the device did not respond.
+    assert result.output == nil
   end
 
   test "any other error is a failure", ctx do
