@@ -54,6 +54,25 @@ defmodule NervesHubWeb.OAuthControllerTest do
       |> assert_has("h1", text: "We were unable to sign you in.")
     end
 
+    test "shows the failure page if the Google name can't be used for a new account" do
+      Mimic.stub(Ueberauth, :call, fn conn, _routes ->
+        google_auth = Fixtures.ueberauth_google_success_fixture()
+        google_auth = put_in(google_auth.info.name, "Jane Person (she/her)")
+        assigns = Map.put(conn.assigns, :ueberauth_auth, google_auth)
+        %{conn | assigns: assigns}
+      end)
+
+      build_conn()
+      |> visit(~p"/auth/google/callback?state=dummy&code=dummy&scope=email+profile&prompt=none")
+      |> assert_has("h1", text: "We were unable to sign you in.")
+
+      refute Repo.get_by(User, email: "jane@person.com")
+
+      send_queued_emails()
+
+      refute_email_sent()
+    end
+
     test "doesn't send a reset password email if the user logged in with Google" do
       google_auth = Fixtures.ueberauth_google_success_fixture()
 

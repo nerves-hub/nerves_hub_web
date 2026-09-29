@@ -145,7 +145,9 @@ defmodule NervesHubWeb.Live.Org.Users do
   def handle_event("delete_org_user", %{"user_id" => user_id}, %{assigns: %{current_scope: scope}} = socket) do
     {:ok, org_user_to_remove} = Accounts.get_org_user(socket.assigns.org, user_id)
 
-    can_remove!(org_user_to_remove, scope, socket.assigns.admin_count)
+    # Counted here rather than read from assigns: only the index page loads
+    # `admin_count`, but the event can arrive from any page of this LiveView.
+    can_remove!(org_user_to_remove, scope, length(Accounts.get_org_admins(scope.org)))
 
     case Accounts.remove_org_user(scope.org, org_user_to_remove.user) do
       :ok ->
