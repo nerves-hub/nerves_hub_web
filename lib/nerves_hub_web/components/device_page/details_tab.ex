@@ -568,6 +568,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  # Sent by `NervesHub.Devices.Alarms` whenever the device's raised set moves,
+  # whichever extension moved it.
+  def hooked_info(%Broadcast{event: "alarms:updated"}, %{assigns: %{device: device}} = socket) do
+    socket
+    |> assign(:alarms, Alarms.current_alarms_for_device(device))
+    |> halt()
+  end
+
   def hooked_info(_event, socket), do: {:cont, socket}
 
   def hooked_async(:run_script, result, socket) do
@@ -625,7 +633,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   defp box_visible?(:location, product, device), do: show_location?(product, device)
-  defp box_visible?(:alarms, product, device), do: product.extensions.health && device.extensions.health
+  defp box_visible?(:alarms, product, device), do: alarms_reported?(product, device)
   defp box_visible?(_box, _product, _device), do: true
 
   # Box names come from the page, so only known ones are turned into atoms.
@@ -675,6 +683,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp standard_keys(%{firmware_metadata: firmware_metadata}),
     do: firmware_metadata |> Map.keys() |> Enum.map(&to_string/1)
+
+  # Alarms reach the platform through either extension, so the card shows if
+  # either is on for this device.
+  defp alarms_reported?(product, device) do
+    Enum.any?([:health, :alarms], &(product.extensions[&1] and device.extensions[&1]))
+  end
 
   defp has_description?(description) do
     is_binary(description) and byte_size(description) > 0 and description != "[]"
@@ -820,7 +834,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   defp alarms_box(assigns) do
     ~H"""
-    <div :if={@alarms && @product.extensions.health && @device.extensions.health} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
+    <div :if={@alarms && alarms_reported?(@product, @device)} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
       <div class="flex h-14 items-center justify-between pr-3 pl-4">
         <div class="text-base-50 leading-6 font-medium">Alarms</div>
       </div>
@@ -841,7 +855,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       </div>
     </div>
 
-    <div :if={!@alarms && @product.extensions.health && @device.extensions.health} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
+    <div :if={!@alarms && alarms_reported?(@product, @device)} class="bg-surface-raised border-base-700 shadow-device-details-content flex flex-col rounded border">
       <div class="flex h-14 items-center justify-between pr-3 pl-4">
         <div class="text-base-50 leading-6 font-medium">No Alarms Received</div>
       </div>
